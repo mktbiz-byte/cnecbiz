@@ -200,9 +200,9 @@ export default function CompanyDashboard() {
             </button>
             <h1 className="text-2xl font-bold">대시보드</h1>
           </div>
-          <Button onClick={() => navigate('/company/campaigns/create')} className="bg-gradient-to-r from-blue-600 to-purple-600">
+          <Button onClick={() => navigate('/company/campaigns/new')} className="bg-gradient-to-r from-blue-600 to-purple-600">
             <Plus className="w-5 h-5 mr-2" />
-            새 캠페인
+            새 캐페인
           </Button>
         </header>
 
@@ -275,9 +275,9 @@ export default function CompanyDashboard() {
               {campaigns.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500 mb-4">아직 캠페인이 없습니다</p>
-                  <Button onClick={() => navigate('/company/campaigns/create')} className="bg-gradient-to-r from-blue-600 to-purple-600">
+                  <Button onClick={() => navigate('/company/campaigns/new')} className="bg-gradient-to-r from-blue-600 to-purple-600">
                     <Plus className="w-5 h-5 mr-2" />
-                    첫 캠페인 만들기
+                    첫 캐페인 만들기
                   </Button>
                 </div>
               ) : (

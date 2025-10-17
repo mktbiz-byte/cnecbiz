@@ -20,7 +20,7 @@ export default function CreateCampaign() {
     end_date: '',
     target_audience: '',
     product_category: 'beauty',
-    regions: []
+    region: '' // Single region instead of array
   })
 
   // Translator state
@@ -107,19 +107,17 @@ export default function CreateCampaign() {
     }
   }
 
-  const handleRegionToggle = (region) => {
+  const handleRegionSelect = (region) => {
     setFormData(prev => ({
       ...prev,
-      regions: prev.regions.includes(region)
-        ? prev.regions.filter(r => r !== region)
-        : [...prev.regions, region]
+      region: region
     }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!formData.title || !formData.description || formData.regions.length === 0) {
+    if (!formData.title || !formData.description || !formData.region) {
       alert('필수 항목을 모두 입력해주세요')
       return
     }
@@ -145,7 +143,7 @@ export default function CreateCampaign() {
         status: 'pending'
       }
 
-      const results = await createCampaignInRegions(campaignData, formData.regions)
+      const results = await createCampaignInRegions(campaignData, [formData.region])
 
       const successCount = results.filter(r => r.success).length
       const failCount = results.filter(r => !r.success).length
@@ -292,34 +290,52 @@ export default function CreateCampaign() {
                   </div>
                 </div>
 
-                {/* Target Regions */}
+                {/* Target Region */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">타겟 지역 * (복수 선택)</label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <label className="block text-sm font-medium mb-2">타겟 지역 * (1개만 선택 가능)</label>
+                  <div className="grid grid-cols-2 gap-3">
                     {[
-                      { id: 'japan', label: '🇯🇵 일본' },
-                      { id: 'us', label: '🇺🇸 미국' },
-                      { id: 'taiwan', label: '🇹🇼 대만' }
+                      { id: 'korea', label: '🇰🇷 한국', available: true },
+                      { id: 'japan', label: '🇯🇵 일본', available: true },
+                      { id: 'us', label: '🇺🇸 미국', available: true },
+                      { id: 'taiwan', label: '🇹🇼 대만', available: true },
+                      { id: 'china', label: '🇨🇳 중국', available: false },
+                      { id: 'thailand', label: '🇹🇭 태국', available: false },
+                      { id: 'vietnam', label: '🇻🇳 베트남', available: false },
+                      { id: 'indonesia', label: '🇮🇩 인도네시아', available: false }
                     ].map(region => (
                       <button
                         key={region.id}
                         type="button"
-                        onClick={() => handleRegionToggle(region.id)}
-                        className={`p-3 border-2 rounded-lg transition-all ${
-                          formData.regions.includes(region.id)
+                        onClick={() => region.available && handleRegionSelect(region.id)}
+                        disabled={!region.available}
+                        className={`p-3 border-2 rounded-lg transition-all relative ${
+                          formData.region === region.id
                             ? 'border-blue-600 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            : region.available
+                            ? 'border-gray-200 hover:border-gray-300'
+                            : 'border-gray-100 bg-gray-50 cursor-not-allowed'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{region.label}</span>
-                          {formData.regions.includes(region.id) && (
+                          <span className={`text-sm font-medium ${
+                            region.available ? '' : 'text-gray-400'
+                          }`}>
+                            {region.label}
+                          </span>
+                          {formData.region === region.id && (
                             <CheckCircle className="w-4 h-4 text-blue-600" />
                           )}
                         </div>
+                        {!region.available && (
+                          <div className="mt-1 text-xs text-gray-400">오픈예정</div>
+                        )}
                       </button>
                     ))}
                   </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    * 각 국가별로 언어가 달라 각각 등록해주세요
+                  </p>
                 </div>
 
                 {/* Submit */}
