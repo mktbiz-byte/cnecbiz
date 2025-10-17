@@ -507,6 +507,7 @@ ${snsUrls}
 
                 <div className="mt-6">
                   <Button
+                    type="button"
                     onClick={generateAIProfile}
                     disabled={isGenerating}
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 h-12 text-lg"
