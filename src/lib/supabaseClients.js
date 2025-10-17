@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseJapanUrl = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
 const supabaseJapanKey = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || ''
 
-export const supabaseJapan = supabaseJapanUrl && supabaseJapanKey
+export const supabaseJapan = (supabaseJapanUrl && supabaseJapanKey && supabaseJapanUrl.startsWith('http'))
   ? createClient(supabaseJapanUrl, supabaseJapanKey)
   : null
 
@@ -15,7 +15,7 @@ export const supabaseJapan = supabaseJapanUrl && supabaseJapanKey
 const supabaseUSUrl = import.meta.env.VITE_SUPABASE_US_URL || ''
 const supabaseUSKey = import.meta.env.VITE_SUPABASE_US_ANON_KEY || ''
 
-export const supabaseUS = supabaseUSUrl && supabaseUSKey
+export const supabaseUS = (supabaseUSUrl && supabaseUSKey && supabaseUSUrl.startsWith('http'))
   ? createClient(supabaseUSUrl, supabaseUSKey)
   : null
 
@@ -23,7 +23,7 @@ export const supabaseUS = supabaseUSUrl && supabaseUSKey
 const supabaseTaiwanUrl = import.meta.env.VITE_SUPABASE_TAIWAN_URL || ''
 const supabaseTaiwanKey = import.meta.env.VITE_SUPABASE_TAIWAN_ANON_KEY || ''
 
-export const supabaseTaiwan = supabaseTaiwanUrl && supabaseTaiwanKey
+export const supabaseTaiwan = (supabaseTaiwanUrl && supabaseTaiwanKey && supabaseTaiwanUrl.startsWith('http'))
   ? createClient(supabaseTaiwanUrl, supabaseTaiwanKey)
   : null
 
@@ -31,7 +31,7 @@ export const supabaseTaiwan = supabaseTaiwanUrl && supabaseTaiwanKey
 const supabaseBizUrl = import.meta.env.VITE_SUPABASE_BIZ_URL || ''
 const supabaseBizKey = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || ''
 
-export const supabaseBiz = supabaseBizUrl && supabaseBizKey
+export const supabaseBiz = (supabaseBizUrl && supabaseBizKey && supabaseBizUrl.startsWith('http'))
   ? createClient(supabaseBizUrl, supabaseBizKey)
   : null
 
