@@ -15,7 +15,8 @@ import {
   Plus,
   Trash2,
   GripVertical,
-  HelpCircle
+  HelpCircle,
+  Edit
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -248,6 +249,13 @@ export default function AdminDashboard() {
             >
               <Shield className="w-5 h-5" />
               크리에이터 승인
+            </button>
+            <button 
+              onClick={() => navigate('/admin/site-editor')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Edit className="w-5 h-5" />
+              사이트 편집
             </button>
             <button 
               onClick={() => navigate('/admin/videos')}

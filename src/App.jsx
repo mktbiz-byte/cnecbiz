@@ -21,6 +21,7 @@ import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApproval
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
+import SiteEditor from './components/admin/SiteEditor'
 import AuthCallback from './components/AuthCallback'
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
+        <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
 
