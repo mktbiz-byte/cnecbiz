@@ -52,11 +52,21 @@ export default function FAQManagement() {
         .select('*')
         .order('display_order', { ascending: true })
 
-      if (!error && data) {
+      console.log('FAQ fetch result:', { data, error })
+
+      if (error) {
+        console.error('Error fetching FAQs:', error)
+        alert('FAQ 불러오기 실패: ' + error.message)
+        return
+      }
+
+      if (data) {
+        console.log('FAQs loaded:', data.length)
         setFaqs(data)
       }
     } catch (error) {
       console.error('Error fetching FAQs:', error)
+      alert('오류: ' + error.message)
     }
   }
 
