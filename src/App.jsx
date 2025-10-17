@@ -4,6 +4,7 @@ import LoginPageNew from './components/LoginPageNew'
 import SignupPageNew from './components/SignupPageNew'
 import CompanyDashboard from './components/company/CompanyDashboard'
 import AdminDashboard from './components/admin/AdminDashboard'
+import AuthCallback from './components/AuthCallback'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/signup" element={<SignupPageNew />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* Company Admin Routes */}
         <Route path="/company/dashboard" element={<CompanyDashboard />} />
