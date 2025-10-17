@@ -60,7 +60,7 @@ export default function AuthCallback() {
               user_id: user.id,
               email: user.email,
               company_name: user.user_metadata?.full_name || user.email.split('@')[0],
-              status: 'active'
+              contact_person: user.user_metadata?.full_name || user.email.split('@')[0]
             })
 
           if (insertError) {
