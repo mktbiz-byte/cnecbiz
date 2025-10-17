@@ -95,6 +95,11 @@ export default function FeaturedCreatorApprovals() {
       setShowDetail(false)
       setSelectedApp(null)
       setAdminNotes('')
+      
+      // 승인된 항목을 목록에서 제거
+      setApplications(prev => prev.filter(app => app.id !== application.id))
+      
+      // 통계 업데이트를 위해 전체 목록 재조회
       fetchApplications()
     } catch (error) {
       console.error('Error approving:', error)
@@ -133,6 +138,11 @@ export default function FeaturedCreatorApprovals() {
       setSelectedApp(null)
       setRejectionReason('')
       setAdminNotes('')
+      
+      // 거절된 항목을 목록에서 제거
+      setApplications(prev => prev.filter(app => app.id !== application.id))
+      
+      // 통계 업데이트를 위해 전체 목록 재조회
       fetchApplications()
     } catch (error) {
       console.error('Error rejecting:', error)
