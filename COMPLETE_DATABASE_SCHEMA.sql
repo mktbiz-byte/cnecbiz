@@ -706,83 +706,83 @@ CREATE POLICY "Users can insert their own agreements"
   WITH CHECK (auth.uid() = user_id);
 
 -- =====================================================
--- PART 8: Admin Policies (admin@cnecbiz.com)
+-- PART 8: Admin Policies (mkt_biz@cnec.co.kr)
 -- =====================================================
 
 -- Admin can do everything on companies
 CREATE POLICY "Admin can do everything on companies"
   ON companies FOR ALL
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can do everything on campaigns
 CREATE POLICY "Admin can do everything on campaigns"
   ON campaigns FOR ALL
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can do everything on featured_creators
 CREATE POLICY "Admin can do everything on featured_creators"
   ON featured_creators FOR ALL
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can do everything on reference_videos
 CREATE POLICY "Admin can do everything on reference_videos"
   ON reference_videos FOR ALL
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can do everything on tax_invoices
 CREATE POLICY "Admin can do everything on tax_invoices"
   ON tax_invoices FOR ALL
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can view all payments
 CREATE POLICY "Admin can view all payments"
   ON payments FOR SELECT
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can update payments
 CREATE POLICY "Admin can update payments"
   ON payments FOR UPDATE
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can view all points balances
 CREATE POLICY "Admin can view all points balances"
   ON points_balance FOR SELECT
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can update points balances
 CREATE POLICY "Admin can update points balances"
   ON points_balance FOR UPDATE
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can view all points transactions
 CREATE POLICY "Admin can view all points transactions"
   ON points_transactions FOR SELECT
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can insert points transactions
 CREATE POLICY "Admin can insert points transactions"
   ON points_transactions FOR INSERT
-  WITH CHECK (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  WITH CHECK (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can view all charge requests
 CREATE POLICY "Admin can view all charge requests"
   ON points_charge_requests FOR SELECT
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can update charge requests
 CREATE POLICY "Admin can update charge requests"
   ON points_charge_requests FOR UPDATE
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can manage terms
 CREATE POLICY "Admin can manage terms"
   ON terms FOR ALL
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- Admin can view all agreements
 CREATE POLICY "Admin can view all agreements"
   ON user_term_agreements FOR SELECT
-  USING (auth.jwt() ->> 'email' = 'admin@cnecbiz.com');
+  USING (auth.jwt() ->> 'email' = 'mkt_biz@cnec.co.kr');
 
 -- =====================================================
 -- PART 9: Insert Default Terms
@@ -954,6 +954,6 @@ BEGIN
   RAISE NOTICE '📋 Default terms inserted';
   RAISE NOTICE '🎉 Database is ready to use!';
   RAISE NOTICE '';
-  RAISE NOTICE '⚠️  IMPORTANT: Create admin user with email: admin@cnecbiz.com';
+  RAISE NOTICE '⚠️  IMPORTANT: Create admin user with email: mkt_biz@cnec.co.kr (Google OAuth)r';
 END $$;
 

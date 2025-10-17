@@ -44,7 +44,7 @@ export default function LoginPageNew() {
         navigate('/company/dashboard')
       } else {
         // 슈퍼 관리자 확인 (이메일 기반)
-        if (data.user.email === 'admin@cnecbiz.com') {
+        if (data.user.email === 'mkt_biz@cnec.co.kr') {
           navigate('/admin/dashboard')
         } else {
           setError('등록되지 않은 사용자입니다.')

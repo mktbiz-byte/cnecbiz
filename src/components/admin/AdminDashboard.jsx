@@ -43,7 +43,7 @@ export default function AdminDashboard() {
     }
 
     const { data: { user } } = await supabaseBiz.auth.getUser()
-    if (!user || user.email !== 'admin@cnecbiz.com') {
+    if (!user || user.email !== 'mkt_biz@cnec.co.kr') {
       navigate('/login')
       return
     }
