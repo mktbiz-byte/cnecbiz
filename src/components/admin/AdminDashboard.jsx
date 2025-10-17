@@ -240,7 +240,14 @@ export default function AdminDashboard() {
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
             >
               <Users className="w-5 h-5" />
-              추천 크리에이터
+              추천 크리에이터 관리
+            </button>
+            <button 
+              onClick={() => navigate('/admin/creator-approvals')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Shield className="w-5 h-5" />
+              크리에이터 승인
             </button>
             <button 
               onClick={() => navigate('/admin/videos')}
