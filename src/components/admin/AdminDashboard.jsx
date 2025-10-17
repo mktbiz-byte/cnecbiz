@@ -14,7 +14,8 @@ import {
   X,
   Plus,
   Trash2,
-  GripVertical
+  GripVertical,
+  HelpCircle
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -247,6 +248,13 @@ export default function AdminDashboard() {
             >
               <Video className="w-5 h-5" />
               영상 관리
+            </button>
+            <button 
+              onClick={() => navigate('/admin/manage-faqs')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <HelpCircle className="w-5 h-5" />
+              FAQ 관리
             </button>
             <button 
               onClick={() => navigate('/admin/revenue')}

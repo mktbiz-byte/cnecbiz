@@ -32,7 +32,14 @@ const supabaseBizUrl = import.meta.env.VITE_SUPABASE_BIZ_URL || ''
 const supabaseBizKey = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || ''
 
 export const supabaseBiz = (supabaseBizUrl && supabaseBizKey && supabaseBizUrl.startsWith('http'))
-  ? createClient(supabaseBizUrl, supabaseBizKey)
+  ? createClient(supabaseBizUrl, supabaseBizKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storage: window.localStorage
+      }
+    })
   : null
 
 // Helper function to get the appropriate client based on region
