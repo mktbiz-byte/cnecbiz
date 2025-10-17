@@ -28,6 +28,7 @@ export default function CreateCampaign() {
   const [translatedText, setTranslatedText] = useState('')
   const [targetLang, setTargetLang] = useState('japanese')
   const [translating, setTranslating] = useState(false)
+  const [bulkTranslating, setBulkTranslating] = useState(false)
 
   const languages = [
     { id: 'japanese', label: '🇯🇵 일본어', flag: 'JP' },
@@ -104,6 +105,95 @@ export default function CreateCampaign() {
       alert('번역 중 오류가 발생했습니다: ' + error.message)
     } finally {
       setTranslating(false)
+    }
+  }
+
+  const handleBulkTranslate = async () => {
+    if (!formData.region) {
+      alert('타겟 지역을 먼저 선택해주세요')
+      return
+    }
+
+    if (!formData.title || !formData.brand) {
+      alert('제목과 브랜드는 필수입니다')
+      return
+    }
+
+    setBulkTranslating(true)
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다')
+
+      // 타겟 언어 결정
+      const targetLangMap = {
+        'japan': '일본어',
+        'us': '영어',
+        'taiwan': '중국어 번체',
+        'china': '중국어 간체',
+        'korea': '한국어'
+      }
+      const targetLang = targetLangMap[formData.region] || '영어'
+
+      // 번역할 텍스트 모음
+      const textsToTranslate = {
+        title: formData.title,
+        brand: formData.brand,
+        description: formData.description || '',
+        target_audience: formData.target_audience || ''
+      }
+
+      // 한번에 모두 번역
+      const prompt = `다음 한국어 텍스트들을 ${targetLang}로 자연스럽게 번역해주세요. JSON 형식으로 반환해주세요.
+
+입력:
+${JSON.stringify(textsToTranslate, null, 2)}
+
+출력 형식:
+{
+  "title": "번역된 제목",
+  "brand": "번역된 브랜드",
+  "description": "번역된 설명",
+  "target_audience": "번역된 참가조건"
+}`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+          })
+        }
+      )
+
+      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+      const data = await response.json()
+      const resultText = data.candidates[0]?.content?.parts[0]?.text || ''
+      
+      // JSON 추출
+      const jsonMatch = resultText.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다')
+      
+      const translated = JSON.parse(jsonMatch[0])
+
+      // 폼 데이터 업데이트
+      setFormData(prev => ({
+        ...prev,
+        title: translated.title || prev.title,
+        brand: translated.brand || prev.brand,
+        description: translated.description || prev.description,
+        target_audience: translated.target_audience || prev.target_audience
+      }))
+
+      alert(`번역 완료! ${targetLang}로 변환되었습니다.`)
+    } catch (error) {
+      console.error('Bulk translation error:', error)
+      alert('번역 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setBulkTranslating(false)
     }
   }
 
@@ -244,6 +334,37 @@ export default function CreateCampaign() {
                     onChange={(e) => setFormData({ ...formData, target_audience: e.target.value })}
                     placeholder="참가 조건을 입력하세요"
                   />
+                </div>
+
+                {/* 일괄 번역 버튼 */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Languages className="w-5 h-5 text-blue-600" />
+                      <h4 className="font-semibold text-gray-900">일괄 번역</h4>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleBulkTranslate}
+                      disabled={bulkTranslating || !formData.title || !formData.brand}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg"
+                    >
+                      {bulkTranslating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          번역 중...
+                        </>
+                      ) : (
+                        <>
+                          <Languages className="w-4 h-4 mr-2" />
+                          한국어 → {formData.region === 'japan' ? '일본어' : formData.region === 'us' ? '영어' : formData.region === 'taiwan' ? '중국어(번체)' : '번역'}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    제목, 브랜드, 설명, 참가조건을 선택한 타겟 지역 언어로 자동 번역합니다.
+                  </p>
                 </div>
 
                 {/* Dates */}
