@@ -259,29 +259,39 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {videos.map((video) => (
-              <div
-                key={video.id}
-                className="group relative aspect-[9/16] rounded-2xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all"
-                onClick={() => video.youtube_url && window.open(video.youtube_url, '_blank')}
-              >
-                <img
-                  src={video.thumbnail_url}
-                  alt={video.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <p className="text-white font-medium">{video.title}</p>
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center">
-                      <Play className="w-8 h-8 text-blue-600 ml-1" />
-                    </div>
-                  </div>
+            {videos.map((video) => {
+              // Extract YouTube video ID from URL
+              const getYouTubeId = (url) => {
+                if (!url) return null
+                const match = url.match(/(?:youtube\.com\/(?:shorts\/|embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+                return match ? match[1] : null
+              }
+              
+              const videoId = getYouTubeId(video.youtube_url)
+              
+              return (
+                <div
+                  key={video.id}
+                  className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
+                >
+                  {videoId ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${videoId}`}
+                      title={video.title}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <img
+                      src={video.thumbnail_url}
+                      alt={video.title}
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <div className="text-center mt-12">
@@ -454,9 +464,30 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      {/* Partner Brands Section */}
+      <section className="py-20 bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+              함께 하는 <span className="text-blue-600">브랜드</span>
+            </h2>
+            <p className="text-xl text-slate-600">
+              다양한 브랜드들이 CNEC BIZ와 함께 성장하고 있습니다
+            </p>
+          </div>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
+          <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12">
+            <img
+              src="/brands.png"
+              alt="함께 하는 브랜드"
+              className="w-full h-auto"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 bg-white">nt-to-br from-blue-600 to-cyan-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
             지금 바로 시작하세요
