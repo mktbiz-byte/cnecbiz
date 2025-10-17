@@ -16,6 +16,7 @@ import CompaniesManagement from './components/admin/CompaniesManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import CreatorsManagement from './components/admin/CreatorsManagement'
 import FAQManagement from './components/admin/FAQManagement'
+import VideoManagement from './components/admin/VideoManagement'
 import AuthCallback from './components/AuthCallback'
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
+        <Route path="/admin/videos" element={<VideoManagement />} />
 
         {/* Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />

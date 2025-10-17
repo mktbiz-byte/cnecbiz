@@ -143,6 +143,7 @@ export default function CreatorsManagement() {
 
   const getRegionLabel = (region) => {
     const labels = {
+      korea: '🇰🇷 한국',
       japan: '🇯🇵 일본',
       us: '🇺🇸 미국',
       taiwan: '🇹🇼 대만'
@@ -194,6 +195,7 @@ export default function CreatorsManagement() {
                     onChange={(e) => setNewCreator({ ...newCreator, region: e.target.value })}
                     className="w-full px-4 py-2 border rounded-lg"
                   >
+                    <option value="korea">한국</option>
                     <option value="japan">일본</option>
                     <option value="us">미국</option>
                     <option value="taiwan">대만</option>

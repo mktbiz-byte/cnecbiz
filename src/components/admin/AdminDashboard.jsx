@@ -243,11 +243,11 @@ export default function AdminDashboard() {
               추천 크리에이터
             </button>
             <button 
-              onClick={() => window.scrollTo({ top: document.getElementById('videos')?.offsetTop, behavior: 'smooth' })}
+              onClick={() => navigate('/admin/videos')}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
             >
               <Video className="w-5 h-5" />
-              영상 관리
+              영상 레퍼런스
             </button>
             <button 
               onClick={() => navigate('/admin/manage-faqs')}
@@ -364,78 +364,36 @@ export default function AdminDashboard() {
             </Card>
           </div>
 
-          {/* Video Management */}
-          <Card id="videos">
+          {/* Revenue Overview */}
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Video className="w-6 h-6" />
-                영상 레퍼런스 관리
+                <TrendingUp className="w-6 h-6" />
+                매출 통계
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Add Video Form */}
-              <div className="border rounded-lg p-6 bg-gray-50">
-                <h3 className="font-medium mb-4">새 영상 추가</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">YouTube Shorts URL *</label>
-                    <Input
-                      placeholder="https://www.youtube.com/shorts/..."
-                      value={newVideo.url}
-                      onChange={(e) => setNewVideo({ ...newVideo, url: e.target.value })}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">YouTube Shorts 또는 일반 YouTube URL을 입력하세요</p>
-                  </div>
-                  <Button onClick={handleAddVideo} className="bg-gradient-to-r from-blue-600 to-purple-600">
-                    <Plus className="w-4 h-4 mr-2" />
-                    영상 추가
-                  </Button>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
+                  <div className="text-sm text-blue-700 font-medium mb-2">이번 달 매출</div>
+                  <div className="text-3xl font-bold text-blue-900">0원</div>
+                  <div className="text-xs text-blue-600 mt-2">전월 대비 -</div>
+                </div>
+                <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
+                  <div className="text-sm text-green-700 font-medium mb-2">총 매출</div>
+                  <div className="text-3xl font-bold text-green-900">0원</div>
+                  <div className="text-xs text-green-600 mt-2">누적 매출</div>
+                </div>
+                <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
+                  <div className="text-sm text-purple-700 font-medium mb-2">포인트 충전</div>
+                  <div className="text-3xl font-bold text-purple-900">0원</div>
+                  <div className="text-xs text-purple-600 mt-2">이번 달 충전액</div>
                 </div>
               </div>
-
-              {/* Video List */}
-              <div className="space-y-4">
-                {videos.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    아직 등록된 영상이 없습니다
-                  </div>
-                ) : (
-                  videos.map((video) => (
-                    <div key={video.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
-                      <GripVertical className="w-5 h-5 text-gray-400 cursor-move" />
-                      
-                      {video.thumbnail_url && (
-                        <img src={video.thumbnail_url} alt={video.title} className="w-32 h-20 object-cover rounded" />
-                      )}
-                      
-                      <div className="flex-1">
-                        <h4 className="font-medium">{video.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{video.url}</p>
-                        {video.description && (
-                          <p className="text-sm text-gray-500 mt-1">{video.description}</p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant={video.is_active ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => toggleVideoActive(video.id, video.is_active)}
-                        >
-                          {video.is_active ? '활성화' : '비활성화'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteVideo(video.id)}
-                          className="text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="mt-6 text-center">
+                <Button onClick={() => navigate('/admin/revenue')} variant="outline">
+                  자세한 매출 보고서 보기
+                </Button>
               </div>
             </CardContent>
           </Card>
