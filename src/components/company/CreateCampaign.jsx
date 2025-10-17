@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Plus, CheckCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Languages, Loader2, Lightbulb, FileText } from 'lucide-react'
 import { supabaseBiz, createCampaignInRegions } from '../../lib/supabaseClients'
 
 export default function CreateCampaign() {
@@ -22,6 +22,19 @@ export default function CreateCampaign() {
     product_category: 'beauty',
     regions: []
   })
+
+  // Translator state
+  const [sourceText, setSourceText] = useState('')
+  const [translatedText, setTranslatedText] = useState('')
+  const [targetLang, setTargetLang] = useState('japanese')
+  const [translating, setTranslating] = useState(false)
+
+  const languages = [
+    { id: 'japanese', label: '🇯🇵 일본어', flag: 'JP' },
+    { id: 'english', label: '🇺🇸 영어', flag: 'US' },
+    { id: 'chinese_simplified', label: '🇨🇳 중국어(간체)', flag: 'CN' },
+    { id: 'chinese_traditional', label: '🇹🇼 중국어(번체)', flag: 'TW' }
+  ]
 
   useEffect(() => {
     checkAuth()
@@ -48,6 +61,49 @@ export default function CreateCampaign() {
 
     if (companyData) {
       setCompany(companyData)
+    }
+  }
+
+  const handleTranslate = async () => {
+    if (!sourceText.trim()) {
+      alert('번역할 텍스트를 입력해주세요')
+      return
+    }
+
+    setTranslating(true)
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다')
+
+      const selectedLang = languages.find(l => l.id === targetLang)
+      const targetLangName = selectedLang.label.split(' ')[1]
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ 
+              parts: [{ 
+                text: `다음 한국어 텍스트를 ${targetLangName}로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n${sourceText}` 
+              }] 
+            }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+          })
+        }
+      )
+
+      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+      const data = await response.json()
+      const translated = data.candidates[0]?.content?.parts[0]?.text || '번역 실패'
+      setTranslatedText(translated.trim())
+    } catch (error) {
+      console.error('Translation error:', error)
+      alert('번역 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setTranslating(false)
     }
   }
 
@@ -110,7 +166,7 @@ export default function CreateCampaign() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-6">
         <div className="mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/dashboard')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -118,155 +174,282 @@ export default function CreateCampaign() {
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">새 캠페인 만들기</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Info */}
-              <div>
-                <label className="block text-sm font-medium mb-2">캠페인 제목 *</label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="예: 신제품 글로벌 론칭 캠페인"
-                  required
-                />
-              </div>
+        <h1 className="text-3xl font-bold mb-2">새 캠페인 생성</h1>
+        <p className="text-gray-600 mb-8">일주에서 캠페인 정보를 입력하고, 오른쪽 번역기를 활용하세요.</p>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">캠페인 설명 *</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="캠페인의 목표와 내용을 자세히 설명해주세요"
-                  className="w-full px-4 py-2 border rounded-lg min-h-32"
-                  required
-                />
-              </div>
-
-              {/* Target Regions */}
-              <div>
-                <label className="block text-sm font-medium mb-2">타겟 지역 * (복수 선택 가능)</label>
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { id: 'japan', label: '🇯🇵 일본', color: 'red' },
-                    { id: 'us', label: '🇺🇸 미국', color: 'blue' },
-                    { id: 'taiwan', label: '🇹🇼 대만', color: 'green' }
-                  ].map(region => (
-                    <button
-                      key={region.id}
-                      type="button"
-                      onClick={() => handleRegionToggle(region.id)}
-                      className={`p-4 border-2 rounded-lg transition-all ${
-                        formData.regions.includes(region.id)
-                          ? `border-${region.color}-600 bg-${region.color}-50`
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{region.label}</span>
-                        {formData.regions.includes(region.id) && (
-                          <CheckCircle className={`w-5 h-5 text-${region.color}-600`} />
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Budget & Creators */}
-              <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Campaign Form */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                캠페인 정보
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Title */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">예산 (원) *</label>
+                  <label className="block text-sm font-medium mb-2">캠페인 제목 *</label>
                   <Input
-                    type="number"
-                    value={formData.budget}
-                    onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) })}
-                    placeholder="2000000"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="캠페인 제목을 입력하세요"
                     required
                   />
                 </div>
+
+                {/* Brand */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">크리에이터 수</label>
+                  <label className="block text-sm font-medium mb-2">브랜드 *</label>
                   <Input
-                    type="number"
-                    value={formData.creator_count}
-                    onChange={(e) => setFormData({ ...formData, creator_count: parseInt(e.target.value) })}
-                    placeholder="5"
-                    min="1"
+                    value={formData.brand || ''}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    placeholder="브랜드명을 입력하세요"
                   />
                 </div>
-              </div>
 
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
+                {/* Category */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">시작일</label>
-                  <Input
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                  <label className="block text-sm font-medium mb-2">Category *</label>
+                  <select
+                    value={formData.product_category}
+                    onChange={(e) => setFormData({ ...formData, product_category: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  >
+                    <option value="beauty">Beauty</option>
+                    <option value="fashion">Fashion</option>
+                    <option value="food">Food</option>
+                    <option value="lifestyle">Lifestyle</option>
+                    <option value="tech">Tech</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">설명</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="캠페인 설명을 입력하세요"
+                    className="w-full px-4 py-2 border rounded-lg min-h-32"
+                    required
                   />
                 </div>
+
+                {/* Target Regions */}
                 <div>
-                  <label className="block text-sm font-medium mb-2">종료일</label>
+                  <label className="block text-sm font-medium mb-2">참가조건 *</label>
                   <Input
-                    type="date"
-                    value={formData.end_date}
-                    onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    value={formData.target_audience || ''}
+                    onChange={(e) => setFormData({ ...formData, target_audience: e.target.value })}
+                    placeholder="참가 조건을 입력하세요"
                   />
                 </div>
-              </div>
 
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium mb-2">제품 카테고리</label>
-                <select
-                  value={formData.product_category}
-                  onChange={(e) => setFormData({ ...formData, product_category: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg"
-                >
-                  <option value="beauty">뷰티</option>
-                  <option value="fashion">패션</option>
-                  <option value="food">식품</option>
-                  <option value="lifestyle">라이프스타일</option>
-                  <option value="tech">테크</option>
-                  <option value="other">기타</option>
-                </select>
-              </div>
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">시작일</label>
+                    <Input
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">종료일</label>
+                    <Input
+                      type="date"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                    />
+                  </div>
+                </div>
 
-              {/* Target Audience */}
-              <div>
-                <label className="block text-sm font-medium mb-2">타겟 고객</label>
-                <Input
-                  value={formData.target_audience}
-                  onChange={(e) => setFormData({ ...formData, target_audience: e.target.value })}
-                  placeholder="예: 20-30대 여성"
-                />
-              </div>
+                {/* Budget & Creators */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">예산 (원) *</label>
+                    <Input
+                      type="number"
+                      value={formData.budget}
+                      onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) })}
+                      placeholder="0"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">크리에이터 수</label>
+                    <Input
+                      type="number"
+                      value={formData.creator_count}
+                      onChange={(e) => setFormData({ ...formData, creator_count: parseInt(e.target.value) })}
+                      placeholder="1"
+                      min="1"
+                    />
+                  </div>
+                </div>
 
-              {/* Submit */}
-              <div className="flex gap-4">
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
-                >
-                  {loading ? '생성 중...' : '캠페인 생성'}
-                </Button>
+                {/* Target Regions */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">타겟 지역 * (복수 선택)</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: 'japan', label: '🇯🇵 일본' },
+                      { id: 'us', label: '🇺🇸 미국' },
+                      { id: 'taiwan', label: '🇹🇼 대만' }
+                    ].map(region => (
+                      <button
+                        key={region.id}
+                        type="button"
+                        onClick={() => handleRegionToggle(region.id)}
+                        className={`p-3 border-2 rounded-lg transition-all ${
+                          formData.regions.includes(region.id)
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{region.label}</span>
+                          {formData.regions.includes(region.id) && (
+                            <CheckCircle className="w-4 h-4 text-blue-600" />
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <div className="flex gap-4 pt-4">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600"
+                  >
+                    {loading ? '생성 중...' : '캠페인 생성'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate('/company/dashboard')}
+                  >
+                    취소
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Right: Translator */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Languages className="w-5 h-5 text-blue-600" />
+                  한국어 → 일본어 번역기
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Language Selector */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {languages.find(l => l.id === targetLang)?.flag} 번역 결과
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {languages.map(lang => (
+                      <button
+                        key={lang.id}
+                        type="button"
+                        onClick={() => setTargetLang(lang.id)}
+                        className={`p-2 border rounded-lg text-sm transition-all ${
+                          targetLang === lang.id
+                            ? 'border-blue-600 bg-blue-50 text-blue-700 font-medium'
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        {lang.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Source Text */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">📝 한국어 입력</label>
+                  <textarea
+                    value={sourceText}
+                    onChange={(e) => setSourceText(e.target.value)}
+                    placeholder="번역할 한국어 텍스트를 입력하세요..."
+                    className="w-full px-4 py-3 border rounded-lg min-h-40 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="text-sm text-gray-500 mt-1">
+                    {sourceText.length} / 5000자
+                  </div>
+                </div>
+
+                {/* Translate Button */}
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => navigate('/company/dashboard')}
+                  onClick={handleTranslate}
+                  disabled={translating || !sourceText.trim()}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
                 >
-                  취소
+                  {translating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      번역 중...
+                    </>
+                  ) : (
+                    <>
+                      <Languages className="w-4 h-4 mr-2" />
+                      번역하기
+                    </>
+                  )}
                 </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+
+                {/* Translated Text */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {languages.find(l => l.id === targetLang)?.label} 번역 결과
+                  </label>
+                  {translating ? (
+                    <div className="w-full min-h-40 border rounded-lg bg-gray-50 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    </div>
+                  ) : translatedText ? (
+                    <div className="w-full min-h-40 px-4 py-3 border rounded-lg bg-green-50 border-green-200">
+                      <p className="whitespace-pre-wrap text-gray-800">{translatedText}</p>
+                    </div>
+                  ) : (
+                    <div className="w-full min-h-40 border rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+                      번역 결과가 여기에 표시됩니다
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tips */}
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-2">
+                  <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-yellow-900 mb-2">💡 사용 팁</h3>
+                    <ul className="text-sm text-yellow-800 space-y-1">
+                      <li>• 번역 결과는 수정 가능합니다</li>
+                      <li>• 특사 버튼으로 쉽게 캠페인 폼에 붙여넣기 할 수 있습니다</li>
+                      <li>• 마케팅 문구는 현지 감각에 맞게 자연스럽게 번역됩니다</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
