@@ -246,7 +246,7 @@ const CampaignCreatePage = () => {
       const failCount = results.filter(r => !r.success).length
 
       if (successCount > 0) {
-        alert(`캠페인이 생성되었습니다!\n성공: ${successCount}개 지역\n실패: ${failCount}개 지역`)
+        alert(`캠페인이 생성되었습니다!\n성공: ${successCount}개 지역\n실패: ${failCount}개 지역\n\n이제 결제를 진행해주세요.`)
         
         // Generate documents
         if (companyData) {
@@ -256,7 +256,8 @@ const CampaignCreatePage = () => {
           }, 1000)
         }
 
-        navigate('/dashboard')
+        // Redirect to payment page
+        navigate(`/campaigns/${bizCampaign.id}/payment`)
       } else {
         alert('캠페인 생성에 실패했습니다. 다시 시도해주세요.')
       }
