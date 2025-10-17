@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
+import Footer from './Footer'
+import ContentEditor, { EditModeToggle } from './admin/ContentEditor'
 
 export default function LandingPage() {
   const navigate = useNavigate()
@@ -486,8 +488,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-20 bg-white">nt-to-br from-blue-600 to-cyan-600 text-white">
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
             지금 바로 시작하세요
@@ -510,48 +512,10 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Globe className="w-6 h-6 text-blue-500" />
-                <span className="text-xl font-bold text-white">CNEC BIZ</span>
-              </div>
-              <p className="text-sm">
-                글로벌 인플루언서 마케팅 플랫폼
-              </p>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-4">서비스</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-blue-500 transition-colors">캠페인 관리</a></li>
-                <li><a href="#" className="hover:text-blue-500 transition-colors">크리에이터 매칭</a></li>
-                <li><a href="#" className="hover:text-blue-500 transition-colors">성과 분석</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-4">지원</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-blue-500 transition-colors">수출바우처</a></li>
-                <li><a href="#" className="hover:text-blue-500 transition-colors">FAQ</a></li>
-                <li><a href="#" className="hover:text-blue-500 transition-colors">고객센터</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-bold mb-4">회사</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-blue-500 transition-colors">회사 소개</a></li>
-                <li><a href="#" className="hover:text-blue-500 transition-colors">이용약관</a></li>
-                <li><a href="#" className="hover:text-blue-500 transition-colors">개인정보처리방침</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-slate-800 pt-8 text-sm text-center">
-            <p>&copy; 2025 CNEC BIZ. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+      
+      {/* 관리자 편집 모드 토글 */}
+      <EditModeToggle />
     </div>
   )
 }
