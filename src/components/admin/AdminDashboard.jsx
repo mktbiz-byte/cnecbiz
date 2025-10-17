@@ -182,6 +182,13 @@ export default function AdminDashboard() {
   }
 
   const extractYouTubeId = (url) => {
+    // YouTube Shorts 지원 추가
+    if (url.includes('/shorts/')) {
+      const shortsMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/)
+      if (shortsMatch) return shortsMatch[1]
+    }
+    
+    // 일반 YouTube URL
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/
     const match = url.match(regExp)
     return (match && match[2].length === 11) ? match[2] : null
@@ -240,6 +247,13 @@ export default function AdminDashboard() {
             >
               <Video className="w-5 h-5" />
               영상 관리
+            </button>
+            <button 
+              onClick={() => navigate('/admin/revenue')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <TrendingUp className="w-5 h-5" />
+              매출 관리
             </button>
             <button 
               onClick={() => navigate('/admin/manage-admins')}
@@ -354,36 +368,21 @@ export default function AdminDashboard() {
               {/* Add Video Form */}
               <div className="border rounded-lg p-6 bg-gray-50">
                 <h3 className="font-medium mb-4">새 영상 추가</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">영상 URL *</label>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">YouTube Shorts URL *</label>
                     <Input
-                      placeholder="https://www.youtube.com/watch?v=..."
+                      placeholder="https://www.youtube.com/shorts/..."
                       value={newVideo.url}
                       onChange={(e) => setNewVideo({ ...newVideo, url: e.target.value })}
                     />
+                    <p className="text-xs text-gray-500 mt-1">YouTube Shorts 또는 일반 YouTube URL을 입력하세요</p>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">제목</label>
-                    <Input
-                      placeholder="영상 제목"
-                      value={newVideo.title}
-                      onChange={(e) => setNewVideo({ ...newVideo, title: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">설명</label>
-                    <Input
-                      placeholder="영상 설명"
-                      value={newVideo.description}
-                      onChange={(e) => setNewVideo({ ...newVideo, description: e.target.value })}
-                    />
-                  </div>
+                  <Button onClick={handleAddVideo} className="bg-gradient-to-r from-blue-600 to-purple-600">
+                    <Plus className="w-4 h-4 mr-2" />
+                    영상 추가
+                  </Button>
                 </div>
-                <Button onClick={handleAddVideo} className="mt-4 bg-gradient-to-r from-blue-600 to-purple-600">
-                  <Plus className="w-4 h-4 mr-2" />
-                  영상 추가
-                </Button>
               </div>
 
               {/* Video List */}

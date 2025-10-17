@@ -5,6 +5,7 @@ import SignupPageNew from './components/SignupPageNew'
 import CompanyDashboard from './components/company/CompanyDashboard'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AdminManagement from './components/admin/AdminManagement'
+import RevenueManagement from './components/admin/RevenueManagement'
 import AuthCallback from './components/AuthCallback'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
         {/* Super Admin Routes */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-admins" element={<AdminManagement />} />
+        <Route path="/admin/revenue" element={<RevenueManagement />} />
 
         {/* Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
