@@ -91,10 +91,14 @@ export default function VideoManagement() {
         ? Math.max(...videos.map(v => v.display_order || 0))
         : 0
 
+      // YouTube URL을 embed URL로 변환
+      const embedUrl = `https://www.youtube.com/embed/${videoId}`
+      
       const { error } = await supabaseBiz
         .from('reference_videos')
         .insert({
-          youtube_url: newVideo.url,
+          url: embedUrl, // url 컴럼에 embed URL 저장
+          youtube_url: newVideo.url, // 원본 URL 보관
           thumbnail_url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
           display_order: maxOrder + 1,
           is_active: true
