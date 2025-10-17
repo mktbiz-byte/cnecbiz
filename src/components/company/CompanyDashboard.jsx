@@ -10,7 +10,9 @@ import {
   DollarSign,
   LogOut,
   Menu,
-  X
+  X,
+  Coins,
+  Receipt
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -123,7 +125,10 @@ export default function CompanyDashboard() {
           </div>
 
           <nav className="space-y-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-50 text-blue-600 font-medium">
+            <button 
+              onClick={() => navigate('/company/dashboard')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-50 text-blue-600 font-medium"
+            >
               <LayoutDashboard className="w-5 h-5" />
               대시보드
             </button>
@@ -132,14 +137,35 @@ export default function CompanyDashboard() {
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
             >
               <TrendingUp className="w-5 h-5" />
-              캠페인 관리
+              내 캐페인
             </button>
             <button 
-              onClick={() => navigate('/company/team')}
+              onClick={() => navigate('/company/campaigns/new')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Plus className="w-5 h-5" />
+              캐페인 만들기
+            </button>
+            <button 
+              onClick={() => navigate('/company/teams')}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
             >
               <Users className="w-5 h-5" />
               팀 관리
+            </button>
+            <button 
+              onClick={() => navigate('/company/points')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Coins className="w-5 h-5" />
+              포인트 충전
+            </button>
+            <button 
+              onClick={() => navigate('/company/payments')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Receipt className="w-5 h-5" />
+              결제 내역
             </button>
           </nav>
         </div>
