@@ -8,6 +8,7 @@ import {
   Instagram, Youtube, Video, Edit, CheckCircle, XCircle, Eye, X
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import { scrapeAllPlatforms } from '../../lib/youtubeScraperService'
 
 export default function CreatorsManagement() {
   const navigate = useNavigate()
@@ -129,6 +130,16 @@ export default function CreatorsManagement() {
 
     setIsGenerating(true)
     try {
+      // 1단계: SNS 크롤링으로 실제 데이터 수집
+      console.log('📊 SNS 데이터 크롤링 중...')
+      const scrapedData = await scrapeAllPlatforms({
+        youtube_url: formData.youtube_url,
+        instagram_url: formData.instagram_url,
+        tiktok_url: formData.tiktok_url
+      })
+
+      console.log('✅ 크롤링 결과:', scrapedData)
+
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY
       if (!apiKey) throw new Error('API 키가 설정되지 않았습니다')
 
@@ -139,11 +150,22 @@ export default function CreatorsManagement() {
         formData.other_sns_url
       ].filter(Boolean).join('\n')
 
-      const prompt = `당신은 크리에이터 프로필 분석 전문가입니다. 다음 SNS URL을 분석하여 크리에이터의 프로필을 생성해주세요.
+      // 2단계: 크롤링된 실제 데이터를 포함한 프롬프트 생성
+      const realDataInfo = `
+실제 수집된 데이터:
+- 총 팔로워: ${scrapedData.totalFollowers.toLocaleString()}명
+- 평균 조회수: ${scrapedData.avgViews.toLocaleString()}회
+- 평균 참여율: ${scrapedData.avgEngagement}%
+${scrapedData.youtube ? `- YouTube 구독자: ${scrapedData.youtube.subscribers.toLocaleString()}명` : ''}
+${scrapedData.youtube ? `- YouTube 영상 수: ${scrapedData.youtube.videoCount}개` : ''}`
+
+      const prompt = `당신은 크리에이터 프로필 분석 전문가입니다. 다음 정보를 바탕으로 크리에이터의 프로필을 생성해주세요.
 
 크리에이터 이름: ${formData.creator_name}
 SNS URLs:
 ${snsUrls}
+
+${realDataInfo}
 
 다음 형식의 JSON으로 응답해주세요:
 {
@@ -187,6 +209,7 @@ ${snsUrls}
       
       const aiProfile = JSON.parse(resultText)
 
+      // 3단계: 크롤링된 실제 데이터 우선 사용, AI 추정치는 보조
       setFormData(prev => ({
         ...prev,
         ai_generated_bio: aiProfile.bio,
@@ -201,9 +224,10 @@ ${snsUrls}
         final_target_audience: aiProfile.target_audience,
         final_content_style: aiProfile.content_style,
         
-        total_followers: aiProfile.estimated_followers || 0,
-        avg_engagement_rate: aiProfile.estimated_engagement || 0,
-        avg_views: aiProfile.estimated_views || 0
+        // 실제 크롤링 데이터 우선 사용
+        total_followers: scrapedData.totalFollowers || aiProfile.estimated_followers || 0,
+        avg_engagement_rate: scrapedData.avgEngagement || aiProfile.estimated_engagement || 0,
+        avg_views: scrapedData.avgViews || aiProfile.estimated_views || 0
       }))
 
       alert('✨ AI 프로필이 생성되었습니다! 내용을 확인하고 필요시 수정해주세요.')
