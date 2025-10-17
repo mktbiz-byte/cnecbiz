@@ -230,7 +230,7 @@ ${snsUrls}
       const { data: { user } } = await supabaseBiz.auth.getUser()
 
       const creatorData = {
-        user_id: user.id,
+        user_id: null, // 관리자가 등록하는 경우 user_id는 null
         creator_name: formData.creator_name,
         email: formData.email,
         phone: formData.phone,
