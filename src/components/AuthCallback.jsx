@@ -26,7 +26,14 @@ export default function AuthCallback() {
         const user = session.user
 
         // Check if admin
-        if (user.email === 'mkt_biz@cnec.co.kr') {
+        const { data: adminData } = await supabaseBiz
+          .from('admins')
+          .select('*')
+          .eq('email', user.email)
+          .eq('is_active', true)
+          .single()
+
+        if (adminData) {
           navigate('/admin/dashboard')
           return
         }

@@ -43,10 +43,24 @@ export default function AdminDashboard() {
     }
 
     const { data: { user } } = await supabaseBiz.auth.getUser()
-    if (!user || user.email !== 'mkt_biz@cnec.co.kr') {
+    if (!user) {
       navigate('/login')
       return
     }
+
+    // Check if admin
+    const { data: adminData } = await supabaseBiz
+      .from('admins')
+      .select('*')
+      .eq('email', user.email)
+      .eq('is_active', true)
+      .single()
+
+    if (!adminData) {
+      navigate('/login')
+      return
+    }
+
     setUser(user)
   }
 
@@ -226,6 +240,20 @@ export default function AdminDashboard() {
             >
               <Video className="w-5 h-5" />
               영상 관리
+            </button>
+            <button 
+              onClick={() => navigate('/admin/manage-admins')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Shield className="w-5 h-5" />
+              관리자 권한 관리
+            </button>
+            <button 
+              onClick={() => navigate('/company/dashboard')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700 border-t mt-4 pt-4"
+            >
+              <Building2 className="w-5 h-5" />
+              기업 뷰로 보기
             </button>
           </nav>
         </div>

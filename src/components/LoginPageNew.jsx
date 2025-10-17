@@ -39,16 +39,24 @@ export default function LoginPageNew() {
         .eq('user_id', data.user.id)
         .single()
 
+      // Check if admin first
+      const { data: adminData } = await supabaseBiz
+        .from('admins')
+        .select('*')
+        .eq('email', data.user.email)
+        .eq('is_active', true)
+        .single()
+
+      if (adminData) {
+        navigate('/admin/dashboard')
+        return
+      }
+
       if (userData) {
         // 일반 기업 사용자
         navigate('/company/dashboard')
       } else {
-        // 슈퍼 관리자 확인 (이메일 기반)
-        if (data.user.email === 'mkt_biz@cnec.co.kr') {
-          navigate('/admin/dashboard')
-        } else {
-          setError('등록되지 않은 사용자입니다.')
-        }
+        setError('등록되지 않은 사용자입니다.')
       }
     } catch (error) {
       setError(error.message || '로그인에 실패했습니다.')
