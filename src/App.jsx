@@ -8,6 +8,7 @@ import MyCampaigns from './components/company/MyCampaigns'
 import TeamManagement from './components/company/TeamManagement'
 import PointsManagement from './components/company/PointsManagement'
 import PaymentHistory from './components/company/PaymentHistory'
+import Translator from './components/company/Translator'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AdminManagement from './components/admin/AdminManagement'
 import RevenueManagement from './components/admin/RevenueManagement'
@@ -31,6 +32,7 @@ function App() {
         <Route path="/company/dashboard" element={<CompanyDashboard />} />
         <Route path="/company/campaigns/new" element={<CreateCampaign />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
+        <Route path="/company/translator" element={<Translator />} />
         <Route path="/company/teams" element={<TeamManagement />} />
         <Route path="/company/points" element={<PointsManagement />} />
         <Route path="/company/payments" element={<PaymentHistory />} />

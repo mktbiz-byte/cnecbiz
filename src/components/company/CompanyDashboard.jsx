@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Coins,
-  Receipt
+  Receipt,
+  Languages
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -145,6 +146,13 @@ export default function CompanyDashboard() {
             >
               <Plus className="w-5 h-5" />
               캐페인 만들기
+            </button>
+            <button 
+              onClick={() => navigate('/company/translator')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Languages className="w-5 h-5" />
+              AI 번역기
             </button>
             <button 
               onClick={() => navigate('/company/teams')}
