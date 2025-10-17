@@ -17,6 +17,10 @@ import CampaignsManagement from './components/admin/CampaignsManagement'
 import CreatorsManagement from './components/admin/CreatorsManagement'
 import FAQManagement from './components/admin/FAQManagement'
 import VideoManagement from './components/admin/VideoManagement'
+import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApprovals'
+import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
+import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
+import CreatorDetailProfile from './components/company/CreatorDetailProfile'
 import AuthCallback from './components/AuthCallback'
 
 function App() {
@@ -47,6 +51,12 @@ function App() {
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
+        <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
+        <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
+
+        {/* Creator Routes */}
+        <Route path="/creator/apply" element={<CreatorProfileApplication />} />
+        <Route path="/creator/:creatorId" element={<CreatorDetailProfile />} />
 
         {/* Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />

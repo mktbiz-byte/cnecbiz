@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Video, Plus, Trash2, GripVertical, ArrowLeft, Languages } from 'lucide-react'
+import { Video, Plus, Trash2, GripVertical, ArrowLeft, Languages, X } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function VideoManagement() {
