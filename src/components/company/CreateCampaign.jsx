@@ -13,14 +13,42 @@ export default function CreateCampaign() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
+    brand: '',
     description: '',
-    budget: 0,
-    creator_count: 1,
+    requirements: '',
+    category: 'beauty',
+    image_url: '',
+    reward_amount: '',
+    max_participants: '',
+    application_deadline: '',
     start_date: '',
     end_date: '',
+    status: 'active',
+    target_platforms: {
+      instagram: true,
+      youtube: false,
+      tiktok: false
+    },
+    question1: '',
+    question1_type: 'short',
+    question1_options: '',
+    question2: '',
+    question2_type: 'short',
+    question2_options: '',
+    question3: '',
+    question3_type: 'short',
+    question3_options: '',
+    question4: '',
+    question4_type: 'short',
+    question4_options: '',
+    age_requirement: '',
+    skin_type_requirement: '',
+    offline_visit_requirement: '',
+    budget: 0,
+    creator_count: 1,
     target_audience: '',
     product_category: 'beauty',
-    region: '' // Single region instead of array
+    region: ''
   })
 
   // Translator state
@@ -223,14 +251,37 @@ ${JSON.stringify(textsToTranslate, null, 2)}
       const campaignData = {
         company_id: company.id,
         title: formData.title,
+        brand: formData.brand,
         description: formData.description,
-        budget: formData.budget,
-        creator_count: formData.creator_count,
+        requirements: formData.requirements || formData.target_audience,
+        category: formData.category || formData.product_category,
+        image_url: formData.image_url || '',
+        reward_amount: parseInt(formData.reward_amount) || 0,
+        max_participants: parseInt(formData.max_participants) || 0,
+        application_deadline: formData.application_deadline,
         start_date: formData.start_date,
         end_date: formData.end_date,
+        status: 'pending',
+        target_platforms: formData.target_platforms,
+        question1: formData.question1 || '',
+        question1_type: formData.question1_type || 'short',
+        question1_options: formData.question1_options || '',
+        question2: formData.question2 || '',
+        question2_type: formData.question2_type || 'short',
+        question2_options: formData.question2_options || '',
+        question3: formData.question3 || '',
+        question3_type: formData.question3_type || 'short',
+        question3_options: formData.question3_options || '',
+        question4: formData.question4 || '',
+        question4_type: formData.question4_type || 'short',
+        question4_options: formData.question4_options || '',
+        age_requirement: formData.age_requirement || '',
+        skin_type_requirement: formData.skin_type_requirement || '',
+        offline_visit_requirement: formData.offline_visit_requirement || '',
+        budget: formData.budget,
+        creator_count: formData.creator_count,
         target_audience: formData.target_audience,
-        product_category: formData.product_category,
-        status: 'pending'
+        product_category: formData.product_category
       }
 
       const results = await createCampaignInRegions(campaignData, [formData.region])
