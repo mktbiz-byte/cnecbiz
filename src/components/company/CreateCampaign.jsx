@@ -690,6 +690,79 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                   </p>
                 </div>
 
+                {/* Additional Questions (Optional) */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">추가 질문 (선택사항)</h3>
+                  <p className="text-sm text-gray-500 mb-4">크리에이터에게 물어볼 추가 질문을 설정할 수 있습니다.</p>
+                  
+                  {[1, 2, 3, 4].map(num => (
+                    <div key={num} className="mb-4 p-4 bg-gray-50 rounded-lg">
+                      <label className="block text-sm font-medium mb-2">질문 {num}</label>
+                      <Input
+                        type="text"
+                        value={formData[`question${num}`]}
+                        onChange={(e) => setFormData({ ...formData, [`question${num}`]: e.target.value })}
+                        placeholder="예: 피부 타입을 알려주세요"
+                        className="mb-2"
+                      />
+                      <div className="flex gap-2">
+                        <select
+                          value={formData[`question${num}_type`]}
+                          onChange={(e) => setFormData({ ...formData, [`question${num}_type`]: e.target.value })}
+                          className="px-3 py-2 border rounded-lg text-sm"
+                        >
+                          <option value="short">단답형</option>
+                          <option value="long">장문형</option>
+                          <option value="select">선택형</option>
+                        </select>
+                        {formData[`question${num}_type`] === 'select' && (
+                          <Input
+                            type="text"
+                            value={formData[`question${num}_options`]}
+                            onChange={(e) => setFormData({ ...formData, [`question${num}_options`]: e.target.value })}
+                            placeholder="옵션 (쉼표로 구분: 지성,건성,복합성)"
+                            className="flex-1"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Participation Requirements (Optional) */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">참가 조건 (선택사항)</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">나이 제한</label>
+                      <Input
+                        type="text"
+                        value={formData.age_requirement}
+                        onChange={(e) => setFormData({ ...formData, age_requirement: e.target.value })}
+                        placeholder="예: 20세 이상"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">피부 타입 제한</label>
+                      <Input
+                        type="text"
+                        value={formData.skin_type_requirement}
+                        onChange={(e) => setFormData({ ...formData, skin_type_requirement: e.target.value })}
+                        placeholder="예: 지성 피부, 건성 피부"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">오프라인 방문 여부</label>
+                      <Input
+                        type="text"
+                        value={formData.offline_visit_requirement}
+                        onChange={(e) => setFormData({ ...formData, offline_visit_requirement: e.target.value })}
+                        placeholder="예: 서울 강남 매장 방문 필수"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Submit */}
                 <div className="flex gap-4 pt-4">
                   <Button
