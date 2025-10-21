@@ -6,6 +6,8 @@ import CompanyDashboard from './components/company/CompanyDashboard'
 import CreateCampaign from './components/company/CreateCampaign'
 import CampaignGuide from './components/company/CampaignGuide'
 import MyCampaigns from './components/company/MyCampaigns'
+import CampaignApprovals from './components/admin/CampaignApprovals'
+import CampaignReview from './components/admin/CampaignReview'
 import TeamManagement from './components/company/TeamManagement'
 import PointsManagement from './components/company/PointsManagement'
 import PaymentHistory from './components/company/PaymentHistory'
@@ -51,6 +53,8 @@ function App() {
         <Route path="/admin/revenue" element={<RevenueManagement />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
+        <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
+        <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
