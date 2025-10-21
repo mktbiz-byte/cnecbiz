@@ -290,8 +290,15 @@ ${JSON.stringify(textsToTranslate, null, 2)}
       const failCount = results.filter(r => !r.success).length
 
       if (successCount > 0) {
-        alert(`캠페인이 생성되었습니다!\n성공: ${successCount}개 지역\n실패: ${failCount}개 지역`)
-        navigate('/company/campaigns')
+        const createdCampaign = results.find(r => r.success)
+        if (createdCampaign && createdCampaign.data) {
+          // 캠페인 생성 성공 후 가이드 작성 페이지로 이동
+          alert(`캠페인이 생성되었습니다! 이제 가이드를 작성해주세요.`)
+          navigate(`/company/campaigns/${createdCampaign.data.id}/guide`)
+        } else {
+          alert(`캠페인이 생성되었습니다!\n성공: ${successCount}개 지역\n실패: ${failCount}개 지역`)
+          navigate('/company/campaigns')
+        }
       } else {
         alert('캠페인 생성에 실패했습니다. 다시 시도해주세요.')
       }

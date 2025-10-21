@@ -4,6 +4,7 @@ import LoginPageNew from './components/LoginPageNew'
 import SignupPageNew from './components/SignupPageNew'
 import CompanyDashboard from './components/company/CompanyDashboard'
 import CreateCampaign from './components/company/CreateCampaign'
+import CampaignGuide from './components/company/CampaignGuide'
 import MyCampaigns from './components/company/MyCampaigns'
 import TeamManagement from './components/company/TeamManagement'
 import PointsManagement from './components/company/PointsManagement'
@@ -37,6 +38,7 @@ function App() {
         {/* Company Admin Routes */}
         <Route path="/company/dashboard" element={<CompanyDashboard />} />
         <Route path="/company/campaigns/new" element={<CreateCampaign />} />
+        <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
         <Route path="/company/translator" element={<Translator />} />
         <Route path="/company/teams" element={<TeamManagement />} />
