@@ -523,7 +523,16 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                 </div>
 
                 {/* Dates */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">모집 마감일 *</label>
+                    <Input
+                      type="date"
+                      value={formData.application_deadline}
+                      onChange={(e) => setFormData({ ...formData, application_deadline: e.target.value })}
+                      required
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">시작일</label>
                     <Input
@@ -540,6 +549,20 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                       onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                     />
                   </div>
+                </div>
+
+                {/* Max Participants */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">최대 참가자 수 *</label>
+                  <Input
+                    type="number"
+                    value={formData.max_participants}
+                    onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) })}
+                    placeholder="예: 10"
+                    min="1"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">선착순으로 모집되며, 인원이 마감되면 자동으로 모집이 종료됩니다.</p>
                 </div>
 
                 {/* Budget & Creators */}
@@ -564,6 +587,59 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                       min="1"
                     />
                   </div>
+                </div>
+
+                {/* SNS Platforms */}
+                <div>
+                  <label className="block text-sm font-medium mb-3">대상 SNS 플랫폼 *</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.target_platforms.instagram}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          target_platforms: {
+                            ...formData.target_platforms,
+                            instagram: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className="text-sm font-medium">📷 Instagram</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.target_platforms.youtube}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          target_platforms: {
+                            ...formData.target_platforms,
+                            youtube: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-red-600 rounded"
+                      />
+                      <span className="text-sm font-medium">🎥 YouTube</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.target_platforms.tiktok}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          target_platforms: {
+                            ...formData.target_platforms,
+                            tiktok: e.target.checked
+                          }
+                        })}
+                        className="w-4 h-4 text-pink-600 rounded"
+                      />
+                      <span className="text-sm font-medium">🎵 TikTok</span>
+                    </label>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">하나 이상 선택해주세요</p>
                 </div>
 
                 {/* Target Region */}
