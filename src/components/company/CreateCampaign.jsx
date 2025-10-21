@@ -418,6 +418,110 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                   </p>
                 </div>
 
+                {/* Reward Amount Selection */}
+                <div>
+                  <label className="block text-sm font-medium mb-3">보상 금액 선택 *</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* 20만원 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const amount = formData.region === 'japan' ? 20000 : formData.region === 'us' ? 150 : 200000
+                        setFormData({ ...formData, reward_amount: amount })
+                      }}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        (formData.region === 'japan' && formData.reward_amount === 20000) ||
+                        (formData.region === 'us' && formData.reward_amount === 150) ||
+                        (!formData.region && formData.reward_amount === 200000)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="font-bold text-lg mb-1">
+                        {formData.region === 'japan' ? '¥20,000' : formData.region === 'us' ? '$150' : '₩200,000'}
+                      </div>
+                      <div className="text-sm text-gray-600">기본 리뷰 (1건)</div>
+                      <div className="text-xs text-gray-500 mt-1">제품 사용 후기 영상</div>
+                    </button>
+
+                    {/* 30만원 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const amount = formData.region === 'japan' ? 30000 : formData.region === 'us' ? 220 : 300000
+                        setFormData({ ...formData, reward_amount: amount })
+                      }}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        (formData.region === 'japan' && formData.reward_amount === 30000) ||
+                        (formData.region === 'us' && formData.reward_amount === 220) ||
+                        (!formData.region && formData.reward_amount === 300000)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="font-bold text-lg mb-1">
+                        {formData.region === 'japan' ? '¥30,000' : formData.region === 'us' ? '$220' : '₩300,000'}
+                      </div>
+                      <div className="text-sm text-gray-600">프리미엄 리뷰 (1건)</div>
+                      <div className="text-xs text-gray-500 mt-1">상세 리뷰 + Before/After</div>
+                    </button>
+
+                    {/* 40만원 */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const amount = formData.region === 'japan' ? 40000 : formData.region === 'us' ? 300 : 400000
+                        setFormData({ ...formData, reward_amount: amount })
+                      }}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        (formData.region === 'japan' && formData.reward_amount === 40000) ||
+                        (formData.region === 'us' && formData.reward_amount === 300) ||
+                        (!formData.region && formData.reward_amount === 400000)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="font-bold text-lg mb-1">
+                        {formData.region === 'japan' ? '¥40,000' : formData.region === 'us' ? '$300' : '₩400,000'}
+                      </div>
+                      <div className="text-sm text-gray-600">스페셜 리뷰 (1건)</div>
+                      <div className="text-xs text-gray-500 mt-1">전문가 리뷰 + 상세 가이드</div>
+                    </button>
+
+                    {/* 60만원 (4주 챌린지) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const amount = formData.region === 'japan' ? 60000 : formData.region === 'us' ? 450 : 600000
+                        setFormData({ ...formData, reward_amount: amount, max_participants: 4 })
+                      }}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        (formData.region === 'japan' && formData.reward_amount === 60000) ||
+                        (formData.region === 'us' && formData.reward_amount === 450) ||
+                        (!formData.region && formData.reward_amount === 600000)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="font-bold text-lg mb-1">
+                        {formData.region === 'japan' ? '¥60,000' : formData.region === 'us' ? '$450' : '₩600,000'}
+                      </div>
+                      <div className="text-sm text-gray-600">4주 챌린지 (4건)</div>
+                      <div className="text-xs text-gray-500 mt-1">매주 1건씩 총 4건 업로드</div>
+                      <div className="text-xs text-blue-600 mt-1">주당 {formData.region === 'japan' ? '¥15,000' : formData.region === 'us' ? '$112' : '₩150,000'}</div>
+                    </button>
+                  </div>
+                  {formData.reward_amount && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      선택된 금액: <span className="font-bold">
+                        {formData.region === 'japan' ? `¥${formData.reward_amount.toLocaleString()}` : 
+                         formData.region === 'us' ? `$${formData.reward_amount}` : 
+                         `₩${formData.reward_amount.toLocaleString()}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Dates */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
