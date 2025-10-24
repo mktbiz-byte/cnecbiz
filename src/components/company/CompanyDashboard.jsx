@@ -41,34 +41,40 @@ export default function CompanyDashboard() {
   }, [selectedRegion])
 
   const checkAuth = async () => {
-    // 테스트를 위해 로그인 체크 비활성화
-    // if (!supabaseBiz) {
-    //   navigate('/login')
-    //   return
-    // }
+    if (!supabaseBiz) {
+      navigate('/login')
+      return
+    }
 
-    // const { data: { user } } = await supabaseBiz.auth.getUser()
-    // if (!user) {
-    //   navigate('/login')
-    //   return
-    // }
-    // setUser(user)
+    const { data: { user } } = await supabaseBiz.auth.getUser()
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    setUser(user)
+    
+    // 회사 정보 가져오기
+    const { data: companyData } = await supabaseBiz
+      .from('companies')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+    
+    setCompany(companyData)
   }
 
   const fetchData = async () => {
     try {
+      if (!user) return
+      
       // 선택된 지역의 Supabase 클라이언트 선택
       const supabaseClient = selectedRegion === 'korea' ? supabaseKorea : supabaseBiz
       
-      // 캠페인 목록 (한국은 모든 캠페인, 다른 지역은 user_id 필터)
-      let query = supabaseClient.from('campaigns').select('*')
-      
-      if (selectedRegion !== 'korea') {
-        const { data: { user } } = await supabaseBiz.auth.getUser()
-        if (user) {
-          query = query.eq('company_id', user.id)
-        }
-      }
+      // 로그인한 회사의 캠페인만 가져오기 (company_email 기준)
+      const query = supabaseClient
+        .from('campaigns')
+        .select('*')
+        .eq('company_email', user.email)
       
       const { data: campaignsData } = await query
         .order('created_at', { ascending: false })

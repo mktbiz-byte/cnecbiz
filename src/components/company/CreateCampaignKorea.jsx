@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase, storage } from '../../lib/supabaseKorea'
+import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
@@ -229,13 +230,25 @@ const CampaignCreationKorea = () => {
       // 제목 자동 생성
       const autoTitle = `${campaignForm.brand} ${campaignForm.product_name} ${categoryName}`.trim()
 
+      // 로그인한 사용자 정보 가져오기
+      let userEmail = null
+      try {
+        const { data: { user } } = await supabaseBiz.auth.getUser()
+        if (user) {
+          userEmail = user.email
+        }
+      } catch (authError) {
+        console.warn('로그인 정보를 가져올 수 없습니다:', authError)
+      }
+
       const campaignData = {
         ...restForm,
         title: autoTitle,
         reward_points: parseInt(campaignForm.reward_points) || 0,
         total_slots: parseInt(campaignForm.total_slots) || 0,
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
-        questions: questions.length > 0 ? questions : null
+        questions: questions.length > 0 ? questions : null,
+        company_email: userEmail  // 회사 이메일 저장
       }
 
       if (editId) {
