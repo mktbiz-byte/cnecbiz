@@ -241,12 +241,23 @@ const CampaignCreationKorea = () => {
         setSuccess('캠페인이 수정되었습니다!')
       } else {
         // 신규 생성
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('campaigns')
           .insert([campaignData])
+          .select()
 
         if (error) throw error
-        setSuccess('캠페인이 생성되었습니다!')
+        setSuccess('캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.')
+        
+        // 크리에이터 가이드 페이지로 이동
+        setTimeout(() => {
+          if (data && data[0]) {
+            navigate(`/company/campaigns/guide?id=${data[0].id}`)
+          } else {
+            navigate('/company/campaigns')
+          }
+        }, 1500)
+        return
       }
 
       setTimeout(() => {

@@ -6,6 +6,7 @@ import CompanyDashboard from './components/company/CompanyDashboard'
 import CreateCampaign from './components/company/CreateCampaign'
 import CreateCampaignRouter from './components/company/CreateCampaignRouter'
 import CampaignGuide from './components/company/CampaignGuide'
+import CampaignGuideEditor from './components/company/CampaignGuideEditor'
 import MyCampaigns from './components/company/MyCampaigns'
 import CampaignApprovals from './components/admin/CampaignApprovals'
 import CampaignReview from './components/admin/CampaignReview'
@@ -41,6 +42,7 @@ function App() {
         {/* Company Admin Routes */}
         <Route path="/company/dashboard" element={<CompanyDashboard />} />
         <Route path="/company/campaigns/new" element={<CreateCampaignRouter />} />
+        <Route path="/company/campaigns/guide" element={<CampaignGuideEditor />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
         <Route path="/company/translator" element={<Translator />} />
