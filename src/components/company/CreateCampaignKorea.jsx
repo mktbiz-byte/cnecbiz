@@ -16,21 +16,22 @@ const CampaignCreationKorea = () => {
   const [campaignForm, setCampaignForm] = useState({
     title: '',
     brand: '',
-    description: '',
     requirements: '',
-    category: 'youtube',  // youtube, instagram, 4week_challenge
+    category: 'youtube',  // youtube, instagram
     image_url: '',
     product_name: '',
     product_description: '',
     product_link: '',
     product_detail_file_url: '',
-    reward_points: '',
-    total_slots: '',
-    remaining_slots: '',
+    package_type: 'oliveyoung',  // oliveyoung, premium, 4week_challenge
+    total_slots: 10,
+    remaining_slots: 10,
+    estimated_cost: 2000000,  // 자동 계산
     application_deadline: '',
     start_date: '',
     end_date: '',
     status: 'draft',
+    creator_guide: '',  // 크리에이터 가이드
     target_platforms: {
       instagram: false,
       youtube: true,
@@ -53,8 +54,14 @@ const CampaignCreationKorea = () => {
   // 카테고리 옵션
   const categoryOptions = [
     { value: 'youtube', label: '🎬 유튜브 모집', platforms: { youtube: true, instagram: false, tiktok: false } },
-    { value: 'instagram', label: '📸 인스타 모집', platforms: { instagram: true, youtube: false, tiktok: false } },
-    { value: '4week_challenge', label: '🏆 4주 챌린지', platforms: { instagram: true, youtube: true, tiktok: true } }
+    { value: 'instagram', label: '📸 인스타 모집', platforms: { instagram: true, youtube: false, tiktok: false } }
+  ]
+
+  // 패키지 옵션
+  const packageOptions = [
+    { value: 'oliveyoung', label: '올영 패키지', price: 200000 },
+    { value: 'premium', label: '프리미엄 패키지', price: 300000 },
+    { value: '4week_challenge', label: '4주 챌린지', price: 600000 }
   ]
 
   // 편집 모드일 때 데이터 로드
@@ -101,6 +108,33 @@ const CampaignCreationKorea = () => {
       ...prev,
       category: value,
       target_platforms: selected ? selected.platforms : prev.target_platforms
+    }))
+  }
+
+  // 패키지 변경 핸들러 (결제 금액 자동 계산)
+  const handlePackageChange = (value) => {
+    const selectedPackage = packageOptions.find(p => p.value === value)
+    if (selectedPackage) {
+      const estimatedCost = selectedPackage.price * campaignForm.total_slots
+      setCampaignForm(prev => ({
+        ...prev,
+        package_type: value,
+        estimated_cost: estimatedCost
+      }))
+    }
+  }
+
+  // 모집 인원 변경 핸들러 (결제 금액 자동 계산)
+  const handleSlotsChange = (value) => {
+    const slots = parseInt(value) || 0
+    const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+    const estimatedCost = selectedPackage ? selectedPackage.price * slots : 0
+    
+    setCampaignForm(prev => ({
+      ...prev,
+      total_slots: slots,
+      remaining_slots: slots,
+      estimated_cost: estimatedCost
     }))
   }
 
@@ -247,12 +281,12 @@ const CampaignCreationKorea = () => {
               <div>
                 <Label htmlFor="category">캠페인 카테고리 *</Label>
                 <Select value={campaignForm.category} onValueChange={handleCategoryChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white">
                     <SelectValue placeholder="카테고리 선택" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {categoryOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                      <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
                         {opt.label}
                       </SelectItem>
                     ))}
@@ -284,19 +318,6 @@ const CampaignCreationKorea = () => {
                 />
               </div>
 
-              {/* 캠페인 설명 */}
-              <div>
-                <Label htmlFor="description">캠페인 설명 *</Label>
-                <Textarea
-                  id="description"
-                  value={campaignForm.description}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="캠페인에 대한 상세 설명을 입력하세요"
-                  rows={4}
-                  required
-                />
-              </div>
-
               {/* 참여 조건 */}
               <div>
                 <Label htmlFor="requirements">참여 조건</Label>
@@ -309,40 +330,53 @@ const CampaignCreationKorea = () => {
                 />
               </div>
 
-              {/* 보상 포인트 */}
+              {/* 패키지 선택 */}
               <div>
-                <Label htmlFor="reward_points">보상 포인트 *</Label>
-                <Input
-                  id="reward_points"
-                  type="number"
-                  value={campaignForm.reward_points}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, reward_points: e.target.value }))}
-                  placeholder="예: 100000"
-                  required
-                />
+                <Label htmlFor="package_type">패키지 선택 *</Label>
+                <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="패키지 선택" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {packageOptions.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
+                        {opt.label} - ₩{opt.price.toLocaleString()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-sm text-gray-500 mt-1">
-                  {campaignForm.reward_points && `₩${parseInt(campaignForm.reward_points).toLocaleString()}`}
+                  {packageOptions.find(p => p.value === campaignForm.package_type)?.label} - 1인당 ₩{packageOptions.find(p => p.value === campaignForm.package_type)?.price.toLocaleString()}
                 </p>
               </div>
 
-              {/* 모집 인원 */}
-              <div>
-                <Label htmlFor="total_slots">모집 인원 *</Label>
-                <Input
-                  id="total_slots"
-                  type="number"
-                  value={campaignForm.total_slots}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    setCampaignForm(prev => ({ 
-                      ...prev, 
-                      total_slots: value,
-                      remaining_slots: value
-                    }))
-                  }}
-                  placeholder="예: 10"
-                  required
-                />
+              {/* 모집 인원 및 결제 예상 금액 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="total_slots">모집 인원 *</Label>
+                  <Input
+                    id="total_slots"
+                    type="number"
+                    value={campaignForm.total_slots}
+                    onChange={(e) => handleSlotsChange(e.target.value)}
+                    placeholder="10"
+                    required
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="estimated_cost">결제 예상 금액</Label>
+                  <Input
+                    id="estimated_cost"
+                    type="text"
+                    value={`₩${campaignForm.estimated_cost.toLocaleString()}`}
+                    disabled
+                    className="bg-gray-100 font-semibold text-blue-600"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {campaignForm.total_slots}명 × ₩{packageOptions.find(p => p.value === campaignForm.package_type)?.price.toLocaleString()}
+                  </p>
+                </div>
               </div>
 
               {/* 날짜 */}
