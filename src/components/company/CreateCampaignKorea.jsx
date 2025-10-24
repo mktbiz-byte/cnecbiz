@@ -30,7 +30,7 @@ const CampaignCreationKorea = () => {
     application_deadline: '',
     start_date: '',
     end_date: '',
-    status: 'active',
+    status: 'draft',
     target_platforms: {
       instagram: false,
       youtube: true,
@@ -463,19 +463,12 @@ const CampaignCreationKorea = () => {
                 </div>
               </div>
 
-              {/* 상태 */}
-              <div>
-                <Label htmlFor="status">캠페인 상태</Label>
-                <Select value={campaignForm.status} onValueChange={(value) => setCampaignForm(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">모집 중</SelectItem>
-                    <SelectItem value="closed">종료</SelectItem>
-                    <SelectItem value="draft">임시저장</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* 상태 안내 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  📌 캠페인은 <strong>"임시저장"</strong> 상태로 저장됩니다. 
+                  저장 후 캠페인 목록에서 <strong>"승인 요청하기"</strong>를 누르면 관리자가 검토합니다.
+                </p>
               </div>
 
               {/* 질문 섹션 */}
@@ -569,7 +562,7 @@ const CampaignCreationKorea = () => {
               {/* 버튼 */}
               <div className="flex gap-4">
                 <Button type="submit" disabled={processing} className="flex-1">
-                  {processing ? '저장 중...' : (editId ? '수정하기' : '생성하기')}
+                  {processing ? '저장 중...' : (editId ? '수정하기' : '임시저장')}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
                   취소
