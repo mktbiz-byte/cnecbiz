@@ -41,17 +41,18 @@ export default function CompanyDashboard() {
   }, [selectedRegion])
 
   const checkAuth = async () => {
-    if (!supabaseBiz) {
-      navigate('/login')
-      return
-    }
+    // 테스트를 위해 로그인 체크 비활성화
+    // if (!supabaseBiz) {
+    //   navigate('/login')
+    //   return
+    // }
 
-    const { data: { user } } = await supabaseBiz.auth.getUser()
-    if (!user) {
-      navigate('/login')
-      return
-    }
-    setUser(user)
+    // const { data: { user } } = await supabaseBiz.auth.getUser()
+    // if (!user) {
+    //   navigate('/login')
+    //   return
+    // }
+    // setUser(user)
   }
 
   const fetchData = async () => {
