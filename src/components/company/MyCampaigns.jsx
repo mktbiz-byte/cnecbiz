@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Plus, Eye, TrendingUp } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
+import RegionSelectModal from './RegionSelectModal'
 
 export default function MyCampaigns() {
   const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
   const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [showRegionModal, setShowRegionModal] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -76,11 +78,13 @@ export default function MyCampaigns() {
 
   const getRegionBadge = (region) => {
     const badges = {
+      korea: 'bg-blue-100 text-blue-700',
       japan: 'bg-red-100 text-red-700',
       us: 'bg-blue-100 text-blue-700',
       taiwan: 'bg-green-100 text-green-700'
     }
     const labels = {
+      korea: '🇰🇷 한국',
       japan: '🇯🇵 일본',
       us: '🇺🇸 미국',
       taiwan: '🇹🇼 대만'
@@ -90,6 +94,10 @@ export default function MyCampaigns() {
         {labels[region] || region}
       </span>
     )
+  }
+
+  const handleRegionSelect = (regionId) => {
+    navigate(`/company/campaigns/new?region=${regionId}`)
   }
 
   const stats = {
@@ -114,7 +122,7 @@ export default function MyCampaigns() {
             <TrendingUp className="w-8 h-8 text-blue-600" />
             <h1 className="text-3xl font-bold">내 캠페인</h1>
           </div>
-          <Button onClick={() => navigate('/company/campaigns/new')}>
+          <Button onClick={() => setShowRegionModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
             새 캠페인 만들기
           </Button>
@@ -159,7 +167,7 @@ export default function MyCampaigns() {
             ) : campaigns.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500 mb-4">아직 생성된 캠페인이 없습니다</p>
-                <Button onClick={() => navigate('/company/campaigns/new')}>
+                <Button onClick={() => setShowRegionModal(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   첫 캠페인 만들기
                 </Button>
@@ -213,6 +221,12 @@ export default function MyCampaigns() {
           </CardContent>
         </Card>
       </div>
+
+      <RegionSelectModal
+        isOpen={showRegionModal}
+        onClose={() => setShowRegionModal(false)}
+        onSelectRegion={handleRegionSelect}
+      />
     </div>
   )
 }
