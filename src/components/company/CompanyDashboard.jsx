@@ -16,6 +16,7 @@ import {
   Languages
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
 
 export default function CompanyDashboard() {
   const navigate = useNavigate()
@@ -29,11 +30,15 @@ export default function CompanyDashboard() {
     totalSpent: 0
   })
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [selectedRegion, setSelectedRegion] = useState('korea')
 
   useEffect(() => {
     checkAuth()
-    fetchData()
   }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [selectedRegion])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -50,28 +55,23 @@ export default function CompanyDashboard() {
   }
 
   const fetchData = async () => {
-    if (!supabaseBiz) return
-
     try {
-      const { data: { user } } = await supabaseBiz.auth.getUser()
-      if (!user) return
-
-      // 기업 정보
-      const { data: companyData } = await supabaseBiz
-        .from('companies')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
+      // 선택된 지역의 Supabase 클라이언트 선택
+      const supabaseClient = selectedRegion === 'korea' ? supabaseKorea : supabaseBiz
       
-      setCompany(companyData)
-
-      // 캠페인 목록
-      const { data: campaignsData } = await supabaseBiz
-        .from('campaigns')
-        .select('*')
-        .eq('company_id', user.id)
+      // 캠페인 목록 (한국은 모든 캠페인, 다른 지역은 user_id 필터)
+      let query = supabaseClient.from('campaigns').select('*')
+      
+      if (selectedRegion !== 'korea') {
+        const { data: { user } } = await supabaseBiz.auth.getUser()
+        if (user) {
+          query = query.eq('company_id', user.id)
+        }
+      }
+      
+      const { data: campaignsData } = await query
         .order('created_at', { ascending: false })
-        .limit(5)
+        .limit(10)
 
       setCampaigns(campaignsData || [])
 
@@ -79,7 +79,7 @@ export default function CompanyDashboard() {
       const total = campaignsData?.length || 0
       const active = campaignsData?.filter(c => c.status === 'active').length || 0
       const completed = campaignsData?.filter(c => c.status === 'completed').length || 0
-      const totalSpent = campaignsData?.reduce((sum, c) => sum + (c.total_amount || 0), 0) || 0
+      const totalSpent = campaignsData?.reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0
 
       setStats({ total, active, completed, totalSpent })
     } catch (error) {
@@ -269,7 +269,39 @@ export default function CompanyDashboard() {
           {/* Recent Campaigns */}
           <Card>
             <CardHeader>
-              <CardTitle>최근 캠페인</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>최근 캠페인</CardTitle>
+                <div className="flex gap-2">
+                  <Button 
+                    variant={selectedRegion === 'korea' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedRegion('korea')}
+                  >
+                    🇰🇷 한국
+                  </Button>
+                  <Button 
+                    variant={selectedRegion === 'japan' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedRegion('japan')}
+                  >
+                    🇯🇵 일본
+                  </Button>
+                  <Button 
+                    variant={selectedRegion === 'us' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedRegion('us')}
+                  >
+                    🇺🇸 미국
+                  </Button>
+                  <Button 
+                    variant={selectedRegion === 'taiwan' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedRegion('taiwan')}
+                  >
+                    🇹🇼 대만
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {campaigns.length === 0 ? (
