@@ -23,6 +23,7 @@ const CampaignCreationKorea = () => {
     product_name: '',
     product_description: '',
     product_link: '',
+    product_detail_file_url: '',
     reward_points: '',
     total_slots: '',
     remaining_slots: '',
@@ -131,6 +132,39 @@ const CampaignCreationKorea = () => {
     } catch (err) {
       console.error('이미지 업로드 실패:', err)
       setError('이미지 업로드에 실패했습니다: ' + err.message)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  // 상품 상세 이미지 업로드
+  const handleProductDetailImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    setError('')
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `product-detail-${Math.random().toString(36).substring(2)}.${fileExt}`
+      const filePath = `campaign-images/${fileName}`
+
+      const { error: uploadError } = await storage
+        .from('campaign-images')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = storage
+        .from('campaign-images')
+        .getPublicUrl(filePath)
+
+      setCampaignForm(prev => ({ ...prev, product_detail_file_url: publicUrl }))
+      setSuccess('상품 상세 이미지가 업로드되었습니다!')
+    } catch (err) {
+      console.error('상품 상세 이미지 업로드 실패:', err)
+      setError('상품 상세 이미지 업로드에 실패했습니다: ' + err.message)
     } finally {
       setUploadingImage(false)
     }
@@ -400,6 +434,31 @@ const CampaignCreationKorea = () => {
                       placeholder="https://example.com/product"
                     />
                     <p className="text-sm text-gray-500 mt-1">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
+                  </div>
+
+                  {/* 상품 상세 페이지 이미지 */}
+                  <div className="border-t pt-4 mt-4">
+                    <Label htmlFor="product_detail_image">상품 상세 페이지 이미지</Label>
+                    <p className="text-sm text-gray-600 mb-2">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
+                    <Input
+                      id="product_detail_image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProductDetailImageUpload}
+                      disabled={uploadingImage}
+                    />
+                    {uploadingImage && <p className="text-sm text-gray-500 mt-1">업로드 중...</p>}
+                    {campaignForm.product_detail_file_url && (
+                      <div className="mt-4">
+                        <p className="text-sm text-green-600 mb-2">✓ 상품 상세 이미지가 업로드되었습니다</p>
+                        <img 
+                          src={campaignForm.product_detail_file_url} 
+                          alt="상품 상세" 
+                          className="max-w-full h-auto rounded border"
+                          style={{ maxHeight: '500px' }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
