@@ -222,8 +222,16 @@ const CampaignCreationKorea = () => {
 
       const { question1, question2, question3, question4, target_platforms, ...restForm } = campaignForm
 
+      // 카테고리명 가져오기 (이모지 제거)
+      const categoryLabel = categoryOptions.find(opt => opt.value === campaignForm.category)?.label || ''
+      const categoryName = categoryLabel.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
+      
+      // 제목 자동 생성
+      const autoTitle = `${campaignForm.brand} ${campaignForm.product_name} ${categoryName}`.trim()
+
       const campaignData = {
         ...restForm,
+        title: autoTitle,
         reward_points: parseInt(campaignForm.reward_points) || 0,
         total_slots: parseInt(campaignForm.total_slots) || 0,
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
@@ -305,17 +313,6 @@ const CampaignCreationKorea = () => {
                 </Select>
               </div>
 
-              {/* 캠페인 제목 */}
-              <div>
-                <Label htmlFor="title">캠페인 제목 *</Label>
-                <Input
-                  id="title"
-                  value={campaignForm.title}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="예: 신제품 립스틱 리뷰 캠페인"
-                  required
-                />
-              </div>
 
               {/* 브랜드명 */}
               <div>
