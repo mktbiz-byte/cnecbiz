@@ -20,6 +20,9 @@ const CampaignCreationKorea = () => {
     requirements: '',
     category: 'youtube',  // youtube, instagram, 4week_challenge
     image_url: '',
+    product_name: '',
+    product_description: '',
+    product_link: '',
     reward_points: '',
     total_slots: '',
     remaining_slots: '',
@@ -356,6 +359,49 @@ const CampaignCreationKorea = () => {
                 {campaignForm.image_url && (
                   <img src={campaignForm.image_url} alt="Preview" className="mt-2 w-32 h-32 object-cover rounded" />
                 )}
+              </div>
+
+              {/* 상품 상세 정보 */}
+              <div className="border-t pt-6 mt-6">
+                <h3 className="text-lg font-semibold mb-4">📦 상품 상세 정보</h3>
+                
+                <div className="space-y-4">
+                  {/* 상품명 */}
+                  <div>
+                    <Label htmlFor="product_name">상품명</Label>
+                    <Input
+                      id="product_name"
+                      value={campaignForm.product_name}
+                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                      placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
+                    />
+                  </div>
+
+                  {/* 상품 설명 */}
+                  <div>
+                    <Label htmlFor="product_description">상품 설명</Label>
+                    <Textarea
+                      id="product_description"
+                      value={campaignForm.product_description}
+                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
+                      placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* 상품 링크 */}
+                  <div>
+                    <Label htmlFor="product_link">상품 링크 (URL)</Label>
+                    <Input
+                      id="product_link"
+                      type="url"
+                      value={campaignForm.product_link}
+                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
+                      placeholder="https://example.com/product"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
+                  </div>
+                </div>
               </div>
 
               {/* 상태 */}
