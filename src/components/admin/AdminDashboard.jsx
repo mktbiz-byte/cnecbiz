@@ -206,8 +206,8 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white border-r transition-all duration-300 overflow-hidden`}>
-        <div className="p-6">
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white border-r transition-all duration-300 overflow-hidden flex flex-col`}>
+        <div className="p-6 flex-1 overflow-y-auto">
           <div className="flex items-center gap-2 mb-8">
             <div className="w-10 h-10 bg-gradient-to-r from-red-600 to-orange-600 rounded-lg flex items-center justify-center">
               <Shield className="w-6 h-6 text-white" />
@@ -309,7 +309,7 @@ export default function AdminDashboard() {
           </nav>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t">
+        <div className="p-6 border-t mt-auto">
           <div className="mb-4">
             <div className="text-sm font-medium text-gray-900">슈퍼 관리자</div>
             <div className="text-xs text-gray-500">{user?.email}</div>
