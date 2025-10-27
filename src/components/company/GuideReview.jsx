@@ -129,7 +129,7 @@ const GuideReview = () => {
               </div>
               <div className="flex">
                 <span className="w-32 text-gray-600">모집 인원:</span>
-                <span>{campaign.recruitment_count}명</span>
+                <span>{campaign.total_slots}명</span>
               </div>
             </div>
           </div>
