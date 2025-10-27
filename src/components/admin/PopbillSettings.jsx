@@ -12,7 +12,37 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Settings, CreditCard, MessageSquare, Play, Save, Plus, Trash2 } from 'lucide-react';
 import { supabaseBiz } from '../../lib/supabaseClients';
-import { checkAndProcessDeposits, BANK_CODES } from '../../lib/bankAccountChecker';
+// Netlify Functions를 통해 호출
+const BANK_CODES = {
+  '0001': 'KDB산업은행',
+  '0002': '산업은행',
+  '0003': 'IBK기업은행',
+  '0004': 'KB국민은행',
+  '0005': 'KEB하나은행',
+  '0007': 'SC제일은행',
+  '0008': '한국씨티은행',
+  '0011': 'NH농협은행',
+  '0012': '지역농축협',
+  '0020': '우리은행',
+  '0023': 'SC은행',
+  '0027': '한국씨티은행',
+  '0031': '대구은행',
+  '0032': '부산은행',
+  '0034': '광주은행',
+  '0035': '제주은행',
+  '0037': '전북은행',
+  '0039': '경남은행',
+  '0045': '새마을금고',
+  '0048': '신협',
+  '0050': '상호저축은행',
+  '0064': '산림조합',
+  '0071': '우체국',
+  '0081': 'KEB하나은행',
+  '0088': '신한은행',
+  '0089': '케이뱅크',
+  '0090': '카카오뱅크',
+  '0092': '토스뱅크',
+};
 
 export default function PopbillSettings() {
   const [settings, setSettings] = useState({
@@ -143,13 +173,31 @@ export default function PopbillSettings() {
     setLoading(true);
     try {
       const corpNum = '1234567890'; // TODO: 실제 사업자번호로 변경
-      const result = await checkAndProcessDeposits(
-        corpNum,
-        account.bank_code,
-        account.account_number
-      );
+      
+      // Netlify Function 호출
+      const today = new Date();
+      const startDate = new Date(today.setDate(today.getDate() - 7)).toISOString().split('T')[0].replace(/-/g, '');
+      const endDate = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      
+      const response = await fetch('/.netlify/functions/check-deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          corpNum,
+          bankCode: account.bank_code,
+          accountNumber: account.account_number,
+          startDate,
+          endDate,
+        }),
+      });
 
-      alert(`입금 확인 완료!\n\n총 입금 건수: ${result.totalDeposits}\n처리된 충전 요청: ${result.processedRequests}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      alert(`입금 확인 완료!\n\n총 입금 건수: ${result.data.list?.length || 0}`);
       
     } catch (error) {
       console.error('입금 확인 실패:', error);

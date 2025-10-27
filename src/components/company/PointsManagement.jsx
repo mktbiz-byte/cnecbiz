@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Coins, CreditCard, History, FileText, Download } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import TaxDocumentIssueModal from './TaxDocumentIssueModal'
-import { issueTaxinvoice, issueCashbill, issueStatement, createTaxinvoiceData, createCashbillData, createStatementData } from '../../lib/popbillHelper'
+// Netlify Functions를 통해 호출
 
 export default function PointsManagement() {
   const navigate = useNavigate()
