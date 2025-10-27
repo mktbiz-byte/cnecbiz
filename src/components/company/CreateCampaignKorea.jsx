@@ -93,6 +93,35 @@ const CampaignCreationKorea = () => {
     }
   ]
 
+  // 모집 인원에 따른 할인율 계산
+  const calculateDiscount = (slots) => {
+    if (slots >= 20) return 10 // 20명 이상: 10% 할인
+    if (slots >= 10) return 5  // 10명 이상: 5% 할인
+    return 0 // 할인 없음
+  }
+
+  // 최종 결제 금액 계산 (할인 적용)
+  const calculateFinalCost = (packagePrice, slots) => {
+    const originalCost = packagePrice * slots
+    const discountRate = calculateDiscount(slots)
+    const discountAmount = Math.floor(originalCost * (discountRate / 100))
+    return originalCost - discountAmount
+  }
+
+  // 초기 로드 시 할인가 계산
+  useEffect(() => {
+    if (!editId) {
+      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+      if (selectedPackage) {
+        const finalCost = calculateFinalCost(selectedPackage.price, campaignForm.total_slots)
+        setCampaignForm(prev => ({
+          ...prev,
+          estimated_cost: finalCost
+        }))
+      }
+    }
+  }, [])
+
   // 편집 모드일 때 데이터 로드
   useEffect(() => {
     if (editId) {
@@ -138,21 +167,6 @@ const CampaignCreationKorea = () => {
       category: value,
       target_platforms: selected ? selected.platforms : prev.target_platforms
     }))
-  }
-
-  // 모집 인원에 따른 할인율 계산
-  const calculateDiscount = (slots) => {
-    if (slots >= 20) return 10 // 20명 이상: 10% 할인
-    if (slots >= 10) return 5  // 10명 이상: 5% 할인
-    return 0 // 할인 없음
-  }
-
-  // 최종 결제 금액 계산 (할인 적용)
-  const calculateFinalCost = (packagePrice, slots) => {
-    const originalCost = packagePrice * slots
-    const discountRate = calculateDiscount(slots)
-    const discountAmount = Math.floor(originalCost * (discountRate / 100))
-    return originalCost - discountAmount
   }
 
   // 패키지 변경 핸들러 (결제 금액 자동 계산)
