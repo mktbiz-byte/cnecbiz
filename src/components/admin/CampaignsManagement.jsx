@@ -262,7 +262,7 @@ export default function CampaignsManagement() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/admin/campaigns/${campaign.id}`)}
+                          onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           상세보기
