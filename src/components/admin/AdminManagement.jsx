@@ -31,7 +31,7 @@ export default function AdminManagement() {
 
     // Check if super admin
     const { data: adminData } = await supabaseBiz
-      .from('admins')
+      .from('admin_users')
       .select('*')
       .eq('email', user.email)
       .eq('role', 'super_admin')
@@ -47,7 +47,7 @@ export default function AdminManagement() {
 
     try {
       const { data, error } = await supabaseBiz
-        .from('admins')
+        .from('admin_users')
         .select('*')
         .order('created_at', { ascending: false })
 
@@ -69,7 +69,7 @@ export default function AdminManagement() {
 
     try {
       const { error } = await supabaseBiz
-        .from('admins')
+        .from('admin_users')
         .insert({
           email: newAdmin.email,
           role: newAdmin.role,
@@ -113,7 +113,7 @@ export default function AdminManagement() {
 
     try {
       const { error } = await supabaseBiz
-        .from('admins')
+        .from('admin_users')
         .delete()
         .eq('id', id)
 
@@ -130,7 +130,7 @@ export default function AdminManagement() {
   const handleToggleActive = async (id, currentStatus) => {
     try {
       const { error } = await supabaseBiz
-        .from('admins')
+        .from('admin_users')
         .update({ is_active: !currentStatus })
         .eq('id', id)
 

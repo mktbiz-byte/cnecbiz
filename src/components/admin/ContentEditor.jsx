@@ -26,10 +26,9 @@ export default function ContentEditor({ children, contentKey, defaultValue = '',
       if (!user) return
 
       const { data: adminData } = await supabaseBiz
-        .from('admins')
+        .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .eq('is_active', true)
         .single()
 
       setIsAdmin(!!adminData)
@@ -150,10 +149,9 @@ export function EditModeToggle() {
       if (!user) return
 
       const { data: adminData } = await supabaseBiz
-        .from('admins')
+        .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .eq('is_active', true)
         .single()
 
       setIsAdmin(!!adminData)

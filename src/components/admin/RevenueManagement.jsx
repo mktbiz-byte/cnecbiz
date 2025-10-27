@@ -36,10 +36,9 @@ export default function RevenueManagement() {
     }
 
     const { data: adminData } = await supabaseBiz
-      .from('admins')
+      .from('admin_users')
       .select('*')
       .eq('email', user.email)
-      .eq('is_active', true)
       .single()
 
     if (!adminData) {
