@@ -437,11 +437,29 @@ export default function CompanyDashboard() {
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <UserCheck className="w-4 h-4 text-gray-500" />
-                            <span className="text-gray-600">
-                              가이드 확인: {participantInfo.guideConfirmed}/{participantInfo.selected}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            {(campaign.approval_status === 'draft' || !campaign.approval_status) && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 border border-orange-200 rounded">
+                                <AlertCircle className="w-4 h-4 text-orange-600" />
+                                <span className="text-orange-700 font-medium text-xs">
+                                  승인 요청 필요
+                                </span>
+                              </div>
+                            )}
+                            {campaign.approval_status === 'pending' && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded">
+                                <Clock className="w-4 h-4 text-blue-600" />
+                                <span className="text-blue-700 font-medium text-xs">
+                                  승인 심사 중
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <UserCheck className="w-4 h-4 text-gray-500" />
+                              <span className="text-gray-600">
+                                가이드 확인: {participantInfo.guideConfirmed}/{participantInfo.selected}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>

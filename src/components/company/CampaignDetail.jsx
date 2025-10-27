@@ -411,6 +411,18 @@ export default function CampaignDetail() {
                 </Button>
               </>
             )}
+            {campaign.approval_status === 'pending' && (
+              <Button disabled className="bg-blue-100 text-blue-700 cursor-not-allowed">
+                <Clock className="w-4 h-4 mr-2" />
+                승인 심사 중
+              </Button>
+            )}
+            {campaign.approval_status === 'approved' && (
+              <Button disabled className="bg-green-100 text-green-700 cursor-not-allowed">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                승인 완료
+              </Button>
+            )}
             {!campaign.is_cancelled && (
               <div>
                 {campaign.payment_status !== 'confirmed' ? (
