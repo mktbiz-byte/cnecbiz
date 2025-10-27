@@ -222,14 +222,38 @@ export default function CampaignDetail() {
     const additionalCount = selectedParticipants.length - campaign.total_slots
     const packagePrice = getPackagePrice(campaign.package_type)
     const additionalCost = packagePrice * additionalCount
-
     if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원`)) {
       // 견적서 페이지로 이동 (추가 인원 정보 포함)
       navigate(`/company/campaigns/${id}/invoice?additional=${additionalCount}`)
     }
   }
 
-  const getPackagePrice = (packageType) => {
+  const handleUpdateCreatorStatus = async (participantId, newStatus) => {
+    try {
+      const { error } = await supabaseKorea
+        .from('campaign_participants')
+        .update({ creator_status: newStatus })
+        .eq('id', participantId)
+
+      if (error) throw error
+
+      // 참여자 목록 재로드
+      const { data, error: fetchError } = await supabaseKorea
+        .from('campaign_participants')
+        .select('*')
+        .eq('campaign_id', id)
+
+      if (fetchError) throw fetchError
+      setParticipants(data || [])
+
+      alert('크리에이터 상태가 업데이트되었습니다.')
+    } catch (error) {
+      console.error('Error updating creator status:', error)
+      alert('상태 업데이트에 실패했습니다.')
+    }
+  }
+
+  const getPackagePrice = (packageType) => { {
     const prices = {
       'oliveyoung': 200000,
       '올영 20만원': 200000,
@@ -472,6 +496,7 @@ export default function CampaignDetail() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">선택 상태</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">참여일</th>
                         </tr>
                       </thead>
@@ -501,6 +526,21 @@ export default function CampaignDetail() {
                               ) : (
                                 <Badge className="bg-gray-100 text-gray-800">대기</Badge>
                               )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={participant.creator_status || 'guide_confirmation'}
+                                onChange={(e) => handleUpdateCreatorStatus(participant.id, e.target.value)}
+                                className="text-sm border rounded px-2 py-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value="guide_confirmation">가이드 확인중</option>
+                                <option value="filming">촬영중</option>
+                                <option value="editing">수정중</option>
+                                <option value="submitted">제출완료</option>
+                                <option value="approved">승인완료</option>
+                                <option value="rejected">거부</option>
+                              </select>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600">
                               {new Date(participant.created_at).toLocaleDateString()}

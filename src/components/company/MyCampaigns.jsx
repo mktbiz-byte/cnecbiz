@@ -133,7 +133,27 @@ export default function MyCampaigns() {
     return diffDays
   }
 
-  const getRegionBadge = (region) => {
+  const getProgressStatusBadge = (status) => {
+    const badges = {
+      draft: { label: '작성중', color: 'bg-gray-100 text-gray-700' },
+      pending_approval: { label: '승인대기', color: 'bg-orange-100 text-orange-700' },
+      pending: { label: '승인대기', color: 'bg-orange-100 text-orange-700' },
+      recruiting: { label: '모집중', color: 'bg-blue-100 text-blue-700' },
+      guide_confirmation: { label: '가이드 확인중', color: 'bg-purple-100 text-purple-700' },
+      filming: { label: '촬영중', color: 'bg-yellow-100 text-yellow-700' },
+      editing: { label: '수정중', color: 'bg-pink-100 text-pink-700' },
+      approved: { label: '진행중', color: 'bg-green-100 text-green-700' },
+      completed: { label: '완료', color: 'bg-green-100 text-green-700' }
+    }
+    const badge = badges[status] || badges.draft
+    return (
+      <Badge className={badge.color}>
+        {badge.label}
+      </Badge>
+    )
+  }
+
+  const getRegionBadge = (region) => {{
     const badges = {
       korea: { label: 'KR 한국', color: 'bg-blue-100 text-blue-700' },
       japan: { label: 'JP 일본', color: 'bg-red-100 text-red-700' },
@@ -257,6 +277,7 @@ export default function MyCampaigns() {
                           <div className="flex items-center gap-2 mb-2">
                             {getRegionBadge(campaign.region)}
                             {getPaymentStatusBadge(campaign.payment_status)}
+                            {getProgressStatusBadge(campaign.progress_status || campaign.approval_status)}
                           </div>
                           <h3 className="font-bold text-xl mb-1">{campaign.title}</h3>
                           <p className="text-sm text-gray-600">

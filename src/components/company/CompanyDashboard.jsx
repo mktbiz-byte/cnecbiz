@@ -30,6 +30,7 @@ export default function CompanyDashboard() {
   const [participants, setParticipants] = useState({})
   const [stats, setStats] = useState({
     total: 0,
+    pending: 0,
     active: 0,
     completed: 0,
     totalSpent: 0
@@ -105,6 +106,7 @@ export default function CompanyDashboard() {
 
       // 통계 계산
       const total = campaignsData?.length || 0
+      const pending = campaignsData?.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length || 0
       const active = campaignsData?.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length || 0
       const completed = campaignsData?.filter(c => c.status === 'completed').length || 0
       const totalSpent = campaignsData?.reduce((sum, c) => {
@@ -112,8 +114,7 @@ export default function CompanyDashboard() {
         const count = c.total_slots || 0
         return sum + (packagePrice * count)
       }, 0) || 0
-
-      setStats({ total, active, completed, totalSpent })
+      setStats({ total, pending, active, completed, totalSpent }))
     } catch (error) {
       console.error('Error fetching data:', error)
     }
@@ -147,13 +148,33 @@ export default function CompanyDashboard() {
     )
   }
 
-  const getDaysRemaining = (deadline) => {
+   const getDaysRemaining = (deadline) => {
     if (!deadline) return null
     const today = new Date()
     const deadlineDate = new Date(deadline)
     const diffTime = deadlineDate - today
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
+  }
+
+  const getProgressStatusBadge = (status) => {
+    const badges = {
+      draft: { label: '작성중', color: 'bg-gray-100 text-gray-700' },
+      pending_approval: { label: '승인대기', color: 'bg-orange-100 text-orange-700' },
+      pending: { label: '승인대기', color: 'bg-orange-100 text-orange-700' },
+      recruiting: { label: '모집중', color: 'bg-blue-100 text-blue-700' },
+      guide_confirmation: { label: '가이드 확인중', color: 'bg-purple-100 text-purple-700' },
+      filming: { label: '촬영중', color: 'bg-yellow-100 text-yellow-700' },
+      editing: { label: '수정중', color: 'bg-pink-100 text-pink-700' },
+      approved: { label: '진행중', color: 'bg-green-100 text-green-700' },
+      completed: { label: '완료', color: 'bg-green-100 text-green-700' }
+    }
+    const badge = badges[status] || badges.draft
+    return (
+      <Badge className={badge.color}>
+        {badge.label}
+      </Badge>
+    )
   }
 
   const handleLogout = async () => {
@@ -240,7 +261,7 @@ export default function CompanyDashboard() {
             <p className="text-gray-600 mt-1">캠페인 현황을 한눈에 확인하세요</p>
           </div>
 
-          {/* Stats Cards */}
+           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -251,7 +272,15 @@ export default function CompanyDashboard() {
                 <div className="text-3xl font-bold">{stats.total}</div>
               </CardContent>
             </Card>
-
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-600">승인 대기</CardTitle>
+                <AlertCircle className="w-5 h-5 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-orange-600">{stats.pending}</div>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">진행중</CardTitle>
@@ -261,7 +290,6 @@ export default function CompanyDashboard() {
                 <div className="text-3xl font-bold text-green-600">{stats.active}</div>
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">완료</CardTitle>
@@ -270,7 +298,7 @@ export default function CompanyDashboard() {
               <CardContent>
                 <div className="text-3xl font-bold text-purple-600">{stats.completed}</div>
               </CardContent>
-            </Card>
+            </Card>>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -333,6 +361,8 @@ export default function CompanyDashboard() {
                               <Badge variant="outline">{campaign.region || 'KR 한국'}</Badge>
                               <span>•</span>
                               <span>{campaign.package_type}</span>
+                              <span>•</span>
+                              {getProgressStatusBadge(campaign.progress_status || campaign.approval_status)}
                             </div>
                           </div>
                           <div className="text-right">
