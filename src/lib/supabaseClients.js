@@ -53,6 +53,9 @@ export const supabaseBiz = (supabaseBizUrl && supabaseBizKey && supabaseBizUrl.s
 // Helper function to get the appropriate client based on region
 export const getSupabaseClient = (region) => {
   switch (region) {
+    case 'korea':
+    case 'kr':
+      return supabaseBiz  // Korea uses supabaseBiz
     case 'japan':
     case 'jp':
       return supabaseJapan
@@ -111,7 +114,7 @@ export const createCampaignInRegions = async (campaignData, selectedRegions) => 
 
 // Helper function to get campaigns from all regions
 export const getCampaignsFromAllRegions = async () => {
-  const regions = ['japan', 'us', 'taiwan']
+  const regions = ['korea', 'japan', 'us', 'taiwan']
   const allCampaigns = []
 
   for (const region of regions) {
@@ -142,7 +145,7 @@ export const getCampaignsFromAllRegions = async () => {
 
 // Helper function to get campaign statistics from all regions
 export const getCampaignStatsFromAllRegions = async () => {
-  const regions = ['japan', 'us', 'taiwan']
+  const regions = ['korea', 'japan', 'us', 'taiwan']
   const stats = {
     total: 0,
     byRegion: {},
