@@ -264,6 +264,22 @@ export default function PointsManagement() {
     }
   };
 
+  // 사업자번호 하이픈 자동 추가 (123-45-67890)
+  const formatBusinessNumber = (value) => {
+    const numbers = value.replace(/[^\d]/g, '')
+    if (numbers.length <= 3) return numbers
+    if (numbers.length <= 5) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 5)}-${numbers.slice(5, 10)}`
+  }
+
+  // 핸드폰번호 하이픈 자동 추가 (010-1234-5678)
+  const formatPhoneNumber = (value) => {
+    const numbers = value.replace(/[^\d]/g, '')
+    if (numbers.length <= 3) return numbers
+    if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`
+    return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`
+  }
+
   const handleSubmitChargeRequest = async () => {
     if (!selectedPackage) {
       alert('패키지를 선택해주세요')
@@ -520,8 +536,9 @@ export default function PointsManagement() {
                     <Input
                       id="business_number"
                       value={invoiceForm.business_number}
-                      onChange={(e) => setInvoiceForm({...invoiceForm, business_number: e.target.value})}
+                      onChange={(e) => setInvoiceForm({...invoiceForm, business_number: formatBusinessNumber(e.target.value)})}
                       placeholder="123-45-67890"
+                      maxLength={12}
                     />
                   </div>
                 </div>
@@ -541,8 +558,9 @@ export default function PointsManagement() {
                     <Input
                       id="contact"
                       value={invoiceForm.contact}
-                      onChange={(e) => setInvoiceForm({...invoiceForm, contact: e.target.value})}
+                      onChange={(e) => setInvoiceForm({...invoiceForm, contact: formatPhoneNumber(e.target.value)})}
                       placeholder="010-1234-5678"
+                      maxLength={13}
                     />
                   </div>
                 </div>
@@ -642,8 +660,14 @@ export default function PointsManagement() {
                       <Input
                         id="cashbill_identity_num"
                         value={invoiceForm.cashbill_identity_num}
-                        onChange={(e) => setInvoiceForm({...invoiceForm, cashbill_identity_num: e.target.value})}
+                        onChange={(e) => {
+                          const formatted = invoiceForm.cashbill_usage === '1' 
+                            ? formatPhoneNumber(e.target.value)
+                            : formatBusinessNumber(e.target.value)
+                          setInvoiceForm({...invoiceForm, cashbill_identity_num: formatted})
+                        }}
                         placeholder={invoiceForm.cashbill_usage === '1' ? '010-1234-5678' : '123-45-67890'}
+                        maxLength={invoiceForm.cashbill_usage === '1' ? 13 : 12}
                       />
                     </div>
 
