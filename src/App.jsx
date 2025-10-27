@@ -7,6 +7,9 @@ import CreateCampaign from './components/company/CreateCampaign'
 import CreateCampaignRouter from './components/company/CreateCampaignRouter'
 import CampaignGuide from './components/company/CampaignGuide'
 import CampaignGuideEditor from './components/company/CampaignGuideEditor'
+import GuideReview from './components/company/GuideReview'
+import OrderConfirmation from './components/company/OrderConfirmation'
+import InvoicePage from './components/company/InvoicePage'
 import MyCampaigns from './components/company/MyCampaigns'
 import CampaignDetail from './components/company/CampaignDetail'
 import CampaignApprovals from './components/admin/CampaignApprovals'
@@ -28,6 +31,7 @@ import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRe
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
 import SiteEditor from './components/admin/SiteEditor'
+import AdminSettings from './components/admin/AdminSettings'
 import AuthCallback from './components/AuthCallback'
 
 function App() {
@@ -45,6 +49,9 @@ function App() {
         <Route path="/company/campaigns/new" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/guide" element={<CampaignGuideEditor />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
+        <Route path="/company/campaigns/:id/review" element={<GuideReview />} />
+        <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />
+        <Route path="/company/campaigns/:id/invoice" element={<InvoicePage />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/company/translator" element={<Translator />} />
@@ -64,6 +71,7 @@ function App() {
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
 
