@@ -303,6 +303,12 @@ const CampaignCreationKorea = () => {
 
         if (error) throw error
         setSuccess('캠페인이 수정되었습니다!')
+        
+        // 크리에이터 가이드 페이지로 이동
+        setTimeout(() => {
+          navigate(`/company/campaigns/guide?id=${editId}`)
+        }, 1500)
+        return
       } else {
         // 신규 생성: 포인트 차감 또는 견적서 발행
         const finalCost = campaignForm.estimated_cost
