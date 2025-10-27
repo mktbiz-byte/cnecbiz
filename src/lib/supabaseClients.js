@@ -7,14 +7,26 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseKoreaUrl = 'https://vluqhvuhykncicgvkosd.supabase.co'
 const supabaseKoreaKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsdXFodnVoeWtuY2ljZ3Zrb3NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNjg2MzAsImV4cCI6MjA3Njg0NDYzMH0.ikEqdx6Le54YJUP-NROKg6EmeHJ4TbKkQ76pw29OQG8'
 
-export const supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaKey)
+export const supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaKey, {
+  auth: {
+    storageKey: 'cnec-korea-auth',
+    persistSession: true,
+    autoRefreshToken: true
+  }
+})
 
 // Japan Supabase Client
 const supabaseJapanUrl = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
 const supabaseJapanKey = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || ''
 
 export const supabaseJapan = (supabaseJapanUrl && supabaseJapanKey && supabaseJapanUrl.startsWith('http'))
-  ? createClient(supabaseJapanUrl, supabaseJapanKey)
+  ? createClient(supabaseJapanUrl, supabaseJapanKey, {
+      auth: {
+        storageKey: 'cnec-japan-auth',
+        persistSession: true,
+        autoRefreshToken: true
+      }
+    })
   : null
 
 // US Supabase Client
@@ -22,7 +34,13 @@ const supabaseUSUrl = import.meta.env.VITE_SUPABASE_US_URL || ''
 const supabaseUSKey = import.meta.env.VITE_SUPABASE_US_ANON_KEY || ''
 
 export const supabaseUS = (supabaseUSUrl && supabaseUSKey && supabaseUSUrl.startsWith('http'))
-  ? createClient(supabaseUSUrl, supabaseUSKey)
+  ? createClient(supabaseUSUrl, supabaseUSKey, {
+      auth: {
+        storageKey: 'cnec-us-auth',
+        persistSession: true,
+        autoRefreshToken: true
+      }
+    })
   : null
 
 // Taiwan Supabase Client
@@ -30,7 +48,13 @@ const supabaseTaiwanUrl = import.meta.env.VITE_SUPABASE_TAIWAN_URL || ''
 const supabaseTaiwanKey = import.meta.env.VITE_SUPABASE_TAIWAN_ANON_KEY || ''
 
 export const supabaseTaiwan = (supabaseTaiwanUrl && supabaseTaiwanKey && supabaseTaiwanUrl.startsWith('http'))
-  ? createClient(supabaseTaiwanUrl, supabaseTaiwanKey)
+  ? createClient(supabaseTaiwanUrl, supabaseTaiwanKey, {
+      auth: {
+        storageKey: 'cnec-taiwan-auth',
+        persistSession: true,
+        autoRefreshToken: true
+      }
+    })
   : null
 
 // Central BIZ Supabase Client (for managing companies, quotations, contracts)
