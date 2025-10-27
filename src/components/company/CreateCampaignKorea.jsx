@@ -422,15 +422,11 @@ const CampaignCreationKorea = () => {
             throw quoteError
           }
 
-          setSuccess(`캠페인이 생성되었습니다! 입금 요청서가 발행되었습니다.`)
+          setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
-          // 포인트 충전 페이지로 이동 유도
+          // 크리에이터 가이드 페이지로 이동
           setTimeout(() => {
-            if (window.confirm(`포인트가 ${neededPoints.toLocaleString()}P 부족합니다. 입금 요청서를 확인하시겠습니까?`)) {
-              navigate('/company/payment-history')
-            } else {
-              navigate('/company/campaigns')
-            }
+            navigate(`/company/campaigns/guide?id=${campaignId}`)
           }, 1500)
           return
         }
