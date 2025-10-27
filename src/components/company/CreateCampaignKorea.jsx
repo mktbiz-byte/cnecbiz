@@ -345,7 +345,7 @@ const CampaignCreationKorea = () => {
           if (pointsError) throw pointsError
 
           // 포인트 거래 기록
-          await supabaseBiz
+          const { error: transactionError } = await supabaseBiz
             .from('points_transactions')
             .insert([{
               company_id: companyData.id,
@@ -354,6 +354,12 @@ const CampaignCreationKorea = () => {
               description: `캠페인 생성: ${autoTitle}`,
               campaign_id: data[0].id
             }])
+            .select()
+          
+          if (transactionError) {
+            console.error('포인트 거래 기록 오류:', transactionError)
+            // 거래 기록 실패해도 캠페인은 생성되었으므로 계속 진행
+          }
 
           setSuccess(`캠페인이 생성되었습니다! ${finalCost.toLocaleString()}포인트가 차감되었습니다.`)
           

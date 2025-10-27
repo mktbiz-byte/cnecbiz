@@ -5,7 +5,7 @@ import { X } from 'lucide-react'
 
 export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegion }) {
   const navigate = useNavigate()
-  const modalOpen = isOpen || open
+  const modalOpen = isOpen !== false && open !== false
   if (!modalOpen) return null
   
   const handleSelectRegion = (regionId) => {
@@ -15,7 +15,7 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
       // 기본 동작: 해당 지역의 캠페인 생성 페이지로 이동
       navigate(`/company/campaigns/create/${regionId}`)
     }
-    onClose()
+    if (onClose) onClose()
   }
 
   const regions = [
@@ -54,7 +54,7 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold">캠페인을 생성할 나라를 선택하세요</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={() => onClose && onClose()}>
             <X className="w-5 h-5" />
           </Button>
         </div>

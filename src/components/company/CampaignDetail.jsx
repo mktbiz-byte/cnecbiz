@@ -366,7 +366,7 @@ export default function CampaignDetail() {
           if (refundError) throw refundError
 
           // 포인트 반납 기록
-          await supabaseBiz
+          const { error: refundTransactionError } = await supabaseBiz
             .from('points_transactions')
             .insert([{
               company_id: companyData.id,
@@ -375,6 +375,11 @@ export default function CampaignDetail() {
               description: `캠페인 취소 환불: ${campaign.title || campaign.campaign_name}`,
               campaign_id: id
             }])
+            .select()
+          
+          if (refundTransactionError) {
+            console.error('포인트 환불 기록 오류:', refundTransactionError)
+          }
 
           alert(`캠페인이 취소되었습니다. ${refundAmount.toLocaleString()}포인트가 반납되었습니다.`)
         } else {
