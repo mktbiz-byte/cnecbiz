@@ -73,7 +73,16 @@ export default function MyCampaigns() {
         region: 'korea'
       }))
 
-      setCampaigns(campaignsWithRegion)
+      // 취소된 캠페인은 하단으로 정렬
+      const sortedCampaigns = campaignsWithRegion.sort((a, b) => {
+        // 취소된 캠페인은 하단으로
+        if (a.is_cancelled && !b.is_cancelled) return 1
+        if (!a.is_cancelled && b.is_cancelled) return -1
+        // 나머지는 생성일 기준 내림차순
+        return new Date(b.created_at) - new Date(a.created_at)
+      })
+
+      setCampaigns(sortedCampaigns)
 
       // 각 캠페인의 참여자 정보 가져오기
       const participantsData = {}
@@ -217,7 +226,7 @@ export default function MyCampaigns() {
               <CardTitle className="text-sm font-medium text-gray-600">전체 캠페인</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{campaigns.length}</div>
+              <div className="text-3xl font-bold">{campaigns.filter(c => !c.is_cancelled).length}</div>
             </CardContent>
           </Card>
           <Card>
@@ -226,7 +235,7 @@ export default function MyCampaigns() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-orange-600">
-                {campaigns.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length}
+                {campaigns.filter(c => !c.is_cancelled && (c.approval_status === 'draft' || c.approval_status === 'pending')).length}
               </div>
             </CardContent>
           </Card>
@@ -236,7 +245,7 @@ export default function MyCampaigns() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-blue-600">
-                {campaigns.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length}
+                {campaigns.filter(c => !c.is_cancelled && c.approval_status === 'approved' && c.status !== 'completed').length}
               </div>
             </CardContent>
           </Card>
@@ -246,7 +255,7 @@ export default function MyCampaigns() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-600">
-                {campaigns.filter(c => c.status === 'completed').length}
+                {campaigns.filter(c => !c.is_cancelled && c.status === 'completed').length}
               </div>
             </CardContent>
           </Card>

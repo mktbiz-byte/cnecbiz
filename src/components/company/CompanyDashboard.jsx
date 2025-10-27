@@ -88,7 +88,15 @@ export default function CompanyDashboard() {
         .order('created_at', { ascending: false })
         .limit(5)
 
-      setCampaigns(campaignsData || [])
+      // 취소된 캠페인은 하단으로 정렬
+      const sortedCampaigns = (campaignsData || []).sort((a, b) => {
+        // 취소된 캠페인은 하단으로
+        if (a.is_cancelled && !b.is_cancelled) return 1
+        if (!a.is_cancelled && b.is_cancelled) return -1
+        // 나머지는 생성일 기준 내림차순
+        return new Date(b.created_at) - new Date(a.created_at)
+      })
+      setCampaigns(sortedCampaigns)
 
       // 각 캠페인의 참여자 정보 가져오기
       const participantsData = {}
@@ -106,16 +114,17 @@ export default function CompanyDashboard() {
       }
       setParticipants(participantsData)
 
-      // 통계 계산
-      const total = campaignsData?.length || 0
-      const pending = campaignsData?.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length || 0
-      const active = campaignsData?.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length || 0
-      const completed = campaignsData?.filter(c => c.status === 'completed').length || 0
-      const totalSpent = campaignsData?.reduce((sum, c) => {
+      // 통계 계산 (취소된 캠페인 제외)
+      const activeCampaigns = campaignsData?.filter(c => !c.is_cancelled) || []
+      const total = activeCampaigns.length
+      const pending = activeCampaigns.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length
+      const active = activeCampaigns.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length
+      const completed = activeCampaigns.filter(c => c.status === 'completed').length
+      const totalSpent = activeCampaigns.reduce((sum, c) => {
         const packagePrice = getPackagePrice(c.package_type)
         const count = c.total_slots || 0
         return sum + (packagePrice * count)
-      }, 0) || 0
+      }, 0)
       setStats({ total, pending, active, completed, totalSpent })
     } catch (error) {
       console.error('Error fetching data:', error)
