@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   ArrowLeft, 
   Plus, 
@@ -28,6 +29,7 @@ export default function MyCampaigns() {
   const [loading, setLoading] = useState(false)
   const [showRegionModal, setShowRegionModal] = useState(false)
   const [selectedRegion, setSelectedRegion] = useState('all')
+  const [selectedStatus, setSelectedStatus] = useState('all')
 
   useEffect(() => {
     checkAuth()
@@ -271,23 +273,25 @@ export default function MyCampaigns() {
           </Card>
         </div>
 
+        {/* Status Tabs */}
+        <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="mb-6">
+          <TabsList className="grid w-full grid-cols-9 gap-1">
+            <TabsTrigger value="all" className="text-xs px-2">전체</TabsTrigger>
+            <TabsTrigger value="draft" className="text-xs px-2">작성중</TabsTrigger>
+            <TabsTrigger value="pending_payment" className="text-xs px-2">입금확인중</TabsTrigger>
+            <TabsTrigger value="pending" className="text-xs px-2">승인요청중</TabsTrigger>
+            <TabsTrigger value="recruiting" className="text-xs px-2">모집중</TabsTrigger>
+            <TabsTrigger value="guide_review" className="text-xs px-2">가이드검토중</TabsTrigger>
+            <TabsTrigger value="in_progress" className="text-xs px-2">촬영중</TabsTrigger>
+            <TabsTrigger value="revision" className="text-xs px-2">수정중</TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs px-2">최종완료</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {/* Campaigns List */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>캠페인 목록</CardTitle>
-              <select
-                value={selectedRegion}
-                onChange={(e) => setSelectedRegion(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm"
-              >
-                <option value="all">모든 나라</option>
-                <option value="korea">한국</option>
-                <option value="japan">일본</option>
-                <option value="us">미국</option>
-                <option value="taiwan">대만</option>
-              </select>
-            </div>
+            <CardTitle>캠페인 목록</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -306,7 +310,45 @@ export default function MyCampaigns() {
             ) : (
               <div className="space-y-4">
                 {campaigns
-                  .filter(campaign => selectedRegion === 'all' || campaign.region === selectedRegion)
+                  .filter(campaign => {
+                    // 나라별 필터링
+                    const matchesRegion = selectedRegion === 'all' || campaign.region === selectedRegion
+                    
+                    // 상태별 필터링
+                    let matchesStatus = true
+                    if (selectedStatus !== 'all') {
+                      switch (selectedStatus) {
+                        case 'draft':
+                          matchesStatus = campaign.status === 'draft' || campaign.approval_status === 'draft'
+                          break
+                        case 'pending_payment':
+                          matchesStatus = campaign.approval_status === 'pending_payment'
+                          break
+                        case 'pending':
+                          matchesStatus = campaign.approval_status === 'pending'
+                          break
+                        case 'recruiting':
+                          matchesStatus = campaign.approval_status === 'approved' && campaign.status !== 'completed'
+                          break
+                        case 'guide_review':
+                          matchesStatus = campaign.status === 'guide_review' || campaign.progress_status === 'guide_confirmation'
+                          break
+                        case 'in_progress':
+                          matchesStatus = campaign.status === 'in_progress' || campaign.status === 'active' || campaign.progress_status === 'filming'
+                          break
+                        case 'revision':
+                          matchesStatus = campaign.approval_status === 'rejected' || campaign.status === 'revision' || campaign.progress_status === 'editing'
+                          break
+                        case 'completed':
+                          matchesStatus = campaign.status === 'completed'
+                          break
+                        default:
+                          matchesStatus = true
+                      }
+                    }
+                    
+                    return matchesRegion && matchesStatus
+                  })
                   .map((campaign) => {
                   const packagePrice = getPackagePrice(campaign.package_type)
                   const totalCost = packagePrice * (campaign.total_slots || 0)
