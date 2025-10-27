@@ -5,8 +5,9 @@ import { X } from 'lucide-react'
 
 export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegion }) {
   const navigate = useNavigate()
-  const modalOpen = isOpen !== false && open !== false
-  if (!modalOpen) return null
+  // isOpen이나 open 중 하나라도 명시적으로 전달되면 그 값을 사용, 아니면 true (조건부 렌더링으로 이미 제어됨)
+  const shouldShow = isOpen !== undefined ? isOpen : (open !== undefined ? open : true)
+  if (!shouldShow) return null
   
   const handleSelectRegion = (regionId) => {
     if (onSelectRegion) {
