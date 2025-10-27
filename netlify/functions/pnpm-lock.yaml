@@ -1,0 +1,47 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      popbill:
+        specifier: ^1.62.0
+        version: 1.62.0
+
+packages:
+
+  'cnecbiz-netlify-functions@file:':
+    resolution: {directory: '', type: directory}
+
+  linkhub@1.8.2:
+    resolution: {integrity: sha512-7f5uedgRpdacfZpg+R+A9iNpmDvwL9qn97GAiuG6rUGPKMykDjyDPIF7gyG2mzt3+ey+iXQtzYWzRNfTp4WIGQ==}
+    engines: {node: '>= 0.10.0'}
+
+  popbill@1.62.0:
+    resolution: {integrity: sha512-oQseWBt8p4iD+khKfM26AaGmJlzJgUdI3CRVFchV1UsZX1dUtK2uxJeYZ71L0sHEfBv8a6KSjwVFc/nSexMhEQ==}
+    engines: {node: '>= 0.10.0'}
+
+  xmlhttprequest@1.8.0:
+    resolution: {integrity: sha512-58Im/U0mlVBLM38NdZjHyhuMtCqa61469k2YP/AaPbvCoV9aQGUpbJBj1QRm2ytRiVQBD/fsw7L2bJGDVQswBA==}
+    engines: {node: '>=0.4.0'}
+
+snapshots:
+
+  'cnecbiz-netlify-functions@file:':
+    dependencies:
+      popbill: 1.62.0
+
+  linkhub@1.8.2:
+    dependencies:
+      xmlhttprequest: 1.8.0
+
+  popbill@1.62.0:
+    dependencies:
+      linkhub: 1.8.2
+      popbill: 'cnecbiz-netlify-functions@file:'
+
+  xmlhttprequest@1.8.0: {}

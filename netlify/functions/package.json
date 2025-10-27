@@ -1,0 +1,9 @@
+{
+  "name": "cnecbiz-netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for Popbill API integration",
+  "dependencies": {
+    "popbill": "^1.62.0"
+  }
+}
+
