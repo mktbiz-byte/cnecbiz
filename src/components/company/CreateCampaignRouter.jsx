@@ -1,10 +1,11 @@
-import { useSearchParams, Navigate } from 'react-router-dom'
+import { useSearchParams, useParams, Navigate } from 'react-router-dom'
 import CreateCampaignKorea from './CreateCampaignKorea'
 import CreateCampaign from './CreateCampaign'
 
 export default function CreateCampaignRouter() {
   const [searchParams] = useSearchParams()
-  const region = searchParams.get('region')
+  const params = useParams()
+  const region = params.region || searchParams.get('region')
 
   // 나라별로 다른 컴포넌트 렌더링
   switch (region) {

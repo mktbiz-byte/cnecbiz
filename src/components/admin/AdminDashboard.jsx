@@ -16,7 +16,8 @@ import {
   Trash2,
   GripVertical,
   HelpCircle,
-  Edit
+  Edit,
+  CreditCard
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 

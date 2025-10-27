@@ -49,6 +49,7 @@ function App() {
         {/* Company Admin Routes */}
         <Route path="/company/dashboard" element={<CompanyDashboard />} />
         <Route path="/company/campaigns/new" element={<CreateCampaignRouter />} />
+        <Route path="/company/campaigns/create/:region" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/guide" element={<CampaignGuideEditor />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns/:id/review" element={<GuideReview />} />
