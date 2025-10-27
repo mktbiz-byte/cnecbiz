@@ -25,7 +25,8 @@ export default function PointsManagement() {
     address: '',
     contact: '',
     email: '',
-    need_tax_invoice: false,
+    business_type: '',
+    business_category: '',
     memo: ''
   })
 
@@ -383,7 +384,7 @@ export default function PointsManagement() {
                 </div>
 
                 <div>
-                  <Label htmlFor="email">이메일 * (견적서 및 입금 계좌 정보 발송)</Label>
+                  <Label htmlFor="email">세금계산서 받으실 메일 주소 *</Label>
                   <Input
                     id="email"
                     type="email"
@@ -391,6 +392,27 @@ export default function PointsManagement() {
                     onChange={(e) => setInvoiceForm({...invoiceForm, email: e.target.value})}
                     placeholder="company@example.com"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="business_type">업태</Label>
+                    <Input
+                      id="business_type"
+                      value={invoiceForm.business_type}
+                      onChange={(e) => setInvoiceForm({...invoiceForm, business_type: e.target.value})}
+                      placeholder="예: 제조업, 도소매업, 서비스업"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="business_category">업종</Label>
+                    <Input
+                      id="business_category"
+                      value={invoiceForm.business_category}
+                      onChange={(e) => setInvoiceForm({...invoiceForm, business_category: e.target.value})}
+                      placeholder="예: 광고대행, 컴퓨터판매, 컨설팅"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -403,18 +425,7 @@ export default function PointsManagement() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="need_tax_invoice"
-                    checked={invoiceForm.need_tax_invoice}
-                    onChange={(e) => setInvoiceForm({...invoiceForm, need_tax_invoice: e.target.checked})}
-                    className="w-4 h-4"
-                  />
-                  <Label htmlFor="need_tax_invoice" className="cursor-pointer">
-                    세금계산서 발급 필요
-                  </Label>
-                </div>
+
 
                 <div>
                   <Label htmlFor="memo">메모 (선택사항)</Label>
@@ -451,7 +462,7 @@ export default function PointsManagement() {
                 <Button
                   onClick={handleSubmitChargeRequest}
                   disabled={loading}
-                  className="bg-blue-600"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                 >
                   {loading ? '처리 중...' : '충전 신청하기'}
                 </Button>

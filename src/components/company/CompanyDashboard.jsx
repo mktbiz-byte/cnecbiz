@@ -284,7 +284,7 @@ export default function CompanyDashboard() {
           <Button 
             variant="ghost" 
             className="w-full justify-start gap-3"
-            onClick={() => navigate('/company/payment-history')}
+            onClick={() => navigate('/company/payments')}
           >
             <FileText className="w-5 h-5" />
             {sidebarOpen && <span>내 결제내역</span>}
