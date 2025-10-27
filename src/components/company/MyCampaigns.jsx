@@ -191,7 +191,7 @@ export default function MyCampaigns() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-orange-600">
-                {campaigns.filter(c => !c.payment_status || c.payment_status === 'pending').length}
+                {campaigns.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length}
               </div>
             </CardContent>
           </Card>
@@ -201,7 +201,7 @@ export default function MyCampaigns() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-blue-600">
-                {campaigns.filter(c => c.payment_status === 'confirmed').length}
+                {campaigns.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length}
               </div>
             </CardContent>
           </Card>

@@ -105,7 +105,7 @@ export default function CompanyDashboard() {
 
       // 통계 계산
       const total = campaignsData?.length || 0
-      const active = campaignsData?.filter(c => c.status === 'active').length || 0
+      const active = campaignsData?.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length || 0
       const completed = campaignsData?.filter(c => c.status === 'completed').length || 0
       const totalSpent = campaignsData?.reduce((sum, c) => {
         const packagePrice = getPackagePrice(c.package_type)
