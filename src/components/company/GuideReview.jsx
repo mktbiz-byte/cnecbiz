@@ -63,9 +63,8 @@ const GuideReview = () => {
   const videoDurationLabels = {
     '15sec': '15초',
     '30sec': '30초',
-    '1min': '1분',
-    '2min': '2분',
-    '3min+': '3분 이상'
+    '45sec': '45초',
+    '1min': '1분'
   }
 
   const videoTempoLabels = {

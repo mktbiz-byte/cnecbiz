@@ -261,9 +261,8 @@ const CampaignGuideEditor = () => {
               <SelectContent className="bg-white">
                 <SelectItem value="15sec">15초</SelectItem>
                 <SelectItem value="30sec">30초</SelectItem>
+                <SelectItem value="45sec">45초</SelectItem>
                 <SelectItem value="1min">1분</SelectItem>
-                <SelectItem value="2min">2분</SelectItem>
-                <SelectItem value="3min+">3분 이상</SelectItem>
               </SelectContent>
             </Select>
           </div>
