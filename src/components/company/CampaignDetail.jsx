@@ -26,11 +26,30 @@ export default function CampaignDetail() {
   const [refreshingViews, setRefreshingViews] = useState({})
   const [selectedParticipants, setSelectedParticipants] = useState([])
   const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
+    checkIfAdmin()
     fetchCampaignDetail()
     fetchParticipants()
   }, [id])
+
+  const checkIfAdmin = async () => {
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) return
+
+      const { data: adminData } = await supabaseBiz
+        .from('admin_users')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      setIsAdmin(!!adminData)
+    } catch (error) {
+      console.error('Error checking admin status:', error)
+    }
+  }
 
   const fetchCampaignDetail = async () => {
     try {
@@ -438,7 +457,7 @@ export default function CampaignDetail() {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate('/company/campaigns')}>
+            <Button variant="outline" onClick={() => navigate(isAdmin ? '/admin/campaigns' : '/company/campaigns')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               뒤로가기
             </Button>
@@ -479,9 +498,9 @@ export default function CampaignDetail() {
             )}
             {!campaign.is_cancelled && (
               <div>
-                {campaign.payment_status !== 'confirmed' ? (
+                {(isAdmin || campaign.payment_status !== 'confirmed') ? (
                   <Button 
-                    variant="outline" 
+                    variant="outline"
                     className="text-red-600 border-red-600 hover:bg-red-50"
                     onClick={handleCancelCampaign}
                   >
