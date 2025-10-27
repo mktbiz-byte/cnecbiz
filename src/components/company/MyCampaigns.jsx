@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Plus, Eye, TrendingUp } from 'lucide-react'
-import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
+import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
 import RegionSelectModal from './RegionSelectModal'
 
 export default function MyCampaigns() {
@@ -44,9 +45,27 @@ export default function MyCampaigns() {
   const fetchCampaigns = async (companyId) => {
     setLoading(true)
     try {
-      const allCampaigns = await getCampaignsFromAllRegions()
-      const myCampaigns = allCampaigns.filter(c => c.company_id === companyId)
-      setCampaigns(myCampaigns)
+      // 현재 로그인한 사용자의 이메일 가져오기
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) {
+        setCampaigns([])
+        return
+      }
+
+      // 한국 지역 캠페인 가져오기 (company_email 기준)
+      const { data: koreaCampaigns } = await supabaseKorea
+        .from('campaigns')
+        .select('*')
+        .or(`company_email.eq.${user.email},company_email.is.null`)
+        .order('created_at', { ascending: false })
+
+      // 지역 표시를 위해 region 필드 추가
+      const campaignsWithRegion = (koreaCampaigns || []).map(c => ({
+        ...c,
+        region: 'korea'
+      }))
+
+      setCampaigns(campaignsWithRegion)
     } catch (error) {
       console.error('Error fetching campaigns:', error)
     } finally {
