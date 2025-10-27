@@ -32,6 +32,7 @@ export default function PointsManagement() {
     business_type: '',
     business_category: '',
     memo: '',
+    depositor_name: '', // 예금주명 (입금자명)
     // 현금영수증 전용 필드
     cashbill_identity_num: '', // 휴대폰번호 or 사업자번호
     cashbill_usage: '1' // 1: 소득공제용, 2: 지출증빙용
@@ -557,6 +558,17 @@ export default function PointsManagement() {
                   />
                 </div>
 
+                <div>
+                  <Label htmlFor="depositor_name">예금주명 (입금자명) *</Label>
+                  <Input
+                    id="depositor_name"
+                    value={invoiceForm.depositor_name || invoiceForm.company_name}
+                    onChange={(e) => setInvoiceForm({...invoiceForm, depositor_name: e.target.value})}
+                    placeholder="회사명과 동일하게 입금해주세요"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">⚠️ 입금자명이 일치해야 자동 확인됩니다</p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="business_type">업태</Label>
@@ -644,6 +656,17 @@ export default function PointsManagement() {
                         onChange={(e) => setInvoiceForm({...invoiceForm, email: e.target.value})}
                         placeholder="cashbill@example.com"
                       />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="depositor_name_cb">예금주명 (입금자명) *</Label>
+                      <Input
+                        id="depositor_name_cb"
+                        value={invoiceForm.depositor_name || invoiceForm.company_name}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, depositor_name: e.target.value})}
+                        placeholder="입금하실 예금주명을 입력하세요"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">⚠️ 입금자명이 일치해야 자동 확인됩니다</p>
                     </div>
 
                     <div>
