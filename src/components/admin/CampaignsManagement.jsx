@@ -57,12 +57,14 @@ export default function CampaignsManagement() {
   }
 
   const filteredCampaigns = campaigns.filter(campaign => {
-    const matchesSearch = 
+    const matchesSearch = searchTerm === '' ||
       campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      campaign.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      campaign.campaign_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      campaign.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      campaign.product_name?.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesRegion = selectedRegion === 'all' || campaign.region === selectedRegion
-    const matchesStatus = selectedStatus === 'all' || campaign.status === selectedStatus
+    const matchesStatus = selectedStatus === 'all' || campaign.status === selectedStatus || campaign.approval_status === selectedStatus
 
     return matchesSearch && matchesRegion && matchesStatus
   })
@@ -123,8 +125,8 @@ export default function CampaignsManagement() {
 
   const stats = {
     total: campaigns.length,
-    pending: campaigns.filter(c => c.status === 'pending').length,
-    active: campaigns.filter(c => c.status === 'active').length,
+    pending: campaigns.filter(c => c.status === 'pending' || c.approval_status === 'pending').length,
+    active: campaigns.filter(c => c.status === 'active' || c.approval_status === 'approved').length,
     completed: campaigns.filter(c => c.status === 'completed').length
   }
 
@@ -234,9 +236,9 @@ export default function CampaignsManagement() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold">{campaign.title || '제목 없음'}</h3>
+                          <h3 className="text-lg font-bold">{campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}</h3>
                           {getRegionBadge(campaign.region)}
-                          {getStatusBadge(campaign.status)}
+                          {getStatusBadge(campaign.approval_status || campaign.status)}
                         </div>
                         <p className="text-sm text-gray-600 mb-3">
                           {campaign.description || '설명 없음'}

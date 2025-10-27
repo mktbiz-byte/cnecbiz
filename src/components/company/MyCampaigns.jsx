@@ -44,6 +44,19 @@ export default function MyCampaigns() {
       return
     }
 
+    // 슈퍼 관리자 체크
+    const { data: adminData } = await supabaseBiz
+      .from('admin_users')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+
+    if (adminData) {
+      // 슈퍼 관리자는 관리자 대시보드로 리다이렉트
+      navigate('/admin/dashboard')
+      return
+    }
+
     const { data: companyData } = await supabaseBiz
       .from('companies')
       .select('*')
@@ -53,6 +66,9 @@ export default function MyCampaigns() {
     if (companyData) {
       setCompany(companyData)
       fetchCampaigns(user.email)
+    } else {
+      // 회사 정보가 없으면 로그인 페이지로
+      navigate('/login')
     }
   }
 
