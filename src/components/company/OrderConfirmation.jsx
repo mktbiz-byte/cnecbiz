@@ -57,13 +57,17 @@ const OrderConfirmation = () => {
   }
 
   const packagePrices = {
+    'oliveyoung': 200000,
     '올영 20만원': 200000,
+    'premium': 300000,
     '프리미엄 30만원': 300000,
+    '4week_challenge': 600000,
     '4주챌린지 60만원': 600000
   }
 
   const packagePrice = packagePrices[campaign.package_type] || 0
-  const totalCost = packagePrice * campaign.recruitment_count
+  const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
+  const totalCost = packagePrice * recruitmentCount
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -165,7 +169,7 @@ const OrderConfirmation = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">모집 인원</span>
-                <span className="font-medium">{campaign.recruitment_count}명</span>
+                <span className="font-medium">{recruitmentCount}명</span>
               </div>
               <div className="border-t border-blue-200 pt-3 mt-3">
                 <div className="flex justify-between items-center">
@@ -184,7 +188,7 @@ const OrderConfirmation = () => {
             <div className="bg-gray-50 p-4 rounded-lg space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">모집 인원</span>
-                <span className="font-medium">{campaign.recruitment_count}명</span>
+                <span className="font-medium">{recruitmentCount}명</span>
               </div>
               {campaign.recruitment_start_date && (
                 <div className="flex justify-between items-center">

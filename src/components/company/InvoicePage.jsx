@@ -107,13 +107,17 @@ const InvoicePage = () => {
   }
 
   const packagePrices = {
+    'oliveyoung': 200000,
     '올영 20만원': 200000,
+    'premium': 300000,
     '프리미엄 30만원': 300000,
+    '4week_challenge': 600000,
     '4주챌린지 60만원': 600000
   }
 
   const packagePrice = packagePrices[campaign.package_type] || 0
-  const totalCost = packagePrice * campaign.recruitment_count
+  const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
+  const totalCost = packagePrice * recruitmentCount
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
 
   return (
@@ -169,7 +173,7 @@ const InvoicePage = () => {
                       {packagePrice.toLocaleString()}원
                     </td>
                     <td className="px-4 py-3 text-sm text-right">
-                      {campaign.recruitment_count}명
+                      {recruitmentCount}명
                     </td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
                       {totalCost.toLocaleString()}원
@@ -279,7 +283,7 @@ const InvoicePage = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">모집 인원</span>
-                <span>{campaign.recruitment_count}명</span>
+                <span>{recruitmentCount}명</span>
               </div>
             </div>
           </div>
