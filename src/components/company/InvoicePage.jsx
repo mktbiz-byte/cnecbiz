@@ -20,9 +20,12 @@ const InvoicePage = () => {
   const [success, setSuccess] = useState('')
   const [copied, setCopied] = useState(false)
   const [taxInvoiceNumber, setTaxInvoiceNumber] = useState('')
-  const [taxInvoiceDate, setTaxInvoiceDate] = useState('')
   const [taxInvoiceAmount, setTaxInvoiceAmount] = useState('')
   const [taxInvoiceFileUrl, setTaxInvoiceFileUrl] = useState('')
+  const [companyAddress, setCompanyAddress] = useState('')
+  const [representativeName, setRepresentativeName] = useState('')
+  const [businessType, setBusinessType] = useState('')
+  const [businessCategory, setBusinessCategory] = useState('')
   const [uploadingTaxInvoice, setUploadingTaxInvoice] = useState(false)
 
   useEffect(() => {
@@ -115,9 +118,12 @@ const InvoicePage = () => {
 
       // 세금계산서 정보가 있으면 함께 저장
       if (taxInvoiceNumber) updateData.tax_invoice_number = taxInvoiceNumber
-      if (taxInvoiceDate) updateData.tax_invoice_date = taxInvoiceDate
       if (taxInvoiceAmount) updateData.tax_invoice_amount = parseInt(taxInvoiceAmount)
       if (taxInvoiceFileUrl) updateData.tax_invoice_file_url = taxInvoiceFileUrl
+      if (companyAddress) updateData.company_address = companyAddress
+      if (representativeName) updateData.representative_name = representativeName
+      if (businessType) updateData.business_type = businessType
+      if (businessCategory) updateData.business_category = businessCategory
 
       const { error } = await supabase
         .from('campaigns')
@@ -309,24 +315,54 @@ const InvoicePage = () => {
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="tax_invoice_number">세금계산서 번호</Label>
+                <Input
+                  id="tax_invoice_number"
+                  value={taxInvoiceNumber}
+                  onChange={(e) => setTaxInvoiceNumber(e.target.value)}
+                  placeholder="예: 2024-001"
+                />
+              </div>
+              <div>
+                <Label htmlFor="company_address">주소</Label>
+                <Input
+                  id="company_address"
+                  value={companyAddress}
+                  onChange={(e) => setCompanyAddress(e.target.value)}
+                  placeholder="회사 주소를 입력하세요"
+                />
+              </div>
+              <div>
+                <Label htmlFor="representative_name">대표자 이름</Label>
+                <Input
+                  id="representative_name"
+                  value={representativeName}
+                  onChange={(e) => setRepresentativeName(e.target.value)}
+                  placeholder="대표자 성함을 입력하세요"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="tax_invoice_number">세금계산서 번호</Label>
+                  <Label htmlFor="business_type">업태</Label>
                   <Input
-                    id="tax_invoice_number"
-                    value={taxInvoiceNumber}
-                    onChange={(e) => setTaxInvoiceNumber(e.target.value)}
-                    placeholder="예: 2024-001"
+                    id="business_type"
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value)}
+                    placeholder="예: 도소매업"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="tax_invoice_date">발행일</Label>
+                  <Label htmlFor="business_category">업종</Label>
                   <Input
-                    id="tax_invoice_date"
-                    type="date"
-                    value={taxInvoiceDate}
-                    onChange={(e) => setTaxInvoiceDate(e.target.value)}
+                    id="business_category"
+                    value={businessCategory}
+                    onChange={(e) => setBusinessCategory(e.target.value)}
+                    placeholder="예: 화장품 도소매"
                   />
                 </div>
+              </div>
+
               </div>
               <div>
                 <Label htmlFor="tax_invoice_amount">공급가액 (원)</Label>
@@ -424,10 +460,10 @@ const InvoicePage = () => {
               ) : isPaymentConfirmed ? (
                 <>
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  입금 확인 완료
+                  완료
                 </>
               ) : (
-                '입금 완료 확인'
+                '완료'
               )}
             </Button>
           </div>
