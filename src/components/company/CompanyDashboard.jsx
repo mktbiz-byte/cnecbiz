@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
+import RegionSelectModal from './RegionSelectModal'
 
 export default function CompanyDashboard() {
   const navigate = useNavigate()
@@ -37,6 +38,7 @@ export default function CompanyDashboard() {
   })
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [selectedRegion, setSelectedRegion] = useState('korea')
+  const [showRegionModal, setShowRegionModal] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -217,7 +219,7 @@ export default function CompanyDashboard() {
           <Button 
             variant="default" 
             className="w-full justify-start gap-3"
-            onClick={() => navigate('/company/campaigns/select-region')}
+            onClick={() => setShowRegionModal(true)}
           >
             <Plus className="w-5 h-5" />
             {sidebarOpen && <span>새 캠페인</span>}
@@ -433,6 +435,12 @@ export default function CompanyDashboard() {
           </Card>
         </div>
       </main>
+
+      {/* Region Select Modal */}
+      <RegionSelectModal 
+        open={showRegionModal}
+        onClose={() => setShowRegionModal(false)}
+      />
     </div>
   )
 }
