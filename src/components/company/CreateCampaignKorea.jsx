@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase, storage } from '../../lib/supabaseKorea'
 import { supabaseBiz } from '../../lib/supabaseClients'
