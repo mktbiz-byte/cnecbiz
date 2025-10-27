@@ -570,9 +570,24 @@ const CampaignCreationKorea = () => {
                     disabled
                     className="bg-gray-100 font-semibold text-blue-600"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {campaignForm.total_slots}명 × ₩{packageOptions.find(p => p.value === campaignForm.package_type)?.price.toLocaleString()}
-                  </p>
+                  {(() => {
+                    const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
+                    const packagePrice = pkg?.price || 0
+                    const subtotal = packagePrice * campaignForm.total_slots
+                    const discountRate = calculateDiscount(campaignForm.total_slots)
+                    const discountAmount = Math.floor(subtotal * (discountRate / 100))
+                    
+                    return (
+                      <div className="text-xs text-gray-500 mt-1 space-y-1">
+                        <div>{campaignForm.total_slots}명 × ₩{packagePrice.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
+                        {discountRate > 0 && (
+                          <div className="text-green-600 font-medium">
+                            할인 ({discountRate}%): -₩{discountAmount.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                   {campaignForm.total_slots >= 10 && (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                       <p className="text-xs text-green-700 font-medium">

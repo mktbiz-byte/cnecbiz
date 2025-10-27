@@ -160,7 +160,19 @@ const OrderConfirmation = () => {
 
   const packagePrice = packagePrices[campaign.package_type] || 200000
   const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
-  const totalCost = packagePrice * recruitmentCount
+  
+  // 할인 계산
+  let discountRate = 0
+  if (recruitmentCount >= 20) {
+    discountRate = 0.10 // 10% 할인
+  } else if (recruitmentCount >= 10) {
+    discountRate = 0.05 // 5% 할인
+  }
+  
+  const subtotal = packagePrice * recruitmentCount
+  const discountAmount = Math.floor(subtotal * discountRate)
+  const totalCost = subtotal - discountAmount
+  
   const shortfall = Math.max(0, totalCost - pointsBalance)
   const canPayWithPoints = shortfall === 0
 
@@ -206,6 +218,16 @@ const OrderConfirmation = () => {
                 <span className="text-gray-700">모집 인원</span>
                 <span className="font-medium">{recruitmentCount}명</span>
               </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700">소계</span>
+                <span className="font-medium">{subtotal.toLocaleString()}원</span>
+              </div>
+              {discountRate > 0 && (
+                <div className="flex justify-between items-center text-green-600">
+                  <span className="font-medium">할인 ({discountRate * 100}%)</span>
+                  <span className="font-medium">-{discountAmount.toLocaleString()}원</span>
+                </div>
+              )}
               <div className="border-t border-blue-200 pt-4 mt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xl font-semibold">예상 총 비용</span>
