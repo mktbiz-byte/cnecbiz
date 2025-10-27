@@ -400,6 +400,7 @@ const CampaignCreationKorea = () => {
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert([{
+              user_id: user.id,
               company_id: companyData.id,
               amount: finalCost,
               points_amount: finalCost,

@@ -71,14 +71,22 @@ export const getCreatorStats = async () => {
 
   for (const region of regions) {
     const client = getSupabaseClient(region)
-    if (!client) continue
+    if (!client) {
+      console.warn(`[getCreatorStats] No client for ${region}`)
+      stats.byRegion[region] = 0
+      continue
+    }
 
     try {
       const { data, error } = await client
         .from('user_profiles')
         .select('instagram_url, youtube_url, tiktok_url')
 
-      if (!error && data) {
+      if (error) {
+        console.error(`[getCreatorStats] Error from ${region}:`, error)
+        stats.byRegion[region] = 0
+      } else if (data) {
+        console.log(`[getCreatorStats] ${region}: ${data.length} creators`)
         stats.byRegion[region] = data.length
         stats.total += data.length
 
@@ -87,12 +95,16 @@ export const getCreatorStats = async () => {
           if (creator.youtube_url) stats.byPlatform.youtube++
           if (creator.tiktok_url) stats.byPlatform.tiktok++
         })
+      } else {
+        stats.byRegion[region] = 0
       }
     } catch (error) {
-      console.error(`Error fetching stats from ${region}:`, error)
+      console.error(`[getCreatorStats] Exception from ${region}:`, error)
+      stats.byRegion[region] = 0
     }
   }
 
+  console.log('[getCreatorStats] Final stats:', stats)
   return stats
 }
 

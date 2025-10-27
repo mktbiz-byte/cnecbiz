@@ -472,10 +472,10 @@ const InvoicePage = () => {
               ) : isPaymentConfirmed ? (
                 <>
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  완료
+                  입금 확인 완료
                 </>
               ) : (
-                '완료'
+                '다음단계'
               )}
             </Button>
           </div>
