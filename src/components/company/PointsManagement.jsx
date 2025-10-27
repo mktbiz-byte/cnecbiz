@@ -215,7 +215,7 @@ export default function PointsManagement() {
 
         <div className="flex items-center gap-3 mb-8">
           <Coins className="w-8 h-8 text-yellow-600" />
-          <h1 className="text-3xl font-bold">포인트 관리</h1>
+          <h1 className="text-3xl font-bold">포인트 관리 & 충전</h1>
         </div>
 
         {/* Current Balance */}

@@ -172,7 +172,19 @@ const InvoicePage = () => {
 
   const packagePrice = packagePrices[campaign.package_type] || 200000
   const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
-  const totalCost = packagePrice * recruitmentCount
+  
+  // 할인 계산
+  let discountRate = 0
+  if (recruitmentCount >= 20) {
+    discountRate = 0.10 // 10% 할인
+  } else if (recruitmentCount >= 10) {
+    discountRate = 0.05 // 5% 할인
+  }
+  
+  const subtotal = packagePrice * recruitmentCount
+  const discountAmount = Math.floor(subtotal * discountRate)
+  const totalCost = subtotal - discountAmount
+  
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
 
   return (
@@ -231,9 +243,19 @@ const InvoicePage = () => {
                       {recruitmentCount}명
                     </td>
                     <td className="px-4 py-3 text-sm text-right font-medium">
-                      {totalCost.toLocaleString()}원
+                      {subtotal.toLocaleString()}원
                     </td>
                   </tr>
+                  {discountRate > 0 && (
+                    <tr className="bg-green-50">
+                      <td colSpan="3" className="px-4 py-3 text-sm text-right text-green-700 font-medium">
+                        할인 ({discountRate * 100}%)
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right text-green-700 font-medium">
+                        -{discountAmount.toLocaleString()}원
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
                 <tfoot className="bg-blue-50">
                   <tr>

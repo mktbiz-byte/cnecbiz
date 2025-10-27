@@ -27,6 +27,7 @@ export default function MyCampaigns() {
   const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showRegionModal, setShowRegionModal] = useState(false)
+  const [selectedRegion, setSelectedRegion] = useState('all')
 
   useEffect(() => {
     checkAuth()
@@ -254,7 +255,20 @@ export default function MyCampaigns() {
         {/* Campaigns List */}
         <Card>
           <CardHeader>
-            <CardTitle>캠페인 목록</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>캠페인 목록</CardTitle>
+              <select
+                value={selectedRegion}
+                onChange={(e) => setSelectedRegion(e.target.value)}
+                className="px-3 py-2 border rounded-lg text-sm"
+              >
+                <option value="all">모든 나라</option>
+                <option value="korea">한국</option>
+                <option value="japan">일본</option>
+                <option value="us">미국</option>
+                <option value="taiwan">대만</option>
+              </select>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -272,7 +286,9 @@ export default function MyCampaigns() {
               </div>
             ) : (
               <div className="space-y-4">
-                {campaigns.map((campaign) => {
+                {campaigns
+                  .filter(campaign => selectedRegion === 'all' || campaign.region === selectedRegion)
+                  .map((campaign) => {
                   const packagePrice = getPackagePrice(campaign.package_type)
                   const totalCost = packagePrice * (campaign.total_slots || 0)
                   const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }

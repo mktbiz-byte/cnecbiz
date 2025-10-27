@@ -206,7 +206,7 @@ export default function TaxInvoiceRequestPage() {
             {/* Contact Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                담당자 이메일 *
+                세금계산서 발급받으실 메일 주소 *
               </label>
               <input
                 type="email"
