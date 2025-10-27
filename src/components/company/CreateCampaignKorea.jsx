@@ -102,7 +102,7 @@ const CampaignCreationKorea = () => {
 
   const loadCampaignData = async () => {
     try {
-      const { data, error } = await database
+      const { data, error } = await supabase
         .from('campaigns')
         .select('*')
         .eq('id', editId)
