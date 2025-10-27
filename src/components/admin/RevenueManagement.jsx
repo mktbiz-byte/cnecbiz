@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign, TrendingUp, CreditCard, FileText, ArrowLeft, Calendar } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import { getRevenueFromAllRegions, getMonthlyRevenueStats, getPointCharges, getAccountsReceivable } from '../../lib/revenueHelper'
 
 export default function RevenueManagement() {
   const navigate = useNavigate()
@@ -47,59 +48,35 @@ export default function RevenueManagement() {
   }
 
   const fetchData = async () => {
-    if (!supabaseBiz) return
-
     try {
-      // 전체 매출 통계
-      const { data: revenueData } = await supabaseBiz
-        .from('revenue_stats')
-        .select('*')
-        .single()
+      // 모든 지역의 매출 데이터 가져오기
+      const [revenueData, monthlyStats, pointChargesData, receivablesData] = await Promise.all([
+        getRevenueFromAllRegions(),
+        getMonthlyRevenueStats(),
+        getPointCharges(),
+        getAccountsReceivable()
+      ])
 
-      if (revenueData) {
-        setStats({
-          totalRevenue: revenueData.total_revenue || 0,
-          monthlyRevenue: revenueData.monthly_revenue || 0,
-          totalPayments: revenueData.total_payments || 0,
-          totalPointsCharged: revenueData.total_points_charged || 0
-        })
-      }
+      // 현재 월 매출 계산
+      const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+      const monthlyRevenue = monthlyStats[currentMonth]?.total || 0
 
-      // 결제 내역
-      const { data: paymentsData } = await supabaseBiz
-        .from('payments')
-        .select(`
-          *,
-          companies (company_name, email)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      // 통계 설정
+      setStats({
+        totalRevenue: revenueData.total,
+        monthlyRevenue: monthlyRevenue,
+        totalPayments: revenueData.campaigns.length,
+        totalPointsCharged: pointChargesData.reduce((sum, charge) => sum + (charge.amount || 0), 0)
+      })
 
-      setPayments(paymentsData || [])
+      // 결제 내역 (캠페인 매출)
+      setPayments(revenueData.campaigns)
 
       // 포인트 충전 내역
-      const { data: pointsData } = await supabaseBiz
-        .from('points_charge_requests')
-        .select(`
-          *,
-          companies (company_name, email)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      setPointCharges(pointChargesData)
 
-      setPointCharges(pointsData || [])
-
-      // 세금계산서 내역
-      const { data: invoicesData } = await supabaseBiz
-        .from('tax_invoices')
-        .select(`
-          *,
-          companies (company_name, email)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      setTaxInvoices(invoicesData || [])
+      // 세금계산서 내역 (미수금)
+      setTaxInvoices(receivablesData)
     } catch (error) {
       console.error('Error fetching revenue data:', error)
     }
@@ -244,7 +221,7 @@ export default function RevenueManagement() {
             variant={selectedTab === 'invoices' ? 'default' : 'outline'}
             onClick={() => setSelectedTab('invoices')}
           >
-            세금계산서
+            미수금
           </Button>
         </div>
 
@@ -286,9 +263,10 @@ export default function RevenueManagement() {
                   <thead>
                     <tr className="border-b">
                       <th className="text-left p-4">날짜</th>
-                      <th className="text-left p-4">기업명</th>
+                      <th className="text-left p-4">지역</th>
+                      <th className="text-left p-4">캠페인명</th>
+                      <th className="text-left p-4">기업 이메일</th>
                       <th className="text-left p-4">금액</th>
-                      <th className="text-left p-4">결제수단</th>
                       <th className="text-left p-4">상태</th>
                     </tr>
                   </thead>
@@ -297,12 +275,17 @@ export default function RevenueManagement() {
                       <tr key={payment.id} className="border-b hover:bg-gray-50">
                         <td className="p-4 text-sm">{formatDate(payment.created_at)}</td>
                         <td className="p-4">
-                          <div className="font-medium">{payment.companies?.company_name}</div>
-                          <div className="text-sm text-gray-500">{payment.companies?.email}</div>
+                          {payment.region === 'korea' && '🇺🇷 한국'}
+                          {payment.region === 'japan' && '🇯🇵 일본'}
+                          {payment.region === 'us' && '🇺🇸 미국'}
+                          {payment.region === 'taiwan' && '🇹🇼 대만'}
                         </td>
-                        <td className="p-4 font-bold">{formatCurrency(payment.amount)}</td>
-                        <td className="p-4 text-sm">{payment.payment_method || 'N/A'}</td>
-                        <td className="p-4">{getStatusBadge(payment.status)}</td>
+                        <td className="p-4">
+                          <div className="font-medium">{payment.title}</div>
+                        </td>
+                        <td className="p-4 text-sm text-gray-500">{payment.company_email}</td>
+                        <td className="p-4 font-bold">{formatCurrency(payment.estimated_cost)}</td>
+                        <td className="p-4">{getStatusBadge(payment.payment_status)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -339,10 +322,10 @@ export default function RevenueManagement() {
                       <tr key={charge.id} className="border-b hover:bg-gray-50">
                         <td className="p-4 text-sm">{formatDate(charge.created_at)}</td>
                         <td className="p-4">
-                          <div className="font-medium">{charge.companies?.company_name}</div>
-                          <div className="text-sm text-gray-500">{charge.companies?.email}</div>
+                          <div className="font-medium">{charge.company_email}</div>
+                          <div className="text-sm text-gray-500">{charge.payment_type === 'prepaid' ? '선불' : '후불'}</div>
                         </td>
-                        <td className="p-4 font-bold text-blue-600">{charge.points?.toLocaleString()}P</td>
+                        <td className="p-4 font-bold text-blue-600">{charge.amount?.toLocaleString()}P</td>
                         <td className="p-4 font-bold">{formatCurrency(charge.amount)}</td>
                         <td className="p-4">{getStatusBadge(charge.status)}</td>
                       </tr>
@@ -362,32 +345,29 @@ export default function RevenueManagement() {
         {selectedTab === 'invoices' && (
           <Card>
             <CardHeader>
-              <CardTitle>세금계산서 내역 ({taxInvoices.length}건)</CardTitle>
+              <CardTitle>미수금 내역 ({taxInvoices.length}건)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-4">발급일</th>
-                      <th className="text-left p-4">기업명</th>
-                      <th className="text-left p-4">공급가액</th>
-                      <th className="text-left p-4">부가세</th>
-                      <th className="text-left p-4">합계</th>
+                      <th className="text-left p-4">생성일</th>
+                      <th className="text-left p-4">기업 이메일</th>
+                      <th className="text-left p-4">미수금액</th>
+                      <th className="text-left p-4">마감일</th>
                       <th className="text-left p-4">상태</th>
                     </tr>
                   </thead>
                   <tbody>
                     {taxInvoices.map((invoice) => (
                       <tr key={invoice.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4 text-sm">{formatDate(invoice.issue_date || invoice.created_at)}</td>
+                        <td className="p-4 text-sm">{formatDate(invoice.created_at)}</td>
                         <td className="p-4">
-                          <div className="font-medium">{invoice.companies?.company_name}</div>
-                          <div className="text-sm text-gray-500">{invoice.companies?.email}</div>
+                          <div className="font-medium">{invoice.company_email}</div>
                         </td>
-                        <td className="p-4">{formatCurrency(invoice.supply_amount)}</td>
-                        <td className="p-4">{formatCurrency(invoice.tax_amount)}</td>
-                        <td className="p-4 font-bold">{formatCurrency(invoice.total_amount)}</td>
+                        <td className="p-4 font-bold">{formatCurrency(invoice.amount)}</td>
+                        <td className="p-4 text-sm">{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('ko-KR') : 'N/A'}</td>
                         <td className="p-4">{getStatusBadge(invoice.status)}</td>
                       </tr>
                     ))}
