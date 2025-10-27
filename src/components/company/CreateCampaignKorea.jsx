@@ -456,7 +456,7 @@ const CampaignCreationKorea = () => {
               {/* 날짜 */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="application_deadline">지원 마감일 *</Label>
+                  <Label htmlFor="application_deadline">모집 마감일 *</Label>
                   <Input
                     id="application_deadline"
                     type="date"
@@ -466,7 +466,7 @@ const CampaignCreationKorea = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="start_date">캠페인 시작일 *</Label>
+                  <Label htmlFor="start_date">촬영 마감일 *</Label>
                   <Input
                     id="start_date"
                     type="date"
@@ -476,7 +476,7 @@ const CampaignCreationKorea = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="end_date">캠페인 종료일 *</Label>
+                  <Label htmlFor="end_date">SNS 업로드일 *</Label>
                   <Input
                     id="end_date"
                     type="date"

@@ -541,7 +541,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">시작일</label>
+                    <label className="block text-sm font-medium mb-2">촬영 마감일</label>
                     <Input
                       type="date"
                       value={formData.start_date}
@@ -549,7 +549,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">종료일</label>
+                    <label className="block text-sm font-medium mb-2">SNS 업로드일</label>
                     <Input
                       type="date"
                       value={formData.end_date}
