@@ -4,16 +4,18 @@ import { createClient } from '@supabase/supabase-js'
 // Each region has its own Supabase project
 
 // Korea Supabase Client
-const supabaseKoreaUrl = 'https://vluqhvuhykncicgvkosd.supabase.co'
-const supabaseKoreaKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsdXFodnVoeWtuY2ljZ3Zrb3NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNjg2MzAsImV4cCI6MjA3Njg0NDYzMH0.ikEqdx6Le54YJUP-NROKg6EmeHJ4TbKkQ76pw29OQG8'
+const supabaseKoreaUrl = import.meta.env.VITE_SUPABASE_KOREA_URL || ''
+const supabaseKoreaKey = import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY || ''
 
-export const supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaKey, {
-  auth: {
-    storageKey: 'cnec-korea-auth',
-    persistSession: true,
-    autoRefreshToken: true
-  }
-})
+export const supabaseKorea = (supabaseKoreaUrl && supabaseKoreaKey && supabaseKoreaUrl.startsWith('http'))
+  ? createClient(supabaseKoreaUrl, supabaseKoreaKey, {
+      auth: {
+        storageKey: 'cnec-korea-auth',
+        persistSession: true,
+        autoRefreshToken: true
+      }
+    })
+  : null
 
 // Japan Supabase Client
 const supabaseJapanUrl = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
@@ -147,17 +149,26 @@ export const getCampaignsFromAllRegions = async () => {
   const regions = ['korea', 'japan', 'us', 'taiwan']
   const allCampaigns = []
 
+  console.log('[getCampaignsFromAllRegions] Starting to fetch campaigns from all regions...')
+
   for (const region of regions) {
     const client = getSupabaseClient(region)
-    if (!client) continue
+    if (!client) {
+      console.warn(`[getCampaignsFromAllRegions] No client for region: ${region}`)
+      continue
+    }
 
     try {
+      console.log(`[getCampaignsFromAllRegions] Fetching from ${region}...`)
       const { data, error } = await client
         .from('campaigns')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (!error && data) {
+      if (error) {
+        console.error(`[getCampaignsFromAllRegions] Error from ${region}:`, error)
+      } else if (data) {
+        console.log(`[getCampaignsFromAllRegions] Fetched ${data.length} campaigns from ${region}`)
         allCampaigns.push(
           ...data.map(campaign => ({
             ...campaign,
@@ -166,10 +177,11 @@ export const getCampaignsFromAllRegions = async () => {
         )
       }
     } catch (error) {
-      console.error(`Error fetching campaigns from ${region}:`, error)
+      console.error(`[getCampaignsFromAllRegions] Exception from ${region}:`, error)
     }
   }
 
+  console.log(`[getCampaignsFromAllRegions] Total campaigns: ${allCampaigns.length}`)
   return allCampaigns
 }
 

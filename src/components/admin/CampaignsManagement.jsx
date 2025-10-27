@@ -43,12 +43,14 @@ export default function CampaignsManagement() {
   }
 
   const fetchCampaigns = async () => {
+    console.log('[CampaignsManagement] Starting to fetch campaigns...')
     setLoading(true)
     try {
       const allCampaigns = await getCampaignsFromAllRegions()
+      console.log('[CampaignsManagement] Fetched campaigns:', allCampaigns.length)
       setCampaigns(allCampaigns)
     } catch (error) {
-      console.error('Error fetching campaigns:', error)
+      console.error('[CampaignsManagement] Error fetching campaigns:', error)
     } finally {
       setLoading(false)
     }
