@@ -23,6 +23,8 @@ export default function CampaignDetail() {
   const [participants, setParticipants] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
+  const [selectedParticipants, setSelectedParticipants] = useState([])
+  const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
 
   useEffect(() => {
     fetchCampaignDetail()
@@ -129,6 +131,114 @@ export default function CampaignDetail() {
     } finally {
       setRefreshingViews(prev => ({ ...prev, [participant.id]: false }))
     }
+  }
+
+  const handleConfirmSelection = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('크리에이터를 선택해주세요.')
+      return
+    }
+
+    try {
+      // 선택된 크리에이터들의 상태를 'selected'로 변경
+      for (const participantId of selectedParticipants) {
+        await supabaseKorea
+          .from('campaign_participants')
+          .update({
+            selection_status: 'selected',
+            selected_at: new Date().toISOString()
+          })
+          .eq('id', participantId)
+      }
+
+      // 캠페인의 selected_participants_count 업데이트
+      await supabaseKorea
+        .from('campaigns')
+        .update({
+          selected_participants_count: selectedParticipants.length
+        })
+        .eq('id', id)
+
+      alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
+      await fetchParticipants()
+      await fetchCampaignDetail()
+      setSelectedParticipants([])
+    } catch (error) {
+      console.error('Error confirming selection:', error)
+      alert('선택 확정에 실패했습니다.')
+    }
+  }
+
+  const handleSendDeadlineReminder = async () => {
+    if (participants.length === 0) {
+      alert('참여자가 없습니다.')
+      return
+    }
+
+    // 마감일 선택 모달
+    const deadlineType = confirm('어떤 마감일에 대한 독촉 메일을 보내시겠습니까?\n\n확인: 모집 마감\n취소: 영상 제출 마감')
+      ? 'recruitment'
+      : 'submission'
+
+    const deadline = deadlineType === 'recruitment' 
+      ? campaign.recruitment_deadline 
+      : campaign.content_submission_deadline
+
+    if (!deadline) {
+      alert(`${deadlineType === 'recruitment' ? '모집' : '영상 제출'} 마감일이 설정되지 않았습니다.`)
+      return
+    }
+
+    try {
+      const recipients = participants.map(p => ({
+        name: p.creator_name,
+        email: p.creator_email
+      }))
+
+      const response = await fetch('/.netlify/functions/send-deadline-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignTitle: campaign.title,
+          deadline,
+          deadlineType,
+          recipients
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('이메일 발송에 실패했습니다.')
+      }
+
+      const data = await response.json()
+      alert(`${data.recipients}명에게 마감 독촉 이메일이 발송되었습니다!`)
+    } catch (error) {
+      console.error('Error sending deadline reminder:', error)
+      alert('이메일 발송에 실패했습니다: ' + error.message)
+    }
+  }
+
+  const handleRequestAdditionalPayment = () => {
+    const additionalCount = selectedParticipants.length - campaign.total_slots
+    const packagePrice = getPackagePrice(campaign.package_type)
+    const additionalCost = packagePrice * additionalCount
+
+    if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원`)) {
+      // 견적서 페이지로 이동 (추가 인원 정보 포함)
+      navigate(`/company/campaigns/${id}/invoice?additional=${additionalCount}`)
+    }
+  }
+
+  const getPackagePrice = (packageType) => {
+    const prices = {
+      'oliveyoung': 200000,
+      '올영 20만원': 200000,
+      'premium': 300000,
+      '프리미엄 30만원': 300000,
+      '4week_challenge': 600000,
+      '4주챌린지 60만원': 600000
+    }
+    return prices[packageType] || 0
   }
 
   const handleRequestApproval = async () => {
@@ -290,20 +400,54 @@ export default function CampaignDetail() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={selectedParticipants.length === participants.length && participants.length > 0}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedParticipants(participants.map(p => p.id))
+                                } else {
+                                  setSelectedParticipants([])
+                                }
+                              }}
+                              className="w-4 h-4"
+                            />
+                          </th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">상태</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">선택 상태</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">참여일</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
                         {participants.map((participant) => (
                           <tr key={participant.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedParticipants.includes(participant.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedParticipants([...selectedParticipants, participant.id])
+                                  } else {
+                                    setSelectedParticipants(selectedParticipants.filter(id => id !== participant.id))
+                                  }
+                                }}
+                                className="w-4 h-4"
+                              />
+                            </td>
                             <td className="px-4 py-3">{participant.creator_name}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email}</td>
                             <td className="px-4 py-3">{participant.creator_platform}</td>
-                            <td className="px-4 py-3">{getStatusBadge(participant.status)}</td>
+                            <td className="px-4 py-3">
+                              {participant.selection_status === 'selected' ? (
+                                <Badge className="bg-green-100 text-green-800">확정</Badge>
+                              ) : (
+                                <Badge className="bg-gray-100 text-gray-800">대기</Badge>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-sm text-gray-600">
                               {new Date(participant.created_at).toLocaleDateString()}
                             </td>
@@ -311,6 +455,42 @@ export default function CampaignDetail() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+                {participants.length > 0 && (
+                  <div className="mt-6 flex items-center justify-between border-t pt-4">
+                    <div className="text-sm text-gray-600">
+                      선택된 크리에이터: <span className="font-semibold">{selectedParticipants.length}명</span>
+                      {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
+                        <span className="ml-2 text-red-600">
+                          (추가 {selectedParticipants.length - campaign.total_slots}명)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={handleSendDeadlineReminder}
+                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                      >
+                        마감 독촉 메일 보내기
+                      </Button>
+                      {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
+                        <Button
+                          variant="outline"
+                          onClick={handleRequestAdditionalPayment}
+                          className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                        >
+                          추가 입금 요청 ({selectedParticipants.length - campaign.total_slots}명)
+                        </Button>
+                      )}
+                      <Button
+                        onClick={handleConfirmSelection}
+                        disabled={selectedParticipants.length === 0}
+                      >
+                        선택 확정
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
