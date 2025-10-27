@@ -19,7 +19,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    flowType: 'pkce'
+    flowType: 'pkce',
+    storageKey: 'cnec-korea-auth',  // iOS Safari 호환성 개선
+    storage: window.localStorage
   },
   global: {
     headers: {

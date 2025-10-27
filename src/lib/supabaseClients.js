@@ -34,10 +34,18 @@ const supabaseBizKey = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || ''
 export const supabaseBiz = (supabaseBizUrl && supabaseBizKey && supabaseBizUrl.startsWith('http'))
   ? createClient(supabaseBizUrl, supabaseBizKey, {
       auth: {
+        flowType: 'pkce',  // iOS Safari 호환성 개선
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        storage: window.localStorage
+        storage: window.localStorage,
+        storageKey: 'cnectotal-auth',  // 고유 키로 충돌 방지
+        debug: false
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'cnectotal-web'
+        }
       }
     })
   : null
