@@ -37,8 +37,10 @@ export default function CompanyDashboard() {
   }, [])
 
   useEffect(() => {
-    fetchData()
-  }, [selectedRegion])
+    if (user) {
+      fetchData()
+    }
+  }, [selectedRegion, user])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -71,11 +73,10 @@ export default function CompanyDashboard() {
       const supabaseClient = selectedRegion === 'korea' ? supabaseKorea : supabaseBiz
       
       // 로그인한 회사의 캠페인만 가져오기 (company_email 기준)
-      // company_email이 null인 경우도 임시로 표시 (개발/테스트용)
       const { data: campaignsData } = await supabaseClient
         .from('campaigns')
         .select('*')
-        .or(`company_email.eq.${user.email},company_email.is.null`)
+        .eq('company_email', user.email)
         .order('created_at', { ascending: false })
         .limit(10)
 

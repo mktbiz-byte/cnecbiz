@@ -56,7 +56,7 @@ export default function MyCampaigns() {
       const { data: koreaCampaigns } = await supabaseKorea
         .from('campaigns')
         .select('*')
-        .or(`company_email.eq.${user.email},company_email.is.null`)
+        .eq('company_email', user.email)
         .order('created_at', { ascending: false })
 
       // 지역 표시를 위해 region 필드 추가
