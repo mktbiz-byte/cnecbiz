@@ -65,7 +65,39 @@ export default function CampaignsManagement() {
       campaign.product_name?.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesRegion = selectedRegion === 'all' || campaign.region === selectedRegion
-    const matchesStatus = selectedStatus === 'all' || campaign.status === selectedStatus || campaign.approval_status === selectedStatus
+    
+    // 상태별 필터링 로직 개선
+    let matchesStatus = true
+    if (selectedStatus !== 'all') {
+      switch (selectedStatus) {
+        case 'draft':
+          matchesStatus = campaign.status === 'draft' || campaign.approval_status === 'draft'
+          break
+        case 'pending_payment':
+          matchesStatus = campaign.approval_status === 'pending_payment'
+          break
+        case 'pending':
+          matchesStatus = campaign.approval_status === 'pending'
+          break
+        case 'recruiting':
+          matchesStatus = campaign.approval_status === 'approved' && campaign.status !== 'completed'
+          break
+        case 'guide_review':
+          matchesStatus = campaign.status === 'guide_review'
+          break
+        case 'in_progress':
+          matchesStatus = campaign.status === 'in_progress' || campaign.status === 'active'
+          break
+        case 'revision':
+          matchesStatus = campaign.approval_status === 'rejected' || campaign.status === 'revision'
+          break
+        case 'completed':
+          matchesStatus = campaign.status === 'completed'
+          break
+        default:
+          matchesStatus = true
+      }
+    }
 
     return matchesSearch && matchesRegion && matchesStatus
   })
@@ -187,33 +219,33 @@ export default function CampaignsManagement() {
           </TabsList>
         </Tabs>
 
-        {/* Search and Filters */}
+        {/* Status Tabs */}
+        <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="mb-6">
+          <TabsList className="grid w-full grid-cols-9 gap-1">
+            <TabsTrigger value="all" className="text-xs px-2">전체</TabsTrigger>
+            <TabsTrigger value="draft" className="text-xs px-2">작성중</TabsTrigger>
+            <TabsTrigger value="pending_payment" className="text-xs px-2">입금확인중</TabsTrigger>
+            <TabsTrigger value="pending" className="text-xs px-2">승인요청중</TabsTrigger>
+            <TabsTrigger value="recruiting" className="text-xs px-2">모집중</TabsTrigger>
+            <TabsTrigger value="guide_review" className="text-xs px-2">가이드검토중</TabsTrigger>
+            <TabsTrigger value="in_progress" className="text-xs px-2">촬영중</TabsTrigger>
+            <TabsTrigger value="revision" className="text-xs px-2">수정중</TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs px-2">최종완료</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {/* Search */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-64">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="캠페인 제목, 설명 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>             <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-4 py-2 border rounded-lg"
-              >
-                <option value="all">모든 상태</option>
-                <option value="pending">대기중</option>
-                <option value="approved">승인</option>
-                <option value="active">진행중</option>
-                <option value="completed">완료</option>
-                <option value="rejected">거부</option>
-              </select>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="캠페인 제목, 설명 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
           </CardContent>
         </Card>
