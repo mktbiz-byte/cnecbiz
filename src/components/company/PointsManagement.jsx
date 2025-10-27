@@ -22,6 +22,7 @@ export default function PointsManagement() {
   
   // 견적서 폼 데이터
   const [invoiceForm, setInvoiceForm] = useState({
+    receipt_type: 'tax_invoice', // 'tax_invoice' or 'cashbill'
     company_name: '',
     business_number: '',
     representative: '',
@@ -30,7 +31,10 @@ export default function PointsManagement() {
     email: '',
     business_type: '',
     business_category: '',
-    memo: ''
+    memo: '',
+    // 현금영수증 전용 필드
+    cashbill_identity_num: '', // 휴대폰번호 or 사업자번호
+    cashbill_usage: '1' // 1: 소득공제용, 2: 지출증빙용
   })
 
   // 할인율 적용된 포인트 패키지
@@ -265,9 +269,17 @@ export default function PointsManagement() {
       return
     }
 
-    if (!invoiceForm.company_name || !invoiceForm.contact || !invoiceForm.email) {
-      alert('필수 정보를 입력해주세요')
-      return
+    // 필수 필드 검증
+    if (invoiceForm.receipt_type === 'tax_invoice') {
+      if (!invoiceForm.company_name || !invoiceForm.contact || !invoiceForm.email) {
+        alert('필수 정보를 입력해주세요')
+        return
+      }
+    } else if (invoiceForm.receipt_type === 'cashbill') {
+      if (!invoiceForm.cashbill_identity_num || !invoiceForm.email) {
+        alert('필수 정보를 입력해주세요')
+        return
+      }
     }
 
     setLoading(true)
@@ -460,6 +472,38 @@ export default function PointsManagement() {
               </div>
 
               <div className="space-y-4">
+                {/* 증빙 타입 선택 */}
+                <div className="mb-6">
+                  <Label className="text-base font-semibold mb-3 block">증빙 타입 선택 *</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="receipt_type"
+                        value="tax_invoice"
+                        checked={invoiceForm.receipt_type === 'tax_invoice'}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, receipt_type: e.target.value})}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">세금계산서 (사업자용)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="receipt_type"
+                        value="cashbill"
+                        checked={invoiceForm.receipt_type === 'cashbill'}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, receipt_type: e.target.value})}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">현금영수증 (개인/사업자)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 세금계산서 폼 */}
+                {invoiceForm.receipt_type === 'tax_invoice' && (
+                  <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="company_name">회사명 *</Label>
@@ -556,6 +600,74 @@ export default function PointsManagement() {
                     rows={3}
                   />
                 </div>
+                  </>
+                )}
+
+                {/* 현금영수증 폼 */}
+                {invoiceForm.receipt_type === 'cashbill' && (
+                  <>
+                    <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                      <p className="text-sm text-gray-700">현금영수증은 휴대폰번호 또는 사업자번호로 발급됩니다.</p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="cashbill_usage">사용용도 *</Label>
+                      <select
+                        id="cashbill_usage"
+                        value={invoiceForm.cashbill_usage}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, cashbill_usage: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="1">소득공제용 (개인)</option>
+                        <option value="2">지출증빙용 (사업자)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="cashbill_identity_num">
+                        {invoiceForm.cashbill_usage === '1' ? '휴대폰번호' : '사업자번호'} *
+                      </Label>
+                      <Input
+                        id="cashbill_identity_num"
+                        value={invoiceForm.cashbill_identity_num}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, cashbill_identity_num: e.target.value})}
+                        placeholder={invoiceForm.cashbill_usage === '1' ? '010-1234-5678' : '123-45-67890'}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="cashbill_email">이메일 *</Label>
+                      <Input
+                        id="cashbill_email"
+                        type="email"
+                        value={invoiceForm.email}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, email: e.target.value})}
+                        placeholder="cashbill@example.com"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="cashbill_name">성명 (선택사항)</Label>
+                      <Input
+                        id="cashbill_name"
+                        value={invoiceForm.company_name}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, company_name: e.target.value})}
+                        placeholder="홍길동"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="cashbill_memo">메모 (선택사항)</Label>
+                      <Textarea
+                        id="cashbill_memo"
+                        value={invoiceForm.memo}
+                        onChange={(e) => setInvoiceForm({...invoiceForm, memo: e.target.value})}
+                        placeholder="추가 요청사항이 있으시면 입력해주세요"
+                        rows={3}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -564,7 +676,7 @@ export default function PointsManagement() {
                   <li>• 신청 후 입금 계좌 정보가 이메일로 발송됩니다</li>
                   <li>• 입금자명은 회사명과 동일하게 입금해주세요</li>
                   <li>• 입금 확인 후 영업일 기준 1일 이내 포인트가 지급됩니다</li>
-                  <li>• 세금계산서는 입금 확인 후 발행됩니다</li>
+                  <li>• {invoiceForm.receipt_type === 'tax_invoice' ? '세금계산서' : '현금영수증'}는 입금 확인 후 자동으로 발행됩니다</li>
                 </ul>
               </div>
 

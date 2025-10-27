@@ -43,7 +43,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { invoiceData, amount } = JSON.parse(event.body);
+    const { cashbillData, amount } = JSON.parse(event.body);
 
     const linkID = process.env.POPBILL_LINK_ID;
     const secretKey = process.env.POPBILL_SECRET_KEY;
@@ -54,62 +54,45 @@ exports.handler = async (event, context) => {
     }
 
     // 팝빌 API 엔드포인트
-    const baseURL = testMode 
-      ? 'https://popbill.linkhub.co.kr'
-      : 'https://popbill.linkhub.co.kr';
+    const baseURL = 'https://popbill.linkhub.co.kr';
 
-    // 세금계산서 데이터 구성
-    const taxInvoiceData = {
-      writeDate: new Date().toISOString().split('T')[0].replace(/-/g, ''),
-      chargeDirection: '정과금',
-      purposeType: '영수',
-      taxType: '과세',
+    // 현금영수증 데이터 구성
+    const cashbillRequestData = {
+      // 필수 정보
+      franchiseCorpNum: '5758102253', // CNEC 사업자번호 (가맹점)
+      franchiseCorpName: '(주)CNEC',
+      franchiseCEOName: 'CNEC 대표',
+      franchiseAddr: '서울시 강남구',
+      franchiseTEL: '02-1234-5678',
       
-      // 공급자 정보 (CNEC)
-      invoicerCorpNum: '5758102253', // CNEC 사업자번호
-      invoicerCorpName: '(주)CNEC',
-      invoicerCEOName: 'CNEC 대표',
-      invoicerAddr: '서울시 강남구',
-      invoicerEmail: 'admin@cnec.co.kr',
+      // 현금영수증 정보
+      tradeDate: new Date().toISOString().split('T')[0].replace(/-/g, ''), // YYYYMMDD
+      tradeUsage: '1', // 1: 소득공제용, 2: 지출증빙용
+      tradeType: '승인거래', // 승인거래, 취소거래
       
-      // 공급받는자 정보 (고객사)
-      invoiceeCorpNum: invoiceData.business_number?.replace(/-/g, '') || '',
-      invoiceeCorpName: invoiceData.company_name,
-      invoiceeCEOName: invoiceData.representative,
-      invoiceeAddr: invoiceData.address,
-      invoiceeEmail: invoiceData.email,
-      invoiceeContactName: invoiceData.representative,
-      invoiceeTEL: invoiceData.contact,
+      // 고객 정보
+      identityNum: cashbillData.identity_num, // 휴대폰번호 or 사업자번호 or 카드번호
+      customerName: cashbillData.customer_name || '',
+      itemName: '포인트 충전',
       
       // 금액 정보
-      supplyCostTotal: Math.floor(amount / 1.1), // 공급가액 (VAT 제외)
-      taxTotal: amount - Math.floor(amount / 1.1), // 세액
+      supplyCost: amount, // 공급가액
+      tax: 0, // 세액 (현금영수증은 세액 없음)
       totalAmount: amount, // 총액
       
-      // 상세 내역
-      detailList: [{
-        serialNum: 1,
-        itemName: '포인트 충전',
-        spec: '',
-        qty: 1,
-        unitCost: Math.floor(amount / 1.1),
-        supplyCost: Math.floor(amount / 1.1),
-        tax: amount - Math.floor(amount / 1.1),
-        remark: invoiceData.memo || ''
-      }],
+      // 이메일 발송
+      email: cashbillData.email || '',
       
       // 기타
-      remark1: invoiceData.memo || '',
-      businessType: invoiceData.business_type || '',
-      businessCategory: invoiceData.business_category || ''
+      remark: cashbillData.memo || ''
     };
 
     // 팝빌 API 호출
     const authHeaders = generateToken(linkID, secretKey);
     
     const response = await axios.post(
-      `${baseURL}/TaxInvoice/Issue`,
-      taxInvoiceData,
+      `${baseURL}/Cashbill/Issue`,
+      cashbillRequestData,
       { headers: authHeaders }
     );
 
@@ -123,7 +106,7 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('팝빌 API 오류:', error.response?.data || error.message);
+    console.error('팝빌 현금영수증 발행 오류:', error.response?.data || error.message);
     
     return {
       statusCode: 500,
