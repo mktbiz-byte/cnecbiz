@@ -178,9 +178,19 @@ export default function CompanyDashboard() {
     )
   }
 
-  const getProgressStatusBadge = (status) => {
+  const getProgressStatusBadge = (status, isCancelled) => {
+    // 취소된 캠페인은 항상 "취소됨" 표시
+    if (isCancelled) {
+      return (
+        <Badge className="bg-red-100 text-red-800">
+          취소됨
+        </Badge>
+      )
+    }
+    
     const badges = {
       draft: { label: '작성중', color: 'bg-gray-100 text-gray-700' },
+      pending_payment: { label: '입금 대기', color: 'bg-yellow-100 text-yellow-700' },
       pending_approval: { label: '승인대기', color: 'bg-orange-100 text-orange-700' },
       pending: { label: '승인대기', color: 'bg-orange-100 text-orange-700' },
       recruiting: { label: '모집중', color: 'bg-blue-100 text-blue-700' },
@@ -382,7 +392,7 @@ export default function CompanyDashboard() {
                               <span>•</span>
                               <span>{campaign.package_type}</span>
                               <span>•</span>
-                              {getProgressStatusBadge(campaign.progress_status || campaign.approval_status)}
+                              {getProgressStatusBadge(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)}
                             </div>
                           </div>
                           <div className="text-right">
