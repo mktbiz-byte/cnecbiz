@@ -57,15 +57,18 @@ const OrderConfirmation = () => {
   }
 
   const packagePrices = {
+    'junior': 200000,
+    'intermediate': 300000,
+    'senior': 400000,
+    '4week_challenge': 600000,
     'oliveyoung': 200000,
     '올영 20만원': 200000,
     'premium': 300000,
     '프리미엄 30만원': 300000,
-    '4week_challenge': 600000,
     '4주챌린지 60만원': 600000
   }
 
-  const packagePrice = packagePrices[campaign.package_type] || 0
+  const packagePrice = packagePrices[campaign.package_type] || 200000
   const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
   const totalCost = packagePrice * recruitmentCount
 
