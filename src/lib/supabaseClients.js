@@ -3,6 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 // Multi-region Supabase clients configuration
 // Each region has its own Supabase project
 
+// Korea Supabase Client
+const supabaseKoreaUrl = 'https://vluqhvuhykncicgvkosd.supabase.co'
+const supabaseKoreaKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsdXFodnVoeWtuY2ljZ3Zrb3NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNjg2MzAsImV4cCI6MjA3Njg0NDYzMH0.ikEqdx6Le54YJUP-NROKg6EmeHJ4TbKkQ76pw29OQG8'
+
+export const supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaKey)
+
 // Japan Supabase Client
 const supabaseJapanUrl = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
 const supabaseJapanKey = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || ''
@@ -55,7 +61,7 @@ export const getSupabaseClient = (region) => {
   switch (region) {
     case 'korea':
     case 'kr':
-      return supabaseBiz  // Korea uses supabaseBiz
+      return supabaseKorea  // Korea uses supabaseKorea
     case 'japan':
     case 'jp':
       return supabaseJapan

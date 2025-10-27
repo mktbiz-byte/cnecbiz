@@ -19,7 +19,7 @@ import {
   Edit,
   CreditCard
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -75,9 +75,9 @@ export default function AdminDashboard() {
         .from('companies')
         .select('*', { count: 'exact', head: true })
 
-      const { count: campaignsCount } = await supabaseBiz
-        .from('campaigns')
-        .select('*', { count: 'exact', head: true })
+      // 모든 지역의 캠페인 수 계산
+      const campaigns = await getCampaignsFromAllRegions()
+      const campaignsCount = campaigns.length
 
       const { count: creatorsCount } = await supabaseBiz
         .from('featured_creators')
