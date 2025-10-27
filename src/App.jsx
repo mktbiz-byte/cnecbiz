@@ -24,6 +24,7 @@ import RevenueManagement from './components/admin/RevenueManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import CreatorsManagement from './components/admin/CreatorsManagement'
+import RegionalCreatorsManagement from './components/admin/RegionalCreatorsManagement'
 import FAQManagement from './components/admin/FAQManagement'
 import VideoManagement from './components/admin/VideoManagement'
 import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApprovals'
@@ -68,6 +69,7 @@ function App() {
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
+        <Route path="/admin/regional-creators" element={<RegionalCreatorsManagement />} />
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />

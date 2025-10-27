@@ -243,6 +243,13 @@ export default function AdminDashboard() {
               추천 크리에이터 관리
             </button>
             <button 
+              onClick={() => navigate('/admin/regional-creators')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <Users className="w-5 h-5" />
+              각 나라별 크리에이터
+            </button>
+            <button 
               onClick={() => navigate('/admin/creator-approvals')}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
             >

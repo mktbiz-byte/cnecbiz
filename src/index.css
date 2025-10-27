@@ -57,3 +57,29 @@
   }
 }
 
+
+
+/* 버튼 hover 효과 - 볼록하게 보이도록 */
+@layer components {
+  button, .button {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  button:hover:not(:disabled), .button:hover:not(:disabled) {
+    @apply shadow-lg transform -translate-y-0.5;
+  }
+  
+  button:active:not(:disabled), .button:active:not(:disabled) {
+    @apply shadow-sm transform translate-y-0;
+  }
+  
+  /* Card hover 효과 */
+  .card-hover {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  .card-hover:hover {
+    @apply shadow-xl transform -translate-y-1;
+  }
+}
+

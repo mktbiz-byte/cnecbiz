@@ -1,9 +1,22 @@
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { X } from 'lucide-react'
 
-export default function RegionSelectModal({ isOpen, onClose, onSelectRegion }) {
-  if (!isOpen) return null
+export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegion }) {
+  const navigate = useNavigate()
+  const modalOpen = isOpen || open
+  if (!modalOpen) return null
+  
+  const handleSelectRegion = (regionId) => {
+    if (onSelectRegion) {
+      onSelectRegion(regionId)
+    } else {
+      // 기본 동작: 해당 지역의 캠페인 생성 페이지로 이동
+      navigate(`/company/campaigns/create/${regionId}`)
+    }
+    onClose()
+  }
 
   const regions = [
     {
@@ -52,10 +65,7 @@ export default function RegionSelectModal({ isOpen, onClose, onSelectRegion }) {
               <Card
                 key={region.id}
                 className={`cursor-pointer transition-all ${region.color} border-2`}
-                onClick={() => {
-                  onSelectRegion(region.id)
-                  onClose()
-                }}
+                onClick={() => handleSelectRegion(region.id)}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">

@@ -99,13 +99,17 @@ export default function CampaignsManagement() {
 
   const getRegionBadge = (region) => {
     const badges = {
+      korea: 'bg-blue-100 text-blue-700',
       japan: 'bg-red-100 text-red-700',
-      us: 'bg-blue-100 text-blue-700',
+      us: 'bg-purple-100 text-purple-700',
+      usa: 'bg-purple-100 text-purple-700',
       taiwan: 'bg-green-100 text-green-700'
     }
     const labels = {
+      korea: '🇰🇷 한국',
       japan: '🇯🇵 일본',
       us: '🇺🇸 미국',
+      usa: '🇺🇸 미국',
       taiwan: '🇹🇼 대만'
     }
     return (
@@ -189,6 +193,7 @@ export default function CampaignsManagement() {
                 className="px-4 py-2 border rounded-lg"
               >
                 <option value="all">모든 지역</option>
+                <option value="korea">한국</option>
                 <option value="japan">일본</option>
                 <option value="us">미국</option>
                 <option value="taiwan">대만</option>

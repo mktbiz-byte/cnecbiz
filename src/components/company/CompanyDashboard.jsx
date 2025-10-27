@@ -159,6 +159,22 @@ export default function CompanyDashboard() {
     return diffDays
   }
 
+  const getRegionBadge = (region) => {
+    const badges = {
+      korea: { label: '🇰🇷 한국', color: 'bg-blue-100 text-blue-700' },
+      japan: { label: '🇯🇵 일본', color: 'bg-red-100 text-red-700' },
+      us: { label: '🇺🇸 미국', color: 'bg-purple-100 text-purple-700' },
+      usa: { label: '🇺🇸 미국', color: 'bg-purple-100 text-purple-700' },
+      taiwan: { label: '🇹🇼 대만', color: 'bg-green-100 text-green-700' }
+    }
+    const badge = badges[region] || badges.korea
+    return (
+      <Badge variant="outline" className={badge.color}>
+        {badge.label}
+      </Badge>
+    )
+  }
+
   const getProgressStatusBadge = (status) => {
     const badges = {
       draft: { label: '작성중', color: 'bg-gray-100 text-gray-700' },
@@ -359,7 +375,7 @@ export default function CompanyDashboard() {
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg mb-1">{campaign.title}</h3>
                             <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <Badge variant="outline">{campaign.region || 'KR 한국'}</Badge>
+                              {getRegionBadge(campaign.region)}
                               <span>•</span>
                               <span>{campaign.package_type}</span>
                               <span>•</span>

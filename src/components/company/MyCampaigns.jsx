@@ -155,10 +155,11 @@ export default function MyCampaigns() {
 
   const getRegionBadge = (region) => {
     const badges = {
-      korea: { label: 'KR 한국', color: 'bg-blue-100 text-blue-700' },
-      japan: { label: 'JP 일본', color: 'bg-red-100 text-red-700' },
-      usa: { label: 'US 미국', color: 'bg-purple-100 text-purple-700' },
-      taiwan: { label: 'TW 대만', color: 'bg-green-100 text-green-700' }
+      korea: { label: '🇰🇷 한국', color: 'bg-blue-100 text-blue-700' },
+      japan: { label: '🇯🇵 일본', color: 'bg-red-100 text-red-700' },
+      us: { label: '🇺🇸 미국', color: 'bg-purple-100 text-purple-700' },
+      usa: { label: '🇺🇸 미국', color: 'bg-purple-100 text-purple-700' },
+      taiwan: { label: '🇹🇼 대만', color: 'bg-green-100 text-green-700' }
     }
     const badge = badges[region] || badges.korea
     return (
