@@ -398,7 +398,7 @@ const CampaignCreationKorea = () => {
 
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
-            .insert([{
+            .insert({
               company_id: companyData.id,
               points: finalCost,
               amount: finalCost,
@@ -414,8 +414,9 @@ const CampaignCreationKorea = () => {
                 needed_points: neededPoints,
                 reason: 'campaign_creation'
               }
-            }])
+            })
             .select()
+            .single()
 
           if (quoteError) {
             console.error('[CreateCampaign] Charge request error:', quoteError)
