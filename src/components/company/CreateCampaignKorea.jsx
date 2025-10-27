@@ -50,7 +50,10 @@ const CampaignCreationKorea = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingDetailImage, setUploadingDetailImage] = useState(false)
   const [imageFile, setImageFile] = useState(null)
+  const thumbnailInputRef = useRef(null)
+  const detailImageInputRef = useRef(null)
 
   // 카테고리 옵션
   const categoryOptions = [
@@ -139,8 +142,8 @@ const CampaignCreationKorea = () => {
     }))
   }
 
-  // 이미지 업로드
-  const handleImageUpload = async (e) => {
+  // 썸네일 이미지 업로드
+  const handleThumbnailUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -149,7 +152,7 @@ const CampaignCreationKorea = () => {
 
     try {
       const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+      const fileName = `thumbnail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
       const { error: uploadError } = await storage
@@ -163,10 +166,10 @@ const CampaignCreationKorea = () => {
         .getPublicUrl(filePath)
 
       setCampaignForm(prev => ({ ...prev, image_url: publicUrl }))
-      setSuccess('이미지가 업로드되었습니다!')
+      setSuccess('썸네일이 업로드되었습니다!')
     } catch (err) {
-      console.error('이미지 업로드 실패:', err)
-      setError('이미지 업로드에 실패했습니다: ' + err.message)
+      console.error('썸네일 업로드 실패:', err)
+      setError('썸네일 업로드에 실패했습니다: ' + err.message)
     } finally {
       setUploadingImage(false)
     }
@@ -177,7 +180,7 @@ const CampaignCreationKorea = () => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setUploadingImage(true)
+    setUploadingDetailImage(true)
     setError('')
 
     try {
@@ -201,7 +204,7 @@ const CampaignCreationKorea = () => {
       console.error('상품 상세 이미지 업로드 실패:', err)
       setError('상품 상세 이미지 업로드에 실패했습니다: ' + err.message)
     } finally {
-      setUploadingImage(false)
+      setUploadingDetailImage(false)
     }
   }
 
@@ -434,19 +437,31 @@ const CampaignCreationKorea = () => {
                 </div>
               </div>
 
-              {/* 이미지 업로드 */}
+              {/* 썸네일 업로드 */}
               <div>
-                <Label htmlFor="image">캠페인 이미지</Label>
-                <Input
-                  id="image"
+                <Label>캠페인 썸네일</Label>
+                <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
+                <input
+                  ref={thumbnailInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={uploadingImage}
+                  onChange={handleThumbnailUpload}
+                  className="hidden"
                 />
-                {uploadingImage && <p className="text-sm text-gray-500 mt-1">업로드 중...</p>}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => thumbnailInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="w-full"
+                >
+                  {uploadingImage ? '업로드 중...' : campaignForm.image_url ? '썸네일 변경' : '썸네일 업로드'}
+                </Button>
                 {campaignForm.image_url && (
-                  <img src={campaignForm.image_url} alt="Preview" className="mt-2 w-32 h-32 object-cover rounded" />
+                  <div className="mt-4">
+                    <p className="text-sm text-green-600 mb-2">✓ 썸네일이 업로드되었습니다</p>
+                    <img src={campaignForm.image_url} alt="썸네일" className="w-full max-w-md rounded border" />
+                  </div>
                 )}
               </div>
 
@@ -493,16 +508,24 @@ const CampaignCreationKorea = () => {
 
                   {/* 상품 상세 페이지 이미지 */}
                   <div className="border-t pt-4 mt-4">
-                    <Label htmlFor="product_detail_image">상품 상세 페이지 이미지</Label>
+                    <Label>상품 상세 페이지 이미지</Label>
                     <p className="text-sm text-gray-600 mb-2">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
-                    <Input
-                      id="product_detail_image"
+                    <input
+                      ref={detailImageInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleProductDetailImageUpload}
-                      disabled={uploadingImage}
+                      className="hidden"
                     />
-                    {uploadingImage && <p className="text-sm text-gray-500 mt-1">업로드 중...</p>}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => detailImageInputRef.current?.click()}
+                      disabled={uploadingDetailImage}
+                      className="w-full"
+                    >
+                      {uploadingDetailImage ? '업로드 중...' : campaignForm.product_detail_file_url ? '이미지 변경' : '이미지 업로드'}
+                    </Button>
                     {campaignForm.product_detail_file_url && (
                       <div className="mt-4">
                         <p className="text-sm text-green-600 mb-2">✓ 상품 상세 이미지가 업로드되었습니다</p>
