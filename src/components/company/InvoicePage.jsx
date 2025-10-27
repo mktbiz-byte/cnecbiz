@@ -20,7 +20,6 @@ const InvoicePage = () => {
   const [success, setSuccess] = useState('')
   const [copied, setCopied] = useState(false)
   const [taxInvoiceNumber, setTaxInvoiceNumber] = useState('')
-  const [taxInvoiceAmount, setTaxInvoiceAmount] = useState('')
   const [taxInvoiceFileUrl, setTaxInvoiceFileUrl] = useState('')
   const [companyAddress, setCompanyAddress] = useState('')
   const [representativeName, setRepresentativeName] = useState('')
@@ -118,7 +117,6 @@ const InvoicePage = () => {
 
       // 세금계산서 정보가 있으면 함께 저장
       if (taxInvoiceNumber) updateData.tax_invoice_number = taxInvoiceNumber
-      if (taxInvoiceAmount) updateData.tax_invoice_amount = parseInt(taxInvoiceAmount)
       if (taxInvoiceFileUrl) updateData.tax_invoice_file_url = taxInvoiceFileUrl
       if (companyAddress) updateData.company_address = companyAddress
       if (representativeName) updateData.representative_name = representativeName
@@ -161,15 +159,18 @@ const InvoicePage = () => {
   }
 
   const packagePrices = {
+    'junior': 200000,
+    'intermediate': 300000,
+    'senior': 400000,
+    '4week_challenge': 600000,
     'oliveyoung': 200000,
     '올영 20만원': 200000,
     'premium': 300000,
     '프리미엄 30만원': 300000,
-    '4week_challenge': 600000,
     '4주챌린지 60만원': 600000
   }
 
-  const packagePrice = packagePrices[campaign.package_type] || 0
+  const packagePrice = packagePrices[campaign.package_type] || 200000
   const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
   const totalCost = packagePrice * recruitmentCount
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
@@ -363,17 +364,6 @@ const InvoicePage = () => {
                 </div>
               </div>
 
-              </div>
-              <div>
-                <Label htmlFor="tax_invoice_amount">공급가액 (원)</Label>
-                <Input
-                  id="tax_invoice_amount"
-                  type="number"
-                  value={taxInvoiceAmount}
-                  onChange={(e) => setTaxInvoiceAmount(e.target.value)}
-                  placeholder={totalCost.toString()}
-                />
-                <p className="text-sm text-gray-500 mt-1">기본값: {totalCost.toLocaleString()}원</p>
               </div>
               <div>
                 <Label htmlFor="tax_invoice_file">세금계산서 파일 (선택사항)</Label>
