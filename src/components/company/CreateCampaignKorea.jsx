@@ -392,7 +392,6 @@ const CampaignCreationKorea = () => {
           
           // 견적서 데이터 저장
           console.log('[CreateCampaign] Inserting charge request:', {
-            user_id: user.id,
             company_id: companyData.id,
             amount: finalCost
           })
@@ -400,7 +399,6 @@ const CampaignCreationKorea = () => {
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert([{
-              user_id: user.id,
               company_id: companyData.id,
               amount: finalCost,
               points_amount: finalCost,

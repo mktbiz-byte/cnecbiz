@@ -317,6 +317,11 @@ export default function CampaignDetail() {
     }
 
     const cancelReason = prompt('취소 사유를 입력해주세요 (선택사항):')
+    
+    // prompt에서 취소 버튼을 누르면 null이 반환됨
+    if (cancelReason === null) {
+      return
+    }
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
