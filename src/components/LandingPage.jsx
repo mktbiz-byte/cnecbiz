@@ -8,10 +8,60 @@ import ContentEditor, { EditModeToggle } from './admin/ContentEditor'
 export default function LandingPage() {
   const navigate = useNavigate()
   const [videos, setVideos] = useState([])
+  const [user, setUser] = useState(null)
+  const [userRole, setUserRole] = useState(null)
 
   useEffect(() => {
     fetchVideos()
+    checkAuth()
   }, [])
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabaseBiz.auth.getSession()
+    if (session?.user) {
+      setUser(session.user)
+      // 사용자 역할 확인
+      const { data: adminData } = await supabaseBiz
+        .from('admin_users')
+        .select('role')
+        .eq('email', session.user.email)
+        .single()
+      
+      if (adminData) {
+        setUserRole('admin')
+      } else {
+        const { data: companyData } = await supabaseBiz
+          .from('companies')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .single()
+        
+        if (companyData) {
+          setUserRole('company')
+        } else {
+          const { data: creatorData } = await supabaseBiz
+            .from('creators')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .single()
+          
+          if (creatorData) {
+            setUserRole('creator')
+          }
+        }
+      }
+    }
+  }
+
+  const handleDashboardClick = () => {
+    if (userRole === 'admin') {
+      navigate('/admin/dashboard')
+    } else if (userRole === 'company') {
+      navigate('/company/dashboard')
+    } else if (userRole === 'creator') {
+      navigate('/creator/dashboard')
+    }
+  }
 
   const fetchVideos = async () => {
     if (!supabaseBiz) {
@@ -151,18 +201,29 @@ export default function LandingPage() {
               <a href="#faq" className="text-slate-600 hover:text-blue-600 transition-colors">FAQ</a>
             </nav>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate('/login')}
-                className="px-4 py-2 text-slate-600 hover:text-blue-600 transition-colors"
-              >
-                로그인
-              </button>
-              <button
-                onClick={() => navigate('/signup')}
-                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all"
-              >
-                시작하기
-              </button>
+              {user ? (
+                <button
+                  onClick={handleDashboardClick}
+                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+                >
+                  대시보드 바로가기
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="px-4 py-2 text-slate-600 hover:text-blue-600 transition-colors"
+                  >
+                    로그인
+                  </button>
+                  <button
+                    onClick={() => navigate('/signup')}
+                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all"
+                  >
+                    시작하기
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
