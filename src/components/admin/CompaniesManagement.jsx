@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, ArrowLeft, Eye, Ban, CheckCircle } from 'lucide-react'
+import { Building2, Search, ArrowLeft, Eye, Ban, CheckCircle, CreditCard, Plus, Minus } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function CompaniesManagement() {
@@ -11,6 +11,11 @@ export default function CompaniesManagement() {
   const [companies, setCompanies] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPointsModal, setShowPointsModal] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState(null)
+  const [pointsAction, setPointsAction] = useState('add') // 'add' or 'deduct'
+  const [pointsAmount, setPointsAmount] = useState('')
+  const [pointsReason, setPointsReason] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -75,6 +80,68 @@ export default function CompaniesManagement() {
     } catch (error) {
       console.error('Error updating status:', error)
       alert('상태 변경 실패: ' + error.message)
+    }
+  }
+
+  const handleAdjustPoints = (company) => {
+    setSelectedCompany(company)
+    setShowPointsModal(true)
+    setPointsAction('add')
+    setPointsAmount('')
+    setPointsReason('')
+  }
+
+  const handleSubmitPoints = async () => {
+    if (!selectedCompany || !pointsAmount || !pointsReason) {
+      alert('모든 필드를 입력해주세요')
+      return
+    }
+
+    const amount = parseInt(pointsAmount)
+    if (isNaN(amount) || amount <= 0) {
+      alert('유효한 포인트 금액을 입력해주세요')
+      return
+    }
+
+    const currentPoints = selectedCompany.points_balance || 0
+    const finalAmount = pointsAction === 'add' ? amount : -amount
+    const newBalance = currentPoints + finalAmount
+
+    if (newBalance < 0) {
+      alert('포인트 잔액이 부족합니다')
+      return
+    }
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+
+      // 1. 포인트 잔액 업데이트
+      const { error: updateError } = await supabaseBiz
+        .from('companies')
+        .update({ points_balance: newBalance })
+        .eq('id', selectedCompany.id)
+
+      if (updateError) throw updateError
+
+      // 2. 포인트 거래 기록
+      const { error: transactionError } = await supabaseBiz
+        .from('points_transactions')
+        .insert([{
+          company_id: selectedCompany.id,
+          amount: finalAmount,
+          type: pointsAction === 'add' ? 'admin_grant' : 'admin_deduct',
+          description: `[관리자 ${pointsAction === 'add' ? '추가' : '회수'}] ${pointsReason}`,
+          admin_email: user?.email
+        }])
+
+      if (transactionError) throw transactionError
+
+      alert(`포인트 ${pointsAction === 'add' ? '추가' : '회수'}가 완료되었습니다`)
+      setShowPointsModal(false)
+      fetchCompanies()
+    } catch (error) {
+      console.error('Error adjusting points:', error)
+      alert('포인트 조정에 실패했습니다: ' + error.message)
     }
   }
 
@@ -190,9 +257,15 @@ export default function CompaniesManagement() {
                         <div>
                           <span className="font-medium">사업자번호:</span> {company.business_registration_number || 'N/A'}
                         </div>
-                        <div className="col-span-2">
+                        <div>
                           <span className="font-medium">가입일:</span>{' '}
                           {new Date(company.created_at).toLocaleDateString('ko-KR')}
+                        </div>
+                        <div>
+                          <span className="font-medium">포인트 잔액:</span>{' '}
+                          <span className="text-blue-600 font-bold">
+                            {(company.points_balance || 0).toLocaleString()}P
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -204,6 +277,14 @@ export default function CompaniesManagement() {
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         상세보기
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAdjustPoints(company)}
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        포인트 조정
                       </Button>
                       <Button
                         variant={company.status === 'active' ? 'destructive' : 'default'}

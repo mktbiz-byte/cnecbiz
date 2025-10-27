@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
+import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -301,6 +302,7 @@ export default function CampaignDetail() {
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       
+      // 1. 캠페인 취소
       const { error } = await supabaseKorea
         .from('campaigns')
         .update({
@@ -313,7 +315,57 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
-      alert('캠페인이 취소되었습니다.')
+      // 2. 포인트로 결제한 경우 포인트 반납
+      // points_transactions에서 이 캠페인의 결제 기록 확인
+      const { data: transactionData } = await supabaseBiz
+        .from('points_transactions')
+        .select('*')
+        .eq('campaign_id', id)
+        .eq('type', 'campaign_creation')
+        .single()
+
+      if (transactionData) {
+        // 포인트로 결제한 경우
+        const refundAmount = Math.abs(transactionData.amount)
+        
+        // 회사 정보 조회
+        const { data: companyData } = await supabaseBiz
+          .from('companies')
+          .select('id, points_balance')
+          .eq('user_id', user.id)
+          .single()
+
+        if (companyData) {
+          // 포인트 반납
+          const { error: refundError } = await supabaseBiz
+            .from('companies')
+            .update({ 
+              points_balance: (companyData.points_balance || 0) + refundAmount 
+            })
+            .eq('id', companyData.id)
+
+          if (refundError) throw refundError
+
+          // 포인트 반납 기록
+          await supabaseBiz
+            .from('points_transactions')
+            .insert([{
+              company_id: companyData.id,
+              amount: refundAmount,
+              type: 'campaign_cancellation',
+              description: `캠페인 취소 환불: ${campaign.title || campaign.campaign_name}`,
+              campaign_id: id
+            }])
+
+          alert(`캠페인이 취소되었습니다. ${refundAmount.toLocaleString()}포인트가 반납되었습니다.`)
+        } else {
+          alert('캠페인이 취소되었습니다.')
+        }
+      } else {
+        // 입금 대기 중이거나 포인트 결제가 아닌 경우
+        alert('캠페인이 취소되었습니다.')
+      }
+
       await fetchCampaignDetail()
     } catch (error) {
       console.error('Error cancelling campaign:', error)
@@ -397,19 +449,21 @@ export default function CampaignDetail() {
           </div>
           <div className="flex items-center gap-3">
             {getApprovalStatusBadge(campaign.approval_status)}
+            {/* 수정 버튼: draft, pending_payment, rejected 상태에서 표시 */}
+            {['draft', 'pending_payment', 'rejected'].includes(campaign.approval_status) && (
+              <Button 
+                variant="outline"
+                onClick={() => navigate(`/company/campaigns/create/korea?edit=${id}`)}
+              >
+                수정
+              </Button>
+            )}
+            {/* 승인 요청 버튼: draft 상태에서만 표시 */}
             {campaign.approval_status === 'draft' && (
-              <>
-                <Button 
-                  variant="outline"
-                  onClick={() => navigate(`/company/campaigns/create/korea?edit=${id}`)}
-                >
-                  수정
-                </Button>
-                <Button onClick={handleRequestApproval} className="bg-blue-600">
-                  <Send className="w-4 h-4 mr-2" />
-                  승인 요청하기
-                </Button>
-              </>
+              <Button onClick={handleRequestApproval} className="bg-blue-600">
+                <Send className="w-4 h-4 mr-2" />
+                승인 요청하기
+              </Button>
             )}
             {campaign.approval_status === 'pending' && (
               <Button disabled className="bg-blue-100 text-blue-700 cursor-not-allowed">
