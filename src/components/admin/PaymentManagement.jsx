@@ -89,8 +89,8 @@ export default function PaymentManagement() {
 
   const fetchPointCharges = async () => {
     const { data, error } = await supabaseKorea
-      .from('point_charges')
-      .select('*')
+      .from('points_charge_requests')
+      .select('*, companies(company_name)')
       .order('created_at', { ascending: false })
 
     if (!error && data) {
@@ -138,6 +138,75 @@ export default function PaymentManagement() {
     } catch (error) {
       console.error('Error adding points:', error)
       alert('포인트 추가에 실패했습니다')
+    }
+  }
+
+  // 포인트 충전 입금 확인 및 세금계산서/현금영수증 발행
+  const handleConfirmChargePayment = async (chargeRequest) => {
+    if (!confirm(`입금을 확인하고 ${chargeRequest.invoice_data?.receipt_type === 'tax_invoice' ? '세금계산서' : '현금영수증'}를 발행하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      // 팝빌 API 호출 (Netlify Function)
+      const receiptType = chargeRequest.invoice_data?.receipt_type || 'tax_invoice'
+      const endpoint = receiptType === 'tax_invoice' 
+        ? '/.netlify/functions/popbill-issue-taxinvoice'
+        : '/.netlify/functions/popbill-issue-cashbill'
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceData: chargeRequest.invoice_data,
+          amount: chargeRequest.amount
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || '증빙 발행 실패')
+      }
+
+      const receiptResult = await response.json()
+      console.log('Receipt issued:', receiptResult)
+
+      // 충전 요청 상태 업데이트
+      const { error: updateError } = await supabaseKorea
+        .from('points_charge_requests')
+        .update({
+          status: 'confirmed',
+          confirmed_at: new Date().toISOString(),
+          payment_confirmed_at: new Date().toISOString(),
+          receipt_issued: true,
+          receipt_type: receiptType,
+          receipt_data: receiptResult
+        })
+        .eq('id', chargeRequest.id)
+
+      if (updateError) throw updateError
+
+      // 포인트 지급
+      const { data: companyData } = await supabaseKorea
+        .from('companies')
+        .select('points')
+        .eq('id', chargeRequest.company_id)
+        .single()
+
+      const newPoints = (companyData?.points || 0) + (chargeRequest.points || chargeRequest.amount)
+
+      const { error: pointsError } = await supabaseKorea
+        .from('companies')
+        .update({ points: newPoints })
+        .eq('id', chargeRequest.company_id)
+
+      if (pointsError) throw pointsError
+
+      alert(`입금이 확인되었습니다!\n\n${receiptType === 'tax_invoice' ? '세금계산서' : '현금영수증'} 발행 완료\n포인트 ${(chargeRequest.points || chargeRequest.amount).toLocaleString()}P 지급 완료`)
+      fetchPointCharges()
+    } catch (error) {
+      console.error('Error confirming charge payment:', error)
+      alert('입금 확인 실패: ' + error.message)
     }
   }
 
@@ -350,24 +419,48 @@ export default function PaymentManagement() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold">{item.company_email}</h3>
+                          <h3 className="text-lg font-bold">
+                            {item.companies?.company_name || item.company_email || '회사명 없음'}
+                          </h3>
                           {getStatusBadge(item.status)}
-                          <Badge variant="outline">
-                            {item.charge_type === 'prepaid' ? '선불' : '후불'}
-                          </Badge>
+                          {item.invoice_data?.receipt_type && (
+                            <Badge variant="outline">
+                              {item.invoice_data.receipt_type === 'tax_invoice' ? '세금계산서' : '현금영수증'}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-sm text-gray-600 space-y-1">
-                          <div>충전일: {new Date(item.created_at).toLocaleDateString('ko-KR')}</div>
-                          {item.confirmed_by && (
-                            <div>확인자: {item.confirmed_by}</div>
+                          <div>신청일: {new Date(item.created_at).toLocaleDateString('ko-KR')}</div>
+                          <div>금액: {item.amount?.toLocaleString() || 0}원</div>
+                          <div>포인트: {(item.points || item.amount)?.toLocaleString() || 0}P</div>
+                          {item.invoice_data?.depositor_name && (
+                            <div>예금주명: {item.invoice_data.depositor_name}</div>
                           )}
-                          {item.notes && <div>메모: {item.notes}</div>}
+                          {item.invoice_data?.email && (
+                            <div>이메일: {item.invoice_data.email}</div>
+                          )}
+                          {item.confirmed_at && (
+                            <div className="text-green-600">확인일: {new Date(item.confirmed_at).toLocaleDateString('ko-KR')}</div>
+                          )}
+                          {item.receipt_issued && (
+                            <div className="text-blue-600">✅ 증빙 발행 완료</div>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex flex-col gap-2">
                         <div className="text-2xl font-bold text-purple-600">
-                          {item.amount.toLocaleString()}P
+                          {(item.points || item.amount)?.toLocaleString() || 0}P
                         </div>
+                        {item.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleConfirmChargePayment(item)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            입금 확인
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
