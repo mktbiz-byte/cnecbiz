@@ -16,7 +16,8 @@ import {
   Clock,
   AlertCircle,
   UserCheck,
-  CreditCard
+  CreditCard,
+  FileText
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
@@ -199,6 +200,22 @@ export default function CompanyDashboard() {
           >
             <Plus className="w-5 h-5" />
             {sidebarOpen && <span>새 캠페인</span>}
+          </Button>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-3"
+            onClick={() => navigate('/company/points')}
+          >
+            <CreditCard className="w-5 h-5" />
+            {sidebarOpen && <span>포인트 결제하기</span>}
+          </Button>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-3"
+            onClick={() => navigate('/company/payment-history')}
+          >
+            <FileText className="w-5 h-5" />
+            {sidebarOpen && <span>내 결제내역</span>}
           </Button>
         </nav>
 

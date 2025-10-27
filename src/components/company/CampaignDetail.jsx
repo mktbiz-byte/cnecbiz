@@ -241,6 +241,36 @@ export default function CampaignDetail() {
     return prices[packageType] || 0
   }
 
+  const handleCancelCampaign = async () => {
+    if (!confirm('캠페인을 취소하시겠습니까? 취소된 캠페인은 복구할 수 없습니다.')) {
+      return
+    }
+
+    const cancelReason = prompt('취소 사유를 입력해주세요 (선택사항):')
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      
+      const { error } = await supabaseKorea
+        .from('campaigns')
+        .update({
+          is_cancelled: true,
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: user?.email || 'unknown',
+          cancel_reason: cancelReason || '사유 미기재'
+        })
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('캠페인이 취소되었습니다.')
+      await fetchCampaignDetail()
+    } catch (error) {
+      console.error('Error cancelling campaign:', error)
+      alert('캠페인 취소에 실패했습니다.')
+    }
+  }
+
   const handleRequestApproval = async () => {
     try {
       const { error } = await supabaseKorea
@@ -315,13 +345,37 @@ export default function CampaignDetail() {
               <p className="text-gray-600 mt-1">{campaign.brand} • {campaign.product_name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {getApprovalStatusBadge(campaign.approval_status)}
-            {campaign.approval_status === 'draft' && (
-              <Button onClick={handleRequestApproval} className="bg-blue-600">
-                <Send className="w-4 h-4 mr-2" />
-                승인 요청하기
-              </Button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {getApprovalStatusBadge(campaign.approval_status)}
+              {campaign.approval_status === 'draft' && (
+                <Button onClick={handleRequestApproval} className="bg-blue-600">
+                  <Send className="w-4 h-4 mr-2" />
+                  승인 요청하기
+                </Button>
+              )}
+            </div>
+            {!campaign.is_cancelled && (
+              <div>
+                {campaign.payment_status !== 'confirmed' ? (
+                  <Button 
+                    variant="outline" 
+                    className="text-red-600 border-red-600 hover:bg-red-50"
+                    onClick={handleCancelCampaign}
+                  >
+                    캠페인 취소하기
+                  </Button>
+                ) : (
+                  <Badge className="bg-gray-100 text-gray-600">
+                    입금 완료 후 취소는 관리자에게 문의하세요
+                  </Badge>
+                )}
+              </div>
+            )}
+            {campaign.is_cancelled && (
+              <Badge className="bg-red-100 text-red-800 text-lg px-4 py-2">
+                취소된 캠페인
+              </Badge>
             )}
           </div>
         </div>

@@ -24,7 +24,7 @@ const CampaignCreationKorea = () => {
     product_description: '',
     product_link: '',
     product_detail_file_url: '',
-    package_type: 'oliveyoung',  // oliveyoung, premium, 4week_challenge
+    package_type: 'junior',  // junior, intermediate, senior, 4week_challenge
     total_slots: 10,
     remaining_slots: 10,
     estimated_cost: 2000000,  // 자동 계산
@@ -63,9 +63,34 @@ const CampaignCreationKorea = () => {
 
   // 패키지 옵션
   const packageOptions = [
-    { value: 'oliveyoung', label: '올영 패키지', price: 200000 },
-    { value: 'premium', label: '프리미엄 패키지', price: 300000 },
-    { value: '4week_challenge', label: '4주 챌린지', price: 600000 }
+    { 
+      value: 'junior', 
+      label: '초급 크리에이터 패키지', 
+      price: 200000,
+      description: '팔로워 1만~5만',
+      expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
+    },
+    { 
+      value: 'intermediate', 
+      label: '중급 크리에이터 패키지', 
+      price: 300000,
+      description: '팔로워 5만~20만',
+      expectedApplicants: { youtube: 10, instagram: 18, tiktok: 15 }
+    },
+    { 
+      value: 'senior', 
+      label: '상급 크리에이터 패키지', 
+      price: 400000,
+      description: '팔로워 20만 이상',
+      expectedApplicants: { youtube: 5, instagram: 10, tiktok: 8 }
+    },
+    { 
+      value: '4week_challenge', 
+      label: '4주 챌린지 프로그램', 
+      price: 600000,
+      description: '4주간 지속적인 콘텐츠 제작',
+      expectedApplicants: { youtube: 8, instagram: 15, tiktok: 12 }
+    }
   ]
 
   // 편집 모드일 때 데이터 로드
@@ -364,14 +389,39 @@ const CampaignCreationKorea = () => {
                   <SelectContent className="bg-white">
                     {packageOptions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
-                        {opt.label} - ₩{opt.price.toLocaleString()}
+                        <div className="flex flex-col">
+                          <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()}</span>
+                          <span className="text-xs text-gray-500">{opt.description}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-gray-500 mt-1">
-                  {packageOptions.find(p => p.value === campaignForm.package_type)?.label} - 1인당 ₩{packageOptions.find(p => p.value === campaignForm.package_type)?.price.toLocaleString()}
-                </p>
+                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm font-semibold text-blue-900 mb-2">
+                    예상 지원 크리에이터 (플랫폼별)
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="flex items-center gap-1">
+                      <span className="text-red-600">🎥</span>
+                      <span className="text-gray-700">유튜브:</span>
+                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube}명</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-pink-600">📸</span>
+                      <span className="text-gray-700">인스타:</span>
+                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-black">🎵</span>
+                      <span className="text-gray-700">틱톡:</span>
+                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok}명</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    * 금액대에 따라 지원율이 다소 차이가 납니다. 위 수치는 평균 예상치입니다.
+                  </p>
+                </div>
               </div>
 
               {/* 모집 인원 및 결제 예상 금액 */}
