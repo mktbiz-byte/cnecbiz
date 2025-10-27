@@ -300,8 +300,7 @@ export default function CompanyDashboard() {
               <CardContent>
                 <div className="text-3xl font-bold text-purple-600">{stats.completed}</div>
               </CardContent>
-            </Card>>
-
+            </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">총 지출</CardTitle>
