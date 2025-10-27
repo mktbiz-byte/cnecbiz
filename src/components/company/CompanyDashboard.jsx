@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   X,
+  XCircle,
   CheckCircle,
   Clock,
   AlertCircle,
@@ -146,7 +147,17 @@ export default function CompanyDashboard() {
     return prices[packageType?.toLowerCase()] || 200000
   }
 
-  const getPaymentStatusBadge = (status) => {
+  const getPaymentStatusBadge = (status, isCancelled) => {
+    // 취소된 캠페인은 "취소됨" 표시
+    if (isCancelled) {
+      return (
+        <Badge className="bg-red-100 text-red-800 flex items-center gap-1">
+          <XCircle className="w-3 h-3" />
+          취소됨
+        </Badge>
+      )
+    }
+    
     const badges = {
       pending: { label: '입금 대기', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
       confirmed: { label: '입금 완료', color: 'bg-green-100 text-green-800', icon: CheckCircle },
@@ -408,7 +419,7 @@ export default function CompanyDashboard() {
                             <div className="text-2xl font-bold text-blue-600">
                               {totalCost.toLocaleString()}원
                             </div>
-                            {getPaymentStatusBadge(campaign.payment_status)}
+                            {getPaymentStatusBadge(campaign.payment_status, campaign.is_cancelled)}
                           </div>
                         </div>
 

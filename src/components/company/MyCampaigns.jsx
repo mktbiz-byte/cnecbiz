@@ -121,7 +121,17 @@ export default function MyCampaigns() {
     return prices[packageType?.toLowerCase()] || 200000
   }
 
-  const getPaymentStatusBadge = (status) => {
+  const getPaymentStatusBadge = (status, isCancelled) => {
+    // 취소된 캠페인은 "취소됨" 표시
+    if (isCancelled) {
+      return (
+        <Badge className="bg-red-100 text-red-800 flex items-center gap-1">
+          <AlertCircle className="w-3 h-3" />
+          취소됨
+        </Badge>
+      )
+    }
+    
     const badges = {
       pending: { label: '입금 대기', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
       confirmed: { label: '입금 완료', color: 'bg-green-100 text-green-800', icon: CheckCircle },
@@ -315,7 +325,7 @@ export default function MyCampaigns() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             {getRegionBadge(campaign.region)}
-                            {getPaymentStatusBadge(campaign.payment_status)}
+                            {getPaymentStatusBadge(campaign.payment_status, campaign.is_cancelled)}
                             {getProgressStatusBadge(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)}
                           </div>
                           <h3 className="font-bold text-xl mb-1">{campaign.title}</h3>
