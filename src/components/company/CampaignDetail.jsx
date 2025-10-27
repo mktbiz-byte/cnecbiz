@@ -255,6 +255,9 @@ export default function CampaignDetail() {
 
   const getPackagePrice = (packageType) => {
     const prices = {
+      'junior': 200000,
+      'intermediate': 300000,
+      'senior': 500000,
       'oliveyoung': 200000,
       '올영 20만원': 200000,
       'premium': 300000,
@@ -262,7 +265,7 @@ export default function CampaignDetail() {
       '4week_challenge': 600000,
       '4주챌린지 60만원': 600000
     }
-    return prices[packageType] || 0
+    return prices[packageType] || 200000
   }
 
   const handleCancelCampaign = async () => {
@@ -369,16 +372,22 @@ export default function CampaignDetail() {
               <p className="text-gray-600 mt-1">{campaign.brand} • {campaign.product_name}</p>
             </div>
           </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {getApprovalStatusBadge(campaign.approval_status)}
-              {campaign.approval_status === 'draft' && (
+          <div className="flex items-center gap-3">
+            {getApprovalStatusBadge(campaign.approval_status)}
+            {campaign.approval_status === 'draft' && (
+              <>
+                <Button 
+                  variant="outline"
+                  onClick={() => navigate(`/company/campaigns/${id}/edit`)}
+                >
+                  수정
+                </Button>
                 <Button onClick={handleRequestApproval} className="bg-blue-600">
                   <Send className="w-4 h-4 mr-2" />
                   승인 요청하기
                 </Button>
-              )}
-            </div>
+              </>
+            )}
             {!campaign.is_cancelled && (
               <div>
                 {campaign.payment_status !== 'confirmed' ? (
@@ -412,9 +421,13 @@ export default function CampaignDetail() {
                 <div>
                   <p className="text-sm text-gray-600">패키지</p>
                   <p className="text-2xl font-bold mt-2">
+                    {campaign.package_type === 'junior' && 'Junior'}
+                    {campaign.package_type === 'intermediate' && 'Intermediate'}
+                    {campaign.package_type === 'senior' && 'Senior'}
                     {campaign.package_type === 'oliveyoung' && '올영 패키지'}
                     {campaign.package_type === 'premium' && '프리미엄 패키지'}
                     {campaign.package_type === '4week_challenge' && '4주 챌린지'}
+                    {!['junior', 'intermediate', 'senior', 'oliveyoung', 'premium', '4week_challenge'].includes(campaign.package_type) && campaign.package_type}
                   </p>
                 </div>
               </div>
