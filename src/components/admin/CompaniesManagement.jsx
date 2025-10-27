@@ -317,6 +317,81 @@ export default function CompaniesManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 포인트 조정 모달 */}
+      {showPointsModal && selectedCompany && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-2xl font-bold mb-4">포인트 조정</h2>
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="text-sm text-gray-600">회사명</div>
+              <div className="text-lg font-bold">{selectedCompany.company_name}</div>
+              <div className="text-sm text-gray-600 mt-2">현재 포인트</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {(selectedCompany.points_balance || 0).toLocaleString()}P
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">작업 종류</label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={pointsAction === 'add' ? 'default' : 'outline'}
+                    className="flex-1"
+                    onClick={() => setPointsAction('add')}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    포인트 추가
+                  </Button>
+                  <Button
+                    variant={pointsAction === 'deduct' ? 'default' : 'outline'}
+                    className="flex-1"
+                    onClick={() => setPointsAction('deduct')}
+                  >
+                    <Minus className="w-4 h-4 mr-2" />
+                    포인트 회수
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">포인트 금액</label>
+                <Input
+                  type="number"
+                  placeholder="10000"
+                  value={pointsAmount}
+                  onChange={(e) => setPointsAmount(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">사유</label>
+                <Input
+                  type="text"
+                  placeholder="예: 테스트 포인트 회수"
+                  value={pointsReason}
+                  onChange={(e) => setPointsReason(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={handleSubmitPoints}>
+                  {pointsAction === 'add' ? '추가' : '회수'}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowPointsModal(false)
+                    setSelectedCompany(null)
+                    setPointsAmount('')
+                    setPointsReason('')
+                  }}
+                >
+                  취소
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
