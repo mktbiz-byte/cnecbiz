@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseKorea'
 import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { ArrowLeft, Download, CheckCircle, Copy } from 'lucide-react'
@@ -17,6 +19,11 @@ const InvoicePage = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [copied, setCopied] = useState(false)
+  const [taxInvoiceNumber, setTaxInvoiceNumber] = useState('')
+  const [taxInvoiceDate, setTaxInvoiceDate] = useState('')
+  const [taxInvoiceAmount, setTaxInvoiceAmount] = useState('')
+  const [taxInvoiceFileUrl, setTaxInvoiceFileUrl] = useState('')
+  const [uploadingTaxInvoice, setUploadingTaxInvoice] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -54,6 +61,39 @@ const InvoicePage = () => {
     }
   }
 
+  const handleTaxInvoiceFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingTaxInvoice(true)
+    setError('')
+
+    try {
+      const { storage } = await import('../../lib/supabaseKorea')
+      const fileExt = file.name.split('.').pop()
+      const fileName = `tax-invoice-${id}-${Date.now()}.${fileExt}`
+      const filePath = `campaign-images/${fileName}`
+
+      const { error: uploadError } = await storage
+        .from('campaign-images')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = storage
+        .from('campaign-images')
+        .getPublicUrl(filePath)
+
+      setTaxInvoiceFileUrl(publicUrl)
+      setSuccess('세금계산서 파일이 업로드되었습니다!')
+    } catch (err) {
+      console.error('파일 업로드 실패:', err)
+      setError('파일 업로드에 실패했습니다: ' + err.message)
+    } finally {
+      setUploadingTaxInvoice(false)
+    }
+  }
+
   const handleCopyAccount = () => {
     if (paymentAccount) {
       navigator.clipboard.writeText(paymentAccount.account_number)
@@ -68,12 +108,20 @@ const InvoicePage = () => {
     setSuccess('')
 
     try {
+      const updateData = {
+        payment_status: 'confirmed',
+        payment_confirmed_at: new Date().toISOString()
+      }
+
+      // 세금계산서 정보가 있으면 함께 저장
+      if (taxInvoiceNumber) updateData.tax_invoice_number = taxInvoiceNumber
+      if (taxInvoiceDate) updateData.tax_invoice_date = taxInvoiceDate
+      if (taxInvoiceAmount) updateData.tax_invoice_amount = parseInt(taxInvoiceAmount)
+      if (taxInvoiceFileUrl) updateData.tax_invoice_file_url = taxInvoiceFileUrl
+
       const { error } = await supabase
         .from('campaigns')
-        .update({
-          payment_status: 'confirmed',
-          payment_confirmed_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id)
 
       if (error) throw error
@@ -253,12 +301,68 @@ const InvoicePage = () => {
             </div>
           )}
 
+          {/* 세금계산서 정보 */}
+          <div className="border-t pt-6 mt-6">
+            <h3 className="font-semibold text-lg mb-4">세금계산서 정보 (선택사항)</h3>
+            <div className="bg-blue-50 p-4 rounded-lg mb-4">
+              <p className="text-sm text-gray-700">세금계산서 발행을 원하시는 경우 아래 정보를 입력해주세요.</p>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="tax_invoice_number">세금계산서 번호</Label>
+                  <Input
+                    id="tax_invoice_number"
+                    value={taxInvoiceNumber}
+                    onChange={(e) => setTaxInvoiceNumber(e.target.value)}
+                    placeholder="예: 2024-001"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="tax_invoice_date">발행일</Label>
+                  <Input
+                    id="tax_invoice_date"
+                    type="date"
+                    value={taxInvoiceDate}
+                    onChange={(e) => setTaxInvoiceDate(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="tax_invoice_amount">공급가액 (원)</Label>
+                <Input
+                  id="tax_invoice_amount"
+                  type="number"
+                  value={taxInvoiceAmount}
+                  onChange={(e) => setTaxInvoiceAmount(e.target.value)}
+                  placeholder={totalCost.toString()}
+                />
+                <p className="text-sm text-gray-500 mt-1">기본값: {totalCost.toLocaleString()}원</p>
+              </div>
+              <div>
+                <Label htmlFor="tax_invoice_file">세금계산서 파일 (선택사항)</Label>
+                <Input
+                  id="tax_invoice_file"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleTaxInvoiceFileUpload}
+                  disabled={uploadingTaxInvoice}
+                />
+                {uploadingTaxInvoice && <p className="text-sm text-gray-500 mt-1">업로드 중...</p>}
+                {taxInvoiceFileUrl && (
+                  <p className="text-sm text-green-600 mt-1">✓ 파일이 업로드되었습니다</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* 입금 안내 */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-semibold text-sm mb-3">입금 안내사항</h4>
             <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
               <li>위 계좌로 총 결제 금액을 입금해주세요</li>
               <li>입금자명은 회사명 또는 담당자명으로 해주세요</li>
+              <li>세금계산서가 필요한 경우 위 정보를 입력해주세요</li>
               <li>입금 완료 후 아래 "입금 완료 확인" 버튼을 클릭해주세요</li>
               <li>입금 확인 후 관리자 승인이 진행됩니다</li>
               <li>승인 완료 시 캠페인이 정식으로 시작됩니다</li>

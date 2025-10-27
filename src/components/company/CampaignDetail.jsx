@@ -22,6 +22,7 @@ export default function CampaignDetail() {
   const [campaign, setCampaign] = useState(null)
   const [participants, setParticipants] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshingViews, setRefreshingViews] = useState({})
 
   useEffect(() => {
     fetchCampaignDetail()
@@ -57,6 +58,76 @@ export default function CampaignDetail() {
       setParticipants(data || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
+    }
+  }
+
+  const handleRefreshViews = async (participant) => {
+    if (!participant.content_url) {
+      alert('콘텐츠 URL이 등록되지 않았습니다.')
+      return
+    }
+
+    setRefreshingViews(prev => ({ ...prev, [participant.id]: true }))
+
+    try {
+      // 플랫폼 판별
+      const platform = participant.content_url.includes('youtube.com') || participant.content_url.includes('youtu.be') 
+        ? 'youtube' 
+        : participant.content_url.includes('instagram.com') 
+        ? 'instagram' 
+        : null
+
+      if (!platform) {
+        alert('지원하지 않는 플랫폼입니다. (YouTube, Instagram만 지원)')
+        return
+      }
+
+      // Netlify Function 호출
+      const apiUrl = platform === 'youtube' 
+        ? '/.netlify/functions/youtube-views'
+        : '/.netlify/functions/instagram-views'
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: participant.content_url })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || '뷰수 조회에 실패했습니다.')
+      }
+
+      const data = await response.json()
+      const views = data.views || data.engagementCount || 0
+
+      // 데이터베이스 업데이트
+      const viewHistory = participant.view_history || []
+      viewHistory.push({
+        views,
+        timestamp: new Date().toISOString(),
+        platform
+      })
+
+      const { error: updateError } = await supabaseKorea
+        .from('campaign_participants')
+        .update({
+          views,
+          last_view_check: new Date().toISOString(),
+          view_history: viewHistory
+        })
+        .eq('id', participant.id)
+
+      if (updateError) throw updateError
+
+      // 참여자 목록 새로고침
+      await fetchParticipants()
+      alert(`조회수가 업데이트되었습니다: ${views.toLocaleString()}회`)
+    } catch (error) {
+      console.error('Error refreshing views:', error)
+      alert('조회수 갱신에 실패했습니다: ' + error.message)
+    } finally {
+      setRefreshingViews(prev => ({ ...prev, [participant.id]: false }))
     }
   }
 
@@ -117,7 +188,7 @@ export default function CampaignDetail() {
     return <div className="flex items-center justify-center min-h-screen">캠페인을 찾을 수 없습니다.</div>
   }
 
-  const totalViews = participants.reduce((sum, p) => sum + (p.view_count || 0), 0)
+  const totalViews = participants.reduce((sum, p) => sum + (p.views || 0), 0)
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -334,7 +405,8 @@ export default function CampaignDetail() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">조회수</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">콘텐츠 URL</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">업데이트</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">마지막 확인</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">작업</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -344,7 +416,7 @@ export default function CampaignDetail() {
                             <td className="px-4 py-3">{participant.creator_platform}</td>
                             <td className="px-4 py-3">
                               <span className="text-lg font-semibold text-blue-600">
-                                {(participant.view_count || 0).toLocaleString()}
+                                {(participant.views || 0).toLocaleString()}
                               </span>
                             </td>
                             <td className="px-4 py-3">
@@ -362,7 +434,17 @@ export default function CampaignDetail() {
                               )}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600">
-                              {new Date(participant.updated_at).toLocaleDateString()}
+                              {participant.last_view_check ? new Date(participant.last_view_check).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRefreshViews(participant)}
+                                disabled={refreshingViews[participant.id]}
+                              >
+                                {refreshingViews[participant.id] ? '조회 중...' : '조회수 갱신'}
+                              </Button>
                             </td>
                           </tr>
                         ))}
