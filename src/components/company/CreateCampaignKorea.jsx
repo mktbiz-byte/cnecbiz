@@ -361,8 +361,22 @@ const CampaignCreationKorea = () => {
           }, 1500)
           return
         } else {
-          // 2-B. 포인트 부족: 견적서 발행 및 충전 유도
+          // 2-B. 포인트 부족: 캠페인 생성 + 견적서 발행
           const neededPoints = finalCost - currentPoints
+          
+          // 캠페인 먼저 생성 (draft 상태)
+          const { data, error } = await supabase
+            .from('campaigns')
+            .insert([{
+              ...campaignData,
+              status: 'draft',
+              approval_status: 'pending_payment'  // 입금 대기 상태
+            }])
+            .select()
+
+          if (error) throw error
+
+          const campaignId = data[0].id
           
           // 견적서 데이터 저장
           const { data: quoteData, error: quoteError } = await supabaseBiz
@@ -376,6 +390,7 @@ const CampaignCreationKorea = () => {
               payment_method: 'bank_transfer',
               status: 'pending',
               bank_transfer_info: {
+                campaign_id: campaignId,
                 campaign_title: autoTitle,
                 campaign_cost: finalCost,
                 current_points: currentPoints,
@@ -387,14 +402,16 @@ const CampaignCreationKorea = () => {
 
           if (quoteError) throw quoteError
 
-          setError(`포인트가 부족합니다. 현재: ${currentPoints.toLocaleString()}P, 필요: ${finalCost.toLocaleString()}P`)
+          setSuccess(`캠페인이 생성되었습니다! 입금 요청서가 발행되었습니다.`)
           
           // 포인트 충전 페이지로 이동 유도
           setTimeout(() => {
-            if (window.confirm(`포인트가 ${neededPoints.toLocaleString()}P 부족합니다. 포인트 충전 페이지로 이동하시겠습니까?`)) {
-              navigate('/company/points')
+            if (window.confirm(`포인트가 ${neededPoints.toLocaleString()}P 부족합니다. 입금 요청서를 확인하시겠습니까?`)) {
+              navigate('/company/payment-history')
+            } else {
+              navigate('/company/campaigns')
             }
-          }, 1000)
+          }, 1500)
           return
         }
       }
