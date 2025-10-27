@@ -160,6 +160,8 @@ export const getCampaignsFromAllRegions = async () => {
 
     try {
       console.log(`[getCampaignsFromAllRegions] Fetching from ${region}...`)
+      console.log(`[getCampaignsFromAllRegions] Client for ${region}:`, client ? 'exists' : 'null')
+      
       const { data, error } = await client
         .from('campaigns')
         .select('*')
@@ -167,17 +169,22 @@ export const getCampaignsFromAllRegions = async () => {
 
       if (error) {
         console.error(`[getCampaignsFromAllRegions] Error from ${region}:`, error)
+        console.error(`[getCampaignsFromAllRegions] Error details:`, JSON.stringify(error))
       } else if (data) {
         console.log(`[getCampaignsFromAllRegions] Fetched ${data.length} campaigns from ${region}`)
+        console.log(`[getCampaignsFromAllRegions] Sample campaign from ${region}:`, data[0] ? Object.keys(data[0]) : 'no data')
         allCampaigns.push(
           ...data.map(campaign => ({
             ...campaign,
             region
           }))
         )
+      } else {
+        console.warn(`[getCampaignsFromAllRegions] No data and no error from ${region}`)
       }
     } catch (error) {
       console.error(`[getCampaignsFromAllRegions] Exception from ${region}:`, error)
+      console.error(`[getCampaignsFromAllRegions] Exception details:`, error.message, error.stack)
     }
   }
 
