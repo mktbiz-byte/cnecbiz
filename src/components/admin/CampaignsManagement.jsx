@@ -174,7 +174,9 @@ export default function CampaignsManagement() {
               <div className="text-3xl font-bold text-green-600">{stats.completed}</div>
             </CardContent>
           </Card>
-               {/* Region Tabs */}
+        </div>
+
+        {/* Region Tabs */}
         <Tabs value={selectedRegion} onValueChange={setSelectedRegion} className="mb-6">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="all">전체</TabsTrigger>
