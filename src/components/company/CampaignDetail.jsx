@@ -133,6 +133,29 @@ export default function CampaignDetail() {
     }
   }
 
+  const handleTrackingNumberChange = async (participantId, trackingNumber) => {
+    try {
+      const { error } = await supabaseKorea
+        .from('campaign_participants')
+        .update({ tracking_number: trackingNumber })
+        .eq('id', participantId)
+
+      if (error) throw error
+
+      // 참여자 목록 업데이트
+      setParticipants(prev => 
+        prev.map(p => 
+          p.id === participantId 
+            ? { ...p, tracking_number: trackingNumber }
+            : p
+        )
+      )
+    } catch (error) {
+      console.error('Error updating tracking number:', error)
+      alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
   const handleConfirmSelection = async () => {
     if (selectedParticipants.length === 0) {
       alert('크리에이터를 선택해주세요.')
@@ -378,7 +401,7 @@ export default function CampaignDetail() {
               <>
                 <Button 
                   variant="outline"
-                  onClick={() => navigate(`/company/campaigns/${id}/edit`)}
+                  onClick={() => navigate(`/company/campaigns/create/korea?edit=${id}`)}
                 >
                   수정
                 </Button>
@@ -465,9 +488,9 @@ export default function CampaignDetail() {
               <Users className="w-4 h-4" />
               참여 크리에이터 ({participants.length})
             </TabsTrigger>
-            <TabsTrigger value="invoices" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              송장 및 가이드
+            <TabsTrigger value="selected" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              확정 크리에이터 + 가이드
             </TabsTrigger>
             <TabsTrigger value="views" className="flex items-center gap-2">
               <Eye className="w-4 h-4" />
@@ -638,16 +661,19 @@ export default function CampaignDetail() {
             </Card>
           </TabsContent>
 
-          {/* 송장 및 가이드 탭 */}
-          <TabsContent value="invoices">
+          {/* 확정 크리에이터 + 가이드 탭 */}
+          <TabsContent value="selected">
             <Card>
               <CardHeader>
-                <CardTitle>송장번호 및 가이드 확인</CardTitle>
+                <CardTitle>확정 크리에이터 및 택배 송장번호</CardTitle>
+                <p className="text-sm text-gray-600 mt-2">
+                  선택된 크리에이터: {participants.filter(p => p.selection_status === 'selected').length}명
+                </p>
               </CardHeader>
               <CardContent>
-                {participants.length === 0 ? (
+                {participants.filter(p => p.selection_status === 'selected').length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    아직 참여한 크리에이터가 없습니다.
+                    아직 확정된 크리에이터가 없습니다.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -655,19 +681,25 @@ export default function CampaignDetail() {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">크리에이터</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">송장번호</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배 송장번호</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 확인</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">콘텐츠 URL</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {participants.map((participant) => (
+                        {participants.filter(p => p.selection_status === 'selected').map((participant) => (
                           <tr key={participant.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3">{participant.creator_name}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email}</td>
                             <td className="px-4 py-3">
-                              {participant.invoice_number || (
-                                <span className="text-gray-400">미등록</span>
-                              )}
+                              <input
+                                type="text"
+                                value={participant.tracking_number || ''}
+                                onChange={(e) => handleTrackingNumberChange(participant.id, e.target.value)}
+                                placeholder="송장번호 입력"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
                             </td>
                             <td className="px-4 py-3">
                               {participant.guide_confirmed ? (
