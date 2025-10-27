@@ -98,6 +98,9 @@ export default function MyCampaigns() {
 
   const getPackagePrice = (packageType) => {
     const prices = {
+      'junior': 200000,
+      'intermediate': 300000,
+      'senior': 500000,
       'oliveyoung': 200000,
       '올영 20만원': 200000,
       'premium': 300000,
@@ -105,7 +108,7 @@ export default function MyCampaigns() {
       '4week_challenge': 600000,
       '4주챌린지 60만원': 600000
     }
-    return prices[packageType] || 0
+    return prices[packageType?.toLowerCase()] || 200000
   }
 
   const getPaymentStatusBadge = (status) => {

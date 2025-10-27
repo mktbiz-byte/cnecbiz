@@ -56,6 +56,7 @@ function App() {
         <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/company/campaigns/:id/invoice" element={<InvoicePage />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
+        <Route path="/company/campaigns/:id/edit" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/company/translator" element={<Translator />} />
         <Route path="/company/teams" element={<TeamManagement />} />
