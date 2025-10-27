@@ -541,6 +541,18 @@ const CampaignCreationKorea = () => {
                   <p className="text-xs text-gray-500 mt-1">
                     {campaignForm.total_slots}명 × ₩{packageOptions.find(p => p.value === campaignForm.package_type)?.price.toLocaleString()}
                   </p>
+                  {campaignForm.total_slots >= 10 && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                      <p className="text-xs text-green-700 font-medium">
+                        💰 {campaignForm.total_slots >= 20 ? '20명 이상 10% 할인 적용!' : '10명 이상 5% 할인 적용!'}
+                      </p>
+                      <p className="text-xs text-green-600 mt-1">
+                        {campaignForm.total_slots >= 20 
+                          ? '20명 이상 모집 시 10% 할인이 적용됩니다.'
+                          : '10명 이상 모집 시 5% 할인이 적용됩니다. 20명 이상이면 10% 할인!'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
