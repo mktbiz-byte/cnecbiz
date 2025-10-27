@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TrendingUp, Search, ArrowLeft, Eye, CheckCircle, XCircle, Clock } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 
@@ -173,9 +174,18 @@ export default function CampaignsManagement() {
               <div className="text-3xl font-bold text-green-600">{stats.completed}</div>
             </CardContent>
           </Card>
-        </div>
+               {/* Region Tabs */}
+        <Tabs value={selectedRegion} onValueChange={setSelectedRegion} className="mb-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="all">전체</TabsTrigger>
+            <TabsTrigger value="korea">한국 🇰🇷</TabsTrigger>
+            <TabsTrigger value="japan">일본 🇯🇵</TabsTrigger>
+            <TabsTrigger value="us">미국 🇺🇸</TabsTrigger>
+            <TabsTrigger value="taiwan">대만 🇹🇼</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        {/* Filters */}
+        {/* Search and Filters */}
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="flex flex-wrap gap-4">
@@ -190,19 +200,7 @@ export default function CampaignsManagement() {
                     className="pl-10"
                   />
                 </div>
-              </div>
-              <select
-                value={selectedRegion}
-                onChange={(e) => setSelectedRegion(e.target.value)}
-                className="px-4 py-2 border rounded-lg"
-              >
-                <option value="all">모든 지역</option>
-                <option value="korea">한국</option>
-                <option value="japan">일본</option>
-                <option value="us">미국</option>
-                <option value="taiwan">대만</option>
-              </select>
-              <select
+              </div>             <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 className="px-4 py-2 border rounded-lg"

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Users, Search, ArrowLeft, Instagram, Youtube, Video, 
   Eye, Mail, Phone, TrendingUp
@@ -149,35 +150,31 @@ export default function RegionalCreatorsManagement() {
             </CardContent>
           </Card>
         </div>
+        {/* Region Tabs */}
+        <Tabs value={selectedRegion} onValueChange={setSelectedRegion} className="mb-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="all">전체</TabsTrigger>
+            <TabsTrigger value="korea">한국 🇰🇷</TabsTrigger>
+            <TabsTrigger value="japan">일본 🇯🇵</TabsTrigger>
+            <TabsTrigger value="us">미국 🇺🇸</TabsTrigger>
+            <TabsTrigger value="taiwan">대만 🇹🇼</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        {/* Filters */}
+        {/* Search */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-64">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="이름, 이메일 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <select
-                value={selectedRegion}
-                onChange={(e) => setSelectedRegion(e.target.value)}
-                className="px-4 py-2 border rounded-lg"
-              >
-                <option value="all">모든 지역</option>
-                <option value="korea">한국</option>
-                <option value="japan">일본</option>
-                <option value="us">미국</option>
-                <option value="taiwan">대만</option>
-              </select>
-            </div>
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="이름, 이메일 검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>   </div>
           </CardContent>
         </Card>
 
