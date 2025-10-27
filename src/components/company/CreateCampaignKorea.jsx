@@ -512,7 +512,7 @@ const CampaignCreationKorea = () => {
                   id="requirements"
                   value={campaignForm.requirements}
                   onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                  placeholder="예: 팔로워 1,000명 이상, 뷰티 콘텐츠 제작 경험"
+                  placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
                   rows={3}
                 />
               </div>
