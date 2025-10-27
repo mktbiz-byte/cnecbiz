@@ -285,6 +285,13 @@ export default function AdminDashboard() {
               매출 관리
             </button>
             <button 
+              onClick={() => navigate('/admin/payment')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <CreditCard className="w-5 h-5" />
+              포인트 & 미수금 관리
+            </button>
+            <button 
               onClick={() => navigate('/admin/manage-admins')}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700"
             >

@@ -21,6 +21,7 @@ import Translator from './components/company/Translator'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AdminManagement from './components/admin/AdminManagement'
 import RevenueManagement from './components/admin/RevenueManagement'
+import PaymentManagement from './components/admin/PaymentManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import CreatorsManagement from './components/admin/CreatorsManagement'
@@ -64,6 +65,7 @@ function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-admins" element={<AdminManagement />} />
         <Route path="/admin/revenue" element={<RevenueManagement />} />
+        <Route path="/admin/payment" element={<PaymentManagement />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
