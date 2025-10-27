@@ -71,7 +71,7 @@ export const supabaseBiz = (supabaseBizUrl && supabaseBizKey && supabaseBizUrl.s
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storage: window.localStorage,
-        storageKey: 'cnectotal-auth',  // 고유 키로 충돌 방지
+        storageKey: 'cnec-biz-auth',  // 고유 키로 충돌 방지
         debug: false
       },
       global: {

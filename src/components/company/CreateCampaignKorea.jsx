@@ -295,7 +295,7 @@ const CampaignCreationKorea = () => {
       }
 
       if (editId) {
-        // 수정
+        // 수정 모드: 포인트 차감 없이 수정만 진행
         const { error } = await supabase
           .from('campaigns')
           .update(campaignData)
@@ -304,26 +304,102 @@ const CampaignCreationKorea = () => {
         if (error) throw error
         setSuccess('캠페인이 수정되었습니다!')
       } else {
-        // 신규 생성
-        const { data, error } = await supabase
-          .from('campaigns')
-          .insert([campaignData])
-          .select()
-
-        if (error) throw error
-        setSuccess('캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.')
+        // 신규 생성: 포인트 차감 또는 견적서 발행
+        const finalCost = campaignForm.estimated_cost
         
-        // 크리에이터 가이드 페이지로 이동
-        setTimeout(() => {
-          if (data && data[0]) {
-            navigate(`/company/campaigns/guide?id=${data[0].id}`)
-          } else {
-            navigate('/company/campaigns')
-          }
-        }, 1500)
-        return
+        // 1. 회사 포인트 잔액 확인
+        const { data: { user } } = await supabaseBiz.auth.getUser()
+        if (!user) throw new Error('로그인이 필요합니다')
+
+        const { data: companyData } = await supabaseBiz
+          .from('companies')
+          .select('id, points_balance')
+          .eq('user_id', user.id)
+          .single()
+
+        if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다')
+
+        const currentPoints = companyData.points_balance || 0
+
+        if (currentPoints >= finalCost) {
+          // 2-A. 포인트 충분: 캠페인 생성 + 포인트 차감
+          const { data, error } = await supabase
+            .from('campaigns')
+            .insert([campaignData])
+            .select()
+
+          if (error) throw error
+
+          // 포인트 차감
+          const { error: pointsError } = await supabaseBiz
+            .from('companies')
+            .update({ points_balance: currentPoints - finalCost })
+            .eq('id', companyData.id)
+
+          if (pointsError) throw pointsError
+
+          // 포인트 거래 기록
+          await supabaseBiz
+            .from('points_transactions')
+            .insert([{
+              company_id: companyData.id,
+              amount: -finalCost,
+              type: 'campaign_creation',
+              description: `캠페인 생성: ${autoTitle}`,
+              campaign_id: data[0].id
+            }])
+
+          setSuccess(`캠페인이 생성되었습니다! ${finalCost.toLocaleString()}포인트가 차감되었습니다.`)
+          
+          // 크리에이터 가이드 페이지로 이동
+          setTimeout(() => {
+            if (data && data[0]) {
+              navigate(`/company/campaigns/guide?id=${data[0].id}`)
+            } else {
+              navigate('/company/campaigns')
+            }
+          }, 1500)
+          return
+        } else {
+          // 2-B. 포인트 부족: 견적서 발행 및 충전 유도
+          const neededPoints = finalCost - currentPoints
+          
+          // 견적서 데이터 저장
+          const { data: quoteData, error: quoteError } = await supabaseBiz
+            .from('points_charge_requests')
+            .insert([{
+              company_id: companyData.id,
+              amount: finalCost,
+              points_amount: finalCost,
+              original_amount: finalCost,
+              discount_rate: 0,
+              payment_method: 'bank_transfer',
+              status: 'pending',
+              bank_transfer_info: {
+                campaign_title: autoTitle,
+                campaign_cost: finalCost,
+                current_points: currentPoints,
+                needed_points: neededPoints,
+                reason: 'campaign_creation'
+              }
+            }])
+            .select()
+
+          if (quoteError) throw quoteError
+
+          setError(`포인트가 부족합니다. 현재: ${currentPoints.toLocaleString()}P, 필요: ${finalCost.toLocaleString()}P`)
+          
+          // 포인트 충전 페이지로 이동 유도
+          setTimeout(() => {
+            if (window.confirm(`포인트가 ${neededPoints.toLocaleString()}P 부족합니다. 포인트 충전 페이지로 이동하시겠습니까?`)) {
+              navigate('/company/points')
+            }
+          }, 1000)
+          return
+        }
       }
 
+      // 수정 모드일 경우만 여기로 도달
       setTimeout(() => {
         navigate('/company/campaigns')
       }, 1500)
