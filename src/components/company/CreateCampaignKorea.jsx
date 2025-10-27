@@ -400,7 +400,6 @@ const CampaignCreationKorea = () => {
             .from('points_charge_requests')
             .insert({
               company_id: companyData.id,
-              points: finalCost,
               amount: finalCost,
               original_amount: finalCost,
               discount_rate: 0,

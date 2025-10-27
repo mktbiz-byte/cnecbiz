@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Coins, CreditCard, History, FileText, Download } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import TaxDocumentIssueModal from './TaxDocumentIssueModal'
+import { issueTaxinvoice, issueCashbill, issueStatement, createTaxinvoiceData, createCashbillData, createStatementData } from '../../lib/popbillHelper'
 
 export default function PointsManagement() {
   const navigate = useNavigate()
@@ -16,6 +18,7 @@ export default function PointsManagement() {
   const [selectedPackage, setSelectedPackage] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
+  const [showTaxDocModal, setShowTaxDocModal] = useState(false)
   
   // 견적서 폼 데이터
   const [invoiceForm, setInvoiceForm] = useState({
@@ -139,6 +142,122 @@ export default function PointsManagement() {
     setSelectedPackage(pkg)
     setShowInvoiceForm(true)
   }
+
+  // 세금 문서 발행 처리
+  const handleIssueTaxDocument = async ({ documentType, formData, chargeAmount }) => {
+    try {
+      const corpNum = company.business_number.replace(/-/g, '');
+      
+      // 공통 데이터
+      const commonData = {
+        invoicerCorpNum: corpNum,
+        invoicerCorpName: company.company_name,
+        invoicerCEOName: company.representative,
+        invoicerAddr: company.address,
+        invoicerBizType: company.business_type || '',
+        invoicerBizClass: company.business_category || '',
+        invoicerEmail: formData.email,
+        invoicerTEL: formData.tel,
+        invoicerHP: formData.hp,
+        invoiceeCorpNum: corpNum, // 자가 발행
+        invoiceeCorpName: company.company_name,
+        invoiceeCEOName: company.representative,
+        invoiceeAddr: company.address,
+        invoiceeBizType: company.business_type || '',
+        invoiceeBizClass: company.business_category || '',
+        invoiceeEmail: formData.email,
+        invoiceeTEL: formData.tel,
+        invoiceeHP: formData.hp,
+      };
+
+      let result;
+      
+      if (documentType === 'taxinvoice') {
+        // 세금계산서 발행
+        const supplyCost = formData.taxType === '과세' ? Math.floor(chargeAmount / 1.1) : chargeAmount;
+        const tax = formData.taxType === '과세' ? chargeAmount - supplyCost : 0;
+        
+        const taxinvoiceData = createTaxinvoiceData({
+          ...commonData,
+          purposeType: formData.purposeType,
+          taxType: formData.taxType,
+          supplyCostTotal: supplyCost,
+          taxTotal: tax,
+          totalAmount: chargeAmount,
+          detailList: [{
+            itemName: formData.itemName,
+            supplyCost: supplyCost,
+            tax: tax,
+          }],
+          remark1: formData.remark,
+        });
+        
+        result = await issueTaxinvoice(corpNum, taxinvoiceData);
+        
+      } else if (documentType === 'cashbill') {
+        // 현금영수증 발행
+        const cashbillData = createCashbillData({
+          franchiseCorpNum: corpNum,
+          franchiseCorpName: company.company_name,
+          franchiseCEOName: company.representative,
+          franchiseAddr: company.address,
+          franchiseTEL: formData.tel,
+          mgtKey: `CB${Date.now()}`,
+          tradeUsage: formData.tradeUsage,
+          identityNum: formData.identityNum,
+          supplyCost: chargeAmount,
+          tax: 0,
+          totalAmount: chargeAmount,
+          customerName: company.representative,
+          itemName: formData.itemName,
+          email: formData.email,
+          hp: formData.hp,
+        });
+        
+        result = await issueCashbill(corpNum, cashbillData);
+        
+      } else if (documentType === 'statement') {
+        // 전자명세서 발행
+        const statementData = createStatementData({
+          senderCorpNum: corpNum,
+          senderCorpName: company.company_name,
+          senderCEOName: company.representative,
+          senderAddr: company.address,
+          senderBizType: company.business_type || '',
+          senderBizClass: company.business_category || '',
+          senderEmail: formData.email,
+          senderTEL: formData.tel,
+          senderHP: formData.hp,
+          receiverCorpNum: corpNum,
+          receiverCorpName: company.company_name,
+          receiverCEOName: company.representative,
+          receiverAddr: company.address,
+          receiverEmail: formData.email,
+          receiverTEL: formData.tel,
+          receiverHP: formData.hp,
+          mgtKey: `ST${Date.now()}`,
+          supplyCostTotal: chargeAmount,
+          taxTotal: 0,
+          totalAmount: chargeAmount,
+          detailList: [{
+            itemName: formData.itemName,
+            supplyCost: chargeAmount,
+            tax: 0,
+          }],
+          remark1: formData.remark,
+        }, parseInt(formData.statementType));
+        
+        result = await issueStatement(corpNum, parseInt(formData.statementType), statementData);
+      }
+      
+      alert('세금 문서가 발행되었습니다!');
+      return result;
+      
+    } catch (error) {
+      console.error('세금 문서 발행 실패:', error);
+      throw error;
+    }
+  };
 
   const handleSubmitChargeRequest = async () => {
     if (!selectedPackage) {
@@ -533,6 +652,19 @@ export default function PointsManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 세금 문서 발행 모달 */}
+      <TaxDocumentIssueModal
+        isOpen={showTaxDocModal}
+        onClose={() => setShowTaxDocModal(false)}
+        onIssue={handleIssueTaxDocument}
+        chargeAmount={selectedPackage?.finalPrice || 0}
+        companyInfo={{
+          email: invoiceForm.email,
+          representative: invoiceForm.company_name,
+          phone: invoiceForm.contact,
+        }}
+      />
     </div>
   )
 }
