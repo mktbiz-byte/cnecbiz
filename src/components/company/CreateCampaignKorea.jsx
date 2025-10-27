@@ -379,6 +379,12 @@ const CampaignCreationKorea = () => {
           const campaignId = data[0].id
           
           // 견적서 데이터 저장
+          console.log('[CreateCampaign] Inserting charge request:', {
+            user_id: user.id,
+            company_id: companyData.id,
+            amount: finalCost
+          })
+
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert([{
@@ -400,7 +406,10 @@ const CampaignCreationKorea = () => {
             }])
             .select()
 
-          if (quoteError) throw quoteError
+          if (quoteError) {
+            console.error('[CreateCampaign] Charge request error:', quoteError)
+            throw quoteError
+          }
 
           setSuccess(`캠페인이 생성되었습니다! 입금 요청서가 발행되었습니다.`)
           
