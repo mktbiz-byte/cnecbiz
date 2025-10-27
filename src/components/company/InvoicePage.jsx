@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseKorea'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { Textarea } from '../ui/textarea'
 import { Label } from '../ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -21,10 +22,15 @@ const InvoicePage = () => {
   const [copied, setCopied] = useState(false)
   const [taxInvoiceNumber, setTaxInvoiceNumber] = useState('')
   const [taxInvoiceFileUrl, setTaxInvoiceFileUrl] = useState('')
-  const [companyAddress, setCompanyAddress] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [businessNumber, setBusinessNumber] = useState('')
   const [representativeName, setRepresentativeName] = useState('')
+  const [contact, setContact] = useState('')
+  const [email, setEmail] = useState('')
   const [businessType, setBusinessType] = useState('')
   const [businessCategory, setBusinessCategory] = useState('')
+  const [companyAddress, setCompanyAddress] = useState('')
+  const [memo, setMemo] = useState('')
   const [uploadingTaxInvoice, setUploadingTaxInvoice] = useState(false)
 
   useEffect(() => {
@@ -116,12 +122,21 @@ const InvoicePage = () => {
       }
 
       // 세금계산서 정보가 있으면 함께 저장
-      if (taxInvoiceNumber) updateData.tax_invoice_number = taxInvoiceNumber
-      if (taxInvoiceFileUrl) updateData.tax_invoice_file_url = taxInvoiceFileUrl
-      if (companyAddress) updateData.company_address = companyAddress
-      if (representativeName) updateData.representative_name = representativeName
-      if (businessType) updateData.business_type = businessType
-      if (businessCategory) updateData.business_category = businessCategory
+      const invoiceData = {
+        company_name: companyName,
+        business_number: businessNumber,
+        representative: representativeName,
+        contact: contact,
+        email: email,
+        business_type: businessType,
+        business_category: businessCategory,
+        address: companyAddress,
+        memo: memo
+      }
+      
+      if (companyName || businessNumber || representativeName || contact || email) {
+        updateData.invoice_data = invoiceData
+      }
 
       const { error } = await supabase
         .from('campaigns')
@@ -337,42 +352,67 @@ const InvoicePage = () => {
               <p className="text-sm text-gray-700">세금계산서 발행을 원하시는 경우 아래 정보를 입력해주세요.</p>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="company_name">회사명 *</Label>
+                  <Input
+                    id="company_name"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="(주)에이블씨엔씨"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="business_number">사업자등록번호</Label>
+                  <Input
+                    id="business_number"
+                    value={businessNumber}
+                    onChange={(e) => setBusinessNumber(e.target.value)}
+                    placeholder="123-45-67890"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="representative_name">대표자명</Label>
+                  <Input
+                    id="representative_name"
+                    value={representativeName}
+                    onChange={(e) => setRepresentativeName(e.target.value)}
+                    placeholder="홍길동"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="contact">연락처 *</Label>
+                  <Input
+                    id="contact"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    placeholder="010-1234-5678"
+                  />
+                </div>
+              </div>
+
               <div>
-                <Label htmlFor="tax_invoice_number">세금계산서 번호</Label>
+                <Label htmlFor="email">세금계산서 받으실 메일 주소 *</Label>
                 <Input
-                  id="tax_invoice_number"
-                  value={taxInvoiceNumber}
-                  onChange={(e) => setTaxInvoiceNumber(e.target.value)}
-                  placeholder="예: 2024-001"
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="company@example.com"
                 />
               </div>
-              <div>
-                <Label htmlFor="company_address">주소</Label>
-                <Input
-                  id="company_address"
-                  value={companyAddress}
-                  onChange={(e) => setCompanyAddress(e.target.value)}
-                  placeholder="회사 주소를 입력하세요"
-                />
-              </div>
-              <div>
-                <Label htmlFor="representative_name">대표자 이름</Label>
-                <Input
-                  id="representative_name"
-                  value={representativeName}
-                  onChange={(e) => setRepresentativeName(e.target.value)}
-                  placeholder="대표자 성함을 입력하세요"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="business_type">업태</Label>
                   <Input
                     id="business_type"
                     value={businessType}
                     onChange={(e) => setBusinessType(e.target.value)}
-                    placeholder="예: 도소매업"
+                    placeholder="예: 제조업, 도소매업, 서비스업"
                   />
                 </div>
                 <div>
@@ -381,25 +421,30 @@ const InvoicePage = () => {
                     id="business_category"
                     value={businessCategory}
                     onChange={(e) => setBusinessCategory(e.target.value)}
-                    placeholder="예: 화장품 도소매"
+                    placeholder="예: 광고대행, 컴퓨터판매, 컨설팅"
                   />
                 </div>
               </div>
 
-              </div>
               <div>
-                <Label htmlFor="tax_invoice_file">세금계산서 파일 (선택사항)</Label>
+                <Label htmlFor="company_address">주소</Label>
                 <Input
-                  id="tax_invoice_file"
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleTaxInvoiceFileUpload}
-                  disabled={uploadingTaxInvoice}
+                  id="company_address"
+                  value={companyAddress}
+                  onChange={(e) => setCompanyAddress(e.target.value)}
+                  placeholder="서울시 강남구..."
                 />
-                {uploadingTaxInvoice && <p className="text-sm text-gray-500 mt-1">업로드 중...</p>}
-                {taxInvoiceFileUrl && (
-                  <p className="text-sm text-green-600 mt-1">✓ 파일이 업로드되었습니다</p>
-                )}
+              </div>
+
+              <div>
+                <Label htmlFor="memo">메모 (선택사항)</Label>
+                <Textarea
+                  id="memo"
+                  value={memo}
+                  onChange={(e) => setMemo(e.target.value)}
+                  placeholder="추가 요청사항이 있으시면 입력해주세요"
+                  rows={3}
+                />
               </div>
             </div>
           </div>
