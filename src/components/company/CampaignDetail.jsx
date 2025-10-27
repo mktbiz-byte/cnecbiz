@@ -253,7 +253,7 @@ export default function CampaignDetail() {
     }
   }
 
-  const getPackagePrice = (packageType) => { {
+  const getPackagePrice = (packageType) => {
     const prices = {
       'oliveyoung': 200000,
       '올영 20만원': 200000,
@@ -467,6 +467,40 @@ export default function CampaignDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>참여 크리에이터 리스트</CardTitle>
+                {participants.length > 0 && (
+                  <div className="flex gap-4 mt-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">가이드 확인중:</span>
+                      <Badge className="bg-purple-100 text-purple-700">
+                        {participants.filter(p => p.creator_status === 'guide_confirmation').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">촬영중:</span>
+                      <Badge className="bg-yellow-100 text-yellow-700">
+                        {participants.filter(p => p.creator_status === 'filming').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">수정중:</span>
+                      <Badge className="bg-pink-100 text-pink-700">
+                        {participants.filter(p => p.creator_status === 'editing').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">제출완료:</span>
+                      <Badge className="bg-blue-100 text-blue-700">
+                        {participants.filter(p => p.creator_status === 'submitted').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">승인완료:</span>
+                      <Badge className="bg-green-100 text-green-700">
+                        {participants.filter(p => p.creator_status === 'approved').length}명
+                      </Badge>
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {participants.length === 0 ? (

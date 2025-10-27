@@ -153,7 +153,7 @@ export default function MyCampaigns() {
     )
   }
 
-  const getRegionBadge = (region) => {{
+  const getRegionBadge = (region) => {
     const badges = {
       korea: { label: 'KR 한국', color: 'bg-blue-100 text-blue-700' },
       japan: { label: 'JP 일본', color: 'bg-red-100 text-red-700' },

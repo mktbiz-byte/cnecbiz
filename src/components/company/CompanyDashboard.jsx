@@ -114,7 +114,7 @@ export default function CompanyDashboard() {
         const count = c.total_slots || 0
         return sum + (packagePrice * count)
       }, 0) || 0
-      setStats({ total, pending, active, completed, totalSpent }))
+      setStats({ total, pending, active, completed, totalSpent })
     } catch (error) {
       console.error('Error fetching data:', error)
     }
