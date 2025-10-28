@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DollarSign, TrendingUp, CreditCard, FileText, ArrowLeft, Calendar } from 'lucide-react'
+import { DollarSign, TrendingUp, CreditCard, FileText, Calendar } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { getRevenueFromAllRegions, getMonthlyRevenueStats, getPointCharges, getAccountsReceivable } from '../../lib/revenueHelper'
+import AdminNavigation from './AdminNavigation'
 
 export default function RevenueManagement() {
   const navigate = useNavigate()
@@ -124,14 +125,10 @@ export default function RevenueManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate('/admin/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            대시보드로 돌아가기
-          </Button>
-        </div>
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="max-w-7xl mx-auto p-6">
 
         <div className="flex items-center gap-3 mb-8">
           <DollarSign className="w-8 h-8 text-green-600" />
@@ -383,7 +380,8 @@ export default function RevenueManagement() {
           </Card>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { 
-  Users, Plus, Trash2, ArrowLeft, Loader2, Sparkles, 
+  Users, Plus, Trash2, Loader2, Sparkles, 
   Instagram, Youtube, Video, Edit, CheckCircle, XCircle, Eye, X
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { scrapeAllPlatforms } from '../../lib/youtubeScraperService'
+import AdminNavigation from './AdminNavigation'
 
 export default function CreatorsManagement() {
   const navigate = useNavigate()
@@ -402,14 +403,11 @@ ${realDataInfo}
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate('/admin/dashboard')}>
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              대시보드로
-            </Button>
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 lg:ml-64">
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 추천 크리에이터 관리
@@ -839,7 +837,8 @@ ${realDataInfo}
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

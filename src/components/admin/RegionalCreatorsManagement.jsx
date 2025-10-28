@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
-  Users, Search, ArrowLeft, Instagram, Youtube, Video, 
+  Users, Search, Instagram, Youtube, Video, 
   Eye, Mail, Phone, TrendingUp
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { getCreatorsFromAllRegions, getCreatorStats } from '../../lib/creatorsHelper'
+import AdminNavigation from './AdminNavigation'
 
 export default function RegionalCreatorsManagement() {
   const navigate = useNavigate()
@@ -101,14 +102,10 @@ export default function RegionalCreatorsManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate('/admin/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            대시보드로 돌아가기
-          </Button>
-        </div>
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="max-w-7xl mx-auto p-6">
 
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -295,7 +292,8 @@ export default function RegionalCreatorsManagement() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

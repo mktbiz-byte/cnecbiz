@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, ArrowLeft, Eye, Ban, CheckCircle, CreditCard, Plus, Minus } from 'lucide-react'
+import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import AdminNavigation from './AdminNavigation'
 
 export default function CompaniesManagement() {
   const navigate = useNavigate()
@@ -170,14 +171,10 @@ export default function CompaniesManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate('/admin/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            대시보드로 돌아가기
-          </Button>
-        </div>
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="max-w-7xl mx-auto p-6">
 
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -317,9 +314,9 @@ export default function CompaniesManagement() {
           </CardContent>
         </Card>
       </div>
+      </div>
 
-      {/* 포인트 조정 모달 */}
-      {showPointsModal && selectedCompany && (
+      {/* Points Modal */}    {showPointsModal && selectedCompany && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <h2 className="text-2xl font-bold mb-4">포인트 조정</h2>

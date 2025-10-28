@@ -12,6 +12,7 @@ import {
   Star, Plus, Edit, Trash2, Eye, Loader2, 
   TrendingUp, Users, Award, DollarSign 
 } from 'lucide-react'
+import AdminNavigation from './AdminNavigation'
 
 export default function FeaturedCreatorManagementPage() {
   const navigate = useNavigate()
@@ -202,9 +203,11 @@ export default function FeaturedCreatorManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -701,7 +704,8 @@ export default function FeaturedCreatorManagementPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
