@@ -161,15 +161,14 @@ const OrderConfirmation = () => {
   const packagePrice = packagePrices[campaign.package_type] || 200000
   const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
   
-  // 할인 계산
+  const subtotal = packagePrice * recruitmentCount
+  
+  // 할인 계산 (1천만원 이상 5% 할인)
   let discountRate = 0
-  if (recruitmentCount >= 20) {
-    discountRate = 0.10 // 10% 할인
-  } else if (recruitmentCount >= 10) {
-    discountRate = 0.05 // 5% 할인
+  if (subtotal >= 10000000) {
+    discountRate = 0.05 // 1천만원 이상: 5% 할인
   }
   
-  const subtotal = packagePrice * recruitmentCount
   const discountAmount = Math.floor(subtotal * discountRate)
   const totalCost = subtotal - discountAmount
   

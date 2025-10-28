@@ -93,17 +93,16 @@ const CampaignCreationKorea = () => {
     }
   ]
 
-  // 모집 인원에 따른 할인율 계산
-  const calculateDiscount = (slots) => {
-    if (slots >= 20) return 10 // 20명 이상: 10% 할인
-    if (slots >= 10) return 5  // 10명 이상: 5% 할인
+  // 입금 금액에 따른 할인율 계산 (1천만원 이상 5% 할인)
+  const calculateDiscount = (amount) => {
+    if (amount >= 10000000) return 5 // 1천만원 이상: 5% 할인
     return 0 // 할인 없음
   }
 
   // 최종 결제 금액 계산 (할인 적용)
   const calculateFinalCost = (packagePrice, slots) => {
     const originalCost = packagePrice * slots
-    const discountRate = calculateDiscount(slots)
+    const discountRate = calculateDiscount(originalCost)
     const discountAmount = Math.floor(originalCost * (discountRate / 100))
     return originalCost - discountAmount
   }
@@ -589,7 +588,7 @@ const CampaignCreationKorea = () => {
                     const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
                     const packagePrice = pkg?.price || 0
                     const subtotal = packagePrice * campaignForm.total_slots
-                    const discountRate = calculateDiscount(campaignForm.total_slots)
+                    const discountRate = calculateDiscount(subtotal)
                     const discountAmount = Math.floor(subtotal * (discountRate / 100))
                     
                     return (
@@ -603,18 +602,20 @@ const CampaignCreationKorea = () => {
                       </div>
                     )
                   })()}
-                  {campaignForm.total_slots >= 10 && (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                      <p className="text-xs text-green-700 font-medium">
-                        💰 {campaignForm.total_slots >= 20 ? '20명 이상 10% 할인 적용!' : '10명 이상 5% 할인 적용!'}
-                      </p>
-                      <p className="text-xs text-green-600 mt-1">
-                        {campaignForm.total_slots >= 20 
-                          ? '20명 이상 모집 시 10% 할인이 적용됩니다.'
-                          : '10명 이상 모집 시 5% 할인이 적용됩니다. 20명 이상이면 10% 할인!'}
-                      </p>
-                    </div>
-                  )}
+                  {(() => {
+                    const pkg = packages.find(p => p.id === campaignForm.package_id)
+                    const subtotal = (pkg?.price || 0) * campaignForm.total_slots
+                    return subtotal >= 10000000 && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                        <p className="text-xs text-green-700 font-medium">
+                          💰 1천만원 이상 5% 할인 적용!
+                        </p>
+                        <p className="text-xs text-green-600 mt-1">
+                          입금 금액 1천만원 이상 시 5% 할인이 적용됩니다.
+                        </p>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
 
