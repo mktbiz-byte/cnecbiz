@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Coins, CreditCard, History } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import CompanyNavigation from './CompanyNavigation'
 import { loadStripe } from '@stripe/stripe-js'
 
 // Stripe는 현재 사용하지 않음 (무통장 입금만 사용)
@@ -131,14 +132,11 @@ export default function PointsManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate('/company/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            대시보드로 돌아가기
-          </Button>
-        </div>
+    <>
+      <CompanyNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="max-w-6xl mx-auto p-6">
+
 
         <div className="flex items-center gap-3 mb-8">
           <Coins className="w-8 h-8 text-yellow-600" />
@@ -280,8 +278,8 @@ export default function PointsManagement() {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
-    </div>
-  )
+    </>
 }
 

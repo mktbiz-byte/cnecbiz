@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Receipt, Download, FileText } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import CompanyNavigation from './CompanyNavigation'
 
 export default function PaymentHistory() {
   const navigate = useNavigate()
@@ -138,14 +139,11 @@ export default function PaymentHistory() {
   const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate('/company/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            대시보드로 돌아가기
-          </Button>
-        </div>
+    <>
+      <CompanyNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="max-w-6xl mx-auto p-6">
+
 
         <div className="flex items-center gap-3 mb-8">
           <Receipt className="w-8 h-8 text-green-600" />
@@ -318,8 +316,8 @@ export default function PaymentHistory() {
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
-    </div>
-  )
+    </>
 }
 

@@ -20,6 +20,7 @@ import {
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
 import RegionSelectModal from './RegionSelectModal'
+import CompanyNavigation from './CompanyNavigation'
 
 export default function MyCampaigns() {
   const navigate = useNavigate()
@@ -205,19 +206,13 @@ export default function MyCampaigns() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <>
+      <CompanyNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate('/company/dashboard')}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
+          <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
                 <TrendingUp className="w-8 h-8 text-blue-600" />
                 내 캠페인
@@ -272,6 +267,16 @@ export default function MyCampaigns() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Country Filter Tabs */}
+        <Tabs value={selectedRegion} onValueChange={setSelectedRegion} className="mb-4">
+          <TabsList className="grid w-full grid-cols-4 gap-2">
+            <TabsTrigger value="all">국가 전체</TabsTrigger>
+            <TabsTrigger value="korea">한국</TabsTrigger>
+            <TabsTrigger value="us">미국</TabsTrigger>
+            <TabsTrigger value="japan">일본</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* Status Tabs */}
         <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="mb-6">
@@ -463,7 +468,8 @@ export default function MyCampaigns() {
       {showRegionModal && (
         <RegionSelectModal onClose={() => setShowRegionModal(false)} />
       )}
-    </div>
-  )
+        </div>
+      </div>
+    </>
 }
 
