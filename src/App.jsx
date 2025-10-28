@@ -19,6 +19,7 @@ import TeamManagement from './components/company/TeamManagement'
 import PointsManagement from './components/company/PointsManagement'
 import PointsChargePage from './components/company/PointsChargePage'
 import CompanyProfileSetup from './components/company/CompanyProfileSetup'
+import CompanyProfileEdit from './components/company/CompanyProfileEdit'
 import PaymentHistory from './components/company/PaymentHistory'
 import Translator from './components/company/Translator'
 import AdminDashboard from './components/admin/AdminDashboard'
@@ -47,8 +48,8 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPageNew />} />
-        <Route path="/signup" element={<SignupPageNew />} />
-        <Route path="/signup-verification" element={<SignupWithVerification />} />
+        <Route path="/signup" element={<SignupWithVerification />} />
+        <Route path="/signup-old" element={<SignupPageNew />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* Company Admin Routes */}
@@ -68,6 +69,7 @@ function App() {
         <Route path="/company/points" element={<PointsManagement />} />
         <Route path="/company/points/charge" element={<PointsChargePage />} />
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
+        <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
         
         {/* Super Admin Routes */}
