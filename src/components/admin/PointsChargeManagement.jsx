@@ -65,25 +65,39 @@ export default function PointsChargeManagement() {
     try {
       let query = supabaseBiz
         .from('points_charge_requests')
-        .select(`
-          *,
-          companies!points_charge_requests_company_id_fkey (
-            company_name,
-            email,
-            phone,
-            contact_person
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (filter !== 'all') {
         query = query.eq('status', filter)
       }
 
-      const { data, error } = await query
+      const { data: requests, error } = await query
 
       if (error) throw error
-      setChargeRequests(data || [])
+
+      // Manually fetch company data for each request
+      if (requests && requests.length > 0) {
+        const companyIds = [...new Set(requests.map(r => r.company_id).filter(Boolean))]
+        const { data: companiesData } = await supabaseBiz
+          .from('companies')
+          .select('user_id, company_name, email, phone, contact_person')
+          .in('user_id', companyIds)
+
+        const companiesMap = {}
+        companiesData?.forEach(c => {
+          companiesMap[c.user_id] = c
+        })
+
+        const enrichedRequests = requests.map(req => ({
+          ...req,
+          companies: companiesMap[req.company_id] || null
+        }))
+
+        setChargeRequests(enrichedRequests)
+      } else {
+        setChargeRequests([])
+      }
     } catch (error) {
       console.error('충전 신청 조회 오류:', error)
       alert('충전 신청 내역을 불러오는데 실패했습니다.')
@@ -468,7 +482,7 @@ export default function PointsChargeManagement() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">입금일 *</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">입금일 *</label>
                   <Input
                     type="date"
                     value={depositDate}
@@ -478,7 +492,7 @@ export default function PointsChargeManagement() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">입금액 *</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">입금액 *</label>
                   <Input
                     type="number"
                     value={depositAmount}
@@ -489,7 +503,7 @@ export default function PointsChargeManagement() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">입금자명 *</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">입금자명 *</label>
                   <Input
                     type="text"
                     value={depositorName}
@@ -500,7 +514,7 @@ export default function PointsChargeManagement() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">메모 (선택)</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">메모 (선택)</label>
                   <textarea
                     className="w-full p-3 border rounded-lg"
                     rows="3"
@@ -548,7 +562,7 @@ export default function PointsChargeManagement() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">회사 선택 *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-2">회사 선택 *</label>
                 <select
                   className="w-full p-3 border rounded-lg"
                   value={creditForm.companyId}
@@ -566,7 +580,7 @@ export default function PointsChargeManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">금액 *</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">금액 *</label>
                   <Input
                     type="number"
                     value={creditForm.amount}
@@ -576,7 +590,7 @@ export default function PointsChargeManagement() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">수량</label>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">수량</label>
                   <Input
                     type="number"
                     value={creditForm.quantity}
@@ -587,7 +601,7 @@ export default function PointsChargeManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">입금자명 *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-2">입금자명 *</label>
                 <Input
                   type="text"
                   value={creditForm.depositorName}
@@ -598,7 +612,7 @@ export default function PointsChargeManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">입금 예정일 *</label>
+                <label className="block text-sm font-medium text-gray-900 mb-2">입금 예정일 *</label>
                 <Input
                   type="date"
                   value={creditForm.expectedPaymentDate}
@@ -608,7 +622,7 @@ export default function PointsChargeManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">메모</label>
+                <label className="block text-sm font-medium text-gray-900 mb-2">메모</label>
                 <textarea
                   className="w-full p-3 border rounded-lg"
                   rows="3"
@@ -632,7 +646,7 @@ export default function PointsChargeManagement() {
                 {creditForm.needsTaxInvoice && (
                   <div className="mt-4 space-y-3 p-4 bg-gray-50 rounded-lg">
                     <div>
-                      <label className="block text-sm font-medium mb-1">회사명 *</label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">회사명 *</label>
                       <Input
                         type="text"
                         value={creditForm.taxInvoiceInfo.companyName}
@@ -645,7 +659,7 @@ export default function PointsChargeManagement() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">사업자등록번호 *</label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">사업자등록번호 *</label>
                       <Input
                         type="text"
                         value={creditForm.taxInvoiceInfo.businessNumber}
@@ -658,7 +672,7 @@ export default function PointsChargeManagement() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">대표자명 *</label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">대표자명 *</label>
                       <Input
                         type="text"
                         value={creditForm.taxInvoiceInfo.ceoName}
@@ -671,7 +685,7 @@ export default function PointsChargeManagement() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">이메일 *</label>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">이메일 *</label>
                       <Input
                         type="email"
                         value={creditForm.taxInvoiceInfo.email}
