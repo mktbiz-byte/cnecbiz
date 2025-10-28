@@ -213,12 +213,11 @@ export default function MyCampaigns() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <TrendingUp className="w-8 h-8 text-blue-600" />
-                내 캠페인
-              </h1>
-              <p className="text-gray-600 mt-1">생성한 캠페인을 관리하세요</p>
-            </div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+              <TrendingUp className="w-8 h-8 text-blue-600" />
+              내 캠페인
+            </h1>
+            <p className="text-gray-600 mt-1">생성한 캠페인을 관리하세요</p>
           </div>
           <Button onClick={() => setShowRegionModal(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -463,13 +462,13 @@ export default function MyCampaigns() {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {showRegionModal && (
-        <RegionSelectModal onClose={() => setShowRegionModal(false)} />
-      )}
+        {showRegionModal && (
+          <RegionSelectModal onClose={() => setShowRegionModal(false)} />
+        )}
         </div>
       </div>
     </>
+  )
 }
 
