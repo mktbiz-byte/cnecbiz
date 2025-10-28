@@ -313,10 +313,11 @@ export default function CompaniesManagement() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>
       </div>
 
-      {/* Points Modal */}    {showPointsModal && selectedCompany && (
+      {/* Points Modal */}
+      {showPointsModal && selectedCompany && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <h2 className="text-2xl font-bold mb-4">포인트 조정</h2>
@@ -389,8 +390,6 @@ export default function CompaniesManagement() {
           </div>
         </div>
       )}
-        </div>
-      </div>
     </>
   )
 }

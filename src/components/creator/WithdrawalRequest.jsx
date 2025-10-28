@@ -11,8 +11,6 @@ import {
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
-import { supabase as supabaseJapan } from '../../lib/supabaseJapan'
-import { supabase as supabaseUS } from '../../lib/supabaseUS'
 import { encryptResidentNumber, validateResidentNumber } from '../../lib/encryptionHelper'
 
 export default function WithdrawalRequest() {

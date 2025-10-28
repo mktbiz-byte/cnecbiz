@@ -414,8 +414,7 @@ ${realDataInfo}
               </h1>
               <p className="text-gray-600 mt-1">AI 프로필 생성으로 빠르게 크리에이터를 등록하세요</p>
             </div>
-          </div>
-          <Button
+            <Button
             onClick={() => {
               setShowAddForm(!showAddForm)
               if (!showAddForm) resetForm()
@@ -434,6 +433,7 @@ ${realDataInfo}
               </>
             )}
           </Button>
+          </div>
         </div>
 
         {/* Add/Edit Form */}
@@ -836,7 +836,6 @@ ${realDataInfo}
             )}
           </CardContent>
         </Card>
-      </div>
       </div>
     </>
   )
