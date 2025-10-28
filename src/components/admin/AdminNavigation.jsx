@@ -24,16 +24,16 @@ export default function AdminNavigation() {
     { path: '/admin/dashboard', icon: Shield, label: '대시보드' },
     { path: '/admin/companies', icon: Building2, label: '기업 관리' },
     { path: '/admin/campaigns', icon: TrendingUp, label: '캠페인 관리' },
-    { path: '/admin/featured-creators', icon: Users, label: '추천 크리에이터 관리' },
+    { path: '/admin/featured-creators', icon: Users, label: '추천 크리에이터' },
     { path: '/admin/creator-approvals', icon: Shield, label: '크리에이터 승인' },
     { path: '/admin/site-editor', icon: Edit, label: '사이트 편집' },
     { path: '/admin/videos', icon: Video, label: '영상 레퍼런스' },
     { path: '/admin/manage-faqs', icon: HelpCircle, label: 'FAQ 관리' },
     { path: '/admin/revenue-enhanced', icon: BarChart3, label: '매출 관리 (고도화)' },
-    { path: '/admin/points-charge', icon: CreditCard, label: '포인트 & 미수금 관리' },
-    { path: '/admin/withdrawals', icon: Wallet, label: '크리에이터 출금 관리' },
+    { path: '/admin/points-charge', icon: CreditCard, label: '포인트 & 미수금' },
+    { path: '/admin/withdrawals', icon: Wallet, label: '크리에이터 출금' },
     { path: '/admin/tax-feedback', icon: MessageSquare, label: '세무서 피드백' },
-    { path: '/admin/manage-admins', icon: Shield, label: '관리자 권한 관리' },
+    { path: '/admin/manage-admins', icon: Shield, label: '관리자 권한' },
   ]
 
   return (
@@ -61,8 +61,8 @@ export default function AdminNavigation() {
                     : 'hover:bg-gray-50 text-gray-700'
                 }`}
               >
-                <item.icon className="w-5 h-5" />
-                {item.label}
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <span className="truncate">{item.label}</span>
               </button>
             ))}
             
