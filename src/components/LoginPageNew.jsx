@@ -116,6 +116,56 @@ export default function LoginPageNew() {
             </div>
           )}
 
+          {/* Email/Password Login Form */}
+          <form onSubmit={handleEmailLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                이메일
+              </label>
+              <Input
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Lock className="w-4 h-4" />
+                비밀번호
+              </label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-12"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              disabled={loading}
+            >
+              {loading ? '로그인 중...' : '로그인'}
+            </Button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-500">또는</span>
+            </div>
+          </div>
+
           <Button
             type="button"
             variant="outline"
