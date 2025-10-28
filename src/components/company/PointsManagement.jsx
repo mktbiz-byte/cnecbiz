@@ -281,5 +281,6 @@ export default function PointsManagement() {
         </div>
       </div>
     </>
+  )
 }
 
