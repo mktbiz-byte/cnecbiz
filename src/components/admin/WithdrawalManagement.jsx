@@ -11,6 +11,7 @@ import {
   Search, Filter, ChevronUp, ChevronDown, DollarSign
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import { maskResidentNumber } from '../../lib/encryptionHelper'
 import AdminNavigation from './AdminNavigation'
 
 export default function WithdrawalManagement() {

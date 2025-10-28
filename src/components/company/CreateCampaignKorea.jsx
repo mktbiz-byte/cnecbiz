@@ -602,20 +602,6 @@ const CampaignCreationKorea = () => {
                       </div>
                     )
                   })()}
-                  {(() => {
-                    const pkg = packages.find(p => p.id === campaignForm.package_id)
-                    const subtotal = (pkg?.price || 0) * campaignForm.total_slots
-                    return subtotal >= 10000000 && (
-                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-                        <p className="text-xs text-green-700 font-medium">
-                          💰 1천만원 이상 5% 할인 적용!
-                        </p>
-                        <p className="text-xs text-green-600 mt-1">
-                          입금 금액 1천만원 이상 시 5% 할인이 적용됩니다.
-                        </p>
-                      </div>
-                    )
-                  })()}
                 </div>
               </div>
 

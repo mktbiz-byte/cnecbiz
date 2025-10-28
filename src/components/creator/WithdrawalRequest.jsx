@@ -13,6 +13,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
 import { supabase as supabaseJapan } from '../../lib/supabaseJapan'
 import { supabase as supabaseUS } from '../../lib/supabaseUS'
+import { encryptResidentNumber, validateResidentNumber } from '../../lib/encryptionHelper'
 
 export default function WithdrawalRequest() {
   const navigate = useNavigate()
@@ -157,10 +158,20 @@ export default function WithdrawalRequest() {
 
       // 지역별 필드 추가
       if (region === 'korea') {
+        // 주민번호 유효성 검사
+        if (!validateResidentNumber(formData.resident_registration_number)) {
+          alert('유효하지 않은 주민등록번호입니다.')
+          setLoading(false)
+          return
+        }
+
+        // 주민번호 암호화
+        const encryptedResidentNumber = await encryptResidentNumber(formData.resident_registration_number)
+
         withdrawalData.bank_name = formData.bank_name
         withdrawalData.account_number = formData.account_number
         withdrawalData.account_holder = formData.account_holder
-        withdrawalData.resident_registration_number = formData.resident_registration_number
+        withdrawalData.resident_registration_number = encryptedResidentNumber
       } else {
         withdrawalData.paypal_email = formData.paypal_email
       }
