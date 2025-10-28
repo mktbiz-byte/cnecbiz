@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building, User, Mail, Phone, MapPin, FileText, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import CompanyNavigation from './CompanyNavigation'
 
 export default function CompanyProfileEdit() {
   const navigate = useNavigate()
@@ -216,7 +217,9 @@ export default function CompanyProfileEdit() {
   // 완료 화면
   if (loading && !error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
+      <>
+        <CompanyNavigation />
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6 lg:ml-64">
         <Card className="w-full max-w-md shadow-2xl border-none">
           <CardContent className="p-12 text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -231,11 +234,14 @@ export default function CompanyProfileEdit() {
           </CardContent>
         </Card>
       </div>
+      </>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
+    <>
+      <CompanyNavigation />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 lg:ml-64">
       <div className="max-w-3xl mx-auto">
         <Card className="shadow-2xl border-none">
           <CardHeader className="space-y-4 text-center pb-8">
@@ -691,7 +697,8 @@ export default function CompanyProfileEdit() {
 
       {/* Daum 우편번호 API 스크립트 */}
       <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
-    </div>
+      </div>
+    </>
   )
 }
 

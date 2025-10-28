@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { supabaseBiz } from '../../lib/supabaseClients'
-import { ArrowLeft, Check, Sparkles } from 'lucide-react'
+import { Check, Sparkles } from 'lucide-react'
+import CompanyNavigation from './CompanyNavigation'
 
 // Stripe는 현재 사용하지 않음 (무통장 입금만 사용)
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
@@ -330,29 +331,25 @@ export default function PointsChargePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {/* 헤더 */}
-        <div className="mb-8">
-          <button
-            onClick={() => navigate('/company/dashboard')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            ← 대시보드로 돌아가기
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900">포인트 충전</h1>
-          <p className="text-gray-600 mt-2">포인트를 충전하여 캠페인을 생성하세요</p>
-        </div>
+    <>
+      <CompanyNavigation />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 lg:ml-64">
+        <div className="max-w-4xl mx-auto px-6 py-12">
+          {/* 헤더 */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">포인트 충전</h1>
+            <p className="text-gray-600 mt-2">포인트를 충전하여 캠페인을 생성하세요</p>
+          </div>
 
-        {/* 충전 폼 */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <Elements stripe={stripePromise}>
-            <ChargeForm onSuccess={handleSuccess} />
-          </Elements>
+          {/* 충전 폼 */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <Elements stripe={stripePromise}>
+              <ChargeForm onSuccess={handleSuccess} />
+            </Elements>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
