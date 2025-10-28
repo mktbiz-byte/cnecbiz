@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Wallet, CheckCircle, XCircle, Clock, TrendingUp,
-  Search, Filter, ChevronUp, ChevronDown, DollarSign
+  Search, Filter, ChevronUp, ChevronDown, DollarSign, Download, FileText
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { maskResidentNumber } from '../../lib/encryptionHelper'
@@ -37,6 +37,9 @@ export default function WithdrawalManagement() {
   const [priority, setPriority] = useState(0)
   const [rejectionReason, setRejectionReason] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
+  const [showTaxPageModal, setShowTaxPageModal] = useState(false)
+  const [taxPagePassword, setTaxPagePassword] = useState('')
+  const [selectedBatchDate, setSelectedBatchDate] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -276,14 +279,122 @@ export default function WithdrawalManagement() {
     return months
   }
 
+  // 승인된 출금 신청 엑셀 다운로드 (한국만)
+  const handleExportToExcel = () => {
+    const approvedKoreaWithdrawals = withdrawals.filter(
+      w => w.status === 'approved' && w.region === 'korea'
+    )
+
+    if (approvedKoreaWithdrawals.length === 0) {
+      alert('승인된 한국 출금 신청이 없습니다.')
+      return
+    }
+
+    // CSV 형식으로 변환 (Excel에서 열 수 있도록)
+    const headers = [
+      '신청일',
+      '크리에이터명',
+      '주민번호',
+      '은행명',
+      '계좌번호',
+      '예금주',
+      '신청포인트',
+      '세금(3.3%)',
+      '지급액',
+      '우선순위'
+    ]
+
+    const rows = approvedKoreaWithdrawals.map(w => [
+      new Date(w.created_at).toLocaleDateString('ko-KR'),
+      w.featured_creators?.channel_name || '',
+      maskResidentNumber(w.resident_registration_number),
+      w.bank_name,
+      w.account_number,
+      w.account_holder,
+      w.requested_points,
+      Math.floor(w.tax_amount || 0),
+      Math.floor(w.final_amount || 0),
+      w.priority || 0
+    ])
+
+    // CSV 문자열 생성
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n')
+
+    // BOM 추가 (Excel에서 한글 깨지지 않도록)
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `출금승인목록_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 세무서 발송 페이지 생성
+  const handleCreateTaxPage = () => {
+    const approvedKoreaWithdrawals = withdrawals.filter(
+      w => w.status === 'approved' && w.region === 'korea'
+    )
+
+    if (approvedKoreaWithdrawals.length === 0) {
+      alert('승인된 한국 출금 신청이 없습니다.')
+      return
+    }
+
+    setSelectedBatchDate(new Date().toISOString().slice(0, 10))
+    setShowTaxPageModal(true)
+  }
+
+  // 세무서 페이지 생성 확인
+  const handleConfirmTaxPage = () => {
+    if (!taxPagePassword || taxPagePassword.length < 6) {
+      alert('비밀번호는 6자 이상이어야 합니다.')
+      return
+    }
+
+    // 세무서 페이지 URL 생성
+    const batchId = `${selectedBatchDate.replace(/-/g, '')}_${Date.now()}`
+    const taxPageUrl = `/tax-office/${batchId}?password=${encodeURIComponent(taxPagePassword)}`
+    
+    // 새 창으로 열기
+    window.open(taxPageUrl, '_blank')
+    
+    setShowTaxPageModal(false)
+    setTaxPagePassword('')
+    
+    alert('세무서 발송 페이지가 생성되었습니다.\n해당 URL을 세무서에 공유하세요.')
+  }
+
   return (
     <>
       <AdminNavigation />
       <div className="min-h-screen bg-gray-50 lg:ml-64">
         <div className="max-w-7xl mx-auto p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <Wallet className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold">크리에이터 출금 관리</h1>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-8 h-8 text-blue-600" />
+              <h1 className="text-3xl font-bold">크리에이터 출금 관리</h1>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                onClick={handleExportToExcel}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                승인목록 엑셀 다운로드
+              </Button>
+              <Button
+                onClick={handleCreateTaxPage}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                세무서 발송 페이지 생성
+              </Button>
+            </div>
           </div>
 
           {/* 통계 카드 */}
@@ -559,6 +670,66 @@ export default function WithdrawalManagement() {
                 onClick={() => {
                   setShowDetailModal(false)
                   setSelectedWithdrawal(null)
+                }}
+                className="flex-1"
+              >
+                취소
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 세무서 페이지 생성 모달 */}
+      {showTaxPageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-2xl font-bold mb-4">세무서 발송 페이지 생성</h2>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                승인된 한국 출금 신청을 기반으로 세무서 발송용 웹페이지를 생성합니다.
+              </p>
+              <p className="text-sm text-orange-600 font-medium">
+                ⚠️ 비밀번호를 설정하면 세무서만 접근할 수 있습니다.
+              </p>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                발송 날짜
+              </label>
+              <Input
+                type="date"
+                value={selectedBatchDate}
+                onChange={(e) => setSelectedBatchDate(e.target.value)}
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                접근 비밀번호 (6자 이상) *
+              </label>
+              <Input
+                type="password"
+                value={taxPagePassword}
+                onChange={(e) => setTaxPagePassword(e.target.value)}
+                placeholder="세무서에 공유할 비밀번호"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleConfirmTaxPage}
+                className="flex-1"
+              >
+                페이지 생성
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowTaxPageModal(false)
+                  setTaxPagePassword('')
                 }}
                 className="flex-1"
               >

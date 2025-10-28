@@ -39,6 +39,8 @@ import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRe
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
 import WithdrawalRequest from './components/creator/WithdrawalRequest'
+import TaxOfficePage from './components/tax/TaxOfficePage'
+import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
 
 
@@ -81,6 +83,8 @@ function App() {
         <Route path="/admin/revenue-enhanced" element={<RevenueManagementEnhanced />} />
         <Route path="/admin/points-charge" element={<PointsChargeManagement />} />
         <Route path="/admin/withdrawals" element={<WithdrawalManagement />} />
+        <Route path="/admin/tax-feedback" element={<TaxFeedbackManagement />} />
+        <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />

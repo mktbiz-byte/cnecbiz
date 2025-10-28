@@ -389,7 +389,9 @@ export default function CompaniesManagement() {
           </div>
         </div>
       )}
-    </div>
+        </div>
+      </div>
+    </>
   )
 }
 
