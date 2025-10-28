@@ -180,6 +180,28 @@ exports.handler = async (event, context) => {
 
     console.log(`✅ 미수금 선지급 완료: ${company.company_name} - ${amount.toLocaleString()}원`)
 
+    // 3. 미수금 선지급 알림 발송
+    try {
+      const axios = require('axios')
+      await axios.post(
+        `${process.env.URL}/.netlify/functions/send-notifications`,
+        {
+          type: 'credit_approved',
+          chargeRequestId: chargeRequest.id,
+          userEmail: company.email,
+          userPhone: company.phone,
+          userName: company.company_name,
+          amount: parseInt(amount),
+          depositorName: depositorName,
+          points: parseInt(amount),
+          expectedDate: expectedPaymentDate
+        }
+      )
+    } catch (notifError) {
+      console.error('알림 발송 오류:', notifError.message)
+      // 알림 발송 실패해도 선지급은 완료
+    }
+
     return {
       statusCode: 200,
       headers,

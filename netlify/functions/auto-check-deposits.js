@@ -84,6 +84,8 @@ exports.handler = async (event, context) => {
           await processDeposit(request)
           processedCount++
 
+
+
           results.push({
             id: request.id,
             status: 'success',
@@ -221,22 +223,20 @@ async function processDeposit(request) {
       throw new Error(`상태 업데이트 실패: ${updateError.message}`)
     }
 
-    // 3. 세금계산서 발행 (필요 시)
-    if (request.needs_tax_invoice && request.tax_invoice_info) {
-      try {
-        await issueTaxInvoice(request)
-      } catch (taxError) {
-        console.error('   ⚠️ 세금계산서 발행 오류:', taxError.message)
-        // 세금계산서 발행 실패해도 포인트 충전은 완료
-      }
-    }
-
-    // 4. 알림 발송 (카카오톡 → SMS → 이메일)
+    // 3. 알림 발송 (카카오톡/이메일/SMS)
     try {
-      await sendNotifications(request)
+      await callNotificationFunction(request)
     } catch (notifError) {
       console.error('   ⚠️ 알림 발송 오류:', notifError.message)
-      // 알림 발송 실패해도 포인트 충전은 완료
+    }
+
+    // 4. 세금계산서 발행 (필요 시)
+    if (request.tax_invoice_info) {
+      try {
+        await callTaxInvoiceFunction(request.id)
+      } catch (taxError) {
+        console.error('   ⚠️ 세금계산서 발행 오류:', taxError.message)
+      }
     }
 
     console.log(`   ✅ 포인트 충전 완료: ${request.amount.toLocaleString()}원`)
@@ -248,32 +248,15 @@ async function processDeposit(request) {
 }
 
 /**
- * Popbill API로 세금계산서 발행
+ * 알림 발송 Function 호출
  */
-async function issueTaxInvoice(request) {
-  // TODO: Popbill 세금계산서 발행 API 구현
-  console.log('   📄 세금계산서 발행 중...')
-  
-  // Popbill API 호출 예시 (실제 구현 필요)
-  // const response = await axios.post(
-  //   `${POPBILL_API_URL}/Taxinvoice/Issue`,
-  //   { ... },
-  //   { headers: { ... } }
-  // )
-  
-  console.log('   ✅ 세금계산서 발행 완료')
-}
-
-/**
- * 알림 발송 (카카오톡 → SMS → 이메일)
- */
-async function sendNotifications(request) {
-  console.log('   📨 알림 발송 중...')
+async function callNotificationFunction(request) {
+  console.log('   📨 알림 발송 Function 호출...')
 
   // 회사 정보 조회
   const { data: company } = await supabaseAdmin
     .from('companies')
-    .select('company_name, email, phone_number')
+    .select('company_name, email, phone')
     .eq('user_id', request.company_id)
     .single()
 
@@ -281,39 +264,38 @@ async function sendNotifications(request) {
     throw new Error('회사 정보를 찾을 수 없습니다.')
   }
 
-  const message = `[CNEC] 포인트 충전 완료\n\n${request.amount.toLocaleString()}원이 충전되었습니다.\n입금자: ${request.depositor_name}`
-
-  // 1. 카카오톡 알림톡 시도
-  let kakaoSuccess = false
-  try {
-    // TODO: Popbill 카카오톡 API 구현
-    // kakaoSuccess = await sendKakaoNotification(company.phone_number, message)
-    console.log('   📱 카카오톡 발송 (구현 예정)')
-  } catch (error) {
-    console.error('   ⚠️ 카카오톡 발송 실패:', error.message)
-  }
-
-  // 2. 카카오톡 실패 시 SMS 발송
-  if (!kakaoSuccess && company.phone_number) {
-    try {
-      // TODO: Popbill SMS API 구현
-      // await sendSMS(company.phone_number, message)
-      console.log('   📱 SMS 발송 (구현 예정)')
-    } catch (error) {
-      console.error('   ⚠️ SMS 발송 실패:', error.message)
+  // send-notifications Function 호출
+  const response = await axios.post(
+    `${process.env.URL}/.netlify/functions/send-notifications`,
+    {
+      type: 'deposit_confirmed',
+      chargeRequestId: request.id,
+      userEmail: company.email,
+      userPhone: company.phone,
+      userName: company.company_name,
+      amount: request.amount,
+      depositorName: request.depositor_name,
+      points: request.amount
     }
-  }
+  )
 
-  // 3. 이메일 발송
-  if (company.email) {
-    try {
-      // TODO: 이메일 발송 구현
-      console.log('   📧 이메일 발송 (구현 예정)')
-    } catch (error) {
-      console.error('   ⚠️ 이메일 발송 실패:', error.message)
+  console.log('   ✅ 알림 발송 완료:', response.data)
+}
+
+/**
+ * 세금계산서 발행 Function 호출
+ */
+async function callTaxInvoiceFunction(chargeRequestId) {
+  console.log('   📄 세금계산서 발행 Function 호출...')
+
+  // issue-tax-invoice Function 호출
+  const response = await axios.post(
+    `${process.env.URL}/.netlify/functions/issue-tax-invoice`,
+    {
+      chargeRequestId
     }
-  }
+  )
 
-  console.log('   ✅ 알림 발송 완료')
+  console.log('   ✅ 세금계산서 발행 완료:', response.data)
 }
 

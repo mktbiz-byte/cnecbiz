@@ -151,7 +151,29 @@ exports.handler = async (event, context) => {
 
       if (pointsError) {
         console.error('포인트 지급 오류:', pointsError)
-        // 충전 신청은 생성되었으므로 에러를 반환하지 않고 경고만 로그
+      }
+    }
+
+    // 계좌이체의 경우 입금 요청 알림 발송
+    if (paymentMethod === 'bank_transfer') {
+      try {
+        const axios = require('axios')
+        await axios.post(
+          `${process.env.URL}/.netlify/functions/send-notifications`,
+          {
+            type: 'deposit_request',
+            chargeRequestId: chargeRequest.id,
+            userEmail: company.email,
+            userPhone: company.phone,
+            userName: company.company_name,
+            amount: parseInt(amount),
+            depositorName: depositorName,
+            points: parseInt(amount)
+          }
+        )
+      } catch (notifError) {
+        console.error('알림 발송 오류:', notifError.message)
+        // 알림 발송 실패해도 충전 신청은 완료
       }
     }
 
