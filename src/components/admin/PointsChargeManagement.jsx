@@ -19,10 +19,45 @@ export default function PointsChargeManagement() {
   const [depositorName, setDepositorName] = useState('')
   const [memo, setMemo] = useState('')
   const [processing, setProcessing] = useState(false)
+  
+  // 미수금 선지급 폼
+  const [creditModal, setCreditModal] = useState(false)
+  const [creditForm, setCreditForm] = useState({
+    companyId: '',
+    amount: '',
+    quantity: 1,
+    packageAmount: '',
+    depositorName: '',
+    expectedPaymentDate: '',
+    creditNotes: '',
+    needsTaxInvoice: false,
+    taxInvoiceInfo: {
+      companyName: '',
+      businessNumber: '',
+      ceoName: '',
+      email: ''
+    }
+  })
+  const [companies, setCompanies] = useState([])
 
   useEffect(() => {
     fetchChargeRequests()
+    fetchCompanies()
   }, [filter])
+
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('companies')
+        .select('user_id, company_name, email')
+        .order('company_name')
+
+      if (error) throw error
+      setCompanies(data || [])
+    } catch (error) {
+      console.error('회사 목록 조회 오류:', error)
+    }
+  }
 
   const fetchChargeRequests = async () => {
     setLoading(true)
@@ -111,6 +146,75 @@ export default function PointsChargeManagement() {
     setMemo('')
   }
 
+  const resetCreditForm = () => {
+    setCreditForm({
+      companyId: '',
+      amount: '',
+      quantity: 1,
+      packageAmount: '',
+      depositorName: '',
+      expectedPaymentDate: '',
+      creditNotes: '',
+      needsTaxInvoice: false,
+      taxInvoiceInfo: {
+        companyName: '',
+        businessNumber: '',
+        ceoName: '',
+        email: ''
+      }
+    })
+  }
+
+  const handleCreateCredit = async () => {
+    if (!creditForm.companyId || !creditForm.amount || !creditForm.depositorName || !creditForm.expectedPaymentDate) {
+      alert('필수 항목을 모두 입력해주세요.')
+      return
+    }
+
+    if (creditForm.needsTaxInvoice) {
+      const { companyName, businessNumber, ceoName, email } = creditForm.taxInvoiceInfo
+      if (!companyName || !businessNumber || !ceoName || !email) {
+        alert('세금계산서 필수 정보를 모두 입력해주세요.')
+        return
+      }
+    }
+
+    setProcessing(true)
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+
+      const response = await fetch('/.netlify/functions/create-credit-charge', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...creditForm,
+          amount: parseInt(creditForm.amount),
+          adminUserId: user.id
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '미수금 선지급에 실패했습니다.')
+      }
+
+      alert(result.message)
+      setCreditModal(false)
+      resetCreditForm()
+      fetchChargeRequests()
+
+    } catch (error) {
+      console.error('미수금 선지급 오류:', error)
+      alert(error.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const openConfirmModal = (request) => {
     setSelectedRequest(request)
     setDepositAmount(request.amount.toString())
@@ -157,9 +261,14 @@ export default function PointsChargeManagement() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">포인트 충전 관리</h1>
-        <Button onClick={fetchChargeRequests} variant="outline">
-          새로고침
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setCreditModal(true)} className="bg-purple-600 hover:bg-purple-700">
+            미수금 선지급
+          </Button>
+          <Button onClick={fetchChargeRequests} variant="outline">
+            새로고침
+          </Button>
+        </div>
       </div>
 
       {/* 통계 카드 */}
@@ -215,6 +324,12 @@ export default function PointsChargeManagement() {
               >
                 완료
               </Button>
+              <Button
+                variant={filter === 'confirmed' ? 'default' : 'outline'}
+                onClick={() => setFilter('confirmed')}
+              >
+                입금확인
+              </Button>
             </div>
             <div className="flex-1">
               <div className="relative">
@@ -250,10 +365,10 @@ export default function PointsChargeManagement() {
                   <tr>
                     <th className="p-4 text-left text-sm font-medium text-gray-700">신청일시</th>
                     <th className="p-4 text-left text-sm font-medium text-gray-700">회사명</th>
-                    <th className="p-4 text-left text-sm font-medium text-gray-700">담당자</th>
-                    <th className="p-4 text-left text-sm font-medium text-gray-700">연락처</th>
+                    <th className="p-4 text-left text-sm font-medium text-gray-700">입금자명</th>
                     <th className="p-4 text-right text-sm font-medium text-gray-700">금액</th>
-                    <th className="p-4 text-left text-sm font-medium text-gray-700">결제방법</th>
+                    <th className="p-4 text-left text-sm font-medium text-gray-700">미수금</th>
+                    <th className="p-4 text-left text-sm font-medium text-gray-700">입금예정일</th>
                     <th className="p-4 text-left text-sm font-medium text-gray-700">세금계산서</th>
                     <th className="p-4 text-left text-sm font-medium text-gray-700">상태</th>
                     <th className="p-4 text-left text-sm font-medium text-gray-700">작업</th>
@@ -269,13 +384,29 @@ export default function PointsChargeManagement() {
                         <div className="font-medium">{request.companies?.company_name || '-'}</div>
                         <div className="text-sm text-gray-500">{request.companies?.email}</div>
                       </td>
-                      <td className="p-4 text-sm">{request.companies?.contact_person || '-'}</td>
-                      <td className="p-4 text-sm">{request.companies?.phone || '-'}</td>
+                      <td className="p-4 text-sm">{request.depositor_name || '-'}</td>
                       <td className="p-4 text-right font-medium">
                         {request.amount.toLocaleString()}원
                       </td>
                       <td className="p-4 text-sm">
-                        {request.payment_method === 'bank_transfer' ? '계좌이체' : 'Stripe'}
+                        {request.is_credit ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            미수금
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-sm">
+                        {request.expected_payment_date ? (
+                          <div>
+                            <div>{new Date(request.expected_payment_date).toLocaleDateString('ko-KR')}</div>
+                            {request.is_credit && request.status === 'pending' && 
+                             new Date(request.expected_payment_date) < new Date() && (
+                              <span className="text-xs text-red-600 font-medium">미입금</span>
+                            )}
+                          </div>
+                        ) : '-'}
                       </td>
                       <td className="p-4 text-sm">
                         {request.needs_tax_invoice ? '필요' : '불필요'}
@@ -391,6 +522,181 @@ export default function PointsChargeManagement() {
                     setConfirmModal(false)
                     setSelectedRequest(null)
                     resetForm()
+                  }}
+                  disabled={processing}
+                >
+                  취소
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 미수금 선지급 모달 */}
+      {creditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle>미수금 선지급</CardTitle>
+              <p className="text-sm text-gray-600">
+                기업에게 포인트를 먼저 지급하고 나중에 입금받는 시스템입니다.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">회사 선택 *</label>
+                <select
+                  className="w-full p-3 border rounded-lg"
+                  value={creditForm.companyId}
+                  onChange={(e) => setCreditForm({ ...creditForm, companyId: e.target.value })}
+                  required
+                >
+                  <option value="">회사를 선택하세요</option>
+                  {companies.map((company) => (
+                    <option key={company.user_id} value={company.user_id}>
+                      {company.company_name} ({company.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">금액 *</label>
+                  <Input
+                    type="number"
+                    value={creditForm.amount}
+                    onChange={(e) => setCreditForm({ ...creditForm, amount: e.target.value })}
+                    placeholder="10000"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">수량</label>
+                  <Input
+                    type="number"
+                    value={creditForm.quantity}
+                    onChange={(e) => setCreditForm({ ...creditForm, quantity: parseInt(e.target.value) || 1 })}
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">입금자명 *</label>
+                <Input
+                  type="text"
+                  value={creditForm.depositorName}
+                  onChange={(e) => setCreditForm({ ...creditForm, depositorName: e.target.value })}
+                  placeholder="입금자명 입력"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">입금 예정일 *</label>
+                <Input
+                  type="date"
+                  value={creditForm.expectedPaymentDate}
+                  onChange={(e) => setCreditForm({ ...creditForm, expectedPaymentDate: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">메모</label>
+                <textarea
+                  className="w-full p-3 border rounded-lg"
+                  rows="3"
+                  value={creditForm.creditNotes}
+                  onChange={(e) => setCreditForm({ ...creditForm, creditNotes: e.target.value })}
+                  placeholder="미수금 관련 메모"
+                />
+              </div>
+
+              <div className="border-t pt-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={creditForm.needsTaxInvoice}
+                    onChange={(e) => setCreditForm({ ...creditForm, needsTaxInvoice: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="font-medium">세금계산서 발행 필요</span>
+                </label>
+
+                {creditForm.needsTaxInvoice && (
+                  <div className="mt-4 space-y-3 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">회사명 *</label>
+                      <Input
+                        type="text"
+                        value={creditForm.taxInvoiceInfo.companyName}
+                        onChange={(e) => setCreditForm({
+                          ...creditForm,
+                          taxInvoiceInfo: { ...creditForm.taxInvoiceInfo, companyName: e.target.value }
+                        })}
+                        placeholder="회사명"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">사업자등록번호 *</label>
+                      <Input
+                        type="text"
+                        value={creditForm.taxInvoiceInfo.businessNumber}
+                        onChange={(e) => setCreditForm({
+                          ...creditForm,
+                          taxInvoiceInfo: { ...creditForm.taxInvoiceInfo, businessNumber: e.target.value }
+                        })}
+                        placeholder="000-00-00000"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">대표자명 *</label>
+                      <Input
+                        type="text"
+                        value={creditForm.taxInvoiceInfo.ceoName}
+                        onChange={(e) => setCreditForm({
+                          ...creditForm,
+                          taxInvoiceInfo: { ...creditForm.taxInvoiceInfo, ceoName: e.target.value }
+                        })}
+                        placeholder="대표자명"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">이메일 *</label>
+                      <Input
+                        type="email"
+                        value={creditForm.taxInvoiceInfo.email}
+                        onChange={(e) => setCreditForm({
+                          ...creditForm,
+                          taxInvoiceInfo: { ...creditForm.taxInvoiceInfo, email: e.target.value }
+                        })}
+                        placeholder="email@example.com"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleCreateCredit}
+                  disabled={processing}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                >
+                  {processing ? '처리 중...' : '선지급 실행'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCreditModal(false)
+                    resetCreditForm()
                   }}
                   disabled={processing}
                 >
