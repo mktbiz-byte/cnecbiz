@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react'
+import AdminNavigation from './AdminNavigation'
 
 export default function PointsChargeManagement() {
   const [chargeRequests, setChargeRequests] = useState([])
@@ -66,7 +67,7 @@ export default function PointsChargeManagement() {
         .from('points_charge_requests')
         .select(`
           *,
-          companies:company_id (
+          companies!points_charge_requests_company_id_fkey (
             company_name,
             email,
             phone,
@@ -258,7 +259,9 @@ export default function PointsChargeManagement() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <>
+      <AdminNavigation />
+      <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">포인트 충전 관리</h1>
         <div className="flex gap-2">
@@ -707,7 +710,8 @@ export default function PointsChargeManagement() {
           </Card>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
 
