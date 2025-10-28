@@ -22,7 +22,7 @@ export default function CompanyNavigation() {
   const menuItems = [
     { icon: LayoutDashboard, label: '대시보드', path: '/company/dashboard' },
     { icon: TrendingUp, label: '내 캠페인', path: '/company/campaigns' },
-    { icon: Plus, label: '새 캠페인', path: '/company/campaigns/new' },
+    { icon: Plus, label: '새 캠페인', path: '/company/campaigns/new?region=korea' },
     { icon: CreditCard, label: '포인트 결제하기', path: '/company/points/charge' },
     { icon: Receipt, label: '내 결제내역', path: '/company/payments' },
     { icon: User, label: '프로필 수정', path: '/company/profile-edit' },

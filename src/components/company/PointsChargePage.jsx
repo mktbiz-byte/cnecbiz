@@ -25,7 +25,17 @@ function ChargeForm({ onSuccess }) {
   const [selectedPackage, setSelectedPackage] = useState(200000)
   const [quantity, setQuantity] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer')
+  const [depositorName, setDepositorName] = useState('') // 입금자명
   const [needsTaxInvoice, setNeedsTaxInvoice] = useState(false)
+  const [taxInvoiceInfo, setTaxInvoiceInfo] = useState({
+    companyName: '',
+    businessNumber: '',
+    ceoName: '',
+    address: '',
+    businessType: '',
+    businessItem: '',
+    email: ''
+  })
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
 
@@ -41,6 +51,19 @@ function ChargeForm({ onSuccess }) {
     if (quantity < 1) {
       setError('수량을 1개 이상 입력해주세요')
       return
+    }
+
+    if (!depositorName.trim()) {
+      setError('입금자명을 입력해주세요')
+      return
+    }
+
+    if (needsTaxInvoice) {
+      if (!taxInvoiceInfo.companyName || !taxInvoiceInfo.businessNumber || 
+          !taxInvoiceInfo.ceoName || !taxInvoiceInfo.email) {
+        setError('세금계산서 발행을 위한 필수 정보를 모두 입력해주세요')
+        return
+      }
     }
 
     setProcessing(true)
@@ -78,8 +101,12 @@ function ChargeForm({ onSuccess }) {
         body: JSON.stringify({
           companyId: user.id,
           amount: finalAmount,
+          quantity,
+          packageAmount: selectedPackage,
           paymentMethod,
+          depositorName: depositorName.trim(),
           needsTaxInvoice,
+          taxInvoiceInfo: needsTaxInvoice ? taxInvoiceInfo : null,
           stripePaymentIntentId
         })
       })
@@ -161,6 +188,24 @@ function ChargeForm({ onSuccess }) {
         />
         <p className="text-xs text-gray-500 mt-2">
           {selectedPackage.toLocaleString()}원 × {quantity}명 = {baseAmount.toLocaleString()}원
+        </p>
+      </div>
+
+      {/* 입금자명 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          입금자명 <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={depositorName}
+          onChange={(e) => setDepositorName(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="계좌이체 시 입금할 이름을 정확히 입력해주세요"
+          required
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          ⚠️ 입금자명이 일치해야 자동으로 포인트가 충전됩니다.
         </p>
       </div>
 
@@ -267,6 +312,111 @@ function ChargeForm({ onSuccess }) {
               />
               <span className="text-sm text-gray-700">세금계산서 발행 필요</span>
             </label>
+
+            {/* 세금계산서 정보 입력 */}
+            {needsTaxInvoice && (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-gray-600 mb-3">
+                  세금계산서 발행을 위한 정보를 입력해주세요.
+                </p>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    회사명 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={taxInvoiceInfo.companyName}
+                    onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, companyName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="회사명"
+                    required={needsTaxInvoice}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    사업자등록번호 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={taxInvoiceInfo.businessNumber}
+                    onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, businessNumber: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="000-00-00000"
+                    required={needsTaxInvoice}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    대표자명 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={taxInvoiceInfo.ceoName}
+                    onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, ceoName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="대표자명"
+                    required={needsTaxInvoice}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    주소
+                  </label>
+                  <input
+                    type="text"
+                    value={taxInvoiceInfo.address}
+                    onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, address: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="사업장 주소"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      업태
+                    </label>
+                    <input
+                      type="text"
+                      value={taxInvoiceInfo.businessType}
+                      onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, businessType: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="서비스업"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      종목
+                    </label>
+                    <input
+                      type="text"
+                      value={taxInvoiceInfo.businessItem}
+                      onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, businessItem: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="광고업"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    이메일 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={taxInvoiceInfo.email}
+                    onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, email: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="세금계산서를 받을 이메일"
+                    required={needsTaxInvoice}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

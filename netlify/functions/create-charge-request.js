@@ -41,8 +41,12 @@ exports.handler = async (event, context) => {
     const {
       companyId,
       amount,
+      quantity,
+      packageAmount,
       paymentMethod,
+      depositorName,
       needsTaxInvoice,
+      taxInvoiceInfo,
       stripePaymentIntentId
     } = JSON.parse(event.body)
 
@@ -54,6 +58,18 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({
           success: false,
           error: '필수 필드가 누락되었습니다.'
+        })
+      }
+    }
+
+    // 계좌이체의 경우 입금자명 필수
+    if (paymentMethod === 'bank_transfer' && !depositorName) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '입금자명을 입력해주세요.'
         })
       }
     }
@@ -92,8 +108,12 @@ exports.handler = async (event, context) => {
     const chargeData = {
       company_id: companyId,
       amount: parseInt(amount),
+      quantity: quantity || 1,
+      package_amount: packageAmount || amount,
       payment_method: paymentMethod,
+      depositor_name: depositorName || null,
       needs_tax_invoice: needsTaxInvoice || false,
+      tax_invoice_info: taxInvoiceInfo || null,
       status: paymentMethod === 'stripe' ? 'completed' : 'pending'
     }
 
