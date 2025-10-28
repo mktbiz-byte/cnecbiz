@@ -32,30 +32,32 @@ export default function LoginPageNew() {
 
       if (error) throw error
 
-      // 사용자 역할 확인
-      const { data: userData } = await supabaseBiz
-        .from('companies')
-        .select('*')
-        .eq('user_id', data.user.id)
-        .single()
-
-      // Check if admin first
-      const { data: adminData } = await supabaseBiz
+      // Check if admin first (관리자 체크를 먼저 수행)
+      const { data: adminData, error: adminError } = await supabaseBiz
         .from('admin_users')
         .select('*')
         .eq('email', data.user.email)
-        .single()
+        .maybeSingle()
 
       if (adminData) {
+        console.log('Admin user detected:', adminData)
         navigate('/admin/dashboard')
         return
       }
 
+      // 관리자가 아니면 기업 사용자 확인
+      const { data: userData, error: userError } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .maybeSingle()
+
       if (userData) {
         // 일반 기업 사용자
+        console.log('Company user detected:', userData)
         navigate('/company/dashboard')
       } else {
-        setError('등록되지 않은 사용자입니다.')
+        setError('등록되지 않은 사용자입니다. 회원가입을 먼저 진행해주세요.')
       }
     } catch (error) {
       setError(error.message || '로그인에 실패했습니다.')

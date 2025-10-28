@@ -25,14 +25,15 @@ export default function AuthCallback() {
 
         const user = session.user
 
-        // Check if admin
-        const { data: adminData } = await supabaseBiz
+        // Check if admin first
+        const { data: adminData, error: adminError } = await supabaseBiz
           .from('admin_users')
           .select('*')
           .eq('email', user.email)
-          .single()
+          .maybeSingle()
 
         if (adminData) {
+          console.log('Admin user detected in callback:', adminData)
           navigate('/admin/dashboard')
           return
         }
@@ -42,7 +43,7 @@ export default function AuthCallback() {
           .from('companies')
           .select('*')
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
 
         if (companyError && companyError.code !== 'PGRST116') {
           console.error('Company check error:', companyError)
