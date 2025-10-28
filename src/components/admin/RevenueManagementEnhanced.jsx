@@ -65,10 +65,10 @@ export default function RevenueManagementEnhanced() {
     }
 
     const { data: adminData } = await supabaseBiz
-      .from('admins')
+      .from('admin_users')
       .select('*')
-      .eq('user_id', user.id)
-      .single()
+      .eq('email', user.email)
+      .maybeSingle()
 
     if (!adminData) {
       navigate('/admin/dashboard')

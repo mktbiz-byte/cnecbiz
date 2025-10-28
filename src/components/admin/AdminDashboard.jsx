@@ -39,16 +39,20 @@ export default function AdminDashboard() {
       return
     }
 
-    const { data: adminData } = await supabaseBiz
-      .from('admins')
+    // Check if user is admin
+    const { data: adminData, error: adminError } = await supabaseBiz
+      .from('admin_users')
       .select('*')
-      .eq('user_id', user.id)
-      .single()
+      .eq('email', user.email)
+      .maybeSingle()
 
     if (!adminData) {
+      console.error('Not an admin user:', user.email)
       navigate('/login')
       return
     }
+
+    console.log('Admin authenticated:', adminData)
 
     setUser(user)
   }
