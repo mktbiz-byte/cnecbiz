@@ -23,6 +23,7 @@ import {
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
 import RegionSelectModal from './RegionSelectModal'
+import CompanyNavigation from './CompanyNavigation'
 
 export default function CompanyDashboard() {
   const navigate = useNavigate()
@@ -234,77 +235,11 @@ export default function CompanyDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r transition-all duration-300 flex flex-col`}>
-        <div className="p-4 border-b flex items-center justify-between">
-          {sidebarOpen && <h1 className="text-xl font-bold text-blue-600">CNEC Biz</h1>}
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3"
-            onClick={() => navigate('/company/dashboard')}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            {sidebarOpen && <span>대시보드</span>}
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3"
-            onClick={() => navigate('/company/campaigns')}
-          >
-            <TrendingUp className="w-5 h-5" />
-            {sidebarOpen && <span>내 캠페인</span>}
-          </Button>
-          <Button 
-            variant="default" 
-            className="w-full justify-start gap-3"
-            onClick={() => setShowRegionModal(true)}
-          >
-            <Plus className="w-5 h-5" />
-            {sidebarOpen && <span>새 캠페인</span>}
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3"
-            onClick={() => navigate('/company/points')}
-          >
-            <CreditCard className="w-5 h-5" />
-            {sidebarOpen && <span>포인트 결제하기</span>}
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3"
-            onClick={() => navigate('/company/payments')}
-          >
-            <FileText className="w-5 h-5" />
-            {sidebarOpen && <span>내 결제내역</span>}
-          </Button>
-        </nav>
-
-        <div className="p-4 border-t">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-3 text-red-600"
-            onClick={handleLogout}
-          >
-            <LogOut className="w-5 h-5" />
-            {sidebarOpen && <span>로그아웃</span>}
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-8">
+    <>
+      <CompanyNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        {/* Main Content */}
+        <main className="p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -500,14 +435,14 @@ export default function CompanyDashboard() {
             </CardContent>
           </Card>
         </div>
-      </main>
-
-      {/* Region Select Modal */}
-      <RegionSelectModal 
-        open={showRegionModal}
-        onClose={() => setShowRegionModal(false)}
-      />
-    </div>
+        {/* Region Select Modal */}
+        <RegionSelectModal 
+          open={showRegionModal}
+          onClose={() => setShowRegionModal(false)}
+        />
+        </main>
+      </div>
+    </>
   )
 }
 

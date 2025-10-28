@@ -66,7 +66,6 @@ function App() {
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/company/translator" element={<Translator />} />
         <Route path="/company/teams" element={<TeamManagement />} />
-        <Route path="/company/points" element={<PointsManagement />} />
         <Route path="/company/points/charge" element={<PointsChargePage />} />
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />

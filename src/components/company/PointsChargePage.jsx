@@ -139,7 +139,22 @@ function ChargeForm({ onSuccess }) {
           type="number"
           min="1"
           value={quantity}
-          onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+          onChange={(e) => {
+            const val = e.target.value
+            if (val === '') {
+              setQuantity('')
+            } else {
+              const num = parseInt(val)
+              if (!isNaN(num) && num >= 1) {
+                setQuantity(num)
+              }
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.value === '' || parseInt(e.target.value) < 1) {
+              setQuantity(1)
+            }
+          }}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-medium"
           placeholder="수량 입력"
           required
@@ -220,23 +235,7 @@ function ChargeForm({ onSuccess }) {
             )}
           </label>
 
-          <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="stripe"
-              checked={paymentMethod === 'stripe'}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="mr-3 w-5 h-5"
-            />
-            <div className="flex-1">
-              <div className="font-medium">신용카드</div>
-              <div className="text-xs text-gray-500 mt-1">즉시 충전</div>
-            </div>
-            {paymentMethod === 'stripe' && (
-              <Check className="w-5 h-5 text-blue-600" />
-            )}
-          </label>
+
         </div>
       </div>
 
