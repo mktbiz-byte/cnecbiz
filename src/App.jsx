@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LandingPage from './components/LandingPage'
 import LoginPageNew from './components/LoginPageNew'
 import SignupPageNew from './components/SignupPageNew'
+import SignupWithVerification from './components/SignupWithVerification'
 import CompanyDashboard from './components/company/CompanyDashboard'
 import CreateCampaign from './components/company/CreateCampaign'
 import CreateCampaignRouter from './components/company/CreateCampaignRouter'
@@ -16,16 +17,18 @@ import CampaignApprovals from './components/admin/CampaignApprovals'
 import CampaignReview from './components/admin/CampaignReview'
 import TeamManagement from './components/company/TeamManagement'
 import PointsManagement from './components/company/PointsManagement'
+import PointsChargePage from './components/company/PointsChargePage'
+import CompanyProfileSetup from './components/company/CompanyProfileSetup'
 import PaymentHistory from './components/company/PaymentHistory'
 import Translator from './components/company/Translator'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AdminManagement from './components/admin/AdminManagement'
 import RevenueManagement from './components/admin/RevenueManagement'
-import PaymentManagement from './components/admin/PaymentManagement'
+import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import CreatorsManagement from './components/admin/CreatorsManagement'
-import RegionalCreatorsManagement from './components/admin/RegionalCreatorsManagement'
+
 import FAQManagement from './components/admin/FAQManagement'
 import VideoManagement from './components/admin/VideoManagement'
 import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApprovals'
@@ -33,8 +36,8 @@ import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRe
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
 import SiteEditor from './components/admin/SiteEditor'
-import AdminSettings from './components/admin/AdminSettings'
-import PopbillSettings from './components/admin/PopbillSettings'
+
+
 import AuthCallback from './components/AuthCallback'
 
 function App() {
@@ -45,6 +48,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/signup" element={<SignupPageNew />} />
+        <Route path="/signup-verification" element={<SignupWithVerification />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* Company Admin Routes */}
@@ -62,24 +66,26 @@ function App() {
         <Route path="/company/translator" element={<Translator />} />
         <Route path="/company/teams" element={<TeamManagement />} />
         <Route path="/company/points" element={<PointsManagement />} />
+        <Route path="/company/points/charge" element={<PointsChargePage />} />
+        <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
         
         {/* Super Admin Routes */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-admins" element={<AdminManagement />} />
         <Route path="/admin/revenue" element={<RevenueManagement />} />
-        <Route path="/admin/payment" element={<PaymentManagement />} />
+        <Route path="/admin/points-charge" element={<PointsChargeManagement />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
-        <Route path="/admin/regional-creators" element={<RegionalCreatorsManagement />} />
+
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="/admin/popbill" element={<PopbillSettings />} />
+
+
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
 
