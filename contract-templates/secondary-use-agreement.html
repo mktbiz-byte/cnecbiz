@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>크리에이터 콘텐츠 2차 활용 계약서</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+      line-height: 1.8;
+      padding: 60px 80px;
+      max-width: 900px;
+      margin: 0 auto;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 50px;
+      border-bottom: 3px solid #333;
+      padding-bottom: 20px;
+    }
+    h2 {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 40px;
+      margin-bottom: 20px;
+      color: #1a1a1a;
+    }
+    .section {
+      margin-bottom: 30px;
+    }
+    .article {
+      margin-bottom: 25px;
+    }
+    .article-title {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #2563eb;
+    }
+    .article-content {
+      margin-left: 20px;
+      font-size: 14px;
+    }
+    .clause {
+      margin-bottom: 8px;
+      padding-left: 15px;
+    }
+    .parties {
+      display: flex;
+      justify-content: space-between;
+      margin: 40px 0;
+      padding: 30px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .party {
+      flex: 1;
+    }
+    .party-title {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #1a1a1a;
+    }
+    .party-info {
+      font-size: 14px;
+      line-height: 2;
+    }
+    .signature-area {
+      margin-top: 80px;
+      display: flex;
+      justify-content: space-between;
+      gap: 60px;
+    }
+    .signature-box {
+      flex: 1;
+      text-align: center;
+      padding: 30px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .signature-label {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 20px;
+      color: #1a1a1a;
+    }
+    .signature-placeholder {
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #d1d5db;
+      border-radius: 4px;
+      margin: 20px 0;
+      background: white;
+      color: #9ca3af;
+    }
+    .signature-info {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 15px;
+    }
+    .highlight {
+      background: #fef3c7;
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
+    .important {
+      color: #dc2626;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    table th, table td {
+      border: 1px solid #d1d5db;
+      padding: 12px;
+      text-align: left;
+    }
+    table th {
+      background: #f3f4f6;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>크리에이터 콘텐츠 2차 활용 계약서</h1>
+
+  <div class="parties">
+    <div class="party">
+      <div class="party-title">갑 (기업)</div>
+      <div class="party-info">
+        <div>상호: <span class="highlight">{{company_name}}</span></div>
+        <div>대표자: {{company_representative}}</div>
+        <div>사업자등록번호: {{company_registration_number}}</div>
+        <div>주소: {{company_address}}</div>
+        <div>연락처: {{company_phone}}</div>
+        <div>이메일: {{company_email}}</div>
+      </div>
+    </div>
+    <div class="party">
+      <div class="party-title">을 (크리에이터)</div>
+      <div class="party-info">
+        <div>성명: <span class="highlight">{{creator_name}}</span></div>
+        <div>채널명: {{creator_channel_name}}</div>
+        <div>주민등록번호: {{creator_id_number}}</div>
+        <div>주소: {{creator_address}}</div>
+        <div>연락처: {{creator_phone}}</div>
+        <div>이메일: {{creator_email}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <p>
+      갑과 을은 을이 제작한 콘텐츠의 2차 활용에 관하여 다음과 같이 계약을 체결한다.
+    </p>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제1조 (목적)</div>
+    <div class="article-content">
+      <div class="clause">
+        본 계약은 을이 갑의 의뢰로 제작한 콘텐츠(이하 "원본 콘텐츠")를 갑이 2차적으로 활용하는 것에 관한 권리와 의무를 정함을 목적으로 한다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제2조 (계약 대상 콘텐츠)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 본 계약의 대상이 되는 콘텐츠는 다음과 같다.
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>캠페인명</th>
+            <th>영상 제목</th>
+            <th>URL</th>
+            <th>제작일</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{campaign_title}}</td>
+            <td>{{video_title}}</td>
+            <td>{{video_url}}</td>
+            <td>{{video_date}}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="clause">
+        ② 원본 콘텐츠의 저작권은 을에게 있으며, 본 계약은 2차 활용에 대한 사용권 허락 계약이다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제3조 (2차 활용 범위)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 갑은 원본 콘텐츠를 다음의 목적으로 2차 활용할 수 있다.
+        <ul style="margin-top: 10px;">
+          <li>자사 웹사이트 및 SNS 채널에 게시</li>
+          <li>마케팅 및 홍보 자료로 활용</li>
+          <li>광고 소재로 활용 (온라인/오프라인)</li>
+          <li>제품 상세페이지 및 쇼핑몰에 게시</li>
+          <li>전시회, 박람회 등 오프라인 행사에서 상영</li>
+        </ul>
+      </div>
+      <div class="clause">
+        ② 갑은 원본 콘텐츠를 편집, 재구성, 자막 추가 등의 방법으로 가공하여 사용할 수 있다.
+      </div>
+      <div class="clause">
+        ③ 갑은 원본 콘텐츠의 일부를 발췌하여 사용할 수 있다.
+      </div>
+      <div class="clause">
+        ④ <span class="important">단, 을의 명예를 훼손하거나 콘텐츠의 본질을 왜곡하는 방식으로 사용할 수 없다.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제4조 (사용 기간)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 2차 활용 기간: <span class="highlight">{{contract_start_date}}</span> ~ <span class="highlight">{{contract_end_date}}</span>
+      </div>
+      <div class="clause">
+        ② 계약 기간 만료 후에는 갑은 원본 콘텐츠의 사용을 중단하고, 게시된 콘텐츠를 삭제하여야 한다.
+      </div>
+      <div class="clause">
+        ③ 단, 양 당사자의 합의 하에 계약 기간을 연장할 수 있다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제5조 (대가)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 갑은 을에게 2차 활용에 대한 대가로 다음의 금액을 지급한다.
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th>금액</th>
+            <th>지급일</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2차 활용 사용료</td>
+            <td><span class="highlight">{{usage_fee}}</span>원 (VAT 별도)</td>
+            <td>{{payment_date}}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="clause">
+        ② 지급 방법: 을이 지정한 계좌로 송금
+      </div>
+      <div class="clause">
+        ③ 세금계산서는 갑이 발행한다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제6조 (크레딧 표기)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 갑은 원본 콘텐츠를 2차 활용 시 을의 채널명 또는 성명을 크레딧으로 표기하여야 한다.
+      </div>
+      <div class="clause">
+        ② 크레딧 표기 방법: "출처: {{creator_channel_name}}" 또는 "제작: {{creator_name}}"
+      </div>
+      <div class="clause">
+        ③ 단, 광고 소재의 특성상 크레딧 표기가 어려운 경우 을의 사전 동의를 받아 생략할 수 있다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제7조 (금지 사항)</div>
+    <div class="article-content">
+      <div class="clause">
+        갑은 다음의 행위를 하여서는 아니 된다.
+        <ul style="margin-top: 10px;">
+          <li>원본 콘텐츠를 제3자에게 재판매하거나 양도하는 행위</li>
+          <li>을의 동의 없이 원본 콘텐츠를 다른 제품이나 서비스의 홍보에 사용하는 행위</li>
+          <li>원본 콘텐츠의 내용을 왜곡하거나 을의 명예를 훼손하는 방식으로 사용하는 행위</li>
+          <li>을의 초상권, 성명권, 퍼블리시티권을 침해하는 행위</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제8조 (계약 해지)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 다음의 경우 상대방에게 서면으로 통지하고 본 계약을 해지할 수 있다.
+        <ul style="margin-top: 10px;">
+          <li>상대방이 본 계약의 중요한 조항을 위반한 경우</li>
+          <li>상대방이 파산, 회생절차 개시 등의 사유가 발생한 경우</li>
+        </ul>
+      </div>
+      <div class="clause">
+        ② 계약이 해지된 경우, 갑은 즉시 원본 콘텐츠의 사용을 중단하고 게시된 콘텐츠를 삭제하여야 한다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제9조 (손해배상)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 갑 또는 을이 본 계약을 위반하여 상대방에게 손해를 입힌 경우, 그 손해를 배상하여야 한다.
+      </div>
+      <div class="clause">
+        ② 갑이 제7조의 금지 사항을 위반한 경우, 을은 즉시 사용 중단을 요구할 수 있으며, 이로 인한 손해배상을 청구할 수 있다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제10조 (분쟁 해결)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 본 계약과 관련하여 발생하는 분쟁은 상호 협의하여 해결한다.
+      </div>
+      <div class="clause">
+        ② 협의가 이루어지지 않을 경우, 대한민국 법률에 따라 갑의 주소지 관할 법원을 제1심 관할 법원으로 한다.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제11조 (기타)</div>
+    <div class="article-content">
+      <div class="clause">
+        ① 본 계약서에 명시되지 않은 사항은 양 당사자의 합의에 따라 결정한다.
+      </div>
+      <div class="clause">
+        ② 본 계약의 내용을 변경하고자 할 때에는 양 당사자의 서면 합의가 있어야 한다.
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 60px; text-align: center; font-size: 16px;">
+    <p>본 계약을 증명하기 위하여 계약서 2부를 작성하고, 갑과 을이 각각 서명 날인한 후 각 1부씩 보관한다.</p>
+  </div>
+
+  <div style="margin-top: 40px; text-align: center; font-size: 18px; font-weight: bold;">
+    계약일: <span class="highlight">{{contract_date}}</span>
+  </div>
+
+  <div class="signature-area">
+    <div class="signature-box">
+      <div class="signature-label">갑 (기업)</div>
+      <div class="signature-placeholder">
+        <div style="text-align: center;">
+          <div style="font-size: 14px; color: #6b7280;">회사 도장</div>
+        </div>
+      </div>
+      <div class="signature-info">
+        <div>상호: {{company_name}}</div>
+        <div>대표자: {{company_representative}}</div>
+      </div>
+    </div>
+
+    <div class="signature-box">
+      <div class="signature-label">을 (크리에이터)</div>
+      <div class="signature-placeholder">
+        <div style="text-align: center;">
+          <div style="font-size: 14px; color: #6b7280;">서명란</div>
+          <div style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
+            (도장 또는 서명)
+          </div>
+        </div>
+      </div>
+      <div class="signature-info">
+        <div>성명: {{creator_name}}</div>
+        <div>채널명: {{creator_channel_name}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 60px; padding: 20px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+    <div style="font-weight: bold; margin-bottom: 10px; color: #92400e;">📌 중요 안내</div>
+    <ul style="font-size: 13px; color: #78350f; line-height: 1.8;">
+      <li>본 계약서는 크리에이터가 제작한 콘텐츠의 2차 활용에 대한 계약입니다.</li>
+      <li>원본 콘텐츠의 저작권은 크리에이터에게 있으며, 기업은 사용권만 부여받습니다.</li>
+      <li>계약 기간 만료 후에는 모든 게시물을 삭제하여야 합니다.</li>
+      <li>크리에이터의 명예를 훼손하거나 콘텐츠를 왜곡하는 사용은 금지됩니다.</li>
+    </ul>
+  </div>
+</body>
+</html>
+

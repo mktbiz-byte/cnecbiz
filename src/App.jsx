@@ -93,7 +93,7 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-admins" element={<AdminManagement />} />
-        <Route path="/admin/revenue" element={<RevenueManagementNew />} />
+        <Route path="/admin/revenue" element={<Navigate to="/admin/revenue-charts" replace />} />
         <Route path="/admin/revenue-old" element={<RevenueManagement />} />
         <Route path="/admin/revenue-enhanced" element={<RevenueManagementEnhanced />} />
         <Route path="/admin/points-charge" element={<PointsChargeManagement />} />

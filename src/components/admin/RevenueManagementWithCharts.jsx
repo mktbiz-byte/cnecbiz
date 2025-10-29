@@ -100,7 +100,7 @@ export default function RevenueManagementWithCharts() {
   const fetchRevenueData = async () => {
     try {
       const { data, error } = await supabaseBiz
-        .from('revenue_records')
+        .from('financial_records')
         .select('*')
         .order('record_date', { ascending: true })
 
@@ -141,7 +141,7 @@ export default function RevenueManagementWithCharts() {
 
   // 통계 계산
   useEffect(() => {
-    // revenue_records에서 type별로 분리
+    // financial_records에서 type별로 분리
     const totalRevenue = revenueData
       .filter(r => r.type === 'revenue')
       .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
@@ -266,7 +266,7 @@ export default function RevenueManagementWithCharts() {
           }
           
           const { error } = await supabaseBiz
-            .from('revenue_records')
+            .from('financial_records')
             .insert(records)
           
           if (error) throw error
@@ -301,7 +301,7 @@ export default function RevenueManagementWithCharts() {
   const getMonthlyData = () => {
     const monthlyMap = {}
 
-    // revenue_records에서 type별로 분리하여 집계
+    // financial_records에서 type별로 분리하여 집계
     revenueData.forEach(r => {
       const month = r.record_date ? r.record_date.substring(0, 7) : null // YYYY-MM
       if (!month) return
@@ -355,7 +355,7 @@ export default function RevenueManagementWithCharts() {
 
     try {
       const { error } = await supabaseBiz
-        .from('revenue_records')
+        .from('financial_records')
         .insert([newRevenue])
 
       if (error) throw error
@@ -700,25 +700,90 @@ export default function RevenueManagementWithCharts() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>매출 내역 ({revenueData.length}건)</CardTitle>
+                  <CardTitle>매출 내역 ({revenueData.filter(r => r.type === 'revenue').length}건)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {revenueData.map((revenue) => (
-                      <div key={revenue.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <div className="font-semibold">{revenue.month}</div>
-                          <div className="text-sm text-gray-600">{revenue.description}</div>
-                          <div className="text-xs text-gray-500">{revenue.source}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-blue-600">
-                            ₩{parseFloat(revenue.amount).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">날짜</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">분류</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">금액</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">작업</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {revenueData
+                          .filter(r => r.type === 'revenue')
+                          .slice(0, 50)
+                          .map((record) => (
+                          <tr key={record.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">
+                              {new Date(record.record_date).toLocaleDateString('ko-KR')}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {record.category || record.description}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right font-medium text-blue-600">
+                              +₩{parseFloat(record.amount).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className={record.is_receivable ? 'bg-yellow-50 text-yellow-600' : ''}
+                                  onClick={async () => {
+                                    try {
+                                      const { error } = await supabaseBiz
+                                        .from('financial_records')
+                                        .update({ is_receivable: !record.is_receivable })
+                                        .eq('id', record.id)
+                                      
+                                      if (error) throw error
+                                      fetchAllData()
+                                    } catch (error) {
+                                      console.error('미수금 설정 오류:', error)
+                                      alert('미수금 설정에 실패했습니다.')
+                                    }
+                                  }}
+                                >
+                                  {record.is_receivable ? '미수금 해제' : '미수금'}
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="text-red-600 hover:bg-red-50"
+                                  onClick={async () => {
+                                    if (!confirm('정말 삭제하시겠습니까?')) return
+                                    try {
+                                      const { error } = await supabaseBiz
+                                        .from('financial_records')
+                                        .delete()
+                                        .eq('id', record.id)
+                                      
+                                      if (error) throw error
+                                      alert('삭제되었습니다.')
+                                      fetchAllData()
+                                    } catch (error) {
+                                      console.error('삭제 오류:', error)
+                                      alert('삭제에 실패했습니다.')
+                                    }
+                                  }}
+                                >
+                                  삭제
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
+                  {revenueData.filter(r => r.type === 'revenue').length > 50 && (
+                    <p className="text-sm text-gray-500 text-center mt-4">최근 50개 항목만 표시됩니다.</p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -977,7 +1042,7 @@ export default function RevenueManagementWithCharts() {
                                       onClick={async () => {
                                         try {
                                           const { error } = await supabaseBiz
-                                            .from('revenue_records')
+                                            .from('financial_records')
                                             .update({ is_receivable: !record.is_receivable })
                                             .eq('id', record.id)
                                           
@@ -1000,7 +1065,7 @@ export default function RevenueManagementWithCharts() {
                                       if (!confirm('정말 삭제하시겠습니까?')) return
                                       try {
                                         const { error } = await supabaseBiz
-                                          .from('revenue_records')
+                                          .from('financial_records')
                                           .delete()
                                           .eq('id', record.id)
                                         
@@ -1079,7 +1144,7 @@ export default function RevenueManagementWithCharts() {
                                   onClick={async () => {
                                     try {
                                       const { error } = await supabaseBiz
-                                        .from('revenue_records')
+                                        .from('financial_records')
                                         .update({ is_receivable: false })
                                         .eq('id', record.id)
                                       
