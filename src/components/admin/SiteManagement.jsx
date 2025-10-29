@@ -193,7 +193,7 @@ export default function SiteManagement() {
       const { data, error } = await supabaseBiz
         .from('faqs')
         .select('*')
-        .order('order', { ascending: true })
+        .order('display_order', { ascending: true })
 
       if (error) throw error
       setFaqs(data || [])
