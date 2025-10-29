@@ -28,14 +28,25 @@ function extractChannelId(url) {
 }
 
 // YouTube Data API로 채널 정보 가져오기
-async function getChannelInfo(channelId, apiKey) {
+async function getChannelInfo(channelIdOrHandle, apiKey) {
   try {
+    // @핸들인지 채널 ID인지 구분
+    const isHandle = channelIdOrHandle.startsWith('@')
+    const params = {
+      part: 'snippet,statistics,contentDetails',
+      key: apiKey
+    }
+    
+    if (isHandle) {
+      // @핸들인 경우 forHandle 파라미터 사용
+      params.forHandle = channelIdOrHandle.replace('@', '')
+    } else {
+      // 채널 ID인 경우 id 파라미터 사용
+      params.id = channelIdOrHandle
+    }
+
     const response = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
-      params: {
-        part: 'snippet,statistics,contentDetails',
-        id: channelId,
-        key: apiKey
-      }
+      params
     })
 
     if (!response.data.items || response.data.items.length === 0) {
