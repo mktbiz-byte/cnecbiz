@@ -94,7 +94,7 @@ export default function RevenueManagementWithCharts() {
       const { data, error } = await supabaseBiz
         .from('revenue_records')
         .select('*')
-        .order('month', { ascending: true })
+        .order('record_date', { ascending: true })
 
       if (error) throw error
       setRevenueData(data || [])
@@ -213,10 +213,12 @@ export default function RevenueManagementWithCharts() {
 
     // 매출
     revenueData.forEach(r => {
-      if (!monthlyMap[r.month]) {
-        monthlyMap[r.month] = { month: r.month, revenue: 0, expenses: 0, creatorCost: 0 }
+      const month = r.record_date ? r.record_date.substring(0, 7) : null // YYYY-MM
+      if (!month) return
+      if (!monthlyMap[month]) {
+        monthlyMap[month] = { month, revenue: 0, expenses: 0, creatorCost: 0 }
       }
-      monthlyMap[r.month].revenue += parseFloat(r.amount) || 0
+      monthlyMap[month].revenue += parseFloat(r.amount) || 0
     })
 
     // 비용
