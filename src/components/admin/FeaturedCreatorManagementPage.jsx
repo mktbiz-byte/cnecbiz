@@ -13,6 +13,7 @@ import {
   TrendingUp, Users, Award, DollarSign 
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
+import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function FeaturedCreatorManagementPage() {
   const navigate = useNavigate()
@@ -191,9 +192,24 @@ export default function FeaturedCreatorManagementPage() {
     setEvaluation(null)
   }
 
-  const handleDelete = (id) => {
-    if (confirm('정말 이 크리에이터를 삭제하시겠습니까?')) {
+  const handleDelete = async (id) => {
+    if (!confirm('정말 이 크리에이터를 삭제하시겠습니까?\n\n⚠️ 삭제하면 복구할 수 없습니다.')) {
+      return
+    }
+
+    try {
+      const { error } = await supabaseBiz
+        .from('featured_creators')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('크리에이터가 삭제되었습니다.')
       setFeaturedCreators(featuredCreators.filter(c => c.id !== id))
+    } catch (err) {
+      console.error('삭제 실패:', err)
+      alert('삭제 처리 중 오류가 발생했습니다.')
     }
   }
 
@@ -691,8 +707,10 @@ export default function FeaturedCreatorManagementPage() {
                             onClick={() => handleDelete(creator.id)}
                             size="sm"
                             variant="outline"
+                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
                           >
-                            <Trash2 className="w-4 h-4 text-red-500" />
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            삭제
                           </Button>
                         </div>
                       </CardContent>
