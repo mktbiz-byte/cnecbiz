@@ -51,6 +51,7 @@ const InvoicePage = () => {
   const { id } = useParams()
 
   const [campaign, setCampaign] = useState(null)
+  const [company, setCompany] = useState(null)
   const [paymentAccount, setPaymentAccount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
@@ -68,6 +69,7 @@ const InvoicePage = () => {
   const [businessCategory, setBusinessCategory] = useState('')
   const [companyAddress, setCompanyAddress] = useState('')
   const [memo, setMemo] = useState('')
+  const [depositorName, setDepositorName] = useState('')
   const [uploadingTaxInvoice, setUploadingTaxInvoice] = useState(false)
 
   useEffect(() => {
@@ -85,6 +87,19 @@ const InvoicePage = () => {
 
       if (campaignError) throw campaignError
       setCampaign(campaignData)
+
+      // 회사 정보 로드
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('user_id', campaignData.company_id)
+        .single()
+
+      if (companyError) {
+        console.error('회사 정보 로드 실패:', companyError)
+      } else {
+        setCompany(companyData)
+      }
 
       // 입금 계좌 정보 로드 (한국 지역)
       const { data: accountData, error: accountError } = await supabase
