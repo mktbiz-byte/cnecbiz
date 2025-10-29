@@ -30,7 +30,15 @@ export default function RevenueManagementWithCharts() {
     totalRevenue: 0,
     totalExpenses: 0,
     totalCreatorCost: 0,
-    netProfit: 0
+    netProfit: 0,
+    totalReceivable: 0,
+    // 기간별 통계
+    thisMonthRevenue: 0,
+    thisMonthExpenses: 0,
+    thisQuarterRevenue: 0,
+    thisQuarterExpenses: 0,
+    thisYearRevenue: 0,
+    thisYearExpenses: 0
   })
   
   // 새 데이터 입력
@@ -159,12 +167,72 @@ export default function RevenueManagementWithCharts() {
     const totalExpenses = totalFixedCost + totalVariableCost + expenseTotal
     const totalCreatorCostFinal = totalCreatorCost + withdrawalTotal
     const netProfit = totalRevenue - totalExpenses - totalCreatorCostFinal
+    
+    // 미수금 계산
+    const totalReceivable = revenueData
+      .filter(r => r.type === 'revenue' && r.is_receivable === true)
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    // 현재 날짜 기준
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 1-12
+    const currentQuarter = Math.ceil(currentMonth / 3) // 1-4
+    
+    // 이번 달 통계
+    const thisMonthRevenue = revenueData
+      .filter(r => r.type === 'revenue' && r.record_date && 
+        r.record_date.startsWith(`${currentYear}-${String(currentMonth).padStart(2, '0')}`))
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    const thisMonthExpenses = revenueData
+      .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') && 
+        r.record_date && r.record_date.startsWith(`${currentYear}-${String(currentMonth).padStart(2, '0')}`))
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    // 이번 분기 통계
+    const quarterStartMonth = (currentQuarter - 1) * 3 + 1
+    const quarterEndMonth = currentQuarter * 3
+    const thisQuarterRevenue = revenueData
+      .filter(r => r.type === 'revenue' && r.record_date) 
+      .filter(r => {
+        const month = parseInt(r.record_date.substring(5, 7))
+        const year = parseInt(r.record_date.substring(0, 4))
+        return year === currentYear && month >= quarterStartMonth && month <= quarterEndMonth
+      })
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    const thisQuarterExpenses = revenueData
+      .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') && r.record_date)
+      .filter(r => {
+        const month = parseInt(r.record_date.substring(5, 7))
+        const year = parseInt(r.record_date.substring(0, 4))
+        return year === currentYear && month >= quarterStartMonth && month <= quarterEndMonth
+      })
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    // 올해 통계
+    const thisYearRevenue = revenueData
+      .filter(r => r.type === 'revenue' && r.record_date && r.record_date.startsWith(`${currentYear}`))
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    const thisYearExpenses = revenueData
+      .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') && 
+        r.record_date && r.record_date.startsWith(`${currentYear}`))
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
 
     setStats({
       totalRevenue,
       totalExpenses,
       totalCreatorCost: totalCreatorCostFinal,
-      netProfit
+      netProfit,
+      totalReceivable,
+      thisMonthRevenue,
+      thisMonthExpenses,
+      thisQuarterRevenue,
+      thisQuarterExpenses,
+      thisYearRevenue,
+      thisYearExpenses
     })
   }, [revenueData, expenses, withdrawals])
   
@@ -364,48 +432,78 @@ export default function RevenueManagementWithCharts() {
             <p className="text-gray-600 mt-1">매출, 비용, 순이익을 시각화하여 관리하세요</p>
           </div>
 
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* 기간별 통계 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* 이번 달 */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">총 매출</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{new Date().getMonth() + 1}월 매출 (이번 달)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
-                  ₩{stats.totalRevenue.toLocaleString()}
+                <div className="text-2xl font-bold text-blue-600">
+                  ₩{stats.thisMonthRevenue.toLocaleString()}
                 </div>
               </CardContent>
             </Card>
-
+            
+            {/* 이번 분기 */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">고정비</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{Math.ceil((new Date().getMonth() + 1) / 3)}분기 매출 (이번 분기)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-red-600">
-                  ₩{stats.totalExpenses.toLocaleString()}
+                <div className="text-2xl font-bold text-blue-600">
+                  ₩{stats.thisQuarterRevenue.toLocaleString()}
                 </div>
               </CardContent>
             </Card>
-
+            
+            {/* 올해 */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">크리에이터비</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{new Date().getFullYear()}년 매출 (올해)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-orange-600">
-                  ₩{stats.totalCreatorCost.toLocaleString()}
+                <div className="text-2xl font-bold text-blue-600">
+                  ₩{stats.thisYearRevenue.toLocaleString()}
                 </div>
               </CardContent>
             </Card>
-
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* 이번 달 매입 */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">순이익</CardTitle>
+                <CardTitle className="text-sm font-medium text-gray-600">{new Date().getMonth() + 1}월 매입 (이번 달)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className={`text-3xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ₩{stats.netProfit.toLocaleString()}
+                <div className="text-2xl font-bold text-red-600">
+                  ₩{stats.thisMonthExpenses.toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* 이번 분기 매입 */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600">{Math.ceil((new Date().getMonth() + 1) / 3)}분기 매입 (이번 분기)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  ₩{stats.thisQuarterExpenses.toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* 올해 매입 */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600">{new Date().getFullYear()}년 매입 (올해)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  ₩{stats.thisYearExpenses.toLocaleString()}
                 </div>
               </CardContent>
             </Card>
