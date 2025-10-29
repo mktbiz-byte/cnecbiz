@@ -2,76 +2,111 @@ import { createClient } from '@supabase/supabase-js'
 
 // Multi-region Supabase clients configuration
 // Each region has its own Supabase project
+// Using singleton pattern to prevent multiple instances
+
+// Singleton instances
+let _supabaseKorea = null
+let _supabaseJapan = null
+let _supabaseUS = null
+let _supabaseTaiwan = null
+let _supabaseBiz = null
 
 // Korea Supabase Client
-const supabaseKoreaUrl = import.meta.env.VITE_SUPABASE_KOREA_URL || ''
-const supabaseKoreaKey = import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY || ''
-
-export const supabaseKorea = (supabaseKoreaUrl && supabaseKoreaKey && supabaseKoreaUrl.startsWith('http'))
-  ? createClient(supabaseKoreaUrl, supabaseKoreaKey, {
+const getSupabaseKorea = () => {
+  if (_supabaseKorea) return _supabaseKorea
+  
+  const url = import.meta.env.VITE_SUPABASE_KOREA_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY || ''
+  
+  if (url && key && url.startsWith('http')) {
+    _supabaseKorea = createClient(url, key, {
       auth: {
         storageKey: 'cnec-korea-auth',
         persistSession: true,
         autoRefreshToken: true
       }
     })
-  : null
+  }
+  
+  return _supabaseKorea
+}
 
 // Japan Supabase Client
-const supabaseJapanUrl = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
-const supabaseJapanKey = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || ''
-
-export const supabaseJapan = (supabaseJapanUrl && supabaseJapanKey && supabaseJapanUrl.startsWith('http'))
-  ? createClient(supabaseJapanUrl, supabaseJapanKey, {
+const getSupabaseJapan = () => {
+  if (_supabaseJapan) return _supabaseJapan
+  
+  const url = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || ''
+  
+  if (url && key && url.startsWith('http')) {
+    _supabaseJapan = createClient(url, key, {
       auth: {
         storageKey: 'cnec-japan-auth',
         persistSession: true,
         autoRefreshToken: true
       }
     })
-  : null
+  }
+  
+  return _supabaseJapan
+}
 
 // US Supabase Client
-const supabaseUSUrl = import.meta.env.VITE_SUPABASE_US_URL || ''
-const supabaseUSKey = import.meta.env.VITE_SUPABASE_US_ANON_KEY || ''
-
-export const supabaseUS = (supabaseUSUrl && supabaseUSKey && supabaseUSUrl.startsWith('http'))
-  ? createClient(supabaseUSUrl, supabaseUSKey, {
+const getSupabaseUS = () => {
+  if (_supabaseUS) return _supabaseUS
+  
+  const url = import.meta.env.VITE_SUPABASE_US_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_US_ANON_KEY || ''
+  
+  if (url && key && url.startsWith('http')) {
+    _supabaseUS = createClient(url, key, {
       auth: {
         storageKey: 'cnec-us-auth',
         persistSession: true,
         autoRefreshToken: true
       }
     })
-  : null
+  }
+  
+  return _supabaseUS
+}
 
 // Taiwan Supabase Client
-const supabaseTaiwanUrl = import.meta.env.VITE_SUPABASE_TAIWAN_URL || ''
-const supabaseTaiwanKey = import.meta.env.VITE_SUPABASE_TAIWAN_ANON_KEY || ''
-
-export const supabaseTaiwan = (supabaseTaiwanUrl && supabaseTaiwanKey && supabaseTaiwanUrl.startsWith('http'))
-  ? createClient(supabaseTaiwanUrl, supabaseTaiwanKey, {
+const getSupabaseTaiwan = () => {
+  if (_supabaseTaiwan) return _supabaseTaiwan
+  
+  const url = import.meta.env.VITE_SUPABASE_TAIWAN_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_TAIWAN_ANON_KEY || ''
+  
+  if (url && key && url.startsWith('http')) {
+    _supabaseTaiwan = createClient(url, key, {
       auth: {
         storageKey: 'cnec-taiwan-auth',
         persistSession: true,
         autoRefreshToken: true
       }
     })
-  : null
+  }
+  
+  return _supabaseTaiwan
+}
 
-// Central BIZ Supabase Client (for managing companies, quotations, contracts)
-const supabaseBizUrl = import.meta.env.VITE_SUPABASE_BIZ_URL || ''
-const supabaseBizKey = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || ''
-
-export const supabaseBiz = (supabaseBizUrl && supabaseBizKey && supabaseBizUrl.startsWith('http'))
-  ? createClient(supabaseBizUrl, supabaseBizKey, {
+// Central BIZ Supabase Client
+const getSupabaseBiz = () => {
+  if (_supabaseBiz) return _supabaseBiz
+  
+  const url = import.meta.env.VITE_SUPABASE_BIZ_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || ''
+  
+  if (url && key && url.startsWith('http')) {
+    _supabaseBiz = createClient(url, key, {
       auth: {
-        flowType: 'pkce',  // iOS Safari 호환성 개선
+        flowType: 'pkce',
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storage: window.localStorage,
-        storageKey: 'cnec-biz-auth',  // 고유 키로 충돌 방지
+        storageKey: 'cnec-biz-auth',
         debug: false
       },
       global: {
@@ -80,14 +115,24 @@ export const supabaseBiz = (supabaseBizUrl && supabaseBizKey && supabaseBizUrl.s
         }
       }
     })
-  : null
+  }
+  
+  return _supabaseBiz
+}
+
+// Export singleton instances
+export const supabaseKorea = getSupabaseKorea()
+export const supabaseJapan = getSupabaseJapan()
+export const supabaseUS = getSupabaseUS()
+export const supabaseTaiwan = getSupabaseTaiwan()
+export const supabaseBiz = getSupabaseBiz()
 
 // Helper function to get the appropriate client based on region
 export const getSupabaseClient = (region) => {
   switch (region) {
     case 'korea':
     case 'kr':
-      return supabaseKorea  // Korea uses supabaseKorea
+      return supabaseKorea
     case 'japan':
     case 'jp':
       return supabaseJapan

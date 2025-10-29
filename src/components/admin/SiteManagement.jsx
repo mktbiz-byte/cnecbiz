@@ -69,6 +69,14 @@ export default function SiteManagement() {
   const [showPassword, setShowPassword] = useState(false)
   const [testEmailSending, setTestEmailSending] = useState(false)
 
+  // 추천 크리에이터
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [featuredCreators, setFeaturedCreators] = useState([])
+  const [selectedCountry, setSelectedCountry] = useState('all')
+  const [searching, setSearching] = useState(false)
+  const [loading, setLoading] = useState(false)
+
   useEffect(() => {
     checkAuth()
     fetchVideos()
@@ -77,6 +85,7 @@ export default function SiteManagement() {
     fetchAdmins()
     fetchSeoSettings()
     fetchEmailSettings()
+    fetchFeaturedCreators()
   }, [])
 
   const checkAuth = async () => {
@@ -487,6 +496,92 @@ export default function SiteManagement() {
       alert('테스트 이메일 발송에 실패했습니다: ' + error.message)
     } finally {
       setTestEmailSending(false)
+    }
+  }
+
+  // 추천 크리에이터 함수들
+  const fetchFeaturedCreators = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/.netlify/functions/get-featured-creators?country=${selectedCountry}`)
+      const result = await response.json()
+      if (result.success) {
+        setFeaturedCreators(result.data || [])
+      }
+    } catch (error) {
+      console.error('추천 크리에이터 조회 오류:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearchCreators = async () => {
+    if (!searchTerm.trim()) {
+      alert('검색어를 입력해주세요.')
+      return
+    }
+
+    try {
+      setSearching(true)
+      const response = await fetch('/.netlify/functions/search-creators', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          searchTerm,
+          country: selectedCountry === 'all' ? null : selectedCountry
+        })
+      })
+      const result = await response.json()
+      if (result.success) {
+        setSearchResults(result.results || [])
+      }
+    } catch (error) {
+      console.error('크리에이터 검색 오류:', error)
+      alert('검색에 실패했습니다.')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const handleAddFeaturedCreator = async (creator, sourceCountry) => {
+    try {
+      const response = await fetch('/.netlify/functions/add-featured-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creator, sourceCountry })
+      })
+      const result = await response.json()
+      if (result.success) {
+        alert('추천 크리에이터로 등록되었습니다!')
+        fetchFeaturedCreators()
+        setSearchResults([])
+        setSearchTerm('')
+      } else {
+        alert(result.error || '등록에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('추천 크리에이터 등록 오류:', error)
+      alert('등록에 실패했습니다.')
+    }
+  }
+
+  const handleRemoveFeaturedCreator = async (id) => {
+    if (!confirm('정말 삭제하시겠습니까?')) return
+
+    try {
+      const response = await fetch('/.netlify/functions/remove-featured-creator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      const result = await response.json()
+      if (result.success) {
+        alert('삭제되었습니다.')
+        fetchFeaturedCreators()
+      }
+    } catch (error) {
+      console.error('추천 크리에이터 삭제 오류:', error)
+      alert('삭제에 실패했습니다.')
     }
   }
 
@@ -1123,17 +1218,110 @@ export default function SiteManagement() {
 
             {/* 추천 크리에이터 탭 */}
             <TabsContent value="featured" className="space-y-6">
+              {/* 검색 카드 */}
               <Card>
                 <CardHeader>
-                  <CardTitle>추천 크리에이터 관리</CardTitle>
+                  <CardTitle>크리에이터 검색</CardTitle>
                   <p className="text-sm text-gray-600 mt-2">
-                    일반 크리에이터를 추천 크리에이터로 등록하고 자동 점수를 계산합니다.
+                    이름 또는 이메일로 크리에이터를 검색하여 추천 크리에이터로 등록하세요.
                   </p>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12 text-gray-500">
-                    추천 크리에이터 기능은 현재 개발 중입니다.
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <select 
+                      value={selectedCountry}
+                      onChange={(e) => setSelectedCountry(e.target.value)}
+                      className="px-3 py-2 border rounded-lg"
+                    >
+                      <option value="all">전체 국가</option>
+                      <option value="KR">한국</option>
+                      <option value="JP">일본</option>
+                      <option value="US">미국</option>
+                      <option value="TW">대만</option>
+                    </select>
+                    <Input
+                      placeholder="크리에이터 이름 또는 이메일 검색..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearchCreators()}
+                      className="flex-1"
+                    />
+                    <Button onClick={handleSearchCreators} disabled={searching}>
+                      <Search className="w-4 h-4 mr-2" />
+                      {searching ? '검색 중...' : '검색'}
+                    </Button>
                   </div>
+
+                  {/* 검색 결과 */}
+                  {searchResults.length > 0 && (
+                    <div className="border rounded-lg p-4 space-y-2">
+                      <h4 className="font-semibold">검색 결과 ({searchResults.length}명)</h4>
+                      {searchResults.map((creator) => (
+                        <div key={creator.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                          <div>
+                            <p className="font-medium">{creator.name || creator.email}</p>
+                            <p className="text-sm text-gray-600">
+                              {creator.source_country} | 
+                              Instagram: {creator.instagram_followers || 0} | 
+                              TikTok: {creator.tiktok_followers || 0} | 
+                              YouTube: {creator.youtube_subscribers || 0}
+                            </p>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleAddFeaturedCreator(creator, creator.source_country)}
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            등록
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 추천 크리에이터 목록 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>추천 크리에이터 목록 ({featuredCreators.length}명)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="text-center py-8 text-gray-500">로딩 중...</div>
+                  ) : featuredCreators.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">등록된 추천 크리에이터가 없습니다.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {featuredCreators.map((creator) => (
+                        <div key={creator.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold">{creator.name || creator.email}</p>
+                              <Badge variant={creator.recommendation_badge === 'excellent' ? 'default' : 'secondary'}>
+                                {creator.recommendation_badge}
+                              </Badge>
+                              <Badge variant="outline">{creator.primary_country}</Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-1">
+                              점수: {creator.overall_score}/100 | 
+                              Instagram: {creator.instagram_followers || 0} | 
+                              TikTok: {creator.tiktok_followers || 0} | 
+                              YouTube: {creator.youtube_subscribers || 0}
+                            </p>
+                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleRemoveFeaturedCreator(creator.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            삭제
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

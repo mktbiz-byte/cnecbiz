@@ -63,12 +63,16 @@ export default function MyCampaigns() {
   const fetchCampaigns = async (userEmail) => {
     setLoading(true)
     try {
+      console.log('[MyCampaigns] Fetching campaigns for email:', userEmail)
+      
       // 한국 지역 캠페인 가져오기 (company_email 기준)
-      const { data: koreaCampaigns } = await supabaseKorea
+      const { data: koreaCampaigns, error } = await supabaseKorea
         .from('campaigns')
         .select('*')
         .eq('company_email', userEmail)
         .order('created_at', { ascending: false })
+      
+      console.log('[MyCampaigns] Korea campaigns result:', { koreaCampaigns, error })
 
       // 지역 표시를 위해 region 필드 추가
       const campaignsWithRegion = (koreaCampaigns || []).map(c => ({
