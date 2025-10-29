@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
@@ -134,7 +134,7 @@ const InvoicePage = () => {
     setError('')
 
     try {
-      const { storage } = await import('../../lib/supabaseKorea')
+      const storage = supabaseBiz.storage
       const fileExt = file.name.split('.').pop()
       const fileName = `tax-invoice-${id}-${Date.now()}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
