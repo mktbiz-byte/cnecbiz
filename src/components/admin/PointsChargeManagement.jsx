@@ -256,6 +256,30 @@ export default function PointsChargeManagement() {
     setConfirmModal(true)
   }
 
+  const handleCancelRequest = async (requestId) => {
+    if (!confirm('충전 신청을 취소하시겠습니까?')) {
+      return
+    }
+
+    setProcessing(true)
+    try {
+      const { error } = await supabaseBiz
+        .from('points_charge_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      alert('충전 신청이 취소되었습니다.')
+      fetchChargeRequests()
+    } catch (error) {
+      console.error('취소 오류:', error)
+      alert('취소 처리에 실패했습니다.')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const filteredRequests = chargeRequests.filter(req => {
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
@@ -474,19 +498,36 @@ export default function PointsChargeManagement() {
                         {getStatusBadge(request.status)}
                       </td>
                       <td className="p-4">
-                        {request.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            onClick={() => openConfirmModal(request)}
-                          >
-                            입금 확인
-                          </Button>
-                        )}
-                        {request.status === 'completed' && (
-                          <div className="text-sm text-gray-500">
-                            {request.confirmed_at && new Date(request.confirmed_at).toLocaleDateString('ko-KR')}
-                          </div>
-                        )}
+                        <div className="flex gap-2">
+                          {request.status === 'pending' && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => openConfirmModal(request)}
+                              >
+                                입금 확인
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleCancelRequest(request.id)}
+                              >
+                                취소
+                              </Button>
+                            </>
+                          )}
+                          {request.status === 'completed' && (
+                            <div className="text-sm text-gray-500">
+                              {request.confirmed_at && new Date(request.confirmed_at).toLocaleDateString('ko-KR')}
+                            </div>
+                          )}
+                          {request.status === 'cancelled' && (
+                            <div className="text-sm text-gray-500">
+                              취소됨
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

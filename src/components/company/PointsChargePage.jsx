@@ -488,10 +488,19 @@ export default function PointsChargePage() {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) return
 
+      // 회사 ID 조회
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!companyData) return
+
       const { data, error } = await supabaseBiz
         .from('points_charge_requests')
         .select('*')
-        .eq('company_email', user.email)
+        .eq('company_id', companyData.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -579,7 +588,7 @@ export default function PointsChargePage() {
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-900">
                           {request.tax_invoice_info?.companyName || '-'}<br />
-                          <span className="text-xs text-gray-500">{request.company_email}</span>
+                          <span className="text-xs text-gray-500">{request.tax_invoice_info?.email || '-'}</span>
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-900">
                           {request.depositor_name || '-'}
