@@ -12,6 +12,7 @@ import {
   LineChart, Line, BarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts'
+import Papa from 'papaparse'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -49,8 +50,8 @@ export default function RevenueManagementWithCharts() {
     is_recurring: false
   })
   
-  // 엑셀 업로드
   const [uploading, setUploading] = useState(false)
+  const [uploadResult, setUploadResult] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -144,6 +145,65 @@ export default function RevenueManagementWithCharts() {
       netProfit
     })
   }, [revenueData, expenses, withdrawals])
+  
+  // 엑셀 업로드 처리
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+    
+    setUploading(true)
+    setUploadResult(null)
+    
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const records = results.data.map(row => ({
+            record_date: row.date || row['날짜'] || row['일자'],
+            type: row.type || row['유형'],
+            amount: parseFloat(row.amount || row['금액'] || 0),
+            description: row.description || row['설명'] || '',
+            category: row.category || row['카테고리'] || null
+          })).filter(r => r.record_date && r.type && r.amount)
+          
+          if (records.length === 0) {
+            setUploadResult({ success: false, message: '유효한 데이터가 없습니다.' })
+            setUploading(false)
+            return
+          }
+          
+          const { error } = await supabaseBiz
+            .from('revenue_records')
+            .insert(records)
+          
+          if (error) throw error
+          
+          setUploadResult({ 
+            success: true, 
+            message: `${records.length}건의 데이터가 성공적으로 업로드되었습니다.` 
+          })
+          fetchAllData()
+        } catch (error) {
+          console.error('엑셀 업로드 오류:', error)
+          setUploadResult({ 
+            success: false, 
+            message: '업로드 중 오류가 발생했습니다: ' + error.message 
+          })
+        } finally {
+          setUploading(false)
+        }
+      },
+      error: (error) => {
+        console.error('파일 파싱 오류:', error)
+        setUploadResult({ 
+          success: false, 
+          message: '파일을 읽는 중 오류가 발생했습니다.' 
+        })
+        setUploading(false)
+      }
+    })
+  }
 
   // 월별 데이터 집계
   const getMonthlyData = () => {
@@ -235,63 +295,9 @@ export default function RevenueManagementWithCharts() {
     }
   }
 
-  // 엑셀 업로드
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    setUploading(true)
-
-    try {
-      const text = await file.text()
-      const lines = text.split('\n')
-      const headers = lines[0].split(',').map(h => h.trim())
-
-      const records = []
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue
-
-        const values = lines[i].split(',').map(v => v.trim())
-        const record = {}
-        headers.forEach((header, index) => {
-          record[header] = values[index]
-        })
-
-        if (record.month && record.amount) {
-          records.push({
-            month: record.month,
-            amount: parseFloat(record.amount),
-            source: record.source || 'campaign',
-            description: record.description || ''
-          })
-        }
-      }
-
-      if (records.length === 0) {
-        alert('유효한 데이터가 없습니다.')
-        return
-      }
-
-      const { error } = await supabaseBiz
-        .from('revenue_records')
-        .insert(records)
-
-      if (error) throw error
-
-      alert(`${records.length}개의 매출 데이터가 추가되었습니다.`)
-      fetchRevenueData()
-    } catch (error) {
-      console.error('파일 업로드 오류:', error)
-      alert('파일 업로드에 실패했습니다.')
-    } finally {
-      setUploading(false)
-      e.target.value = ''
-    }
-  }
-
   // 엑셀 다운로드 (템플릿)
   const downloadTemplate = () => {
-    const csv = 'month,amount,source,description\n2024-01,10000000,campaign,1월 캠페인 매출\n2024-02,15000000,campaign,2월 캠페인 매출'
+    const csv = 'date,type,amount,description,category\n2024-01-15,revenue,10000000,1월 캐페인 매출,campaign\n2024-01-20,fixed_cost,2000000,사무실 임대료,office\n2024-01-25,creator_cost,3000000,크리에이터 지급,payment'
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -683,14 +689,32 @@ export default function RevenueManagementWithCharts() {
                     </label>
                   </div>
 
+                  {uploadResult && (
+                    <div className={`border rounded-lg p-4 ${
+                      uploadResult.success 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-red-50 border-red-200'
+                    }`}>
+                      <p className={`text-sm ${
+                        uploadResult.success ? 'text-green-800' : 'text-red-800'
+                      }`}>
+                        {uploadResult.message}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h4 className="font-semibold mb-2">CSV 파일 형식</h4>
                     <p className="text-sm text-gray-700 mb-2">다음 형식으로 작성해주세요:</p>
-                    <code className="block bg-white p-3 rounded text-xs">
-                      month,amount,source,description<br />
-                      2024-01,10000000,campaign,1월 캠페인 매출<br />
-                      2024-02,15000000,campaign,2월 캠페인 매출
+                    <code className="block bg-white p-3 rounded text-xs font-mono">
+                      date,type,amount,description,category<br />
+                      2024-01-15,revenue,10000000,1월 캐페인 매출,campaign<br />
+                      2024-01-20,fixed_cost,2000000,사무실 임대료,office<br />
+                      2024-01-25,creator_cost,3000000,크리에이터 지급,payment
                     </code>
+                    <p className="text-xs text-gray-600 mt-2">
+                      <strong>type:</strong> revenue (매출), fixed_cost (고정비), creator_cost (크리에이터비), variable_cost (변동비)
+                    </p>
                   </div>
 
                   <Button onClick={downloadTemplate} variant="outline" className="w-full">

@@ -42,6 +42,8 @@ import WithdrawalRequest from './components/creator/WithdrawalRequest'
 import TaxOfficePage from './components/tax/TaxOfficePage'
 import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
+import SiteManagement from './components/admin/SiteManagement'
+import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
 
 
 import AuthCallback from './components/AuthCallback'
@@ -94,6 +96,8 @@ function App() {
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />
+        <Route path="/admin/site-management" element={<SiteManagement />} />
+        <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
 
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />

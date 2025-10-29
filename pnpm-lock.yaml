@@ -143,6 +143,9 @@ importers:
       openai:
         specifier: ^6.4.0
         version: 6.4.0(ws@8.18.3)(zod@3.24.4)
+      papaparse:
+        specifier: ^5.5.3
+        version: 5.5.3
       popbill:
         specifier: ^1.62.0
         version: 1.62.0(@types/node@24.8.1)(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(vite@6.3.5(@types/node@24.8.1)(jiti@2.4.2)(lightningcss@1.30.1))(ws@8.18.3)
@@ -2373,6 +2376,9 @@ packages:
 
   pako@2.1.0:
     resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
+
+  papaparse@5.5.3:
+    resolution: {integrity: sha512-5QvjGxYVjxO59MGU2lHVYpRWBBtKHnlIAcSe1uNFCkkptUh63NFRj0FJQm7nR67puEruUci/ZkjmEFrjCAyP4A==}
 
   parent-module@1.0.1:
     resolution: {integrity: sha512-GQ2EWRpQV8/o+Aw8YqtfZZPfNRWZYkbidE9k5rpl/hC3vtHHBfGm2Ifi6qWV+coDGkrUKZAxE3Lot5kcsRlh+g==}
@@ -5047,6 +5053,8 @@ snapshots:
       p-limit: 3.1.0
 
   pako@2.1.0: {}
+
+  papaparse@5.5.3: {}
 
   parent-module@1.0.1:
     dependencies:
