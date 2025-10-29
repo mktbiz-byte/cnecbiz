@@ -476,8 +476,10 @@ export default function PointsChargePage() {
   const navigate = useNavigate()
   const [chargeRequests, setChargeRequests] = useState([])
   const [loading, setLoading] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
 
   const handleSuccess = () => {
+    setShowSuccessModal(true)
     loadChargeRequests()
   }
 
@@ -637,6 +639,40 @@ export default function PointsChargePage() {
             )}
           </div>
         </div>
+
+        {/* 성공 모달 */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">충전 신청 완료!</h3>
+                <p className="text-gray-600 mb-6">
+                  충전 신청이 성공적으로 접수되었습니다.<br />
+                  <span className="text-sm text-gray-500">
+                    입금 확인은 <strong>1~5분 정도</strong> 소요됩니다.
+                  </span>
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowSuccessModal(false)}
+                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                  >
+                    확인
+                  </button>
+                  <button
+                    onClick={() => navigate('/company/campaigns')}
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  >
+                    캠페인 페이지
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
