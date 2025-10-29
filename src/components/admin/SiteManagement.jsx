@@ -503,7 +503,7 @@ export default function SiteManagement() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
                 영상
@@ -527,6 +527,10 @@ export default function SiteManagement() {
               <TabsTrigger value="email" className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
                 Email
+              </TabsTrigger>
+              <TabsTrigger value="featured" className="flex items-center gap-2">
+                <UserPlus className="w-4 h-4" />
+                추천 크리에이터
               </TabsTrigger>
             </TabsList>
 
@@ -1112,6 +1116,23 @@ export default function SiteManagement() {
                         {testEmailSending ? '발송 중...' : '테스트 이메일 발송'}
                       </Button>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 추천 크리에이터 탭 */}
+            <TabsContent value="featured" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>추천 크리에이터 관리</CardTitle>
+                  <p className="text-sm text-gray-600 mt-2">
+                    일반 크리에이터를 추천 크리에이터로 등록하고 자동 점수를 계산합니다.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12 text-gray-500">
+                    추천 크리에이터 기능은 현재 개발 중입니다.
                   </div>
                 </CardContent>
               </Card>
