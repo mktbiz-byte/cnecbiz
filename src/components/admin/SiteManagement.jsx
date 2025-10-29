@@ -77,6 +77,11 @@ export default function SiteManagement() {
   const [searching, setSearching] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  // 이메일 템플릿
+  const [emailTemplates, setEmailTemplates] = useState([])
+  const [editingTemplate, setEditingTemplate] = useState(null)
+  const [templateType, setTemplateType] = useState('company') // 'company' or 'creator'
+
   useEffect(() => {
     checkAuth()
     fetchVideos()
@@ -87,6 +92,12 @@ export default function SiteManagement() {
     fetchEmailSettings()
     fetchFeaturedCreators()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'email-templates') {
+      fetchEmailTemplates()
+    }
+  }, [templateType, activeTab])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -585,6 +596,44 @@ export default function SiteManagement() {
     }
   }
 
+  // 이메일 템플릿 관리 함수
+  const fetchEmailTemplates = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('email_templates')
+        .select('*')
+        .eq('template_type', templateType)
+        .order('display_order', { ascending: true })
+      
+      if (error) throw error
+      setEmailTemplates(data || [])
+    } catch (error) {
+      console.error('이메일 템플릿 조회 오류:', error)
+    }
+  }
+
+  const handleSaveTemplate = async (template) => {
+    try {
+      const { error } = await supabaseBiz
+        .from('email_templates')
+        .update({
+          subject: template.subject,
+          body: template.body,
+          is_active: template.is_active
+        })
+        .eq('id', template.id)
+      
+      if (error) throw error
+      
+      alert('템플릿이 저장되었습니다.')
+      setEditingTemplate(null)
+      fetchEmailTemplates()
+    } catch (error) {
+      console.error('템플릿 저장 오류:', error)
+      alert('저장에 실패했습니다.')
+    }
+  }
+
   return (
     <>
       <AdminNavigation />
@@ -598,7 +647,7 @@ export default function SiteManagement() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
                 영상
@@ -626,6 +675,10 @@ export default function SiteManagement() {
               <TabsTrigger value="featured" className="flex items-center gap-2">
                 <UserPlus className="w-4 h-4" />
                 추천 크리에이터
+              </TabsTrigger>
+              <TabsTrigger value="email-templates" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                이메일 템플릿
               </TabsTrigger>
             </TabsList>
 
@@ -1318,6 +1371,136 @@ export default function SiteManagement() {
                             <Trash2 className="w-4 h-4 mr-1" />
                             삭제
                           </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 이메일 템플릿 탭 */}
+            <TabsContent value="email-templates" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span>이메일 템플릿 관리</span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={templateType === 'company' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setTemplateType('company')}
+                      >
+                        기업용
+                      </Button>
+                      <Button
+                        variant={templateType === 'creator' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setTemplateType('creator')}
+                      >
+                        크리에이터용
+                      </Button>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {templateType === 'creator' ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium">크리에이터용 이메일 템플릿은 추후 추가될 예정입니다.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {emailTemplates.map((template) => (
+                        <div key={template.id} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg">{template.template_name}</h3>
+                              <p className="text-sm text-gray-500">키: {template.template_key}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingTemplate(editingTemplate?.id === template.id ? null : template)}
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                {editingTemplate?.id === template.id ? '취소' : '수정'}
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {editingTemplate?.id === template.id ? (
+                            <div className="space-y-3 mt-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-900 mb-2">제목</label>
+                                <Input
+                                  value={editingTemplate.subject}
+                                  onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-900 mb-2">내용 (HTML)</label>
+                                <Textarea
+                                  value={editingTemplate.body}
+                                  onChange={(e) => setEditingTemplate({ ...editingTemplate, body: e.target.value })}
+                                  rows={15}
+                                  className="font-mono text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-900 mb-2">사용 가능한 변수</label>
+                                <div className="flex flex-wrap gap-2">
+                                  {template.variables && template.variables.map((variable, idx) => (
+                                    <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-mono">
+                                      {`{{${variable}}}`}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id={`active-${template.id}`}
+                                  checked={editingTemplate.is_active}
+                                  onChange={(e) => setEditingTemplate({ ...editingTemplate, is_active: e.target.checked })}
+                                  className="rounded"
+                                />
+                                <label htmlFor={`active-${template.id}`} className="text-sm">활성화</label>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={() => handleSaveTemplate(editingTemplate)}>
+                                  <Save className="w-4 h-4 mr-1" />
+                                  저장
+                                </Button>
+                                <Button variant="outline" onClick={() => setEditingTemplate(null)}>
+                                  취소
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div>
+                                <p className="text-sm font-medium text-gray-700">제목:</p>
+                                <p className="text-sm text-gray-600">{template.subject}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-700">사용 가능한 변수:</p>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {template.variables && template.variables.map((variable, idx) => (
+                                    <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-mono">
+                                      {`{{${variable}}}`}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <span className={`text-xs px-2 py-1 rounded ${template.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                                  {template.is_active ? '활성화' : '비활성화'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
