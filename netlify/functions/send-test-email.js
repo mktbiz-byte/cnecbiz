@@ -23,7 +23,8 @@ exports.handler = async (event) => {
     const { data: emailSettings, error: settingsError } = await supabase
       .from('email_settings')
       .select('*')
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (settingsError || !emailSettings) {
       console.error('Email 설정 조회 오류:', settingsError);
