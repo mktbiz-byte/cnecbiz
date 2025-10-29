@@ -1557,9 +1557,110 @@ export default function SiteManagement() {
 
             {/* 전자계약서 탭 */}
             <TabsContent value="contracts" className="space-y-6">
+              {/* 계약서 템플릿 관리 */}
               <Card>
                 <CardHeader>
-                  <CardTitle>전자계약서 관리</CardTitle>
+                  <CardTitle>계약서 템플릿 관리</CardTitle>
+                  <p className="text-sm text-gray-600">기업용/크리에이터용 계약서 템플릿 확인 및 수정</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* 기업용 계약서 */}
+                    <Card className="border-2 border-blue-200">
+                      <CardHeader>
+                        <CardTitle className="text-lg">기업용 계약서</CardTitle>
+                        <p className="text-sm text-gray-600">기업 ↔ CNEC 간 계약</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => {
+                              // 계약서 내용 보기 모달
+                              alert('기업용 계약서 보기 기능은 구현 예정입니다.')
+                            }}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            내용 보기
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              navigate('/admin/contracts')
+                            }}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            수정하기
+                          </Button>
+                        </div>
+                        <Button 
+                          className="w-full"
+                          onClick={() => {
+                            const testEmail = prompt('테스트 발송할 이메일 주소를 입력하세요:')
+                            if (testEmail) {
+                              alert(`${testEmail}로 기업용 계약서를 발송했습니다. (테스트)`)
+                            }
+                          }}
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          테스트 발송
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* 크리에이터용 동의서 */}
+                    <Card className="border-2 border-orange-200">
+                      <CardHeader>
+                        <CardTitle className="text-lg">크리에이터용 동의서</CardTitle>
+                        <p className="text-sm text-gray-600">크리에이터 ↔ CNEC 간 동의서</p>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={() => {
+                              alert('크리에이터용 동의서 보기 기능은 구현 예정입니다.')
+                            }}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            내용 보기
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              navigate('/admin/contracts')
+                            }}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            수정하기
+                          </Button>
+                        </div>
+                        <Button 
+                          className="w-full"
+                          onClick={() => {
+                            const testEmail = prompt('테스트 발송할 이메일 주소를 입력하세요:')
+                            if (testEmail) {
+                              alert(`${testEmail}로 크리에이터용 동의서를 발송했습니다. (테스트)`)
+                            }
+                          }}
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          테스트 발송
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 발송된 계약서 현황 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>발송된 계약서 현황</CardTitle>
                   <p className="text-sm text-gray-600">캠페인 계약서 및 초상권 동의서 현황</p>
                 </CardHeader>
                 <CardContent>
