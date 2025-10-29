@@ -87,9 +87,10 @@ const InvoicePage = () => {
         .from('campaigns')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
       if (campaignError) throw campaignError
+      if (!campaignData) throw new Error('캠페인을 찾을 수 없습니다.')
       setCampaign(campaignData)
 
       // 회사 정보 로드 (Biz DB)
@@ -97,7 +98,7 @@ const InvoicePage = () => {
         .from('companies')
         .select('*')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       if (companyError) {
         console.error('회사 정보 로드 실패:', companyError)
@@ -110,7 +111,7 @@ const InvoicePage = () => {
         .from('payment_accounts')
         .select('*')
         .eq('region', 'korea')
-        .single()
+        .maybeSingle()
 
       if (accountError && accountError.code !== 'PGRST116') {
         console.error('계좌 정보 로드 실패:', accountError)

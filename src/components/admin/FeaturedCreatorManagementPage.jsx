@@ -694,25 +694,14 @@ export default function FeaturedCreatorManagementPage() {
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
-                          <Button 
-                            onClick={() => handleViewProfile(creator)}
-                            size="sm"
-                            className="flex-1"
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            프로필 보기
-                          </Button>
-                          <Button 
-                            onClick={() => handleDelete(creator.id)}
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            삭제
-                          </Button>
-                        </div>
+                        <Button 
+                          onClick={() => handleViewProfile(creator)}
+                          size="sm"
+                          className="w-full"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          프로필 보기
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}

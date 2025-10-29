@@ -191,7 +191,7 @@ export const createCampaignInRegions = async (campaignData, selectedRegions) => 
 
 // Helper function to get campaigns from all regions
 export const getCampaignsFromAllRegions = async () => {
-  const regions = ['korea', 'japan', 'us', 'taiwan']
+  const regions = ['biz', 'korea', 'japan', 'us', 'taiwan']
   const allCampaigns = []
 
   console.log('[getCampaignsFromAllRegions] Starting to fetch campaigns from all regions...')
@@ -239,7 +239,7 @@ export const getCampaignsFromAllRegions = async () => {
 
 // Helper function to get campaign statistics from all regions
 export const getCampaignStatsFromAllRegions = async () => {
-  const regions = ['korea', 'japan', 'us', 'taiwan']
+  const regions = ['biz', 'korea', 'japan', 'us', 'taiwan']
   const stats = {
     total: 0,
     byRegion: {},
