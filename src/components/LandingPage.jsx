@@ -323,26 +323,41 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {videos.map((video) => {
-              // Extract YouTube video ID from URL
-              const getYouTubeId = (url) => {
+              // Extract YouTube video ID and check if it's a Shorts URL
+              const getYouTubeEmbedUrl = (url) => {
                 if (!url) return null
+                
+                // Match YouTube URLs (regular, shorts, embed, short links)
                 const match = url.match(/(?:youtube\.com\/(?:shorts\/|embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]+)/)
-                return match ? match[1] : null
+                if (!match) return null
+                
+                const videoId = match[1]
+                
+                // Check if it's a Shorts URL
+                const isShorts = url.includes('/shorts/')
+                
+                // For Shorts, use embed with autoplay and loop parameters
+                if (isShorts) {
+                  return `https://www.youtube.com/embed/${videoId}?autoplay=0&mute=0&loop=1&playlist=${videoId}`
+                }
+                
+                // For regular videos
+                return `https://www.youtube.com/embed/${videoId}`
               }
               
-              const videoId = getYouTubeId(video.youtube_url)
+              const embedUrl = getYouTubeEmbedUrl(video.youtube_url)
               
               return (
                 <div
                   key={video.id}
                   className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
                 >
-                  {videoId ? (
+                  {embedUrl ? (
                     <iframe
-                      src={`https://www.youtube.com/embed/${videoId}`}
+                      src={embedUrl}
                       title={video.title}
                       className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
                   ) : (
