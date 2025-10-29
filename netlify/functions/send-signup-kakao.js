@@ -58,23 +58,27 @@ async function sendSignupKakao(phone, userName) {
     // 템플릿 코드: 025100000912 (회원가입)
     const templateCode = '025100000912';
 
-    kakaoService.sendATS(
+    // sendATS_one 사용 (단건 전송)
+    kakaoService.sendATS_one(
       CorpNum,
       templateCode,
       '1833-6025', // 발신번호
       '', // 알림톡 내용 (템플릿 사용 시 빈 문자열)
-      '', // 대체문자 내용
-      [receiver],
-      null, // 예약일시
+      receiver.altmsg, // 대체문자 내용
+      'A', // 대체문자 유형
+      '', // 예약일시
+      receiver.rcv, // 수신번호
+      receiver.rcvnm, // 수신자명
       UserID,
-      (error, result) => {
-        if (error) {
-          console.error('Kakao send error:', error);
-          reject(error);
-        } else {
-          console.log('Kakao send success:', result);
-          resolve(result);
-        }
+      '', // 요청번호
+      null, // 버튼정보
+      (receiptNum) => {
+        console.log('Kakao send success:', receiptNum);
+        resolve({ success: true, receiptNum });
+      },
+      (error) => {
+        console.error('Kakao send error:', error);
+        reject(error);
       }
     );
   });

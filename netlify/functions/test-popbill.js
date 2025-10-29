@@ -84,23 +84,27 @@ async function testKakao(phone, userName) {
       receiver
     });
 
-    kakaoService.sendATS(
+    // sendATS_one 사용 (단건 전송)
+    kakaoService.sendATS_one(
       CorpNum,
       templateCode,
-      '1833-6025',
-      '',
-      '',
-      [receiver],
-      null,
+      '1833-6025', // 발신번호
+      '', // 알림톡 내용 (템플릿 사용 시 빈 문자열)
+      `[CNEC BIZ] 회원가입을 환영합니다!\n\n안녕하세요, ${userName}님.\n\n회원가입이 완료되었습니다.\n앞으로도 많은 관심과 이용 부탁 드립니다.\n\n가입 후 기업 프로필을 설정해 주세요.\n\n문의: 1833-6025`, // 대체문자 내용
+      'A', // 대체문자 유형 [A-대체문자내용]
+      '', // 예약일시
+      receiver.rcv, // 수신번호
+      receiver.rcvnm || userName, // 수신자명
       UserID,
-      (error, result) => {
-        if (error) {
-          console.error('Kakao error:', error);
-          reject(error);
-        } else {
-          console.log('Kakao success:', result);
-          resolve(result);
-        }
+      '', // 요청번호
+      null, // 버튼정보
+      (receiptNum) => {
+        console.log('Kakao success:', receiptNum);
+        resolve({ success: true, receiptNum });
+      },
+      (error) => {
+        console.error('Kakao error:', error);
+        reject(error);
       }
     );
   });
