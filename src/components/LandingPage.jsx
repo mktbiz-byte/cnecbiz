@@ -10,10 +10,12 @@ export default function LandingPage() {
   const [videos, setVideos] = useState([])
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
+  const [faqs, setFaqs] = useState([])
 
   useEffect(() => {
     fetchVideos()
     checkAuth()
+    fetchFaqs()
   }, [])
 
   const checkAuth = async () => {
@@ -60,6 +62,45 @@ export default function LandingPage() {
       navigate('/company/dashboard')
     } else if (userRole === 'creator') {
       navigate('/creator/dashboard')
+    }
+  }
+
+  const fetchFaqs = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('faqs')
+        .select('*')
+        .order('display_order', { ascending: true })
+
+      if (!error && data && data.length > 0) {
+        setFaqs(data)
+      } else {
+        // 기본 FAQ (데이터가 없을 때만 표시)
+        setFaqs([
+          {
+            question: '수출바우처란 무엇인가요?',
+            answer: '중소벤처기업부에서 지원하는 수출 지원 사업으로, 해외 마케팅 비용의 최대 80%를 지원받을 수 있습니다. CNEC BIZ는 공식 수행기관으로 등록되어 있어 바우처 활용이 가능합니다.'
+          },
+          {
+            question: '어떤 국가를 지원하나요?',
+            answer: '현재 일본, 미국, 대만 시장을 중점적으로 지원하고 있습니다. 각 국가별로 현지 언어와 문화에 맞는 크리에이터 네트워크를 보유하고 있습니다.'
+          },
+          {
+            question: '캠페인 제작 기간은 얼마나 걸리나요?',
+            answer: '평균 14일 이내에 완성됩니다. 크리에이터 매칭 3일, 콘텐츠 제작 7일, 검수 및 수정 2일, 업로드 2일 정도 소요됩니다.'
+          },
+          {
+            question: '최소 비용은 얼마인가요?',
+            answer: '베이직 패키지는 200만원부터 시작하며, 수출바우처 활용 시 실제 부담금은 40만원부터 가능합니다. 패키지별 상세 견적은 상담을 통해 안내해 드립니다.'
+          },
+          {
+            question: '영상 수정이 가능한가요?',
+            answer: '네, 패키지별로 1~3회의 수정 기회가 제공됩니다. 전문 컨설턴트가 브랜드의 요구사항을 정확히 전달하여 만족도 높은 결과물을 보장합니다.'
+          }
+        ])
+      }
+    } catch (error) {
+      console.error('Error fetching FAQs:', error)
     }
   }
 
@@ -155,29 +196,6 @@ export default function LandingPage() {
       text: '수출바우처를 활용해 비용 부담 없이 글로벌 마케팅을 시작할 수 있었습니다. 전담 컨설턴트의 세심한 관리가 인상적이었어요.',
       rating: 5,
       result: '해외 주문 300% 증가'
-    },
-  ]
-
-  const faqs = [
-    {
-      q: '수출바우처란 무엇인가요?',
-      a: '중소벤처기업부에서 지원하는 수출 지원 사업으로, 해외 마케팅 비용의 최대 80%를 지원받을 수 있습니다. CNEC BIZ는 공식 수행기관으로 등록되어 있어 바우처 활용이 가능합니다.'
-    },
-    {
-      q: '어떤 국가를 지원하나요?',
-      a: '현재 일본, 미국, 대만 시장을 중점적으로 지원하고 있습니다. 각 국가별로 현지 언어와 문화에 맞는 크리에이터 네트워크를 보유하고 있습니다.'
-    },
-    {
-      q: '캠페인 제작 기간은 얼마나 걸리나요?',
-      a: '평균 14일 이내에 완성됩니다. 크리에이터 매칭 3일, 콘텐츠 제작 7일, 검수 및 수정 2일, 업로드 2일 정도 소요됩니다.'
-    },
-    {
-      q: '최소 비용은 얼마인가요?',
-      a: '베이직 패키지는 200만원부터 시작하며, 수출바우처 활용 시 실제 부담금은 40만원부터 가능합니다. 패키지별 상세 견적은 상담을 통해 안내해 드립니다.'
-    },
-    {
-      q: '영상 수정이 가능한가요?',
-      a: '네, 패키지별로 1~3회의 수정 기회가 제공됩니다. 전문 컨설턴트가 브랜드의 요구사항을 정확히 전달하여 만족도 높은 결과물을 보장합니다.'
     },
   ]
 
@@ -503,13 +521,13 @@ export default function LandingPage() {
 
           <div className="space-y-4">
             {faqs.map((faq, index) => (
-              <details key={index} className="group bg-white rounded-2xl border-2 border-slate-200 hover:border-blue-600 transition-all">
+              <details key={faq.id || index} className="group bg-white rounded-2xl border-2 border-slate-200 hover:border-blue-600 transition-all">
                 <summary className="flex items-center justify-between cursor-pointer p-6">
-                  <span className="text-lg font-bold text-slate-900">{faq.q}</span>
+                  <span className="text-lg font-bold text-slate-900">{faq.question || faq.q}</span>
                   <ChevronDown className="w-6 h-6 text-blue-600 group-open:rotate-180 transition-transform" />
                 </summary>
                 <div className="px-6 pb-6 text-slate-600 leading-relaxed">
-                  {faq.a}
+                  {faq.answer || faq.a}
                 </div>
               </details>
             ))}
