@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
-import ContentEditor, { EditModeToggle } from './admin/ContentEditor'
+// ContentEditor removed - use Site Management page instead
 
 export default function LandingPage() {
   const navigate = useNavigate()
@@ -564,8 +564,7 @@ export default function LandingPage() {
       {/* Footer */}
       <Footer />
       
-      {/* 관리자 편집 모드 토글 */}
-      <EditModeToggle />
+      {/* 편집 모드 제거됨 - 사이트 관리 페이지를 사용하세요 */}
     </div>
   )
 }

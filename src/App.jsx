@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { EditModeProvider } from './contexts/EditModeContext'
+// EditModeProvider removed - use Site Management page instead
 import LandingPage from './components/LandingPage'
 import LoginPageNew from './components/LoginPageNew'
 import SignupPageNew from './components/SignupPageNew'
@@ -53,8 +53,7 @@ import AuthCallback from './components/AuthCallback'
 
 function App() {
   return (
-    <EditModeProvider>
-      <Router>
+    <Router>
         <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
@@ -118,7 +117,6 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Router>
-    </EditModeProvider>
   )
 }
 

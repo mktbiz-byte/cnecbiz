@@ -273,10 +273,26 @@ export default function PointsChargeManagement() {
       .reduce((sum, r) => sum + r.amount, 0)
   }
 
+  if (loading) {
+    return (
+      <>
+        <AdminNavigation />
+        <div className="p-6 space-y-6 lg:ml-64">
+          <div className="flex items-center justify-center h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">로딩 중...</p>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <AdminNavigation />
-      <div className="p-6 space-y-6 lg:ml-64">
+      <div className="p-6 space-y-6 lg:ml-64 min-h-screen bg-gray-50">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">포인트 충전 관리</h1>
         <div className="flex gap-2">
