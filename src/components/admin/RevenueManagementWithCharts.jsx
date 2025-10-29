@@ -133,15 +133,37 @@ export default function RevenueManagementWithCharts() {
 
   // 통계 계산
   useEffect(() => {
-    const totalRevenue = revenueData.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-    const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
-    const totalCreatorCost = withdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0)
-    const netProfit = totalRevenue - totalExpenses - totalCreatorCost
+    // revenue_records에서 type별로 분리
+    const totalRevenue = revenueData
+      .filter(r => r.type === 'revenue')
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    const totalFixedCost = revenueData
+      .filter(r => r.type === 'fixed_cost')
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    const totalCreatorCost = revenueData
+      .filter(r => r.type === 'creator_cost')
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    const totalVariableCost = revenueData
+      .filter(r => r.type === 'variable_cost')
+      .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+    
+    // expense_records에서 추가 비용
+    const expenseTotal = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0)
+    
+    // creator_withdrawal_requests에서 추가 크리에이터 비용
+    const withdrawalTotal = withdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0)
+    
+    const totalExpenses = totalFixedCost + totalVariableCost + expenseTotal
+    const totalCreatorCostFinal = totalCreatorCost + withdrawalTotal
+    const netProfit = totalRevenue - totalExpenses - totalCreatorCostFinal
 
     setStats({
       totalRevenue,
       totalExpenses,
-      totalCreatorCost,
+      totalCreatorCost: totalCreatorCostFinal,
       netProfit
     })
   }, [revenueData, expenses, withdrawals])
@@ -211,17 +233,25 @@ export default function RevenueManagementWithCharts() {
   const getMonthlyData = () => {
     const monthlyMap = {}
 
-    // 매출
+    // revenue_records에서 type별로 분리하여 집계
     revenueData.forEach(r => {
       const month = r.record_date ? r.record_date.substring(0, 7) : null // YYYY-MM
       if (!month) return
       if (!monthlyMap[month]) {
         monthlyMap[month] = { month, revenue: 0, expenses: 0, creatorCost: 0 }
       }
-      monthlyMap[month].revenue += parseFloat(r.amount) || 0
+      
+      // type에 따라 분류
+      if (r.type === 'revenue') {
+        monthlyMap[month].revenue += parseFloat(r.amount) || 0
+      } else if (r.type === 'fixed_cost' || r.type === 'variable_cost') {
+        monthlyMap[month].expenses += parseFloat(r.amount) || 0
+      } else if (r.type === 'creator_cost') {
+        monthlyMap[month].creatorCost += parseFloat(r.amount) || 0
+      }
     })
 
-    // 비용
+    // expense_records에서 추가 비용
     expenses.forEach(e => {
       const month = e.expense_month || (e.expense_date ? e.expense_date.substring(0, 7) : null)
       if (!month) return
