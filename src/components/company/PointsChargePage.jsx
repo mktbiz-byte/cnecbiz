@@ -474,10 +474,60 @@ function ChargeForm({ onSuccess }) {
 
 export default function PointsChargePage() {
   const navigate = useNavigate()
+  const [chargeRequests, setChargeRequests] = useState([])
+  const [loading, setLoading] = useState(false)
 
   const handleSuccess = () => {
-    navigate('/company/dashboard')
+    loadChargeRequests()
   }
+
+  // 충전 신청 내역 로드
+  const loadChargeRequests = async () => {
+    try {
+      setLoading(true)
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) return
+
+      const { data, error } = await supabaseBiz
+        .from('points_charge_requests')
+        .select('*')
+        .eq('company_email', user.email)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setChargeRequests(data || [])
+    } catch (err) {
+      console.error('충전 내역 로드 실패:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 충전 신청 취소
+  const handleCancelRequest = async (requestId) => {
+    if (!confirm('충전 신청을 취소하시겠습니까?\n\n⚠️ 이미 입금하신 경우, 환불 처리에 시간이 걸릴 수 있습니다.')) {
+      return
+    }
+
+    try {
+      const { error } = await supabaseBiz
+        .from('points_charge_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      alert('충전 신청이 취소되었습니다.')
+      loadChargeRequests()
+    } catch (err) {
+      console.error('취소 실패:', err)
+      alert('취소 처리 중 오류가 발생했습니다.')
+    }
+  }
+
+  useEffect(() => {
+    loadChargeRequests()
+  }, [])
 
   return (
     <>
@@ -491,10 +541,98 @@ export default function PointsChargePage() {
           </div>
 
           {/* 충전 폼 */}
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
             <Elements stripe={stripePromise}>
               <ChargeForm onSuccess={handleSuccess} />
             </Elements>
+          </div>
+
+          {/* 충전 신청 내역 */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">충전 신청 내역 ({chargeRequests.length}건)</h2>
+            
+            {loading ? (
+              <div className="text-center py-12 text-gray-500">로딩 중...</div>
+            ) : chargeRequests.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">충전 신청 내역이 없습니다.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">신청일시</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">회사명</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">입금자명</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">금액</th>
+                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">마수금</th>
+                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">입금예정일</th>
+                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">세금계산서</th>
+                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">상태</th>
+                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">작업</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chargeRequests.map((request) => (
+                      <tr key={request.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-900">
+                          {new Date(request.created_at).toLocaleString('ko-KR')}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-900">
+                          {request.tax_invoice_info?.companyName || '-'}<br />
+                          <span className="text-xs text-gray-500">{request.company_email}</span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-900">
+                          {request.depositor_name || '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-900 text-right font-medium">
+                          {request.amount?.toLocaleString()}원
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-900 text-center">
+                          {request.discount_amount > 0 ? `${request.discount_amount?.toLocaleString()}원` : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-900 text-center">
+                          {request.expected_deposit_date || '-'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-center">
+                          {request.needs_tax_invoice ? (
+                            <span className="text-blue-600">필요함</span>
+                          ) : (
+                            <span className="text-gray-400">불필요</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {request.status === 'pending' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              <span className="mr-1">⏱</span> 입금 대기
+                            </span>
+                          )}
+                          {request.status === 'confirmed' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              입금 확인
+                            </span>
+                          )}
+                          {request.status === 'cancelled' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              취소됨
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {request.status === 'pending' && (
+                            <button
+                              onClick={() => handleCancelRequest(request.id)}
+                              className="text-red-600 hover:text-red-800 text-sm font-medium"
+                            >
+                              취소
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       </div>
