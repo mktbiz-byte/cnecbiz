@@ -24,6 +24,7 @@ import CompanyProfileEdit from './components/company/CompanyProfileEdit'
 import PaymentHistory from './components/company/PaymentHistory'
 import Translator from './components/company/Translator'
 import AdminDashboard from './components/admin/AdminDashboard'
+import AdminLogin from './components/admin/AdminLogin'
 import AdminManagement from './components/admin/AdminManagement'
 import RevenueManagement from './components/admin/RevenueManagement'
 import RevenueManagementEnhanced from './components/admin/RevenueManagementEnhanced'
@@ -84,6 +85,7 @@ function App() {
         <Route path="/admin/creators" element={<CreatorManagementPage />} />
         
         {/* Super Admin Routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-admins" element={<AdminManagement />} />
         <Route path="/admin/revenue" element={<RevenueManagementNew />} />
