@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Video, HelpCircle, Edit, Plus, Trash2, Save, 
-  Eye, EyeOff, ArrowUp, ArrowDown 
+  Eye, EyeOff, Shield, UserPlus, Search, FileText
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -25,19 +26,32 @@ export default function SiteManagement() {
   const [newFaq, setNewFaq] = useState({ question: '', answer: '', category: 'general', order: 0 })
   const [editingFaq, setEditingFaq] = useState(null)
   
-  // 사이트 콘텐츠
-  const [siteContent, setSiteContent] = useState({
-    hero_title: '',
-    hero_subtitle: '',
-    about_text: '',
-    features: []
+  // 메인페이지 문구
+  const [pageContents, setPageContents] = useState([])
+  const [editingContent, setEditingContent] = useState(null)
+  
+  // 관리자 등록
+  const [admins, setAdmins] = useState([])
+  const [newAdmin, setNewAdmin] = useState({ email: '', role: 'admin' })
+  
+  // SEO 설정
+  const [seoSettings, setSeoSettings] = useState({
+    site_title: 'CNEC BIZ - 글로벌 인플루언서 마케팅 플랫폼',
+    site_description: 'K-뷰티를 세계로, 14일 만에 완성하는 숏폼. 일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼.',
+    site_keywords: '인플루언서마케팅, 숏폼, K-뷰티, 글로벌마케팅, 수출바우처',
+    og_image: '',
+    google_analytics_id: '',
+    naver_site_verification: '',
+    google_site_verification: ''
   })
 
   useEffect(() => {
     checkAuth()
     fetchVideos()
     fetchFaqs()
-    fetchSiteContent()
+    fetchPageContents()
+    fetchAdmins()
+    fetchSeoSettings()
   }, [])
 
   const checkAuth = async () => {
@@ -69,7 +83,7 @@ export default function SiteManagement() {
       const { data, error } = await supabaseBiz
         .from('reference_videos')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('display_order', { ascending: true })
 
       if (error) throw error
       setVideos(data || [])
@@ -78,23 +92,16 @@ export default function SiteManagement() {
     }
   }
 
-  // YouTube URL을 embed 형태로 변환
   const convertToEmbedUrl = (url) => {
     if (!url) return url
-    
-    // 이미 embed 형태면 그대로 반환
     if (url.includes('/embed/')) return url
     
-    // YouTube URL에서 video ID 추출
     const match = url.match(/(?:youtube\.com\/(?:shorts\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]+)/)
     if (!match) return url
     
     const videoId = match[1]
-    
-    // Shorts URL인지 확인
     const isShorts = url.includes('/shorts/')
     
-    // Shorts는 파라미터 추가, 일반 영상은 기본 embed URL
     if (isShorts) {
       return `https://www.youtube.com/embed/${videoId}?autoplay=0&mute=0&loop=1&playlist=${videoId}`
     }
@@ -109,42 +116,21 @@ export default function SiteManagement() {
     }
 
     try {
-      // URL을 embed 형태로 변환
       const embedUrl = convertToEmbedUrl(newVideo.url)
+      const maxOrder = videos.length > 0 ? Math.max(...videos.map(v => v.display_order || 0)) : 0
       
       const { error } = await supabaseBiz
         .from('reference_videos')
-        .insert([{ ...newVideo, url: embedUrl }])
+        .insert([{ ...newVideo, url: embedUrl, display_order: maxOrder + 1, is_active: true }])
 
       if (error) throw error
 
-      alert('영상이 추가되었습니다. (embed URL로 자동 변환됨)')
+      alert('영상이 추가되었습니다.')
       setNewVideo({ url: '', title: '', description: '' })
       fetchVideos()
     } catch (error) {
       console.error('영상 추가 오류:', error)
       alert('영상 추가에 실패했습니다.')
-    }
-  }
-
-  const handleUpdateVideo = async (id) => {
-    try {
-      // URL을 embed 형태로 변환
-      const embedUrl = convertToEmbedUrl(editingVideo.url)
-      
-      const { error } = await supabaseBiz
-        .from('reference_videos')
-        .update({ ...editingVideo, url: embedUrl })
-        .eq('id', id)
-
-      if (error) throw error
-
-      alert('영상이 수정되었습니다. (embed URL로 자동 변환됨)')
-      setEditingVideo(null)
-      fetchVideos()
-    } catch (error) {
-      console.error('영상 수정 오류:', error)
-      alert('영상 수정에 실패했습니다.')
     }
   }
 
@@ -191,7 +177,7 @@ export default function SiteManagement() {
     try {
       const { error } = await supabaseBiz
         .from('faqs')
-        .insert([{ ...newFaq, order: faqs.length }])
+        .insert([{ ...newFaq, order: faqs.length, is_visible: true }])
 
       if (error) throw error
 
@@ -201,24 +187,6 @@ export default function SiteManagement() {
     } catch (error) {
       console.error('FAQ 추가 오류:', error)
       alert('FAQ 추가에 실패했습니다.')
-    }
-  }
-
-  const handleUpdateFaq = async (id) => {
-    try {
-      const { error } = await supabaseBiz
-        .from('faqs')
-        .update(editingFaq)
-        .eq('id', id)
-
-      if (error) throw error
-
-      alert('FAQ가 수정되었습니다.')
-      setEditingFaq(null)
-      fetchFaqs()
-    } catch (error) {
-      console.error('FAQ 수정 오류:', error)
-      alert('FAQ 수정에 실패했습니다.')
     }
   }
 
@@ -241,61 +209,159 @@ export default function SiteManagement() {
     }
   }
 
-  const handleToggleFaqVisibility = async (id, currentVisibility) => {
+  // ===== 메인페이지 문구 =====
+  const fetchPageContents = async () => {
     try {
-      const { error } = await supabaseBiz
-        .from('faqs')
-        .update({ is_visible: !currentVisibility })
-        .eq('id', id)
+      const { data, error } = await supabaseBiz
+        .from('page_contents')
+        .select('*')
+        .order('content_key', { ascending: true })
 
       if (error) throw error
-      fetchFaqs()
+      setPageContents(data || [])
     } catch (error) {
-      console.error('FAQ 표시 상태 변경 오류:', error)
+      console.error('페이지 콘텐츠 조회 오류:', error)
     }
   }
 
-  // ===== 사이트 콘텐츠 =====
-  const fetchSiteContent = async () => {
+  const handleSaveContent = async (contentKey, content) => {
+    try {
+      const { error } = await supabaseBiz
+        .from('page_contents')
+        .upsert({
+          content_key: contentKey,
+          content: content,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'content_key'
+        })
+
+      if (error) throw error
+
+      alert('저장되었습니다.')
+      fetchPageContents()
+      setEditingContent(null)
+    } catch (error) {
+      console.error('콘텐츠 저장 오류:', error)
+      alert('저장에 실패했습니다.')
+    }
+  }
+
+  // ===== 관리자 등록 =====
+  const fetchAdmins = async () => {
     try {
       const { data, error } = await supabaseBiz
-        .from('site_content')
+        .from('admin_users')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setAdmins(data || [])
+    } catch (error) {
+      console.error('관리자 조회 오류:', error)
+    }
+  }
+
+  const handleAddAdmin = async () => {
+    if (!newAdmin.email) {
+      alert('이메일을 입력해주세요.')
+      return
+    }
+
+    try {
+      const { error } = await supabaseBiz
+        .from('admin_users')
+        .insert({
+          email: newAdmin.email,
+          role: newAdmin.role,
+          permissions: newAdmin.role === 'super_admin' 
+            ? {
+                manage_companies: true,
+                manage_campaigns: true,
+                manage_payments: true,
+                manage_creators: true,
+                manage_admins: true
+              }
+            : {
+                manage_companies: true,
+                manage_campaigns: true,
+                manage_payments: true,
+                manage_creators: true,
+                manage_admins: false
+              }
+        })
+
+      if (error) throw error
+
+      alert('관리자가 추가되었습니다. 해당 이메일로 로그인하면 관리자 권한이 부여됩니다.')
+      setNewAdmin({ email: '', role: 'admin' })
+      fetchAdmins()
+    } catch (error) {
+      console.error('관리자 추가 오류:', error)
+      alert('관리자 추가에 실패했습니다: ' + error.message)
+    }
+  }
+
+  const handleDeleteAdmin = async (id) => {
+    if (!confirm('정말 삭제하시겠습니까?')) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('admin_users')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('관리자가 삭제되었습니다.')
+      fetchAdmins()
+    } catch (error) {
+      console.error('관리자 삭제 오류:', error)
+      alert('관리자 삭제에 실패했습니다.')
+    }
+  }
+
+  // ===== SEO 설정 =====
+  const fetchSeoSettings = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('seo_settings')
         .select('*')
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
-      if (data) setSiteContent(data)
+      if (data) setSeoSettings(data)
     } catch (error) {
-      console.error('사이트 콘텐츠 조회 오류:', error)
+      console.error('SEO 설정 조회 오류:', error)
     }
   }
 
-  const handleSaveSiteContent = async () => {
+  const handleSaveSeoSettings = async () => {
     try {
       const { data: existing } = await supabaseBiz
-        .from('site_content')
+        .from('seo_settings')
         .select('id')
         .single()
 
       if (existing) {
         const { error } = await supabaseBiz
-          .from('site_content')
-          .update(siteContent)
+          .from('seo_settings')
+          .update(seoSettings)
           .eq('id', existing.id)
 
         if (error) throw error
       } else {
         const { error } = await supabaseBiz
-          .from('site_content')
-          .insert([siteContent])
+          .from('seo_settings')
+          .insert([seoSettings])
 
         if (error) throw error
       }
 
-      alert('사이트 콘텐츠가 저장되었습니다.')
+      alert('SEO 설정이 저장되었습니다.')
     } catch (error) {
-      console.error('사이트 콘텐츠 저장 오류:', error)
-      alert('사이트 콘텐츠 저장에 실패했습니다.')
+      console.error('SEO 설정 저장 오류:', error)
+      alert('SEO 설정 저장에 실패했습니다.')
     }
   }
 
@@ -308,22 +374,30 @@ export default function SiteManagement() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               사이트 관리
             </h1>
-            <p className="text-gray-600 mt-1">영상 레퍼런스, FAQ, 사이트 콘텐츠를 관리하세요</p>
+            <p className="text-gray-600 mt-1">영상, FAQ, 메인페이지, 관리자, SEO를 관리하세요</p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
-                영상 레퍼런스
+                영상
               </TabsTrigger>
               <TabsTrigger value="faq" className="flex items-center gap-2">
                 <HelpCircle className="w-4 h-4" />
-                FAQ 관리
+                FAQ
               </TabsTrigger>
               <TabsTrigger value="content" className="flex items-center gap-2">
                 <Edit className="w-4 h-4" />
-                사이트 콘텐츠
+                메인페이지
+              </TabsTrigger>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                관리자
+              </TabsTrigger>
+              <TabsTrigger value="seo" className="flex items-center gap-2">
+                <Search className="w-4 h-4" />
+                SEO
               </TabsTrigger>
             </TabsList>
 
@@ -341,10 +415,11 @@ export default function SiteManagement() {
                     <label className="block text-sm font-medium text-gray-900 mb-2">YouTube URL *</label>
                     <Input
                       type="url"
-                      placeholder="https://www.youtube.com/watch?v=..."
+                      placeholder="https://www.youtube.com/shorts/... 또는 https://www.youtube.com/watch?v=..."
                       value={newVideo.url}
                       onChange={(e) => setNewVideo({ ...newVideo, url: e.target.value })}
                     />
+                    <p className="text-xs text-gray-500 mt-1">일반 영상 또는 Shorts URL을 입력하면 자동으로 embed 형태로 변환됩니다.</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">제목 *</label>
@@ -357,12 +432,11 @@ export default function SiteManagement() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">설명</label>
-                    <textarea
-                      className="w-full p-3 border rounded-lg"
-                      rows="3"
-                      placeholder="영상 설명"
+                    <Textarea
+                      placeholder="영상 설명 (선택사항)"
                       value={newVideo.description}
                       onChange={(e) => setNewVideo({ ...newVideo, description: e.target.value })}
+                      rows={3}
                     />
                   </div>
                   <Button onClick={handleAddVideo} className="w-full">
@@ -374,70 +448,44 @@ export default function SiteManagement() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>영상 목록 ({videos.length}개)</CardTitle>
+                  <CardTitle>등록된 영상 ({videos.length}개)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {videos.map((video) => (
-                      <div key={video.id} className="border rounded-lg p-4 space-y-3">
-                        {editingVideo?.id === video.id ? (
-                          <>
-                            <Input
-                              value={editingVideo.url}
-                              onChange={(e) => setEditingVideo({ ...editingVideo, url: e.target.value })}
-                              placeholder="URL"
+                  {videos.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">등록된 영상이 없습니다.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {videos.map((video) => (
+                        <div key={video.id} className="border rounded-lg p-4 space-y-3">
+                          <div className="aspect-video bg-gray-100 rounded overflow-hidden">
+                            <iframe
+                              src={video.url}
+                              title={video.title}
+                              className="w-full h-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
                             />
-                            <Input
-                              value={editingVideo.title}
-                              onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })}
-                              placeholder="제목"
-                            />
-                            <textarea
-                              className="w-full p-3 border rounded-lg"
-                              rows="3"
-                              value={editingVideo.description || ''}
-                              onChange={(e) => setEditingVideo({ ...editingVideo, description: e.target.value })}
-                              placeholder="설명"
-                            />
-                            <div className="flex gap-2">
-                              <Button onClick={() => handleUpdateVideo(video.id)} size="sm">
-                                <Save className="w-4 h-4 mr-2" />
-                                저장
-                              </Button>
-                              <Button onClick={() => setEditingVideo(null)} variant="outline" size="sm">
-                                취소
-                              </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-lg">{video.title}</h3>
-                                <p className="text-sm text-gray-600 mt-1">{video.description}</p>
-                                <a 
-                                  href={video.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-blue-600 hover:underline mt-2 inline-block"
-                                >
-                                  {video.url}
-                                </a>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button onClick={() => setEditingVideo(video)} variant="outline" size="sm">
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button onClick={() => handleDeleteVideo(video.id)} variant="destructive" size="sm">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                          </div>
+                          <div>
+                            <h3 className="font-bold">{video.title}</h3>
+                            {video.description && (
+                              <p className="text-sm text-gray-600 mt-1">{video.description}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-2">{video.url}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteVideo(video.id)}
+                            className="w-full text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            삭제
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -453,37 +501,35 @@ export default function SiteManagement() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">카테고리</label>
-                    <select
-                      className="w-full p-3 border rounded-lg"
-                      value={newFaq.category}
-                      onChange={(e) => setNewFaq({ ...newFaq, category: e.target.value })}
-                    >
-                      <option value="general">일반</option>
-                      <option value="payment">결제</option>
-                      <option value="campaign">캠페인</option>
-                      <option value="creator">크리에이터</option>
-                      <option value="technical">기술</option>
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">질문 *</label>
                     <Input
                       type="text"
-                      placeholder="자주 묻는 질문"
+                      placeholder="자주 묻는 질문을 입력하세요"
                       value={newFaq.question}
                       onChange={(e) => setNewFaq({ ...newFaq, question: e.target.value })}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-900 mb-2">답변 *</label>
-                    <textarea
-                      className="w-full p-3 border rounded-lg"
-                      rows="5"
-                      placeholder="답변 내용"
+                    <Textarea
+                      placeholder="답변을 입력하세요"
                       value={newFaq.answer}
                       onChange={(e) => setNewFaq({ ...newFaq, answer: e.target.value })}
+                      rows={5}
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">카테고리</label>
+                    <select
+                      value={newFaq.category}
+                      onChange={(e) => setNewFaq({ ...newFaq, category: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                    >
+                      <option value="general">일반</option>
+                      <option value="service">서비스</option>
+                      <option value="payment">결제</option>
+                      <option value="voucher">수출바우처</option>
+                    </select>
                   </div>
                   <Button onClick={handleAddFaq} className="w-full">
                     <Plus className="w-4 h-4 mr-2" />
@@ -494,133 +540,236 @@ export default function SiteManagement() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>FAQ 목록 ({faqs.length}개)</CardTitle>
+                  <CardTitle>등록된 FAQ ({faqs.length}개)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {faqs.map((faq) => (
-                      <div key={faq.id} className="border rounded-lg p-4 space-y-3">
-                        {editingFaq?.id === faq.id ? (
-                          <>
-                            <select
-                              className="w-full p-3 border rounded-lg"
-                              value={editingFaq.category}
-                              onChange={(e) => setEditingFaq({ ...editingFaq, category: e.target.value })}
+                  {faqs.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">등록된 FAQ가 없습니다.</div>
+                  ) : (
+                    <div className="space-y-4">
+                      {faqs.map((faq) => (
+                        <div key={faq.id} className="border rounded-lg p-4 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-bold text-lg">{faq.question}</h3>
+                              <p className="text-gray-600 mt-2">{faq.answer}</p>
+                              <p className="text-xs text-gray-400 mt-2">카테고리: {faq.category}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteFaq(faq.id)}
+                              className="text-red-600 hover:bg-red-50"
                             >
-                              <option value="general">일반</option>
-                              <option value="payment">결제</option>
-                              <option value="campaign">캠페인</option>
-                              <option value="creator">크리에이터</option>
-                              <option value="technical">기술</option>
-                            </select>
-                            <Input
-                              value={editingFaq.question}
-                              onChange={(e) => setEditingFaq({ ...editingFaq, question: e.target.value })}
-                              placeholder="질문"
-                            />
-                            <textarea
-                              className="w-full p-3 border rounded-lg"
-                              rows="5"
-                              value={editingFaq.answer}
-                              onChange={(e) => setEditingFaq({ ...editingFaq, answer: e.target.value })}
-                              placeholder="답변"
-                            />
-                            <div className="flex gap-2">
-                              <Button onClick={() => handleUpdateFaq(faq.id)} size="sm">
-                                <Save className="w-4 h-4 mr-2" />
-                                저장
-                              </Button>
-                              <Button onClick={() => setEditingFaq(null)} variant="outline" size="sm">
-                                취소
-                              </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                                    {faq.category}
-                                  </span>
-                                  {faq.is_visible ? (
-                                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded flex items-center gap-1">
-                                      <Eye className="w-3 h-3" />
-                                      표시중
-                                    </span>
-                                  ) : (
-                                    <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded flex items-center gap-1">
-                                      <EyeOff className="w-3 h-3" />
-                                      숨김
-                                    </span>
-                                  )}
-                                </div>
-                                <h3 className="font-semibold text-lg">{faq.question}</h3>
-                                <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{faq.answer}</p>
-                              </div>
-                              <div className="flex flex-col gap-2">
-                                <Button 
-                                  onClick={() => handleToggleFaqVisibility(faq.id, faq.is_visible)} 
-                                  variant="outline" 
-                                  size="sm"
-                                >
-                                  {faq.is_visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </Button>
-                                <Button onClick={() => setEditingFaq(faq)} variant="outline" size="sm">
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button onClick={() => handleDeleteFaq(faq.id)} variant="destructive" size="sm">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 메인페이지 문구 탭 */}
+            <TabsContent value="content" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>메인페이지 문구 관리</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">히어로 타이틀</label>
+                      <Input
+                        type="text"
+                        placeholder="K-뷰티를 세계로, 14일 만에 완성하는 숏폼"
+                        defaultValue="K-뷰티를 세계로, 14일 만에 완성하는 숏폼"
+                        onBlur={(e) => handleSaveContent('hero_title', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">히어로 서브타이틀</label>
+                      <Textarea
+                        placeholder="일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼"
+                        defaultValue="일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼. 검증된 크리에이터와 함께 진정성 있는 콘텐츠로 글로벌 성공을 만들어갑니다."
+                        onBlur={(e) => handleSaveContent('hero_subtitle', e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">소개 텍스트</label>
+                      <Textarea
+                        placeholder="CNEC BIZ 소개 텍스트"
+                        defaultValue="CNEC BIZ는 K-뷰티 브랜드의 글로벌 진출을 돕는 전문 인플루언서 마케팅 플랫폼입니다."
+                        onBlur={(e) => handleSaveContent('about_text', e.target.value)}
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-700">
+                      💡 입력 후 포커스를 다른 곳으로 이동하면 자동으로 저장됩니다.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* 사이트 콘텐츠 탭 */}
-            <TabsContent value="content" className="space-y-6">
+            {/* 관리자 등록 탭 */}
+            <TabsContent value="admin" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>메인 페이지 콘텐츠</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserPlus className="w-5 h-5" />
+                    새 관리자 추가
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">히어로 제목</label>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">이메일 *</label>
                     <Input
-                      type="text"
-                      placeholder="메인 제목"
-                      value={siteContent.hero_title}
-                      onChange={(e) => setSiteContent({ ...siteContent, hero_title: e.target.value })}
+                      type="email"
+                      placeholder="admin@example.com"
+                      value={newAdmin.email}
+                      onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">히어로 부제목</label>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">권한 *</label>
+                    <select
+                      value={newAdmin.role}
+                      onChange={(e) => setNewAdmin({ ...newAdmin, role: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                    >
+                      <option value="admin">일반 관리자</option>
+                      <option value="super_admin">슈퍼 관리자</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      슈퍼 관리자는 다른 관리자를 추가/삭제할 수 있습니다.
+                    </p>
+                  </div>
+                  <Button onClick={handleAddAdmin} className="w-full">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    관리자 추가
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>등록된 관리자 ({admins.length}명)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {admins.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">등록된 관리자가 없습니다.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {admins.map((admin) => (
+                        <div key={admin.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div>
+                            <p className="font-medium">{admin.email}</p>
+                            <p className="text-sm text-gray-600">
+                              {admin.role === 'super_admin' ? '슈퍼 관리자' : '일반 관리자'}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              등록일: {new Date(admin.created_at).toLocaleDateString('ko-KR')}
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteAdmin(admin.id)}
+                            className="text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* SEO 설정 탭 */}
+            <TabsContent value="seo" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Search className="w-5 h-5" />
+                    SEO 설정
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">사이트 제목</label>
                     <Input
                       type="text"
-                      placeholder="부제목"
-                      value={siteContent.hero_subtitle}
-                      onChange={(e) => setSiteContent({ ...siteContent, hero_subtitle: e.target.value })}
+                      placeholder="CNEC BIZ - 글로벌 인플루언서 마케팅 플랫폼"
+                      value={seoSettings.site_title}
+                      onChange={(e) => setSeoSettings({ ...seoSettings, site_title: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">소개 텍스트</label>
-                    <textarea
-                      className="w-full p-3 border rounded-lg"
-                      rows="5"
-                      placeholder="회사 소개"
-                      value={siteContent.about_text}
-                      onChange={(e) => setSiteContent({ ...siteContent, about_text: e.target.value })}
+                    <label className="block text-sm font-medium text-gray-900 mb-2">사이트 설명</label>
+                    <Textarea
+                      placeholder="사이트 설명 (검색 결과에 표시됩니다)"
+                      value={seoSettings.site_description}
+                      onChange={(e) => setSeoSettings({ ...seoSettings, site_description: e.target.value })}
+                      rows={3}
                     />
                   </div>
-                  <Button onClick={handleSaveSiteContent} className="w-full">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">키워드 (쉼표로 구분)</label>
+                    <Input
+                      type="text"
+                      placeholder="인플루언서마케팅, 숏폼, K-뷰티, 글로벌마케팅"
+                      value={seoSettings.site_keywords}
+                      onChange={(e) => setSeoSettings({ ...seoSettings, site_keywords: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">OG 이미지 URL</label>
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/og-image.jpg"
+                      value={seoSettings.og_image}
+                      onChange={(e) => setSeoSettings({ ...seoSettings, og_image: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">소셜 미디어 공유 시 표시될 이미지</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Google Analytics ID</label>
+                    <Input
+                      type="text"
+                      placeholder="G-XXXXXXXXXX"
+                      value={seoSettings.google_analytics_id}
+                      onChange={(e) => setSeoSettings({ ...seoSettings, google_analytics_id: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">네이버 사이트 인증 코드</label>
+                    <Input
+                      type="text"
+                      placeholder="naver-site-verification"
+                      value={seoSettings.naver_site_verification}
+                      onChange={(e) => setSeoSettings({ ...seoSettings, naver_site_verification: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Google 사이트 인증 코드</label>
+                    <Input
+                      type="text"
+                      placeholder="google-site-verification"
+                      value={seoSettings.google_site_verification}
+                      onChange={(e) => setSeoSettings({ ...seoSettings, google_site_verification: e.target.value })}
+                    />
+                  </div>
+                  <Button onClick={handleSaveSeoSettings} className="w-full">
                     <Save className="w-4 h-4 mr-2" />
-                    저장
+                    SEO 설정 저장
                   </Button>
                 </CardContent>
               </Card>
