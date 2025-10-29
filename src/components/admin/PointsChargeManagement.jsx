@@ -308,7 +308,7 @@ export default function PointsChargeManagement() {
   }
 
   const stats = {
-    total: chargeRequests.length,
+    total: chargeRequests.filter(r => r.status !== 'cancelled').length,
     pending: chargeRequests.filter(r => r.status === 'pending').length,
     completed: chargeRequests.filter(r => r.status === 'completed').length,
     totalAmount: chargeRequests

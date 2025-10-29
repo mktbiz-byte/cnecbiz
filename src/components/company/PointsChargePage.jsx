@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabase } from '../../lib/supabaseKorea'
 import { Check, Sparkles } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
@@ -70,7 +70,7 @@ function ChargeForm({ onSuccess }) {
     setError(null)
 
     try {
-      const { data: { user } } = await supabaseBiz.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
 
       let stripePaymentIntentId = null
 
@@ -485,11 +485,11 @@ export default function PointsChargePage() {
   const loadChargeRequests = async () => {
     try {
       setLoading(true)
-      const { data: { user } } = await supabaseBiz.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
       // 회사 ID 조회
-      const { data: companyData } = await supabaseBiz
+      const { data: companyData } = await supabase
         .from('companies')
         .select('id')
         .eq('user_id', user.id)
@@ -497,7 +497,7 @@ export default function PointsChargePage() {
 
       if (!companyData) return
 
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabase
         .from('points_charge_requests')
         .select('*')
         .eq('company_id', companyData.id)
@@ -519,7 +519,7 @@ export default function PointsChargePage() {
     }
 
     try {
-      const { error } = await supabaseBiz
+      const { error } = await supabase
         .from('points_charge_requests')
         .update({ status: 'cancelled' })
         .eq('id', requestId)

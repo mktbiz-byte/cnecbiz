@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseKorea'
+import { supabaseBiz as supabase } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
@@ -78,7 +78,11 @@ const InvoicePage = () => {
 
   const loadData = async () => {
     try {
-      // 캠페인 정보 로드
+      // 현재 로그인한 사용자 정보 조회
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('로그인이 필요합니다.')
+
+      // 캐페인 정보 로드
       const { data: campaignData, error: campaignError } = await supabase
         .from('campaigns')
         .select('*')
@@ -88,11 +92,11 @@ const InvoicePage = () => {
       if (campaignError) throw campaignError
       setCampaign(campaignData)
 
-      // 회사 정보 로드
+      // 회사 정보 로드 (현재 로그인한 사용자의 회사)
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
         .select('*')
-        .eq('user_id', campaignData.company_id)
+        .eq('user_id', user.id)
         .single()
 
       if (companyError) {
@@ -102,7 +106,7 @@ const InvoicePage = () => {
       }
 
       // 입금 계좌 정보 로드 (한국 지역)
-      const { data: accountData, error: accountError } = await supabase
+      const { data: accountData, error: accountError } = await supabaseBiz
         .from('payment_accounts')
         .select('*')
         .eq('region', 'korea')
