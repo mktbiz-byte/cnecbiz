@@ -47,7 +47,7 @@ import SiteEditor from './components/admin/SiteEditor'
 import SiteManagement from './components/admin/SiteManagement'
 import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
-import CreatorManagementPage from './components/company/CreatorManagementPage'
+import CreatorManagementPage from './components/admin/CreatorManagementPage'
 
 
 import AuthCallback from './components/AuthCallback'
@@ -81,7 +81,7 @@ function App() {
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
-        <Route path="/company/creators" element={<CreatorManagementPage />} />
+        <Route path="/admin/creators" element={<CreatorManagementPage />} />
         
         {/* Super Admin Routes */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />

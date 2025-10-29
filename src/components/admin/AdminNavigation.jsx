@@ -25,6 +25,7 @@ export default function AdminNavigation() {
     { path: '/admin/companies', icon: Building2, label: '기업 관리' },
     { path: '/admin/campaigns', icon: TrendingUp, label: '캠페인 관리' },
     { path: '/admin/featured-creators', icon: Users, label: '추천 크리에이터' },
+    { path: '/admin/creators', icon: Users, label: '소속 크리에이터 & 채널' },
     { path: '/admin/all-creators', icon: Users, label: '전체 크리에이터' },
     { path: '/admin/revenue-charts', icon: BarChart3, label: '매출 관리 (그래프)' },
     { path: '/admin/points-charge', icon: CreditCard, label: '포인트 & 미수금' },
