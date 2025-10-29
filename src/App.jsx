@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { EditModeProvider } from './contexts/EditModeContext'
 import LandingPage from './components/LandingPage'
 import LoginPageNew from './components/LoginPageNew'
 import SignupPageNew from './components/SignupPageNew'
@@ -51,8 +52,9 @@ import AuthCallback from './components/AuthCallback'
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <EditModeProvider>
+      <Router>
+        <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPageNew />} />
@@ -113,7 +115,8 @@ function App() {
         {/* Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </Router>
+      </Router>
+    </EditModeProvider>
   )
 }
 

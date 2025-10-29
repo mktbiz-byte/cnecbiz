@@ -27,8 +27,22 @@ export default function SiteManagement() {
   const [editingFaq, setEditingFaq] = useState(null)
   
   // 메인페이지 문구
-  const [pageContents, setPageContents] = useState([])
-  const [editingContent, setEditingContent] = useState(null)
+  const [pageContents, setPageContents] = useState({
+    hero_title: '',
+    hero_subtitle: '',
+    about_text: '',
+    cta_button_text: '',
+    stats_campaigns: '',
+    stats_creators: '',
+    stats_countries: '',
+    stats_success: '',
+    feature_1_title: '',
+    feature_1_desc: '',
+    feature_2_title: '',
+    feature_2_desc: '',
+    feature_3_title: '',
+    feature_3_desc: ''
+  })
   
   // 관리자 등록
   const [admins, setAdmins] = useState([])
@@ -215,35 +229,45 @@ export default function SiteManagement() {
       const { data, error } = await supabaseBiz
         .from('page_contents')
         .select('*')
-        .order('content_key', { ascending: true })
 
       if (error) throw error
-      setPageContents(data || [])
+      
+      // 배열을 객체로 변환
+      const contentsObj = {}
+      data?.forEach(item => {
+        contentsObj[item.content_key] = item.content
+      })
+      
+      setPageContents(prev => ({ ...prev, ...contentsObj }))
     } catch (error) {
       console.error('페이지 콘텐츠 조회 오류:', error)
     }
   }
 
-  const handleSaveContent = async (contentKey, content) => {
+  const handleSaveAllContents = async () => {
     try {
-      const { error } = await supabaseBiz
-        .from('page_contents')
-        .upsert({
-          content_key: contentKey,
-          content: content,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'content_key'
-        })
+      // 모든 콘텐츠를 upsert
+      const updates = Object.entries(pageContents).map(([key, value]) => ({
+        content_key: key,
+        content: value,
+        updated_at: new Date().toISOString()
+      }))
 
-      if (error) throw error
+      for (const update of updates) {
+        const { error } = await supabaseBiz
+          .from('page_contents')
+          .upsert(update, {
+            onConflict: 'content_key'
+          })
+        
+        if (error) throw error
+      }
 
-      alert('저장되었습니다.')
+      alert('모든 변경사항이 저장되었습니다!')
       fetchPageContents()
-      setEditingContent(null)
     } catch (error) {
       console.error('콘텐츠 저장 오류:', error)
-      alert('저장에 실패했습니다.')
+      alert('저장에 실패했습니다: ' + error.message)
     }
   }
 
@@ -579,38 +603,150 @@ export default function SiteManagement() {
                   <CardTitle>메인페이지 문구 관리</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">히어로 타이틀</label>
-                      <Input
-                        type="text"
-                        placeholder="K-뷰티를 세계로, 14일 만에 완성하는 숏폼"
-                        defaultValue="K-뷰티를 세계로, 14일 만에 완성하는 숏폼"
-                        onBlur={(e) => handleSaveContent('hero_title', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">히어로 서브타이틀</label>
-                      <Textarea
-                        placeholder="일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼"
-                        defaultValue="일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼. 검증된 크리에이터와 함께 진정성 있는 콘텐츠로 글로벌 성공을 만들어갑니다."
-                        onBlur={(e) => handleSaveContent('hero_subtitle', e.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">소개 텍스트</label>
-                      <Textarea
-                        placeholder="CNEC BIZ 소개 텍스트"
-                        defaultValue="CNEC BIZ는 K-뷰티 브랜드의 글로벌 진출을 돕는 전문 인플루언서 마케팅 플랫폼입니다."
-                        onBlur={(e) => handleSaveContent('about_text', e.target.value)}
-                        rows={4}
-                      />
+                  {/* 히어로 섹션 */}
+                  <div className="border-b pb-4">
+                    <h3 className="font-bold text-lg mb-4">히어로 섹션</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">히어로 타이틀</label>
+                        <Input
+                          type="text"
+                          placeholder="K-뷰티를 세계로, 14일 만에 완성하는 숏폼"
+                          value={pageContents.hero_title}
+                          onChange={(e) => setPageContents({ ...pageContents, hero_title: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">히어로 서브타이틀</label>
+                        <Textarea
+                          placeholder="일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼"
+                          value={pageContents.hero_subtitle}
+                          onChange={(e) => setPageContents({ ...pageContents, hero_subtitle: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">CTA 버튼 텍스트</label>
+                        <Input
+                          type="text"
+                          placeholder="무료로 시작하기"
+                          value={pageContents.cta_button_text}
+                          onChange={(e) => setPageContents({ ...pageContents, cta_button_text: e.target.value })}
+                        />
+                      </div>
                     </div>
                   </div>
+
+                  {/* 통계 섹션 */}
+                  <div className="border-b pb-4">
+                    <h3 className="font-bold text-lg mb-4">통계 섹션</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">완료된 캠페인</label>
+                        <Input
+                          type="text"
+                          placeholder="1,200+"
+                          value={pageContents.stats_campaigns}
+                          onChange={(e) => setPageContents({ ...pageContents, stats_campaigns: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">파트너 크리에이터</label>
+                        <Input
+                          type="text"
+                          placeholder="500+"
+                          value={pageContents.stats_creators}
+                          onChange={(e) => setPageContents({ ...pageContents, stats_creators: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">진출 국가</label>
+                        <Input
+                          type="text"
+                          placeholder="3개국"
+                          value={pageContents.stats_countries}
+                          onChange={(e) => setPageContents({ ...pageContents, stats_countries: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">평균 조회수</label>
+                        <Input
+                          type="text"
+                          placeholder="50만+"
+                          value={pageContents.stats_success}
+                          onChange={(e) => setPageContents({ ...pageContents, stats_success: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 특징 섹션 */}
+                  <div className="border-b pb-4">
+                    <h3 className="font-bold text-lg mb-4">특징 섹션</h3>
+                    <div className="space-y-4">
+                      <div className="border rounded-lg p-4 bg-gray-50">
+                        <h4 className="font-medium mb-2">특징 1</h4>
+                        <div className="space-y-2">
+                          <Input
+                            type="text"
+                            placeholder="타이틀"
+                            value={pageContents.feature_1_title}
+                            onChange={(e) => setPageContents({ ...pageContents, feature_1_title: e.target.value })}
+                          />
+                          <Textarea
+                            placeholder="설명"
+                            value={pageContents.feature_1_desc}
+                            onChange={(e) => setPageContents({ ...pageContents, feature_1_desc: e.target.value })}
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                      <div className="border rounded-lg p-4 bg-gray-50">
+                        <h4 className="font-medium mb-2">특징 2</h4>
+                        <div className="space-y-2">
+                          <Input
+                            type="text"
+                            placeholder="타이틀"
+                            value={pageContents.feature_2_title}
+                            onChange={(e) => setPageContents({ ...pageContents, feature_2_title: e.target.value })}
+                          />
+                          <Textarea
+                            placeholder="설명"
+                            value={pageContents.feature_2_desc}
+                            onChange={(e) => setPageContents({ ...pageContents, feature_2_desc: e.target.value })}
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                      <div className="border rounded-lg p-4 bg-gray-50">
+                        <h4 className="font-medium mb-2">특징 3</h4>
+                        <div className="space-y-2">
+                          <Input
+                            type="text"
+                            placeholder="타이틀"
+                            value={pageContents.feature_3_title}
+                            onChange={(e) => setPageContents({ ...pageContents, feature_3_title: e.target.value })}
+                          />
+                          <Textarea
+                            placeholder="설명"
+                            value={pageContents.feature_3_desc}
+                            onChange={(e) => setPageContents({ ...pageContents, feature_3_desc: e.target.value })}
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 저장 버튼 */}
+                  <Button onClick={handleSaveAllContents} className="w-full" size="lg">
+                    <Save className="w-5 h-5 mr-2" />
+                    모든 변경사항 저장
+                  </Button>
+                  
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-700">
-                      💡 입력 후 포커스를 다른 곳으로 이동하면 자동으로 저장됩니다.
+                      💡 변경한 내용은 '저장' 버튼을 클릭해야 반영됩니다.
                     </p>
                   </div>
                 </CardContent>

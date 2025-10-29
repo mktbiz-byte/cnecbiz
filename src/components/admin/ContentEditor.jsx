@@ -2,18 +2,19 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Edit, Save, X } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import { useEditMode } from '../../contexts/EditModeContext'
 
 /**
  * 노코드 콘텐츠 편집 시스템
  * 관리자가 웹페이지의 텍스트를 클릭해서 직접 수정할 수 있는 CMS
  */
 
-export default function ContentEditor({ children, contentKey, defaultValue = '', className = '' }) {
+export default function ContentEditor({ children, contentKey, defaultValue = '', className = '', multiline = false }) {
   const [isEditing, setIsEditing] = useState(false)
   const [content, setContent] = useState(defaultValue)
   const [originalContent, setOriginalContent] = useState(defaultValue)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [editMode, setEditMode] = useState(false)
+  const { editMode } = useEditMode()
 
   useEffect(() => {
     checkAdminStatus()
@@ -29,7 +30,7 @@ export default function ContentEditor({ children, contentKey, defaultValue = '',
         .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .single()
+        .maybeSingle()
 
       setIsAdmin(!!adminData)
     } catch (error) {
@@ -43,15 +44,19 @@ export default function ContentEditor({ children, contentKey, defaultValue = '',
         .from('page_contents')
         .select('content')
         .eq('content_key', contentKey)
-        .single()
+        .maybeSingle()
 
       if (data) {
         setContent(data.content)
         setOriginalContent(data.content)
+      } else {
+        setContent(defaultValue)
+        setOriginalContent(defaultValue)
       }
     } catch (error) {
-      // 콘텐츠가 없으면 기본값 사용
       console.log('No content found, using default')
+      setContent(defaultValue)
+      setOriginalContent(defaultValue)
     }
   }
 
@@ -83,20 +88,31 @@ export default function ContentEditor({ children, contentKey, defaultValue = '',
     setIsEditing(false)
   }
 
-  if (!isAdmin) {
-    return <div className={className}>{content || children}</div>
+  // 관리자가 아니거나 편집 모드가 아니면 일반 텍스트만 표시
+  if (!isAdmin || !editMode) {
+    return <div className={className}>{content || children || defaultValue}</div>
   }
 
   return (
     <div className={`relative group ${className}`}>
       {isEditing ? (
         <div className="relative">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full p-2 border-2 border-blue-500 rounded min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-          />
+          {multiline ? (
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full p-3 border-2 border-blue-500 rounded min-h-[100px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              autoFocus
+            />
+          ) : (
+            <input
+              type="text"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full p-2 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              autoFocus
+            />
+          )}
           <div className="flex gap-2 mt-2">
             <Button
               onClick={handleSave}
@@ -118,14 +134,18 @@ export default function ContentEditor({ children, contentKey, defaultValue = '',
         </div>
       ) : (
         <>
-          <div className="whitespace-pre-wrap">{content || children}</div>
-          <button
-            onClick={() => setIsEditing(true)}
-            className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white p-1 rounded"
-            title="편집하기"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
+          <div className={`whitespace-pre-wrap ${editMode ? 'ring-2 ring-blue-300 ring-opacity-50 rounded p-2' : ''}`}>
+            {content || children || defaultValue}
+          </div>
+          {editMode && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="absolute -top-2 -right-2 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-all"
+              title="편집하기"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          )}
         </>
       )}
     </div>
@@ -137,7 +157,7 @@ export default function ContentEditor({ children, contentKey, defaultValue = '',
  */
 export function EditModeToggle() {
   const [isAdmin, setIsAdmin] = useState(false)
-  const [editMode, setEditMode] = useState(false)
+  const { editMode, setEditMode } = useEditMode()
 
   useEffect(() => {
     checkAdminStatus()
@@ -152,7 +172,7 @@ export function EditModeToggle() {
         .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .single()
+        .maybeSingle()
 
       setIsAdmin(!!adminData)
     } catch (error) {
@@ -163,17 +183,17 @@ export function EditModeToggle() {
   if (!isAdmin) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-6 right-6 z-50">
       <Button
         onClick={() => setEditMode(!editMode)}
         className={`${
           editMode 
-            ? 'bg-green-600 hover:bg-green-700' 
+            ? 'bg-green-600 hover:bg-green-700 animate-pulse' 
             : 'bg-blue-600 hover:bg-blue-700'
-        } shadow-lg`}
+        } shadow-xl text-lg px-6 py-6`}
       >
-        <Edit className="w-4 h-4 mr-2" />
-        {editMode ? '편집 모드 ON' : '편집 모드 OFF'}
+        <Edit className="w-5 h-5 mr-2" />
+        {editMode ? '편집 모드 ON' : '편집 모드'}
       </Button>
     </div>
   )
