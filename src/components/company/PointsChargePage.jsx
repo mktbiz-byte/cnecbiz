@@ -568,8 +568,6 @@ export default function PointsChargePage() {
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">회사명</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">입금자명</th>
                       <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">금액</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">마수금</th>
-                      <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">입금예정일</th>
                       <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">세금계산서</th>
                       <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">상태</th>
                       <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">작업</th>
@@ -590,12 +588,6 @@ export default function PointsChargePage() {
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-900 text-right font-medium">
                           {request.amount?.toLocaleString()}원
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-900 text-center">
-                          {request.discount_amount > 0 ? `${request.discount_amount?.toLocaleString()}원` : '-'}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-900 text-center">
-                          {request.expected_deposit_date || '-'}
                         </td>
                         <td className="py-3 px-4 text-sm text-center">
                           {request.needs_tax_invoice ? (

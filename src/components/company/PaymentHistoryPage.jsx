@@ -242,13 +242,17 @@ export default function PaymentHistoryPage() {
         </div>
 
         {/* 포인트 충전 신청 내역 */}
-        {chargeRequests.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden mt-8">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden mt-8">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">포인트 충전 신청 내역</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            {chargeRequests.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                충전 신청 내역이 없습니다.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜</th>
@@ -301,8 +305,8 @@ export default function PaymentHistoryPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
-        )}
       </div>
     </div>
   )
