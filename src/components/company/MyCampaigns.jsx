@@ -315,6 +315,9 @@ export default function MyCampaigns() {
               <div className="space-y-4">
                 {campaigns
                   .filter(campaign => {
+                    // 취소된 캠페인 제외
+                    if (campaign.is_cancelled) return false
+                    
                     // 나라별 필터링
                     const matchesRegion = selectedRegion === 'all' || campaign.region === selectedRegion
                     
