@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseKorea'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -25,7 +24,7 @@ const OrderConfirmation = () => {
   const loadData = async () => {
     try {
       // 1. 캠페인 정보 로드
-      const { data: campaignData, error: campaignError } = await supabase
+      const { data: campaignData, error: campaignError } = await supabaseBiz
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -106,7 +105,7 @@ const OrderConfirmation = () => {
       if (transactionError) throw transactionError
 
       // 4. 캠페인 상태 업데이트
-      const { error: campaignError } = await supabase
+      const { error: campaignError } = await supabaseBiz
         .from('campaigns')
         .update({ 
           approval_status: 'pending',
