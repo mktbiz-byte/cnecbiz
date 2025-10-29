@@ -181,7 +181,7 @@ export default function MyCampaigns() {
       approved: { label: '진행중', color: 'bg-green-100 text-green-700' },
       completed: { label: '완료', color: 'bg-green-100 text-green-700' }
     }
-    const badge = badges[status] || badges.draft
+    const badge = badges[status] || { label: '작성중', color: 'bg-gray-100 text-gray-700' }
     return (
       <Badge className={badge.color}>
         {badge.label}
