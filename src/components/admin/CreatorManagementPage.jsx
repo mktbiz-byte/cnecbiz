@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseKorea';
+import { supabaseBiz } from '../../lib/supabaseClients';
 import { Plus, Edit2, Trash2, RefreshCw, Youtube, ExternalLink } from 'lucide-react';
+import AdminNavigation from './AdminNavigation';
 
 const CreatorManagementPage = () => {
   const [activeTab, setActiveTab] = useState('affiliated'); // 'affiliated' or 'our_channels'
@@ -29,7 +30,7 @@ const CreatorManagementPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseBiz.auth.getSession();
       if (!session) {
         alert('로그인이 필요합니다.');
         return;
@@ -66,7 +67,7 @@ const CreatorManagementPage = () => {
     setLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseBiz.auth.getSession();
       if (!session) {
         alert('로그인이 필요합니다.');
         return;
@@ -111,7 +112,7 @@ const CreatorManagementPage = () => {
 
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseBiz.auth.getSession();
       if (!session) {
         alert('로그인이 필요합니다.');
         return;
@@ -146,7 +147,7 @@ const CreatorManagementPage = () => {
   const handleFetchYouTubeData = async (item) => {
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseBiz.auth.getSession();
       if (!session) {
         alert('로그인이 필요합니다.');
         return;
@@ -216,7 +217,9 @@ const CreatorManagementPage = () => {
   const dataList = activeTab === 'affiliated' ? creators : channels;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <>
+      <AdminNavigation />
+      <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">크리에이터 & 채널 관리</h1>
         <p className="text-gray-600">소속 크리에이터와 우리 채널을 관리하고 YouTube 데이터를 수집하세요.</p>
@@ -505,7 +508,8 @@ const CreatorManagementPage = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
