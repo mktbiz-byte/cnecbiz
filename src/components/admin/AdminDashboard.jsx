@@ -144,38 +144,41 @@ export default function AdminDashboard() {
   return (
     <>
       <AdminNavigation />
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 p-6 lg:ml-64">
         <h1 className="text-3xl font-bold mb-6">슈퍼 관리자 대시보드</h1>
 
         {/* 통계 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/companies')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">총 기업</CardTitle>
               <Building2 className="w-4 h-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.companies}</div>
+              <p className="text-xs text-gray-500 mt-1">클릭하여 관리</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/campaigns')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">총 캠페인</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">총 캐페인</CardTitle>
               <Package className="w-4 h-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.campaigns}</div>
+              <p className="text-xs text-gray-500 mt-1">클릭하여 관리</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/featured-creators')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-600">크리에이터</CardTitle>
               <Users className="w-4 h-4 text-gray-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.creators}</div>
+              <p className="text-xs text-gray-500 mt-1">클릭하여 관리</p>
             </CardContent>
           </Card>
 

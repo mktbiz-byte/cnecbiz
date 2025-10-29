@@ -40,7 +40,7 @@ export default function AdminNavigation() {
     <>
       {/* Sidebar */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white border-r transition-all duration-300 overflow-hidden flex flex-col fixed left-0 top-0 h-full z-50`}>
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-6 lg:ml-64 flex-1 overflow-y-auto">
           <div className="flex items-center gap-2 mb-8">
             <div className="w-10 h-10 bg-gradient-to-r from-red-600 to-orange-600 rounded-lg flex items-center justify-center">
               <Shield className="w-6 h-6 text-white" />
@@ -76,7 +76,7 @@ export default function AdminNavigation() {
           </nav>
         </div>
 
-        <div className="p-6 border-t mt-auto">
+        <div className="p-6 lg:ml-64 border-t mt-auto">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-medium"

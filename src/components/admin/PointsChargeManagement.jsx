@@ -276,7 +276,7 @@ export default function PointsChargeManagement() {
   return (
     <>
       <AdminNavigation />
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 lg:ml-64">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">포인트 충전 관리</h1>
         <div className="flex gap-2">
