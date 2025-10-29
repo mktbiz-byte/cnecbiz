@@ -79,16 +79,21 @@ export default function CompanyDashboard() {
     try {
       if (!user) return
       
+      console.log('[CompanyDashboard] Fetching campaigns for user:', user.email)
+      console.log('[CompanyDashboard] Selected region:', selectedRegion)
+      
       // 선택된 지역의 Supabase 클라이언트 선택
       const supabaseClient = selectedRegion === 'korea' ? supabaseKorea : supabaseBiz
       
       // 로그인한 회사의 캠페인만 가져오기 (company_email 기준)
-      const { data: campaignsData } = await supabaseClient
+      const { data: campaignsData, error } = await supabaseClient
         .from('campaigns')
         .select('*')
         .eq('company_email', user.email)
         .order('created_at', { ascending: false })
         .limit(5)
+      
+      console.log('[CompanyDashboard] Campaigns query result:', { campaignsData, error })
 
       // 취소된 캠페인은 하단으로 정렬
       const sortedCampaigns = (campaignsData || []).sort((a, b) => {
