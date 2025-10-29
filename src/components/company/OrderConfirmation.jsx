@@ -28,9 +28,10 @@ const OrderConfirmation = () => {
         .from('campaigns')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
       if (campaignError) throw campaignError
+      if (!campaignData) throw new Error('캠페인을 찾을 수 없습니다.')
       setCampaign(campaignData)
 
       // 2. 포인트 잔액 로드
@@ -40,7 +41,7 @@ const OrderConfirmation = () => {
           .from('companies')
           .select('points_balance')
           .eq('user_id', user.id)
-          .single()
+          .maybeSingle()
 
         if (companyData) {
           setPointsBalance(companyData.points_balance || 0)
