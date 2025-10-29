@@ -5,9 +5,7 @@
 
 const { createClient } = require('@supabase/supabase-js')
 
-// Supabase 클라이언트 초기화 (Service Role Key 사용)
-const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Supabase 클라이언트 초기화 (Service Role Key 사용)const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URLconst supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
 exports.handler = async (event, context) => {

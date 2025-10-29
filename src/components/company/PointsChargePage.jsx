@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { supabase } from '../../lib/supabaseKorea'
+import { supabaseBiz as supabase } from '../../lib/supabaseClients'
 import { Check, Sparkles } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
