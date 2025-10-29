@@ -108,7 +108,7 @@ export default function RevenueManagementWithCharts() {
       const { data, error } = await supabaseBiz
         .from('expense_records')
         .select('*')
-        .order('month', { ascending: true })
+        .order('expense_date', { ascending: true })
 
       if (error) throw error
       setExpenses(data || [])
@@ -223,10 +223,12 @@ export default function RevenueManagementWithCharts() {
 
     // 비용
     expenses.forEach(e => {
-      if (!monthlyMap[e.month]) {
-        monthlyMap[e.month] = { month: e.month, revenue: 0, expenses: 0, creatorCost: 0 }
+      const month = e.expense_month || (e.expense_date ? e.expense_date.substring(0, 7) : null)
+      if (!month) return
+      if (!monthlyMap[month]) {
+        monthlyMap[month] = { month, revenue: 0, expenses: 0, creatorCost: 0 }
       }
-      monthlyMap[e.month].expenses += parseFloat(e.amount) || 0
+      monthlyMap[month].expenses += parseFloat(e.amount) || 0
     })
 
     // 크리에이터 비용 (월별로 집계)
@@ -407,17 +409,36 @@ export default function RevenueManagementWithCharts() {
                   <CardTitle>월별 매출/비용 추이</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => `₩${value.toLocaleString()}`} />
-                      <Legend />
-                      <Line type="monotone" dataKey="revenue" stroke="#3b82f6" name="매출" strokeWidth={2} />
-                      <Line type="monotone" dataKey="expenses" stroke="#ef4444" name="고정비" strokeWidth={2} />
-                      <Line type="monotone" dataKey="creatorCost" stroke="#f59e0b" name="크리에이터비" strokeWidth={2} />
-                      <Line type="monotone" dataKey="profit" stroke="#10b981" name="순이익" strokeWidth={2} />
+                  <ResponsiveContainer width="100%" height={450}>
+                    <LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12 }}
+                        stroke="#6b7280"
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12 }}
+                        stroke="#6b7280"
+                        tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                      />
+                      <Tooltip 
+                        formatter={(value) => `₩${value.toLocaleString()}`}
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                      />
+                      <Legend 
+                        wrapperStyle={{ paddingTop: '20px' }}
+                        iconType="line"
+                      />
+                      <Line type="monotone" dataKey="revenue" stroke="#3b82f6" name="매출" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="expenses" stroke="#ef4444" name="고정비" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="creatorCost" stroke="#f59e0b" name="크리에이터비" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="profit" stroke="#10b981" name="순이익" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -430,16 +451,32 @@ export default function RevenueManagementWithCharts() {
                     <CardTitle>월별 비교</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={monthlyData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => `₩${value.toLocaleString()}`} />
-                        <Legend />
-                        <Bar dataKey="revenue" fill="#3b82f6" name="매출" />
-                        <Bar dataKey="expenses" fill="#ef4444" name="고정비" />
-                        <Bar dataKey="creatorCost" fill="#f59e0b" name="크리에이터비" />
+                    <ResponsiveContainer width="100%" height={350}>
+                      <BarChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="month" 
+                          tick={{ fontSize: 12 }}
+                          stroke="#6b7280"
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12 }}
+                          stroke="#6b7280"
+                          tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                        />
+                        <Tooltip 
+                          formatter={(value) => `₩${value.toLocaleString()}`}
+                          contentStyle={{ 
+                            backgroundColor: 'white', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        <Bar dataKey="revenue" fill="#3b82f6" name="매출" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="expenses" fill="#ef4444" name="고정비" radius={[8, 8, 0, 0]} />
+                        <Bar dataKey="creatorCost" fill="#f59e0b" name="크리에이터비" radius={[8, 8, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -727,6 +764,124 @@ export default function RevenueManagementWithCharts() {
                     <Download className="w-4 h-4 mr-2" />
                     템플릿 다운로드
                   </Button>
+                </CardContent>
+              </Card>
+
+              {/* 상세 내역 테이블 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>상세 내역</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* 필터 */}
+                    <div className="flex gap-2">
+                      <select 
+                        className="border rounded px-3 py-2 text-sm"
+                        onChange={(e) => {
+                          const filtered = revenueData.filter(r => 
+                            e.target.value === 'all' || r.type === e.target.value
+                          )
+                          // 필터링 로직 추가 필요
+                        }}
+                      >
+                        <option value="all">전체</option>
+                        <option value="revenue">매출</option>
+                        <option value="fixed_cost">고정비</option>
+                        <option value="creator_cost">크리에이터비</option>
+                        <option value="variable_cost">변동비</option>
+                      </select>
+                    </div>
+
+                    {/* 테이블 */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">날짜</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">유형</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">카테고리</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">설명</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">금액</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">작업</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {revenueData.slice(0, 50).map((record) => (
+                            <tr key={record.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm">
+                                {new Date(record.record_date).toLocaleDateString('ko-KR')}
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                                  record.type === 'revenue' ? 'bg-blue-100 text-blue-800' :
+                                  record.type === 'fixed_cost' ? 'bg-red-100 text-red-800' :
+                                  record.type === 'creator_cost' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-purple-100 text-purple-800'
+                                }`}>
+                                  {record.type === 'revenue' ? '매출' :
+                                   record.type === 'fixed_cost' ? '고정비' :
+                                   record.type === 'creator_cost' ? '크리에이터비' : '변동비'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {record.category || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                {record.description}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right font-medium">
+                                <span className={record.type === 'revenue' ? 'text-blue-600' : 'text-red-600'}>
+                                  {record.type === 'revenue' ? '+' : '-'}₩{parseFloat(record.amount).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => {
+                                      // 수정 기능 추가 필요
+                                      alert('수정 기능은 추후 추가됩니다.')
+                                    }}
+                                  >
+                                    수정
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-red-600 hover:bg-red-50"
+                                    onClick={async () => {
+                                      if (!confirm('정말 삭제하시겠습니까?')) return
+                                      try {
+                                        const { error } = await supabaseBiz
+                                          .from('revenue_records')
+                                          .delete()
+                                          .eq('id', record.id)
+                                        
+                                        if (error) throw error
+                                        alert('삭제되었습니다.')
+                                        fetchAllData()
+                                      } catch (error) {
+                                        console.error('삭제 오류:', error)
+                                        alert('삭제에 실패했습니다.')
+                                      }
+                                    }}
+                                  >
+                                    삭제
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {revenueData.length > 50 && (
+                      <p className="text-sm text-gray-500 text-center">최근 50개 항목만 표시됩니다.</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

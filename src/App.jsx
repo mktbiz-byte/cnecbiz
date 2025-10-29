@@ -51,6 +51,7 @@ import AllCreatorsPage from './components/admin/AllCreatorsPage'
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
 import OurChannelReport from './components/admin/OurChannelReport'
 import SignContract from './pages/SignContract'
+import ContractManagement from './components/company/ContractManagement'
 
 
 import AuthCallback from './components/AuthCallback'
@@ -79,6 +80,7 @@ function App() {
         <Route path="/company/campaigns/:id/edit" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/company/translator" element={<Translator />} />
+        <Route path="/company/contracts" element={<ContractManagement />} />
         <Route path="/company/teams" element={<TeamManagement />} />
         <Route path="/company/points/charge" element={<PointsChargePage />} />
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
