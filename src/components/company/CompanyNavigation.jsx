@@ -10,7 +10,8 @@ import {
   User,
   LogOut,
   Menu,
-  X
+  X,
+  Users
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -22,6 +23,7 @@ export default function CompanyNavigation() {
   const menuItems = [
     { icon: LayoutDashboard, label: '대시보드', path: '/company/dashboard' },
     { icon: TrendingUp, label: '내 캠페인', path: '/company/campaigns' },
+    { icon: Users, label: '크리에이터 관리', path: '/company/creators' },
     { icon: CreditCard, label: '포인트 결제하기', path: '/company/points/charge' },
     { icon: Receipt, label: '내 결제내역', path: '/company/payments' },
     { icon: User, label: '프로필 수정', path: '/company/profile-edit' },
