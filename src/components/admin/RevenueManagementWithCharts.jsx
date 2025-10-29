@@ -157,6 +157,8 @@ export default function RevenueManagementWithCharts() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      encoding: 'UTF-8',
+      transformHeader: (header) => header.replace(/^\uFEFF/, '').trim(), // BOM 제거
       complete: async (results) => {
         try {
           const records = results.data.map(row => ({
@@ -682,10 +684,12 @@ export default function RevenueManagementWithCharts() {
                       className="hidden"
                       id="file-upload"
                     />
-                    <label htmlFor="file-upload">
-                      <Button as="span" disabled={uploading}>
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <span className={`inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4 ${
+                        uploading ? 'opacity-50 pointer-events-none' : ''
+                      }`}>
                         {uploading ? '업로드 중...' : '파일 선택'}
-                      </Button>
+                      </span>
                     </label>
                   </div>
 
