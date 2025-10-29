@@ -124,7 +124,11 @@ export default function CompanyDashboard() {
       // 통계 계산 (취소된 캠페인 제외)
       const activeCampaigns = campaignsData?.filter(c => !c.is_cancelled) || []
       const total = activeCampaigns.length
-      const pending = activeCampaigns.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length
+      const pending = activeCampaigns.filter(c => 
+        c.approval_status === 'draft' || 
+        c.approval_status === 'pending' || 
+        c.approval_status === 'pending_payment'
+      ).length
       const active = activeCampaigns.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length
       const completed = activeCampaigns.filter(c => c.status === 'completed').length
       const totalSpent = activeCampaigns.reduce((sum, c) => {
