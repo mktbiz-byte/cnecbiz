@@ -141,14 +141,20 @@ const GuideReview = () => {
               </div>
               {campaign.application_deadline && (
                 <div className="flex">
-                  <span className="w-32 text-gray-600">지원 마감:</span>
-                  <span>{new Date(campaign.application_deadline).toLocaleDateString('ko-KR')}</span>
+                  <span className="w-32 text-gray-600">지원 마감일:</span>
+                  <span className="font-medium text-blue-600">{new Date(campaign.application_deadline).toLocaleDateString('ko-KR')}</span>
                 </div>
               )}
-              {campaign.start_date && campaign.end_date && (
+              {campaign.start_date && (
                 <div className="flex">
-                  <span className="w-32 text-gray-600">캐페인 기간:</span>
-                  <span>{new Date(campaign.start_date).toLocaleDateString('ko-KR')} ~ {new Date(campaign.end_date).toLocaleDateString('ko-KR')}</span>
+                  <span className="w-32 text-gray-600">촬영 마감일:</span>
+                  <span className="font-medium text-green-600">{new Date(campaign.start_date).toLocaleDateString('ko-KR')}</span>
+                </div>
+              )}
+              {campaign.end_date && (
+                <div className="flex">
+                  <span className="w-32 text-gray-600">SNS 업로드일:</span>
+                  <span className="font-medium text-purple-600">{new Date(campaign.end_date).toLocaleDateString('ko-KR')}</span>
                 </div>
               )}
             </div>

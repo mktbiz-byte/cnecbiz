@@ -172,8 +172,7 @@ const InvoicePage = () => {
       const { error: campaignError } = await supabase
         .from('campaigns')
         .update({
-          payment_status: 'pending',
-          payment_requested_at: new Date().toISOString()
+          payment_status: 'pending'
         })
         .eq('id', id)
 
