@@ -385,6 +385,15 @@ const CreatorManagementPage = () => {
               )}
 
               <div className="flex space-x-2">
+                {activeTab === 'our_channels' && (
+                  <button
+                    onClick={() => window.location.href = `/admin/channel-report/${item.id}`}
+                    className="flex-1 flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    📊 보고서
+                  </button>
+                )}
+                
                 <button
                   onClick={() => handleEdit(item)}
                   className="flex-1 flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
