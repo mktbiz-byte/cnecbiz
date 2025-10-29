@@ -168,14 +168,14 @@ const CreatorManagementPage = () => {
 
       const result = await response.json();
       if (result.success) {
-        alert(`데이터 수집 완료!\n구독자: ${result.data.channel.subscriber_count.toLocaleString()}명\n영상: ${result.data.videos}개`);
+        alert(`데이터 갱신 완료!\n구독자: ${result.data.channel.subscriber_count.toLocaleString()}명\n영상: ${result.data.videos}개`);
         fetchData();
       } else {
-        alert(result.error || '데이터 수집에 실패했습니다.');
+        alert(result.error || '데이터 갱신에 실패했습니다.');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('데이터 수집 중 오류가 발생했습니다.');
+      alert('데이터 갱신 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -344,10 +344,10 @@ const CreatorManagementPage = () => {
                   <button
                     onClick={() => handleFetchYouTubeData(item)}
                     disabled={loading}
-                    className="flex-1 flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-                    데이터 수집
+                    새로고침
                   </button>
                 )}
 
