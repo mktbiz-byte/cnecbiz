@@ -66,6 +66,10 @@ export default function RevenueManagementWithCharts() {
   
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState(null)
+  
+  // 편집 모달
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -427,17 +431,41 @@ export default function RevenueManagementWithCharts() {
 
   const monthlyData = getMonthlyData()
 
-  // 파이 차트 데이터 - 매출 대비 비용 비율
+  // 파이 차트 데이터 - 매출 대비 비율 (미수금 반영)
   const totalCost = stats.totalExpenses + stats.totalCreatorCost
-  const netProfit = stats.totalRevenue - totalCost
+  const totalAccountsReceivable = revenueData.filter(r => r.is_accounts_receivable).reduce((sum, r) => sum + r.amount, 0)
+  const netProfit = stats.totalRevenue - totalCost - totalAccountsReceivable
   
+  // 매출 대비 비율 계산
+  const totalRevenue = stats.totalRevenue || 1 // 0으로 나누기 방지
   const pieData = [
-    { name: '순이익', value: netProfit > 0 ? netProfit : 0, color: '#10b981' },
-    { name: '고정비', value: stats.totalExpenses, color: '#ef4444' },
-    { name: '크리에이터비', value: stats.totalCreatorCost, color: '#f59e0b' }
+    { 
+      name: '순이익', 
+      value: (netProfit > 0 ? netProfit : 0) / totalRevenue * 100, 
+      actualValue: netProfit > 0 ? netProfit : 0,
+      color: '#10b981' 
+    },
+    { 
+      name: '고정비', 
+      value: stats.totalExpenses / totalRevenue * 100, 
+      actualValue: stats.totalExpenses,
+      color: '#ef4444' 
+    },
+    { 
+      name: '크리에이터비', 
+      value: stats.totalCreatorCost / totalRevenue * 100, 
+      actualValue: stats.totalCreatorCost,
+      color: '#f59e0b' 
+    },
+    { 
+      name: '미수금', 
+      value: totalAccountsReceivable / totalRevenue * 100, 
+      actualValue: totalAccountsReceivable,
+      color: '#6366f1' 
+    }
   ]
 
-  const COLORS = ['#10b981', '#ef4444', '#f59e0b']
+  const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#6366f1']
 
   return (
     <>
@@ -762,6 +790,16 @@ export default function RevenueManagementWithCharts() {
                             </td>
                             <td className="px-4 py-3 text-center">
                               <div className="flex items-center justify-center gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingRecord(record)
+                                    setEditModalOpen(true)
+                                  }}
+                                >
+                                  수정
+                                </Button>
                                 <Button 
                                   variant="outline" 
                                   size="sm"
@@ -1285,6 +1323,71 @@ export default function RevenueManagementWithCharts() {
           </Tabs>
         </div>
       </div>
+
+      {/* 편집 모달 */}
+      {editModalOpen && editingRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setEditModalOpen(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-4">내역 수정</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">날짜</label>
+                <input 
+                  type="date" 
+                  className="w-full px-3 py-2 border rounded-md"
+                  defaultValue={editingRecord.record_date}
+                  onChange={(e) => setEditingRecord({...editingRecord, record_date: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">분류 (설명)</label>
+                <input 
+                  type="text" 
+                  className="w-full px-3 py-2 border rounded-md"
+                  defaultValue={editingRecord.description || editingRecord.category}
+                  onChange={(e) => setEditingRecord({...editingRecord, description: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">금액</label>
+                <input 
+                  type="number" 
+                  className="w-full px-3 py-2 border rounded-md"
+                  defaultValue={editingRecord.amount}
+                  onChange={(e) => setEditingRecord({...editingRecord, amount: parseFloat(e.target.value)})}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEditModalOpen(false)}>취소</Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const { error } = await supabaseBiz
+                        .from('financial_records')
+                        .update({
+                          record_date: editingRecord.record_date,
+                          description: editingRecord.description,
+                          amount: editingRecord.amount
+                        })
+                        .eq('id', editingRecord.id)
+                      
+                      if (error) throw error
+                      alert('수정되었습니다.')
+                      setEditModalOpen(false)
+                      fetchAllData()
+                    } catch (error) {
+                      console.error('수정 오류:', error)
+                      alert('수정에 실패했습니다.')
+                    }
+                  }}
+                >
+                  저장
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
