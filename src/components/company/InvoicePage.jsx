@@ -186,17 +186,11 @@ const InvoicePage = () => {
     setSuccess('')
 
     try {
-      // 1. campaigns 테이블 업데이트 (Biz DB)
-      const { error: campaignError } = await supabaseBiz
-        .from('campaigns')
-        .update({
-          payment_status: 'pending'
-        })
-        .eq('id', id)
+      // 1. 현재 로그인한 사용자 정보 조회
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) throw new Error('로그인이 필요합니다.')
 
-      if (campaignError) throw campaignError
-
-      // 2. payments 테이블에 견적서 정보 저장 (Korea DB)
+      // 2. points_charge_requests 테이블에 충전 신청 저장
       const invoiceData = {
         depositor_name: depositorName,
         tax_invoice_info: {
@@ -217,20 +211,23 @@ const InvoicePage = () => {
         total_amount: totalCost
       }
 
-      const { error: paymentError } = await supabaseBiz
-        .from('payments')
+      const { error: chargeError } = await supabaseBiz
+        .from('points_charge_requests')
         .insert({
-          campaign_id: id,
-          company_id: campaign.company_id,
+          company_id: user.id,
           amount: totalCost,
-          currency: 'KRW',
           payment_method: 'bank_transfer',
           status: 'pending',
-          region: 'korea',
-          bank_transfer_info: invoiceData
+          depositor_name: depositorName,
+          needs_tax_invoice: !!taxInvoiceFileUrl,
+          tax_invoice_info: taxInvoiceFileUrl ? invoiceData.tax_invoice_info : null,
+          bank_transfer_info: {
+            campaign_id: id,
+            ...invoiceData
+          }
         })
 
-      if (paymentError) throw paymentError
+      if (chargeError) throw chargeError
 
       setSuccess('입금 요청이 제출되었습니다! 입금 확인 후 캠페인이 시작됩니다.')
       setTimeout(() => {
