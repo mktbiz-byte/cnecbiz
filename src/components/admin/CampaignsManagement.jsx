@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react'
-import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
+import { supabaseBiz, getCampaignsFromAllRegions, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function CampaignsManagement() {
@@ -68,11 +68,7 @@ export default function CampaignsManagement() {
     try {
       // 캠페인이 어느 DB에 있는지 확인하고 업데이트
       const region = campaign.region || 'biz'
-      const supabaseClient = region === 'biz' ? supabaseBiz : 
-                             region === 'korea' ? (await import('../../lib/supabaseKorea')).supabase :
-                             region === 'japan' ? (await import('../../lib/supabaseJapan')).supabase :
-                             region === 'us' ? (await import('../../lib/supabaseUS')).supabase :
-                             (await import('../../lib/supabaseTaiwan')).supabase
+      const supabaseClient = getSupabaseClient(region)
 
       const { error } = await supabaseClient
         .from('campaigns')
