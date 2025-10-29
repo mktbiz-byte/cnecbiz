@@ -113,6 +113,70 @@ export default function MyCampaigns() {
     }
   }
 
+  const handlePayWithPoints = async (campaign) => {
+    try {
+      // 캠페인 금액 계산
+      const packagePrice = getPackagePrice(campaign.package_type)
+      const recruitmentCount = campaign.recruitment_count || 10
+      const totalCost = packagePrice * recruitmentCount
+
+      // 회사 포인트 잔액 확인
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) {
+        alert('로그인이 필요합니다.')
+        return
+      }
+
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('points')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!companyData) {
+        alert('회사 정보를 찾을 수 없습니다.')
+        return
+      }
+
+      // 포인트 부족 체크
+      if (companyData.points < totalCost) {
+        alert(`포인트가 모자랍니다.\n\n필요 포인트: ${totalCost.toLocaleString()}원\n현재 포인트: ${companyData.points.toLocaleString()}원\n부족 포인트: ${(totalCost - companyData.points).toLocaleString()}원`)
+        return
+      }
+
+      // 확인 메시지
+      const confirmed = window.confirm(
+        `포인트를 차감하고 관리자 승인을 요청하시겠습니까?\n\n차감 포인트: ${totalCost.toLocaleString()}원\n잔여 포인트: ${(companyData.points - totalCost).toLocaleString()}원`
+      )
+
+      if (!confirmed) return
+
+      // 포인트 차감
+      const { error: pointsError } = await supabaseBiz
+        .from('companies')
+        .update({ points: companyData.points - totalCost })
+        .eq('user_id', user.id)
+
+      if (pointsError) throw pointsError
+
+      // approval_status를 'pending'으로 변경
+      const { error: campaignError } = await supabaseKorea
+        .from('campaigns')
+        .update({ approval_status: 'pending' })
+        .eq('id', campaign.id)
+
+      if (campaignError) throw campaignError
+
+      alert('포인트 차감 및 승인 요청이 완료되었습니다!')
+      
+      // 페이지 새로고침
+      checkAuth()
+    } catch (error) {
+      console.error('Error paying with points:', error)
+      alert('오류가 발생했습니다: ' + error.message)
+    }
+  }
+
   const getPackagePrice = (packageType) => {
     const prices = {
       'junior': 200000,
@@ -447,17 +511,32 @@ export default function MyCampaigns() {
                             </div>
                           )}
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/company/campaigns/${campaign.id}`)
-                          }}
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          상세보기
-                        </Button>
+                        <div className="flex gap-2">
+                          {campaign.approval_status === 'draft' && !campaign.is_cancelled && (
+                            <Button 
+                              variant="default"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handlePayWithPoints(campaign)
+                              }}
+                            >
+                              <CreditCard className="w-4 h-4 mr-2" />
+                              포인트 차감 및 승인 요청
+                            </Button>
+                          )}
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/company/campaigns/${campaign.id}`)
+                            }}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            상세보기
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
