@@ -41,6 +41,8 @@ export default function PaymentHistoryPage() {
         .eq('company_id', user.id)
         .order('created_at', { ascending: false })
       
+      console.log('[PaymentHistoryPage] Charge requests:', requests)
+      
       if (requests && requests.length > 0) {
         
         // 취소된 캠페인 필터링
@@ -62,6 +64,8 @@ export default function PaymentHistoryPage() {
           const filteredRequests = requests.filter(
             req => !cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id)
           )
+        console.log('[PaymentHistoryPage] Filtered requests:', filteredRequests)
+        console.log('[PaymentHistoryPage] Cancelled campaign IDs:', cancelledCampaignIds)
         setChargeRequests(filteredRequests)
       }
       

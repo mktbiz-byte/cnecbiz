@@ -187,6 +187,11 @@ const InvoicePage = () => {
     setSuccess('')
 
     try {
+      // 입금자명 필수 체크
+      if (!depositorName.trim()) {
+        throw new Error('입금자명을 입력해주세요.')
+      }
+
       // 1. 현재 로그인한 사용자 정보 조회
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
@@ -429,6 +434,21 @@ const InvoicePage = () => {
               </p>
             </div>
           )}
+
+          {/* 입금자명 입력 */}
+          <div className="border-t pt-6 mt-6">
+            <h3 className="font-semibold text-lg mb-4">입금자명 *</h3>
+            <div className="bg-blue-50 p-4 rounded-lg mb-4">
+              <p className="text-sm text-gray-700">입금하실 때 사용할 입금자명을 입력해주세요. (회사명 또는 담당자명)</p>
+            </div>
+            <Input
+              value={depositorName}
+              onChange={(e) => setDepositorName(e.target.value)}
+              placeholder="예: (주)에이블씨엔씨 또는 홍길동"
+              className="max-w-md"
+              required
+            />
+          </div>
 
           {/* 세금계산서 정보 */}
           <div className="border-t pt-6 mt-6">
