@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabaseClient';
+import { supabase } from '../../lib/supabaseKorea';
 import { Plus, Edit2, Trash2, RefreshCw, Youtube, ExternalLink } from 'lucide-react';
 
 const CreatorManagementPage = () => {
