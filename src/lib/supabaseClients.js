@@ -95,10 +95,9 @@ const getSupabaseTaiwan = () => {
 const getSupabaseBiz = () => {
   if (_supabaseBiz) return _supabaseBiz
   
-  // Fallback to Korea if BIZ is not configured
-  // Using Korea project as default for financial_records and other BIZ data
-  const url = import.meta.env.VITE_SUPABASE_BIZ_URL || import.meta.env.VITE_SUPABASE_KOREA_URL || 'https://vluqhvuhykncicgvkosd.supabase.co'
-  const key = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsdXFodnVoeWtuY2ljZ3Zrb3NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNjg2MzAsImV4cCI6MjA3Njg0NDYzMH0.ikEqdx6Le54YJUP-NROKg6EmeHJ4TbKkQ76pw29OQG8'
+  // BIZ project (cnectotal) for centralized financial and payment data
+  const url = import.meta.env.VITE_SUPABASE_BIZ_URL || 'https://hbymozdhjseqebpomjsp.supabase.co'
+  const key = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieW1vemRoanNlcWVicG9tanNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNjA5NTgsImV4cCI6MjA3NjYzNjk1OH0.T7Dn0oYWTqoJTDDgWLGMEJzwFpMXNXtGgvQVB6aWCkI'
   
   if (url && key && url.startsWith('http')) {
     _supabaseBiz = createClient(url, key, {
