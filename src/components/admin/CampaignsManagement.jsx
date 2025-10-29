@@ -59,6 +59,42 @@ export default function CampaignsManagement() {
     }
   }
 
+  const handleApproveCampaign = async (campaign) => {
+    if (!confirm(`캠페인을 승인하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`)) {
+      return
+    }
+
+    setConfirming(true)
+    try {
+      // 캠페인이 어느 DB에 있는지 확인하고 업데이트
+      const region = campaign.region || 'biz'
+      const supabaseClient = region === 'biz' ? supabaseBiz : 
+                             region === 'korea' ? (await import('../../lib/supabaseKorea')).supabase :
+                             region === 'japan' ? (await import('../../lib/supabaseJapan')).supabase :
+                             region === 'us' ? (await import('../../lib/supabaseUS')).supabase :
+                             (await import('../../lib/supabaseTaiwan')).supabase
+
+      const { error } = await supabaseClient
+        .from('campaigns')
+        .update({ 
+          approval_status: 'approved',
+          status: 'active'
+        })
+        .eq('id', campaign.id)
+
+      if (error) throw error
+
+      alert('캠페인이 승인되었습니다!')
+      fetchCampaigns()
+
+    } catch (error) {
+      console.error('승인 오류:', error)
+      alert('승인에 실패했습니다: ' + error.message)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
   const handleConfirmPayment = async (campaign) => {
     if (!confirm(`입금을 확인하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n금액: ${(campaign.estimated_cost || 0).toLocaleString()}원`)) {
       return
@@ -339,6 +375,18 @@ export default function CampaignsManagement() {
                           >
                             <DollarSign className="w-4 h-4 mr-2" />
                             입금 확인
+                          </Button>
+                        )}
+                        {campaign.approval_status === 'pending' && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleApproveCampaign(campaign)}
+                            disabled={confirming}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            승인
                           </Button>
                         )}
                         <Button

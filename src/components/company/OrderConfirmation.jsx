@@ -123,8 +123,9 @@ const OrderConfirmation = () => {
 
       if (transactionError) throw transactionError
 
-      // 4. 캠페인 상태 업데이트
-      const { error: campaignError } = await supabaseBiz
+      // 4. 캠페인 상태 업데이트 (Biz DB 먼저 시도)
+      let campaignUpdated = false
+      const { error: bizCampaignError } = await supabaseBiz
         .from('campaigns')
         .update({ 
           approval_status: 'pending',
@@ -132,7 +133,22 @@ const OrderConfirmation = () => {
         })
         .eq('id', id)
 
-      if (campaignError) throw campaignError
+      if (!bizCampaignError) {
+        campaignUpdated = true
+      }
+
+      // Biz DB에 없으면 Korea DB 시도
+      if (!campaignUpdated) {
+        const { error: koreaCampaignError } = await supabase
+          .from('campaigns')
+          .update({ 
+            approval_status: 'pending',
+            payment_status: 'confirmed'
+          })
+          .eq('id', id)
+
+        if (koreaCampaignError) throw koreaCampaignError
+      }
 
       alert('포인트 결제가 완료되었습니다!')
       navigate(`/company/campaigns/${id}`)
