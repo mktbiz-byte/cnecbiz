@@ -488,19 +488,12 @@ export default function PointsChargePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // 회사 ID 조회
-      const { data: companyData } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (!companyData) return
-
+      // points_charge_requests 테이블의 company_id가 실제로는 user_id임
+      // 따라서 user.id로 직접 조회
       const { data, error } = await supabase
         .from('points_charge_requests')
         .select('*')
-        .eq('company_id', companyData.id)
+        .eq('company_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error

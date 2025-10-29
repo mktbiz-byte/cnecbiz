@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabaseBiz as supabase } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
@@ -78,12 +78,12 @@ const InvoicePage = () => {
 
   const loadData = async () => {
     try {
-      // 현재 로그인한 사용자 정보 조회
-      const { data: { user } } = await supabase.auth.getUser()
+      // 현재 로그인한 사용자 정보 조회 (Biz DB)
+      const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
 
-      // 캐페인 정보 로드
-      const { data: campaignData, error: campaignError } = await supabase
+      // 캐페인 정보 로드 (Biz DB)
+      const { data: campaignData, error: campaignError } = await supabaseBiz
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -92,8 +92,8 @@ const InvoicePage = () => {
       if (campaignError) throw campaignError
       setCampaign(campaignData)
 
-      // 회사 정보 로드 (현재 로그인한 사용자의 회사)
-      const { data: companyData, error: companyError } = await supabase
+      // 회사 정보 로드 (Korea DB - companies 테이블은 Korea DB에만 있음)
+      const { data: companyData, error: companyError } = await supabaseKorea
         .from('companies')
         .select('*')
         .eq('user_id', user.id)
@@ -105,8 +105,8 @@ const InvoicePage = () => {
         setCompany(companyData)
       }
 
-      // 입금 계좌 정보 로드 (한국 지역)
-      const { data: accountData, error: accountError } = await supabaseBiz
+      // 입금 계좌 정보 로드 (Korea DB - payment_accounts도 Korea DB에 있음)
+      const { data: accountData, error: accountError } = await supabaseKorea
         .from('payment_accounts')
         .select('*')
         .eq('region', 'korea')
@@ -172,8 +172,8 @@ const InvoicePage = () => {
     setSuccess('')
 
     try {
-      // 1. campaigns 테이블 업데이트
-      const { error: campaignError } = await supabase
+      // 1. campaigns 테이블 업데이트 (Biz DB)
+      const { error: campaignError } = await supabaseBiz
         .from('campaigns')
         .update({
           payment_status: 'pending'
@@ -182,7 +182,7 @@ const InvoicePage = () => {
 
       if (campaignError) throw campaignError
 
-      // 2. payments 테이블에 견적서 정보 저장
+      // 2. payments 테이블에 견적서 정보 저장 (Korea DB)
       const invoiceData = {
         depositor_name: depositorName,
         tax_invoice_info: {
@@ -203,7 +203,7 @@ const InvoicePage = () => {
         total_amount: totalCost
       }
 
-      const { error: paymentError } = await supabase
+      const { error: paymentError } = await supabaseKorea
         .from('payments')
         .insert({
           campaign_id: id,
