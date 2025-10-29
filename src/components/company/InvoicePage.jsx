@@ -92,8 +92,8 @@ const InvoicePage = () => {
       if (campaignError) throw campaignError
       setCampaign(campaignData)
 
-      // 회사 정보 로드 (Korea DB - companies 테이블은 Korea DB에만 있음)
-      const { data: companyData, error: companyError } = await supabaseKorea
+      // 회사 정보 로드 (Biz DB)
+      const { data: companyData, error: companyError } = await supabaseBiz
         .from('companies')
         .select('*')
         .eq('user_id', user.id)
@@ -105,8 +105,8 @@ const InvoicePage = () => {
         setCompany(companyData)
       }
 
-      // 입금 계좌 정보 로드 (Korea DB - payment_accounts도 Korea DB에 있음)
-      const { data: accountData, error: accountError } = await supabaseKorea
+      // 입금 계좌 정보 로드 (Biz DB)
+      const { data: accountData, error: accountError } = await supabaseBiz
         .from('payment_accounts')
         .select('*')
         .eq('region', 'korea')
@@ -203,7 +203,7 @@ const InvoicePage = () => {
         total_amount: totalCost
       }
 
-      const { error: paymentError } = await supabaseKorea
+      const { error: paymentError } = await supabaseBiz
         .from('payments')
         .insert({
           campaign_id: id,
