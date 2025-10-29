@@ -23,6 +23,7 @@ export default function CampaignApprovals() {
           *,
           campaign_guides (*)
         `)
+        .eq('is_cancelled', false)  // 취소된 캠페인 제외
         .order('created_at', { ascending: false })
 
       if (filter === 'pending_approval') {

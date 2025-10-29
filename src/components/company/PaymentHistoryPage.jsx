@@ -3,6 +3,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState([])
+  const [chargeRequests, setChargeRequests] = useState([])  // 포인트 충전 신청
   const [totalSpent, setTotalSpent] = useState(0)
   const [loading, setLoading] = useState(true)
 
@@ -15,6 +16,7 @@ export default function PaymentHistoryPage() {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) return
 
+      // 기존 payments 테이블 조회
       const { data, error } = await supabaseBiz
         .from('payments')
         .select(`
@@ -30,8 +32,46 @@ export default function PaymentHistoryPage() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-
       setPayments(data || [])
+      
+      // 포인트 충전 신청 내역 조회
+      const { data: { user: authUser } } = await supabaseBiz.auth.getUser()
+      const { data: company } = await supabaseBiz
+        .from('companies')
+        .select('user_id')
+        .eq('email', authUser.email)
+        .single()
+      
+      if (company) {
+        const { data: requests } = await supabaseBiz
+          .from('points_charge_requests')
+          .select('*')
+          .eq('company_id', company.user_id)
+          .order('created_at', { ascending: false })
+        
+        // 취소된 캠페인 필터링
+        if (requests && requests.length > 0) {
+          const campaignIds = requests
+            .map(r => r.bank_transfer_info?.campaign_id)
+            .filter(Boolean)
+          
+          let cancelledCampaignIds = []
+          if (campaignIds.length > 0) {
+            const { data: campaigns } = await supabaseBiz
+              .from('campaigns')
+              .select('id, is_cancelled')
+              .in('id', campaignIds)
+              .eq('is_cancelled', true)
+            
+            cancelledCampaignIds = campaigns?.map(c => c.id) || []
+          }
+          
+          const filteredRequests = requests.filter(
+            req => !cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id)
+          )
+          setChargeRequests(filteredRequests)
+        }
+      }
       
       // Calculate total spent
       const total = data
@@ -204,6 +244,69 @@ export default function PaymentHistoryPage() {
             </div>
           )}
         </div>
+
+        {/* 포인트 충전 신청 내역 */}
+        {chargeRequests.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden mt-8">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">포인트 충전 신청 내역</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">날짜</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">캐페인</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">금액</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">포인트</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {chargeRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(request.created_at).toLocaleDateString('ko-KR')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {request.bank_transfer_info?.campaign_title || '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {request.amount?.toLocaleString()}원
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {request.status === 'pending' && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            입금 대기
+                          </span>
+                        )}
+                        {request.status === 'confirmed' && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            입금 확인
+                          </span>
+                        )}
+                        {request.status === 'failed' && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            실패
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {request.status === 'confirmed' ? (
+                          <span className="text-green-600 font-medium">
+                            +{request.amount?.toLocaleString()}포인트 지급 완료
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -89,10 +89,29 @@ export default function PointsChargeManagement() {
           companiesMap[c.user_id] = c
         })
 
-        const enrichedRequests = requests.map(req => ({
-          ...req,
-          companies: companiesMap[req.company_id] || null
-        }))
+        // 취소된 캠페인의 충전 신청 확인
+        const campaignIds = requests
+          .map(r => r.bank_transfer_info?.campaign_id)
+          .filter(Boolean)
+        
+        let cancelledCampaignIds = []
+        if (campaignIds.length > 0) {
+          const { data: campaigns } = await supabaseBiz
+            .from('campaigns')
+            .select('id, is_cancelled')
+            .in('id', campaignIds)
+            .eq('is_cancelled', true)
+          
+          cancelledCampaignIds = campaigns?.map(c => c.id) || []
+        }
+
+        const enrichedRequests = requests
+          .map(req => ({
+            ...req,
+            companies: companiesMap[req.company_id] || null,
+            is_cancelled_campaign: cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id)
+          }))
+          .filter(req => !req.is_cancelled_campaign)  // 취소된 캠페인 제외
 
         setChargeRequests(enrichedRequests)
       } else {
