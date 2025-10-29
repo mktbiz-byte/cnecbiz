@@ -23,6 +23,9 @@ const OrderConfirmation = () => {
 
   const loadData = async () => {
     try {
+      console.log('[OrderConfirmation] Loading campaign:', id)
+      console.log('[OrderConfirmation] Using supabaseBiz:', supabaseBiz ? 'initialized' : 'null')
+      
       // 1. 캠페인 정보 로드
       const { data: campaignData, error: campaignError } = await supabaseBiz
         .from('campaigns')
@@ -30,6 +33,8 @@ const OrderConfirmation = () => {
         .eq('id', id)
         .maybeSingle()
 
+      console.log('[OrderConfirmation] Campaign query result:', { campaignData, campaignError })
+      
       if (campaignError) throw campaignError
       if (!campaignData) throw new Error('캠페인을 찾을 수 없습니다.')
       setCampaign(campaignData)
