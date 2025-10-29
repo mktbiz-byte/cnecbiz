@@ -23,7 +23,7 @@ export default function AdminNavigation() {
   const menuItems = [
     { path: '/admin/dashboard', icon: Shield, label: '대시보드' },
     { path: '/admin/companies', icon: Building2, label: '기업 관리' },
-    { path: '/admin/campaigns', icon: TrendingUp, label: '캐페인 관리' },
+    { path: '/admin/campaigns', icon: TrendingUp, label: '캠페인 관리' },
     { path: '/admin/featured-creators', icon: Users, label: '추천 크리에이터' },
     { path: '/admin/all-creators', icon: Users, label: '전체 크리에이터' },
     { path: '/admin/revenue-charts', icon: BarChart3, label: '매출 관리 (그래프)' },

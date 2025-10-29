@@ -58,25 +58,25 @@ export default function AllCreatorsPage() {
     try {
       // 한국 크리에이터
       const { data: koreaData } = await supabaseBiz
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false })
 
       // 일본 크리에이터
       const { data: japanData } = await supabaseJapan
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false })
 
       // 미국 크리에이터
       const { data: usData } = await supabaseUS
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false })
 
       // 대만 크리에이터 (한국 DB에서 region 필터)
       const { data: taiwanData } = await supabaseBiz
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('*')
         .eq('region', 'taiwan')
         .order('created_at', { ascending: false })

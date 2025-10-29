@@ -162,7 +162,7 @@ export default function AdminDashboard() {
 
           <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/campaigns')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">총 캐페인</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">총 캠페인</CardTitle>
               <Package className="w-4 h-4 text-gray-400" />
             </CardHeader>
             <CardContent>

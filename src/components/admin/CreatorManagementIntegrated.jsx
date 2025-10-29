@@ -76,7 +76,7 @@ export default function CreatorManagementIntegrated() {
   const fetchPendingCreators = async () => {
     try {
       const { data, error } = await supabaseBiz
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('*')
         .eq('approval_status', 'pending')
         .order('created_at', { ascending: false })
@@ -95,17 +95,17 @@ export default function CreatorManagementIntegrated() {
         .select('id', { count: 'exact', head: true })
 
       const { data: pending } = await supabaseBiz
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('id', { count: 'exact', head: true })
         .eq('approval_status', 'pending')
 
       const { data: approved } = await supabaseBiz
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('id', { count: 'exact', head: true })
         .eq('approval_status', 'approved')
 
       const { data: rejected } = await supabaseBiz
-        .from('creator_profiles')
+        .from('user_profiles')
         .select('id', { count: 'exact', head: true })
         .eq('approval_status', 'rejected')
 

@@ -297,7 +297,7 @@ export default function RevenueManagementWithCharts() {
 
   // 엑셀 다운로드 (템플릿)
   const downloadTemplate = () => {
-    const csv = 'date,type,amount,description,category\n2024-01-15,revenue,10000000,1월 캐페인 매출,campaign\n2024-01-20,fixed_cost,2000000,사무실 임대료,office\n2024-01-25,creator_cost,3000000,크리에이터 지급,payment'
+    const csv = 'date,type,amount,description,category\n2024-01-15,revenue,10000000,1월 캠페인 매출,campaign\n2024-01-20,fixed_cost,2000000,사무실 임대료,office\n2024-01-25,creator_cost,3000000,크리에이터 지급,payment'
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -708,7 +708,7 @@ export default function RevenueManagementWithCharts() {
                     <p className="text-sm text-gray-700 mb-2">다음 형식으로 작성해주세요:</p>
                     <code className="block bg-white p-3 rounded text-xs font-mono">
                       date,type,amount,description,category<br />
-                      2024-01-15,revenue,10000000,1월 캐페인 매출,campaign<br />
+                      2024-01-15,revenue,10000000,1월 캠페인 매출,campaign<br />
                       2024-01-20,fixed_cost,2000000,사무실 임대료,office<br />
                       2024-01-25,creator_cost,3000000,크리에이터 지급,payment
                     </code>
