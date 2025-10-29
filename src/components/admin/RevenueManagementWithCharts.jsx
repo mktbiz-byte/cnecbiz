@@ -58,6 +58,12 @@ export default function RevenueManagementWithCharts() {
     is_recurring: false
   })
   
+  // 필터 및 페이지네이션
+  const [revenueFilter, setRevenueFilter] = useState('all')
+  const [revenueLimit, setRevenueLimit] = useState(50)
+  const [expenseFilter, setExpenseFilter] = useState('all')
+  const [expenseLimit, setExpenseLimit] = useState(50)
+  
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState(null)
 
@@ -713,7 +719,19 @@ export default function RevenueManagementWithCharts() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>매출 내역 ({revenueData.filter(r => r.type === 'revenue').length}건)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>매출 내역 ({revenueData.filter(r => r.type === 'revenue').length}건)</CardTitle>
+                    <select 
+                      value={revenueFilter}
+                      onChange={(e) => { setRevenueFilter(e.target.value); setRevenueLimit(50); }}
+                      className="px-3 py-1 border rounded-md text-sm"
+                    >
+                      <option value="all">전체 기간</option>
+                      {Array.from(new Set(revenueData.map(r => r.record_date?.substring(0, 7)))).sort().reverse().map(month => (
+                        <option key={month} value={month}>{month}</option>
+                      ))}
+                    </select>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -729,7 +747,8 @@ export default function RevenueManagementWithCharts() {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {revenueData
                           .filter(r => r.type === 'revenue')
-                          .slice(0, 50)
+                          .filter(r => revenueFilter === 'all' || r.record_date?.startsWith(revenueFilter))
+                          .slice(0, revenueLimit)
                           .map((record) => (
                           <tr key={record.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">
@@ -793,10 +812,17 @@ export default function RevenueManagementWithCharts() {
                         ))}
                       </tbody>
                     </table>
+                    {revenueData.filter(r => r.type === 'revenue').filter(r => revenueFilter === 'all' || r.record_date?.startsWith(revenueFilter)).length > revenueLimit && (
+                      <div className="mt-4 text-center">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setRevenueLimit(prev => prev + 50)}
+                        >
+                          더보기 ({revenueLimit} / {revenueData.filter(r => r.type === 'revenue').filter(r => revenueFilter === 'all' || r.record_date?.startsWith(revenueFilter)).length})
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {revenueData.filter(r => r.type === 'revenue').length > 50 && (
-                    <p className="text-sm text-gray-500 text-center mt-4">최근 50개 항목만 표시됩니다.</p>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -881,7 +907,19 @@ export default function RevenueManagementWithCharts() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>비용 내역 ({expenses.length}건)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>비용 내역 ({revenueData.filter(r => r.type !== 'revenue').length}건)</CardTitle>
+                    <select 
+                      value={expenseFilter}
+                      onChange={(e) => { setExpenseFilter(e.target.value); setExpenseLimit(50); }}
+                      className="px-3 py-1 border rounded-md text-sm"
+                    >
+                      <option value="all">전체 기간</option>
+                      {Array.from(new Set(revenueData.filter(r => r.type !== 'revenue').map(r => r.record_date?.substring(0, 7)))).sort().reverse().map(month => (
+                        <option key={month} value={month}>{month}</option>
+                      ))}
+                    </select>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -896,7 +934,11 @@ export default function RevenueManagementWithCharts() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {expenses.slice(0, 50).map((expense) => (
+                        {revenueData
+                          .filter(r => r.type !== 'revenue')
+                          .filter(r => expenseFilter === 'all' || r.record_date?.startsWith(expenseFilter))
+                          .slice(0, expenseLimit)
+                          .map((expense) => (
                           <tr key={expense.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">
                               {new Date(expense.record_date).toLocaleDateString('ko-KR')}
@@ -946,10 +988,17 @@ export default function RevenueManagementWithCharts() {
                         ))}
                       </tbody>
                     </table>
-                    {expenses.length > 50 && (
-                      <p className="text-sm text-gray-500 text-center mt-4">최근 50개 항목만 표시됩니다.</p>
+                    {revenueData.filter(r => r.type !== 'revenue').filter(r => expenseFilter === 'all' || r.record_date?.startsWith(expenseFilter)).length > expenseLimit && (
+                      <div className="mt-4 text-center">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setExpenseLimit(prev => prev + 50)}
+                        >
+                          더보기 ({expenseLimit} / {revenueData.filter(r => r.type !== 'revenue').filter(r => expenseFilter === 'all' || r.record_date?.startsWith(expenseFilter)).length})
+                        </Button>
+                      </div>
                     )}
-                    {expenses.length === 0 && (
+                    {revenueData.filter(r => r.type !== 'revenue').length === 0 && (
                       <div className="text-center py-12 text-gray-500">
                         비용 내역이 없습니다.
                       </div>
