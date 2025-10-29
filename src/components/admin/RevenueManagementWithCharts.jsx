@@ -102,7 +102,7 @@ export default function RevenueManagementWithCharts() {
       const { data, error } = await supabaseBiz
         .from('financial_records')
         .select('*')
-        .order('record_date', { ascending: true })
+        .order('record_date', { ascending: false })
 
       if (error) throw error
       setRevenueData(data || [])
@@ -113,10 +113,12 @@ export default function RevenueManagementWithCharts() {
 
   const fetchExpenses = async () => {
     try {
+      // financial_records에서 비용 데이터 조회
       const { data, error } = await supabaseBiz
-        .from('expense_records')
+        .from('financial_records')
         .select('*')
-        .order('expense_date', { ascending: true })
+        .in('type', ['fixed_cost', 'creator_cost', 'variable_cost'])
+        .order('record_date', { ascending: false })
 
       if (error) throw error
       setExpenses(data || [])
@@ -411,14 +413,17 @@ export default function RevenueManagementWithCharts() {
 
   const monthlyData = getMonthlyData()
 
-  // 파이 차트 데이터
+  // 파이 차트 데이터 - 매출 대비 비용 비율
+  const totalCost = stats.totalExpenses + stats.totalCreatorCost
+  const netProfit = stats.totalRevenue - totalCost
+  
   const pieData = [
-    { name: '매출', value: stats.totalRevenue, color: '#3b82f6' },
+    { name: '순이익', value: netProfit > 0 ? netProfit : 0, color: '#10b981' },
     { name: '고정비', value: stats.totalExpenses, color: '#ef4444' },
     { name: '크리에이터비', value: stats.totalCreatorCost, color: '#f59e0b' }
   ]
 
-  const COLORS = ['#3b82f6', '#ef4444', '#f59e0b']
+  const COLORS = ['#10b981', '#ef4444', '#f59e0b']
 
   return (
     <>
@@ -723,7 +728,7 @@ export default function RevenueManagementWithCharts() {
                               {new Date(record.record_date).toLocaleDateString('ko-KR')}
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {record.category || record.description}
+                              {record.description || record.category}
                             </td>
                             <td className="px-4 py-3 text-sm text-right font-medium text-blue-600">
                               +₩{parseFloat(record.amount).toLocaleString()}
@@ -871,28 +876,76 @@ export default function RevenueManagementWithCharts() {
                   <CardTitle>비용 내역 ({expenses.length}건)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {expenses.map((expense) => (
-                      <div key={expense.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <div className="font-semibold">{expense.month}</div>
-                          <div className="text-sm text-gray-600">{expense.description}</div>
-                          <div className="flex gap-2 mt-1">
-                            <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                              {expense.type === 'fixed' ? '고정비' : '변동비'}
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-blue-100 rounded">
-                              {expense.category}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-red-600">
-                            ₩{parseFloat(expense.amount).toLocaleString()}
-                          </div>
-                        </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">날짜</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">유형</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">설명</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">금액</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">작업</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {expenses.slice(0, 50).map((expense) => (
+                          <tr key={expense.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">
+                              {new Date(expense.record_date).toLocaleDateString('ko-KR')}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                                expense.type === 'fixed_cost' ? 'bg-red-100 text-red-800' :
+                                expense.type === 'creator_cost' ? 'bg-orange-100 text-orange-800' :
+                                'bg-purple-100 text-purple-800'
+                              }`}>
+                                {expense.type === 'fixed_cost' ? '고정비' :
+                                 expense.type === 'creator_cost' ? '크리에이터비' : '변동비'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              {expense.description}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right font-medium text-red-600">
+                              -₩{parseFloat(expense.amount).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={async () => {
+                                  if (!confirm('정말 삭제하시겠습니까?')) return
+                                  try {
+                                    const { error } = await supabaseBiz
+                                      .from('financial_records')
+                                      .delete()
+                                      .eq('id', expense.id)
+                                    
+                                    if (error) throw error
+                                    alert('삭제되었습니다.')
+                                    fetchAllData()
+                                  } catch (error) {
+                                    console.error('삭제 오류:', error)
+                                    alert('삭제에 실패했습니다.')
+                                  }
+                                }}
+                              >
+                                삭제
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {expenses.length > 50 && (
+                      <p className="text-sm text-gray-500 text-center mt-4">최근 50개 항목만 표시됩니다.</p>
+                    )}
+                    {expenses.length === 0 && (
+                      <div className="text-center py-12 text-gray-500">
+                        비용 내역이 없습니다.
                       </div>
-                    ))}
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1132,7 +1185,7 @@ export default function RevenueManagementWithCharts() {
                                 {new Date(record.record_date).toLocaleDateString('ko-KR')}
                               </td>
                               <td className="px-4 py-3 text-sm">
-                                {record.category || record.description}
+                                {record.description || record.category}
                               </td>
                               <td className="px-4 py-3 text-sm text-right font-medium text-yellow-600">
                                 ₩{parseFloat(record.amount).toLocaleString()}

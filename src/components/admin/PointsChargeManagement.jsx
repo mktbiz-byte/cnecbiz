@@ -661,26 +661,25 @@ export default function PointsChargeManagement() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">금액 *</label>
-                  <Input
-                    type="number"
-                    value={creditForm.amount}
-                    onChange={(e) => setCreditForm({ ...creditForm, amount: e.target.value })}
-                    placeholder="10000"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-900 mb-2">수량</label>
-                  <Input
-                    type="number"
-                    value={creditForm.quantity}
-                    onChange={(e) => setCreditForm({ ...creditForm, quantity: parseInt(e.target.value) || 1 })}
-                    placeholder="1"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">금액 *</label>
+                <Input
+                  type="number"
+                  value={creditForm.amount}
+                  onChange={(e) => setCreditForm({ ...creditForm, amount: e.target.value })}
+                  placeholder="10000"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">수량</label>
+                <Input
+                  type="number"
+                  value={creditForm.quantity}
+                  onChange={(e) => setCreditForm({ ...creditForm, quantity: parseInt(e.target.value) || 1 })}
+                  placeholder="1"
+                />
               </div>
 
               <div>
