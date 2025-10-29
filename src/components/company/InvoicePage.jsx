@@ -11,6 +11,42 @@ import { ArrowLeft, Download, CheckCircle, Copy } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 const InvoicePage = () => {
+  // 출력 전용 스타일
+  const printStyles = `
+    @media print {
+      /* 네비게이션, 버튼 등 숨기기 */
+      nav, button, .no-print {
+        display: none !important;
+      }
+      
+      /* 페이지 여백 설정 */
+      @page {
+        margin: 2cm;
+      }
+      
+      /* 견적서만 출력 */
+      body * {
+        visibility: hidden;
+      }
+      
+      .printable-area, .printable-area * {
+        visibility: visible;
+      }
+      
+      .printable-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+      
+      /* 배경색 출력 */
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  `;
   const navigate = useNavigate()
   const { id } = useParams()
 
@@ -117,34 +153,52 @@ const InvoicePage = () => {
     setSuccess('')
 
     try {
-      const updateData = {
-        payment_status: 'pending',  // 입금 확인 중 상태로 변경
-        payment_requested_at: new Date().toISOString()
-      }
-
-      // 세금계산서 정보가 있으면 함께 저장
-      const invoiceData = {
-        company_name: companyName,
-        business_number: businessNumber,
-        representative: representativeName,
-        contact: contact,
-        email: email,
-        business_type: businessType,
-        business_category: businessCategory,
-        address: companyAddress,
-        memo: memo
-      }
-      
-      if (companyName || businessNumber || representativeName || contact || email) {
-        updateData.invoice_data = invoiceData
-      }
-
-      const { error } = await supabase
+      // 1. campaigns 테이블 업데이트
+      const { error: campaignError } = await supabase
         .from('campaigns')
-        .update(updateData)
+        .update({
+          payment_status: 'pending',
+          payment_requested_at: new Date().toISOString()
+        })
         .eq('id', id)
 
-      if (error) throw error
+      if (campaignError) throw campaignError
+
+      // 2. payments 테이블에 견적서 정보 저장
+      const invoiceData = {
+        depositor_name: depositorName,
+        tax_invoice_info: {
+          business_registration_number: company.business_registration_number,
+          company_name: company.company_name,
+          ceo_name: company.ceo_name,
+          business_type: company.business_type,
+          business_category: company.business_category,
+          company_address: company.company_address,
+          email: company.email,
+          phone: company.phone
+        },
+        tax_invoice_file_url: taxInvoiceFileUrl,
+        payment_account: paymentAccount,
+        invoice_date: new Date().toISOString(),
+        subtotal: subtotal,
+        discount_amount: discountAmount,
+        total_amount: totalCost
+      }
+
+      const { error: paymentError } = await supabase
+        .from('payments')
+        .insert({
+          campaign_id: id,
+          company_id: campaign.company_id,
+          amount: totalCost,
+          currency: 'KRW',
+          payment_method: 'bank_transfer',
+          status: 'pending',
+          region: 'korea',
+          bank_transfer_info: invoiceData
+        })
+
+      if (paymentError) throw paymentError
 
       setSuccess('입금 요청이 제출되었습니다! 입금 확인 후 캠페인이 시작됩니다.')
       setTimeout(() => {
@@ -202,18 +256,19 @@ const InvoicePage = () => {
 
   return (
     <>
+      <style>{printStyles}</style>
       <CompanyNavigation />
       <div className="container mx-auto p-6 max-w-4xl">
       <Button
         variant="ghost"
         onClick={() => navigate(`/company/campaigns/${id}/order-confirmation`)}
-        className="mb-4"
+        className="mb-4 no-print"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         주문서로 돌아가기
       </Button>
 
-      <Card>
+      <Card className="printable-area">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-2xl">견적서 및 입금 안내</CardTitle>

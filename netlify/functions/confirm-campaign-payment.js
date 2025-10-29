@@ -107,27 +107,74 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 캠페인 상태 업데이트
-    const updateData = {
+    // 1. payments 테이블에서 해당 캠페인의 결제 정보 조회
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (paymentError || !payment) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '결제 정보를 찾을 수 없습니다.'
+        })
+      }
+    }
+
+    // 2. payments 테이블 업데이트
+    const paymentUpdateData = {
+      status: 'completed',
+      paid_at: depositDate || new Date().toISOString(),
+      confirmed_by: adminUserId,
+      confirmed_at: new Date().toISOString()
+    }
+
+    // bank_transfer_info에 입금자명 추가
+    if (depositorName) {
+      paymentUpdateData.bank_transfer_info = {
+        ...payment.bank_transfer_info,
+        depositor_name: depositorName,
+        confirmed_deposit_amount: depositAmount
+      }
+    }
+
+    const { error: paymentUpdateError } = await supabase
+      .from('payments')
+      .update(paymentUpdateData)
+      .eq('id', payment.id)
+
+    if (paymentUpdateError) {
+      console.error('결제 정보 업데이트 오류:', paymentUpdateError)
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '결제 정보 업데이트 중 오류가 발생했습니다.',
+          details: paymentUpdateError.message
+        })
+      }
+    }
+
+    // 3. campaigns 테이블 업데이트
+    const campaignUpdateData = {
       payment_status: 'confirmed',
       payment_confirmed_at: new Date().toISOString(),
-      payment_confirmed_by: admin.email,
       approval_status: 'pending' // 입금 확인 후 승인 대기 상태로 변경
     }
 
-    if (depositDate) updateData.deposit_date = depositDate
-    if (depositAmount) updateData.deposit_amount = depositAmount
-    if (depositorName) {
-      updateData.invoice_data = {
-        ...campaign.invoice_data,
-        depositor_name: depositorName
-      }
-    }
-    if (memo) updateData.admin_memo = memo
+    if (memo) campaignUpdateData.admin_memo = memo
 
     const { error: updateError } = await supabase
       .from('campaigns')
-      .update(updateData)
+      .update(campaignUpdateData)
       .eq('id', campaignId)
 
     if (updateError) {
