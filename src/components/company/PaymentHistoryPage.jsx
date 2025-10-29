@@ -35,22 +35,15 @@ export default function PaymentHistoryPage() {
       setPayments(data || [])
       
       // 포인트 충전 신청 내역 조회
-      const { data: { user: authUser } } = await supabaseBiz.auth.getUser()
-      const { data: company } = await supabaseBiz
-        .from('companies')
-        .select('user_id')
-        .eq('email', authUser.email)
-        .single()
+      const { data: requests } = await supabaseBiz
+        .from('points_charge_requests')
+        .select('*')
+        .eq('company_id', user.id)
+        .order('created_at', { ascending: false })
       
-      if (company) {
-        const { data: requests } = await supabaseBiz
-          .from('points_charge_requests')
-          .select('*')
-          .eq('company_id', company.user_id)
-          .order('created_at', { ascending: false })
+      if (requests && requests.length > 0) {
         
         // 취소된 캠페인 필터링
-        if (requests && requests.length > 0) {
           const campaignIds = requests
             .map(r => r.bank_transfer_info?.campaign_id)
             .filter(Boolean)
@@ -69,8 +62,7 @@ export default function PaymentHistoryPage() {
           const filteredRequests = requests.filter(
             req => !cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id)
           )
-          setChargeRequests(filteredRequests)
-        }
+        setChargeRequests(filteredRequests)
       }
       
       // Calculate total spent
