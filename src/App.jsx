@@ -27,6 +27,7 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import AdminManagement from './components/admin/AdminManagement'
 import RevenueManagement from './components/admin/RevenueManagement'
 import RevenueManagementEnhanced from './components/admin/RevenueManagementEnhanced'
+import RevenueManagementNew from './components/admin/RevenueManagementNew'
 import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import WithdrawalManagement from './components/admin/WithdrawalManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
@@ -84,7 +85,8 @@ function App() {
         {/* Super Admin Routes */}
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/manage-admins" element={<AdminManagement />} />
-        <Route path="/admin/revenue" element={<RevenueManagement />} />
+        <Route path="/admin/revenue" element={<RevenueManagementNew />} />
+        <Route path="/admin/revenue-old" element={<RevenueManagement />} />
         <Route path="/admin/revenue-enhanced" element={<RevenueManagementEnhanced />} />
         <Route path="/admin/points-charge" element={<PointsChargeManagement />} />
         <Route path="/admin/withdrawals" element={<WithdrawalManagement />} />
