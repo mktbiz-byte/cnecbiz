@@ -1,83 +1,169 @@
 const popbill = require('popbill');
 
-// Popbill 설정
-const LinkID = process.env.POPBILL_LINK_ID;
-const SecretKey = process.env.POPBILL_SECRET_KEY;
+// Popbill 전역 설정
+popbill.config({
+  LinkID: process.env.POPBILL_LINK_ID,
+  SecretKey: process.env.POPBILL_SECRET_KEY,
+  IsTest: false, // 운영 환경 (테스트 시 true로 변경)
+  IPRestrictOnOff: true,
+  UseStaticIP: false,
+  UseLocalTimeYN: true,
+  defaultErrorHandler: function (Error) {
+    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
+  }
+});
+
 const CorpNum = process.env.POPBILL_CORP_NUM;
 const UserID = process.env.POPBILL_USER_ID;
 
 // Popbill 서비스 초기화
-const kakaoService = popbill.KakaoService(LinkID, SecretKey);
+const kakaoService = popbill.KakaoService();
+const messageService = popbill.MessageService();
+
+// 관리자 번호 (알림 수신)
+const ADMIN_PHONES = ['010-7714-7675', '010-6886-3302'];
 
 exports.handler = async (event) => {
   try {
-    const { 
-      userName,
-      userPhone,
-      userEmail
-    } = JSON.parse(event.body);
+    const { userName, userEmail, userPhone } = JSON.parse(event.body);
 
-    console.log('Sending signup kakao:', { userName, userPhone });
+    console.log('회원가입 알림 발송:', { userName, userEmail, userPhone });
 
-    // 카카오톡 알림톡 발송
-    const result = await sendSignupKakao(userPhone, userName);
+    const results = [];
+
+    // 관리자들에게 알림톡 발송 (실패 시 SMS)
+    for (const adminPhone of ADMIN_PHONES) {
+      try {
+        // 1단계: 알림톡 시도
+        const kakaoResult = await sendKakaoTalk(adminPhone, userName, userEmail, userPhone);
+        results.push({
+          phone: adminPhone,
+          method: 'kakao',
+          success: true,
+          result: kakaoResult
+        });
+        console.log(`✓ 알림톡 발송 성공 (${adminPhone}):`, kakaoResult);
+      } catch (kakaoError) {
+        console.log(`✗ 알림톡 실패 (${adminPhone}):`, kakaoError.message);
+        
+        try {
+          // 2단계: SMS 대체 발송
+          const smsResult = await sendSMS(adminPhone, userName, userEmail, userPhone);
+          results.push({
+            phone: adminPhone,
+            method: 'sms_fallback',
+            success: true,
+            result: smsResult,
+            kakaoError: kakaoError.message
+          });
+          console.log(`✓ SMS 대체 발송 성공 (${adminPhone}):`, smsResult);
+        } catch (smsError) {
+          results.push({
+            phone: adminPhone,
+            method: 'both_failed',
+            success: false,
+            kakaoError: kakaoError.message,
+            smsError: smsError.message
+          });
+          console.error(`✗ SMS 발송도 실패 (${adminPhone}):`, smsError.message);
+        }
+      }
+    }
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
-        result
+        message: '회원가입 알림 발송 완료',
+        results
       })
     };
 
   } catch (error) {
-    console.error('Signup kakao error:', error);
+    console.error('회원가입 알림 오류:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({
-        success: false,
         error: error.message
       })
     };
   }
 };
 
-// 회원가입 카카오톡 알림톡 발송
-async function sendSignupKakao(phone, userName) {
+// 카카오톡 알림톡 발송
+function sendKakaoTalk(phone, userName, userEmail, userPhone) {
   return new Promise((resolve, reject) => {
     const receiver = {
-      rcv: phone.replace(/-/g, ''), // 하이픈 제거
-      rcvnm: userName,
+      rcv: phone.replace(/-/g, ''),
+      rcvnm: '관리자',
       msg: '', // 템플릿 사용 시 빈 문자열
-      altmsg: `[CNEC BIZ] 회원가입을 환영합니다!\n\n안녕하세요, ${userName}님.\n\n회원가입이 완료되었습니다.\n앞으로도 많은 관심과 이용 부탁 드립니다.\n\n가입 후 기업 프로필을 설정해 주세요.\n\n문의: 1833-6025`,
-      altsjt: '[CNEC BIZ] 회원가입 완료',
-      snd: '1833-6025', // 발신번호
+      altmsg: `[CNEC BIZ] 신규 회원가입 알림
+
+회원명: ${userName}
+이메일: ${userEmail}
+연락처: ${userPhone}
+
+가입 일시: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+
+문의: 1833-6025`,
+      altsjt: '[CNEC BIZ] 신규 회원가입',
+      snd: '1833-6025',
       sndnm: 'CNEC'
     };
 
-    // 템플릿 코드: 025100000912 (회원가입)
-    const templateCode = '025100000912';
+    const templateCode = '025100000912'; // 회원가입 템플릿
 
-    // sendATS_one 사용 (단건 전송)
     kakaoService.sendATS_one(
       CorpNum,
       templateCode,
-      '1833-6025', // 발신번호
-      '', // 알림톡 내용 (템플릿 사용 시 빈 문자열)
-      receiver.altmsg, // 대체문자 내용
-      'A', // 대체문자 유형
-      '', // 예약일시
-      receiver.rcv, // 수신번호
-      receiver.rcvnm, // 수신자명
+      '1833-6025',
+      receiver.msg,
+      receiver.altmsg,
+      'A',
+      '',
+      receiver.rcv,
+      receiver.rcvnm,
       UserID,
-      '', // 요청번호
-      null, // 버튼정보
+      '',
+      null,
       (receiptNum) => {
-        console.log('Kakao send success:', receiptNum);
-        resolve({ success: true, receiptNum });
+        resolve({ receiptNum });
       },
       (error) => {
-        console.error('Kakao send error:', error);
+        reject(error);
+      }
+    );
+  });
+}
+
+// SMS 문자 발송
+function sendSMS(phone, userName, userEmail, userPhone) {
+  return new Promise((resolve, reject) => {
+    const receiver = {
+      rcv: phone.replace(/-/g, ''),
+      rcvnm: '관리자',
+      msg: `[CNEC BIZ] 신규 회원가입 알림
+
+회원명: ${userName}
+이메일: ${userEmail}
+연락처: ${userPhone}
+
+가입 일시: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
+
+문의: 1833-6025`
+    };
+
+    messageService.sendSMS_multi(
+      CorpNum,
+      '1833-6025',
+      'CNEC',
+      [receiver],
+      '',
+      UserID,
+      (receiptNum) => {
+        resolve({ receiptNum });
+      },
+      (error) => {
         reject(error);
       }
     );
