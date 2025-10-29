@@ -512,8 +512,7 @@ export default function MyCampaigns() {
                           )}
                         </div>
                         <div className="flex gap-2">
-                          {console.log('[MyCampaigns] Campaign:', campaign.id, 'approval_status:', campaign.approval_status, 'is_cancelled:', campaign.is_cancelled)}
-                          {campaign.approval_status === 'draft' && !campaign.is_cancelled && (
+                          {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
                             <Button 
                               variant="default"
                               size="sm"
