@@ -202,7 +202,7 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-gray-500">채널을 찾을 수 없습니다.</p>
-              <Button onClick={() => navigate('/admin/our-channels')} className="mt-4">
+              <Button onClick={() => navigate(-1)} className="mt-4">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 돌아가기
               </Button>
@@ -233,7 +233,7 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
         <div className="mb-6">
           <Button 
             variant="outline" 
-            onClick={() => navigate('/admin/our-channels')}
+            onClick={() => navigate(-1)}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

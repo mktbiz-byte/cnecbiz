@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Video, HelpCircle, Edit, Plus, Trash2, Save, 
-  Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send
+  Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send, FileSignature
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -82,6 +82,10 @@ export default function SiteManagement() {
   const [editingTemplate, setEditingTemplate] = useState(null)
   const [templateType, setTemplateType] = useState('company') // 'company' or 'creator'
 
+  // 전자계약서
+  const [contracts, setContracts] = useState([])
+  const [contractsLoading, setContractsLoading] = useState(false)
+
   useEffect(() => {
     checkAuth()
     fetchVideos()
@@ -96,6 +100,8 @@ export default function SiteManagement() {
   useEffect(() => {
     if (activeTab === 'email-templates') {
       fetchEmailTemplates()
+    } else if (activeTab === 'contracts') {
+      fetchContracts()
     }
   }, [templateType, activeTab])
 
@@ -634,6 +640,42 @@ export default function SiteManagement() {
     }
   }
 
+  // 전자계약서 관리 함수
+  const fetchContracts = async () => {
+    try {
+      setContractsLoading(true)
+      const { data, error } = await supabaseBiz
+        .from('contracts')
+        .select(`
+          *,
+          campaigns(title)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50)
+      
+      if (error) throw error
+      setContracts(data || [])
+    } catch (error) {
+      console.error('계약서 조회 오류:', error)
+    } finally {
+      setContractsLoading(false)
+    }
+  }
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      pending: { text: '대기', color: 'bg-gray-100 text-gray-800' },
+      sent: { text: '발송됨', color: 'bg-blue-100 text-blue-800' },
+      signed: { text: '서명완료', color: 'bg-green-100 text-green-800' },
+      expired: { text: '만료', color: 'bg-red-100 text-red-800' }
+    }
+    return badges[status] || badges.pending
+  }
+
+  const getContractTypeName = (type) => {
+    return type === 'campaign' ? '캠페인 계약서' : '초상권 동의서'
+  }
+
   return (
     <>
       <AdminNavigation />
@@ -647,7 +689,7 @@ export default function SiteManagement() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-8">
+            <TabsList className="grid w-full grid-cols-9">
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
                 영상
@@ -679,6 +721,10 @@ export default function SiteManagement() {
               <TabsTrigger value="email-templates" className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 이메일 템플릿
+              </TabsTrigger>
+              <TabsTrigger value="contracts" className="flex items-center gap-2">
+                <FileSignature className="w-4 h-4" />
+                전자계약서
               </TabsTrigger>
             </TabsList>
 
@@ -1507,6 +1553,118 @@ export default function SiteManagement() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* 전자계약서 탭 */}
+            <TabsContent value="contracts" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>전자계약서 관리</CardTitle>
+                  <p className="text-sm text-gray-600">캠페인 계약서 및 초상권 동의서 현황</p>
+                </CardHeader>
+                <CardContent>
+                  {contractsLoading ? (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">로딩 중...</p>
+                    </div>
+                  ) : contracts.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FileSignature className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <p className="text-gray-500">아직 발송된 계약서가 없습니다.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">유형</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">제목</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">캠페인</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">발송일</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">서명일</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">만료일</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {contracts.map((contract) => {
+                            const statusBadge = getStatusBadge(contract.status)
+                            return (
+                              <tr key={contract.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                  {getContractTypeName(contract.contract_type)}
+                                </td>
+                                <td className="px-4 py-4 text-sm">
+                                  {contract.title}
+                                </td>
+                                <td className="px-4 py-4 text-sm">
+                                  {contract.campaigns?.title || '-'}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap">
+                                  <span className={`px-2 py-1 text-xs rounded-full ${statusBadge.color}`}>
+                                    {statusBadge.text}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {contract.sent_at ? new Date(contract.sent_at).toLocaleDateString('ko-KR') : '-'}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString('ko-KR') : '-'}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {new Date(contract.expires_at).toLocaleDateString('ko-KR')}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 계약서 통계 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">전체</p>
+                      <p className="text-3xl font-bold text-gray-900 mt-2">{contracts.length}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">발송됨</p>
+                      <p className="text-3xl font-bold text-blue-600 mt-2">
+                        {contracts.filter(c => c.status === 'sent').length}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">서명완료</p>
+                      <p className="text-3xl font-bold text-green-600 mt-2">
+                        {contracts.filter(c => c.status === 'signed').length}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-center">
+                      <p className="text-sm text-gray-600">만료</p>
+                      <p className="text-3xl font-bold text-red-600 mt-2">
+                        {contracts.filter(c => c.status === 'expired').length}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

@@ -50,6 +50,7 @@ import RevenueManagementWithCharts from './components/admin/RevenueManagementWit
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
 import OurChannelReport from './components/admin/OurChannelReport'
+import SignContract from './pages/SignContract'
 
 
 import AuthCallback from './components/AuthCallback'
@@ -118,6 +119,9 @@ function App() {
         <Route path="/creator/apply" element={<CreatorProfileApplication />} />
         <Route path="/creator/withdrawal" element={<WithdrawalRequest />} />
         <Route path="/creator/:creatorId" element={<CreatorDetailProfile />} />
+
+        {/* Contract Routes */}
+        <Route path="/sign-contract/:contractId" element={<SignContract />} />
 
         {/* Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
