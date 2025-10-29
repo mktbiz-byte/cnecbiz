@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   Shield, Building2, TrendingUp, Users, Edit, Video, 
-  HelpCircle, CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings 
+  HelpCircle, CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings, FileSignature 
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -30,6 +30,7 @@ export default function AdminNavigation() {
     { path: '/admin/revenue-charts', icon: BarChart3, label: '매출 관리 (그래프)' },
     { path: '/admin/points-charge', icon: CreditCard, label: '포인트 & 미수금' },
     { path: '/admin/withdrawals', icon: Wallet, label: '크리에이터 출금' },
+    { path: '/admin/contracts', icon: FileSignature, label: '계약서 관리' },
     { path: '/admin/tax-feedback', icon: MessageSquare, label: '세무서 피드백' },
     { path: '/admin/site-management', icon: Settings, label: '사이트 관리' },
     { path: '/admin/manage-admins', icon: Shield, label: '관리자 권한' },

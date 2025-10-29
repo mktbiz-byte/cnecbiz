@@ -31,6 +31,7 @@ import RevenueManagementEnhanced from './components/admin/RevenueManagementEnhan
 import RevenueManagementNew from './components/admin/RevenueManagementNew'
 import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import WithdrawalManagement from './components/admin/WithdrawalManagement'
+import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import CreatorsManagement from './components/admin/CreatorsManagement'
@@ -112,6 +113,7 @@ function App() {
         <Route path="/admin/site-management" element={<SiteManagement />} />
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
+        <Route path="/admin/contracts" element={<AdminContractManagement />} />
 
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />

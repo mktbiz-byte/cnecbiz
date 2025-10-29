@@ -379,9 +379,17 @@ export default function RevenueManagementWithCharts() {
     }
 
     try {
+      // financial_records에 삽입
       const { error } = await supabaseBiz
-        .from('expense_records')
-        .insert([newExpense])
+        .from('financial_records')
+        .insert([{
+          record_date: `${newExpense.month}-01`,
+          type: newExpense.type === 'fixed' ? 'fixed_cost' : 'variable_cost',
+          amount: parseFloat(newExpense.amount),
+          description: newExpense.description,
+          category: newExpense.category,
+          is_receivable: false
+        }])
 
       if (error) throw error
 
@@ -394,7 +402,7 @@ export default function RevenueManagementWithCharts() {
         description: '',
         is_recurring: false 
       })
-      fetchExpenses()
+      fetchAllData()
     } catch (error) {
       console.error('비용 추가 오류:', error)
       alert('비용 추가에 실패했습니다.')
