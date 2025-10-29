@@ -169,7 +169,8 @@ exports.handler = async (event, context) => {
 
     // 예금주명 매칭
     const matchedRequest = chargeRequests.find(req => {
-      const expectedDepositor = req.invoice_data?.depositor_name || req.invoice_data?.company_name;
+      // depositor_name 컬럼 직접 사용 (invoice_data 컬럼은 존재하지 않음)
+      const expectedDepositor = req.depositor_name;
       return expectedDepositor && depositorName.includes(expectedDepositor);
     });
 
@@ -186,14 +187,18 @@ exports.handler = async (event, context) => {
 
     // 세금계산서 또는 현금영수증 발행
     let receiptResult;
-    const receiptType = matchedRequest.invoice_data?.receipt_type || 'tax_invoice';
+    // tax_invoice_info JSON에서 receipt_type 추출, 없으면 needs_tax_invoice 기반으로 결정
+    const taxInvoiceInfo = matchedRequest.tax_invoice_info || {};
+    const receiptType = taxInvoiceInfo.receipt_type || (matchedRequest.needs_tax_invoice ? 'tax_invoice' : 'cashbill');
 
     if (receiptType === 'tax_invoice') {
       console.log('[Webhook] Issuing tax invoice...');
-      receiptResult = await issueTaxInvoice(matchedRequest.invoice_data, matchedRequest.amount);
+      // tax_invoice_info 사용
+      receiptResult = await issueTaxInvoice(taxInvoiceInfo, matchedRequest.amount);
     } else {
       console.log('[Webhook] Issuing cashbill...');
-      receiptResult = await issueCashbill(matchedRequest.invoice_data, matchedRequest.amount);
+      // tax_invoice_info 사용
+      receiptResult = await issueCashbill(taxInvoiceInfo, matchedRequest.amount);
     }
 
     console.log('[Webhook] Receipt issued:', receiptResult);
