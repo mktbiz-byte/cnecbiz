@@ -22,6 +22,7 @@ const CreatorManagementPage = () => {
     description: '',
     notes: ''
   });
+  const [fetchingChannelInfo, setFetchingChannelInfo] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -104,6 +105,55 @@ const CreatorManagementPage = () => {
       alert('작업 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFetchChannelInfo = async () => {
+    if (!formData.channel_url || !formData.youtube_api_key) {
+      alert('채널 URL과 YouTube API 키를 입력해주세요.');
+      return;
+    }
+
+    setFetchingChannelInfo(true);
+    try {
+      const { data: { session } } = await supabaseBiz.auth.getSession();
+      if (!session) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
+      const response = await fetch('/.netlify/functions/fetch-youtube-data', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: 'get_channel_info',
+          channel_url: formData.channel_url,
+          youtube_api_key: formData.youtube_api_key
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        const channelInfo = result.data;
+        setFormData({
+          ...formData,
+          channel_id: channelInfo.channel_id,
+          channel_name: channelInfo.channel_name || formData.channel_name,
+          thumbnail_url: channelInfo.thumbnail_url || formData.thumbnail_url,
+          description: channelInfo.description || formData.description
+        });
+        alert('채널 정보를 불러왔습니다!');
+      } else {
+        alert(result.error || '채널 정보를 불러오는데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error fetching channel info:', error);
+      alert('채널 정보를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setFetchingChannelInfo(false);
     }
   };
 
@@ -431,14 +481,37 @@ const CreatorManagementPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     채널 URL *
                   </label>
-                  <input
-                    type="url"
-                    value={formData.channel_url}
-                    onChange={(e) => setFormData({ ...formData, channel_url: e.target.value })}
-                    required
-                    placeholder="https://www.youtube.com/@channelname"
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.channel_url}
+                      onChange={(e) => setFormData({ ...formData, channel_url: e.target.value })}
+                      required
+                      placeholder="https://www.youtube.com/@channelname"
+                      className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleFetchChannelInfo}
+                      disabled={!formData.channel_url || !formData.youtube_api_key || fetchingChannelInfo}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {fetchingChannelInfo ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          검색 중...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          자동 입력
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    YouTube API 키를 입력한 후 '자동 입력' 버튼을 누르면 채널 ID와 정보가 자동으로 입력됩니다.
+                  </p>
                 </div>
 
                 <div>

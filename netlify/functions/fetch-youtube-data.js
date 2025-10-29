@@ -5,7 +5,7 @@
 const { createClient } = require('@supabase/supabase-js')
 const axios = require('axios')
 
-const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -156,8 +156,48 @@ exports.handler = async (event, context) => {
       }
     }
 
-    const { channel_url, channel_type, record_id, youtube_api_key } = JSON.parse(event.body)
+    const { channel_url, channel_type, record_id, youtube_api_key, action } = JSON.parse(event.body)
 
+    // action이 'get_channel_info'인 경우 간단한 채널 정보만 반환
+    if (action === 'get_channel_info') {
+      if (!channel_url || !youtube_api_key) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'channel_url and youtube_api_key are required' })
+        }
+      }
+
+      // 채널 ID 추출
+      let channelId = extractChannelId(channel_url)
+      
+      // URL에서 추출 실패 시 직접 입력된 채널 ID로 간주
+      if (!channelId) {
+        channelId = channel_url.replace(/^UC/, '').length === channel_url.length - 2 ? channel_url : null
+      }
+
+      if (!channelId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Invalid YouTube channel URL or ID' })
+        }
+      }
+
+      // 채널 정보 가져오기
+      const channelInfo = await getChannelInfo(channelId, youtube_api_key)
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          data: channelInfo
+        })
+      }
+    }
+
+    // 기존 로직: 채널 데이터 수집 및 저장
     if (!channel_url || !channel_type || !record_id) {
       return {
         statusCode: 400,
