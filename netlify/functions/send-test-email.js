@@ -26,6 +26,9 @@ exports.handler = async (event) => {
       .limit(1)
       .maybeSingle();
 
+    console.log('[send-test-email] Email settings:', emailSettings);
+    console.log('[send-test-email] Settings error:', settingsError);
+
     if (settingsError || !emailSettings) {
       console.error('Email 설정 조회 오류:', settingsError);
       return {
