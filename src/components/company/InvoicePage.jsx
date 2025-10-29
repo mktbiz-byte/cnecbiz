@@ -71,6 +71,7 @@ const InvoicePage = () => {
   const [memo, setMemo] = useState('')
   const [depositorName, setDepositorName] = useState('')
   const [uploadingTaxInvoice, setUploadingTaxInvoice] = useState(false)
+  const [needsTaxInvoice, setNeedsTaxInvoice] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -219,8 +220,8 @@ const InvoicePage = () => {
           payment_method: 'bank_transfer',
           status: 'pending',
           depositor_name: depositorName,
-          needs_tax_invoice: !!taxInvoiceFileUrl,
-          tax_invoice_info: taxInvoiceFileUrl ? invoiceData.tax_invoice_info : null,
+          needs_tax_invoice: needsTaxInvoice,
+          tax_invoice_info: needsTaxInvoice ? invoiceData.tax_invoice_info : null,
           bank_transfer_info: {
             campaign_id: id,
             ...invoiceData
@@ -433,7 +434,16 @@ const InvoicePage = () => {
           <div className="border-t pt-6 mt-6">
             <h3 className="font-semibold text-lg mb-4">세금계산서 정보 (선택사항)</h3>
             <div className="bg-blue-50 p-4 rounded-lg mb-4">
-              <p className="text-sm text-gray-700">세금계산서 발행을 원하시는 경우 아래 정보를 입력해주세요.</p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={needsTaxInvoice}
+                  onChange={(e) => setNeedsTaxInvoice(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">세금계산서 발행 필요</span>
+              </label>
+              <p className="text-sm text-gray-600 mt-2">세금계산서 발행을 원하시는 경우 체크하고 아래 정보를 입력해주세요.</p>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
