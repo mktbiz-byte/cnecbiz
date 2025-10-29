@@ -239,6 +239,22 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // 회원가입 카카오톡 전송 (비동기 - 실패해도 회원가입은 성공)
+    try {
+      await fetch('/.netlify/functions/send-signup-kakao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName: companyName,
+          userPhone: phoneNumber,
+          userEmail: email
+        })
+      })
+    } catch (kakaoError) {
+      console.error('카카오톡 전송 실패:', kakaoError)
+      // 카카오톡 실패는 무시
+    }
+
     return {
       statusCode: 200,
       headers,
