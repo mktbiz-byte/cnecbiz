@@ -95,8 +95,9 @@ const getSupabaseTaiwan = () => {
 const getSupabaseBiz = () => {
   if (_supabaseBiz) return _supabaseBiz
   
-  const url = import.meta.env.VITE_SUPABASE_BIZ_URL || ''
-  const key = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || ''
+  // Fallback to Korea if BIZ is not configured
+  const url = import.meta.env.VITE_SUPABASE_BIZ_URL || import.meta.env.VITE_SUPABASE_KOREA_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY || ''
   
   if (url && key && url.startsWith('http')) {
     _supabaseBiz = createClient(url, key, {
