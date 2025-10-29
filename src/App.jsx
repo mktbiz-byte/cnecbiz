@@ -49,6 +49,7 @@ import SiteManagement from './components/admin/SiteManagement'
 import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
+import OurChannelReport from './components/admin/OurChannelReport'
 
 
 import AuthCallback from './components/AuthCallback'
@@ -83,6 +84,7 @@ function App() {
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
         <Route path="/admin/creators" element={<CreatorManagementPage />} />
+        <Route path="/admin/channel-report/:channelId" element={<OurChannelReport />} />
         
         {/* Super Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
