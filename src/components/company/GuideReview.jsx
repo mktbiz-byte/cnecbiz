@@ -103,12 +103,12 @@ const GuideReview = () => {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* 캠페인 기본 정보 */}
+          {/* 캐페인 기본 정보 */}
           <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-semibold text-lg mb-3">캠페인 기본 정보</h3>
+            <h3 className="font-semibold text-lg mb-3">캐페인 기본 정보</h3>
             <div className="space-y-2 text-sm">
               <div className="flex">
-                <span className="w-32 text-gray-600">캠페인명:</span>
+                <span className="w-32 text-gray-600">캐페인명:</span>
                 <span className="font-medium">{campaign.title}</span>
               </div>
               <div className="flex">
@@ -119,6 +119,14 @@ const GuideReview = () => {
                 <span className="w-32 text-gray-600">제품명:</span>
                 <span>{campaign.product_name}</span>
               </div>
+              {campaign.product_link && (
+                <div className="flex">
+                  <span className="w-32 text-gray-600">제품 링크:</span>
+                  <a href={campaign.product_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                    {campaign.product_link}
+                  </a>
+                </div>
+              )}
               <div className="flex">
                 <span className="w-32 text-gray-600">카테고리:</span>
                 <span>{campaign.category}</span>
@@ -131,8 +139,52 @@ const GuideReview = () => {
                 <span className="w-32 text-gray-600">모집 인원:</span>
                 <span>{campaign.total_slots}명</span>
               </div>
+              {campaign.application_deadline && (
+                <div className="flex">
+                  <span className="w-32 text-gray-600">지원 마감:</span>
+                  <span>{new Date(campaign.application_deadline).toLocaleDateString('ko-KR')}</span>
+                </div>
+              )}
+              {campaign.start_date && campaign.end_date && (
+                <div className="flex">
+                  <span className="w-32 text-gray-600">캐페인 기간:</span>
+                  <span>{new Date(campaign.start_date).toLocaleDateString('ko-KR')} ~ {new Date(campaign.end_date).toLocaleDateString('ko-KR')}</span>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* 캐페인 썸네일 */}
+          {campaign.image_url && (
+            <div>
+              <h3 className="font-semibold text-lg mb-3">캐페인 썸네일</h3>
+              <img
+                src={campaign.image_url}
+                alt="캐페인 썸네일"
+                className="w-full max-w-md rounded-lg border"
+              />
+            </div>
+          )}
+
+          {/* 브랜드 아이덴티티 */}
+          {campaign.brand_identity && (
+            <div>
+              <h3 className="font-semibold text-lg mb-3">브랜드 아이덴티티</h3>
+              <div className="p-4 bg-gray-50 rounded-lg whitespace-pre-wrap text-sm">
+                {campaign.brand_identity}
+              </div>
+            </div>
+          )}
+
+          {/* 크리에이터 가이드 */}
+          {campaign.creator_guide && (
+            <div>
+              <h3 className="font-semibold text-lg mb-3">크리에이터 가이드</h3>
+              <div className="p-4 bg-blue-50 rounded-lg whitespace-pre-wrap text-sm">
+                {campaign.creator_guide}
+              </div>
+            </div>
+          )}
 
           {/* 필수 대사 */}
           {campaign.required_dialogues && campaign.required_dialogues.length > 0 && (
@@ -232,6 +284,21 @@ const GuideReview = () => {
                 alt="제품 상세"
                 className="w-full rounded-lg border"
               />
+            </div>
+          )}
+
+          {/* 지원자 질문 */}
+          {campaign.questions && campaign.questions.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-lg mb-3">지원자 질문</h3>
+              <div className="space-y-3">
+                {campaign.questions.map((q, index) => (
+                  <div key={index} className="p-3 bg-yellow-50 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-1">질문 {index + 1}</p>
+                    <p className="text-sm font-medium">{q.question}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

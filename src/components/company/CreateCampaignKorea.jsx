@@ -139,17 +139,34 @@ const CampaignCreationKorea = () => {
       if (error) throw error
       
       if (data) {
+        // questions JSONB 배열을 question1-4로 복원
+        let question1 = ''
+        let question2 = ''
+        let question3 = ''
+        let question4 = ''
+        
+        if (data.questions && Array.isArray(data.questions)) {
+          question1 = data.questions[0]?.question || ''
+          question2 = data.questions[1]?.question || ''
+          question3 = data.questions[2]?.question || ''
+          question4 = data.questions[3]?.question || ''
+        }
+
         setCampaignForm({
           ...data,
-          target_platforms: data.target_platforms || { instagram: true, youtube: false, tiktok: false }
+          target_platforms: data.target_platforms || { instagram: true, youtube: false, tiktok: false },
+          question1,
+          question2,
+          question3,
+          question4
         })
         
         // 질문 개수 계산
         let count = 0
-        if (data.question1) count = 1
-        if (data.question2) count = 2
-        if (data.question3) count = 3
-        if (data.question4) count = 4
+        if (question1) count = 1
+        if (question2) count = 2
+        if (question3) count = 3
+        if (question4) count = 4
         setQuestionCount(count || 1)
       }
     } catch (err) {
