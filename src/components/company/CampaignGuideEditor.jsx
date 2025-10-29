@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { X, Plus } from 'lucide-react'
+import CompanyNavigation from './CompanyNavigation'
 
 const CampaignGuideEditor = () => {
   const navigate = useNavigate()
@@ -160,7 +161,9 @@ const CampaignGuideEditor = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <>
+      <CompanyNavigation />
+      <div className="container mx-auto p-6 max-w-4xl">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">크리에이터 가이드 작성</CardTitle>
@@ -346,6 +349,7 @@ const CampaignGuideEditor = () => {
         </CardContent>
       </Card>
     </div>
+    </>
   )
 }
 

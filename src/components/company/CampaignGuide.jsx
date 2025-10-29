@@ -4,6 +4,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Loader2, CheckCircle, Plus, X } from 'lucide-react'
+import CompanyNavigation from './CompanyNavigation'
 
 export default function CampaignGuide() {
   const { id } = useParams()
@@ -163,7 +164,9 @@ export default function CampaignGuide() {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <>
+      <CompanyNavigation />
+      <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">캠페인 가이드 작성</h1>
         <p className="text-gray-600">
@@ -326,6 +329,7 @@ export default function CampaignGuide() {
         </div>
       </form>
     </div>
+    </>
   )
 }
 

@@ -6,6 +6,7 @@ import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { ArrowLeft, CreditCard, Wallet, AlertCircle } from 'lucide-react'
+import CompanyNavigation from './CompanyNavigation'
 
 const OrderConfirmation = () => {
   const navigate = useNavigate()
@@ -176,7 +177,9 @@ const OrderConfirmation = () => {
   const canPayWithPoints = shortfall === 0
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <>
+      <CompanyNavigation />
+      <div className="container mx-auto p-6 max-w-4xl">
       <Button
         variant="ghost"
         onClick={() => navigate(`/company/campaigns/${id}/review`)}
@@ -330,6 +333,7 @@ const OrderConfirmation = () => {
         </CardContent>
       </Card>
     </div>
+    </>
   )
 }
 

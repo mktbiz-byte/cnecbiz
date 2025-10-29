@@ -8,6 +8,7 @@ import { Label } from '../ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { ArrowLeft, Download, CheckCircle, Copy } from 'lucide-react'
+import CompanyNavigation from './CompanyNavigation'
 
 const InvoicePage = () => {
   const navigate = useNavigate()
@@ -203,7 +204,9 @@ const InvoicePage = () => {
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <>
+      <CompanyNavigation />
+      <div className="container mx-auto p-6 max-w-4xl">
       <Button
         variant="ghost"
         onClick={() => navigate(`/company/campaigns/${id}/order-confirmation`)}
@@ -535,6 +538,7 @@ const InvoicePage = () => {
         </CardContent>
       </Card>
     </div>
+    </>
   )
 }
 
