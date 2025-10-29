@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Video, HelpCircle, Edit, Plus, Trash2, Save, 
-  Eye, EyeOff, Shield, UserPlus, Search, FileText
+  Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -58,6 +58,16 @@ export default function SiteManagement() {
     naver_site_verification: '',
     google_site_verification: ''
   })
+  
+  // Email 설정
+  const [emailSettings, setEmailSettings] = useState({
+    gmail_email: '',
+    gmail_app_password: '',
+    sender_name: 'CNEC BIZ',
+    test_email: ''
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [testEmailSending, setTestEmailSending] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -66,6 +76,7 @@ export default function SiteManagement() {
     fetchPageContents()
     fetchAdmins()
     fetchSeoSettings()
+    fetchEmailSettings()
   }, [])
 
   const checkAuth = async () => {
@@ -389,6 +400,96 @@ export default function SiteManagement() {
     }
   }
 
+  // ===== Email 설정 =====
+  const fetchEmailSettings = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('email_settings')
+        .select('*')
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      if (data) setEmailSettings(data)
+    } catch (error) {
+      console.error('Email 설정 조회 오류:', error)
+    }
+  }
+
+  const handleSaveEmailSettings = async () => {
+    try {
+      if (!emailSettings.gmail_email || !emailSettings.gmail_app_password) {
+        alert('Gmail 이메일과 앱 비밀번호를 모두 입력해주세요.')
+        return
+      }
+
+      const { data: existing } = await supabaseBiz
+        .from('email_settings')
+        .select('id')
+        .single()
+
+      const saveData = {
+        gmail_email: emailSettings.gmail_email,
+        gmail_app_password: emailSettings.gmail_app_password,
+        sender_name: emailSettings.sender_name
+      }
+
+      if (existing) {
+        const { error } = await supabaseBiz
+          .from('email_settings')
+          .update(saveData)
+          .eq('id', existing.id)
+
+        if (error) throw error
+      } else {
+        const { error } = await supabaseBiz
+          .from('email_settings')
+          .insert([saveData])
+
+        if (error) throw error
+      }
+
+      alert('Email 설정이 저장되었습니다.')
+      fetchEmailSettings()
+    } catch (error) {
+      console.error('Email 설정 저장 오류:', error)
+      alert('Email 설정 저장에 실패했습니다.')
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    try {
+      if (!emailSettings.test_email) {
+        alert('테스트 이메일 주소를 입력해주세요.')
+        return
+      }
+
+      setTestEmailSending(true)
+
+      const response = await fetch('/.netlify/functions/send-test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: emailSettings.test_email,
+          subject: '[CNEC BIZ] 테스트 이메일',
+          text: '이것은 Gmail SMTP 테스트 이메일입니다.'
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`테스트 이메일이 ${emailSettings.test_email}로 발송되었습니다!`)
+      } else {
+        throw new Error(result.error || '이메일 발송 실패')
+      }
+    } catch (error) {
+      console.error('테스트 이메일 발송 오류:', error)
+      alert('테스트 이메일 발송에 실패했습니다: ' + error.message)
+    } finally {
+      setTestEmailSending(false)
+    }
+  }
+
   return (
     <>
       <AdminNavigation />
@@ -402,7 +503,7 @@ export default function SiteManagement() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="videos" className="flex items-center gap-2">
                 <Video className="w-4 h-4" />
                 영상
@@ -422,6 +523,10 @@ export default function SiteManagement() {
               <TabsTrigger value="seo" className="flex items-center gap-2">
                 <Search className="w-4 h-4" />
                 SEO
+              </TabsTrigger>
+              <TabsTrigger value="email" className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Email
               </TabsTrigger>
             </TabsList>
 
@@ -907,6 +1012,107 @@ export default function SiteManagement() {
                     <Save className="w-4 h-4 mr-2" />
                     SEO 설정 저장
                   </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Email 설정 탭 */}
+            <TabsContent value="email" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Gmail SMTP 설정</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Gmail 앱 비밀번호 생성 방법 안내 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Gmail 앱 비밀번호 생성 방법
+                    </h4>
+                    <ol className="text-sm text-blue-800 space-y-1 ml-4 list-decimal">
+                      <li>Google 계정 설정 페이지로 이동: <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer" className="underline">https://myaccount.google.com/security</a></li>
+                      <li>"보안" 섹션에서 "2단계 인증" 활성화</li>
+                      <li>2단계 인증 페이지에서 "앱 비밀번호" 선택</li>
+                      <li>"앱 선택"에서 "기타" 선택 후 "CNEC BIZ" 입력</li>
+                      <li>"기기 선택"에서 "기타" 선택 후 "웹 서버" 입력</li>
+                      <li>"생성" 버튼 클릭 후 16자리 비밀번호 복사</li>
+                      <li>아래 "앱 비밀번호" 필드에 붙여넣기</li>
+                    </ol>
+                  </div>
+
+                  {/* Gmail 설정 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Gmail 이메일 주소</label>
+                    <Input
+                      type="email"
+                      placeholder="your-email@gmail.com"
+                      value={emailSettings.gmail_email}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, gmail_email: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">이메일 발송에 사용할 Gmail 계정</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">Gmail 앱 비밀번호</label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="16자리 앱 비밀번호"
+                        value={emailSettings.gmail_app_password}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, gmail_app_password: e.target.value })}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">위 안내에 따라 생성한 16자리 비밀번호 (공백 제거)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">발신자 이름</label>
+                    <Input
+                      type="text"
+                      placeholder="CNEC BIZ"
+                      value={emailSettings.sender_name}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, sender_name: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">수신자에게 표시될 발신자 이름</p>
+                  </div>
+
+                  <Button onClick={handleSaveEmailSettings} className="w-full">
+                    <Save className="w-4 h-4 mr-2" />
+                    Email 설정 저장
+                  </Button>
+
+                  {/* 테스트 이메일 발송 */}
+                  <div className="border-t pt-6">
+                    <h4 className="font-bold text-gray-900 mb-4">테스트 이메일 발송</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-2">테스트 수신 이메일</label>
+                        <Input
+                          type="email"
+                          placeholder="test@example.com"
+                          value={emailSettings.test_email}
+                          onChange={(e) => setEmailSettings({ ...emailSettings, test_email: e.target.value })}
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleSendTestEmail} 
+                        disabled={testEmailSending}
+                        className="w-full"
+                        variant="outline"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {testEmailSending ? '발송 중...' : '테스트 이메일 발송'}
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
