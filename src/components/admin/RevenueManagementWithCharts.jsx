@@ -510,7 +510,7 @@ export default function RevenueManagementWithCharts() {
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+            <TabsList className="grid w-full grid-cols-5 lg:w-auto">
               <TabsTrigger value="overview">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 개요
@@ -522,6 +522,10 @@ export default function RevenueManagementWithCharts() {
               <TabsTrigger value="expenses">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 비용 관리
+              </TabsTrigger>
+              <TabsTrigger value="receivable">
+                <Calendar className="w-4 h-4 mr-2" />
+                미수금
               </TabsTrigger>
               <TabsTrigger value="upload">
                 <Upload className="w-4 h-4 mr-2" />
@@ -965,16 +969,29 @@ export default function RevenueManagementWithCharts() {
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <div className="flex items-center justify-center gap-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => {
-                                      // 수정 기능 추가 필요
-                                      alert('수정 기능은 추후 추가됩니다.')
-                                    }}
-                                  >
-                                    수정
-                                  </Button>
+                                  {record.type === 'revenue' && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      className={record.is_receivable ? 'bg-yellow-50 text-yellow-600' : ''}
+                                      onClick={async () => {
+                                        try {
+                                          const { error } = await supabaseBiz
+                                            .from('revenue_records')
+                                            .update({ is_receivable: !record.is_receivable })
+                                            .eq('id', record.id)
+                                          
+                                          if (error) throw error
+                                          fetchAllData()
+                                        } catch (error) {
+                                          console.error('미수금 설정 오류:', error)
+                                          alert('미수금 설정에 실패했습니다.')
+                                        }
+                                      }}
+                                    >
+                                      {record.is_receivable ? '미수금 해제' : '미수금'}
+                                    </Button>
+                                  )}
                                   <Button 
                                     variant="outline" 
                                     size="sm"
@@ -1008,6 +1025,83 @@ export default function RevenueManagementWithCharts() {
 
                     {revenueData.length > 50 && (
                       <p className="text-sm text-gray-500 text-center">최근 50개 항목만 표시됩니다.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            {/* 미수금 탭 */}
+            <TabsContent value="receivable">
+              <Card>
+                <CardHeader>
+                  <CardTitle>미수금 관리</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* 미수금 통계 */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="text-sm text-gray-600">총 미수금</div>
+                      <div className="text-3xl font-bold text-yellow-600">
+                        ₩{stats.totalReceivable.toLocaleString()}
+                      </div>
+                    </div>
+                    
+                    {/* 미수금 목록 */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">날짜</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">분류</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">금액</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">작업</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {revenueData
+                            .filter(r => r.type === 'revenue' && r.is_receivable === true)
+                            .map((record) => (
+                            <tr key={record.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm">
+                                {new Date(record.record_date).toLocaleDateString('ko-KR')}
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                {record.category || record.description}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right font-medium text-yellow-600">
+                                ₩{parseFloat(record.amount).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      const { error } = await supabaseBiz
+                                        .from('revenue_records')
+                                        .update({ is_receivable: false })
+                                        .eq('id', record.id)
+                                      
+                                      if (error) throw error
+                                      fetchAllData()
+                                    } catch (error) {
+                                      console.error('미수금 해제 오류:', error)
+                                      alert('미수금 해제에 실패했습니다.')
+                                    }
+                                  }}
+                                >
+                                  미수금 해제
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {revenueData.filter(r => r.type === 'revenue' && r.is_receivable === true).length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-8">미수금이 없습니다.</p>
                     )}
                   </div>
                 </CardContent>
