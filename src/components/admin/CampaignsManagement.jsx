@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -15,6 +15,7 @@ export default function CampaignsManagement() {
   const [selectedRegion, setSelectedRegion] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [loading, setLoading] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -55,6 +56,44 @@ export default function CampaignsManagement() {
       console.error('[CampaignsManagement] Error fetching campaigns:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleConfirmPayment = async (campaign) => {
+    if (!confirm(`입금을 확인하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n금액: ${(campaign.estimated_cost || 0).toLocaleString()}원`)) {
+      return
+    }
+
+    setConfirming(true)
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+
+      const response = await fetch('/.netlify/functions/confirm-campaign-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          adminUserId: user.id,
+          depositAmount: campaign.estimated_cost
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '입금 확인 처리에 실패했습니다.')
+      }
+
+      alert('입금이 확인되었습니다. 캠페인이 승인 대기 상태로 변경되었습니다.')
+      fetchCampaigns()
+
+    } catch (error) {
+      console.error('입금 확인 오류:', error)
+      alert(error.message)
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -290,6 +329,18 @@ export default function CampaignsManagement() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
+                        {campaign.payment_status === 'pending' && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleConfirmPayment(campaign)}
+                            disabled={confirming}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <DollarSign className="w-4 h-4 mr-2" />
+                            입금 확인
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"

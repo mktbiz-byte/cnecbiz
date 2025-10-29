@@ -117,8 +117,8 @@ const InvoicePage = () => {
 
     try {
       const updateData = {
-        payment_status: 'confirmed',
-        payment_confirmed_at: new Date().toISOString()
+        payment_status: 'pending',  // 입금 확인 중 상태로 변경
+        payment_requested_at: new Date().toISOString()
       }
 
       // 세금계산서 정보가 있으면 함께 저장
@@ -145,7 +145,7 @@ const InvoicePage = () => {
 
       if (error) throw error
 
-      setSuccess('입금 확인이 완료되었습니다! 관리자 승인 후 캠페인이 시작됩니다.')
+      setSuccess('입금 요청이 제출되었습니다! 입금 확인 후 캠페인이 시작됩니다.')
       setTimeout(() => {
         navigate('/company/campaigns')
       }, 2000)
