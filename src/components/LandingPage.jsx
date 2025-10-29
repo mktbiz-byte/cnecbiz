@@ -322,54 +322,28 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {videos.map((video) => {
-              // Extract YouTube video ID and check if it's a Shorts URL
-              const getYouTubeEmbedUrl = (url) => {
-                if (!url) return null
-                
-                // Match YouTube URLs (regular, shorts, embed, short links)
-                const match = url.match(/(?:youtube\.com\/(?:shorts\/|embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]+)/)
-                if (!match) return null
-                
-                const videoId = match[1]
-                
-                // Check if it's a Shorts URL
-                const isShorts = url.includes('/shorts/')
-                
-                // For Shorts, use embed with autoplay and loop parameters
-                if (isShorts) {
-                  return `https://www.youtube.com/embed/${videoId}?autoplay=0&mute=0&loop=1&playlist=${videoId}`
-                }
-                
-                // For regular videos
-                return `https://www.youtube.com/embed/${videoId}`
-              }
-              
-              const embedUrl = getYouTubeEmbedUrl(video.youtube_url)
-              
-              return (
-                <div
-                  key={video.id}
-                  className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
-                >
-                  {embedUrl ? (
-                    <iframe
-                      src={embedUrl}
-                      title={video.title}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <img
-                      src={video.thumbnail_url}
-                      alt={video.title}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-              )
-            })}
+            {videos.map((video) => (
+              <div
+                key={video.id}
+                className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
+              >
+                {video.url ? (
+                  <iframe
+                    src={video.url}
+                    title={video.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : video.thumbnail_url ? (
+                  <img
+                    src={video.thumbnail_url}
+                    alt={video.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : null}
+              </div>
+            ))}
           </div>
 
           <div className="text-center mt-12">

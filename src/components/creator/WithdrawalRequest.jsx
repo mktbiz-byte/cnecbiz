@@ -384,28 +384,64 @@ export default function WithdrawalRequest() {
                 {withdrawalHistory.map((withdrawal) => (
                   <div
                     key={withdrawal.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className={`p-4 rounded-lg border-2 ${
+                      withdrawal.status === 'rejected' 
+                        ? 'bg-red-50 border-red-200' 
+                        : 'bg-gray-50 border-gray-200'
+                    }`}
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <p className="font-bold text-lg">
-                          {withdrawal.requested_points.toLocaleString()}P
-                        </p>
-                        {getStatusBadge(withdrawal.status)}
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        신청일: {new Date(withdrawal.created_at).toLocaleDateString('ko-KR')}
-                      </p>
-                      {withdrawal.final_amount && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <p className="font-bold text-lg">
+                            {withdrawal.requested_points.toLocaleString()}P
+                          </p>
+                          {getStatusBadge(withdrawal.status)}
+                        </div>
                         <p className="text-sm text-gray-600">
-                          지급액: {withdrawal.final_amount.toLocaleString()} {withdrawal.currency}
-                          {withdrawal.tax_amount > 0 && ` (세금 ${withdrawal.tax_amount.toLocaleString()} 공제)`}
+                          신청일: {new Date(withdrawal.created_at).toLocaleDateString('ko-KR')}
                         </p>
-                      )}
-                      {withdrawal.rejection_reason && (
-                        <p className="text-sm text-red-600 mt-1">
-                          거절 사유: {withdrawal.rejection_reason}
-                        </p>
+                        {withdrawal.final_amount && (
+                          <p className="text-sm text-gray-600">
+                            지급액: {withdrawal.final_amount.toLocaleString()} {withdrawal.currency}
+                            {withdrawal.tax_amount > 0 && ` (세금 ${withdrawal.tax_amount.toLocaleString()} 공제)`}
+                          </p>
+                        )}
+                        {withdrawal.rejection_reason && (
+                          <Alert className="mt-3 bg-red-100 border-red-300">
+                            <AlertCircle className="w-4 h-4 text-red-600" />
+                            <AlertDescription className="text-red-700">
+                              <span className="font-medium">거절 사유:</span> {withdrawal.rejection_reason}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        {withdrawal.admin_notes && withdrawal.status !== 'rejected' && (
+                          <p className="text-sm text-blue-600 mt-2">
+                            관리자 메모: {withdrawal.admin_notes}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {withdrawal.status === 'rejected' && (
+                        <Button
+                          onClick={() => {
+                            // 거절된 신청의 정보를 폼에 채워넣기
+                            setFormData({
+                              requested_points: withdrawal.requested_points,
+                              bank_name: withdrawal.bank_name || '',
+                              account_number: withdrawal.account_number || '',
+                              account_holder: withdrawal.account_holder || '',
+                              resident_registration_number: '',
+                              paypal_email: withdrawal.paypal_email || ''
+                            })
+                            // 폼으로 스크롤
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                            setSuccessMessage('')
+                          }}
+                          className="ml-4 bg-blue-600 hover:bg-blue-700"
+                        >
+                          재신청하기
+                        </Button>
                       )}
                     </div>
                   </div>

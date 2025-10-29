@@ -78,6 +78,30 @@ export default function SiteManagement() {
     }
   }
 
+  // YouTube URL을 embed 형태로 변환
+  const convertToEmbedUrl = (url) => {
+    if (!url) return url
+    
+    // 이미 embed 형태면 그대로 반환
+    if (url.includes('/embed/')) return url
+    
+    // YouTube URL에서 video ID 추출
+    const match = url.match(/(?:youtube\.com\/(?:shorts\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+    if (!match) return url
+    
+    const videoId = match[1]
+    
+    // Shorts URL인지 확인
+    const isShorts = url.includes('/shorts/')
+    
+    // Shorts는 파라미터 추가, 일반 영상은 기본 embed URL
+    if (isShorts) {
+      return `https://www.youtube.com/embed/${videoId}?autoplay=0&mute=0&loop=1&playlist=${videoId}`
+    }
+    
+    return `https://www.youtube.com/embed/${videoId}`
+  }
+
   const handleAddVideo = async () => {
     if (!newVideo.url || !newVideo.title) {
       alert('URL과 제목을 입력해주세요.')
@@ -85,13 +109,16 @@ export default function SiteManagement() {
     }
 
     try {
+      // URL을 embed 형태로 변환
+      const embedUrl = convertToEmbedUrl(newVideo.url)
+      
       const { error } = await supabaseBiz
         .from('reference_videos')
-        .insert([newVideo])
+        .insert([{ ...newVideo, url: embedUrl }])
 
       if (error) throw error
 
-      alert('영상이 추가되었습니다.')
+      alert('영상이 추가되었습니다. (embed URL로 자동 변환됨)')
       setNewVideo({ url: '', title: '', description: '' })
       fetchVideos()
     } catch (error) {
@@ -102,14 +129,17 @@ export default function SiteManagement() {
 
   const handleUpdateVideo = async (id) => {
     try {
+      // URL을 embed 형태로 변환
+      const embedUrl = convertToEmbedUrl(editingVideo.url)
+      
       const { error } = await supabaseBiz
         .from('reference_videos')
-        .update(editingVideo)
+        .update({ ...editingVideo, url: embedUrl })
         .eq('id', id)
 
       if (error) throw error
 
-      alert('영상이 수정되었습니다.')
+      alert('영상이 수정되었습니다. (embed URL로 자동 변환됨)')
       setEditingVideo(null)
       fetchVideos()
     } catch (error) {

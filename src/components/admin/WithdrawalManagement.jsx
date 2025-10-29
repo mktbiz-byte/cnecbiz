@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Wallet, CheckCircle, XCircle, Clock, TrendingUp,
-  Search, Filter, ChevronUp, ChevronDown, DollarSign, Download, FileText
+  Search, Filter, ChevronUp, ChevronDown, DollarSign, Download, FileText, AlertCircle
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { maskResidentNumber } from '../../lib/encryptionHelper'
@@ -17,17 +17,14 @@ import AdminNavigation from './AdminNavigation'
 export default function WithdrawalManagement() {
   const navigate = useNavigate()
   const [withdrawals, setWithdrawals] = useState([])
-  const [filteredWithdrawals, setFilteredWithdrawals] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState('all')
-  const [selectedRegion, setSelectedRegion] = useState('all')
-  const [selectedMonth, setSelectedMonth] = useState('all')
+  const [selectedCountry, setSelectedCountry] = useState('korea')
+  const [selectedStatus, setSelectedStatus] = useState('pending')
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState({
-    pending: 0,
-    approved: 0,
-    completed: 0,
-    totalAmount: 0
+    korea: { pending: 0, approved: 0, completed: 0, rejected: 0 },
+    japan: { pending: 0, approved: 0, completed: 0, rejected: 0 },
+    us: { pending: 0, approved: 0, completed: 0, rejected: 0 }
   })
 
   // 선택된 출금 신청 (상세보기/처리)
@@ -37,9 +34,6 @@ export default function WithdrawalManagement() {
   const [priority, setPriority] = useState(0)
   const [rejectionReason, setRejectionReason] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
-  const [showTaxPageModal, setShowTaxPageModal] = useState(false)
-  const [taxPagePassword, setTaxPagePassword] = useState('')
-  const [selectedBatchDate, setSelectedBatchDate] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -47,8 +41,8 @@ export default function WithdrawalManagement() {
   }, [])
 
   useEffect(() => {
-    filterWithdrawals()
-  }, [withdrawals, searchTerm, selectedStatus, selectedRegion, selectedMonth])
+    calculateStats()
+  }, [withdrawals])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -91,16 +85,6 @@ export default function WithdrawalManagement() {
       if (error) throw error
 
       setWithdrawals(data || [])
-
-      // 통계 계산
-      const pending = data.filter(w => w.status === 'pending').length
-      const approved = data.filter(w => w.status === 'approved').length
-      const completed = data.filter(w => w.status === 'completed').length
-      const totalAmount = data
-        .filter(w => w.status === 'completed')
-        .reduce((sum, w) => sum + (w.final_amount || 0), 0)
-
-      setStats({ pending, approved, completed, totalAmount })
     } catch (error) {
       console.error('출금 신청 조회 오류:', error)
     } finally {
@@ -108,28 +92,28 @@ export default function WithdrawalManagement() {
     }
   }
 
-  const filterWithdrawals = () => {
-    let filtered = withdrawals
-
-    // 상태 필터
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(w => w.status === selectedStatus)
+  const calculateStats = () => {
+    const newStats = {
+      korea: { pending: 0, approved: 0, completed: 0, rejected: 0 },
+      japan: { pending: 0, approved: 0, completed: 0, rejected: 0 },
+      us: { pending: 0, approved: 0, completed: 0, rejected: 0 }
     }
 
-    // 지역 필터
-    if (selectedRegion !== 'all') {
-      filtered = filtered.filter(w => w.region === selectedRegion)
-    }
+    withdrawals.forEach(w => {
+      if (newStats[w.region]) {
+        if (w.status === 'pending') newStats[w.region].pending++
+        else if (w.status === 'approved') newStats[w.region].approved++
+        else if (w.status === 'completed') newStats[w.region].completed++
+        else if (w.status === 'rejected') newStats[w.region].rejected++
+      }
+    })
 
-    // 월별 필터
-    if (selectedMonth !== 'all') {
-      filtered = filtered.filter(w => {
-        const month = new Date(w.created_at).toISOString().slice(0, 7)
-        return month === selectedMonth
-      })
-    }
+    setStats(newStats)
+  }
 
-    // 검색
+  const getFilteredWithdrawals = () => {
+    let filtered = withdrawals.filter(w => w.region === selectedCountry && w.status === selectedStatus)
+
     if (searchTerm) {
       filtered = filtered.filter(w => {
         const creator = w.featured_creators
@@ -142,7 +126,7 @@ export default function WithdrawalManagement() {
       })
     }
 
-    setFilteredWithdrawals(filtered)
+    return filtered
   }
 
   const handleApprove = async (withdrawal) => {
@@ -222,7 +206,7 @@ export default function WithdrawalManagement() {
           .eq('id', selectedWithdrawal.id)
 
         if (error) throw error
-        alert('거절되었습니다.')
+        alert('거절되었습니다. 크리에이터는 거절 사유를 확인하고 재신청할 수 있습니다.')
       }
 
       setShowDetailModal(false)
@@ -238,7 +222,6 @@ export default function WithdrawalManagement() {
     const badges = {
       pending: { color: 'bg-yellow-100 text-yellow-700', label: '대기중' },
       approved: { color: 'bg-blue-100 text-blue-700', label: '승인됨' },
-      processing: { color: 'bg-purple-100 text-purple-700', label: '처리중' },
       completed: { color: 'bg-green-100 text-green-700', label: '완료' },
       rejected: { color: 'bg-red-100 text-red-700', label: '거절' }
     }
@@ -252,494 +235,345 @@ export default function WithdrawalManagement() {
     )
   }
 
-  const getRegionBadge = (region) => {
-    const badges = {
-      korea: { color: 'bg-blue-100 text-blue-700', label: '🇰🇷 한국' },
-      japan: { color: 'bg-red-100 text-red-700', label: '🇯🇵 일본' },
-      us: { color: 'bg-purple-100 text-purple-700', label: '🇺🇸 미국' }
+  const getCountryLabel = (country) => {
+    const labels = {
+      korea: '🇰🇷 한국',
+      japan: '🇯🇵 일본',
+      us: '🇺🇸 미국'
     }
-
-    const badge = badges[region] || badges.korea
-
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${badge.color}`}>
-        {badge.label}
-      </span>
-    )
+    return labels[country] || country
   }
 
-  // 월별 목록 생성 (최근 12개월)
-  const getMonthOptions = () => {
-    const months = []
-    for (let i = 0; i < 12; i++) {
-      const date = new Date()
-      date.setMonth(date.getMonth() - i)
-      months.push(date.toISOString().slice(0, 7))
-    }
-    return months
-  }
-
-  // 승인된 출금 신청 엑셀 다운로드 (한국만)
-  const handleExportToExcel = () => {
-    const approvedKoreaWithdrawals = withdrawals.filter(
-      w => w.status === 'approved' && w.region === 'korea'
-    )
-
-    if (approvedKoreaWithdrawals.length === 0) {
-      alert('승인된 한국 출금 신청이 없습니다.')
-      return
-    }
-
-    // CSV 형식으로 변환 (Excel에서 열 수 있도록)
-    const headers = [
-      '신청일',
-      '크리에이터명',
-      '주민번호',
-      '은행명',
-      '계좌번호',
-      '예금주',
-      '신청포인트',
-      '세금(3.3%)',
-      '지급액',
-      '우선순위'
-    ]
-
-    const rows = approvedKoreaWithdrawals.map(w => [
-      new Date(w.created_at).toLocaleDateString('ko-KR'),
-      w.featured_creators?.channel_name || '',
-      maskResidentNumber(w.resident_registration_number),
-      w.bank_name,
-      w.account_number,
-      w.account_holder,
-      w.requested_points,
-      Math.floor(w.tax_amount || 0),
-      Math.floor(w.final_amount || 0),
-      w.priority || 0
-    ])
-
-    // CSV 문자열 생성
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n')
-
-    // BOM 추가 (Excel에서 한글 깨지지 않도록)
-    const BOM = '\uFEFF'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `출금승인목록_${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
-  // 세무서 발송 페이지 생성
-  const handleCreateTaxPage = () => {
-    const approvedKoreaWithdrawals = withdrawals.filter(
-      w => w.status === 'approved' && w.region === 'korea'
-    )
-
-    if (approvedKoreaWithdrawals.length === 0) {
-      alert('승인된 한국 출금 신청이 없습니다.')
-      return
-    }
-
-    setSelectedBatchDate(new Date().toISOString().slice(0, 10))
-    setShowTaxPageModal(true)
-  }
-
-  // 세무서 페이지 생성 확인
-  const handleConfirmTaxPage = () => {
-    if (!taxPagePassword || taxPagePassword.length < 6) {
-      alert('비밀번호는 6자 이상이어야 합니다.')
-      return
-    }
-
-    // 세무서 페이지 URL 생성
-    const batchId = `${selectedBatchDate.replace(/-/g, '')}_${Date.now()}`
-    const taxPageUrl = `/tax-office/${batchId}?password=${encodeURIComponent(taxPagePassword)}`
-    
-    // 새 창으로 열기
-    window.open(taxPageUrl, '_blank')
-    
-    setShowTaxPageModal(false)
-    setTaxPagePassword('')
-    
-    alert('세무서 발송 페이지가 생성되었습니다.\n해당 URL을 세무서에 공유하세요.')
-  }
+  const filteredWithdrawals = getFilteredWithdrawals()
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       <AdminNavigation />
-      <div className="min-h-screen bg-gray-50 lg:ml-64">
-        <div className="max-w-7xl mx-auto p-6">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <Wallet className="w-8 h-8 text-blue-600" />
-              <h1 className="text-3xl font-bold">크리에이터 출금 관리</h1>
-            </div>
-            <div className="flex gap-3">
-              <Button
-                onClick={handleExportToExcel}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                승인목록 엑셀 다운로드
-              </Button>
-              <Button
-                onClick={handleCreateTaxPage}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                세무서 발송 페이지 생성
-              </Button>
-            </div>
+      
+      <div className="lg:ml-64 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">크리에이터 출금 관리</h1>
+            <p className="text-gray-600">국가별, 상태별로 출금 신청을 관리합니다</p>
           </div>
 
-          {/* 통계 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">대기중</p>
-                    <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-yellow-300" />
-                </div>
-              </CardContent>
-            </Card>
+          {/* 국가별 탭 */}
+          <Tabs value={selectedCountry} onValueChange={setSelectedCountry} className="mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="korea" className="text-lg">
+                🇰🇷 한국
+                <Badge className="ml-2 bg-yellow-500">{stats.korea.pending}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="japan" className="text-lg">
+                🇯🇵 일본
+                <Badge className="ml-2 bg-yellow-500">{stats.japan.pending}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="us" className="text-lg">
+                🇺🇸 미국
+                <Badge className="ml-2 bg-yellow-500">{stats.us.pending}</Badge>
+              </TabsTrigger>
+            </TabsList>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">승인됨</p>
-                    <p className="text-2xl font-bold text-blue-600">{stats.approved}</p>
-                  </div>
-                  <CheckCircle className="w-8 h-8 text-blue-300" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">완료</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-                  </div>
-                  <TrendingUp className="w-8 h-8 text-green-300" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">총 지급액</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      ₩{stats.totalAmount.toLocaleString()}
-                    </p>
-                  </div>
-                  <DollarSign className="w-8 h-8 text-purple-300" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* 필터 */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="크리에이터 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="px-4 py-2 border rounded-lg"
-                >
-                  <option value="all">전체 상태</option>
-                  <option value="pending">대기중</option>
-                  <option value="approved">승인됨</option>
-                  <option value="processing">처리중</option>
-                  <option value="completed">완료</option>
-                  <option value="rejected">거절</option>
-                </select>
-
-                <select
-                  value={selectedRegion}
-                  onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="px-4 py-2 border rounded-lg"
-                >
-                  <option value="all">전체 지역</option>
-                  <option value="korea">한국</option>
-                  <option value="japan">일본</option>
-                  <option value="us">미국</option>
-                </select>
-
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="px-4 py-2 border rounded-lg"
-                >
-                  <option value="all">전체 기간</option>
-                  {getMonthOptions().map(month => (
-                    <option key={month} value={month}>
-                      {month}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 출금 신청 목록 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>출금 신청 목록 ({filteredWithdrawals.length}건)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-12 text-gray-500">로딩 중...</div>
-              ) : filteredWithdrawals.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  출금 신청이 없습니다.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredWithdrawals.map((withdrawal) => (
-                    <div
-                      key={withdrawal.id}
-                      className="flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold">
-                            {withdrawal.featured_creators?.channel_name || 'Unknown'}
-                          </h3>
-                          {getStatusBadge(withdrawal.status)}
-                          {getRegionBadge(withdrawal.region)}
-                          {withdrawal.priority > 0 && (
-                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                              우선순위: {withdrawal.priority}
-                            </Badge>
-                          )}
+            {/* 각 국가별 콘텐츠 */}
+            {['korea', 'japan', 'us'].map(country => (
+              <TabsContent key={country} value={country}>
+                {/* 통계 카드 */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedStatus('pending')}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">대기중</p>
+                          <p className="text-3xl font-bold text-yellow-600">{stats[country].pending}</p>
                         </div>
+                        <Clock className="w-10 h-10 text-yellow-300" />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">신청 포인트:</span> {withdrawal.requested_points.toLocaleString()}P
-                          </div>
-                          <div>
-                            <span className="font-medium">지급액:</span> {withdrawal.final_amount?.toLocaleString()} {withdrawal.currency}
-                          </div>
-                          <div>
-                            <span className="font-medium">신청일:</span> {new Date(withdrawal.created_at).toLocaleDateString('ko-KR')}
-                          </div>
-                          {withdrawal.region === 'korea' ? (
-                            <div>
-                              <span className="font-medium">계좌:</span> {withdrawal.bank_name} {withdrawal.account_number}
-                            </div>
-                          ) : (
-                            <div>
-                              <span className="font-medium">PayPal:</span> {withdrawal.paypal_email}
-                            </div>
-                          )}
+                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedStatus('approved')}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">승인됨</p>
+                          <p className="text-3xl font-bold text-blue-600">{stats[country].approved}</p>
                         </div>
-
-                        {withdrawal.admin_notes && (
-                          <p className="text-sm text-blue-600 mt-2">
-                            메모: {withdrawal.admin_notes}
-                          </p>
-                        )}
+                        <CheckCircle className="w-10 h-10 text-blue-300" />
                       </div>
+                    </CardContent>
+                  </Card>
 
-                      <div className="flex items-center gap-2 ml-4">
-                        {withdrawal.status === 'pending' && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleApprove(withdrawal)}
-                              className="bg-blue-50 text-blue-600 hover:bg-blue-100"
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              승인
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReject(withdrawal)}
-                              className="bg-red-50 text-red-600 hover:bg-red-100"
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              거절
-                            </Button>
-                          </>
-                        )}
-                        {withdrawal.status === 'approved' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleComplete(withdrawal)}
-                            className="bg-green-50 text-green-600 hover:bg-green-100"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            지급완료
-                          </Button>
-                        )}
+                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedStatus('completed')}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">완료</p>
+                          <p className="text-3xl font-bold text-green-600">{stats[country].completed}</p>
+                        </div>
+                        <TrendingUp className="w-10 h-10 text-green-300" />
                       </div>
-                    </div>
-                  ))}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedStatus('rejected')}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">거절</p>
+                          <p className="text-3xl font-bold text-red-600">{stats[country].rejected}</p>
+                        </div>
+                        <XCircle className="w-10 h-10 text-red-300" />
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+
+                {/* 상태별 탭 */}
+                <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <TabsList className="grid w-full grid-cols-4 mb-6">
+                    <TabsTrigger value="pending">
+                      대기중 ({stats[country].pending})
+                    </TabsTrigger>
+                    <TabsTrigger value="approved">
+                      승인됨 ({stats[country].approved})
+                    </TabsTrigger>
+                    <TabsTrigger value="completed">
+                      완료 ({stats[country].completed})
+                    </TabsTrigger>
+                    <TabsTrigger value="rejected">
+                      거절 ({stats[country].rejected})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* 검색 */}
+                  <Card className="mb-6">
+                    <CardContent className="p-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input
+                          type="text"
+                          placeholder="크리에이터명, 이메일, 계좌정보로 검색..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* 출금 신청 목록 */}
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle>
+                          {getCountryLabel(country)} - {getStatusBadge(selectedStatus).props.children} ({filteredWithdrawals.length}건)
+                        </CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {loading ? (
+                        <div className="text-center py-12 text-gray-500">로딩 중...</div>
+                      ) : filteredWithdrawals.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">
+                          출금 신청이 없습니다.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {filteredWithdrawals.map((withdrawal) => (
+                            <div
+                              key={withdrawal.id}
+                              className="flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <h3 className="text-lg font-bold">
+                                    {withdrawal.featured_creators?.channel_name || 'Unknown'}
+                                  </h3>
+                                  {getStatusBadge(withdrawal.status)}
+                                  {withdrawal.priority > 0 && (
+                                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                      우선순위: {withdrawal.priority}
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                                  <div>
+                                    <span className="font-medium">신청 포인트:</span> {withdrawal.requested_points.toLocaleString()}P
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">지급액:</span> {withdrawal.final_amount?.toLocaleString()} {withdrawal.currency}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">신청일:</span> {new Date(withdrawal.created_at).toLocaleDateString('ko-KR')}
+                                  </div>
+                                  {withdrawal.region === 'korea' ? (
+                                    <div>
+                                      <span className="font-medium">계좌:</span> {withdrawal.bank_name} {withdrawal.account_number}
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <span className="font-medium">PayPal:</span> {withdrawal.paypal_email}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {withdrawal.admin_notes && (
+                                  <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg mb-2">
+                                    <span className="font-medium">관리자 메모:</span> {withdrawal.admin_notes}
+                                  </div>
+                                )}
+
+                                {withdrawal.rejection_reason && (
+                                  <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg flex items-start gap-2">
+                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                      <span className="font-medium">거절 사유:</span> {withdrawal.rejection_reason}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 ml-4">
+                                {withdrawal.status === 'pending' && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleApprove(withdrawal)}
+                                      className="bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      승인
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleReject(withdrawal)}
+                                      className="bg-red-50 text-red-600 hover:bg-red-100"
+                                    >
+                                      <XCircle className="w-4 h-4 mr-2" />
+                                      거절
+                                    </Button>
+                                  </>
+                                )}
+                                {withdrawal.status === 'approved' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleComplete(withdrawal)}
+                                    className="bg-green-50 text-green-600 hover:bg-green-100"
+                                  >
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    지급완료
+                                  </Button>
+                                )}
+                                {withdrawal.status === 'rejected' && (
+                                  <Badge variant="outline" className="bg-gray-100 text-gray-600">
+                                    재신청 대기중
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Tabs>
+              </TabsContent>
+            ))}
+          </Tabs>
         </div>
       </div>
 
-      {/* 처리 모달 */}
+      {/* 승인/거절 모달 */}
       {showDetailModal && selectedWithdrawal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h2 className="text-2xl font-bold mb-4">
-              {actionType === 'approve' ? '출금 승인' : '출금 거절'}
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold">
+                {actionType === 'approve' ? '출금 승인' : '출금 거절'}
+              </h2>
+            </div>
 
-            {actionType === 'approve' ? (
-              <>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    우선순위 (높을수록 먼저 처리)
-                  </label>
-                  <Input
-                    type="number"
-                    value={priority}
-                    onChange={(e) => setPriority(parseInt(e.target.value))}
-                    placeholder="0"
-                  />
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-bold mb-2">{selectedWithdrawal.featured_creators?.channel_name}</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                  <div>신청 포인트: {selectedWithdrawal.requested_points.toLocaleString()}P</div>
+                  <div>지급액: {selectedWithdrawal.final_amount?.toLocaleString()} {selectedWithdrawal.currency}</div>
                 </div>
+              </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">
-                    관리자 메모
+              {actionType === 'approve' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      우선순위 (0-10, 높을수록 우선)
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={priority}
+                      onChange={(e) => setPriority(parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      관리자 메모 (선택사항)
+                    </label>
+                    <Textarea
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      placeholder="내부 메모를 입력하세요..."
+                      rows={3}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    거절 사유 (필수) *
                   </label>
                   <Textarea
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder="내부 메모 (선택사항)"
-                    rows={3}
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="크리에이터에게 전달될 거절 사유를 입력하세요. 크리에이터는 이 사유를 확인하고 재신청할 수 있습니다."
+                    rows={4}
+                    className="border-red-200 focus:border-red-500"
                   />
+                  <p className="text-xs text-gray-500 mt-2">
+                    * 거절된 신청은 크리에이터가 사유를 확인하고 수정하여 재신청할 수 있습니다.
+                  </p>
                 </div>
-              </>
-            ) : (
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">
-                  거절 사유 *
-                </label>
-                <Textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="크리에이터에게 표시될 거절 사유를 입력하세요"
-                  rows={4}
-                />
-              </div>
-            )}
+              )}
+            </div>
 
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSubmitAction}
-                className="flex-1"
-              >
-                {actionType === 'approve' ? '승인' : '거절'}
-              </Button>
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowDetailModal(false)
                   setSelectedWithdrawal(null)
                 }}
-                className="flex-1"
               >
                 취소
+              </Button>
+              <Button
+                onClick={handleSubmitAction}
+                className={actionType === 'approve' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}
+              >
+                {actionType === 'approve' ? '승인하기' : '거절하기'}
               </Button>
             </div>
           </div>
         </div>
       )}
-
-      {/* 세무서 페이지 생성 모달 */}
-      {showTaxPageModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-            <h2 className="text-2xl font-bold mb-4">세무서 발송 페이지 생성</h2>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">
-                승인된 한국 출금 신청을 기반으로 세무서 발송용 웹페이지를 생성합니다.
-              </p>
-              <p className="text-sm text-orange-600 font-medium">
-                ⚠️ 비밀번호를 설정하면 세무서만 접근할 수 있습니다.
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                발송 날짜
-              </label>
-              <Input
-                type="date"
-                value={selectedBatchDate}
-                onChange={(e) => setSelectedBatchDate(e.target.value)}
-              />
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                접근 비밀번호 (6자 이상) *
-              </label>
-              <Input
-                type="password"
-                value={taxPagePassword}
-                onChange={(e) => setTaxPagePassword(e.target.value)}
-                placeholder="세무서에 공유할 비밀번호"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={handleConfirmTaxPage}
-                className="flex-1"
-              >
-                페이지 생성
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowTaxPageModal(false)
-                  setTaxPagePassword('')
-                }}
-                className="flex-1"
-              >
-                취소
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   )
 }
 
