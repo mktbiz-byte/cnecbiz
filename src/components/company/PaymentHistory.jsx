@@ -10,6 +10,7 @@ export default function PaymentHistory() {
   const navigate = useNavigate()
   const [company, setCompany] = useState(null)
   const [payments, setPayments] = useState([])
+  const [chargeRequests, setChargeRequests] = useState([])  // 포인트 충전 신청
   const [taxInvoices, setTaxInvoices] = useState([])
   const [selectedTab, setSelectedTab] = useState('payments')
   const [loading, setLoading] = useState(false)
@@ -40,6 +41,7 @@ export default function PaymentHistory() {
       setCompany(companyData)
       fetchPayments(companyData.id)
       fetchTaxInvoices(companyData.id)
+      fetchChargeRequests(user.id)
     }
   }
 
@@ -59,6 +61,23 @@ export default function PaymentHistory() {
       console.error('Error fetching payments:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchChargeRequests = async (userId) => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('points_charge_requests')
+        .select('*')
+        .eq('company_id', userId)
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        console.log('[PaymentHistory] 충전 신청 내역:', data)
+        setChargeRequests(data)
+      }
+    } catch (error) {
+      console.error('Error fetching charge requests:', error)
     }
   }
 
@@ -316,6 +335,78 @@ export default function PaymentHistory() {
             </CardContent>
           </Card>
         )}
+
+        {/* 포인트 충전 신청 내역 */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>포인트 충전 신청 내역 ({chargeRequests.length}건)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chargeRequests.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                충전 신청 내역이 없습니다.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4">신청일시</th>
+                      <th className="text-left p-4">회사명</th>
+                      <th className="text-left p-4">입금자명</th>
+                      <th className="text-right p-4">금액</th>
+                      <th className="text-center p-4">세금계산서</th>
+                      <th className="text-center p-4">상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chargeRequests.map((request) => (
+                      <tr key={request.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4 text-sm">
+                          {new Date(request.created_at).toLocaleString('ko-KR')}
+                        </td>
+                        <td className="p-4 text-sm">
+                          {request.tax_invoice_info?.companyName || '-'}<br />
+                          <span className="text-xs text-gray-500">{request.tax_invoice_info?.email || '-'}</span>
+                        </td>
+                        <td className="p-4 text-sm">
+                          {request.depositor_name || '-'}
+                        </td>
+                        <td className="p-4 text-sm text-right font-medium">
+                          {request.amount?.toLocaleString()}원
+                        </td>
+                        <td className="p-4 text-sm text-center">
+                          {request.needs_tax_invoice ? (
+                            <span className="text-blue-600">필요함</span>
+                          ) : (
+                            <span className="text-gray-400">불필요</span>
+                          )}
+                        </td>
+                        <td className="p-4 text-center">
+                          {request.status === 'pending' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              <span className="mr-1">⏱</span> 입금 대기
+                            </span>
+                          )}
+                          {request.status === 'confirmed' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              입금 확인
+                            </span>
+                          )}
+                          {request.status === 'cancelled' && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              취소됨
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
         </div>
       </div>
     </>
