@@ -25,6 +25,7 @@ const OrderConfirmation = () => {
     try {
       console.log('[OrderConfirmation] Loading campaign:', id)
       console.log('[OrderConfirmation] Using supabaseBiz:', supabaseBiz ? 'initialized' : 'null')
+      console.log('[OrderConfirmation] Supabase URL:', supabaseBiz?.supabaseUrl)
       
       // 1. 캠페인 정보 로드
       const { data: campaignData, error: campaignError } = await supabaseBiz
