@@ -177,8 +177,8 @@ export default function RevenueManagementWithCharts() {
     // creator_withdrawal_requests에서 추가 크리에이터 비용
     const withdrawalTotal = withdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0)
     
-    // totalExpenses: 고정비 + 변동비 + expense_records
-    const totalExpenses = totalFixedCost + totalVariableCost + expenseTotal
+    // totalExpenses: 고정비 + 변동비 (financial_records만)
+    const totalExpenses = totalFixedCost + totalVariableCost
     // totalCreatorCostFinal: 크리에이터비 + 출금 요청
     const totalCreatorCostFinal = totalCreatorCost + withdrawalTotal
     const netProfit = totalRevenue - totalExpenses - totalCreatorCostFinal
