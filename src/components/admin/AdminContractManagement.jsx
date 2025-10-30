@@ -25,7 +25,7 @@ export default function AdminContractManagement() {
 
   // 새 계약서 발송 폼
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [contractType, setContractType] = useState('company') // company or creator
+  const [contractType, setContractType] = useState('campaign') // campaign or portrait_rights
   const [newContract, setNewContract] = useState({
     recipientEmail: '',
     recipientName: '',
@@ -122,7 +122,7 @@ export default function AdminContractManagement() {
     // 계약서 타입에 따라 템플릿 생성
     let html = ''
     const contractData = contract.content ? JSON.parse(contract.content) : {}
-    if (contract.contract_type === 'company') {
+    if (contract.contract_type === 'campaign') {
       html = CompanyContractTemplate(contractData)
     } else {
       html = CreatorConsentTemplate(contractData)
@@ -160,7 +160,7 @@ export default function AdminContractManagement() {
       return
     }
 
-    if (contractType === 'company' && !newContract.companyName) {
+    if (contractType === 'campaign' && !newContract.companyName) {
       alert('회사명을 입력해주세요.')
       return
     }
@@ -180,7 +180,7 @@ export default function AdminContractManagement() {
           contract_type: contractType,
           recipient_email: newContract.recipientEmail,
           recipient_name: newContract.recipientName,
-          title: newContract.title || (contractType === 'company' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서'),
+          title: newContract.title || (contractType === 'campaign' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서'),
           content: JSON.stringify(contractData),
           status: 'pending',
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
@@ -346,9 +346,9 @@ export default function AdminContractManagement() {
                             <tr key={contract.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm">
                                 <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                                  contract.contract_type === 'company' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                                   contract.contract_type === 'campaign' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
                                 }`}>
-                                  {contract.contract_type === 'company' ? '기업용' : '크리에이터용'}
+                                   {contract.contract_type === 'campaign' ? '기업용' : '크리에이터용'}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-sm">
@@ -415,8 +415,8 @@ export default function AdminContractManagement() {
                     value={contractType}
                     onChange={(e) => setContractType(e.target.value)}
                   >
-                    <option value="company">기업용 - 크리에이터 섭외 계약서</option>
-                    <option value="creator">크리에이터용 - 콘텐츠 2차 활용 동의서</option>
+                    <option value="campaign">기업용 - 크리에이터 섭외 계약서</option>
+                    <option value="portrait_rights">크리에이터용 - 콘텐츠 2차 활용 동의서</option>
                   </select>
                 </div>
 
@@ -440,7 +440,7 @@ export default function AdminContractManagement() {
                   />
                 </div>
 
-                {contractType === 'company' && (
+                {contractType === 'campaign' && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-900 mb-2">회사명 *</label>
