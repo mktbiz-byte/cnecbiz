@@ -436,7 +436,8 @@ export default function RevenueManagementWithCharts() {
   // 파이 차트 데이터 - 매출 대비 비율 (미수금 반영)
   const totalCost = stats.totalExpenses + stats.totalCreatorCost
   const totalAccountsReceivable = revenueData.filter(r => r.type === 'revenue' && r.is_receivable === true).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-  const netProfit = stats.totalRevenue - totalCost - totalAccountsReceivable
+  // 순이익 = 총 매출 - 고정비 - 크리에이터비 (미수금은 비용이 아니므로 빼지 않음)
+  const netProfit = stats.totalRevenue - totalCost
   
   // 매출 대비 비율 계산
   const totalRevenue = stats.totalRevenue || 1 // 0으로 나누기 방지
