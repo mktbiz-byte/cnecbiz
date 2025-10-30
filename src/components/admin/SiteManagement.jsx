@@ -1657,6 +1657,44 @@ export default function SiteManagement() {
 
             {/* 전자계약서 탭 */}
             <TabsContent value="contracts" className="space-y-6">
+              {/* 회사 도장 등록 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>회사 도장 관리</CardTitle>
+                  <p className="text-sm text-gray-600">계약서에 사용할 회사 도장을 등록하고 관리하세요</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        id="stamp-upload"
+                        onChange={(e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            // TODO: 파일 업로드 처리
+                            alert('도장 이미지 업로드 기능은 구현 예정입니다.')
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="stamp-upload"
+                        className="cursor-pointer inline-flex flex-col items-center"
+                      >
+                        <Plus className="w-12 h-12 text-gray-400 mb-2" />
+                        <span className="text-sm font-medium text-gray-700">도장 이미지 업로드</span>
+                        <span className="text-xs text-gray-500 mt-1">PNG, JPG 파일 (최대 2MB)</span>
+                      </label>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p>현재 등록된 도장이 없습니다.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* 계약서 템플릿 관리 */}
               <Card>
                 <CardHeader>
@@ -1702,14 +1740,11 @@ export default function SiteManagement() {
                         <Button 
                           className="w-full"
                           onClick={() => {
-                            const testEmail = prompt('테스트 발송할 이메일 주소를 입력하세요:')
-                            if (testEmail) {
-                              alert(`${testEmail}로 기업용 계약서를 발송했습니다. (테스트)`)
-                            }
+                            navigate('/admin/contracts?type=company')
                           }}
                         >
                           <Send className="w-4 h-4 mr-2" />
-                          테스트 발송
+                          계약서 작성 및 발송
                         </Button>
                       </CardContent>
                     </Card>
@@ -1751,14 +1786,11 @@ export default function SiteManagement() {
                         <Button 
                           className="w-full"
                           onClick={() => {
-                            const testEmail = prompt('테스트 발송할 이메일 주소를 입력하세요:')
-                            if (testEmail) {
-                              alert(`${testEmail}로 크리에이터용 동의서를 발송했습니다. (테스트)`)
-                            }
+                            navigate('/admin/contracts?type=creator')
                           }}
                         >
                           <Send className="w-4 h-4 mr-2" />
-                          테스트 발송
+                          동의서 작성 및 발송
                         </Button>
                       </CardContent>
                     </Card>

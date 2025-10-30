@@ -52,10 +52,10 @@ export default function AdminContractManagement() {
 
       // 관리자 권한 확인
       const { data: adminData } = await supabaseBiz
-        .from('admins')
+        .from('admin_users')
         .select('*')
-        .eq('user_id', user.id)
-        .single()
+        .eq('email', user.email)
+        .maybeSingle()
 
       if (!adminData) {
         alert('관리자 권한이 없습니다.')
@@ -163,7 +163,20 @@ export default function AdminContractManagement() {
       return
     }
 
+    if (contractType === 'company' && !newContract.companyName) {
+      alert('회사명을 입력해주세요.')
+      return
+    }
+
     try {
+      const contractData = {
+        ...newContract.data,
+        recipientName: newContract.recipientName,
+        recipientEmail: newContract.recipientEmail,
+        companyName: newContract.companyName || 'CNEC',
+        date: new Date().toLocaleDateString('ko-KR')
+      }
+
       const { error } = await supabaseBiz
         .from('contracts')
         .insert([{
@@ -171,7 +184,7 @@ export default function AdminContractManagement() {
           recipient_email: newContract.recipientEmail,
           recipient_name: newContract.recipientName,
           title: newContract.title || (contractType === 'company' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서'),
-          contract_data: newContract.data,
+          contract_data: contractData,
           status: 'pending',
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
         }])
@@ -429,6 +442,32 @@ export default function AdminContractManagement() {
                     placeholder="example@email.com"
                   />
                 </div>
+
+                {contractType === 'company' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">회사명 *</label>
+                      <Input
+                        type="text"
+                        value={newContract.companyName}
+                        onChange={(e) => setNewContract({ ...newContract, companyName: e.target.value })}
+                        placeholder="(주)회사명"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">캠페인명</label>
+                      <Input
+                        type="text"
+                        value={newContract.data?.campaignName || ''}
+                        onChange={(e) => setNewContract({ 
+                          ...newContract, 
+                          data: { ...newContract.data, campaignName: e.target.value } 
+                        })}
+                        placeholder="캠페인 이름"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">계약서 제목</label>
