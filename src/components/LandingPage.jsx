@@ -11,11 +11,22 @@ export default function LandingPage() {
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const [faqs, setFaqs] = useState([])
+  const [pageContent, setPageContent] = useState({
+    hero_title: 'K-뷰티를 세계로,',
+    hero_subtitle: '14일 만에 완성하는 숏폼',
+    about_text: '일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼.\n검증된 크리에이터와 함께 진정성 있는 콘텐츠로 글로벌 성공을 만들어갑니다.',
+    cta_button_text: '무료로 시작하기',
+    stats_campaigns: '4,562+',
+    stats_creators: '21,580+',
+    stats_countries: '4개국',
+    stats_success: '50만+'
+  })
 
   useEffect(() => {
     fetchVideos()
     checkAuth()
     fetchFaqs()
+    fetchPageContent()
   }, [])
 
   const checkAuth = async () => {
@@ -104,6 +115,31 @@ export default function LandingPage() {
     }
   }
 
+  const fetchPageContent = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('page_contents')
+        .select('*')
+        .limit(1)
+        .maybeSingle()
+
+      if (!error && data) {
+        setPageContent({
+          hero_title: data.hero_title || 'K-뷰티를 세계로,',
+          hero_subtitle: data.hero_subtitle || '14일 만에 완성하는 숏폼',
+          about_text: data.about_text || '일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼.\n검증된 크리에이터와 함께 진정성 있는 콘텐츠로 글로벌 성공을 만들어갑니다.',
+          cta_button_text: data.cta_button_text || '무료로 시작하기',
+          stats_campaigns: data.stats_campaigns || '4,562+',
+          stats_creators: data.stats_creators || '21,580+',
+          stats_countries: data.stats_countries || '4개국',
+          stats_success: data.stats_success || '50만+'
+        })
+      }
+    } catch (error) {
+      console.error('페이지 콘텐츠 조회 오류:', error)
+    }
+  }
+
   const fetchVideos = async () => {
     if (!supabaseBiz) {
       // 더미 포트폴리오 데이터
@@ -136,10 +172,10 @@ export default function LandingPage() {
   }
 
   const stats = [
-    { icon: Video, label: '완료된 캠페인', value: '1,200+', color: 'from-blue-500 to-cyan-500' },
-    { icon: Users, label: '파트너 크리에이터', value: '500+', color: 'from-purple-500 to-pink-500' },
-    { icon: Globe, label: '진출 국가', value: '3개국', color: 'from-orange-500 to-red-500' },
-    { icon: TrendingUp, label: '평균 조회수', value: '50만+', color: 'from-green-500 to-emerald-500' },
+    { icon: Video, label: '완료된 캠페인', value: pageContent.stats_campaigns, color: 'from-blue-500 to-cyan-500' },
+    { icon: Users, label: '파트너 크리에이터', value: pageContent.stats_creators, color: 'from-purple-500 to-pink-500' },
+    { icon: Globe, label: '진출 국가', value: pageContent.stats_countries, color: 'from-orange-500 to-red-500' },
+    { icon: TrendingUp, label: '평균 조회수', value: pageContent.stats_success, color: 'from-green-500 to-emerald-500' },
   ]
 
   const features = [
@@ -257,23 +293,26 @@ export default function LandingPage() {
               <span className="text-sm font-medium">글로벌 인플루언서 마케팅 플랫폼</span>
             </div>
             <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-              K-뷰티를 세계로,
+              {pageContent.hero_title}
               <br />
               <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                14일 만에 완성하는 숏폼
+                {pageContent.hero_subtitle}
               </span>
             </h1>
             <p className="text-xl text-slate-600 mb-12 leading-relaxed">
-              일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼.
-              <br />
-              검증된 크리에이터와 함께 진정성 있는 콘텐츠로 글로벌 성공을 만들어갑니다.
+              {pageContent.about_text.split('\n').map((line, i) => (
+                <React.Fragment key={i}>
+                  {line}
+                  {i < pageContent.about_text.split('\n').length - 1 && <br />}
+                </React.Fragment>
+              ))}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
               <button
                 onClick={() => navigate('/signup')}
                 className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-2xl transition-all flex items-center space-x-2 text-lg font-medium"
               >
-                <span>무료로 시작하기</span>
+                <span>{pageContent.cta_button_text}</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
               <button className="px-8 py-4 bg-white text-slate-700 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 transition-all flex items-center space-x-2 text-lg font-medium">
