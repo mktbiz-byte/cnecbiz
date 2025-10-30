@@ -53,7 +53,7 @@ import CreatorManagementPage from './components/admin/CreatorManagementPage'
 import OurChannelReport from './components/admin/OurChannelReport'
 import SignContract from './pages/SignContract'
 import ContractManagement from './components/company/ContractManagement'
-
+import Guidebook from './pages/Guidebook'
 
 import AuthCallback from './components/AuthCallback'
 
@@ -63,6 +63,7 @@ function App() {
         <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/guidebook" element={<Guidebook />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/signup" element={<SignupWithVerification />} />
         <Route path="/signup-old" element={<SignupPageNew />} />
