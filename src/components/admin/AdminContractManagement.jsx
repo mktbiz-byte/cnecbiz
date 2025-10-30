@@ -72,11 +72,7 @@ export default function AdminContractManagement() {
       setLoading(true)
       let query = supabaseBiz
         .from('contracts')
-        .select(`
-          *,
-          campaigns(title),
-          companies(company_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (activeTab !== 'all') {
