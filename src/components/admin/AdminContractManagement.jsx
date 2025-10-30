@@ -203,7 +203,7 @@ export default function AdminContractManagement() {
       fetchContracts()
     } catch (error) {
       console.error('계약서 생성 오류:', error)
-      alert('계약서 생성에 실패했습니다.')
+      alert(`계약서 생성에 실패했습니다: ${error.message || JSON.stringify(error)}`)
     }
   }
 
