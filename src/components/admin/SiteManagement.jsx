@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Video, HelpCircle, Edit, Plus, Trash2, Save, 
-  Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send, FileSignature
+  Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send, FileSignature,
+  ChevronUp, ChevronDown
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -680,6 +681,42 @@ export default function SiteManagement() {
     return type === 'campaign' ? '캠페인 계약서' : '초상권 동의서'
   }
 
+  // 영상 순서 변경 함수
+  const handleMoveVideo = async (videoId, direction) => {
+    const currentIndex = videos.findIndex(v => v.id === videoId)
+    if (currentIndex === -1) return
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (newIndex < 0 || newIndex >= videos.length) return
+
+    // 배열 복사 및 순서 변경
+    const newVideos = [...videos]
+    const [movedVideo] = newVideos.splice(currentIndex, 1)
+    newVideos.splice(newIndex, 0, movedVideo)
+
+    // display_order 업데이트
+    const updates = newVideos.map((video, index) => ({
+      id: video.id,
+      display_order: index + 1
+    }))
+
+    try {
+      // 데이터베이스 업데이트
+      for (const update of updates) {
+        await supabaseBiz
+          .from('reference_videos')
+          .update({ display_order: update.display_order })
+          .eq('id', update.id)
+      }
+
+      // 로컬 상태 업데이트
+      setVideos(newVideos.map((v, i) => ({ ...v, display_order: i + 1 })))
+    } catch (error) {
+      console.error('순서 변경 오류:', error)
+      alert('순서 변경에 실패했습니다.')
+    }
+  }
+
   return (
     <>
       <AdminNavigation />
@@ -786,9 +823,38 @@ export default function SiteManagement() {
                     <div className="text-center py-12 text-gray-500">등록된 영상이 없습니다.</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {videos.map((video) => (
-                        <div key={video.id} className="border rounded-lg p-4 space-y-3">
-                          <div className="aspect-video bg-gray-100 rounded overflow-hidden">
+                      {videos.map((video, index) => (
+                        <div key={video.id} className="border rounded-lg p-4 space-y-3 relative">
+                          {/* 순서 배지 */}
+                          <div className="absolute top-2 left-2 bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
+                            {index + 1}
+                          </div>
+                          
+                          {/* 순서 변경 버튼 */}
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleMoveVideo(video.id, 'up')}
+                              disabled={index === 0}
+                              className="h-8 w-8 p-0"
+                              title="위로 이동"
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleMoveVideo(video.id, 'down')}
+                              disabled={index === videos.length - 1}
+                              className="h-8 w-8 p-0"
+                              title="아래로 이동"
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
+                          </div>
+
+                          <div className="aspect-video bg-gray-100 rounded overflow-hidden mt-8">
                             <iframe
                               src={video.url}
                               title={video.title}
