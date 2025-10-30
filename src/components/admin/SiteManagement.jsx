@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Video, HelpCircle, Edit, Plus, Trash2, Save, 
   Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send, FileSignature,
-  ChevronUp, ChevronDown
+  ChevronUp, ChevronDown, ChevronsUp, ChevronsDown
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -686,8 +686,18 @@ export default function SiteManagement() {
     const currentIndex = videos.findIndex(v => v.id === videoId)
     if (currentIndex === -1) return
 
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (newIndex < 0 || newIndex >= videos.length) return
+    let newIndex
+    if (direction === 'up') {
+      newIndex = currentIndex - 1
+    } else if (direction === 'down') {
+      newIndex = currentIndex + 1
+    } else if (direction === 'top') {
+      newIndex = 0
+    } else if (direction === 'bottom') {
+      newIndex = videos.length - 1
+    }
+
+    if (newIndex < 0 || newIndex >= videos.length || newIndex === currentIndex) return
 
     // 배열 복사 및 순서 변경
     const newVideos = [...videos]
@@ -835,6 +845,16 @@ export default function SiteManagement() {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleMoveVideo(video.id, 'top')}
+                              disabled={index === 0}
+                              className="h-8 w-8 p-0"
+                              title="맨 위로"
+                            >
+                              <ChevronsUp className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleMoveVideo(video.id, 'up')}
                               disabled={index === 0}
                               className="h-8 w-8 p-0"
@@ -851,6 +871,16 @@ export default function SiteManagement() {
                               title="아래로 이동"
                             >
                               <ChevronDown className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleMoveVideo(video.id, 'bottom')}
+                              disabled={index === videos.length - 1}
+                              className="h-8 w-8 p-0"
+                              title="맨 아래로"
+                            >
+                              <ChevronsDown className="w-4 h-4" />
                             </Button>
                           </div>
 
