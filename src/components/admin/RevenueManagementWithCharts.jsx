@@ -435,7 +435,7 @@ export default function RevenueManagementWithCharts() {
 
   // 파이 차트 데이터 - 매출 대비 비율 (미수금 반영)
   const totalCost = stats.totalExpenses + stats.totalCreatorCost
-  const totalAccountsReceivable = revenueData.filter(r => r.is_accounts_receivable).reduce((sum, r) => sum + r.amount, 0)
+  const totalAccountsReceivable = revenueData.filter(r => r.type === 'revenue' && r.is_receivable === true).reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
   const netProfit = stats.totalRevenue - totalCost - totalAccountsReceivable
   
   // 매출 대비 비율 계산
@@ -443,26 +443,26 @@ export default function RevenueManagementWithCharts() {
   const pieData = [
     { 
       name: '순이익', 
-      value: (netProfit > 0 ? netProfit : 0) / totalRevenue * 100, 
-      actualValue: netProfit > 0 ? netProfit : 0,
+      value: (netProfit > 0 ? netProfit : 0), 
+      percent: ((netProfit > 0 ? netProfit : 0) / totalRevenue * 100).toFixed(1),
       color: '#10b981' 
     },
     { 
       name: '고정비', 
-      value: stats.totalFixedCost / totalRevenue * 100, 
-      actualValue: stats.totalFixedCost,
+      value: stats.totalFixedCost, 
+      percent: (stats.totalFixedCost / totalRevenue * 100).toFixed(1),
       color: '#ef4444' 
     },
     { 
       name: '크리에이터비', 
-      value: stats.totalCreatorCost / totalRevenue * 100, 
-      actualValue: stats.totalCreatorCost,
+      value: stats.totalCreatorCost, 
+      percent: (stats.totalCreatorCost / totalRevenue * 100).toFixed(1),
       color: '#f59e0b' 
     },
     { 
       name: '미수금', 
-      value: totalAccountsReceivable / totalRevenue * 100, 
-      actualValue: totalAccountsReceivable,
+      value: totalAccountsReceivable, 
+      percent: (totalAccountsReceivable / totalRevenue * 100).toFixed(1),
       color: '#6366f1' 
     }
   ]
@@ -715,7 +715,7 @@ export default function RevenueManagementWithCharts() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          label={({ name, percent }) => `${name} ${percent}%`}
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
@@ -724,7 +724,7 @@ export default function RevenueManagementWithCharts() {
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => `₩${value.toLocaleString()}`} />
+                        <Tooltip formatter={(value) => `₩${Math.round(value).toLocaleString()}`} />
                       </RePieChart>
                     </ResponsiveContainer>
                   </CardContent>
