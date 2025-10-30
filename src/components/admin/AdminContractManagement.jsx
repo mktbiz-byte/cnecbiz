@@ -125,10 +125,11 @@ export default function AdminContractManagement() {
     
     // 계약서 타입에 따라 템플릿 생성
     let html = ''
+    const contractData = contract.content ? JSON.parse(contract.content) : {}
     if (contract.contract_type === 'company') {
-      html = CompanyContractTemplate(contract.contract_data || {})
+      html = CompanyContractTemplate(contractData)
     } else {
-      html = CreatorConsentTemplate(contract.contract_data || {})
+      html = CreatorConsentTemplate(contractData)
     }
     
     setPreviewContent(html)
@@ -184,7 +185,7 @@ export default function AdminContractManagement() {
           recipient_email: newContract.recipientEmail,
           recipient_name: newContract.recipientName,
           title: newContract.title || (contractType === 'company' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서'),
-          contract_data: contractData,
+          content: JSON.stringify(contractData),
           status: 'pending',
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
         }])
