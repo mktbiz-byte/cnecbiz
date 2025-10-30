@@ -26,6 +26,13 @@ export default function WithdrawalManagement() {
     japan: { pending: 0, approved: 0, completed: 0, rejected: 0 },
     us: { pending: 0, approved: 0, completed: 0, rejected: 0 }
   })
+  
+  // 국가별 포인트 통계
+  const [pointStats, setPointStats] = useState({
+    korea: { totalRequested: 0, completed: 0, remaining: 0 },
+    japan: { totalRequested: 0, completed: 0, remaining: 0 },
+    us: { totalRequested: 0, completed: 0, remaining: 0 }
+  })
 
   // 선택된 출금 신청 (상세보기/처리)
   const [selectedWithdrawal, setSelectedWithdrawal] = useState(null)
@@ -98,17 +105,39 @@ export default function WithdrawalManagement() {
       japan: { pending: 0, approved: 0, completed: 0, rejected: 0 },
       us: { pending: 0, approved: 0, completed: 0, rejected: 0 }
     }
+    
+    const newPointStats = {
+      korea: { totalRequested: 0, completed: 0, remaining: 0 },
+      japan: { totalRequested: 0, completed: 0, remaining: 0 },
+      us: { totalRequested: 0, completed: 0, remaining: 0 }
+    }
 
     withdrawals.forEach(w => {
       if (newStats[w.region]) {
+        // 상태별 건수 계산
         if (w.status === 'pending') newStats[w.region].pending++
         else if (w.status === 'approved') newStats[w.region].approved++
         else if (w.status === 'completed') newStats[w.region].completed++
         else if (w.status === 'rejected') newStats[w.region].rejected++
+        
+        // 포인트 통계 계산
+        const amount = parseFloat(w.requested_amount || 0)
+        if (w.status !== 'rejected') {
+          newPointStats[w.region].totalRequested += amount
+        }
+        if (w.status === 'completed') {
+          newPointStats[w.region].completed += amount
+        }
       }
+    })
+    
+    // 남은 포인트 계산
+    Object.keys(newPointStats).forEach(region => {
+      newPointStats[region].remaining = newPointStats[region].totalRequested - newPointStats[region].completed
     })
 
     setStats(newStats)
+    setPointStats(newPointStats)
   }
 
   const getFilteredWithdrawals = () => {
@@ -277,7 +306,61 @@ export default function WithdrawalManagement() {
             {/* 각 국가별 콘텐츠 */}
             {['korea', 'japan', 'us'].map(country => (
               <TabsContent key={country} value={country}>
-                {/* 통계 카드 */}
+                {/* 포인트 통계 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">총 출금 신청 금액</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {country === 'korea' && '₩'}
+                            {country === 'japan' && '¥'}
+                            {country === 'us' && '$'}
+                            {pointStats[country].totalRequested.toLocaleString()}
+                          </p>
+                        </div>
+                        <Wallet className="w-10 h-10 text-blue-300" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">지급 완료 금액</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {country === 'korea' && '₩'}
+                            {country === 'japan' && '¥'}
+                            {country === 'us' && '$'}
+                            {pointStats[country].completed.toLocaleString()}
+                          </p>
+                        </div>
+                        <CheckCircle className="w-10 h-10 text-green-300" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-1">미지급 금액</p>
+                          <p className="text-2xl font-bold text-orange-600">
+                            {country === 'korea' && '₩'}
+                            {country === 'japan' && '¥'}
+                            {country === 'us' && '$'}
+                            {pointStats[country].remaining.toLocaleString()}
+                          </p>
+                        </div>
+                        <AlertCircle className="w-10 h-10 text-orange-300" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* 상태별 통계 카드 */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                   <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedStatus('pending')}>
                     <CardContent className="p-6">
