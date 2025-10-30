@@ -29,6 +29,7 @@ export default function RevenueManagementWithCharts() {
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalExpenses: 0,
+    totalFixedCost: 0,
     totalCreatorCost: 0,
     netProfit: 0,
     totalReceivable: 0,
@@ -236,6 +237,7 @@ export default function RevenueManagementWithCharts() {
     setStats({
       totalRevenue,
       totalExpenses,
+      totalFixedCost, // 고정비만
       totalCreatorCost: totalCreatorCostFinal,
       netProfit,
       totalReceivable,
@@ -447,8 +449,8 @@ export default function RevenueManagementWithCharts() {
     },
     { 
       name: '고정비', 
-      value: stats.totalExpenses / totalRevenue * 100, 
-      actualValue: stats.totalExpenses,
+      value: stats.totalFixedCost / totalRevenue * 100, 
+      actualValue: stats.totalFixedCost,
       color: '#ef4444' 
     },
     { 
