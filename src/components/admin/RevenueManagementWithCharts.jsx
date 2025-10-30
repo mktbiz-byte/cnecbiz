@@ -555,6 +555,45 @@ export default function RevenueManagementWithCharts() {
               </CardContent>
             </Card>
           </div>
+          
+          {/* 순이익 통계 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {/* 이번 달 순이익 */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600">{new Date().getMonth() + 1}월 순이익 (이번 달)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  ₩{(stats.thisMonthRevenue - stats.thisMonthExpenses).toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* 이번 분기 순이익 */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600">{Math.ceil((new Date().getMonth() + 1) / 3)}분기 순이익 (이번 분기)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  ₩{(stats.thisQuarterRevenue - stats.thisQuarterExpenses).toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* 올해 순이익 */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-600">{new Date().getFullYear()}년 순이익 (올해)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  ₩{(stats.thisYearRevenue - stats.thisYearExpenses).toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-5 lg:w-auto">
@@ -899,8 +938,9 @@ export default function RevenueManagementWithCharts() {
                         value={newExpense.type}
                         onChange={(e) => setNewExpense({ ...newExpense, type: e.target.value })}
                       >
-                        <option value="fixed">고정비</option>
-                        <option value="variable">변동비</option>
+                        <option value="fixed_cost">고정비</option>
+                        <option value="creator_cost">크리에이터비</option>
+                        <option value="variable_cost">변동비</option>
                       </select>
                     </div>
                     <div>
