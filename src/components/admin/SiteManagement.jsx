@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
+import ContractPreviewModal from '../contracts/ContractPreviewModal'
+import { getCompanyContractTemplate, getCreatorConsentTemplate } from '../contracts/ContractTemplates'
 
 export default function SiteManagement() {
   const navigate = useNavigate()
@@ -85,6 +87,8 @@ export default function SiteManagement() {
   // 전자계약서
   const [contracts, setContracts] = useState([])
   const [contractsLoading, setContractsLoading] = useState(false)
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewContent, setPreviewContent] = useState({ title: '', html: '' })
 
   useEffect(() => {
     checkAuth()
@@ -1577,8 +1581,12 @@ export default function SiteManagement() {
                             variant="outline" 
                             className="flex-1"
                             onClick={() => {
-                              // 계약서 내용 보기 모달
-                              alert('기업용 계약서 보기 기능은 구현 예정입니다.')
+                              const html = getCompanyContractTemplate()
+                              setPreviewContent({
+                                title: '기업용 계약서',
+                                html: html
+                              })
+                              setPreviewModalOpen(true)
                             }}
                           >
                             <Eye className="w-4 h-4 mr-2" />
@@ -1622,7 +1630,12 @@ export default function SiteManagement() {
                             variant="outline" 
                             className="flex-1"
                             onClick={() => {
-                              alert('크리에이터용 동의서 보기 기능은 구현 예정입니다.')
+                              const html = getCreatorConsentTemplate()
+                              setPreviewContent({
+                                title: '크리에이터용 동의서',
+                                html: html
+                              })
+                              setPreviewModalOpen(true)
                             }}
                           >
                             <Eye className="w-4 h-4 mr-2" />
@@ -1770,6 +1783,14 @@ export default function SiteManagement() {
           </Tabs>
         </div>
       </div>
+
+      {/* 계약서 미리보기 모달 */}
+      <ContractPreviewModal
+        open={previewModalOpen}
+        onOpenChange={setPreviewModalOpen}
+        title={previewContent.title}
+        htmlContent={previewContent.html}
+      />
     </>
   )
 }
