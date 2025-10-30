@@ -541,7 +541,7 @@ export default function PointsChargeManagement() {
       {/* 입금 확인 모달 */}
       {confirmModal && selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-2xl bg-white">
             <CardHeader>
               <CardTitle>입금 확인 처리</CardTitle>
             </CardHeader>
@@ -636,7 +636,7 @@ export default function PointsChargeManagement() {
       {/* 미수금 선지급 모달 */}
       {creditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
             <CardHeader>
               <CardTitle>미수금 선지급</CardTitle>
               <p className="text-sm text-gray-600">

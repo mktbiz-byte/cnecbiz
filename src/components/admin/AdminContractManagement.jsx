@@ -406,7 +406,7 @@ export default function AdminContractManagement() {
         {/* 새 계약서 생성 모달 */}
         {showCreateForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
               <CardHeader>
                 <CardTitle>새 계약서 생성</CardTitle>
               </CardHeader>
@@ -511,7 +511,7 @@ export default function AdminContractManagement() {
         {/* 미리보기 모달 */}
         {previewModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>계약서 미리보기</CardTitle>
