@@ -449,9 +449,9 @@ export default function RevenueManagementWithCharts() {
       color: '#10b981' 
     },
     { 
-      name: '고정비', 
-      value: stats.totalFixedCost, 
-      percent: (stats.totalFixedCost / totalRevenue * 100).toFixed(1),
+      name: '고정비+변동비', 
+      value: stats.totalExpenses, 
+      percent: (stats.totalExpenses / totalRevenue * 100).toFixed(1),
       color: '#ef4444' 
     },
     { 
