@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   DollarSign, CreditCard, AlertCircle, CheckCircle, 
-  Clock, XCircle, Wallet 
+  Clock, XCircle, Wallet, Sparkles 
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
@@ -19,6 +19,7 @@ export default function WithdrawalRequest() {
   const [region, setRegion] = useState('korea')
   const [pointsBalance, setPointsBalance] = useState(0)
   const [withdrawalHistory, setWithdrawalHistory] = useState([])
+  const [bonusHistory, setBonusHistory] = useState([])
   const [loading, setLoading] = useState(false)
 
   // 출금 신청 폼
@@ -70,6 +71,7 @@ export default function WithdrawalRequest() {
     setPointsBalance(creatorData.points_balance || 0)
 
     fetchWithdrawalHistory(creatorData.id)
+    fetchBonusHistory(creatorData.id)
   }
 
   const fetchWithdrawalHistory = async (creatorId) => {
@@ -84,6 +86,22 @@ export default function WithdrawalRequest() {
       setWithdrawalHistory(data || [])
     } catch (error) {
       console.error('출금 내역 조회 오류:', error)
+    }
+  }
+
+  const fetchBonusHistory = async (creatorId) => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('creator_points')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .eq('type', 'bonus')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setBonusHistory(data || [])
+    } catch (error) {
+      console.error('보너스 내역 조회 오류:', error)
     }
   }
 
@@ -368,6 +386,47 @@ export default function WithdrawalRequest() {
             </form>
           </CardContent>
         </Card>
+
+        {/* 보너스 포인트 내역 */}
+        {bonusHistory.length > 0 && (
+          <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                보너스 포인트 내역
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {bonusHistory.map((bonus) => (
+                  <div
+                    key={bonus.id}
+                    className="p-4 rounded-lg bg-white border-2 border-purple-200 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <p className="font-bold text-lg text-purple-600">
+                            +{bonus.amount.toLocaleString()}P
+                          </p>
+                          <span className="px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-700 font-medium">
+                            소속 크리에이터 보너스
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          {bonus.description}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(bonus.created_at).toLocaleDateString('ko-KR')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 출금 내역 */}
         <Card>
