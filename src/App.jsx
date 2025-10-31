@@ -54,6 +54,7 @@ import OurChannelReport from './components/admin/OurChannelReport'
 import SignContract from './pages/SignContract'
 import ContractManagement from './components/company/ContractManagement'
 import Guidebook from './pages/Guidebook'
+import GuidebookManagement from './components/admin/GuidebookManagement'
 
 import AuthCallback from './components/AuthCallback'
 
@@ -115,6 +116,7 @@ function App() {
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
+        <Route path="/admin/guidebook" element={<GuidebookManagement />} />
 
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
