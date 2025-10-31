@@ -6,6 +6,7 @@ import {
   BookOpen, Users, TrendingUp, FileText, 
   DollarSign, Target, Zap, Sparkles
 } from 'lucide-react'
+import { marked } from 'marked'
 
 export default function Guidebook() {
   const navigate = useNavigate()
@@ -40,10 +41,12 @@ export default function Guidebook() {
 
       setSections(data || [])
       
-      // 콘텐츠 객체 생성
+      // 콘텐츠 객체 생성 (Markdown을 HTML로 변환)
       const contentObj = {}
       data?.forEach(section => {
-        contentObj[section.section_id] = section.content || ''
+        // Markdown을 HTML로 변환
+        const htmlContent = section.content ? marked.parse(section.content) : ''
+        contentObj[section.section_id] = htmlContent
       })
       setContent(contentObj)
 
