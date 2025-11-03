@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // EditModeProvider removed - use Site Management page instead
 import LandingPage from './components/LandingPage'
 import LoginPageNew from './components/LoginPageNew'
+import LoginPageOld from './components/LoginPageOld'
 import SignupPageNew from './components/SignupPageNew'
 import SignupWithVerification from './components/SignupWithVerification'
 import CompanyDashboard from './components/company/CompanyDashboard'
@@ -59,6 +60,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPageNew />} />
+        <Route path="/login-old" element={<LoginPageOld />} />
         <Route path="/signup" element={<SignupWithVerification />} />
         <Route path="/signup-old" element={<SignupPageNew />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
