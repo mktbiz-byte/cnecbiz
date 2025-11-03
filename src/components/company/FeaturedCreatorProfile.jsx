@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { supabaseBiz } from '../../lib/supabaseClients';
 import styled from 'styled-components';
 import { ArrowLeft, Instagram, Youtube, TrendingUp, Users, Eye, DollarSign, AlertCircle } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const FeaturedCreatorProfile = () => {
 
   const fetchCreatorProfile = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseBiz
         .from('featured_creator_applications')
         .select('*')
         .eq('id', id)
