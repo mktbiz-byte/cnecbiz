@@ -134,6 +134,9 @@ importers:
       lucide-react:
         specifier: ^0.510.0
         version: 0.510.0(react@19.1.0)
+      marked:
+        specifier: ^12.0.0
+        version: 12.0.2
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -2251,6 +2254,11 @@ packages:
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
 
+  marked@12.0.2:
+    resolution: {integrity: sha512-qXUm7e/YKFoqFPYPa3Ukg9xlI5cyAtGmyEIzMfW//m6kXwCy2Ps9DYf5ioijFKQ8qyuscrHoY04iJGctu2Kg0Q==}
+    engines: {node: '>= 18'}
+    hasBin: true
+
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -4312,8 +4320,10 @@ snapshots:
       jspdf: 3.0.3
       jspdf-autotable: 5.0.2(jspdf@3.0.3)
       lucide-react: 0.510.0(react@19.1.0)
+      marked: 12.0.2
       next-themes: 0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       node-fetch: 3.3.2
+      nodemailer: 7.0.10
       openai: 6.4.0(ws@8.18.3)(zod@3.24.4)
       papaparse: 5.5.3
       popbill: 1.62.0(@types/node@24.8.1)(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(vite@6.3.5(@types/node@24.8.1)(jiti@2.4.2)(lightningcss@1.30.1))(ws@8.18.3)
@@ -4964,6 +4974,8 @@ snapshots:
   magic-string@0.30.17:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.0
+
+  marked@12.0.2: {}
 
   math-intrinsics@1.1.0: {}
 
