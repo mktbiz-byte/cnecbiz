@@ -95,6 +95,8 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
+        console.log('Token response status:', res.statusCode);
+        console.log('Token response data:', data);
         if (res.statusCode === 200) {
           const response = JSON.parse(data);
           resolve(response.access_token);
@@ -131,10 +133,15 @@ async function sendMessage(accessToken, botId, channelId, message) {
       }
     };
 
+    console.log('Sending message to:', options.path);
+    console.log('Message content:', message);
+
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
+        console.log('Message response status:', res.statusCode);
+        console.log('Message response data:', data);
         if (res.statusCode === 201 || res.statusCode === 200) {
           resolve({ success: true, data });
         } else {
@@ -176,8 +183,12 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    console.log('Received request body:', event.body);
+    
     // 요청 본문 파싱
     const { creators, companyName, brandName } = JSON.parse(event.body);
+
+    console.log('Parsed data:', { creators, companyName, brandName });
 
     if (!creators || creators.length === 0) {
       return {
@@ -194,12 +205,23 @@ exports.handler = async (event, context) => {
     const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
 
+    console.log('Environment check:', {
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      hasBotId: !!botId,
+      hasChannelId: !!channelId,
+      botId,
+      channelId
+    });
+
     if (!clientId || !clientSecret || !botId || !channelId) {
       throw new Error('네이버웍스 설정이 누락되었습니다.');
     }
 
     // Access Token 발급
+    console.log('Getting access token...');
     const accessToken = await getAccessToken(clientId, clientSecret, serviceAccount);
+    console.log('Access token received');
 
     // 메시지 작성
     const creatorNames = creators.map(c => c.nickname || c.creator_name || c.name).join(', ');
@@ -215,7 +237,9 @@ exports.handler = async (event, context) => {
     const message = `${companyName || '기업명 미입력'} / ${brandName || '브랜드명 미입력'} - ${creatorNames}\n\n${companyName || '기업'}의 ${brandName || '브랜드'}가 추천 크리에이터에서 선택하였습니다.\n\n${koreanDate}`;
 
     // 메시지 전송
+    console.log('Sending message...');
     await sendMessage(accessToken, botId, channelId, message);
+    console.log('Message sent successfully');
 
     return {
       statusCode: 200,
@@ -227,7 +251,8 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error details:', error);
+    console.error('Error stack:', error.stack);
 
     return {
       statusCode: 500,
