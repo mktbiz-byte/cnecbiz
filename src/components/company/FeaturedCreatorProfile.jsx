@@ -85,7 +85,8 @@ const FeaturedCreatorProfile = () => {
         setShowInquiryModal(false);
         setInquiryForm({ companyName: '', brandName: '' });
       } else {
-        throw new Error(result.error || '문의 전송에 실패했습니다.');
+        const errorMsg = result.details ? `${result.error}\n\n상세: ${result.details}` : result.error || '문의 전송에 실패했습니다.';
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error('Error sending inquiry:', error);

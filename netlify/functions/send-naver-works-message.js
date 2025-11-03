@@ -198,11 +198,11 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 환경 변수 확인
-    const clientId = process.env.NAVER_WORKS_CLIENT_ID;
-    const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
-    const botId = process.env.NAVER_WORKS_BOT_ID;
-    const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
+    // 환경 변수 확인 (공백 제거)
+    const clientId = process.env.NAVER_WORKS_CLIENT_ID?.trim();
+    const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET?.trim();
+    const botId = process.env.NAVER_WORKS_BOT_ID?.trim();
+    const channelId = process.env.NAVER_WORKS_CHANNEL_ID?.trim();
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
 
     console.log('Environment check:', {
