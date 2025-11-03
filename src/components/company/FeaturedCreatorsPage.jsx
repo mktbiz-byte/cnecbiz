@@ -187,7 +187,7 @@ const FeaturedCreatorsPage = () => {
               </StatsSection>
 
               <CategoryTags>
-                {creator.categories && creator.categories.length > 0 && creator.categories.map((cat, idx) => (
+                {(creator.final_categories || creator.ai_generated_categories || creator.categories || []).map((cat, idx) => (
                   <CategoryTag key={idx}>{cat}</CategoryTag>
                 ))}
               </CategoryTags>
