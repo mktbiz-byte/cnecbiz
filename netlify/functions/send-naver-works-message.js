@@ -202,7 +202,7 @@ exports.handler = async (event, context) => {
     const accessToken = await getAccessToken(clientId, clientSecret, serviceAccount);
 
     // 메시지 작성
-    const creatorNames = creators.map(c => c.name).join(', ');
+    const creatorNames = creators.map(c => c.nickname || c.creator_name || c.name).join(', ');
     const koreanDate = new Date().toLocaleString('ko-KR', { 
       timeZone: 'Asia/Seoul',
       year: 'numeric',
