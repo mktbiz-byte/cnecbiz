@@ -44,28 +44,33 @@ skmeYX6UpJwnuTP2xN5NDDI=
 
 // JWT 생성 함수
 function generateJWT(clientId, serviceAccount) {
-  const now = Math.floor(Date.now() / 1000);
-  
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT'
-  };
-  
-  const payload = {
-    iss: clientId,
-    sub: serviceAccount,
-    iat: now,
-    exp: now + 3600 // 1시간 후 만료
-  };
-  
-  const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
-  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  
-  const signatureInput = `${base64Header}.${base64Payload}`;
-  const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), PRIVATE_KEY);
-  const base64Signature = signature.toString('base64url');
-  
-  return `${signatureInput}.${base64Signature}`;
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    
+    const header = {
+      alg: 'RS256',
+      typ: 'JWT'
+    };
+    
+    const payload = {
+      iss: clientId,
+      sub: serviceAccount,
+      iat: now,
+      exp: now + 3600 // 1시간 후 만료
+    };
+    
+    const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    
+    const signatureInput = `${base64Header}.${base64Payload}`;
+    const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), PRIVATE_KEY);
+    const base64Signature = signature.toString('base64url');
+    
+    return `${signatureInput}.${base64Signature}`;
+  } catch (error) {
+    console.error('JWT generation error:', error);
+    throw new Error(`JWT 생성 실패: ${error.message}`);
+  }
 }
 
 // Access Token 발급 함수
