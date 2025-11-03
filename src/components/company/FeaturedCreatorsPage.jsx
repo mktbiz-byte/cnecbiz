@@ -192,7 +192,7 @@ const FeaturedCreatorsPage = () => {
                 ))}
               </CategoryTags>
 
-              {creator.additional_fee && (
+              {creator.additional_fee > 0 && (
                 <AdditionalFeeBox>
                   <AdditionalFeeLabel>추가 비용</AdditionalFeeLabel>
                   <AdditionalFeeAmount>{creator.additional_fee.toLocaleString()}원</AdditionalFeeAmount>
