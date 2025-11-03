@@ -1,99 +1,14 @@
-const crypto = require('crypto');
 const https = require('https');
 
 /**
  * 네이버웍스 메시지 전송 Netlify Function
  * 추천 크리에이터 문의를 네이버웍스 메시지방으로 전송
+ * 
+ * 환경 변수:
+ * - NAVER_WORKS_ACCESS_TOKEN: 네이버웍스 Access Token (1시간 유효)
+ * - NAVER_WORKS_BOT_ID: Bot ID
+ * - NAVER_WORKS_CHANNEL_ID: 메시지방 채널 ID
  */
-
-// JWT 토큰 생성 함수
-function generateJWT() {
-  const privateKey = process.env.NAVER_WORKS_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const clientId = process.env.NAVER_WORKS_CLIENT_ID;
-  const serviceAccount = process.env.NAVER_WORKS_SERVICE_ACCOUNT;
-
-  // JWT Header
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT'
-  };
-
-  // JWT Payload
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: clientId,
-    sub: serviceAccount,
-    iat: now,
-    exp: now + 3600, // 1시간 후 만료
-    scope: 'bot'
-  };
-
-  // Base64 URL 인코딩
-  function base64UrlEncode(str) {
-    return Buffer.from(str)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-  }
-
-  // JWT 생성
-  const headerEncoded = base64UrlEncode(JSON.stringify(header));
-  const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
-  const signatureInput = `${headerEncoded}.${payloadEncoded}`;
-
-  const sign = crypto.createSign('RSA-SHA256');
-  sign.update(signatureInput);
-  sign.end();
-
-  const signature = sign.sign(privateKey, 'base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-
-  return `${headerEncoded}.${payloadEncoded}.${signature}`;
-}
-
-// Access Token 발급 함수
-async function getAccessToken(jwt) {
-  return new Promise((resolve, reject) => {
-    const postData = JSON.stringify({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt
-    });
-
-    const options = {
-      hostname: 'auth.worksmobile.com',
-      path: '/oauth2/v2.0/token',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const response = JSON.parse(data);
-          if (response.access_token) {
-            resolve(response.access_token);
-          } else {
-            reject(new Error('Access token not found in response'));
-          }
-        } catch (error) {
-          reject(error);
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.write(postData);
-    req.end();
-  });
-}
 
 // 메시지 전송 함수
 async function sendMessage(accessToken, botId, channelId, message) {
@@ -173,18 +88,23 @@ exports.handler = async (event, context) => {
     }
 
     // 환경 변수 확인
+    const accessToken = process.env.NAVER_WORKS_ACCESS_TOKEN;
     const botId = process.env.NAVER_WORKS_BOT_ID;
     const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
+
+    if (!accessToken) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Access Token이 설정되지 않았습니다. 관리자에게 문의하세요.' 
+        })
+      };
+    }
 
     if (!botId || !channelId) {
       throw new Error('네이버웍스 설정이 누락되었습니다.');
     }
-
-    // JWT 생성
-    const jwt = generateJWT();
-
-    // Access Token 발급
-    const accessToken = await getAccessToken(jwt);
 
     // 메시지 작성
     const creatorNames = creators.map(c => c.name).join(', ');
@@ -213,6 +133,19 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Error:', error);
+    
+    // Access Token 만료 에러 처리
+    if (error.message && error.message.includes('401')) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Access Token이 만료되었습니다. 관리자에게 문의하세요.',
+          details: error.message 
+        })
+      };
+    }
+
     return {
       statusCode: 500,
       headers,
