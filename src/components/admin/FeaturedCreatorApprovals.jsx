@@ -18,6 +18,8 @@ export default function FeaturedCreatorApprovals() {
   const [showDetail, setShowDetail] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
+  const [additionalFee, setAdditionalFee] = useState(0)
+  const [additionalFeeDescription, setAdditionalFeeDescription] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -84,7 +86,9 @@ export default function FeaturedCreatorApprovals() {
           status: 'approved',
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
-          admin_notes: adminNotes || null
+          admin_notes: adminNotes || null,
+          additional_fee: additionalFee || 0,
+          additional_fee_description: additionalFeeDescription || null
         })
         .eq('id', application.id)
 
@@ -94,6 +98,8 @@ export default function FeaturedCreatorApprovals() {
       setShowDetail(false)
       setSelectedApp(null)
       setAdminNotes('')
+      setAdditionalFee(0)
+      setAdditionalFeeDescription('')
       
       // 승인된 항목을 목록에서 제거
       setApplications(prev => prev.filter(app => app.id !== application.id))
@@ -488,6 +494,32 @@ export default function FeaturedCreatorApprovals() {
                   <div>
                     <h3 className="font-medium text-sm text-gray-600 mb-1">평균 조회수</h3>
                     <p className="text-2xl font-bold">{selectedApp.avg_views?.toLocaleString() || 0}</p>
+                  </div>
+                </div>
+
+                {/* Additional Fee */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-4">
+                  <h3 className="font-medium text-sm text-yellow-800 mb-2">추가 비용 설정</h3>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">추가 금액 (원)</label>
+                    <Input
+                      type="number"
+                      value={additionalFee}
+                      onChange={(e) => setAdditionalFee(parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      step="10000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">추가 비용 설명</label>
+                    <textarea
+                      value={additionalFeeDescription}
+                      onChange={(e) => setAdditionalFeeDescription(e.target.value)}
+                      placeholder="예: 해외 촬영 추가 비용, 특수 장비 사용료 등"
+                      className="w-full border rounded-lg p-3 text-sm"
+                      rows="3"
+                    />
                   </div>
                 </div>
 

@@ -43,6 +43,8 @@ import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApproval
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
+import FeaturedCreatorsPage from './components/company/FeaturedCreatorsPage'
+import FeaturedCreatorProfile from './components/company/FeaturedCreatorProfile'
 import WithdrawalRequest from './components/creator/WithdrawalRequest'
 import TaxOfficePage from './components/tax/TaxOfficePage'
 import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
@@ -91,6 +93,8 @@ function App() {
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
+        <Route path="/featured-creators" element={<FeaturedCreatorsPage />} />
+        <Route path="/featured-creators/:id" element={<FeaturedCreatorProfile />} />
         <Route path="/admin/creators" element={<CreatorManagementPage />} />
         <Route path="/admin/channel-report/:channelId" element={<OurChannelReport />} />
         
