@@ -172,12 +172,12 @@ const FeaturedCreatorsPage = () => {
                 <StatItem>
                   <Users size={16} />
                   <StatLabel>팔로워</StatLabel>
-                  <StatValue>{formatFollowers(creator.followers)}</StatValue>
+                  <StatValue>{formatFollowers(creator.total_followers)}</StatValue>
                 </StatItem>
                 <StatItem>
                   <TrendingUp size={16} />
                   <StatLabel>참여율</StatLabel>
-                  <StatValue>{creator.engagement_rate || 'N/A'}%</StatValue>
+                  <StatValue>{creator.avg_engagement_rate || 'N/A'}%</StatValue>
                 </StatItem>
                 <StatItem>
                   <Eye size={16} />
