@@ -1,90 +1,38 @@
-# 네이버웍스 Access Token 갱신 가이드
+# 네이버웍스 메시지 전송 설정 가이드
 
-## 문제점
-AWS Lambda는 환경 변수 총 크기를 4KB로 제한하기 때문에, Private Key를 직접 저장할 수 없습니다.
+## 환경 변수 설정
 
-## 해결 방법
-Access Token을 환경 변수로 저장하고, 1시간마다 수동 또는 자동으로 갱신합니다.
-
-## Netlify 환경 변수 설정
-
-다음 3개의 환경 변수만 설정하면 됩니다:
+Netlify 환경 변수에 다음 4개만 설정하면 됩니다:
 
 ```
-NAVER_WORKS_ACCESS_TOKEN=your_access_token
-NAVER_WORKS_BOT_ID=your_bot_id
+NAVER_WORKS_CLIENT_ID=0JyXd7oP7CtFHSwo2LI6
+NAVER_WORKS_CLIENT_SECRET=6Mmc2h9nI1
+NAVER_WORKS_BOT_ID=10653024
 NAVER_WORKS_CHANNEL_ID=220000001108704
 ```
 
-## Access Token 생성 방법
+## 작동 방식
 
-### 방법 1: 로컬에서 생성 (권장)
+1. **JWT 자동 생성**: Private Key를 코드에 포함하여 매 요청마다 JWT 토큰 생성
+2. **Access Token 자동 발급**: JWT로 Access Token 발급 (1시간 유효)
+3. **메시지 전송**: Access Token으로 네이버웍스 메시지방에 메시지 전송
 
-1. 프로젝트 루트에서 다음 스크립트 실행:
+## 장점
 
-```bash
-node generate_naver_works_jwt.js
-```
-
-2. 생성된 JWT 토큰을 복사
-
-3. JWT 토큰으로 Access Token 발급:
-
-```bash
-curl -X POST https://auth.worksmobile.com/oauth2/v2.0/token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-    "assertion": "여기에_JWT_토큰_붙여넣기"
-  }'
-```
-
-4. 응답에서 `access_token` 값을 복사
-
-5. Netlify 환경 변수 `NAVER_WORKS_ACCESS_TOKEN`에 설정
-
-### 방법 2: Make.com 자동화 (권장)
-
-Make.com에서 1시간마다 자동으로 Access Token을 갱신하고 Netlify 환경 변수를 업데이트하도록 설정할 수 있습니다.
-
-#### Make.com 시나리오 구성
-
-1. **Schedule Trigger**: 매 50분마다 실행
-2. **HTTP Request**: JWT 토큰으로 Access Token 발급
-   - URL: `https://auth.worksmobile.com/oauth2/v2.0/token`
-   - Method: POST
-   - Body: 
-     ```json
-     {
-       "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-       "assertion": "{{JWT_TOKEN}}"
-     }
-     ```
-3. **HTTP Request**: Netlify API로 환경 변수 업데이트
-   - URL: `https://api.netlify.com/api/v1/accounts/{account_id}/env/{key}`
-   - Method: PATCH
-   - Headers:
-     - `Authorization: Bearer {netlify_token}`
-   - Body:
-     ```json
-     {
-       "value": "{{access_token}}"
-     }
-     ```
-
-## Access Token 만료 시
-
-Access Token이 만료되면 다음 에러가 발생합니다:
-
-```
-Access Token이 만료되었습니다. 관리자에게 문의하세요.
-```
-
-이 경우 위의 방법으로 새로운 Access Token을 생성하여 Netlify 환경 변수를 업데이트하세요.
+- ✅ 환경 변수 크기 제한 문제 해결 (Private Key를 코드에 포함)
+- ✅ 자동으로 Access Token 생성 (수동 갱신 불필요)
+- ✅ 매 요청마다 새로운 토큰 생성 (만료 걱정 없음)
 
 ## 보안 주의사항
 
-- Access Token은 절대 코드에 하드코딩하지 마세요
-- Access Token은 환경 변수로만 관리하세요
-- Private Key 파일은 안전한 곳에 보관하세요
-- Make.com 시나리오에 JWT 토큰을 저장할 때는 변수로 저장하세요
+- Private Key가 코드에 포함되어 있으므로 GitHub 저장소를 **Private**로 유지하세요
+- Netlify Functions는 서버 사이드에서 실행되므로 클라이언트에 노출되지 않습니다
+- 환경 변수는 Netlify 대시보드에서만 관리하세요
+
+## 테스트 방법
+
+1. Netlify 환경 변수 설정 완료
+2. 배포 완료 대기
+3. `https://cnectotal.netlify.app/featured-creators` 접속
+4. 크리에이터 선택 후 문의 전송
+5. 네이버웍스 메시지방 (채널 ID: 220000001108704) 확인
