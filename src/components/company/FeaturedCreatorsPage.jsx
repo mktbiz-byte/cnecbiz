@@ -30,6 +30,10 @@ const FeaturedCreatorsPage = () => {
         .order('approved_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Fetched creators data:', data);
+      if (data && data.length > 0) {
+        console.log('First creator structure:', data[0]);
+      }
       setCreators(data || []);
     } catch (err) {
       console.error('Error fetching creators:', err);
