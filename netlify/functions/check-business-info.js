@@ -24,9 +24,6 @@ popbill.config({
   }
 });
 
-// UserID 기본값 설정
-const POPBILL_USER_ID = process.env.POPBILL_USER_ID || 'cnecbiz';
-
 // 팝빌 기업정보조회 서비스 객체 생성
 const bizInfoCheckService = popbill.BizInfoCheckService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
@@ -115,10 +112,10 @@ exports.handler = async (event, context) => {
     console.log('팝빌 기업정보조회 API 호출 시작:', formattedBusinessNumber);
 
     const bizInfo = await new Promise((resolve, reject) => {
+      // checkBizInfo(MemberCorpNum, CheckCorpNum, successCallback, errorCallback)
       bizInfoCheckService.checkBizInfo(
         POPBILL_CORP_NUM,
         formattedBusinessNumber,
-        POPBILL_USER_ID,
         (result) => {
           console.log('팝빌 기업정보조회 성공:', result);
           resolve(result);
