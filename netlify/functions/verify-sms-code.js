@@ -4,9 +4,9 @@
 
 const { createClient } = require('@supabase/supabase-js')
 
-// Supabase 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_URL
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY
+// Supabase 클라이언트 초기화 (BIZ 프로젝트 사용)
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
+const supabaseKey = process.env.VITE_SUPABASE_BIZ_ANON_KEY
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 /**
@@ -17,8 +17,8 @@ async function verifySMSCode(phone, code) {
   const { data, error } = await supabase
     .from('sms_verifications')
     .select('*')
-    .eq('phone', phone)
-    .eq('code', code)
+    .eq('phone_number', phone)
+    .eq('verification_code', code)
     .eq('verified', false)
     .gte('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
