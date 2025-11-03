@@ -119,7 +119,7 @@ export default function SignupWithVerification() {
       }
 
       setSmsSent(true)
-      setSmsTimer(180) // 3분
+      setSmsTimer(300) // 5분
       alert('인증번호가 발송되었습니다.')
       
     } catch (error) {
