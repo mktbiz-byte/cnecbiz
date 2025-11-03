@@ -4,15 +4,9 @@ const crypto = require('crypto');
 /**
  * 네이버웍스 메시지 전송 Netlify Function
  * 추천 크리에이터 문의를 네이버웍스 메시지방으로 전송
- * 
- * 환경 변수:
- * - NAVER_WORKS_CLIENT_ID: Client ID
- * - NAVER_WORKS_CLIENT_SECRET: Client Secret
- * - NAVER_WORKS_BOT_ID: Bot ID
- * - NAVER_WORKS_CHANNEL_ID: 메시지방 채널 ID
  */
 
-// Private Key (환경 변수 크기 제한으로 코드에 포함)
+// Private Key
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
 MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
@@ -56,7 +50,7 @@ function generateJWT(clientId, serviceAccount) {
       iss: clientId,
       sub: serviceAccount,
       iat: now,
-      exp: now + 3600 // 1시간 후 만료
+      exp: now + 3600
     };
     
     const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
@@ -68,7 +62,6 @@ function generateJWT(clientId, serviceAccount) {
     
     return `${signatureInput}.${base64Signature}`;
   } catch (error) {
-    console.error('JWT generation error:', error);
     throw new Error(`JWT 생성 실패: ${error.message}`);
   }
 }
@@ -76,44 +69,49 @@ function generateJWT(clientId, serviceAccount) {
 // Access Token 발급 함수
 async function getAccessToken(clientId, clientSecret, serviceAccount) {
   return new Promise((resolve, reject) => {
-    const jwt = generateJWT(clientId, serviceAccount);
-    
-    const postData = new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-      client_id: clientId,
-      client_secret: clientSecret,
-      scope: 'bot'
-    }).toString();
-    
-    const options = {
-      hostname: 'auth.worksmobile.com',
-      path: '/oauth2/v2.0/token',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Content-Length': Buffer.byteLength(postData)
-      }
-    };
-    
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        console.log('Token response status:', res.statusCode);
-        console.log('Token response data:', data);
-        if (res.statusCode === 200) {
-          const response = JSON.parse(data);
-          resolve(response.access_token);
-        } else {
-          reject(new Error(`Failed to get access token: ${res.statusCode} ${data}`));
+    try {
+      const jwt = generateJWT(clientId, serviceAccount);
+      
+      const postData = new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt,
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: 'bot'
+      }).toString();
+      
+      const options = {
+        hostname: 'auth.worksmobile.com',
+        path: '/oauth2/v2.0/token',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'Content-Length': Buffer.byteLength(postData)
         }
+      };
+      
+      const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            const response = JSON.parse(data);
+            resolve(response.access_token);
+          } else {
+            reject(new Error(`토큰 발급 실패 (${res.statusCode}): ${data}`));
+          }
+        });
       });
-    });
-    
-    req.on('error', reject);
-    req.write(postData);
-    req.end();
+      
+      req.on('error', (error) => {
+        reject(new Error(`토큰 요청 실패: ${error.message}`));
+      });
+      
+      req.write(postData);
+      req.end();
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
@@ -138,47 +136,38 @@ async function sendMessage(accessToken, botId, channelId, message) {
       }
     };
 
-    console.log('Sending message to:', options.path);
-    console.log('Message content:', message);
-
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
-        console.log('Message response status:', res.statusCode);
-        console.log('Message response data:', data);
         if (res.statusCode === 201 || res.statusCode === 200) {
           resolve({ success: true, data });
         } else {
-          reject(new Error(`Failed to send message: ${res.statusCode} ${data}`));
+          reject(new Error(`메시지 전송 실패 (${res.statusCode}): ${data}`));
         }
       });
     });
 
-    req.on('error', reject);
+    req.on('error', (error) => {
+      reject(new Error(`메시지 요청 실패: ${error.message}`));
+    });
+
     req.write(postData);
     req.end();
   });
 }
 
 exports.handler = async (event, context) => {
-  // CORS 헤더
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
-  // OPTIONS 요청 처리 (CORS preflight)
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
+    return { statusCode: 200, headers, body: '' };
   }
 
-  // POST 요청만 허용
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -188,12 +177,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    console.log('Received request body:', event.body);
-    
-    // 요청 본문 파싱
     const { creators, companyName, brandName } = JSON.parse(event.body);
-
-    console.log('Parsed data:', { creators, companyName, brandName });
 
     if (!creators || creators.length === 0) {
       return {
@@ -203,30 +187,19 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 환경 변수 확인 (공백 제거)
+    // 환경 변수 확인
     const clientId = process.env.NAVER_WORKS_CLIENT_ID?.trim();
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET?.trim();
     const botId = process.env.NAVER_WORKS_BOT_ID?.trim();
     const channelId = process.env.NAVER_WORKS_CHANNEL_ID?.trim();
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
 
-    console.log('Environment check:', {
-      hasClientId: !!clientId,
-      hasClientSecret: !!clientSecret,
-      hasBotId: !!botId,
-      hasChannelId: !!channelId,
-      botId,
-      channelId
-    });
-
     if (!clientId || !clientSecret || !botId || !channelId) {
-      throw new Error('네이버웍스 설정이 누락되었습니다.');
+      throw new Error('네이버웍스 환경 변수가 설정되지 않았습니다.');
     }
 
     // Access Token 발급
-    console.log('Getting access token...');
     const accessToken = await getAccessToken(clientId, clientSecret, serviceAccount);
-    console.log('Access token received');
 
     // 메시지 작성
     const creatorNames = creators.map(c => c.nickname || c.creator_name || c.name).join(', ');
@@ -242,9 +215,7 @@ exports.handler = async (event, context) => {
     const message = `${companyName || '기업명 미입력'} / ${brandName || '브랜드명 미입력'} - ${creatorNames}\n\n${companyName || '기업'}의 ${brandName || '브랜드'}가 추천 크리에이터에서 선택하였습니다.\n\n${koreanDate}`;
 
     // 메시지 전송
-    console.log('Sending message...');
     await sendMessage(accessToken, botId, channelId, message);
-    console.log('Message sent successfully');
 
     return {
       statusCode: 200,
@@ -256,8 +227,8 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('Error details:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
 
     return {
       statusCode: 500,
