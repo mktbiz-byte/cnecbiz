@@ -27,12 +27,11 @@ popbill.config({
 // UserID 기본값 설정
 const POPBILL_USER_ID = process.env.POPBILL_USER_ID || 'cnecbiz';
 
-// 팝빌 사업자등록상태조회 서비스 객체 생성
-const closedownService = popbill.ClosedownService();
+// 팝빌 기업정보조회 서비스 객체 생성
+const bizInfoCheckService = popbill.BizInfoCheckService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 
-console.log('Popbill service initialized successfully');
-
+console.log('Popbill BizInfoCheck service initialized successfully');
 console.log('Supabase client initialized');
 
 exports.handler = async (event, context) => {
@@ -61,7 +60,21 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: '사업자등록번호를 입력해주세요.' }),
+        body: JSON.stringify({ 
+          success: false,
+          error: '사업자등록번호를 입력해주세요.' 
+        }),
+      };
+    }
+
+    if (!ceoName) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          success: false,
+          error: '대표자명을 입력해주세요.' 
+        }),
       };
     }
 
@@ -80,7 +93,10 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: '서버 오류가 발생했습니다.' }),
+        body: JSON.stringify({ 
+          success: false,
+          error: '서버 오류가 발생했습니다.' 
+        }),
       };
     }
 
@@ -89,70 +105,95 @@ exports.handler = async (event, context) => {
         statusCode: 400,
         headers,
         body: JSON.stringify({
+          success: false,
           error: '이미 가입된 사업자등록번호입니다.',
-          companyName: existingCompany.company_name,
         }),
       };
     }
 
-    // 2. 팝빌 사업자등록상태조회 API 호출
-    console.log('팝빌 API 호출 시작:', formattedBusinessNumber);
+    // 2. 팝빌 기업정보조회 API 호출
+    console.log('팝빌 기업정보조회 API 호출 시작:', formattedBusinessNumber);
 
-    const result = await new Promise((resolve, reject) => {
-      closedownService.checkCorpNum(
+    const bizInfo = await new Promise((resolve, reject) => {
+      bizInfoCheckService.checkBizInfo(
         POPBILL_CORP_NUM,
         formattedBusinessNumber,
         POPBILL_USER_ID,
         (result) => {
-          console.log('팝빌 API 성공:', result);
+          console.log('팝빌 기업정보조회 성공:', result);
           resolve(result);
         },
         (error) => {
-          console.error('팝빌 API 오류:', error);
+          console.error('팝빌 기업정보조회 오류:', error);
           reject(error);
         }
       );
     });
 
-    // 3. 사업자 상태 확인
-    // state: "0" = 폐업, "1" = 계속사업자(정상), "2" = 휴업, "3" = 폐업예정
-    if (result.state === '0' || result.state === '3') {
+    // 3. 대표자명 일치 여부 확인
+    const inputCeoName = ceoName.trim().replace(/\s+/g, ''); // 공백 제거
+    const registeredCeoName = (bizInfo.CEOName || '').trim().replace(/\s+/g, ''); // 공백 제거
+
+    console.log('대표자명 비교:', { input: inputCeoName, registered: registeredCeoName });
+
+    if (inputCeoName !== registeredCeoName) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
-          error: '폐업 또는 폐업예정인 사업자입니다.',
+          success: false,
+          error: '입력하신 정보가 사업자등록증과 일치하지 않습니다. 다시 확인해주세요.',
         }),
       };
     }
 
-    if (result.state === '2') {
+    // 4. 휴폐업 상태 확인 (corpCode 사용)
+    // corpCode: 100=일반사업자, 101=신설회사, 102=외감, 110=거래소(상장), 111=거래소(관리), 등
+    // 200=폐업, 300=휴업, 900=미정의, 999=기타
+    if (bizInfo.corpCode === 200) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
+          success: false,
+          error: '폐업한 사업자입니다.',
+        }),
+      };
+    }
+
+    if (bizInfo.corpCode === 300) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
           error: '휴업 중인 사업자입니다.',
         }),
       };
     }
 
-    // 4. 검증 성공
-    console.log('사업자 검증 성공');
+    // 5. 검증 성공
+    console.log('사업자 정보 검증 성공');
 
-    // 5. 검증 로그 저장 (선택사항)
+    // 6. 검증 로그 저장 (선택사항)
     try {
       await supabase.from('verification_logs').insert({
         business_number: formattedBusinessNumber,
-        ceo_name: ceoName || null,
-        verification_method: 'popbill_closedown',
+        ceo_name: ceoName,
+        verification_method: 'popbill_bizinfocheck',
         verification_result: 'success',
-        verification_data: result,
+        verification_data: {
+          corpName: bizInfo.corpName,
+          CEOName: bizInfo.CEOName,
+          corpCode: bizInfo.corpCode,
+        },
       });
     } catch (logError) {
       console.error('로그 저장 오류:', logError);
       // 로그 저장 실패는 무시
     }
 
+    // 7. 성공 응답 (기업 정보는 보안상 최소한만 반환)
     return {
       statusCode: 200,
       headers,
@@ -161,10 +202,7 @@ exports.handler = async (event, context) => {
         message: '사업자 정보가 확인되었습니다.',
         data: {
           businessNumber: formattedBusinessNumber,
-          state: result.state,
-          stateText: result.state === '1' ? '정상' : '기타',
-          type: result.type,
-          taxType: result.taxType,
+          verified: true,
         },
       }),
     };
@@ -174,10 +212,10 @@ exports.handler = async (event, context) => {
       statusCode: 500,
       headers,
       body: JSON.stringify({
+        success: false,
         error: '기업정보 조회 중 오류가 발생했습니다.',
         details: error.message,
       }),
     };
   }
 };
-
