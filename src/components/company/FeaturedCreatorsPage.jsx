@@ -159,8 +159,8 @@ const FeaturedCreatorsPage = () => {
                   <ProfileImage src={creator.profile_image_url} alt={creator.name} />
                 )}
                 <CreatorInfo>
-                  <CreatorName>{creator.name}</CreatorName>
-                  <ChannelHandle>@{creator.channel_handle}</ChannelHandle>
+                  <CreatorName>{creator.nickname || creator.creator_name || creator.name}</CreatorName>
+                  <ChannelHandle>@{creator.nickname || creator.creator_name}</ChannelHandle>
                 </CreatorInfo>
               </ProfileSection>
 
@@ -168,7 +168,7 @@ const FeaturedCreatorsPage = () => {
                 <StatItem>
                   <Users size={16} />
                   <StatLabel>팔로워</StatLabel>
-                  <StatValue>{formatFollowers(creator.follower_count)}</StatValue>
+                  <StatValue>{formatFollowers(creator.followers)}</StatValue>
                 </StatItem>
                 <StatItem>
                   <TrendingUp size={16} />
@@ -183,9 +183,9 @@ const FeaturedCreatorsPage = () => {
               </StatsSection>
 
               <CategoryTags>
-                {creator.category && (
-                  <CategoryTag>{creator.category}</CategoryTag>
-                )}
+                {creator.categories && creator.categories.length > 0 && creator.categories.map((cat, idx) => (
+                  <CategoryTag key={idx}>{cat}</CategoryTag>
+                ))}
               </CategoryTags>
 
               {creator.additional_fee && (
@@ -237,7 +237,7 @@ const FeaturedCreatorsPage = () => {
                     {creator.profile_image_url && (
                       <SmallProfileImage src={creator.profile_image_url} alt={creator.name} />
                     )}
-                    <span>{creator.name} (@{creator.channel_handle})</span>
+                    <span>{creator.nickname || creator.creator_name} (@{creator.nickname || creator.creator_name})</span>
                   </SelectedCreatorItem>
                 ))}
               </SelectedCreatorsList>

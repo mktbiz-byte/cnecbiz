@@ -10,6 +10,12 @@ const FeaturedCreatorProfile = () => {
   const [creator, setCreator] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [inquiryForm, setInquiryForm] = useState({
+    companyName: '',
+    brandName: ''
+  });
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchCreatorProfile();
@@ -50,6 +56,43 @@ const FeaturedCreatorProfile = () => {
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('ko-KR').format(amount);
+  };
+
+  const handleInquirySubmit = async () => {
+    if (!inquiryForm.companyName || !inquiryForm.brandName) {
+      alert('기업명과 브랜드명을 모두 입력해주세요.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch('/.netlify/functions/send-naver-works-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          creators: [creator],
+          companyName: inquiryForm.companyName,
+          brandName: inquiryForm.brandName
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('문의가 성공적으로 전송되었습니다!');
+        setShowInquiryModal(false);
+        setInquiryForm({ companyName: '', brandName: '' });
+      } else {
+        throw new Error(result.error || '문의 전송에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error sending inquiry:', error);
+      alert(error.message || '문의 전송 중 오류가 발생했습니다.');
+    } finally {
+      setSending(false);
+    }
   };
 
   if (loading) {
@@ -239,10 +282,51 @@ const FeaturedCreatorProfile = () => {
 
       <ContactSection>
         <ContactTitle>이 크리에이터와 함께 작업하고 싶으신가요?</ContactTitle>
-        <ContactButton onClick={() => navigate('/campaigns')}>
-          캠페인 생성하기
+        <ContactButton onClick={() => setShowInquiryModal(true)}>
+          이 크리에이터와 작업 문의하기
         </ContactButton>
       </ContactSection>
+
+      {showInquiryModal && (
+        <ModalOverlay onClick={() => setShowInquiryModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>크리에이터 작업 문의</ModalTitle>
+              <CloseButton onClick={() => setShowInquiryModal(false)}>×</CloseButton>
+            </ModalHeader>
+
+            <ModalBody>
+              <SelectedCreatorInfo>
+                <strong>{creator.nickname || creator.creator_name}</strong>님과 작업을 문의합니다.
+              </SelectedCreatorInfo>
+
+              <FormGroup>
+                <Label>기업명 *</Label>
+                <Input
+                  type="text"
+                  placeholder="기업명을 입력하세요"
+                  value={inquiryForm.companyName}
+                  onChange={(e) => setInquiryForm({...inquiryForm, companyName: e.target.value})}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>브랜드명 *</Label>
+                <Input
+                  type="text"
+                  placeholder="브랜드명을 입력하세요"
+                  value={inquiryForm.brandName}
+                  onChange={(e) => setInquiryForm({...inquiryForm, brandName: e.target.value})}
+                />
+              </FormGroup>
+
+              <SubmitButton onClick={handleInquirySubmit} disabled={sending}>
+                {sending ? '전송 중...' : '문의 전송'}
+              </SubmitButton>
+            </ModalBody>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };
@@ -608,6 +692,137 @@ const BackButton = styled.button`
 
   &:hover {
     opacity: 0.9;
+  }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #e0e0e0;
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #333;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 24px;
+`;
+
+const SelectedCreatorInfo = styled.div`
+  padding: 16px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 15px;
+  color: #444;
+  text-align: center;
+
+  strong {
+    color: #667eea;
+  }
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 20px;
+`;
+
+const Label = styled.label`
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 8px;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #667eea;
+  }
+
+  &::placeholder {
+    color: #999;
+  }
+`;
+
+const SubmitButton = styled.button`
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
