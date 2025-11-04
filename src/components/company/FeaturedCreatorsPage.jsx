@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabaseBiz } from '../../lib/supabaseClients';
 import styled from 'styled-components';
 import { Instagram, Youtube, TrendingUp, Users, Eye, CheckCircle, Circle, Send, Music } from 'lucide-react';
-
+import CNECPlusSection from './CNECPlusSection';
 const FeaturedCreatorsPage = () => {
   const navigate = useNavigate();
   const [creators, setCreators] = useState([]);
@@ -232,6 +232,9 @@ const FeaturedCreatorsPage = () => {
           <EmptyText>아직 등록된 추천 크리에이터가 없습니다.</EmptyText>
         </EmptyState>
       )}
+
+      {/* CNEC Plus Section */}
+      <CNECPlusSection />
 
       {showInquiryModal && (
         <ModalOverlay onClick={() => setShowInquiryModal(false)}>
