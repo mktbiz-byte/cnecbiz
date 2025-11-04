@@ -5,23 +5,39 @@ import { supabaseBiz } from './supabaseClients'
  */
 export async function getYouTubeProfileImage(youtubeUrl) {
   try {
-    // YouTube URL에서 채널 ID 또는 핸들 추출
-    const channelMatch = youtubeUrl.match(/(?:youtube\.com\/(?:@|channel\/|c\/))([^\/\?]+)/)
-    if (!channelMatch) return null
-
-    const channelIdentifier = channelMatch[1]
+    // YouTube 채널 ID 또는 핸들 추출
+    let channelId = null
     
-    // YouTube 페이지 HTML 가져오기
-    const response = await fetch(`https://www.youtube.com/${channelMatch[0]}`)
-    const html = await response.text()
-    
-    // 프로필 이미지 URL 추출 (og:image 메타 태그)
-    const imageMatch = html.match(/<meta property="og:image" content="([^"]+)"/)
-    if (imageMatch) {
-      return imageMatch[1]
+    // @handle 형식
+    const handleMatch = youtubeUrl.match(/youtube\.com\/@([^\/\?]+)/)
+    if (handleMatch) {
+      // YouTube oEmbed API 사용 (채널 정보 가져오기)
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(youtubeUrl)}&format=json`
+      const response = await fetch(oembedUrl)
+      const data = await response.json()
+      
+      // author_url에서 채널 ID 추출
+      if (data.author_url) {
+        const channelMatch = data.author_url.match(/channel\/([^\/\?]+)/)
+        if (channelMatch) {
+          channelId = channelMatch[1]
+        }
+      }
     }
     
-    return null
+    // channel/ 형식
+    const directChannelMatch = youtubeUrl.match(/youtube\.com\/channel\/([^\/\?]+)/)
+    if (directChannelMatch) {
+      channelId = directChannelMatch[1]
+    }
+    
+    if (!channelId) {
+      console.warn('YouTube 채널 ID를 찾을 수 없습니다:', youtubeUrl)
+      return null
+    }
+    
+    // YouTube 프로필 이미지는 표준 URL 패턴 사용
+    return `https://yt3.googleusercontent.com/ytc/channel/${channelId}`
   } catch (error) {
     console.error('YouTube 프로필 이미지 추출 실패:', error)
     return null
@@ -39,16 +55,11 @@ export async function getInstagramProfileImage(instagramUrl) {
 
     const username = usernameMatch[1]
     
-    // Instagram 페이지 HTML 가져오기
-    const response = await fetch(`https://www.instagram.com/${username}/`)
-    const html = await response.text()
+    // Instagram Graph API 또는 공개 프로필 이미지 URL 사용
+    // 참고: Instagram은 공식 API 없이는 프로필 이미지를 가져오기 어려움
+    // 대안: 사용자가 직접 업로드하도록 유도
     
-    // 프로필 이미지 URL 추출 (og:image 메타 태그)
-    const imageMatch = html.match(/<meta property="og:image" content="([^"]+)"/)
-    if (imageMatch) {
-      return imageMatch[1]
-    }
-    
+    console.warn('Instagram 프로필 이미지는 수동 업로드가 필요합니다:', username)
     return null
   } catch (error) {
     console.error('Instagram 프로필 이미지 추출 실패:', error)
@@ -61,12 +72,18 @@ export async function getInstagramProfileImage(instagramUrl) {
  */
 export async function uploadImageToStorage(imageUrl, creatorId, platform) {
   try {
+    if (!imageUrl) return null
+    
     // 이미지 다운로드
     const response = await fetch(imageUrl)
+    if (!response.ok) {
+      throw new Error(`이미지 다운로드 실패: ${response.statusText}`)
+    }
+    
     const blob = await response.blob()
     
     // 파일명 생성
-    const fileExt = imageUrl.split('.').pop().split('?')[0] || 'jpg'
+    const fileExt = 'jpg' // 기본 확장자
     const fileName = `${creatorId}_${platform}_${Date.now()}.${fileExt}`
     const filePath = `profiles/${fileName}`
     
@@ -74,11 +91,14 @@ export async function uploadImageToStorage(imageUrl, creatorId, platform) {
     const { data, error } = await supabaseBiz.storage
       .from('creator-profiles')
       .upload(filePath, blob, {
-        contentType: blob.type,
+        contentType: 'image/jpeg',
         upsert: true
       })
     
-    if (error) throw error
+    if (error) {
+      console.error('Supabase 업로드 실패:', error)
+      throw error
+    }
     
     // 공개 URL 가져오기
     const { data: { publicUrl } } = supabaseBiz.storage
@@ -93,27 +113,96 @@ export async function uploadImageToStorage(imageUrl, creatorId, platform) {
 }
 
 /**
+ * 이미지 파일을 직접 Supabase Storage에 업로드
+ */
+export async function uploadImageFile(file, creatorId) {
+  try {
+    if (!file) return null
+    
+    // 파일명 생성
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${creatorId}_manual_${Date.now()}.${fileExt}`
+    const filePath = `profiles/${fileName}`
+    
+    // Supabase Storage에 업로드
+    const { data, error } = await supabaseBiz.storage
+      .from('creator-profiles')
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: true
+      })
+    
+    if (error) {
+      console.error('Supabase 업로드 실패:', error)
+      throw error
+    }
+    
+    // 공개 URL 가져오기
+    const { data: { publicUrl } } = supabaseBiz.storage
+      .from('creator-profiles')
+      .getPublicUrl(filePath)
+    
+    return publicUrl
+  } catch (error) {
+    console.error('이미지 파일 업로드 실패:', error)
+    return null
+  }
+}
+
+/**
  * YouTube Shorts 최근 영상 수집
+ * 참고: YouTube Data API가 필요합니다
  */
 export async function getYouTubeShorts(youtubeUrl, limit = 6) {
   try {
-    const channelMatch = youtubeUrl.match(/(?:youtube\.com\/(?:@|channel\/|c\/))([^\/\?]+)/)
-    if (!channelMatch) return []
-
-    // YouTube Data API를 사용하거나 웹 스크래핑
-    // 여기서는 간단한 구조로 반환
-    // 실제로는 YouTube Data API 또는 RSS 피드 사용 권장
+    // YouTube Data API 키가 필요
+    const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY
+    if (!apiKey) {
+      console.warn('YouTube API 키가 설정되지 않았습니다')
+      return []
+    }
     
-    return [
-      // 예시 데이터 구조
-      // {
-      //   id: 'video_id',
-      //   title: '영상 제목',
-      //   thumbnail: 'thumbnail_url',
-      //   url: 'https://youtube.com/shorts/video_id',
-      //   publishedAt: '2025-01-01'
-      // }
-    ]
+    // 채널 ID 추출
+    let channelId = null
+    const handleMatch = youtubeUrl.match(/youtube\.com\/@([^\/\?]+)/)
+    const channelMatch = youtubeUrl.match(/youtube\.com\/channel\/([^\/\?]+)/)
+    
+    if (channelMatch) {
+      channelId = channelMatch[1]
+    } else if (handleMatch) {
+      // Handle에서 채널 ID 가져오기 (추가 API 호출 필요)
+      const handle = handleMatch[1]
+      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=@${handle}&type=channel&key=${apiKey}`
+      const searchResponse = await fetch(searchUrl)
+      const searchData = await searchResponse.json()
+      
+      if (searchData.items && searchData.items.length > 0) {
+        channelId = searchData.items[0].snippet.channelId
+      }
+    }
+    
+    if (!channelId) {
+      console.warn('YouTube 채널 ID를 찾을 수 없습니다')
+      return []
+    }
+    
+    // 채널의 최근 Shorts 영상 가져오기
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&type=video&videoDuration=short&order=date&maxResults=${limit}&key=${apiKey}`
+    const response = await fetch(searchUrl)
+    const data = await response.json()
+    
+    if (!data.items) {
+      return []
+    }
+    
+    return data.items.map(item => ({
+      id: item.id.videoId,
+      title: item.snippet.title,
+      thumbnail: item.snippet.thumbnails.high.url,
+      url: `https://youtube.com/shorts/${item.id.videoId}`,
+      publishedAt: item.snippet.publishedAt,
+      platform: 'youtube'
+    }))
   } catch (error) {
     console.error('YouTube Shorts 수집 실패:', error)
     return []
@@ -122,25 +211,14 @@ export async function getYouTubeShorts(youtubeUrl, limit = 6) {
 
 /**
  * Instagram Reels 최근 영상 수집
+ * 참고: Instagram Graph API가 필요하며, 비즈니스 계정만 가능
  */
 export async function getInstagramReels(instagramUrl, limit = 6) {
   try {
-    const usernameMatch = instagramUrl.match(/instagram\.com\/([^\/\?]+)/)
-    if (!usernameMatch) return []
-
-    // Instagram Graph API 또는 웹 스크래핑 필요
-    // 공식 API 사용 권장
-    
-    return [
-      // 예시 데이터 구조
-      // {
-      //   id: 'reel_id',
-      //   caption: '설명',
-      //   thumbnail: 'thumbnail_url',
-      //   url: 'https://instagram.com/reel/reel_id',
-      //   timestamp: '2025-01-01'
-      // }
-    ]
+    // Instagram Graph API는 복잡한 인증이 필요
+    // 현재는 수동으로 URL을 입력하도록 유도
+    console.warn('Instagram Reels는 수동 입력이 필요합니다')
+    return []
   } catch (error) {
     console.error('Instagram Reels 수집 실패:', error)
     return []
@@ -181,12 +259,12 @@ export async function collectCreatorMedia(creator) {
     
     if (creator.youtube_url) {
       const shorts = await getYouTubeShorts(creator.youtube_url)
-      videos.push(...shorts.map(v => ({ ...v, platform: 'youtube' })))
+      videos.push(...shorts)
     }
     
     if (creator.instagram_url) {
       const reels = await getInstagramReels(creator.instagram_url)
-      videos.push(...reels.map(v => ({ ...v, platform: 'instagram' })))
+      videos.push(...reels)
     }
     
     result.recentVideos = videos.slice(0, 6) // 최대 6개

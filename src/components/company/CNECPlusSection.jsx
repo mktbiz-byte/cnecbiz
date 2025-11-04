@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import styled from 'styled-components'
-import { Instagram, Youtube, TrendingUp, Users, Eye, Sparkles, Music } from 'lucide-react'
+import { Instagram, Youtube, TrendingUp, Users, Eye, Sparkles, Music, Play } from 'lucide-react'
 
 const CNECPlusSection = () => {
   const navigate = useNavigate()
@@ -131,6 +131,25 @@ const CNECPlusSection = () => {
                   <FeeDesc>{creator.estimated_fee_description}</FeeDesc>
                 )}
               </FeeBox>
+            )}
+
+            {creator.recent_videos && creator.recent_videos.length > 0 && (
+              <RecentVideos>
+                <VideosTitle>
+                  <Play size={16} />
+                  최근 숏폼 영상
+                </VideosTitle>
+                <VideosGrid>
+                  {creator.recent_videos.slice(0, 3).map((video, idx) => (
+                    <VideoCard key={idx} href={video.url} target="_blank" rel="noopener noreferrer">
+                      <VideoThumbnail src={video.thumbnail} alt={video.title} />
+                      <VideoOverlay>
+                        <Play size={24} />
+                      </VideoOverlay>
+                    </VideoCard>
+                  ))}
+                </VideosGrid>
+              </RecentVideos>
             )}
 
             <ActionButtons>
@@ -362,6 +381,64 @@ const FeeAmount = styled.div`
 const FeeDesc = styled.div`
   font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
+`
+
+const RecentVideos = styled.div`
+  margin-bottom: 16px;
+`
+
+const VideosTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 12px;
+`
+
+const VideosGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+`
+
+const VideoCard = styled.a`
+  position: relative;
+  aspect-ratio: 9 / 16;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+`
+
+const VideoThumbnail = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`
+
+const VideoOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  ${VideoCard}:hover & {
+    opacity: 1;
+  }
 `
 
 const ActionButtons = styled.div`

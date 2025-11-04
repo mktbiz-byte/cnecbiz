@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { collectCreatorMedia, uploadImageFile } from '../../lib/creatorMediaService'
 
 export default function CNECPlusManagement() {
   const [activeTab, setActiveTab] = useState('list')
@@ -27,7 +28,9 @@ export default function CNECPlusManagement() {
     tiktok_url: '',
     estimated_collaboration_fee: '',
     estimated_fee_description: '',
-    country: 'korea'
+    country: 'korea',
+    profile_image_url: '',
+    recent_videos: []
   })
   const [aiData, setAiData] = useState(null)
   const [editingId, setEditingId] = useState(null)
@@ -68,6 +71,21 @@ export default function CNECPlusManagement() {
 
     setGenerating(true)
     try {
+      // 프로필 이미지 수집 (임시 ID 사용)
+      const tempId = formData.creator_name.replace(/\s/g, '_') + '_' + Date.now()
+      const mediaResult = await collectCreatorMedia({
+        id: tempId,
+        youtube_url: formData.youtube_url,
+        instagram_url: formData.instagram_url
+      })
+      
+      if (mediaResult.profileImageUrl) {
+        setFormData(prev => ({ ...prev, profile_image_url: mediaResult.profileImageUrl }))
+      }
+      
+      if (mediaResult.recentVideos && mediaResult.recentVideos.length > 0) {
+        setFormData(prev => ({ ...prev, recent_videos: mediaResult.recentVideos }))
+      }
       // Initialize Gemini AI
       const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
       const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
@@ -134,6 +152,8 @@ export default function CNECPlusManagement() {
         youtube_url: formData.youtube_url || null,
         instagram_url: formData.instagram_url || null,
         tiktok_url: formData.tiktok_url || null,
+        profile_image_url: formData.profile_image_url || null,
+        recent_videos: formData.recent_videos || [],
         ai_generated_bio: aiData.bio,
         ai_generated_strengths: aiData.strengths,
         ai_generated_categories: aiData.categories,
@@ -180,7 +200,9 @@ export default function CNECPlusManagement() {
         tiktok_url: '',
         estimated_collaboration_fee: '',
         estimated_fee_description: '',
-        country: 'korea'
+        country: 'korea',
+        profile_image_url: '',
+        recent_videos: []
       })
       setAiData(null)
       setEditingId(null)
@@ -203,7 +225,9 @@ export default function CNECPlusManagement() {
       tiktok_url: creator.tiktok_url || '',
       estimated_collaboration_fee: creator.estimated_collaboration_fee?.toString() || '',
       estimated_fee_description: creator.estimated_fee_description || '',
-      country: creator.country || 'korea'
+      country: creator.country || 'korea',
+      profile_image_url: creator.profile_image_url || '',
+      recent_videos: creator.recent_videos || []
     })
     setAiData({
       bio: creator.final_bio,
@@ -317,7 +341,9 @@ export default function CNECPlusManagement() {
                     tiktok_url: '',
                     estimated_collaboration_fee: '',
                     estimated_fee_description: '',
-                    country: 'korea'
+                    country: 'korea',
+                    profile_image_url: '',
+                    recent_videos: []
                   })
                   setAiData(null)
                   setActiveTab('form')
@@ -659,7 +685,9 @@ export default function CNECPlusManagement() {
                             tiktok_url: '',
                             estimated_collaboration_fee: '',
                             estimated_fee_description: '',
-                            country: 'korea'
+                            country: 'korea',
+                            profile_image_url: '',
+                            recent_videos: []
                           })
                           setAiData(null)
                         }}
