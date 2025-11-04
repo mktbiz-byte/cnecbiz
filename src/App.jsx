@@ -58,7 +58,6 @@ import SignContract from './pages/SignContract'
 import ContractManagement from './components/company/ContractManagement'
 import Guidebook from './pages/Guidebook'
 import GuidebookManagement from './components/admin/GuidebookManagement'
-import CNECPlusManagement from './components/admin/CNECPlusManagement'
 
 import AuthCallback from './components/AuthCallback'
 
@@ -124,7 +123,6 @@ function App() {
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
-        <Route path="/admin/cnec-plus" element={<CNECPlusManagement />} />
 
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Users, Plus, Trash2, Loader2, Sparkles, 
   Instagram, Youtube, Video, Edit, CheckCircle, XCircle, Eye, X
@@ -10,9 +11,11 @@ import {
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { scrapeAllPlatforms } from '../../lib/youtubeScraperService'
 import AdminNavigation from './AdminNavigation'
+import CNECPlusManagement from './CNECPlusManagement'
 
 export default function CreatorsManagement() {
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState('featured')
   const [creators, setCreators] = useState([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -407,34 +410,53 @@ ${realDataInfo}
       <AdminNavigation />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 lg:ml-64">
         <div className="max-w-7xl mx-auto p-6">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                추천 크리에이터 관리
-              </h1>
-              <p className="text-gray-600 mt-1">AI 프로필 생성으로 빠르게 크리에이터를 등록하세요</p>
-            </div>
-            <Button
-            onClick={() => {
-              setShowAddForm(!showAddForm)
-              if (!showAddForm) resetForm()
-            }}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-          >
-            {showAddForm ? (
-              <>
-                <X className="w-5 h-5 mr-2" />
-                취소
-              </>
-            ) : (
-              <>
-                <Plus className="w-5 h-5 mr-2" />
-                크리에이터 추가
-              </>
-            )}
-          </Button>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              크리에이터 관리
+            </h1>
+            <p className="text-gray-600">추천 크리에이터와 CNEC Plus를 관리하세요</p>
           </div>
-        </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="featured" className="text-lg">
+                <Users className="w-5 h-5 mr-2" />
+                추천 크리에이터
+              </TabsTrigger>
+              <TabsTrigger value="cnec-plus" className="text-lg">
+                <Sparkles className="w-5 h-5 mr-2" />
+                CNEC Plus
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="featured" className="mt-0">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    추천 크리에이터 관리
+                  </h2>
+                  <p className="text-gray-600 mt-1">AI 프로필 생성으로 빠르게 크리에이터를 등록하세요</p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setShowAddForm(!showAddForm)
+                    if (!showAddForm) resetForm()
+                  }}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  {showAddForm ? (
+                    <>
+                      <X className="w-5 h-5 mr-2" />
+                      취소
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-5 h-5 mr-2" />
+                      크리에이터 추가
+                    </>
+                  )}
+                </Button>
+              </div>
 
         {/* Add/Edit Form */}
         {showAddForm && (
@@ -836,6 +858,13 @@ ${realDataInfo}
             )}
           </CardContent>
         </Card>
+            </TabsContent>
+
+            <TabsContent value="cnec-plus" className="mt-0">
+              <CNECPlusManagement />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </>
   )
