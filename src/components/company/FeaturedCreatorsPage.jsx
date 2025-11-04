@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabaseBiz } from '../../lib/supabaseClients';
 import styled from 'styled-components';
-import { Instagram, Youtube, TrendingUp, Users, Eye, CheckCircle, Circle, Send } from 'lucide-react';
+import { Instagram, Youtube, TrendingUp, Users, Eye, CheckCircle, Circle, Send, Music } from 'lucide-react';
 
 const FeaturedCreatorsPage = () => {
   const navigate = useNavigate();
@@ -202,10 +202,22 @@ const FeaturedCreatorsPage = () => {
                 <ViewProfileButton onClick={() => navigate(`/featured-creators/${creator.id}`)}>
                   프로필 보기
                 </ViewProfileButton>
-                {getPlatformUrl(creator) && (
-                  <PlatformButton href={getPlatformUrl(creator)} target="_blank" rel="noopener noreferrer">
-                    {getPlatformIcon(creator)}
-                    채널 방문
+                {creator.youtube_url && (
+                  <PlatformButton href={creator.youtube_url} target="_blank" rel="noopener noreferrer">
+                    <Youtube size={16} />
+                    YouTube
+                  </PlatformButton>
+                )}
+                {creator.instagram_url && (
+                  <PlatformButton href={creator.instagram_url} target="_blank" rel="noopener noreferrer">
+                    <Instagram size={16} />
+                    Instagram
+                  </PlatformButton>
+                )}
+                {creator.tiktok_url && (
+                  <PlatformButton href={creator.tiktok_url} target="_blank" rel="noopener noreferrer">
+                    <Music size={16} />
+                    TikTok
                   </PlatformButton>
                 )}
               </ActionButtons>
