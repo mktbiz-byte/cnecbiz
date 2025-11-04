@@ -484,11 +484,12 @@ const AdditionalFeeDesc = styled.div`
 
 const ActionButtons = styled.div`
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 `;
 
 const ViewProfileButton = styled.button`
-  flex: 1;
+  flex: 1 1 100%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
@@ -506,20 +507,21 @@ const ViewProfileButton = styled.button`
 `;
 
 const PlatformButton = styled.a`
-  flex: 1;
+  flex: 1 1 calc(33.333% - 6px);
+  min-width: 100px;
   background: white;
   color: #667eea;
   border: 2px solid #667eea;
-  padding: 12px;
+  padding: 10px 8px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   transition: all 0.2s;
 
   &:hover {
