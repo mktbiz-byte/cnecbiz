@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { scrapeAllPlatforms } from '../../lib/youtubeScraperService'
+import { collectCreatorMedia } from '../../lib/creatorMediaService'
 import AdminNavigation from './AdminNavigation'
 import CNECPlusManagement from './CNECPlusManagement'
 
@@ -347,6 +348,64 @@ ${realDataInfo}
       status: 'approved'
     })
     setShowAddForm(true)
+  }
+
+  const collectAllCreatorImages = async () => {
+    if (!confirm(`${creators.length}명의 크리에이터 프로필 이미지를 수집하시겠습니까?`)) return
+
+    setIsGenerating(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      for (const creator of creators) {
+        try {
+          // 이미 이미지가 있으면 스킵
+          if (creator.profile_image_url) {
+            console.log(`${creator.creator_name}: 이미 이미지 존재`)
+            continue
+          }
+
+          // 프로필 이미지 및 영상 수집
+          const mediaResult = await collectCreatorMedia(creator)
+          
+          if (mediaResult.profileImageUrl || mediaResult.recentVideos.length > 0) {
+            // 데이터베이스 업데이트
+            const updateData = {}
+            if (mediaResult.profileImageUrl) {
+              updateData.profile_image_url = mediaResult.profileImageUrl
+            }
+            if (mediaResult.recentVideos.length > 0) {
+              updateData.recent_videos = mediaResult.recentVideos
+            }
+
+            const { error } = await supabaseBiz
+              .from('featured_creator_applications')
+              .update(updateData)
+              .eq('id', creator.id)
+
+            if (error) throw error
+            
+            successCount++
+            console.log(`${creator.creator_name}: 수집 성공`)
+          } else {
+            failCount++
+            console.log(`${creator.creator_name}: 수집 실패 (데이터 없음)`)
+          }
+        } catch (error) {
+          failCount++
+          console.error(`${creator.creator_name} 수집 실패:`, error)
+        }
+      }
+
+      alert(`수집 완료!\n성공: ${successCount}건\n실패: ${failCount}건`)
+      fetchCreators()
+    } catch (error) {
+      console.error('일괄 수집 실패:', error)
+      alert('일괄 수집 중 오류가 발생했습니다.')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const handleDelete = async (id) => {
@@ -760,6 +819,24 @@ ${realDataInfo}
                 <Users className="w-6 h-6 text-blue-600" />
                 등록된 크리에이터 ({creators.length}명)
               </span>
+              <Button
+                onClick={collectAllCreatorImages}
+                disabled={isGenerating || creators.length === 0}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    수집 중...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    일괄 이미지 수집
+                  </>
+                )}
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6">

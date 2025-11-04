@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabaseBiz } from '../../lib/supabaseClients';
 import styled from 'styled-components';
-import { ArrowLeft, Instagram, Youtube, TrendingUp, Users, Eye, DollarSign, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Instagram, Youtube, TrendingUp, Users, Eye, DollarSign, AlertCircle, Play } from 'lucide-react';
 
 const FeaturedCreatorProfile = () => {
   const { id } = useParams();
@@ -131,7 +131,9 @@ const FeaturedCreatorProfile = () => {
 
       <ProfileHeader>
         <ProfileImageSection>
-          {creator.portfolio_images && creator.portfolio_images[0] ? (
+          {creator.profile_image_url ? (
+            <ProfileImageLarge src={creator.profile_image_url} alt={creator.creator_name} />
+          ) : creator.portfolio_images && creator.portfolio_images[0] ? (
             <ProfileImageLarge src={creator.portfolio_images[0]} alt={creator.creator_name} />
           ) : (
             <ProfilePlaceholderLarge>
@@ -247,6 +249,32 @@ const FeaturedCreatorProfile = () => {
           <ContentBox>
             {creator.final_content_style || creator.ai_generated_content_style}
           </ContentBox>
+        </Section>
+      )}
+
+      {/* 최근 숏폼 영상 */}
+      {creator.recent_videos && creator.recent_videos.length > 0 && (
+        <Section>
+          <SectionTitle>
+            <Play size={20} />
+            최근 숏폼 영상
+          </SectionTitle>
+          <RecentVideosGrid>
+            {creator.recent_videos.map((video, index) => (
+              <VideoCard 
+                key={index}
+                href={video.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <VideoThumbnail src={video.thumbnail} alt={video.title} />
+                <VideoOverlay>
+                  <Play size={32} />
+                </VideoOverlay>
+                <VideoTitle>{video.title}</VideoTitle>
+              </VideoCard>
+            ))}
+          </RecentVideosGrid>
         </Section>
       )}
 
@@ -527,10 +555,71 @@ const Section = styled.div`
 `;
 
 const SectionTitle = styled.h2`
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 22px;
   font-weight: 700;
   color: #1a1a1a;
   margin-bottom: 20px;
+`;
+
+const RecentVideosGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+`;
+
+const VideoCard = styled.a`
+  position: relative;
+  display: block;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+`;
+
+const VideoThumbnail = styled.img`
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+`;
+
+const VideoOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  ${VideoCard}:hover & {
+    opacity: 1;
+  }
+`;
+
+const VideoTitle = styled.div`
+  padding: 12px;
+  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  color: #444;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 `;
 
 const PlatformLinks = styled.div`
