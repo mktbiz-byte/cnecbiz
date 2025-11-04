@@ -49,6 +49,7 @@ export default function CreatorsManagement() {
     avg_engagement_rate: 0,
     avg_views: 0,
     
+    country: 'korea', // 기본값: 한국
     status: 'approved' // 관리자가 직접 등록하면 자동 승인
   })
 
@@ -120,6 +121,7 @@ export default function CreatorsManagement() {
       total_followers: 0,
       avg_engagement_rate: 0,
       avg_views: 0,
+      country: 'korea',
       status: 'approved'
     })
     setEditingCreator(null)
@@ -341,6 +343,7 @@ ${realDataInfo}
       avg_engagement_rate: creator.avg_engagement_rate || 0,
       avg_views: creator.avg_views || 0,
       
+      country: creator.country || 'korea',
       status: 'approved'
     })
     setShowAddForm(true)
@@ -494,7 +497,7 @@ ${realDataInfo}
                       className="border-2"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div>
                     <label className="block text-sm font-medium mb-2">연락처</label>
                     <Input
                       value={formData.phone}
@@ -502,6 +505,19 @@ ${realDataInfo}
                       placeholder="010-0000-0000"
                       className="border-2"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">국가 *</label>
+                    <select
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                      className="w-full px-3 py-2 border-2 rounded-md"
+                    >
+                      <option value="korea">한국</option>
+                      <option value="japan">일본</option>
+                      <option value="usa">미국</option>
+                      <option value="other">기타</option>
+                    </select>
                   </div>
                 </div>
               </div>

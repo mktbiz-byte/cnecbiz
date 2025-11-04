@@ -27,6 +27,7 @@ const FeaturedCreatorsPage = () => {
         .from('featured_creator_applications')
         .select('*')
         .eq('status', 'approved')
+        .eq('country', 'korea')
         .order('approved_at', { ascending: false });
 
       if (error) throw error;

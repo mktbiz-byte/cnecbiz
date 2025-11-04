@@ -26,7 +26,8 @@ export default function CNECPlusManagement() {
     instagram_url: '',
     tiktok_url: '',
     estimated_collaboration_fee: '',
-    estimated_fee_description: ''
+    estimated_fee_description: '',
+    country: 'korea'
   })
   const [aiData, setAiData] = useState(null)
   const [editingId, setEditingId] = useState(null)
@@ -145,6 +146,7 @@ export default function CNECPlusManagement() {
         final_content_style: aiData.content_style,
         estimated_collaboration_fee: formData.estimated_collaboration_fee ? parseInt(formData.estimated_collaboration_fee.replace(/,/g, '')) : null,
         estimated_fee_description: formData.estimated_fee_description || null,
+        country: formData.country || 'korea',
         status: 'active',
         is_featured: true,
         display_order: creators.length
@@ -177,7 +179,8 @@ export default function CNECPlusManagement() {
         instagram_url: '',
         tiktok_url: '',
         estimated_collaboration_fee: '',
-        estimated_fee_description: ''
+        estimated_fee_description: '',
+        country: 'korea'
       })
       setAiData(null)
       setEditingId(null)
@@ -199,7 +202,8 @@ export default function CNECPlusManagement() {
       instagram_url: creator.instagram_url || '',
       tiktok_url: creator.tiktok_url || '',
       estimated_collaboration_fee: creator.estimated_collaboration_fee?.toString() || '',
-      estimated_fee_description: creator.estimated_fee_description || ''
+      estimated_fee_description: creator.estimated_fee_description || '',
+      country: creator.country || 'korea'
     })
     setAiData({
       bio: creator.final_bio,
@@ -312,7 +316,8 @@ export default function CNECPlusManagement() {
                     instagram_url: '',
                     tiktok_url: '',
                     estimated_collaboration_fee: '',
-                    estimated_fee_description: ''
+                    estimated_fee_description: '',
+                    country: 'korea'
                   })
                   setAiData(null)
                   setActiveTab('form')
@@ -535,6 +540,21 @@ export default function CNECPlusManagement() {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>국가 *</Label>
+                  <select
+                    name="country"
+                    value={formData.country}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="korea">한국</option>
+                    <option value="japan">일본</option>
+                    <option value="usa">미국</option>
+                    <option value="other">기타</option>
+                  </select>
+                </div>
+
                 <Button
                   onClick={generateProfile}
                   disabled={generating}
@@ -638,7 +658,8 @@ export default function CNECPlusManagement() {
                             instagram_url: '',
                             tiktok_url: '',
                             estimated_collaboration_fee: '',
-                            estimated_fee_description: ''
+                            estimated_fee_description: '',
+                            country: 'korea'
                           })
                           setAiData(null)
                         }}

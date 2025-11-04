@@ -21,6 +21,7 @@ const CNECPlusSection = () => {
         .select('*')
         .eq('status', 'active')
         .eq('is_featured', true)
+        .eq('country', 'korea')
         .order('display_order', { ascending: true })
 
       if (error) throw error
