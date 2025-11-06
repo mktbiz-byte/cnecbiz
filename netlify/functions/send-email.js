@@ -19,24 +19,18 @@ exports.handler = async (event) => {
       };
     }
 
-    // Supabase에서 Gmail 설정 가져오기
-    console.log('[DEBUG] Fetching email settings...');
-    const { data: emailSettings, error: settingsError } = await supabase
-      .from('email_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-    
-    console.log('[DEBUG] Email settings:', emailSettings);
-    console.log('[DEBUG] Settings error:', settingsError);
+    // 환경변수에서 Gmail 설정 가져오기
+    const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const senderName = process.env.GMAIL_SENDER_NAME || 'CNECBIZ';
 
-    if (settingsError || !emailSettings) {
-      console.error('Email 설정 조회 오류:', settingsError);
+    if (!gmailAppPassword) {
+      console.error('GMAIL_APP_PASSWORD 환경변수가 설정되지 않았습니다.');
       return {
         statusCode: 500,
         body: JSON.stringify({
           success: false,
-          error: 'Email 설정이 등록되지 않았습니다. 관리자 페이지에서 Gmail SMTP 설정을 완료해주세요.'
+          error: 'Gmail 설정이 완료되지 않았습니다.'
         })
       };
     }
@@ -45,14 +39,14 @@ exports.handler = async (event) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: emailSettings.gmail_email,
-        pass: emailSettings.gmail_app_password.replace(/\s/g, '') // 공백 제거
+        user: gmailEmail,
+        pass: gmailAppPassword.replace(/\s/g, '') // 공백 제거
       }
     });
 
     // 이메일 발송
     const mailOptions = {
-      from: `"${emailSettings.sender_name}" <${emailSettings.gmail_email}>`,
+      from: `"${senderName}" <${gmailEmail}>`,
       to: to,
       subject: subject,
       text: text,
