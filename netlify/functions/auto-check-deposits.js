@@ -251,12 +251,12 @@ async function processDeposit(request) {
  * 알림 발송 Function 호출
  */
 async function callNotificationFunction(request) {
-  console.log('   📨 알림 발송 Function 호출...')
+  console.log('   📨 알림 발송 중...')
 
   // 회사 정보 조회
   const { data: company } = await supabaseAdmin
     .from('companies')
-    .select('company_name, email, phone')
+    .select('company_name, email, phone, phone_number')
     .eq('user_id', request.company_id)
     .single()
 
@@ -264,22 +264,58 @@ async function callNotificationFunction(request) {
     throw new Error('회사 정보를 찾을 수 없습니다.')
   }
 
-  // send-notifications Function 호출
-  const response = await axios.post(
-    `${process.env.URL}/.netlify/functions/send-notifications`,
-    {
-      type: 'deposit_confirmed',
-      chargeRequestId: request.id,
-      userEmail: company.email,
-      userPhone: company.phone,
-      userName: company.company_name,
-      amount: request.amount,
-      depositorName: request.depositor_name,
-      points: request.amount
-    }
-  )
+  const phoneNumber = company.phone || company.phone_number
 
-  console.log('   ✅ 알림 발송 완료:', response.data)
+  // 1. 카카오톡 알림톡 발송 (025100000943 - 포인트 구매 완료)
+  if (phoneNumber) {
+    try {
+      await axios.post(
+        `${process.env.URL}/.netlify/functions/send-kakao-notification`,
+        {
+          receiverNum: phoneNumber,
+          receiverName: company.company_name,
+          templateCode: '025100000943',
+          variables: {
+            '회사명': company.company_name,
+            '포인트': parseInt(request.amount).toLocaleString()
+          }
+        }
+      )
+      console.log('   ✅ 카카오톡 알림톡 발송 완료')
+    } catch (kakaoError) {
+      console.error('   ⚠️ 카카오톡 발송 오류:', kakaoError.message)
+    }
+  }
+
+  // 2. 이메일 발송
+  if (company.email) {
+    try {
+      await axios.post(
+        `${process.env.URL}/.netlify/functions/send-email`,
+        {
+          to: company.email,
+          subject: '[CNEC] 포인트 충전 완료',
+          html: `
+            <h2>포인트 충전이 완료되었습니다</h2>
+            <p>안녕하세요, <strong>${company.company_name}</strong>님.</p>
+            <p>입금이 확인되어 포인트 충전이 완료되었습니다.</p>
+            
+            <h3>충전 정보</h3>
+            <ul>
+              <li><strong>충전 포인트:</strong> ${parseInt(request.amount).toLocaleString()}P</li>
+              <li><strong>입금자명:</strong> ${request.depositor_name}</li>
+            </ul>
+            
+            <p>충전된 포인트로 캠페인을 진행하실 수 있습니다.</p>
+            <p>문의: 1833-6025</p>
+          `
+        }
+      )
+      console.log('   ✅ 이메일 발송 완료')
+    } catch (emailError) {
+      console.error('   ⚠️ 이메일 발송 오류:', emailError.message)
+    }
+  }
 }
 
 /**

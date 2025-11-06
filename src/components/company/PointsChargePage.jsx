@@ -145,6 +145,9 @@ function ChargeForm({ onSuccess }) {
         },
         body: JSON.stringify({
           companyId: user.id,
+          companyName: companyInfo?.companyName || '',
+          companyEmail: companyInfo?.email || '',
+          companyPhone: companyInfo?.phone || '',
           amount: finalAmount,
           quantity,
           packageAmount: selectedPackage,

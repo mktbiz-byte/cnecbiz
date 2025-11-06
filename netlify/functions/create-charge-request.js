@@ -40,6 +40,9 @@ exports.handler = async (event, context) => {
   try {
     const {
       companyId,
+      companyName,
+      companyEmail,
+      companyPhone,
       amount,
       packageAmount,
       quantity,
@@ -147,36 +150,25 @@ exports.handler = async (event, context) => {
 
     // 계좌이체의 경우 알림 발송
     if (paymentMethod === 'bank_transfer') {
-      // 회사 정보 조회 (알림 발송용)
-      console.log('[INFO] Querying company info for user_id:', companyId)
-      const { data: company, error: companyError } = await supabaseAdmin
-        .from('companies')
-        .select('id, company_name, email, phone, phone_number')
-        .eq('user_id', companyId)
-        .single()
-
-      if (companyError || !company) {
-        console.warn('[WARN] Company not found, skipping notifications:', companyError)
-      } else {
-        console.log('[INFO] Company found:', company.company_name)
+      // 프론트엔드에서 전달받은 회사 정보 사용
+      if (companyName && (companyEmail || companyPhone)) {
+        console.log('[INFO] Using company info from request:', companyName)
         
         try {
           const axios = require('axios')
           
           // 1. 카카오톡 알림톡 발송
-          const phoneNumber = company.phone || company.phone_number
-          if (phoneNumber) {
+          if (companyPhone) {
             try {
               await axios.post(
                 `${process.env.URL}/.netlify/functions/send-kakao-notification`,
                 {
-                  receiverNum: phoneNumber,
-                  receiverName: company.company_name,
-                  templateCode: '025100000918',
+                  receiverNum: companyPhone,
+                  receiverName: companyName,
+                  templateCode: '025100000942',
                   variables: {
-                    '회사명': company.company_name,
-                    '금액': parseInt(amount).toLocaleString(),
-                    '입금자명': depositorName || company.company_name
+                    '회사명': companyName,
+                    '금액': parseInt(amount).toLocaleString()
                   }
                 }
               )
@@ -187,16 +179,16 @@ exports.handler = async (event, context) => {
           }
 
           // 2. 이메일 발송
-          if (company.email) {
+          if (companyEmail) {
             try {
               await axios.post(
                 `${process.env.URL}/.netlify/functions/send-email`,
                 {
-                  to: company.email,
+                  to: companyEmail,
                   subject: '[CNEC] 포인트 충전 입금 안내',
                   html: `
                     <h2>포인트 충전 신청이 완료되었습니다</h2>
-                    <p>안녕하세요, <strong>${company.company_name}</strong>님.</p>
+                    <p>안녕하세요, <strong>${companyName}</strong>님.</p>
                     <p>포인트 충전 신청이 완료되었습니다.</p>
                     
                     <h3>입금 정보</h3>
@@ -220,6 +212,8 @@ exports.handler = async (event, context) => {
         } catch (notificationError) {
           console.error('[ERROR] Notification error:', notificationError.message)
         }
+      } else {
+        console.warn('[WARN] Company info not provided, skipping notifications')
       }
     }
 
