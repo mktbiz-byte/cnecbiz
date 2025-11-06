@@ -13,6 +13,13 @@ const kakaoService = new popbill.KakaoService(LINK_ID, SECRET_KEY);
 kakaoService.setIsTest(IS_TEST);
 
 exports.handler = async (event) => {
+  console.log('=== Kakao Notification Function Started ===');
+  console.log('Environment variables check:');
+  console.log('LINK_ID:', LINK_ID ? 'SET' : 'NOT SET');
+  console.log('SECRET_KEY:', SECRET_KEY ? 'SET' : 'NOT SET');
+  console.log('CORP_NUM:', CORP_NUM ? 'SET' : 'NOT SET');
+  console.log('SENDER_NUM:', SENDER_NUM ? 'SET' : 'NOT SET');
+  console.log('IS_TEST:', IS_TEST);
   // CORS 헤더
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -39,7 +46,9 @@ exports.handler = async (event) => {
   }
 
   try {
+    console.log('Request body:', event.body);
     const { receiverNum, receiverName, templateCode, variables } = JSON.parse(event.body);
+    console.log('Parsed params:', { receiverNum, receiverName, templateCode, variables });
 
     // 필수 파라미터 검증
     if (!receiverNum || !receiverName || !templateCode) {
@@ -63,6 +72,8 @@ exports.handler = async (event) => {
     };
 
     // 알림톡 발송
+    console.log('Sending Kakao notification...');
+    console.log('Message:', message);
     const result = await new Promise((resolve, reject) => {
       kakaoService.sendATS(
         CORP_NUM,
@@ -90,6 +101,8 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('Kakao notification error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     
     return {
       statusCode: 500,
