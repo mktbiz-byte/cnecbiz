@@ -150,6 +150,11 @@ exports.handler = async (event, context) => {
 
     // 계좌이체의 경우 알림 발송
     if (paymentMethod === 'bank_transfer') {
+      console.log('[DEBUG] Payment method is bank_transfer')
+      console.log('[DEBUG] companyName:', companyName)
+      console.log('[DEBUG] companyEmail:', companyEmail)
+      console.log('[DEBUG] companyPhone:', companyPhone)
+      
       // 프론트엔드에서 전달받은 회사 정보 사용
       if (companyName && (companyEmail || companyPhone)) {
         console.log('[INFO] Using company info from request:', companyName)
