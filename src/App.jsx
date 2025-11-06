@@ -51,6 +51,7 @@ import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
 import SiteManagement from './components/admin/SiteManagement'
 import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
+import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
 import OurChannelReport from './components/admin/OurChannelReport'
@@ -120,6 +121,7 @@ function App() {
         <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/site-management" element={<SiteManagement />} />
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
+        <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />

@@ -15,6 +15,7 @@ import {
 import Papa from 'papaparse'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
+import { calculateRemainingAmounts } from './ReceivableDetailHelper'
 
 export default function RevenueManagementWithCharts() {
   const navigate = useNavigate()
@@ -24,6 +25,7 @@ export default function RevenueManagementWithCharts() {
   const [revenueData, setRevenueData] = useState([])
   const [expenses, setExpenses] = useState([])
   const [withdrawals, setWithdrawals] = useState([])
+  const [receivableDetails, setReceivableDetails] = useState(new Map())
   
   // 통계
   const [stats, setStats] = useState({
@@ -106,6 +108,22 @@ export default function RevenueManagementWithCharts() {
       fetchExpenses(),
       fetchWithdrawals()
     ])
+    // 미수금 상세 정보 로드
+    await fetchReceivableDetails()
+  }
+
+  const fetchReceivableDetails = async () => {
+    try {
+      const receivableRecords = revenueData.filter(r => r.type === 'revenue' && r.is_receivable === true)
+      const receivableIds = receivableRecords.map(r => r.id)
+      
+      if (receivableIds.length > 0) {
+        const details = await calculateRemainingAmounts(receivableIds)
+        setReceivableDetails(details)
+      }
+    } catch (error) {
+      console.error('미수금 상세 정보 로드 오류:', error)
+    }
   }
 
   const fetchRevenueData = async () => {
@@ -1312,7 +1330,8 @@ export default function RevenueManagementWithCharts() {
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">날짜</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">분류</th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">금액</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">총 금액</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">남은 금액</th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">작업</th>
                           </tr>
                         </thead>
@@ -1330,27 +1349,50 @@ export default function RevenueManagementWithCharts() {
                               <td className="px-4 py-3 text-sm text-right font-medium text-yellow-600">
                                 ₩{parseFloat(record.amount).toLocaleString()}
                               </td>
+                              <td className="px-4 py-3 text-sm text-right">
+                                {receivableDetails.has(record.id) ? (
+                                  <div>
+                                    <div className="font-medium text-orange-600">
+                                      ₩{receivableDetails.get(record.id).remainingAmount.toLocaleString()}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      완료: ₩{receivableDetails.get(record.id).completedAmount.toLocaleString()}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">데이터 없음</span>
+                                )}
+                              </td>
                               <td className="px-4 py-3 text-center">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={async () => {
-                                    try {
-                                      const { error } = await supabaseBiz
-                                        .from('financial_records')
-                                        .update({ is_receivable: false })
-                                        .eq('id', record.id)
-                                      
-                                      if (error) throw error
-                                      fetchAllData()
-                                    } catch (error) {
-                                      console.error('미수금 해제 오류:', error)
-                                      alert('미수금 해제에 실패했습니다.')
-                                    }
-                                  }}
-                                >
-                                  미수금 해제
-                                </Button>
+                                <div className="flex gap-2 justify-center">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => navigate(`/admin/receivable-detail/${record.id}`)}
+                                  >
+                                    상세 보고서
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={async () => {
+                                      try {
+                                        const { error } = await supabaseBiz
+                                          .from('financial_records')
+                                          .update({ is_receivable: false })
+                                          .eq('id', record.id)
+                                        
+                                        if (error) throw error
+                                        fetchAllData()
+                                      } catch (error) {
+                                        console.error('미수금 해제 오류:', error)
+                                        alert('미수금 해제에 실패했습니다.')
+                                      }
+                                    }}
+                                  >
+                                    미수금 해제
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))}
