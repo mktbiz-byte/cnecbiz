@@ -90,7 +90,7 @@ exports.handler = async (event, context) => {
     const { data: company, error: companyError } = await supabaseAdmin
       .from('companies')
       .select('id, company_name, email, phone, phone_number')
-      .eq('id', companyId)
+      .eq('user_id', companyId)
       .single()
 
     if (companyError || !company) {
@@ -106,7 +106,7 @@ exports.handler = async (event, context) => {
 
     // 충전 신청 생성
     const chargeData = {
-      company_id: companyId,
+      company_id: company.id,
       amount: parseInt(amount),
       quantity: quantity || 1,
       package_amount: packageAmount || amount,
