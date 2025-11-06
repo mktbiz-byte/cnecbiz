@@ -56,7 +56,7 @@ export default function RevenueManagementWithCharts() {
   const [newExpense, setNewExpense] = useState({
     month: '',
     amount: '',
-    type: 'fixed',
+    type: 'fixed_cost',
     category: 'office',
     description: '',
     is_recurring: false
@@ -410,7 +410,7 @@ export default function RevenueManagementWithCharts() {
         .from('financial_records')
         .insert([{
           record_date: `${newExpense.month}-01`,
-          type: newExpense.type === 'fixed' ? 'fixed_cost' : 'variable_cost',
+          type: newExpense.type,
           amount: parseFloat(newExpense.amount),
           description: newExpense.description,
           category: newExpense.category,
@@ -423,7 +423,7 @@ export default function RevenueManagementWithCharts() {
       setNewExpense({ 
         month: '', 
         amount: '', 
-        type: 'fixed', 
+        type: 'fixed_cost', 
         category: 'office', 
         description: '',
         is_recurring: false 
