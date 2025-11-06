@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button'
 import { Alert, AlertDescription } from './ui/alert'
 import { Loader2, CreditCard, CheckCircle2, XCircle, ShieldCheck, Lock } from 'lucide-react'
-import { sendPointChargeNotification } from '../services/notifications'
+import { sendPointChargeCompleteNotification } from '../services/notifications'
 
 // Stripe Card Element 스타일
 const CARD_ELEMENT_OPTIONS = {
@@ -229,7 +229,7 @@ export default function PaymentPage() {
         .single()
       
       if (companyData) {
-        await sendPointChargeNotification(
+        await sendPointChargeCompleteNotification(
           companyData.phone,
           companyData.contact_person,
           {

@@ -11,7 +11,7 @@ import { AlertCircle, Check, FileText, Download } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseBiz, createCampaignInRegions } from '@/lib/supabaseClients'
 import { generateAndDownloadQuotation, generateAndDownloadContract } from '@/lib/pdfGenerator'
-import { sendCampaignApplicationNotification } from '../services/notifications'
+import { sendPaymentRequestNotification } from '../services/notifications'
 
 const CampaignCreatePage = () => {
   const navigate = useNavigate()
@@ -249,7 +249,7 @@ const CampaignCreatePage = () => {
       if (successCount > 0) {
         // 캠페인 신청 알림톡 발송
         try {
-          await sendCampaignApplicationNotification(
+          await sendPaymentRequestNotification(
             companyData?.phone || user?.phone,
             companyData?.contact_person || user?.user_metadata?.name,
             {
