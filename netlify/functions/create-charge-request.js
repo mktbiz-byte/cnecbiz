@@ -161,9 +161,11 @@ exports.handler = async (event, context) => {
         
         try {
           const axios = require('axios')
+          console.log('[DEBUG] process.env.URL:', process.env.URL)
           
           // 1. 카카오톡 알림톡 발송
           if (companyPhone) {
+            console.log('[INFO] Sending Kakao notification to:', companyPhone)
             try {
               await axios.post(
                 `${process.env.URL}/.netlify/functions/send-kakao-notification`,
@@ -180,6 +182,7 @@ exports.handler = async (event, context) => {
               console.log('[SUCCESS] Kakao notification sent')
             } catch (kakaoError) {
               console.error('[ERROR] Failed to send Kakao notification:', kakaoError.message)
+              console.error('[ERROR] Kakao error details:', kakaoError.response?.data || kakaoError)
             }
           }
 
