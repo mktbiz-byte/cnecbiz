@@ -87,19 +87,27 @@ exports.handler = async (event, context) => {
     }
 
     // 회사 정보 확인
+    console.log('[DEBUG] Querying companies with user_id:', companyId)
     const { data: company, error: companyError } = await supabaseAdmin
       .from('companies')
       .select('id, company_name, email, phone, phone_number')
       .eq('user_id', companyId)
       .single()
 
+    console.log('[DEBUG] Company query result:', { company, companyError })
+
     if (companyError || !company) {
+      console.error('[ERROR] Company not found:', companyError)
       return {
         statusCode: 404,
         headers,
         body: JSON.stringify({
           success: false,
-          error: '회사 정보를 찾을 수 없습니다.'
+          error: '회사 정보를 찾을 수 없습니다.',
+          debug: {
+            companyId,
+            error: companyError?.message
+          }
         })
       }
     }
