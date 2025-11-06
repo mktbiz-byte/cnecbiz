@@ -38,6 +38,7 @@ function ChargeForm({ onSuccess }) {
   })
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
+  const [companyInfo, setCompanyInfo] = useState(null) // 회사 정보 저장
 
   // 프로필 정보 불러오기
   useEffect(() => {
@@ -55,6 +56,13 @@ function ChargeForm({ onSuccess }) {
         if (error) throw error
 
         if (companyData) {
+          // 회사 정보 저장
+          setCompanyInfo({
+            companyName: companyData.company_name || '',
+            email: companyData.email || '',
+            phone: companyData.phone || companyData.phone_number || ''
+          })
+          
           // 세금계산서 정보 자동 입력
           setTaxInvoiceInfo({
             companyName: companyData.company_name || '',

@@ -175,8 +175,8 @@ exports.handler = async (event, context) => {
                   templateCode: '025100000918',
                   variables: {
                     '회사명': company.company_name,
-                    '캠페인명': '포인트 충전',
-                    '금액': parseInt(amount).toLocaleString()
+                    '금액': parseInt(amount).toLocaleString(),
+                    '입금자명': depositorName || company.company_name
                   }
                 }
               )
