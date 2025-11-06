@@ -1,25 +1,31 @@
 const popbill = require('popbill');
 
-// 팝빌 서비스 초기화
-// Netlify Functions에서는 VITE_ 접두사 없이 환경변수 사용
-const LINK_ID = process.env.POPBILL_LINK_ID || process.env.VITE_POPBILL_LINK_ID;
-const SECRET_KEY = process.env.POPBILL_SECRET_KEY || process.env.VITE_POPBILL_SECRET_KEY;
-const CORP_NUM = process.env.POPBILL_CORP_NUM || process.env.VITE_POPBILL_CORP_NUM;
-const SENDER_NUM = process.env.POPBILL_SENDER_NUM || process.env.VITE_POPBILL_SENDER_NUM;
-const IS_TEST = (process.env.POPBILL_TEST_MODE || process.env.VITE_POPBILL_IS_TEST) === 'true';
+// 팝빌 전역 설정
+popbill.config({
+  LinkID: process.env.POPBILL_LINK_ID || 'HOWLAB',
+  SecretKey: process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=',
+  IsTest: process.env.POPBILL_TEST_MODE === 'true',
+  IPRestrictOnOff: true,
+  UseStaticIP: false,
+  UseLocalTimeYN: true,
+  defaultErrorHandler: function (Error) {
+    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
+  }
+});
 
-const kakaoService = new popbill.KakaoService(LINK_ID, SECRET_KEY);
+// 팝빌 카카오톡 서비스 객체 생성
+const kakaoService = popbill.KakaoService();
+const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
+const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '';
 
-kakaoService.setIsTest(IS_TEST);
+console.log('Popbill Kakao service initialized successfully');
+console.log('POPBILL_CORP_NUM:', POPBILL_CORP_NUM);
+console.log('POPBILL_SENDER_NUM:', POPBILL_SENDER_NUM);
+console.log('POPBILL_TEST_MODE:', process.env.POPBILL_TEST_MODE);
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   console.log('=== Kakao Notification Function Started ===');
-  console.log('Environment variables check:');
-  console.log('LINK_ID:', LINK_ID ? 'SET' : 'NOT SET');
-  console.log('SECRET_KEY:', SECRET_KEY ? 'SET' : 'NOT SET');
-  console.log('CORP_NUM:', CORP_NUM ? 'SET' : 'NOT SET');
-  console.log('SENDER_NUM:', SENDER_NUM ? 'SET' : 'NOT SET');
-  console.log('IS_TEST:', IS_TEST);
+  
   // CORS 헤더
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -71,22 +77,24 @@ exports.handler = async (event) => {
       ...variables, // 템플릿 변수
     };
 
-    // 알림톡 발송
     console.log('Sending Kakao notification...');
     console.log('Message:', message);
+
+    // 알림톡 발송
     const result = await new Promise((resolve, reject) => {
       kakaoService.sendATS(
-        CORP_NUM,
-        SENDER_NUM,
+        POPBILL_CORP_NUM,
+        POPBILL_SENDER_NUM,
         '', // 광고 전송 여부 (빈 문자열 = 일반)
         '', // 예약 전송 시간 (빈 문자열 = 즉시)
         [message],
-        (error, response) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(response);
-          }
+        (response) => {
+          console.log('Kakao notification success:', response);
+          resolve(response);
+        },
+        (error) => {
+          console.error('Kakao notification error:', error);
+          reject(error);
         }
       );
     });
