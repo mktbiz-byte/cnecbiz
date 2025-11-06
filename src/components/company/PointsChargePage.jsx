@@ -138,6 +138,14 @@ function ChargeForm({ onSuccess }) {
       }
 
       // Netlify Function API 호출
+      console.log('[DEBUG] companyInfo:', companyInfo)
+      console.log('[DEBUG] Sending data:', {
+        companyId: user.id,
+        companyName: companyInfo?.companyName || '',
+        companyEmail: companyInfo?.email || '',
+        companyPhone: companyInfo?.phone || ''
+      })
+      
       const response = await fetch('/.netlify/functions/create-charge-request', {
         method: 'POST',
         headers: {
