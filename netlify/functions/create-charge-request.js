@@ -90,7 +90,7 @@ exports.handler = async (event, context) => {
     const { data: company, error: companyError } = await supabaseAdmin
       .from('companies')
       .select('id, company_name, email, phone, phone_number')
-      .eq('user_id', companyId)
+      .eq('id', companyId)
       .single()
 
     if (companyError || !company) {
