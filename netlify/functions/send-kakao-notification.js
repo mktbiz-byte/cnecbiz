@@ -24,6 +24,39 @@ console.log('POPBILL_CORP_NUM:', POPBILL_CORP_NUM);
 console.log('POPBILL_SENDER_NUM:', POPBILL_SENDER_NUM);
 console.log('POPBILL_TEST_MODE:', process.env.POPBILL_TEST_MODE);
 
+// 템플릿별 메시지 생성 함수
+function generateMessage(templateCode, variables) {
+  switch (templateCode) {
+    case '025100000912': // 회원가입
+      return `${variables['회원명']}님 가입을 환영합니다.
+앞으로도 많은 관심과 이용 부탁 드립니다.
+가입 후 기업 프로필을 설정해 주세요.`;
+
+    case '025100000918': // 캠페인 신청 및 입금 안내
+      return `${variables['회사명']}님, ${variables['캠페인명']} 캠페인 신청이 완료되었습니다.
+입금 금액: ${variables['금액']}원
+입금 계좌: 우리은행 1005-604-123456 (주)크넥코리아
+입금 확인 후 캠페인이 승인됩니다.`;
+
+    case '025100000943': // 포인트 충전 완료
+      return `${variables['회사명']}님, 포인트 충전이 완료되었습니다.
+충전 포인트: ${variables['포인트']}P
+${variables['캠페인명'] ? `캠페인: ${variables['캠페인명']}` : ''}`;
+
+    case '025100001005': // 캠페인 승인
+      return `${variables['회사명']}님, ${variables['캠페인명']} 캠페인이 승인되었습니다.
+기간: ${variables['시작일']} ~ ${variables['마감일']}
+모집 인원: ${variables['모집인원']}명
+크리에이터 모집이 시작되었습니다.`;
+
+    default:
+      // 기본: 변수를 그대로 나열
+      return Object.entries(variables)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('\n');
+  }
+}
+
 exports.handler = async (event, context) => {
   console.log('=== Kakao Notification Function Started ===');
   
@@ -69,14 +102,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 템플릿 변수를 메시지 텍스트로 변환
-    let messageText = '';
-    if (variables) {
-      // 템플릿 변수를 #{변수명} 형식으로 변환
-      for (const [key, value] of Object.entries(variables)) {
-        messageText += `#{${key}}=${value}\n`;
-      }
-    }
+    // 템플릿 메시지 생성
+    const messageText = generateMessage(templateCode, variables || {});
 
     console.log('Sending Kakao notification...');
     console.log('Template code:', templateCode);
@@ -88,7 +115,7 @@ exports.handler = async (event, context) => {
         POPBILL_CORP_NUM,           // 사업자번호
         templateCode,                // 템플릿 코드
         POPBILL_SENDER_NUM,         // 발신번호
-        messageText,                 // 메시지 내용 (템플릿 변수)
+        messageText,                 // 메시지 내용
         '',                          // 대체문자 내용 (빈 문자열 = 사용 안 함)
         'A',                         // 대체문자 타입 (A=SMS, C=LMS)
         '',                          // 예약전송시간 (빈 문자열 = 즉시전송)
