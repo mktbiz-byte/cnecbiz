@@ -33,7 +33,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method Not Allowed' })
+      body: JSON.stringify({ error: 'Method not allowed' })
     }
   }
 
@@ -41,23 +41,23 @@ exports.handler = async (event, context) => {
     const {
       companyId,
       amount,
-      quantity,
       packageAmount,
+      quantity,
       paymentMethod,
+      stripePaymentIntentId,
       depositorName,
       needsTaxInvoice,
-      taxInvoiceInfo,
-      stripePaymentIntentId
+      taxInvoiceInfo
     } = JSON.parse(event.body)
 
-    // 입력 검증
+    // 필수 파라미터 검증
     if (!companyId || !amount || !paymentMethod) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
           success: false,
-          error: '필수 필드가 누락되었습니다.'
+          error: '필수 파라미터가 누락되었습니다.'
         })
       }
     }
@@ -74,40 +74,19 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 금액 검증
-    if (amount < 10000) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '최소 충전 금액은 10,000원입니다.'
-        })
-      }
-    }
-
-    // 회사 정보 확인
-    console.log('[DEBUG] Querying companies with user_id:', companyId)
-    const { data: company, error: companyError } = await supabaseAdmin
-      .from('companies')
-      .select('id, company_name, email, phone, phone_number')
-      .eq('user_id', companyId)
-      .single()
-
-    console.log('[DEBUG] Company query result:', { company, companyError })
-
-    if (companyError || !company) {
-      console.error('[ERROR] Company not found:', companyError)
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '회사 정보를 찾을 수 없습니다.',
-          debug: {
-            companyId,
-            error: companyError?.message
-          }
+    // 세금계산서 필요 시 정보 검증
+    if (needsTaxInvoice) {
+      const required = ['companyName', 'businessNumber', 'ceoName', 'address', 'businessType', 'businessItem', 'email']
+      const missing = required.filter(field => !taxInvoiceInfo?.[field])
+      
+      if (missing.length > 0) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: `세금계산서 정보가 누락되었습니다: ${missing.join(', ')}`
+          })
         })
       }
     }
@@ -129,6 +108,8 @@ exports.handler = async (event, context) => {
       chargeData.stripe_payment_intent_id = stripePaymentIntentId
     }
 
+    console.log('[INFO] Creating charge request:', chargeData)
+
     const { data: chargeRequest, error: chargeError } = await supabaseAdmin
       .from('points_charge_requests')
       .insert([chargeData])
@@ -136,7 +117,7 @@ exports.handler = async (event, context) => {
       .single()
 
     if (chargeError) {
-      console.error('충전 신청 생성 오류:', chargeError)
+      console.error('[ERROR] Failed to create charge request:', chargeError)
       return {
         statusCode: 500,
         headers,
@@ -148,6 +129,8 @@ exports.handler = async (event, context) => {
       }
     }
 
+    console.log('[SUCCESS] Charge request created:', chargeRequest.id)
+
     // Stripe 결제인 경우 즉시 포인트 지급
     if (paymentMethod === 'stripe') {
       const { error: pointsError } = await supabaseAdmin.rpc('add_points', {
@@ -158,70 +141,85 @@ exports.handler = async (event, context) => {
       })
 
       if (pointsError) {
-        console.error('포인트 지급 오류:', pointsError)
+        console.error('[ERROR] Failed to add points:', pointsError)
       }
     }
 
-    // 계좌이체의 경우 카카오톡 알림톡 및 이메일 발송
+    // 계좌이체의 경우 알림 발송
     if (paymentMethod === 'bank_transfer') {
-      try {
-        const axios = require('axios')
-        
-        // 1. 카카오톡 알림톡 발송 (템플릿 025100000918 사용)
-        const phoneNumber = company.phone || company.phone_number
-        if (phoneNumber) {
-          try {
-            await axios.post(
-              `${process.env.URL}/.netlify/functions/send-kakao-notification`,
-              {
-                receiverNum: phoneNumber,
-                receiverName: company.company_name,
-                templateCode: '025100000918', // 캠페인 신청 및 입금 안내
-                variables: {
-                  '회사명': company.company_name,
-                  '캠페인명': '포인트 충전',
-                  '금액': parseInt(amount).toLocaleString()
-                }
-              }
-            )
-            console.log('카카오톡 알림톡 발송 성공')
-          } catch (kakaoError) {
-            console.error('카카오톡 알림톡 발송 실패:', kakaoError.message)
-          }
-        }
+      // 회사 정보 조회 (알림 발송용)
+      console.log('[INFO] Querying company info for user_id:', companyId)
+      const { data: company, error: companyError } = await supabaseAdmin
+        .from('companies')
+        .select('id, company_name, email, phone, phone_number')
+        .eq('user_id', companyId)
+        .single()
 
-        // 2. 이메일 발송
-        if (company.email) {
-          try {
-            await axios.post(
-              `${process.env.URL}/.netlify/functions/send-email`,
-              {
-                to: company.email,
-                subject: '[CNEC] 포인트 충전 입금 안내',
-                html: `
-                  <h2>포인트 충전 입금 안내</h2>
-                  <p>안녕하세요, ${company.company_name}님.</p>
-                  <p>포인트 충전 신청이 완료되었습니다.</p>
-                  <h3>입금 정보</h3>
-                  <ul>
-                    <li><strong>입금 계좌:</strong> IBK기업은행 047-122753-04-011</li>
-                    <li><strong>예금주:</strong> 주식회사 하우파파</li>
-                    <li><strong>입금자명:</strong> ${depositorName}</li>
-                    <li><strong>입금 금액:</strong> ${parseInt(amount).toLocaleString()}원</li>
-                  </ul>
-                  <p>입금 확인 후 포인트가 자동으로 충전됩니다.</p>
-                  <p>문의: 1833-6025</p>
-                `
-              }
-            )
-            console.log('이메일 발송 성공')
-          } catch (emailError) {
-            console.error('이메일 발송 실패:', emailError.message)
+      if (companyError || !company) {
+        console.warn('[WARN] Company not found, skipping notifications:', companyError)
+      } else {
+        console.log('[INFO] Company found:', company.company_name)
+        
+        try {
+          const axios = require('axios')
+          
+          // 1. 카카오톡 알림톡 발송
+          const phoneNumber = company.phone || company.phone_number
+          if (phoneNumber) {
+            try {
+              await axios.post(
+                `${process.env.URL}/.netlify/functions/send-kakao-notification`,
+                {
+                  receiverNum: phoneNumber,
+                  receiverName: company.company_name,
+                  templateCode: '025100000918',
+                  variables: {
+                    '회사명': company.company_name,
+                    '캠페인명': '포인트 충전',
+                    '금액': parseInt(amount).toLocaleString()
+                  }
+                }
+              )
+              console.log('[SUCCESS] Kakao notification sent')
+            } catch (kakaoError) {
+              console.error('[ERROR] Failed to send Kakao notification:', kakaoError.message)
+            }
           }
+
+          // 2. 이메일 발송
+          if (company.email) {
+            try {
+              await axios.post(
+                `${process.env.URL}/.netlify/functions/send-email`,
+                {
+                  to: company.email,
+                  subject: '[CNEC] 포인트 충전 입금 안내',
+                  html: `
+                    <h2>포인트 충전 신청이 완료되었습니다</h2>
+                    <p>안녕하세요, <strong>${company.company_name}</strong>님.</p>
+                    <p>포인트 충전 신청이 완료되었습니다.</p>
+                    
+                    <h3>입금 정보</h3>
+                    <ul>
+                      <li><strong>입금 계좌:</strong> IBK기업은행 047-122753-04-011</li>
+                      <li><strong>예금주:</strong> 주식회사 하우파파</li>
+                      <li><strong>입금자명:</strong> ${depositorName}</li>
+                      <li><strong>입금 금액:</strong> ${parseInt(amount).toLocaleString()}원</li>
+                    </ul>
+                    
+                    <p>입금 확인 후 포인트가 자동으로 충전됩니다.</p>
+                    <p>문의: 1833-6025</p>
+                  `
+                }
+              )
+              console.log('[SUCCESS] Email sent')
+            } catch (emailError) {
+              console.error('[ERROR] Failed to send email:', emailError.message)
+            }
+          }
+        } catch (notificationError) {
+          console.error('[ERROR] Notification error:', notificationError.message)
         }
-      } catch (notifError) {
-        console.error('알림 발송 오류:', notifError.message)
-        // 알림 발송 실패해도 충전 신청은 완료
       }
     }
 
@@ -230,15 +228,12 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({
         success: true,
-        data: chargeRequest,
-        message: paymentMethod === 'stripe' 
-          ? '포인트가 충전되었습니다.' 
-          : '계좌이체 신청이 완료되었습니다. 입금 확인 후 포인트가 충전됩니다.'
+        data: chargeRequest
       })
     }
 
   } catch (error) {
-    console.error('서버 오류:', error)
+    console.error('[ERROR] Unexpected error:', error)
     return {
       statusCode: 500,
       headers,
