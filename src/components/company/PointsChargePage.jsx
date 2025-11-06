@@ -557,15 +557,23 @@ export default function PointsChargePage() {
     setLoading(true)
 
     try {
-      console.log('[DEBUG] Updating request status to cancelled')
-      const { error } = await supabase
-        .from('points_charge_requests')
-        .update({ status: 'cancelled' })
-        .eq('id', requestId)
+      console.log('[DEBUG] Calling cancel-charge-request API')
+      const response = await fetch('/.netlify/functions/cancel-charge-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requestId,
+          userId: user.id
+        })
+      })
 
-      if (error) {
-        console.error('[ERROR] Supabase update error:', error)
-        throw error
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        console.error('[ERROR] API error:', result.error)
+        throw new Error(result.error || '취소 처리에 실패했습니다.')
       }
 
       console.log('[SUCCESS] Request cancelled successfully')
@@ -573,7 +581,7 @@ export default function PointsChargePage() {
       await loadChargeRequests()
     } catch (err) {
       console.error('[ERROR] Cancel failed:', err)
-      window.alert('취소 처리 중 오류가 발생했습니다.')
+      window.alert(err.message || '취소 처리 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
