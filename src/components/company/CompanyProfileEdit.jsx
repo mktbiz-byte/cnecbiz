@@ -12,7 +12,7 @@ export default function CompanyProfileEdit() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [currentStep, setCurrentStep] = useState(1)
+  // const [currentStep, setCurrentStep] = useState(1) // 한 페이지로 통합
   const [company, setCompany] = useState(null)
   
   const [formData, setFormData] = useState({
@@ -106,51 +106,7 @@ export default function CompanyProfileEdit() {
     })
   }
 
-  const handleNextStep = () => {
-    // Step 1 유효성 검사
-    if (currentStep === 1) {
-      if (!formData.ceoName) {
-        setError('대표자명을 입력해주세요.')
-        return
-      }
-      if (!formData.businessType) {
-        setError('업태를 입력해주세요.')
-        return
-      }
-      if (!formData.businessCategory) {
-        setError('종목을 입력해주세요.')
-        return
-      }
-      if (!formData.companyPostalCode || !formData.companyAddress) {
-        setError('사업장 주소를 입력해주세요.')
-        return
-      }
-    }
-
-    // Step 2 유효성 검사
-    if (currentStep === 2) {
-      if (!formData.notificationContactPerson) {
-        setError('알림 담당자명을 입력해주세요.')
-        return
-      }
-      if (!formData.notificationEmail) {
-        setError('알림 수신 이메일을 입력해주세요.')
-        return
-      }
-      if (!formData.notificationPhone) {
-        setError('알림 수신 핸드폰 번호를 입력해주세요.')
-        return
-      }
-    }
-
-    setError('')
-    setCurrentStep(currentStep + 1)
-  }
-
-  const handlePrevStep = () => {
-    setCurrentStep(currentStep - 1)
-    setError('')
-  }
+  // handleNextStep, handlePrevStep 제거 - 한 페이지로 통합
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -257,29 +213,7 @@ export default function CompanyProfileEdit() {
               캠페인 생성을 위해 기업 정보를 입력해주세요
             </CardDescription>
             
-            {/* 진행 단계 표시 */}
-            <div className="flex items-center justify-center space-x-4 pt-4">
-              <div className={`flex items-center ${currentStep >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  1
-                </div>
-                <span className="ml-2 text-sm font-medium">기본 정보</span>
-              </div>
-              <div className="w-12 h-0.5 bg-gray-300"></div>
-              <div className={`flex items-center ${currentStep >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  2
-                </div>
-                <span className="ml-2 text-sm font-medium">알림 설정</span>
-              </div>
-              <div className="w-12 h-0.5 bg-gray-300"></div>
-              <div className={`flex items-center ${currentStep >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  3
-                </div>
-                <span className="ml-2 text-sm font-medium">확인</span>
-              </div>
-            </div>
+            {/* 진행 단계 표시 제거 - 한 페이지로 통합 */}
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -290,10 +224,9 @@ export default function CompanyProfileEdit() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 1: 기본 정보 */}
-              {currentStep === 1 && (
-                <div className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* 기본 정보 */}
+              <div className="space-y-6">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <h3 className="font-semibold text-blue-900 mb-2">회원가입 시 입력한 정보</h3>
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -437,15 +370,13 @@ export default function CompanyProfileEdit() {
                       <span className="text-gray-700">광고대행사입니다</span>
                     </label>
                     <p className="text-sm text-gray-500">
-                      광고대행사는 여러 브랜드의 캠페인을 관리할 수 있습니다.
+                      광고대행사는 여러 브랜드의 캐페인을 관리할 수 있습니다.
                     </p>
                   </div>
                 </div>
-              )}
 
-              {/* Step 2: 알림 설정 */}
-              {currentStep === 2 && (
-                <div className="space-y-6">
+              {/* 알림 설정 */}
+              <div className="space-y-6 border-t border-gray-200 pt-8">
                   <div className="space-y-4">
                     <h3 className="font-semibold text-lg">알림 담당자 정보</h3>
                     <p className="text-sm text-gray-600">
@@ -567,11 +498,9 @@ export default function CompanyProfileEdit() {
                     </p>
                   </div>
                 </div>
-              )}
 
-              {/* Step 3: 확인 */}
-              {currentStep === 3 && (
-                <div className="space-y-6">
+              {/* 입력 정보 확인 */}
+              <div className="space-y-6 border-t border-gray-200 pt-8">
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-bold mb-2">입력하신 정보를 확인해주세요</h3>
                     <p className="text-gray-600">정보가 정확한지 확인 후 등록을 완료해주세요.</p>
@@ -657,38 +586,16 @@ export default function CompanyProfileEdit() {
                     </div>
                   </div>
                 </div>
-              )}
 
-              {/* 버튼 */}
-              <div className="flex justify-between pt-6">
-                {currentStep > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handlePrevStep}
-                    className="px-8"
-                  >
-                    이전
-                  </Button>
-                )}
-                
-                {currentStep < 3 ? (
-                  <Button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="ml-auto px-8"
-                  >
-                    다음
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="ml-auto px-8"
-                  >
-                    {loading ? '등록 중...' : '등록 완료'}
-                  </Button>
-                )}
+              {/* 저장 버튼 */}
+              <div className="flex justify-end pt-6">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="px-8"
+                >
+                  {loading ? '저장 중...' : '프로필 저장'}
+                </Button>
               </div>
             </form>
           </CardContent>
