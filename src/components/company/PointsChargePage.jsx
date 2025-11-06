@@ -154,7 +154,7 @@ function ChargeForm({ onSuccess }) {
         throw new Error(result.error || '충전 신청에 실패했습니다.')
       }
 
-      alert(result.message)
+      alert('계좌이체 신청이 완료되었습니다. 입금 확인 후 포인트가 충전됩니다.')
       onSuccess()
     } catch (err) {
       setError(err.message)
@@ -557,6 +557,12 @@ export default function PointsChargePage() {
     setLoading(true)
 
     try {
+      // 현재 로그인한 사용자 가져오기
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        throw new Error('로그인이 필요합니다.')
+      }
+
       console.log('[DEBUG] Calling cancel-charge-request API')
       const response = await fetch('/.netlify/functions/cancel-charge-request', {
         method: 'POST',
