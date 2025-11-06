@@ -20,10 +20,15 @@ exports.handler = async (event) => {
     }
 
     // Supabase에서 Gmail 설정 가져오기
+    console.log('[DEBUG] Fetching email settings...');
     const { data: emailSettings, error: settingsError } = await supabase
       .from('email_settings')
       .select('*')
-      .single();
+      .limit(1)
+      .maybeSingle();
+    
+    console.log('[DEBUG] Email settings:', emailSettings);
+    console.log('[DEBUG] Settings error:', settingsError);
 
     if (settingsError || !emailSettings) {
       console.error('Email 설정 조회 오류:', settingsError);
