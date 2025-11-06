@@ -106,7 +106,7 @@ exports.handler = async (event, context) => {
 
     // 충전 신청 생성
     const chargeData = {
-      company_id: company.id,
+      company_id: companyId,
       amount: parseInt(amount),
       quantity: quantity || 1,
       package_amount: packageAmount || amount,
