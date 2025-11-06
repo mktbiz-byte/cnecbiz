@@ -19,23 +19,21 @@ exports.handler = async (event) => {
       };
     }
 
-    // Supabase에서 Gmail 설정 가져오기
-    const { data: emailSettings, error: settingsError } = await supabase
-      .from('email_settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
+    // 환경변수에서 Gmail 설정 가져오기
+    const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const senderName = process.env.GMAIL_SENDER_NAME || 'CNECBIZ';
 
-    console.log('[send-test-email] Email settings:', emailSettings);
-    console.log('[send-test-email] Settings error:', settingsError);
+    console.log('[send-test-email] Gmail email:', gmailEmail);
+    console.log('[send-test-email] Sender name:', senderName);
 
-    if (settingsError || !emailSettings) {
-      console.error('Email 설정 조회 오류:', settingsError);
+    if (!gmailAppPassword) {
+      console.error('[send-test-email] GMAIL_APP_PASSWORD 환경변수가 설정되지 않았습니다.');
       return {
         statusCode: 500,
         body: JSON.stringify({
           success: false,
-          error: 'Email 설정이 등록되지 않았습니다. 관리자 페이지에서 Gmail SMTP 설정을 완료해주세요.'
+          error: 'Gmail 설정이 완료되지 않았습니다.'
         })
       };
     }
@@ -44,14 +42,14 @@ exports.handler = async (event) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: emailSettings.gmail_email,
-        pass: emailSettings.gmail_app_password.replace(/\s/g, '') // 공백 제거
+        user: gmailEmail,
+        pass: gmailAppPassword.replace(/\s/g, '') // 공백 제거
       }
     });
 
     // 테스트 이메일 내용
     const mailOptions = {
-      from: `"${emailSettings.sender_name}" <${emailSettings.gmail_email}>`,
+      from: `"${senderName}" <${gmailEmail}>`,
       to: to,
       subject: '[CNEC BIZ] Gmail SMTP 테스트 이메일',
       html: `
@@ -75,11 +73,11 @@ exports.handler = async (event) => {
               <table style="width: 100%; color: #4b5563; font-size: 14px;">
                 <tr>
                   <td style="padding: 5px 0;"><strong>발신자:</strong></td>
-                  <td style="padding: 5px 0;">${emailSettings.sender_name}</td>
+                  <td style="padding: 5px 0;">${senderName}</td>
                 </tr>
                 <tr>
                   <td style="padding: 5px 0;"><strong>발신 이메일:</strong></td>
-                  <td style="padding: 5px 0;">${emailSettings.gmail_email}</td>
+                  <td style="padding: 5px 0;">${gmailEmail}</td>
                 </tr>
                 <tr>
                   <td style="padding: 5px 0;"><strong>수신자:</strong></td>
@@ -112,8 +110,8 @@ Gmail SMTP 설정이 정상적으로 완료되었습니다.
 이제 회원가입, 캠페인 알림 등 모든 이메일이 정상적으로 발송됩니다.
 
 발송 정보:
-- 발신자: ${emailSettings.sender_name}
-- 발신 이메일: ${emailSettings.gmail_email}
+- 발신자: ${senderName}
+- 발신 이메일: ${gmailEmail}
 - 수신자: ${to}
 - 발송 시각: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
 

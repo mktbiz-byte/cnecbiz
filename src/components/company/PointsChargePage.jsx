@@ -730,18 +730,12 @@ export default function PointsChargePage() {
                     입금 확인은 <strong>1~5분 정도</strong> 소요됩니다.
                   </span>
                 </p>
-                <div className="flex gap-3">
+                <div className="flex justify-center">
                   <button
                     onClick={() => setShowSuccessModal(false)}
-                    className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                    className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                   >
                     확인
-                  </button>
-                  <button
-                    onClick={() => navigate('/company/campaigns')}
-                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                  >
-                    캠페인 페이지
                   </button>
                 </div>
               </div>
