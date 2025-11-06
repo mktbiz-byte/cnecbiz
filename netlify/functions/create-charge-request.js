@@ -87,7 +87,7 @@ exports.handler = async (event, context) => {
             success: false,
             error: `세금계산서 정보가 누락되었습니다: ${missing.join(', ')}`
           })
-        })
+        }
       }
     }
 
