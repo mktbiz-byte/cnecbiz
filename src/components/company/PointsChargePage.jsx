@@ -59,8 +59,8 @@ function ChargeForm({ onSuccess }) {
           // 회사 정보 저장
           setCompanyInfo({
             companyName: companyData.company_name || '',
-            email: companyData.email || '',
-            phone: companyData.phone || companyData.phone_number || ''
+            email: companyData.notification_email || companyData.email || '',
+            phone: companyData.notification_phone || companyData.phone || ''
           })
           
           // 세금계산서 정보 자동 입력
