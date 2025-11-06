@@ -1,116 +1,115 @@
 // 크리에이터용 알림톡 헬퍼 함수
-import { sendAlimtalk } from '../popbillService.js';
+import { sendKakaoNotification } from '../popbillService.js';
 import { POPBILL_TEMPLATES } from '../../lib/popbillTemplates.js';
 
 /**
  * 크리에이터 회원가입 환영 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
- * @param {string} creatorName - 크리에이터 이름
  */
-export async function sendCreatorSignupNotification(receiverNum, receiverName, creatorName) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.SIGNUP.code,
+export async function sendCreatorSignupNotification(receiverNum, receiverName) {
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '이름': creatorName
+    POPBILL_TEMPLATES.CREATOR.SIGNUP.code,
+    {
+      '이름': receiverName
     }
-  });
+  );
 }
 
 /**
- * 캠페인 선정 완료 알림
+ * 캠페인 선정 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
  * @param {Object} campaignData - 캠페인 데이터
  */
 export async function sendCampaignSelectedNotification(receiverNum, receiverName, campaignData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.CAMPAIGN_SELECTED.code,
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': campaignData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.CAMPAIGN_SELECTED.code,
+    {
+      '크리에이터명': receiverName,
       '캠페인명': campaignData.campaignName
     }
-  });
+  );
 }
 
 /**
- * 촬영 가이드 전달 알림
+ * 가이드 전달 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
  * @param {Object} guideData - 가이드 데이터
  */
 export async function sendGuideDeliveredNotification(receiverNum, receiverName, guideData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.GUIDE_DELIVERED.code,
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': guideData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.GUIDE_DELIVERED.code,
+    {
+      '크리에이터명': receiverName,
       '캠페인명': guideData.campaignName,
       '제출기한': guideData.deadline
     }
-  });
+  );
 }
 
 /**
- * 영상 제출 기한 3일 전 알림
+ * 영상 제출 리마인더 (3일 전)
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
  * @param {Object} reminderData - 리마인더 데이터
  */
-export async function sendVideoDeadline3DaysNotification(receiverNum, receiverName, reminderData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_3DAYS.code,
+export async function sendVideoSubmitReminder3Days(receiverNum, receiverName, reminderData) {
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': reminderData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_3DAYS.code,
+    {
+      '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
       '제출기한': reminderData.deadline
     }
-  });
+  );
 }
 
 /**
- * 영상 제출 기한 2일 전 알림
+ * 영상 제출 리마인더 (2일 전)
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
  * @param {Object} reminderData - 리마인더 데이터
  */
-export async function sendVideoDeadline2DaysNotification(receiverNum, receiverName, reminderData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_2DAYS.code,
+export async function sendVideoSubmitReminder2Days(receiverNum, receiverName, reminderData) {
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': reminderData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_2DAYS.code,
+    {
+      '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
       '제출기한': reminderData.deadline
     }
-  });
+  );
 }
 
 /**
- * 영상 제출 기한 당일 알림
+ * 영상 제출 리마인더 (당일)
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
  * @param {Object} reminderData - 리마인더 데이터
  */
-export async function sendVideoDeadlineTodayNotification(receiverNum, receiverName, reminderData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_TODAY.code,
+export async function sendVideoSubmitReminderToday(receiverNum, receiverName, reminderData) {
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': reminderData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_TODAY.code,
+    {
+      '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
       '제출기한': reminderData.deadline
     }
-  });
+  );
 }
 
 /**
@@ -119,75 +118,75 @@ export async function sendVideoDeadlineTodayNotification(receiverNum, receiverNa
  * @param {string} receiverName - 수신자 이름
  * @param {Object} revisionData - 수정 요청 데이터
  */
-export async function sendVideoRevisionRequestedNotification(receiverNum, receiverName, revisionData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.VIDEO_REVISION_REQUESTED.code,
+export async function sendVideoRevisionRequestNotification(receiverNum, receiverName, revisionData) {
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': revisionData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_REVISION_REQUEST.code,
+    {
+      '크리에이터명': receiverName,
       '캠페인명': revisionData.campaignName,
       '요청일': revisionData.requestDate,
       '재제출기한': revisionData.resubmitDeadline
     }
-  });
+  );
 }
 
 /**
- * 영상 승인 완료 알림
+ * 영상 승인 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
  * @param {Object} approvalData - 승인 데이터
  */
 export async function sendVideoApprovedNotification(receiverNum, receiverName, approvalData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.VIDEO_APPROVED.code,
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': approvalData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_APPROVED.code,
+    {
+      '크리에이터명': receiverName,
       '캠페인명': approvalData.campaignName,
       '업로드기한': approvalData.uploadDeadline
     }
-  });
+  );
 }
 
 /**
- * 캠페인 완료 포인트 지급 알림
+ * 포인트 지급 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
- * @param {Object} rewardData - 보상 데이터
+ * @param {Object} pointData - 포인트 데이터
  */
-export async function sendCampaignRewardPaidNotification(receiverNum, receiverName, rewardData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.CAMPAIGN_REWARD_PAID.code,
+export async function sendPointAwardedNotification(receiverNum, receiverName, pointData) {
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': rewardData.creatorName,
-      '캠페인명': rewardData.campaignName,
-      '완료일': rewardData.completionDate
+    POPBILL_TEMPLATES.CREATOR.POINT_AWARDED.code,
+    {
+      '크리에이터명': receiverName,
+      '캠페인명': pointData.campaignName,
+      '완료일': pointData.completionDate
     }
-  });
+  );
 }
 
 /**
- * 출금 접수 완료 알림
+ * 출금 신청 접수 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
  * @param {Object} withdrawalData - 출금 데이터
  */
 export async function sendWithdrawalRequestedNotification(receiverNum, receiverName, withdrawalData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.WITHDRAWAL_REQUESTED.code,
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': withdrawalData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.WITHDRAWAL_REQUESTED.code,
+    {
+      '크리에이터명': receiverName,
       '출금금액': withdrawalData.amount.toLocaleString(),
       '신청일': withdrawalData.requestDate
     }
-  });
+  );
 }
 
 /**
@@ -197,47 +196,47 @@ export async function sendWithdrawalRequestedNotification(receiverNum, receiverN
  * @param {Object} withdrawalData - 출금 데이터
  */
 export async function sendWithdrawalCompletedNotification(receiverNum, receiverName, withdrawalData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.WITHDRAWAL_COMPLETED.code,
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': withdrawalData.creatorName,
+    POPBILL_TEMPLATES.CREATOR.WITHDRAWAL_COMPLETED.code,
+    {
+      '크리에이터명': receiverName,
       '입금일': withdrawalData.depositDate
     }
-  });
+  );
 }
 
 /**
- * 제출 기한 지연 경고 알림
+ * 제출 지연 경고 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
- * @param {Object} penaltyData - 패널티 데이터
+ * @param {Object} delayData - 지연 데이터
  */
-export async function sendDeadlineOverdueNotification(receiverNum, receiverName, penaltyData) {
-  return await sendAlimtalk({
-    templateCode: POPBILL_TEMPLATES.CREATOR.DEADLINE_OVERDUE.code,
+export async function sendSubmissionDelayWarningNotification(receiverNum, receiverName, delayData) {
+  return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    templateParams: {
-      '크리에이터명': penaltyData.creatorName,
-      '캠페인명': penaltyData.campaignName,
-      '제출기한': penaltyData.deadline
+    POPBILL_TEMPLATES.CREATOR.SUBMISSION_DELAY_WARNING.code,
+    {
+      '크리에이터명': receiverName,
+      '캠페인명': delayData.campaignName,
+      '제출기한': delayData.deadline
     }
-  });
+  );
 }
 
 export default {
   sendCreatorSignupNotification,
   sendCampaignSelectedNotification,
   sendGuideDeliveredNotification,
-  sendVideoDeadline3DaysNotification,
-  sendVideoDeadline2DaysNotification,
-  sendVideoDeadlineTodayNotification,
-  sendVideoRevisionRequestedNotification,
+  sendVideoSubmitReminder3Days,
+  sendVideoSubmitReminder2Days,
+  sendVideoSubmitReminderToday,
+  sendVideoRevisionRequestNotification,
   sendVideoApprovedNotification,
-  sendCampaignRewardPaidNotification,
+  sendPointAwardedNotification,
   sendWithdrawalRequestedNotification,
   sendWithdrawalCompletedNotification,
-  sendDeadlineOverdueNotification
+  sendSubmissionDelayWarningNotification
 };
