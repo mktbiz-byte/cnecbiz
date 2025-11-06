@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -38,6 +38,43 @@ function ChargeForm({ onSuccess }) {
   })
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
+
+  // 프로필 정보 불러오기
+  useEffect(() => {
+    const loadCompanyProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data: companyData, error } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (error) throw error
+
+        if (companyData) {
+          // 세금계산서 정보 자동 입력
+          setTaxInvoiceInfo({
+            companyName: companyData.company_name || '',
+            businessNumber: companyData.business_registration_number || '',
+            ceoName: companyData.ceo_name || '',
+            address: companyData.company_address || '',
+            businessType: companyData.business_type || '',
+            businessItem: companyData.business_category || '',
+            email: companyData.email || ''
+          })
+          // 입금자명 기본값 설정
+          setDepositorName(companyData.contact_person || companyData.company_name || '')
+        }
+      } catch (err) {
+        console.error('프로필 정보 불러오기 실패:', err)
+      }
+    }
+
+    loadCompanyProfile()
+  }, [])
 
   // 금액 계산
   const baseAmount = selectedPackage * quantity
