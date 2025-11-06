@@ -49,7 +49,7 @@ function ChargeForm({ onSuccess }) {
         const { data: companyData, error } = await supabase
           .from('companies')
           .select('*')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single()
 
         if (error) throw error
