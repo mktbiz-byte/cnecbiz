@@ -278,27 +278,28 @@ exports.handler = async (event) => {
 
     console.log('[INFO] Sending Kakao message:', kakaoMessage);
 
-    // 팝빌 API 호출
+    // 팡빌 API 호출
     const result = await new Promise((resolve, reject) => {
-      kakaoService.sendATS(
+      kakaoService.sendATS_one(
         POPBILL_CORP_NUM,
         templateCode,
         POPBILL_SENDER_NUM,
         message,
         message, // altContent
+        'A', // adsYN
+        '', // requestNum
         receiverNum,
         receiverName || '',
-        receiptNum,
-        '', // reserveDT
         POPBILL_USER_ID,
-        (error, result) => {
-          if (error) {
-            console.error('[ERROR] Popbill API error:', error);
-            reject(error);
-          } else {
-            console.log('[SUCCESS] Popbill API result:', result);
-            resolve(result);
-          }
+        '', // reserveDT
+        null, // btns
+        (receiptNum) => {
+          console.log('[SUCCESS] Popbill API result:', receiptNum);
+          resolve({ receiptNum });
+        },
+        (error) => {
+          console.error('[ERROR] Popbill API error:', error);
+          reject(error);
         }
       );
     });
