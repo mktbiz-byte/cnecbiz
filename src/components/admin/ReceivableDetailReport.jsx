@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { 
   ArrowLeft, Save, Plus, Trash2, ExternalLink, 
-  DollarSign, TrendingUp, CheckCircle, Clock 
+  DollarSign, TrendingUp, CheckCircle, Clock, FileText 
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
+import CreatePublicReportModal from './CreatePublicReportModal'
 
 export default function ReceivableDetailReport() {
   const { id } = useParams()
@@ -17,6 +18,7 @@ export default function ReceivableDetailReport() {
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
   
   // 미수금 기본 정보
   const [financialRecord, setFinancialRecord] = useState(null)
@@ -294,10 +296,19 @@ export default function ReceivableDetailReport() {
               </p>
             </div>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? '저장 중...' : '저장'}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowReportModal(true)}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              보고서 만들기
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? '저장 중...' : '저장'}
+            </Button>
+          </div>
         </div>
 
         {/* 통계 카드 */}
@@ -538,6 +549,19 @@ export default function ReceivableDetailReport() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 보고서 생성 모달 */}
+      {showReportModal && (
+        <CreatePublicReportModal
+          receivableDetailId={detail.id}
+          receivableDetail={detail}
+          onClose={() => setShowReportModal(false)}
+          onSuccess={(report) => {
+            console.log('보고서 생성 성공:', report)
+            setShowReportModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

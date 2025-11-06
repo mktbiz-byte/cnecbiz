@@ -52,6 +52,7 @@ import SiteEditor from './components/admin/SiteEditor'
 import SiteManagement from './components/admin/SiteManagement'
 import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
+import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
 import OurChannelReport from './components/admin/OurChannelReport'
@@ -69,6 +70,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/guidebook" element={<Guidebook />} />
+        <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />
         <Route path="/signup" element={<SignupWithVerification />} />
