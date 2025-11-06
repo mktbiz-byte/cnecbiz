@@ -89,7 +89,7 @@ exports.handler = async (event, context) => {
     // 회사 정보 확인
     const { data: company, error: companyError } = await supabaseAdmin
       .from('companies')
-      .select('id, company_name, email, phone')
+      .select('id, company_name, email, phone, phone_number')
       .eq('user_id', companyId)
       .single()
 
@@ -160,12 +160,13 @@ exports.handler = async (event, context) => {
         const axios = require('axios')
         
         // 1. 카카오톡 알림톡 발송 (템플릿 025100000918 사용)
-        if (company.phone) {
+        const phoneNumber = company.phone || company.phone_number
+        if (phoneNumber) {
           try {
             await axios.post(
               `${process.env.URL}/.netlify/functions/send-kakao-notification`,
               {
-                receiverNum: company.phone,
+                receiverNum: phoneNumber,
                 receiverName: company.company_name,
                 templateCode: '025100000918', // 캠페인 신청 및 입금 안내
                 variables: {
