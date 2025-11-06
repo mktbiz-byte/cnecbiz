@@ -186,33 +186,58 @@ exports.handler = async (event, context) => {
           // 2. 이메일 발송
           if (companyEmail) {
             try {
-              await axios.post(
+              console.log('[INFO] Sending email to:', companyEmail)
+              const emailResponse = await axios.post(
                 `${process.env.URL}/.netlify/functions/send-email`,
                 {
                   to: companyEmail,
                   subject: '[CNEC] 포인트 충전 입금 안내',
                   html: `
-                    <h2>포인트 충전 신청이 완료되었습니다</h2>
-                    <p>안녕하세요, <strong>${companyName}</strong>님.</p>
-                    <p>포인트 충전 신청이 완료되었습니다.</p>
-                    
-                    <h3>입금 정보</h3>
-                    <ul>
-                      <li><strong>입금 계좌:</strong> IBK기업은행 047-122753-04-011</li>
-                      <li><strong>예금주:</strong> 주식회사 하우파파</li>
-                      <li><strong>입금자명:</strong> ${depositorName}</li>
-                      <li><strong>입금 금액:</strong> ${parseInt(amount).toLocaleString()}원</li>
-                    </ul>
-                    
-                    <p>입금 확인 후 포인트가 자동으로 충전됩니다.</p>
-                    <p>문의: 1833-6025</p>
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #333;">포인트 충전 신청이 완료되었습니다</h2>
+                      <p>안녕하세요, <strong>${companyName}</strong>님.</p>
+                      <p>포인트 충전 신청이 완료되었습니다.</p>
+                      
+                      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #555;">입금 정보</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>입금 계좌:</strong></td>
+                            <td style="padding: 8px 0;">IBK기업은행 047-122753-04-011</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>예금주:</strong></td>
+                            <td style="padding: 8px 0;">주식회사 하우파파</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>입금자명:</strong></td>
+                            <td style="padding: 8px 0;">${depositorName}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>입금 금액:</strong></td>
+                            <td style="padding: 8px 0; font-size: 18px; color: #4CAF50;"><strong>${parseInt(amount).toLocaleString()}원</strong></td>
+                          </tr>
+                        </table>
+                      </div>
+                      
+                      <p style="color: #666;">입금 확인 후 포인트가 자동으로 충전됩니다.</p>
+                      <p style="color: #666;">문의: <strong>1833-6025</strong></p>
+                      
+                      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                      <p style="font-size: 12px; color: #999; text-align: center;">
+                        본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
+                      </p>
+                    </div>
                   `
                 }
               )
-              console.log('[SUCCESS] Email sent')
+              console.log('[SUCCESS] Email sent:', emailResponse.data)
             } catch (emailError) {
               console.error('[ERROR] Failed to send email:', emailError.message)
+              console.error('[ERROR] Email error details:', emailError.response?.data || emailError)
             }
+          } else {
+            console.log('[WARN] No email address provided, skipping email notification')
           }
         } catch (notificationError) {
           console.error('[ERROR] Notification error:', notificationError.message)
