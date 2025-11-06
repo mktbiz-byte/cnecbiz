@@ -89,7 +89,7 @@ exports.handler = async (event, context) => {
     // 회사 정보 확인
     const { data: company, error: companyError } = await supabaseAdmin
       .from('companies')
-      .select('id, company_name, email')
+      .select('id, company_name, email, phone')
       .eq('user_id', companyId)
       .single()
 
@@ -154,23 +154,62 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 계좌이체의 경우 입금 요청 알림 발송
+    // 계좌이체의 경우 카카오톡 알림톡 및 이메일 발송
     if (paymentMethod === 'bank_transfer') {
       try {
         const axios = require('axios')
-        await axios.post(
-          `${process.env.URL}/.netlify/functions/send-notifications`,
-          {
-            type: 'deposit_request',
-            chargeRequestId: chargeRequest.id,
-            userEmail: company.email,
-            userPhone: company.phone,
-            userName: company.company_name,
-            amount: parseInt(amount),
-            depositorName: depositorName,
-            points: parseInt(amount)
+        
+        // 1. 카카오톡 알림톡 발송 (템플릿 025100000918 사용)
+        if (company.phone) {
+          try {
+            await axios.post(
+              `${process.env.URL}/.netlify/functions/send-kakao-notification`,
+              {
+                receiverNum: company.phone,
+                receiverName: company.company_name,
+                templateCode: '025100000918', // 캠페인 신청 및 입금 안내
+                variables: {
+                  '회사명': company.company_name,
+                  '캠페인명': '포인트 충전',
+                  '금액': parseInt(amount).toLocaleString()
+                }
+              }
+            )
+            console.log('카카오톡 알림톡 발송 성공')
+          } catch (kakaoError) {
+            console.error('카카오톡 알림톡 발송 실패:', kakaoError.message)
           }
-        )
+        }
+
+        // 2. 이메일 발송
+        if (company.email) {
+          try {
+            await axios.post(
+              `${process.env.URL}/.netlify/functions/send-email`,
+              {
+                to: company.email,
+                subject: '[CNEC] 포인트 충전 입금 안내',
+                html: `
+                  <h2>포인트 충전 입금 안내</h2>
+                  <p>안녕하세요, ${company.company_name}님.</p>
+                  <p>포인트 충전 신청이 완료되었습니다.</p>
+                  <h3>입금 정보</h3>
+                  <ul>
+                    <li><strong>입금 계좌:</strong> IBK기업은행 047-122753-04-011</li>
+                    <li><strong>예금주:</strong> 주식회사 하우파파</li>
+                    <li><strong>입금자명:</strong> ${depositorName}</li>
+                    <li><strong>입금 금액:</strong> ${parseInt(amount).toLocaleString()}원</li>
+                  </ul>
+                  <p>입금 확인 후 포인트가 자동으로 충전됩니다.</p>
+                  <p>문의: 1833-6025</p>
+                `
+              }
+            )
+            console.log('이메일 발송 성공')
+          } catch (emailError) {
+            console.error('이메일 발송 실패:', emailError.message)
+          }
+        }
       } catch (notifError) {
         console.error('알림 발송 오류:', notifError.message)
         // 알림 발송 실패해도 충전 신청은 완료
