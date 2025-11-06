@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Loader2, CheckCircle, XCircle, ArrowLeft, AlertCircle } from 'lucide-react'
+import { sendCampaignApprovedNotification } from '../../services/notifications'
 
 export default function CampaignReview() {
   const { id } = useParams()
@@ -82,6 +83,31 @@ export default function CampaignReview() {
         reason: null,
         approved_by: (await supabaseBiz.auth.getUser()).data.user?.id
       })
+
+      // 캠페인 승인 알림톡 발송
+      try {
+        const { data: companyData } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('id', campaign.company_id)
+          .single()
+        
+        if (companyData) {
+          await sendCampaignApprovedNotification(
+            companyData.phone,
+            companyData.contact_person,
+            {
+              companyName: companyData.company_name,
+              campaignName: campaign.title,
+              startDate: campaign.start_date || '미정',
+              endDate: campaign.end_date || '미정',
+              recruitCount: campaign.creator_count?.toString() || '0'
+            }
+          )
+        }
+      } catch (notifError) {
+        console.error('알림톡 발송 실패:', notifError)
+      }
 
       alert('캠페인이 승인되었습니다!')
       navigate('/admin/campaign-approvals')

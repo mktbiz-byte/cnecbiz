@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Globe, Mail, Lock, Building, User, Phone, AlertCircle, CheckCircle } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
+import { sendCompanyWelcomeNotification } from '../services/notifications'
 
 export default function SignupPageNew() {
   const navigate = useNavigate()
@@ -104,6 +105,18 @@ export default function SignupPageNew() {
         ])
 
       if (memberError) throw memberError
+
+      // 회원가입 환영 알림톡 발송
+      try {
+        await sendCompanyWelcomeNotification(
+          formData.phone,
+          formData.contactPerson,
+          { companyName: formData.companyName }
+        )
+      } catch (notifError) {
+        console.error('알림톡 발송 실패:', notifError)
+        // 알림톡 실패해도 회원가입은 성공
+      }
 
       setSuccess(true)
       setTimeout(() => {

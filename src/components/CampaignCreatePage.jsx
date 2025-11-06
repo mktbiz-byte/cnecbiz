@@ -11,6 +11,7 @@ import { AlertCircle, Check, FileText, Download } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseBiz, createCampaignInRegions } from '@/lib/supabaseClients'
 import { generateAndDownloadQuotation, generateAndDownloadContract } from '@/lib/pdfGenerator'
+import { sendCampaignApplicationNotification } from '../services/notifications'
 
 const CampaignCreatePage = () => {
   const navigate = useNavigate()
@@ -246,6 +247,22 @@ const CampaignCreatePage = () => {
       const failCount = results.filter(r => !r.success).length
 
       if (successCount > 0) {
+        // 캠페인 신청 알림톡 발송
+        try {
+          await sendCampaignApplicationNotification(
+            companyData?.phone || user?.phone,
+            companyData?.contact_person || user?.user_metadata?.name,
+            {
+              companyName: companyData?.company_name || '회사명 없음',
+              campaignName: formData.title,
+              packageType: packages.find(p => p.value === formData.package_type)?.name || '',
+              regionCount: formData.regions.length.toString()
+            }
+          )
+        } catch (notifError) {
+          console.error('알림톡 발송 실패:', notifError)
+        }
+
         alert(`캠페인이 생성되었습니다!\n성공: ${successCount}개 지역\n실패: ${failCount}개 지역\n\n이제 결제를 진행해주세요.`)
         
         // Generate documents

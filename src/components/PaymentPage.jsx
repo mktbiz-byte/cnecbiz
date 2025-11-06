@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button'
 import { Alert, AlertDescription } from './ui/alert'
 import { Loader2, CreditCard, CheckCircle2, XCircle, ShieldCheck, Lock } from 'lucide-react'
+import { sendPointChargeNotification } from '../services/notifications'
 
 // Stripe Card Element 스타일
 const CARD_ELEMENT_OPTIONS = {
@@ -214,9 +215,33 @@ export default function PaymentPage() {
     }
   }
 
-  const handlePaymentSuccess = (record) => {
+  const handlePaymentSuccess = async (record) => {
     setPaymentRecord(record)
     setPaymentSuccess(true)
+    
+    // 포인트 충전 알림톡 발송
+    try {
+      const { data: userData } = await supabaseBiz.auth.getUser()
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('user_id', userData?.user?.id)
+        .single()
+      
+      if (companyData) {
+        await sendPointChargeNotification(
+          companyData.phone,
+          companyData.contact_person,
+          {
+            companyName: companyData.company_name,
+            amount: formatPrice(record.amount),
+            paymentMethod: `${record.metadata?.card_brand?.toUpperCase()} ****${record.metadata?.card_last4}`
+          }
+        )
+      }
+    } catch (notifError) {
+      console.error('알림톡 발송 실패:', notifError)
+    }
   }
 
   const handlePaymentError = (error) => {
