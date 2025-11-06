@@ -46,9 +46,10 @@ export default function RevenueManagementWithCharts() {
   
   // 새 데이터 입력
   const [newRevenue, setNewRevenue] = useState({
-    month: '',
+    record_date: '',
+    type: 'revenue',
     amount: '',
-    source: 'campaign',
+    category: 'campaign',
     description: ''
   })
   
@@ -375,8 +376,8 @@ export default function RevenueManagementWithCharts() {
 
   // 매출 추가
   const handleAddRevenue = async () => {
-    if (!newRevenue.month || !newRevenue.amount) {
-      alert('월과 금액을 입력해주세요.')
+    if (!newRevenue.record_date || !newRevenue.amount) {
+      alert('날짜와 금액을 입력해주세요.')
       return
     }
 
@@ -388,7 +389,7 @@ export default function RevenueManagementWithCharts() {
       if (error) throw error
 
       alert('매출이 추가되었습니다.')
-      setNewRevenue({ month: '', amount: '', source: 'campaign', description: '' })
+      setNewRevenue({ record_date: '', type: 'revenue', amount: '', category: 'campaign', description: '' })
       fetchRevenueData()
     } catch (error) {
       console.error('매출 추가 오류:', error)
@@ -755,11 +756,11 @@ export default function RevenueManagementWithCharts() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">월 (YYYY-MM) *</label>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">날짜 *</label>
                       <Input
-                        type="month"
-                        value={newRevenue.month}
-                        onChange={(e) => setNewRevenue({ ...newRevenue, month: e.target.value })}
+                        type="date"
+                        value={newRevenue.record_date}
+                        onChange={(e) => setNewRevenue({ ...newRevenue, record_date: e.target.value })}
                       />
                     </div>
                     <div>
@@ -773,11 +774,11 @@ export default function RevenueManagementWithCharts() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">출처</label>
+                    <label className="block text-sm font-medium text-gray-900 mb-2">분류</label>
                     <select
                       className="w-full p-3 border rounded-lg"
-                      value={newRevenue.source}
-                      onChange={(e) => setNewRevenue({ ...newRevenue, source: e.target.value })}
+                      value={newRevenue.category}
+                      onChange={(e) => setNewRevenue({ ...newRevenue, category: e.target.value })}
                     >
                       <option value="campaign">캠페인</option>
                       <option value="subscription">구독</option>
