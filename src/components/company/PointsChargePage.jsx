@@ -546,23 +546,36 @@ export default function PointsChargePage() {
 
   // 충전 신청 취소
   const handleCancelRequest = async (requestId) => {
-    if (!confirm('충전 신청을 취소하시겠습니까?\n\n⚠️ 이미 입금하신 경우, 환불 처리에 시간이 걸릴 수 있습니다.')) {
+    console.log('[DEBUG] Cancel button clicked for request:', requestId)
+    
+    if (!window.confirm('충전 신청을 취소하시겠습니까?\n\n⚠️ 이미 입금하신 경우, 환불 처리에 시간이 걸릴 수 있습니다.')) {
+      console.log('[DEBUG] User cancelled the confirmation')
       return
     }
 
+    console.log('[DEBUG] User confirmed, proceeding with cancellation')
+    setLoading(true)
+
     try {
+      console.log('[DEBUG] Updating request status to cancelled')
       const { error } = await supabase
         .from('points_charge_requests')
         .update({ status: 'cancelled' })
         .eq('id', requestId)
 
-      if (error) throw error
+      if (error) {
+        console.error('[ERROR] Supabase update error:', error)
+        throw error
+      }
 
-      alert('충전 신청이 취소되었습니다.')
-      loadChargeRequests()
+      console.log('[SUCCESS] Request cancelled successfully')
+      window.alert('충전 신청이 취소되었습니다.')
+      await loadChargeRequests()
     } catch (err) {
-      console.error('취소 실패:', err)
-      alert('취소 처리 중 오류가 발생했습니다.')
+      console.error('[ERROR] Cancel failed:', err)
+      window.alert('취소 처리 중 오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
     }
   }
 
