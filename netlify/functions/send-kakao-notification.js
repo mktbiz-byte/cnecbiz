@@ -1,12 +1,16 @@
 const popbill = require('popbill');
 
 // 팝빌 서비스 초기화
-const kakaoService = new popbill.KakaoService(
-  process.env.VITE_POPBILL_LINK_ID,
-  process.env.VITE_POPBILL_SECRET_KEY
-);
+// Netlify Functions에서는 VITE_ 접두사 없이 환경변수 사용
+const LINK_ID = process.env.POPBILL_LINK_ID || process.env.VITE_POPBILL_LINK_ID;
+const SECRET_KEY = process.env.POPBILL_SECRET_KEY || process.env.VITE_POPBILL_SECRET_KEY;
+const CORP_NUM = process.env.POPBILL_CORP_NUM || process.env.VITE_POPBILL_CORP_NUM;
+const SENDER_NUM = process.env.POPBILL_SENDER_NUM || process.env.VITE_POPBILL_SENDER_NUM;
+const IS_TEST = (process.env.POPBILL_TEST_MODE || process.env.VITE_POPBILL_IS_TEST) === 'true';
 
-kakaoService.setIsTest(process.env.VITE_POPBILL_IS_TEST === 'true');
+const kakaoService = new popbill.KakaoService(LINK_ID, SECRET_KEY);
+
+kakaoService.setIsTest(IS_TEST);
 
 exports.handler = async (event) => {
   // CORS 헤더
@@ -61,8 +65,8 @@ exports.handler = async (event) => {
     // 알림톡 발송
     const result = await new Promise((resolve, reject) => {
       kakaoService.sendATS(
-        process.env.VITE_POPBILL_CORP_NUM,
-        process.env.VITE_POPBILL_SENDER_NUM,
+        CORP_NUM,
+        SENDER_NUM,
         '', // 광고 전송 여부 (빈 문자열 = 일반)
         '', // 예약 전송 시간 (빈 문자열 = 즉시)
         [message],
