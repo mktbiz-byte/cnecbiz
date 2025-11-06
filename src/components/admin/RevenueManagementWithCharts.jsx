@@ -108,22 +108,6 @@ export default function RevenueManagementWithCharts() {
       fetchExpenses(),
       fetchWithdrawals()
     ])
-    // 미수금 상세 정보 로드
-    await fetchReceivableDetails()
-  }
-
-  const fetchReceivableDetails = async () => {
-    try {
-      const receivableRecords = revenueData.filter(r => r.type === 'revenue' && r.is_receivable === true)
-      const receivableIds = receivableRecords.map(r => r.id)
-      
-      if (receivableIds.length > 0) {
-        const details = await calculateRemainingAmounts(receivableIds)
-        setReceivableDetails(details)
-      }
-    } catch (error) {
-      console.error('미수금 상세 정보 로드 오류:', error)
-    }
   }
 
   const fetchRevenueData = async () => {
@@ -135,6 +119,15 @@ export default function RevenueManagementWithCharts() {
 
       if (error) throw error
       setRevenueData(data || [])
+      
+      // 미수금 상세 정보 로드
+      const receivableRecords = (data || []).filter(r => r.type === 'revenue' && r.is_receivable === true)
+      const receivableIds = receivableRecords.map(r => r.id)
+      
+      if (receivableIds.length > 0) {
+        const details = await calculateRemainingAmounts(receivableIds)
+        setReceivableDetails(details)
+      }
     } catch (error) {
       console.error('매출 데이터 조회 오류:', error)
     }

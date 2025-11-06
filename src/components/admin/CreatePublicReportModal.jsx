@@ -253,14 +253,14 @@ export default function CreatePublicReportModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto bg-white">
         <CardHeader className="flex flex-row items-center justify-between sticky top-0 bg-white z-10 border-b">
           <CardTitle>공개 보고서 만들기</CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
         </CardHeader>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 bg-white">
           <div className="space-y-6">
             {/* 기본 정보 */}
             <div className="space-y-4">
@@ -340,8 +340,8 @@ export default function CreatePublicReportModal({
               
               <div className="space-y-4">
                 {videos.map((video, index) => (
-                  <Card key={index} className="border-2">
-                    <CardContent className="pt-4">
+                  <Card key={index} className="border-2 bg-white">
+                    <CardContent className="pt-4 bg-white">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-gray-700">영상 {index + 1}</span>
