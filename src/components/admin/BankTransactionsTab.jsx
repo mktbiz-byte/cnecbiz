@@ -23,23 +23,36 @@ export default function BankTransactionsTab() {
 
   const fetchTransactions = async () => {
     setLoading(true)
+    console.log('🔍 [DEBUG] 거래 내역 조회 시작...')
+    console.log('🔍 [DEBUG] 조회 기간:', startDate, '~', endDate)
+    
     try {
-      const response = await fetch(
-        `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}`
-      )
+      const url = `/.netlify/functions/get-bank-transactions?startDate=${startDate.replace(/-/g, '')}&endDate=${endDate.replace(/-/g, '')}`
+      console.log('🔍 [DEBUG] 요청 URL:', url)
+      
+      const response = await fetch(url)
+      console.log('🔍 [DEBUG] 응답 상태:', response.status, response.statusText)
+      
       const data = await response.json()
+      console.log('🔍 [DEBUG] 응답 데이터:', data)
 
       if (data.success) {
+        console.log('✅ [DEBUG] 조회 성공:', data.transactions.length, '건')
         setTransactions(data.transactions)
         setStats(data.stats)
       } else {
-        alert('거래 내역 조회 실패: ' + data.error)
+        console.error('❌ [DEBUG] 조회 실패:', data)
+        alert(`거래 내역 조회 실패\n\n오류: ${data.error}\n상세: ${data.details || ''}\n시간: ${data.timestamp || ''}`)
       }
     } catch (error) {
-      console.error('거래 내역 조회 오류:', error)
-      alert('거래 내역을 불러오는데 실패했습니다.')
+      console.error('❌ [DEBUG] 예외 발생:', error)
+      console.error('❌ [DEBUG] Error name:', error.name)
+      console.error('❌ [DEBUG] Error message:', error.message)
+      console.error('❌ [DEBUG] Error stack:', error.stack)
+      alert(`거래 내역을 불러오는데 실패했습니다.\n\n오류: ${error.message}\n\n콘솔을 확인해주세요.`)
     } finally {
       setLoading(false)
+      console.log('🔍 [DEBUG] 조회 완료')
     }
   }
 
