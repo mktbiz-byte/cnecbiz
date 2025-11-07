@@ -273,7 +273,7 @@ exports.handler = async (event, context) => {
 
         // 자동 매칭 시도
         const matchedRequestId = await autoMatchTransaction({
-          briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
+          briefs: tx.remark1 || tx.remark2 || '',
           trade_balance: tx.accIn || 0,
           trade_date: tx.trdate || ''
         });
@@ -288,7 +288,7 @@ exports.handler = async (event, context) => {
             trade_type: 'I', // 입금만 조회했으므로 'I'
             trade_balance: parseInt(tx.accIn || 0),
             after_balance: parseInt(tx.balance || 0),
-            briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
+            briefs: tx.remark1 || tx.remark2 || '',
             remark1: tx.remark1 || '',
             remark2: tx.remark2 || '',
             remark3: tx.remark3 || '',
@@ -304,7 +304,7 @@ exports.handler = async (event, context) => {
         }
 
         savedCount++;
-        console.log(`   ✅ 저장: ${tx.tid} - ${tx.briefs || tx.remark2} / ${parseInt(tx.tradeBalance || 0).toLocaleString()}원`);
+        console.log(`   ✅ 저장: ${tx.tid} - ${tx.remark1 || tx.remark2} / ${parseInt(tx.accIn || 0).toLocaleString()}원`);
 
         if (matchedRequestId) {
           matchedCount++;
