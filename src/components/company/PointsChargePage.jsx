@@ -706,7 +706,7 @@ export default function PointsChargePage() {
                               <span className="mr-1">⏱</span> 입금 대기
                             </span>
                           )}
-                          {request.status === 'confirmed' && (
+                          {(request.status === 'confirmed' || request.status === 'completed') && (
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               입금 확인
                             </span>
