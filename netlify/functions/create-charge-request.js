@@ -189,7 +189,9 @@ exports.handler = async (event, context) => {
           // 2. 이메일 발송
           if (companyEmail) {
             try {
-              console.log('[INFO] Sending email to:', companyEmail)
+              console.log('[INFO] Attempting to send email to:', companyEmail)
+              console.log('[DEBUG] Email service URL:', `${process.env.URL}/.netlify/functions/send-email`)
+              
               const emailResponse = await axios.post(
                 `${process.env.URL}/.netlify/functions/send-email`,
                 {
@@ -232,15 +234,27 @@ exports.handler = async (event, context) => {
                       </p>
                     </div>
                   `
+                },
+                {
+                  timeout: 10000 // 10초 타임아웃
                 }
               )
-              console.log('[SUCCESS] Email sent:', emailResponse.data)
+              console.log('[SUCCESS] Email sent successfully')
+              console.log('[DEBUG] Email response:', JSON.stringify(emailResponse.data))
             } catch (emailError) {
-              console.error('[ERROR] Failed to send email:', emailError.message)
-              console.error('[ERROR] Email error details:', emailError.response?.data || emailError)
+              console.error('[ERROR] Failed to send email')
+              console.error('[ERROR] Error message:', emailError.message)
+              console.error('[ERROR] Error code:', emailError.code)
+              if (emailError.response) {
+                console.error('[ERROR] Response status:', emailError.response.status)
+                console.error('[ERROR] Response data:', JSON.stringify(emailError.response.data))
+              }
+              // 이메일 발송 실패는 무시하고 계속 진행
+              console.log('[WARN] Email sending failed, but charge request was created successfully')
             }
           } else {
             console.log('[WARN] No email address provided, skipping email notification')
+            console.log('[DEBUG] companyEmail value:', companyEmail)
           }
         } catch (notificationError) {
           console.error('[ERROR] Notification error:', notificationError.message)
