@@ -75,6 +75,38 @@ async function matchTransactions(transactions) {
   return matched;
 }
 
+/**
+ * 수집 작업 상태 확인 (폴링)
+ */
+async function waitForJobCompletion(jobID, maxAttempts = 10) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const jobState = await new Promise((resolve, reject) => {
+      easyFinBankService.getJobState(
+        POPBILL_CORP_NUM,
+        jobID,
+        (result) => {
+          console.log(`수집 상태 확인 (${i + 1}/${maxAttempts}):`, result);
+          resolve(result);
+        },
+        (error) => {
+          console.error('수집 상태 확인 오류:', error);
+          reject(error);
+        }
+      );
+    });
+
+    // jobState: 1-대기, 2-진행중, 3-완료
+    if (jobState.jobState === 3) {
+      return true; // 완료
+    }
+
+    // 2초 대기 후 재시도
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  return false; // 타임아웃
+}
+
 exports.handler = async (event, context) => {
   console.log('📊 계좌 거래 내역 조회 시작...');
 
@@ -98,24 +130,59 @@ exports.handler = async (event, context) => {
 
     console.log(`📅 조회 기간: ${startDate} ~ ${endDate}`);
 
-    // 1. 팝빌 SDK로 거래 내역 조회
-    const result = await new Promise((resolve, reject) => {
-      easyFinBankService.search(
+    // 1. 수집 요청 (RequestJob)
+    console.log('1단계: 수집 요청 시작...');
+    const jobID = await new Promise((resolve, reject) => {
+      easyFinBankService.requestJob(
         POPBILL_CORP_NUM,
         BANK_CODE,
         ACCOUNT_NUMBER,
         startDate,
         endDate,
-        ['I'], // 'I' = 입금만 조회
-        1, // Page
-        500, // PerPage
-        'D', // Order: 'D' = 내림차순
         (result) => {
-          console.log('✅ 팝빌 계좌조회 성공');
+          console.log('✅ 수집 요청 성공, JobID:', result);
           resolve(result);
         },
         (error) => {
-          console.error('❌ 팝빌 계좌조회 오류:', error);
+          console.error('❌ 수집 요청 오류:', error);
+          reject(error);
+        }
+      );
+    });
+
+    // 2. 수집 완료 대기
+    console.log('2단계: 수집 완료 대기...');
+    const isCompleted = await waitForJobCompletion(jobID);
+
+    if (!isCompleted) {
+      return {
+        statusCode: 408,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '수집 작업이 시간 내에 완료되지 않았습니다. 잠시 후 다시 시도해주세요.'
+        })
+      };
+    }
+
+    // 3. 수집된 거래 내역 조회 (Search)
+    console.log('3단계: 거래 내역 조회...');
+    const result = await new Promise((resolve, reject) => {
+      easyFinBankService.search(
+        POPBILL_CORP_NUM,
+        jobID,
+        ['I'], // 'I' = 입금만 조회
+        '', // SearchString
+        1, // Page
+        500, // PerPage
+        'D', // Order: 'D' = 내림차순
+        null, // UserID
+        (result) => {
+          console.log('✅ 거래 내역 조회 성공');
+          resolve(result);
+        },
+        (error) => {
+          console.error('❌ 거래 내역 조회 오류:', error);
           reject(error);
         }
       );
@@ -124,10 +191,10 @@ exports.handler = async (event, context) => {
     const transactions = result.list || [];
     console.log(`✅ ${transactions.length}건의 거래 내역 조회 완료`);
 
-    // 2. 충전 신청서와 매칭
+    // 4. 충전 신청서와 매칭
     const matchedTransactions = await matchTransactions(transactions);
 
-    // 3. 통계 계산
+    // 5. 통계 계산
     const stats = {
       total: matchedTransactions.length,
       matched: matchedTransactions.filter(tx => tx.isMatched).length,
@@ -142,7 +209,8 @@ exports.handler = async (event, context) => {
         success: true,
         transactions: matchedTransactions,
         stats,
-        period: { startDate, endDate }
+        period: { startDate, endDate },
+        jobID
       })
     };
   } catch (error) {
@@ -154,7 +222,8 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: false,
-        error: error.message || error.toString()
+        error: error.message || error.toString(),
+        details: error.code ? `[${error.code}] ${error.message}` : error.toString()
       })
     };
   }
