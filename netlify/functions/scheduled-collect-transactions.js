@@ -281,7 +281,7 @@ exports.handler = async (event, context) => {
           .insert({
             tid: tx.tid,
             trade_date: tx.trdt,
-            trade_time: tx.trdt,
+            trade_time: tx.trtime,
             trade_type: 'I', // 입금만 조회했으므로 'I'
             trade_balance: parseInt(tx.tradeBalance || 0),
             after_balance: parseInt(tx.balance || 0),
