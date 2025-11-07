@@ -30,7 +30,7 @@ const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 
 // 계좌 정보 (환경 변수에서 가져오기)
 const BANK_CODE = process.env.BANK_CODE || '0047'; // IBK기업은행
-const ACCOUNT_NUMBER = process.env.ACCOUNT_NUMBER || '04712275304011'; // 하이픈 제거
+const ACCOUNT_NUMBER = process.env.ACCOUNT_NUMBER; // 팝빌 계좌 별칭 (예: "크넥전용계좌")
 
 console.log('Scheduled function: collect-transactions initialized');
 
