@@ -7,9 +7,10 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_BIZ_ANON_KEY
 );
 
-console.log('POPBILL_LINK_ID:', process.env.POPBILL_LINK_ID);
-console.log('POPBILL_TEST_MODE:', process.env.POPBILL_TEST_MODE);
-console.log('POPBILL_CORP_NUM:', process.env.POPBILL_CORP_NUM);
+console.log('🔧 [INIT] POPBILL_LINK_ID:', process.env.POPBILL_LINK_ID);
+console.log('🔧 [INIT] POPBILL_TEST_MODE:', process.env.POPBILL_TEST_MODE);
+console.log('🔧 [INIT] POPBILL_CORP_NUM:', process.env.POPBILL_CORP_NUM);
+console.log('🔧 [INIT] POPBILL_SECRET_KEY exists:', !!process.env.POPBILL_SECRET_KEY);
 
 // 팝빌 전역 설정
 popbill.config({
@@ -20,7 +21,7 @@ popbill.config({
   UseStaticIP: false,
   UseLocalTimeYN: true,
   defaultErrorHandler: function (Error) {
-    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
+    console.log('❌ [POPBILL] Error: [' + Error.code + '] ' + Error.message);
   }
 });
 
@@ -28,31 +29,20 @@ popbill.config({
 const bizInfoCheckService = popbill.BizInfoCheckService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 
-console.log('Popbill BizInfoCheck service initialized successfully');
-console.log('Supabase client initialized');
+console.log('✅ [INIT] Popbill BizInfoCheck service initialized');
+console.log('✅ [INIT] Supabase client initialized');
 
 /**
  * 회사명 정규화 함수
- * (주), 주식회사 등의 표기 차이를 통일하고 공백/특수문자 제거
  */
 function normalizeCompanyName(name) {
   if (!name) return '';
   
   let normalized = name.trim();
-  
-  // 1. (주) → 주식회사 변환
   normalized = normalized.replace(/\((주)\)/g, '주식회사');
-  
-  // 2. 주식회사를 앞으로 이동 ("주식회사 ABC" → "ABC 주식회사")
   normalized = normalized.replace(/^(주식회사)\s*(.+)$/, '$2 주식회사');
-  
-  // 3. 공백 제거
   normalized = normalized.replace(/\s+/g, '');
-  
-  // 4. 특수문자 제거 (한글, 영문, 숫자만 남김)
   normalized = normalized.replace(/[^\uac00-\ud7a3a-zA-Z0-9]/g, '');
-  
-  // 5. 소문자로 변환 (영문)
   normalized = normalized.toLowerCase();
   
   return normalized;
@@ -60,19 +50,16 @@ function normalizeCompanyName(name) {
 
 /**
  * 회사명 유사도 체크
- * 정규화된 회사명을 비교하여 유사도 반환 (0~1)
  */
 function calculateSimilarity(str1, str2) {
   if (!str1 || !str2) return 0;
   if (str1 === str2) return 1;
   
-  // Levenshtein Distance 기반 유사도
   const longer = str1.length > str2.length ? str1 : str2;
   const shorter = str1.length > str2.length ? str2 : str1;
   
   if (longer.length === 0) return 1.0;
   
-  // 편집 거리 계산
   const editDistance = levenshteinDistance(longer, shorter);
   
   return (longer.length - editDistance) / longer.length;
@@ -110,6 +97,10 @@ function levenshteinDistance(str1, str2) {
 }
 
 exports.handler = async (event, context) => {
+  console.log('📊 ========== 기업정보 조회 시작 ==========');
+  console.log('🔧 [DEBUG] HTTP Method:', event.httpMethod);
+  console.log('🔧 [DEBUG] Request Body:', event.body);
+
   // CORS 헤더 설정
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -119,6 +110,7 @@ exports.handler = async (event, context) => {
 
   // OPTIONS 요청 처리
   if (event.httpMethod === 'OPTIONS') {
+    console.log('✅ OPTIONS 요청 처리');
     return {
       statusCode: 200,
       headers,
@@ -126,12 +118,16 @@ exports.handler = async (event, context) => {
     };
   }
 
-  console.log('Function invoked: POST /.netlify/functions/check-business-info');
-
   try {
     const { businessNumber, ceoName, companyName } = JSON.parse(event.body);
 
+    console.log('🔍 [STEP 1] 입력 데이터 검증');
+    console.log('  - 사업자번호:', businessNumber);
+    console.log('  - 대표자명:', ceoName);
+    console.log('  - 회사명:', companyName);
+
     if (!businessNumber) {
+      console.error('❌ 사업자번호 누락');
       return {
         statusCode: 400,
         headers,
@@ -143,6 +139,7 @@ exports.handler = async (event, context) => {
     }
 
     if (!ceoName) {
+      console.error('❌ 대표자명 누락');
       return {
         statusCode: 400,
         headers,
@@ -154,6 +151,7 @@ exports.handler = async (event, context) => {
     }
 
     if (!companyName) {
+      console.error('❌ 회사명 누락');
       return {
         statusCode: 400,
         headers,
@@ -164,10 +162,13 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 사업자등록번호 포맷팅 (하이픈 제거)
+    // 사업자등록번호 포맷팅
     const formattedBusinessNumber = businessNumber.replace(/-/g, '');
+    console.log('✅ [STEP 1] 입력 데이터 검증 완료');
+    console.log('  - 포맷된 사업자번호:', formattedBusinessNumber);
 
     // 1. Supabase에서 중복 체크
+    console.log('🔍 [STEP 2] Supabase 중복 체크 시작...');
     const { data: existingCompany, error: dbError } = await supabase
       .from('companies')
       .select('id, company_name')
@@ -175,18 +176,20 @@ exports.handler = async (event, context) => {
       .maybeSingle();
 
     if (dbError) {
-      console.error('서버 오류:', dbError);
+      console.error('❌ [STEP 2] Supabase 오류:', dbError);
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({ 
           success: false,
-          error: '서버 오류가 발생했습니다.' 
+          error: '서버 오류가 발생했습니다.',
+          details: dbError.message
         }),
       };
     }
 
     if (existingCompany) {
+      console.log('⚠️ [STEP 2] 이미 가입된 사업자번호:', existingCompany);
       return {
         statusCode: 400,
         headers,
@@ -197,47 +200,59 @@ exports.handler = async (event, context) => {
       };
     }
 
+    console.log('✅ [STEP 2] 중복 체크 통과');
+
     // 2. 팝빌 기업정보조회 API 호출
-    console.log('팝빌 기업정보조회 API 호출 시작:', formattedBusinessNumber);
-    console.log('POPBILL_CORP_NUM:', POPBILL_CORP_NUM);
+    console.log('🔍 [STEP 3] 팝빌 기업정보조회 API 호출 시작...');
+    console.log('  - MemberCorpNum:', POPBILL_CORP_NUM);
+    console.log('  - CheckCorpNum:', formattedBusinessNumber);
 
     let bizInfo;
     try {
       bizInfo = await new Promise((resolve, reject) => {
-        // checkBizInfo(MemberCorpNum, CheckCorpNum, successCallback, errorCallback)
+        console.log('  - checkBizInfo 함수 호출 중...');
+        
         bizInfoCheckService.checkBizInfo(
           POPBILL_CORP_NUM,
           formattedBusinessNumber,
           (result) => {
-            console.log('팝빌 기업정보조회 성공:', result);
+            console.log('✅ [STEP 3] 팝빌 API 성공:', JSON.stringify(result, null, 2));
             resolve(result);
           },
           (error) => {
-            console.error('팝빌 기업정보조회 오류:', error);
+            console.error('❌ [STEP 3] 팝빌 API 오류:', error);
+            console.error('  - Error code:', error.code);
+            console.error('  - Error message:', error.message);
+            console.error('  - Full error:', JSON.stringify(error, null, 2));
             reject(error);
           }
         );
       });
     } catch (popbillError) {
-      console.error('팝빌 API 호출 실패:', popbillError);
+      console.error('❌ [STEP 3] 팝빌 API 호출 실패:', popbillError);
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           success: false,
           error: '기업정보 조회에 실패했습니다. 사업자등록번호를 확인해주세요.',
-          details: popbillError.message || popbillError.toString()
+          details: popbillError.message || popbillError.toString(),
+          errorCode: popbillError.code
         }),
       };
     }
 
     // 3. 대표자명 일치 여부 확인
-    const inputCeoName = ceoName.trim().replace(/\s+/g, ''); // 공백 제거
-    const registeredCeoName = (bizInfo.CEOName || '').trim().replace(/\s+/g, ''); // 공백 제거
+    console.log('🔍 [STEP 4] 대표자명 검증 시작...');
+    const inputCeoName = ceoName.trim().replace(/\s+/g, '');
+    const registeredCeoName = (bizInfo.CEOName || '').trim().replace(/\s+/g, '');
 
-    console.log('대표자명 비교:', { input: inputCeoName, registered: registeredCeoName });
+    console.log('  - 입력:', inputCeoName);
+    console.log('  - 등록:', registeredCeoName);
+    console.log('  - 일치:', inputCeoName === registeredCeoName);
 
     if (inputCeoName !== registeredCeoName) {
+      console.error('❌ [STEP 4] 대표자명 불일치');
       return {
         statusCode: 400,
         headers,
@@ -248,22 +263,23 @@ exports.handler = async (event, context) => {
       };
     }
 
+    console.log('✅ [STEP 4] 대표자명 검증 통과');
+
     // 4. 회사명 유사도 체크
+    console.log('🔍 [STEP 5] 회사명 검증 시작...');
     const inputCompanyName = normalizeCompanyName(companyName);
     const registeredCompanyName = normalizeCompanyName(bizInfo.corpName || '');
 
-    console.log('회사명 비교:', { 
-      input: companyName, 
-      inputNormalized: inputCompanyName,
-      registered: bizInfo.corpName,
-      registeredNormalized: registeredCompanyName 
-    });
+    console.log('  - 입력 원본:', companyName);
+    console.log('  - 입력 정규화:', inputCompanyName);
+    console.log('  - 등록 원본:', bizInfo.corpName);
+    console.log('  - 등록 정규화:', registeredCompanyName);
 
     const similarity = calculateSimilarity(inputCompanyName, registeredCompanyName);
-    console.log('회사명 유사도:', similarity);
+    console.log('  - 유사도:', similarity);
 
-    // 유사도 80% 이상이면 통과
     if (similarity < 0.8) {
+      console.error('❌ [STEP 5] 회사명 유사도 부족');
       return {
         statusCode: 400,
         headers,
@@ -274,10 +290,14 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 5. 휴폐업 상태 확인 (corpCode 사용)
-    // corpCode: 100=일반사업자, 101=신설회사, 102=외감, 110=거래소(상장), 111=거래소(관리), 등
-    // 200=폐업, 300=휴업, 900=미정의, 999=기타
+    console.log('✅ [STEP 5] 회사명 검증 통과');
+
+    // 5. 휴폐업 상태 확인
+    console.log('🔍 [STEP 6] 휴폐업 상태 확인...');
+    console.log('  - corpCode:', bizInfo.corpCode);
+
     if (bizInfo.corpCode === 200) {
+      console.error('❌ [STEP 6] 폐업 사업자');
       return {
         statusCode: 400,
         headers,
@@ -289,6 +309,7 @@ exports.handler = async (event, context) => {
     }
 
     if (bizInfo.corpCode === 300) {
+      console.error('❌ [STEP 6] 휴업 사업자');
       return {
         statusCode: 400,
         headers,
@@ -299,10 +320,10 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 6. 검증 성공
-    console.log('사업자 정보 검증 성공');
+    console.log('✅ [STEP 6] 휴폐업 상태 확인 통과');
 
-    // 7. 검증 로그 저장 (선택사항)
+    // 6. 검증 로그 저장
+    console.log('🔍 [STEP 7] 검증 로그 저장...');
     try {
       await supabase.from('verification_logs').insert({
         business_number: formattedBusinessNumber,
@@ -315,12 +336,13 @@ exports.handler = async (event, context) => {
           corpCode: bizInfo.corpCode,
         },
       });
+      console.log('✅ [STEP 7] 로그 저장 완료');
     } catch (logError) {
-      console.error('로그 저장 오류:', logError);
-      // 로그 저장 실패는 무시
+      console.error('⚠️ [STEP 7] 로그 저장 실패 (무시):', logError);
     }
 
-    // 8. 성공 응답 (기업 정보는 보안상 최소한만 반환)
+    // 7. 성공 응답
+    console.log('📊 ========== 기업정보 조회 성공 ==========');
     return {
       statusCode: 200,
       headers,
@@ -334,7 +356,12 @@ exports.handler = async (event, context) => {
       }),
     };
   } catch (error) {
-    console.error('예상치 못한 오류:', error);
+    console.error('❌ ========== 예상치 못한 오류 ==========');
+    console.error('❌ Error name:', error.name);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Full error:', JSON.stringify(error, null, 2));
+    
     return {
       statusCode: 500,
       headers,
@@ -342,6 +369,8 @@ exports.handler = async (event, context) => {
         success: false,
         error: '기업정보 조회 중 오류가 발생했습니다.',
         details: error.message,
+        errorName: error.name,
+        stack: error.stack
       }),
     };
   }
