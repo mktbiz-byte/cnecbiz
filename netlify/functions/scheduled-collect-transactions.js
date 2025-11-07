@@ -269,28 +269,48 @@ exports.handler = async (event, context) => {
         }
 
         // 팝빌 API 응답 데이터 로그
-        console.log(`🔍 [DEBUG] 거래 데이터:`, JSON.stringify(tx, null, 2));
+        console.log(`🔍 [DEBUG] 원본 거래 데이터:`, JSON.stringify(tx, null, 2));
+
+        // 데이터 변환 및 검증
+        const tradeDate = String(tx.trdate || '').substring(0, 8);
+        const tradeTime = String(tx.trdt || '').substring(8, 14);
+        const tradeBalance = parseInt(String(tx.accIn || '0').replace(/,/g, ''));
+        const briefs = String(tx.remark1 || tx.remark2 || '').substring(0, 500);
+        const tid = String(tx.tid || '').substring(0, 32);
+
+        console.log(`🔍 [DEBUG] 변환된 데이터:`, {
+          tid,
+          tradeDate,
+          tradeTime,
+          tradeBalance,
+          briefs
+        });
 
         // 자동 매칭 시도
         const matchedRequestId = await autoMatchTransaction({
-          briefs: tx.remark1 || tx.remark2 || '',
-          trade_balance: tx.accIn || 0,
-          trade_date: tx.trdate || ''
+          briefs: briefs,
+          trade_balance: tradeBalance,
+          trade_date: tradeDate
         });
+
+        // Supabase에 저장할 데이터 준비
+        const insertData = {
+          tid: tid,
+          trade_date: tradeDate,
+          trade_time: tradeTime,
+          trade_type: 'I',
+          trade_balance: tradeBalance,
+          briefs: briefs,
+          charge_request_id: matchedRequestId,
+          is_matched: !!matchedRequestId
+        };
+
+        console.log(`🔍 [DEBUG] 삽입할 데이터:`, JSON.stringify(insertData, null, 2));
 
         // Supabase에 저장
         const { error: insertError } = await supabaseAdmin
           .from('bank_transactions')
-          .insert({
-            tid: tx.tid,
-            trade_date: tx.trdate,  // 거래일자 (8자리)
-            trade_time: tx.trdt ? tx.trdt.substring(8, 14) : '',  // 거래시간 (6자리 HHmmss)
-            trade_type: 'I', // 입금
-            trade_balance: parseInt(tx.accIn || 0),  // 입금액
-            briefs: tx.remark1 || tx.remark2 || '',  // 입금자명
-            charge_request_id: matchedRequestId,
-            is_matched: !!matchedRequestId
-          });
+          .insert(insertData);
 
         if (insertError) {
           console.error(`❌ 저장 오류 (${tx.tid}):`, insertError);
