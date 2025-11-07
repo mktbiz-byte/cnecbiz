@@ -110,22 +110,37 @@ exports.handler = async (event, context) => {
 
     // 2. 팝빌 기업정보조회 API 호출
     console.log('팝빌 기업정보조회 API 호출 시작:', formattedBusinessNumber);
+    console.log('POPBILL_CORP_NUM:', POPBILL_CORP_NUM);
 
-    const bizInfo = await new Promise((resolve, reject) => {
-      // checkBizInfo(MemberCorpNum, CheckCorpNum, successCallback, errorCallback)
-      bizInfoCheckService.checkBizInfo(
-        POPBILL_CORP_NUM,
-        formattedBusinessNumber,
-        (result) => {
-          console.log('팝빌 기업정보조회 성공:', result);
-          resolve(result);
-        },
-        (error) => {
-          console.error('팝빌 기업정보조회 오류:', error);
-          reject(error);
-        }
-      );
-    });
+    let bizInfo;
+    try {
+      bizInfo = await new Promise((resolve, reject) => {
+        // checkBizInfo(MemberCorpNum, CheckCorpNum, successCallback, errorCallback)
+        bizInfoCheckService.checkBizInfo(
+          POPBILL_CORP_NUM,
+          formattedBusinessNumber,
+          (result) => {
+            console.log('팝빌 기업정보조회 성공:', result);
+            resolve(result);
+          },
+          (error) => {
+            console.error('팝빌 기업정보조회 오류:', error);
+            reject(error);
+          }
+        );
+      });
+    } catch (popbillError) {
+      console.error('팝빌 API 호출 실패:', popbillError);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '기업정보 조회에 실패했습니다. 사업자등록번호를 확인해주세요.',
+          details: popbillError.message || popbillError.toString()
+        }),
+      };
+    }
 
     // 3. 대표자명 일치 여부 확인
     const inputCeoName = ceoName.trim().replace(/\s+/g, ''); // 공백 제거

@@ -3,10 +3,12 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Search, Filter, CreditCard, Building2 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
+import BankTransactionsTab from './BankTransactionsTab'
 
 export default function PointsChargeManagement() {
+  const [activeTab, setActiveTab] = useState('requests') // requests, transactions
   const [chargeRequests, setChargeRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // all, pending, completed, rejected
@@ -376,9 +378,49 @@ export default function PointsChargeManagement() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </>
+      ) : (
+        <BankTransactionsTab />
+      )}
+    </div>
+  )
+}         {/* 탭 네비게이션 */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-2 border-b">
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'requests'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />
+                충전 신청 관리
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'transactions'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4" />
+                계좌 거래 내역
+              </div>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* 필터 및 검색 */}
+      {activeTab === 'requests' ? (
+        <>
+      {/* 필터 */}
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
