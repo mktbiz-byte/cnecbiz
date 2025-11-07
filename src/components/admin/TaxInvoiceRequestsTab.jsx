@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabaseAdmin } from '../../lib/supabaseAdmin';
+import { supabaseBiz } from '../../lib/supabaseClients';
 import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
 
 const TaxInvoiceRequestsTab = () => {
@@ -15,7 +15,7 @@ const TaxInvoiceRequestsTab = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      let query = supabaseAdmin
+      let query = supabaseBiz
         .from('tax_invoice_requests')
         .select(`
           *,
