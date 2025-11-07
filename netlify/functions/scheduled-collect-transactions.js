@@ -274,7 +274,7 @@ exports.handler = async (event, context) => {
         // 자동 매칭 시도
         const matchedRequestId = await autoMatchTransaction({
           briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
-          trade_balance: tx.tradeBalance || 0,
+          trade_balance: tx.accIn || 0,
           trade_date: tx.trdate || ''
         });
 
@@ -286,7 +286,7 @@ exports.handler = async (event, context) => {
             trade_date: tx.trdate,  // 거래일자 (8자리)
             trade_time: tx.trdt ? tx.trdt.substring(8, 14) : '',  // 거래시간 (6자리 HHmmss),
             trade_type: 'I', // 입금만 조회했으므로 'I'
-            trade_balance: parseInt(tx.tradeBalance || 0),
+            trade_balance: parseInt(tx.accIn || 0),
             after_balance: parseInt(tx.balance || 0),
             briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
             remark1: tx.remark1 || '',
