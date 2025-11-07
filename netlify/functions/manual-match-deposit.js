@@ -52,7 +52,7 @@ async function processDeposit(request, transaction) {
   const { error: statusError } = await supabaseAdmin
     .from('points_charge_requests')
     .update({
-      status: 'confirmed',
+      status: 'completed',
       confirmed_at: new Date().toISOString(),
       confirmed_by: 'admin_manual',
       deposit_date: transaction.tradeDate,
@@ -62,6 +62,23 @@ async function processDeposit(request, transaction) {
     .eq('id', request.id)
 
   if (statusError) throw statusError
+
+  // 4. 매출 기록 추가 (financial_records)
+  const { error: revenueError } = await supabaseAdmin
+    .from('financial_records')
+    .insert({
+      record_date: transaction.tradeDate || new Date().toISOString().slice(0, 10),
+      type: 'revenue',
+      category: 'point_charge',
+      amount: amount,
+      description: `포인트 충전 - ${request.depositor_name || '미상'}`,
+      is_receivable: false
+    })
+
+  if (revenueError) {
+    console.error('⚠️ 매출 기록 실패:', revenueError)
+    // 매출 기록 실패해도 포인트 충전은 완료되었으므로 에러 throw 안 함
+  }
 
   return { success: true, newPoints }
 }

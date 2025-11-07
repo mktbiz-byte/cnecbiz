@@ -43,10 +43,8 @@ const TaxInvoiceRequestsTab = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requestId: request.id,
-          companyId: request.company_id,
-          amount: request.amount,
-          isPrepaid: !request.is_deposit_confirmed
+          taxInvoiceRequestId: request.id,
+          forceIssue: !request.is_deposit_confirmed
         })
       });
 
