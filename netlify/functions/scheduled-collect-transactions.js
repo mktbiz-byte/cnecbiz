@@ -268,6 +268,9 @@ exports.handler = async (event, context) => {
           continue;
         }
 
+        // 팝빌 API 응답 데이터 로그
+        console.log(`🔍 [DEBUG] 거래 데이터:`, JSON.stringify(tx, null, 2));
+
         // 자동 매칭 시도
         const matchedRequestId = await autoMatchTransaction({
           briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
