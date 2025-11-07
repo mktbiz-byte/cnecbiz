@@ -99,12 +99,13 @@ const CampaignCreationKorea = () => {
     return 0 // 할인 없음
   }
 
-  // 최종 결제 금액 계산 (할인 적용)
+  // 최종 결제 금액 계산 (부가세 10% + 할인 적용)
   const calculateFinalCost = (packagePrice, slots) => {
     const originalCost = packagePrice * slots
+    const vat = Math.floor(originalCost * 0.1) // 부가세 10%
     const discountRate = calculateDiscount(originalCost)
     const discountAmount = Math.floor(originalCost * (discountRate / 100))
-    return originalCost - discountAmount
+    return originalCost + vat - discountAmount
   }
 
   // 초기 로드 시 할인가 계산

@@ -278,8 +278,14 @@ function ChargeForm({ onSuccess }) {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-gray-700">기본 금액</span>
-              <span className="text-lg font-medium line-through text-gray-400">
+              <span className="text-lg font-medium text-gray-700">
                 {baseAmount.toLocaleString()}원
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">부가세 (10%)</span>
+              <span className="text-lg font-medium text-gray-700">
+                +{vat.toLocaleString()}원
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -301,13 +307,27 @@ function ChargeForm({ onSuccess }) {
       {/* 일반 금액 표시 (1천만원 미만) */}
       {baseAmount < 10000000 && (
         <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700">결제 금액</span>
-            <span className="text-2xl font-bold text-blue-600">
-              {finalAmount.toLocaleString()}원
-            </span>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">기본 금액</span>
+              <span className="text-lg font-medium text-gray-700">
+                {baseAmount.toLocaleString()}원
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">부가세 (10%)</span>
+              <span className="text-lg font-medium text-gray-700">
+                +{vat.toLocaleString()}원
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+              <span className="text-lg font-bold text-gray-900">최종 결제 금액</span>
+              <span className="text-2xl font-bold text-blue-600">
+                {finalAmount.toLocaleString()}원
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-500 mt-3">
             💡 1천만원 이상 충전 시 5% 할인 혜택!
           </p>
         </div>
