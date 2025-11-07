@@ -33,20 +33,10 @@ exports.handler = async (event, context) => {
 
     console.log(`📅 조회 기간: ${startDate} ~ ${endDate}`);
 
-    // Supabase에서 거래 내역 조회
+    // Supabase에서 거래 내역 조회 (관계 제거)
     const { data: transactions, error } = await supabaseAdmin
       .from('bank_transactions')
-      .select(`
-        *,
-        points_charge_requests (
-          id,
-          amount,
-          status,
-          companies (
-            company_name
-          )
-        )
-      `)
+      .select('*')
       .gte('trade_date', startDate)
       .lte('trade_date', endDate)
       .order('trade_date', { ascending: false })
@@ -59,8 +49,40 @@ exports.handler = async (event, context) => {
 
     console.log(`✅ ${transactions.length}건의 거래 내역 조회 완료`);
 
+    // 매칭된 충전 요청 정보 가져오기
+    const transactionsWithRequests = await Promise.all(
+      transactions.map(async (tx) => {
+        if (tx.charge_request_id) {
+          const { data: request } = await supabaseAdmin
+            .from('points_charge_requests')
+            .select('id, amount, status, company_id')
+            .eq('id', tx.charge_request_id)
+            .single();
+
+          if (request) {
+            const { data: company } = await supabaseAdmin
+              .from('companies')
+              .select('company_name')
+              .eq('id', request.company_id)
+              .single();
+
+            return {
+              ...tx,
+              matchedRequest: {
+                id: request.id,
+                amount: request.amount,
+                status: request.status,
+                company_name: company?.company_name
+              }
+            };
+          }
+        }
+        return { ...tx, matchedRequest: null };
+      })
+    );
+
     // 데이터 포맷 변환
-    const formattedTransactions = transactions.map(tx => ({
+    const formattedTransactions = transactionsWithRequests.map(tx => ({
       tid: tx.tid,
       trdt: tx.trade_date,
       tradeType: tx.trade_type,
@@ -71,12 +93,7 @@ exports.handler = async (event, context) => {
       remark2: tx.remark2,
       remark3: tx.remark3,
       isMatched: tx.is_matched,
-      matchedRequest: tx.points_charge_requests ? {
-        id: tx.points_charge_requests.id,
-        amount: tx.points_charge_requests.amount,
-        status: tx.points_charge_requests.status,
-        company_name: tx.points_charge_requests.companies?.company_name
-      } : null
+      matchedRequest: tx.matchedRequest
     }));
 
     // 통계 계산
@@ -106,7 +123,8 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: false,
-        error: error.message || error.toString()
+        error: error.message || error.toString(),
+        details: error.toString()
       })
     };
   }
