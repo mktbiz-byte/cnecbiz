@@ -165,9 +165,9 @@ exports.handler = async (event, context) => {
   console.log('🕐 실행 시간:', new Date().toISOString());
 
   try {
-    // 최근 7일 거래 내역 수집
+    // 최근 30일 거래 내역 수집
     const endDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+    const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
 
     console.log(`📅 조회 기간: ${startDate} ~ ${endDate}`);
     console.log(`🏦 계좌: ${BANK_CODE} / ${ACCOUNT_NUMBER}`);
