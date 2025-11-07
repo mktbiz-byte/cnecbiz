@@ -29,7 +29,7 @@ const easyFinBankService = popbill.EasyFinBankService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 
 // 계좌 정보 (환경 변수에서 가져오기)
-const BANK_CODE = process.env.BANK_CODE || '0047'; // IBK기업은행
+const BANK_CODE = process.env.BANK_CODE || '0003'; // IBK기업은행
 const ACCOUNT_NUMBER = process.env.ACCOUNT_NUMBER; // 팝빌 계좌 별칭 (예: "크넥전용계좌")
 
 console.log('Scheduled function: collect-transactions initialized');
@@ -181,7 +181,6 @@ exports.handler = async (event, context) => {
         ACCOUNT_NUMBER,
         startDate,
         endDate,
-        null, // UserID
         (result) => {
           console.log('✅ [STEP 1] 수집 요청 성공, JobID:', result);
           resolve(result);
