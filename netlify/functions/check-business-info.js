@@ -25,11 +25,11 @@ popbill.config({
   }
 });
 
-// 팝빌 기업정보조회 서비스 객체 생성
-const bizInfoCheckService = popbill.BizInfoCheckService();
+// 팔빌 휴폐업 조회 서비스 객체 생성
+const closedownService = popbill.ClosedownService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 
-console.log('✅ [INIT] Popbill BizInfoCheck service initialized');
+console.log('✅ [INIT] Popbill Closedown service initialized');
 console.log('✅ [INIT] Supabase client initialized');
 
 /**
@@ -202,25 +202,25 @@ exports.handler = async (event, context) => {
 
     console.log('✅ [STEP 2] 중복 체크 통과');
 
-    // 2. 팝빌 기업정보조회 API 호출
-    console.log('🔍 [STEP 3] 팝빌 기업정보조회 API 호출 시작...');
+    // 2. 팔빌 휴폐업 조회 API 호출
+    console.log('🔍 [STEP 3] 팔빌 휴폐업 조회 API 호출 시작...');
     console.log('  - MemberCorpNum:', POPBILL_CORP_NUM);
     console.log('  - CheckCorpNum:', formattedBusinessNumber);
 
-    let bizInfo;
+    let closedownInfo;
     try {
-      bizInfo = await new Promise((resolve, reject) => {
-        console.log('  - checkBizInfo 함수 호출 중...');
+      closedownInfo = await new Promise((resolve, reject) => {
+        console.log('  - checkCorpNum 함수 호출 중...');
         
-        bizInfoCheckService.checkBizInfo(
+        closedownService.checkCorpNum(
           POPBILL_CORP_NUM,
           formattedBusinessNumber,
           (result) => {
-            console.log('✅ [STEP 3] 팝빌 API 성공:', JSON.stringify(result, null, 2));
+            console.log('✅ [STEP 3] 팔빌 API 성공:', JSON.stringify(result, null, 2));
             resolve(result);
           },
           (error) => {
-            console.error('❌ [STEP 3] 팝빌 API 오류:', error);
+            console.error('❌ [STEP 3] 팔빌 API 오류:', error);
             console.error('  - Error code:', error.code);
             console.error('  - Error message:', error.message);
             console.error('  - Full error:', JSON.stringify(error, null, 2));
@@ -229,13 +229,13 @@ exports.handler = async (event, context) => {
         );
       });
     } catch (popbillError) {
-      console.error('❌ [STEP 3] 팝빌 API 호출 실패:', popbillError);
+      console.error('❌ [STEP 3] 팔빌 API 호출 실패:', popbillError);
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           success: false,
-          error: '기업정보 조회에 실패했습니다. 사업자등록번호를 확인해주세요.',
+          error: '휴폐업 조회에 실패했습니다. 사업자등록번호를 확인해주세요.',
           details: popbillError.message || popbillError.toString(),
           errorCode: popbillError.code
         }),
@@ -244,9 +244,13 @@ exports.handler = async (event, context) => {
 
     // 3. 휴폐업 상태 확인 (대표자명, 회사명 검증 제거)
     console.log('🔍 [STEP 4] 휴폐업 상태 확인...');
-    console.log('  - corpCode:', bizInfo.corpCode);
+    console.log('  - state:', closedownInfo.state);
+    console.log('  - stateDate:', closedownInfo.stateDate);
+    console.log('  - type:', closedownInfo.type);
 
-    if (bizInfo.corpCode === 200) {
+    // 휴폐업 조회 API는 state 필드를 사용
+    // state: 1 = 정상, 2 = 휴업, 3 = 폐업
+    if (closedownInfo.state === '3' || closedownInfo.state === 3) {
       console.error('❌ [STEP 4] 폐업 사업자');
       return {
         statusCode: 400,
@@ -258,7 +262,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (bizInfo.corpCode === 300) {
+    if (closedownInfo.state === '2' || closedownInfo.state === 2) {
       console.error('❌ [STEP 4] 휴업 사업자');
       return {
         statusCode: 400,
@@ -278,12 +282,14 @@ exports.handler = async (event, context) => {
       await supabase.from('verification_logs').insert({
         business_number: formattedBusinessNumber,
         ceo_name: ceoName,
-        verification_method: 'popbill_bizinfocheck',
+        verification_method: 'popbill_closedown',
         verification_result: 'success',
         verification_data: {
-          corpName: bizInfo.corpName,
-          CEOName: bizInfo.CEOName,
-          corpCode: bizInfo.corpCode,
+          corpNum: closedownInfo.corpNum,
+          corpName: closedownInfo.corpName,
+          state: closedownInfo.state,
+          stateDate: closedownInfo.stateDate,
+          type: closedownInfo.type,
         },
       });
       console.log('✅ [STEP 5] 로그 저장 완료');
