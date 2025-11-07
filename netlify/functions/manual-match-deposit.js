@@ -16,11 +16,11 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 async function processDeposit(request, transaction) {
   const { company_id, amount } = request
 
-  // 1. 포인트 충전
+  // 1. 포인트 충전 (company_id는 auth.users.id이므로 user_id로 조회)
   const { data: currentPoints, error: pointsError } = await supabaseAdmin
     .from('companies')
     .select('points_balance')
-    .eq('id', company_id)
+    .eq('user_id', company_id)
     .single()
 
   if (pointsError) throw pointsError
@@ -30,7 +30,7 @@ async function processDeposit(request, transaction) {
   const { error: updateError } = await supabaseAdmin
     .from('companies')
     .update({ points_balance: newPoints })
-    .eq('id', company_id)
+    .eq('user_id', company_id)
 
   if (updateError) throw updateError
 
