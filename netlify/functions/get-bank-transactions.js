@@ -104,7 +104,7 @@ exports.handler = async (event, context) => {
                 id: request.id,
                 amount: request.amount,
                 status: request.status,
-                company_name: company?.company_name
+                company_name: company?.company_name || request.depositor_name || '알 수 없음'
               }
             };
           }
