@@ -1,6 +1,7 @@
 /**
- * 팝빌 계좌 거래 내역 조회 API
- * Supabase에 저장된 거래 내역을 조회
+ * 계좌 거래 내역 조회 API
+ * Supabase bank_transactions 테이블에서 직접 조회
+ * 5분마다 자동 수집된 데이터를 보여줌
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -8,28 +9,21 @@ const { createClient } = require('@supabase/supabase-js');
 // Supabase 클라이언트 초기화
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-console.log('🔧 [DEBUG] Supabase URL:', supabaseUrl);
-console.log('🔧 [DEBUG] Service Key exists:', !!supabaseServiceKey);
-
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 exports.handler = async (event, context) => {
   console.log('📊 ========== 계좌 거래 내역 조회 시작 ==========');
-  console.log('🔧 [DEBUG] HTTP Method:', event.httpMethod);
-  console.log('🔧 [DEBUG] Query Params:', event.queryStringParameters);
 
   try {
     // CORS 헤더
     const headers = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+      'Access-Control-Allow-Methods': 'GET, OPTIONS'
     };
 
     // OPTIONS 요청 처리
     if (event.httpMethod === 'OPTIONS') {
-      console.log('✅ OPTIONS 요청 처리');
       return { statusCode: 200, headers, body: '' };
     }
 
@@ -41,7 +35,7 @@ exports.handler = async (event, context) => {
     console.log(`📅 조회 기간: ${startDate} ~ ${endDate}`);
 
     // Supabase에서 거래 내역 조회
-    console.log('🔍 [STEP 1] bank_transactions 테이블 조회 시작...');
+    console.log('🔍 bank_transactions 테이블에서 조회...');
     const { data: transactions, error } = await supabaseAdmin
       .from('bank_transactions')
       .select('*')
@@ -51,52 +45,34 @@ exports.handler = async (event, context) => {
       .order('trade_time', { ascending: false });
 
     if (error) {
-      console.error('❌ [ERROR] 거래 내역 조회 실패:', error);
-      console.error('❌ [ERROR] Error code:', error.code);
-      console.error('❌ [ERROR] Error message:', error.message);
-      console.error('❌ [ERROR] Error details:', error.details);
+      console.error('❌ 거래 내역 조회 실패:', error);
       throw error;
     }
 
-    console.log(`✅ [STEP 1] ${transactions.length}건의 거래 내역 조회 완료`);
-    console.log('🔧 [DEBUG] 첫 번째 거래:', JSON.stringify(transactions[0], null, 2));
-    console.log('🔧 [DEBUG] trade_balance 타입:', typeof transactions[0]?.trade_balance);
-    console.log('🔧 [DEBUG] trade_balance 값:', transactions[0]?.trade_balance);
+    console.log(`✅ ${transactions.length}건의 거래 내역 조회 완료`);
 
     // 매칭된 충전 요청 정보 가져오기
-    console.log('🔍 [STEP 2] 매칭된 충전 요청 정보 조회 시작...');
+    console.log('🔍 매칭된 충전 요청 정보 조회...');
     const transactionsWithRequests = await Promise.all(
-      transactions.map(async (tx, index) => {
-        console.log(`🔧 [DEBUG] 거래 ${index + 1}/${transactions.length} 처리 중...`);
-        
+      transactions.map(async (tx) => {
         if (tx.charge_request_id) {
-          console.log(`  - charge_request_id: ${tx.charge_request_id}`);
-          
           const { data: request, error: requestError } = await supabaseAdmin
             .from('points_charge_requests')
-            .select('id, amount, status, company_id')
+            .select('id, amount, status, company_id, depositor_name')
             .eq('id', tx.charge_request_id)
             .single();
 
           if (requestError) {
-            console.error(`  ❌ 충전 요청 조회 실패:`, requestError);
+            console.error(`❌ 충전 요청 조회 실패:`, requestError);
             return { ...tx, matchedRequest: null };
           }
 
           if (request) {
-            console.log(`  ✅ 충전 요청 발견: ${request.id}`);
-            
             const { data: company, error: companyError } = await supabaseAdmin
               .from('companies')
               .select('company_name')
               .eq('id', request.company_id)
               .single();
-
-            if (companyError) {
-              console.error(`  ❌ 회사 정보 조회 실패:`, companyError);
-            } else {
-              console.log(`  ✅ 회사 정보: ${company?.company_name}`);
-            }
 
             return {
               ...tx,
@@ -108,21 +84,18 @@ exports.handler = async (event, context) => {
               }
             };
           }
-        } else {
-          console.log(`  - 매칭 없음`);
         }
         
         return { ...tx, matchedRequest: null };
       })
     );
 
-    console.log('✅ [STEP 2] 매칭 정보 조회 완료');
+    console.log('✅ 매칭 정보 조회 완료');
 
     // 데이터 포맷 변환
-    console.log('🔍 [STEP 3] 데이터 포맷 변환 시작...');
     const formattedTransactions = transactionsWithRequests.map(tx => ({
       tid: tx.tid,
-      tradeDate: tx.trade_date + (tx.trade_time || ''), // 프론트엔드에서 tradeDate로 사용
+      tradeDate: tx.trade_date + (tx.trade_time || ''),
       tradeType: tx.trade_type,
       tradeBalance: tx.trade_balance.toString(),
       balance: tx.after_balance?.toString() || '0',
@@ -134,10 +107,7 @@ exports.handler = async (event, context) => {
       matchedRequest: tx.matchedRequest
     }));
 
-    console.log('✅ [STEP 3] 데이터 포맷 변환 완료');
-
     // 통계 계산
-    console.log('🔍 [STEP 4] 통계 계산 시작...');
     const stats = {
       total: formattedTransactions.length,
       matched: formattedTransactions.filter(tx => tx.isMatched).length,
@@ -145,7 +115,7 @@ exports.handler = async (event, context) => {
       totalAmount: formattedTransactions.reduce((sum, tx) => sum + parseInt(tx.tradeBalance || 0), 0)
     };
 
-    console.log('✅ [STEP 4] 통계 계산 완료:', stats);
+    console.log('✅ 통계:', stats);
     console.log('📊 ========== 조회 성공 ==========');
 
     return {
@@ -155,20 +125,11 @@ exports.handler = async (event, context) => {
         success: true,
         transactions: formattedTransactions,
         stats,
-        period: { startDate, endDate },
-        debug: {
-          totalTransactions: transactions.length,
-          supabaseUrl: supabaseUrl,
-          timestamp: new Date().toISOString()
-        }
+        period: { startDate, endDate }
       })
     };
   } catch (error) {
-    console.error('❌ ========== 오류 발생 ==========');
-    console.error('❌ Error name:', error.name);
-    console.error('❌ Error message:', error.message);
-    console.error('❌ Error stack:', error.stack);
-    console.error('❌ Full error:', JSON.stringify(error, null, 2));
+    console.error('❌ 오류 발생:', error);
     
     return {
       statusCode: 500,
@@ -177,12 +138,7 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: false,
-        error: error.message || error.toString(),
-        errorName: error.name,
-        errorCode: error.code,
-        details: error.toString(),
-        stack: error.stack,
-        timestamp: new Date().toISOString()
+        error: error.message || error.toString()
       })
     };
   }
