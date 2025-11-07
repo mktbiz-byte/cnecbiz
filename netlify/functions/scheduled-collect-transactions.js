@@ -7,7 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 const popbill = require('popbill');
 
 // Supabase 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -29,7 +29,7 @@ const easyFinBankService = popbill.EasyFinBankService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 
 // 계좌 정보
-const BANK_CODE = '0003'; // IBK기업은행
+const BANK_CODE = '0004'; // IBK기업은행
 const ACCOUNT_NUMBER = '04712275304011'; // 하이픈 제거
 
 console.log('Scheduled function: collect-transactions initialized');

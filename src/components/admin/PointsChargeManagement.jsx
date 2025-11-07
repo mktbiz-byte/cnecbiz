@@ -259,6 +259,35 @@ export default function PointsChargeManagement() {
     setConfirmModal(true)
   }
 
+  const handlePrechargePoints = async (requestId) => {
+    if (!confirm('포인트를 선충전하시겠습니까? (입금 전 충전 - 미수금으로 기록됩니다)')) {
+      return
+    }
+
+    setProcessing(true)
+    try {
+      const response = await fetch('/.netlify/functions/precharge-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chargeRequestId: requestId })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '포인트 선충전 실패')
+      }
+
+      alert(`포인트 선충전 완료!\n충전 포인트: ${result.points.toLocaleString()}P\n새 잔액: ${result.newBalance.toLocaleString()}P\n미수금: ${result.receivableAmount.toLocaleString()}원`)
+      fetchRequests()
+    } catch (error) {
+      console.error('포인트 선충전 오류:', error)
+      alert('포인트 선충전 실패: ' + error.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const handleCancelRequest = async (requestId) => {
     if (!confirm('충전 신청을 취소하시겠습니까?')) {
       return
@@ -562,6 +591,13 @@ export default function PointsChargeManagement() {
                                 onClick={() => openConfirmModal(request)}
                               >
                                 입금 확인
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handlePrechargePoints(request.id)}
+                              >
+                                포인트 선충전
                               </Button>
                               <Button
                                 size="sm"
