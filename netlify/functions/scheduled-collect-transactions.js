@@ -7,7 +7,7 @@ const { createClient } = require('@supabase/supabase-js');
 const popbill = require('popbill');
 
 // Supabase 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
