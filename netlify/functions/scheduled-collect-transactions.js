@@ -71,10 +71,7 @@ async function waitForJobCompletion(jobID, maxAttempts = 10) {
  */
 async function autoMatchTransaction(transaction) {
   try {
-    // 입금 거래만 매칭
-    if (transaction.trade_type !== 'I') {
-      return null;
-    }
+    console.log(`🔍 [AUTO-MATCH] 매칭 시도: ${transaction.briefs} / ${transaction.trade_balance}원`);
 
     // 충전 요청에서 입금자명과 금액이 일치하는 것 찾기
     const { data: requests, error } = await supabaseAdmin
@@ -88,16 +85,17 @@ async function autoMatchTransaction(transaction) {
       .limit(1);
 
     if (error) {
-      console.error('충전 요청 조회 오류:', error);
+      console.error('❌ 충전 요청 조회 오류:', error);
       return null;
     }
 
     if (!requests || requests.length === 0) {
+      console.log(`ℹ️  매칭되는 충전 요청 없음`);
       return null;
     }
 
     const request = requests[0];
-    console.log(`✅ 자동 매칭 발견: ${request.id} - ${transaction.briefs} - ${transaction.trade_balance}원`);
+    console.log(`✅ 자동 매칭 발견: ${request.id}`);
 
     // 포인트 충전 처리
     const { data: company, error: companyError } = await supabaseAdmin
@@ -107,7 +105,7 @@ async function autoMatchTransaction(transaction) {
       .single();
 
     if (companyError) {
-      console.error('회사 정보 조회 오류:', companyError);
+      console.error('❌ 회사 정보 조회 오류:', companyError);
       return null;
     }
 
@@ -120,7 +118,7 @@ async function autoMatchTransaction(transaction) {
       .eq('id', request.company_id);
 
     if (updateError) {
-      console.error('포인트 업데이트 오류:', updateError);
+      console.error('❌ 포인트 업데이트 오류:', updateError);
       return null;
     }
 
@@ -148,9 +146,11 @@ async function autoMatchTransaction(transaction) {
       })
       .eq('id', request.id);
 
+    console.log(`🎉 자동 매칭 완료! 충전: ${request.amount}원, 새 잔액: ${newPoints}원`);
+
     return request.id;
   } catch (error) {
-    console.error('자동 매칭 오류:', error);
+    console.error('❌ 자동 매칭 오류:', error);
     return null;
   }
 }
@@ -160,8 +160,8 @@ async function autoMatchTransaction(transaction) {
  * 5분마다 실행
  */
 exports.handler = async (event, context) => {
-  console.log('🔄 계좌 거래 내역 수집 시작...');
-  console.log('실행 시간:', new Date().toISOString());
+  console.log('📊 ========== 계좌 거래 내역 자동 수집 시작 ==========');
+  console.log('🕐 실행 시간:', new Date().toISOString());
 
   try {
     // 최근 7일 거래 내역 수집
@@ -169,9 +169,10 @@ exports.handler = async (event, context) => {
     const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
 
     console.log(`📅 조회 기간: ${startDate} ~ ${endDate}`);
+    console.log(`🏦 계좌: ${BANK_CODE} / ${ACCOUNT_NUMBER}`);
 
     // 1. 수집 요청 (RequestJob)
-    console.log('1단계: 수집 요청...');
+    console.log('🔍 [STEP 1] 수집 요청...');
     const jobID = await new Promise((resolve, reject) => {
       easyFinBankService.requestJob(
         POPBILL_CORP_NUM,
@@ -180,22 +181,22 @@ exports.handler = async (event, context) => {
         startDate,
         endDate,
         (result) => {
-          console.log('✅ 수집 요청 성공, JobID:', result);
+          console.log('✅ [STEP 1] 수집 요청 성공, JobID:', result);
           resolve(result);
         },
         (error) => {
-          console.error('❌ 수집 요청 오류:', error);
+          console.error('❌ [STEP 1] 수집 요청 오류:', error);
           reject(error);
         }
       );
     });
 
     // 2. 수집 완료 대기
-    console.log('2단계: 수집 완료 대기...');
+    console.log('🔍 [STEP 2] 수집 완료 대기...');
     const isCompleted = await waitForJobCompletion(jobID);
 
     if (!isCompleted) {
-      console.error('⚠️ 수집 작업 타임아웃');
+      console.error('⚠️ [STEP 2] 수집 작업 타임아웃');
       return {
         statusCode: 408,
         body: JSON.stringify({
@@ -205,33 +206,50 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 3. 수집된 거래 내역 조회 (Search)
-    console.log('3단계: 거래 내역 조회...');
+    console.log('✅ [STEP 2] 수집 완료!');
+
+    // 3. 입금 거래 내역만 조회 (Search)
+    console.log('🔍 [STEP 3] 입금 거래 내역 조회...');
     const result = await new Promise((resolve, reject) => {
       easyFinBankService.search(
         POPBILL_CORP_NUM,
         jobID,
-        ['I'], // 입금만 조회
-        '',
-        1,
-        500,
-        'D',
-        null,
+        ['I'], // ✅ 입금만 조회
+        '',    // 검색어 없음
+        1,     // 첫 페이지
+        1000,  // 최대 1000건
+        'D',   // 내림차순
+        null,  // UserID
         (result) => {
-          console.log('✅ 거래 내역 조회 성공');
+          console.log('✅ [STEP 3] 입금 거래 내역 조회 성공');
           resolve(result);
         },
         (error) => {
-          console.error('❌ 거래 내역 조회 오류:', error);
+          console.error('❌ [STEP 3] 거래 내역 조회 오류:', error);
           reject(error);
         }
       );
     });
 
     const transactions = result.list || [];
-    console.log(`📊 ${transactions.length}건의 거래 내역 조회 완료`);
+    console.log(`✅ [STEP 3] ${transactions.length}건의 입금 거래 조회 완료`);
+
+    if (transactions.length === 0) {
+      console.log('ℹ️  조회된 입금 거래가 없습니다.');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          success: true,
+          message: '조회된 입금 거래가 없습니다.',
+          savedCount: 0,
+          matchedCount: 0,
+          totalTransactions: 0
+        })
+      };
+    }
 
     // 4. Supabase에 저장 및 자동 매칭
+    console.log('🔍 [STEP 4] Supabase에 저장 및 자동 매칭...');
     let savedCount = 0;
     let matchedCount = 0;
 
@@ -245,13 +263,13 @@ exports.handler = async (event, context) => {
           .single();
 
         if (existing) {
-          continue; // 이미 저장됨
+          console.log(`   ⏭️  이미 저장됨: ${tx.tid}`);
+          continue;
         }
 
         // 자동 매칭 시도
         const matchedRequestId = await autoMatchTransaction({
-          trade_type: tx.tradeType || 'I',
-          briefs: tx.briefs || '',
+          briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
           trade_balance: tx.tradeBalance || 0,
           trade_date: tx.trdt || ''
         });
@@ -263,13 +281,13 @@ exports.handler = async (event, context) => {
             tid: tx.tid,
             trade_date: tx.trdt,
             trade_time: tx.trdt,
-            trade_type: tx.tradeType,
-            trade_balance: parseInt(tx.tradeBalance),
+            trade_type: 'I', // 입금만 조회했으므로 'I'
+            trade_balance: parseInt(tx.tradeBalance || 0),
             after_balance: parseInt(tx.balance || 0),
-            briefs: tx.briefs,
-            remark1: tx.remark1,
-            remark2: tx.remark2,
-            remark3: tx.remark3,
+            briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
+            remark1: tx.remark1 || '',
+            remark2: tx.remark2 || '',
+            remark3: tx.remark3 || '',
             charge_request_id: matchedRequestId,
             is_matched: !!matchedRequestId,
             matched_at: matchedRequestId ? new Date().toISOString() : null,
@@ -277,20 +295,25 @@ exports.handler = async (event, context) => {
           });
 
         if (insertError) {
-          console.error('저장 오류:', insertError);
+          console.error(`❌ 저장 오류 (${tx.tid}):`, insertError);
           continue;
         }
 
         savedCount++;
+        console.log(`   ✅ 저장: ${tx.tid} - ${tx.briefs || tx.remark2} / ${parseInt(tx.tradeBalance || 0).toLocaleString()}원`);
+
         if (matchedRequestId) {
           matchedCount++;
         }
       } catch (error) {
-        console.error('거래 처리 오류:', error);
+        console.error('❌ 거래 처리 오류:', error);
       }
     }
 
-    console.log(`✅ 수집 완료: ${savedCount}건 저장, ${matchedCount}건 자동 매칭`);
+    console.log('✅ [STEP 4] 저장 및 매칭 완료!');
+    console.log(`   📝 새로 저장: ${savedCount}건`);
+    console.log(`   🎯 자동 매칭: ${matchedCount}건`);
+    console.log('📊 ========== 계좌 거래 내역 자동 수집 완료 ==========');
 
     return {
       statusCode: 200,
@@ -303,12 +326,17 @@ exports.handler = async (event, context) => {
       })
     };
   } catch (error) {
-    console.error('❌ 예상치 못한 오류:', error);
+    console.error('❌ ========== 예상치 못한 오류 ==========');
+    console.error('오류 이름:', error.name);
+    console.error('오류 메시지:', error.message);
+    console.error('스택:', error.stack);
+
     return {
       statusCode: 500,
       body: JSON.stringify({
         success: false,
-        error: error.message || error.toString()
+        error: error.message || error.toString(),
+        stack: error.stack
       })
     };
   }
