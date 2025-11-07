@@ -101,7 +101,7 @@ async function autoMatchTransaction(transaction) {
     // 포인트 충전 처리
     const { data: company, error: companyError } = await supabaseAdmin
       .from('companies')
-      .select('points')
+      .select('points_balance')
       .eq('id', request.company_id)
       .single();
 
@@ -110,12 +110,12 @@ async function autoMatchTransaction(transaction) {
       return null;
     }
 
-    const newPoints = (company.points || 0) + parseInt(request.amount);
+    const newPoints = (company.points_balance || 0) + parseInt(request.amount);
 
     // 포인트 업데이트
     const { error: updateError } = await supabaseAdmin
       .from('companies')
-      .update({ points: newPoints })
+      .update({ points_balance: newPoints })
       .eq('id', request.company_id);
 
     if (updateError) {
