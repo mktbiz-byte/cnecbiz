@@ -31,6 +31,84 @@ const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 console.log('Popbill BizInfoCheck service initialized successfully');
 console.log('Supabase client initialized');
 
+/**
+ * 회사명 정규화 함수
+ * (주), 주식회사 등의 표기 차이를 통일하고 공백/특수문자 제거
+ */
+function normalizeCompanyName(name) {
+  if (!name) return '';
+  
+  let normalized = name.trim();
+  
+  // 1. (주) → 주식회사 변환
+  normalized = normalized.replace(/\((주)\)/g, '주식회사');
+  
+  // 2. 주식회사를 앞으로 이동 ("주식회사 ABC" → "ABC 주식회사")
+  normalized = normalized.replace(/^(주식회사)\s*(.+)$/, '$2 주식회사');
+  
+  // 3. 공백 제거
+  normalized = normalized.replace(/\s+/g, '');
+  
+  // 4. 특수문자 제거 (한글, 영문, 숫자만 남김)
+  normalized = normalized.replace(/[^\uac00-\ud7a3a-zA-Z0-9]/g, '');
+  
+  // 5. 소문자로 변환 (영문)
+  normalized = normalized.toLowerCase();
+  
+  return normalized;
+}
+
+/**
+ * 회사명 유사도 체크
+ * 정규화된 회사명을 비교하여 유사도 반환 (0~1)
+ */
+function calculateSimilarity(str1, str2) {
+  if (!str1 || !str2) return 0;
+  if (str1 === str2) return 1;
+  
+  // Levenshtein Distance 기반 유사도
+  const longer = str1.length > str2.length ? str1 : str2;
+  const shorter = str1.length > str2.length ? str2 : str1;
+  
+  if (longer.length === 0) return 1.0;
+  
+  // 편집 거리 계산
+  const editDistance = levenshteinDistance(longer, shorter);
+  
+  return (longer.length - editDistance) / longer.length;
+}
+
+/**
+ * Levenshtein Distance 계산
+ */
+function levenshteinDistance(str1, str2) {
+  const matrix = [];
+  
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[str2.length][str1.length];
+}
+
 exports.handler = async (event, context) => {
   // CORS 헤더 설정
   const headers = {
@@ -51,7 +129,7 @@ exports.handler = async (event, context) => {
   console.log('Function invoked: POST /.netlify/functions/check-business-info');
 
   try {
-    const { businessNumber, ceoName } = JSON.parse(event.body);
+    const { businessNumber, ceoName, companyName } = JSON.parse(event.body);
 
     if (!businessNumber) {
       return {
@@ -71,6 +149,17 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: false,
           error: '대표자명을 입력해주세요.' 
+        }),
+      };
+    }
+
+    if (!companyName) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          success: false,
+          error: '회사명을 입력해주세요.' 
         }),
       };
     }
@@ -154,12 +243,38 @@ exports.handler = async (event, context) => {
         headers,
         body: JSON.stringify({
           success: false,
-          error: '입력하신 정보가 사업자등록증과 일치하지 않습니다. 다시 확인해주세요.',
+          error: '입력하신 대표자명이 사업자등록증과 일치하지 않습니다.',
         }),
       };
     }
 
-    // 4. 휴폐업 상태 확인 (corpCode 사용)
+    // 4. 회사명 유사도 체크
+    const inputCompanyName = normalizeCompanyName(companyName);
+    const registeredCompanyName = normalizeCompanyName(bizInfo.corpName || '');
+
+    console.log('회사명 비교:', { 
+      input: companyName, 
+      inputNormalized: inputCompanyName,
+      registered: bizInfo.corpName,
+      registeredNormalized: registeredCompanyName 
+    });
+
+    const similarity = calculateSimilarity(inputCompanyName, registeredCompanyName);
+    console.log('회사명 유사도:', similarity);
+
+    // 유사도 80% 이상이면 통과
+    if (similarity < 0.8) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: `입력하신 회사명이 사업자등록증과 일치하지 않습니다. (등록된 회사명: ${bizInfo.corpName})`,
+        }),
+      };
+    }
+
+    // 5. 휴폐업 상태 확인 (corpCode 사용)
     // corpCode: 100=일반사업자, 101=신설회사, 102=외감, 110=거래소(상장), 111=거래소(관리), 등
     // 200=폐업, 300=휴업, 900=미정의, 999=기타
     if (bizInfo.corpCode === 200) {
@@ -184,10 +299,10 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 5. 검증 성공
+    // 6. 검증 성공
     console.log('사업자 정보 검증 성공');
 
-    // 6. 검증 로그 저장 (선택사항)
+    // 7. 검증 로그 저장 (선택사항)
     try {
       await supabase.from('verification_logs').insert({
         business_number: formattedBusinessNumber,
@@ -205,7 +320,7 @@ exports.handler = async (event, context) => {
       // 로그 저장 실패는 무시
     }
 
-    // 7. 성공 응답 (기업 정보는 보안상 최소한만 반환)
+    // 8. 성공 응답 (기업 정보는 보안상 최소한만 반환)
     return {
       statusCode: 200,
       headers,

@@ -378,13 +378,9 @@ export default function PointsChargeManagement() {
             </div>
           </CardContent>
         </Card>
-        </>
-      ) : (
-        <BankTransactionsTab />
-      )}
-    </div>
-  )
-}         {/* 탭 네비게이션 */}
+      </div>
+
+      {/* 탭 네비게이션 */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex gap-2 border-b">
@@ -418,9 +414,11 @@ export default function PointsChargeManagement() {
         </CardContent>
       </Card>
 
-      {activeTab === 'requests' ? (
+      {activeTab === 'transactions' ? (
+        <BankTransactionsTab />
+      ) : (
         <>
-      {/* 필터 */}
+      {/* 필터 및 검색 */}
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
@@ -847,6 +845,8 @@ export default function PointsChargeManagement() {
             </CardContent>
           </Card>
         </div>
+      )}
+        </>
       )}
       </div>
     </>
