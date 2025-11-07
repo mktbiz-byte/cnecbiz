@@ -232,6 +232,8 @@ exports.handler = async (event, context) => {
       );
     });
 
+    console.log('🔍 [DEBUG] result 객체:', JSON.stringify(result, null, 2));
+    
     const transactions = result.list || [];
     console.log(`✅ [STEP 3] ${transactions.length}건의 입금 거래 조회 완료`);
 
