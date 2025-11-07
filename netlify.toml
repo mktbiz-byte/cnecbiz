@@ -6,6 +6,10 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# Scheduled Functions
+[functions."scheduled-collect-transactions"]
+  schedule = "@hourly"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -18,9 +22,3 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-
-
-# Scheduled Functions
-[[functions]]
-  path = "scheduled-collect-transactions"
-  schedule = "*/5 * * * *"  # 5분마다 실행
