@@ -19,17 +19,17 @@ async function processDeposit(request, transaction) {
   // 1. 포인트 충전
   const { data: currentPoints, error: pointsError } = await supabaseAdmin
     .from('companies')
-    .select('points')
+    .select('points_balance')
     .eq('id', company_id)
     .single()
 
   if (pointsError) throw pointsError
 
-  const newPoints = (currentPoints.points || 0) + amount
+  const newPoints = (currentPoints.points_balance || 0) + amount
 
   const { error: updateError } = await supabaseAdmin
     .from('companies')
-    .update({ points: newPoints })
+    .update({ points_balance: newPoints })
     .eq('id', company_id)
 
   if (updateError) throw updateError
