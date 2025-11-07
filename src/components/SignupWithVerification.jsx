@@ -63,7 +63,8 @@ export default function SignupWithVerification() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           businessNumber: businessNumber.replace(/[^0-9]/g, ''),
-          ceoName: ceoName.trim()
+          ceoName: ceoName.trim(),
+          companyName: companyName.trim()
         })
       })
 
