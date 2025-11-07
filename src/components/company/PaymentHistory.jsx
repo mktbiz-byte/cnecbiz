@@ -155,7 +155,12 @@ export default function PaymentHistory() {
     }).format(amount)
   }
 
-  const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  // 총 결제 금액 계산 (payments + completed chargeRequests)
+  const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0) +
+    chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').reduce((sum, r) => sum + (r.amount || 0), 0)
+  
+  // 총 결제 건수
+  const totalCount = payments.length + chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').length
 
   return (
     <>
@@ -182,13 +187,15 @@ export default function PaymentHistory() {
           <Card>
             <CardContent className="p-6">
               <div className="text-sm text-gray-600 mb-2">결제 건수</div>
-              <div className="text-3xl font-bold">{payments.length}</div>
+              <div className="text-3xl font-bold">{totalCount}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-6">
-              <div className="text-sm text-gray-600 mb-2">세금계산서</div>
-              <div className="text-3xl font-bold text-blue-600">{taxInvoices.length}</div>
+              <div className="text-sm text-gray-600 mb-2">현재 포인트</div>
+              <div className="text-3xl font-bold text-blue-600">
+                {company?.points_balance?.toLocaleString() || 0}P
+              </div>
             </CardContent>
           </Card>
         </div>
