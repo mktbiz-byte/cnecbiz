@@ -69,11 +69,16 @@ export default function PaymentHistoryPage() {
         setChargeRequests(filteredRequests)
       }
       
-      // Calculate total spent
-      const total = data
+      // Calculate total spent (결제 내역 + 충전 신청 내역)
+      const paymentsTotal = data
         ?.filter(p => p.status === 'completed')
         .reduce((sum, p) => sum + p.amount, 0) || 0
-      setTotalSpent(total)
+      
+      const chargeTotal = filteredRequests
+        ?.filter(r => r.status === 'completed' || r.status === 'confirmed')
+        .reduce((sum, r) => sum + r.amount, 0) || 0
+      
+      setTotalSpent(paymentsTotal + chargeTotal)
     } catch (error) {
       console.error('Error fetching payments:', error)
     } finally {
@@ -280,7 +285,7 @@ export default function PaymentHistoryPage() {
                             입금 대기
                           </span>
                         )}
-                        {request.status === 'confirmed' && (
+                        {(request.status === 'confirmed' || request.status === 'completed') && (
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             입금 확인
                           </span>
@@ -290,9 +295,14 @@ export default function PaymentHistoryPage() {
                             실패
                           </span>
                         )}
+                        {request.status === 'cancelled' && (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            취소
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {request.status === 'confirmed' ? (
+                        {(request.status === 'confirmed' || request.status === 'completed') ? (
                           <span className="text-green-600 font-medium">
                             +{request.amount?.toLocaleString()}포인트 지급 완료
                           </span>

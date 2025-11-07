@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabaseBiz } from '../../lib/supabaseClients';
-import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
+import Reacimport { useState, useEffect } from 'react';ort { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
 
 const TaxInvoiceRequestsTab = () => {
   const [requests, setRequests] = useState([]);
@@ -15,35 +13,16 @@ const TaxInvoiceRequestsTab = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      let query = supabaseBiz
-        .from('tax_invoice_requests')
-        .select(`
-          *,
-          companies (
-            company_name,
-            email
-          ),
-          charge_requests:points_charge_requests (
-            depositor_name,
-            amount,
-            status
-          )
-        `)
-        .order('created_at', { ascending: false });
+      // 백엔드 API 호출 (Service Role Key 사용)
+      const url = `/.netlify/functions/get-tax-invoice-requests?filter=${filter}`;
+      const response = await fetch(url);
+      const data = await response.json();
 
-      if (filter === 'pending') {
-        query = query.eq('status', 'pending');
-      } else if (filter === 'issued') {
-        query = query.eq('status', 'issued');
-      } else if (filter === 'prepaid') {
-        query = query.eq('is_prepaid', true);
+      if (!data.success) {
+        throw new Error(data.error || '조회 실패');
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      setRequests(data || []);
+      setRequests(data.requests || []);
     } catch (error) {
       console.error('세금계산서 신청 내역 조회 오류:', error);
       alert('세금계산서 신청 내역을 불러오는데 실패했습니다.');
