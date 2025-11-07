@@ -275,7 +275,7 @@ exports.handler = async (event, context) => {
         const matchedRequestId = await autoMatchTransaction({
           briefs: tx.briefs || tx.remark2 || tx.remark1 || '',
           trade_balance: tx.tradeBalance || 0,
-          trade_date: tx.trdt || ''
+          trade_date: tx.trdate || ''
         });
 
         // Supabase에 저장
@@ -283,8 +283,8 @@ exports.handler = async (event, context) => {
           .from('bank_transactions')
           .insert({
             tid: tx.tid,
-            trade_date: tx.trdt,
-            trade_time: tx.trtime,
+            trade_date: tx.trdate,  // 거래일자 (8자리)
+            trade_time: tx.trdt ? tx.trdt.substring(8, 14) : '',  // 거래시간 (6자리 HHmmss),
             trade_type: 'I', // 입금만 조회했으므로 'I'
             trade_balance: parseInt(tx.tradeBalance || 0),
             after_balance: parseInt(tx.balance || 0),
