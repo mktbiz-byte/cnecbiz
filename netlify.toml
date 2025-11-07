@@ -8,7 +8,7 @@
 
 # Scheduled Functions
 [functions."scheduled-collect-transactions"]
-  schedule = "@hourly"
+  schedule = "*/5 * * * *"
 
 [[redirects]]
   from = "/*"
