@@ -120,7 +120,7 @@ exports.handler = async (event, context) => {
     console.log('🔍 [STEP 3] 데이터 포맷 변환 시작...');
     const formattedTransactions = transactionsWithRequests.map(tx => ({
       tid: tx.tid,
-      trdt: tx.trade_date,
+      tradeDate: tx.trade_date + (tx.trade_time || ''), // 프론트엔드에서 tradeDate로 사용
       tradeType: tx.trade_type,
       tradeBalance: tx.trade_balance.toString(),
       balance: tx.after_balance?.toString() || '0',
