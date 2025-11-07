@@ -28,9 +28,9 @@ popbill.config({
 const easyFinBankService = popbill.EasyFinBankService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM;
 
-// 계좌 정보
-const BANK_CODE = '0004'; // IBK기업은행
-const ACCOUNT_NUMBER = '04712275304011'; // 하이픈 제거
+// 계좌 정보 (환경 변수에서 가져오기)
+const BANK_CODE = process.env.BANK_CODE || '0047'; // IBK기업은행
+const ACCOUNT_NUMBER = process.env.ACCOUNT_NUMBER || '04712275304011'; // 하이픈 제거
 
 console.log('Scheduled function: collect-transactions initialized');
 
