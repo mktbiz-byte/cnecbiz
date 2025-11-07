@@ -1,4 +1,5 @@
-import Reacimport { useState, useEffect } from 'react';ort { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
 
 const TaxInvoiceRequestsTab = () => {
   const [requests, setRequests] = useState([]);
