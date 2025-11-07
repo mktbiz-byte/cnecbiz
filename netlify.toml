@@ -19,3 +19,8 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
+
+# Scheduled Functions
+[[functions]]
+  path = "scheduled-collect-transactions"
+  schedule = "*/5 * * * *"  # 5분마다 실행
