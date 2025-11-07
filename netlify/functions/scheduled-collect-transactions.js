@@ -284,18 +284,12 @@ exports.handler = async (event, context) => {
           .insert({
             tid: tx.tid,
             trade_date: tx.trdate,  // 거래일자 (8자리)
-            trade_time: tx.trdt ? tx.trdt.substring(8, 14) : '',  // 거래시간 (6자리 HHmmss),
-            trade_type: 'I', // 입금만 조회했으므로 'I'
-            trade_balance: parseInt(tx.accIn || 0),
-            after_balance: parseInt(tx.balance || 0),
-            briefs: tx.remark1 || tx.remark2 || '',
-            remark1: tx.remark1 || '',
-            remark2: tx.remark2 || '',
-            remark3: tx.remark3 || '',
+            trade_time: tx.trdt ? tx.trdt.substring(8, 14) : '',  // 거래시간 (6자리 HHmmss)
+            trade_type: 'I', // 입금
+            trade_balance: parseInt(tx.accIn || 0),  // 입금액
+            briefs: tx.remark1 || tx.remark2 || '',  // 입금자명
             charge_request_id: matchedRequestId,
-            is_matched: !!matchedRequestId,
-            matched_at: matchedRequestId ? new Date().toISOString() : null,
-            matched_by: matchedRequestId ? 'auto' : null
+            is_matched: !!matchedRequestId
           });
 
         if (insertError) {
