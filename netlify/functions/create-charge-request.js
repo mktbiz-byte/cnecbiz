@@ -134,6 +134,35 @@ exports.handler = async (event, context) => {
 
     console.log('[SUCCESS] Charge request created:', chargeRequest.id)
 
+    // 세금계산서 신청 내역 저장
+    if (needsTaxInvoice && taxInvoiceInfo) {
+      console.log('[INFO] Creating tax invoice request')
+      const taxInvoiceData = {
+        charge_request_id: chargeRequest.id,
+        company_id: companyId,
+        company_name: taxInvoiceInfo.companyName,
+        business_number: taxInvoiceInfo.businessNumber,
+        ceo_name: taxInvoiceInfo.ceoName,
+        address: taxInvoiceInfo.address,
+        business_type: taxInvoiceInfo.businessType,
+        business_item: taxInvoiceInfo.businessItem,
+        email: taxInvoiceInfo.email,
+        amount: parseInt(amount),
+        status: 'pending'
+      }
+
+      const { error: taxInvoiceError } = await supabaseAdmin
+        .from('tax_invoice_requests')
+        .insert([taxInvoiceData])
+
+      if (taxInvoiceError) {
+        console.error('[ERROR] Failed to create tax invoice request:', taxInvoiceError)
+        // 세금계산서 저장 실패해도 충전 신청은 성공으로 처리
+      } else {
+        console.log('[SUCCESS] Tax invoice request created')
+      }
+    }
+
     // Stripe 결제인 경우 즉시 포인트 지급
     if (paymentMethod === 'stripe') {
       const { error: pointsError } = await supabaseAdmin.rpc('add_points', {
