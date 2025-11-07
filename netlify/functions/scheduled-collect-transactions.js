@@ -250,10 +250,10 @@ exports.handler = async (event, context) => {
 
         // 자동 매칭 시도
         const matchedRequestId = await autoMatchTransaction({
-          trade_type: tx.tradeType,
-          briefs: tx.briefs,
-          trade_balance: tx.tradeBalance,
-          trade_date: tx.trdt
+          trade_type: tx.tradeType || 'I',
+          briefs: tx.briefs || '',
+          trade_balance: tx.tradeBalance || 0,
+          trade_date: tx.trdt || ''
         });
 
         // Supabase에 저장
