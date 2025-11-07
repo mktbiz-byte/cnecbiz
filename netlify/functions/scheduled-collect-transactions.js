@@ -43,6 +43,7 @@ async function waitForJobCompletion(jobID, maxAttempts = 10) {
       easyFinBankService.getJobState(
         POPBILL_CORP_NUM,
         jobID,
+        null, // UserID
         (result) => {
           console.log(`수집 상태 확인 (${i + 1}/${maxAttempts}):`, result.jobState);
           resolve(result);
@@ -180,6 +181,7 @@ exports.handler = async (event, context) => {
         ACCOUNT_NUMBER,
         startDate,
         endDate,
+        null, // UserID
         (result) => {
           console.log('✅ [STEP 1] 수집 요청 성공, JobID:', result);
           resolve(result);
