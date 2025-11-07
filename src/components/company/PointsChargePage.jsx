@@ -86,8 +86,9 @@ function ChargeForm({ onSuccess }) {
 
   // 금액 계산
   const baseAmount = selectedPackage * quantity
+  const vat = Math.floor(baseAmount * 0.1) // 부가세 10%
   const discount = baseAmount >= 10000000 ? Math.floor(baseAmount * 0.05) : 0
-  const finalAmount = baseAmount - discount
+  const finalAmount = baseAmount + vat - discount
   const discountRate = discount > 0 ? 5 : 0
 
   const handleSubmit = async (e) => {

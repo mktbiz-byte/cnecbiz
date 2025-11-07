@@ -59,7 +59,9 @@ exports.handler = async (event, context) => {
     }
 
     console.log(`✅ [STEP 1] ${transactions.length}건의 거래 내역 조회 완료`);
-    console.log('🔧 [DEBUG] 첫 번째 거래:', transactions[0]);
+    console.log('🔧 [DEBUG] 첫 번째 거래:', JSON.stringify(transactions[0], null, 2));
+    console.log('🔧 [DEBUG] trade_balance 타입:', typeof transactions[0]?.trade_balance);
+    console.log('🔧 [DEBUG] trade_balance 값:', transactions[0]?.trade_balance);
 
     // 매칭된 충전 요청 정보 가져오기
     console.log('🔍 [STEP 2] 매칭된 충전 요청 정보 조회 시작...');
