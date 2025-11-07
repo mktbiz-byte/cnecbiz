@@ -242,62 +242,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 3. 대표자명 일치 여부 확인
-    console.log('🔍 [STEP 4] 대표자명 검증 시작...');
-    const inputCeoName = ceoName.trim().replace(/\s+/g, '');
-    const registeredCeoName = (bizInfo.CEOName || '').trim().replace(/\s+/g, '');
-
-    console.log('  - 입력:', inputCeoName);
-    console.log('  - 등록:', registeredCeoName);
-    console.log('  - 일치:', inputCeoName === registeredCeoName);
-
-    if (inputCeoName !== registeredCeoName) {
-      console.error('❌ [STEP 4] 대표자명 불일치');
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '입력하신 대표자명이 사업자등록증과 일치하지 않습니다.',
-        }),
-      };
-    }
-
-    console.log('✅ [STEP 4] 대표자명 검증 통과');
-
-    // 4. 회사명 유사도 체크
-    console.log('🔍 [STEP 5] 회사명 검증 시작...');
-    const inputCompanyName = normalizeCompanyName(companyName);
-    const registeredCompanyName = normalizeCompanyName(bizInfo.corpName || '');
-
-    console.log('  - 입력 원본:', companyName);
-    console.log('  - 입력 정규화:', inputCompanyName);
-    console.log('  - 등록 원본:', bizInfo.corpName);
-    console.log('  - 등록 정규화:', registeredCompanyName);
-
-    const similarity = calculateSimilarity(inputCompanyName, registeredCompanyName);
-    console.log('  - 유사도:', similarity);
-
-    if (similarity < 0.8) {
-      console.error('❌ [STEP 5] 회사명 유사도 부족');
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: `입력하신 회사명이 사업자등록증과 일치하지 않습니다. (등록된 회사명: ${bizInfo.corpName})`,
-        }),
-      };
-    }
-
-    console.log('✅ [STEP 5] 회사명 검증 통과');
-
-    // 5. 휴폐업 상태 확인
-    console.log('🔍 [STEP 6] 휴폐업 상태 확인...');
+    // 3. 휴폐업 상태 확인 (대표자명, 회사명 검증 제거)
+    console.log('🔍 [STEP 4] 휴폐업 상태 확인...');
     console.log('  - corpCode:', bizInfo.corpCode);
 
     if (bizInfo.corpCode === 200) {
-      console.error('❌ [STEP 6] 폐업 사업자');
+      console.error('❌ [STEP 4] 폐업 사업자');
       return {
         statusCode: 400,
         headers,
@@ -309,7 +259,7 @@ exports.handler = async (event, context) => {
     }
 
     if (bizInfo.corpCode === 300) {
-      console.error('❌ [STEP 6] 휴업 사업자');
+      console.error('❌ [STEP 4] 휴업 사업자');
       return {
         statusCode: 400,
         headers,
@@ -320,10 +270,10 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log('✅ [STEP 6] 휴폐업 상태 확인 통과');
+    console.log('✅ [STEP 4] 휴폐업 상태 확인 통과');
 
-    // 6. 검증 로그 저장
-    console.log('🔍 [STEP 7] 검증 로그 저장...');
+    // 4. 검증 로그 저장
+    console.log('🔍 [STEP 5] 검증 로그 저장...');
     try {
       await supabase.from('verification_logs').insert({
         business_number: formattedBusinessNumber,
@@ -336,12 +286,12 @@ exports.handler = async (event, context) => {
           corpCode: bizInfo.corpCode,
         },
       });
-      console.log('✅ [STEP 7] 로그 저장 완료');
+      console.log('✅ [STEP 5] 로그 저장 완료');
     } catch (logError) {
-      console.error('⚠️ [STEP 7] 로그 저장 실패 (무시):', logError);
+      console.error('⚠️ [STEP 5] 로그 저장 실패 (무시):', logError);
     }
 
-    // 7. 성공 응답
+    // 5. 성공 응답
     console.log('📊 ========== 기업정보 조회 성공 ==========');
     return {
       statusCode: 200,
