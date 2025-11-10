@@ -166,6 +166,9 @@ export default function CampaignsManagement() {
         case 'completed':
           matchesStatus = campaign.status === 'completed'
           break
+        case 'cancelled':
+          matchesStatus = campaign.approval_status === 'cancelled' || campaign.status === 'cancelled'
+          break
         default:
           matchesStatus = true
       }
@@ -177,22 +180,28 @@ export default function CampaignsManagement() {
   const getStatusBadge = (status) => {
     const badges = {
       pending: 'bg-yellow-100 text-yellow-700',
+      pending_payment: 'bg-orange-100 text-orange-700',
       approved: 'bg-green-100 text-green-700',
       rejected: 'bg-red-100 text-red-700',
+      cancelled: 'bg-gray-100 text-gray-700',
       active: 'bg-blue-100 text-blue-700',
       completed: 'bg-gray-100 text-gray-700'
     }
     const labels = {
       pending: '대기중',
+      pending_payment: '입금확인중',
       approved: '승인',
       rejected: '거부',
+      cancelled: '취소됨',
       active: '진행중',
       completed: '완료'
     }
     const icons = {
       pending: Clock,
+      pending_payment: Clock,
       approved: CheckCircle,
       rejected: XCircle,
+      cancelled: XCircle,
       active: TrendingUp,
       completed: CheckCircle
     }
@@ -289,7 +298,7 @@ export default function CampaignsManagement() {
 
         {/* Status Tabs */}
         <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="mb-6">
-          <TabsList className="grid w-full grid-cols-9 gap-1">
+          <TabsList className="grid w-full grid-cols-10 gap-1">
             <TabsTrigger value="all" className="text-xs px-2">전체</TabsTrigger>
             <TabsTrigger value="draft" className="text-xs px-2">작성중</TabsTrigger>
             <TabsTrigger value="pending_payment" className="text-xs px-2">입금확인중</TabsTrigger>
@@ -299,6 +308,7 @@ export default function CampaignsManagement() {
             <TabsTrigger value="in_progress" className="text-xs px-2">촬영중</TabsTrigger>
             <TabsTrigger value="revision" className="text-xs px-2">수정중</TabsTrigger>
             <TabsTrigger value="completed" className="text-xs px-2">최종완료</TabsTrigger>
+            <TabsTrigger value="cancelled" className="text-xs px-2">취소됨</TabsTrigger>
           </TabsList>
         </Tabs>
 
