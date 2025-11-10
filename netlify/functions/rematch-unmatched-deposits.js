@@ -96,11 +96,15 @@ exports.handler = async (event, context) => {
 
   try {
     // 미매칭 입금 건 조회
+    console.log('🔍 미매칭 입금 건 조회 시작...');
     const { data: unmatchedDeposits, error: depositError } = await supabaseAdmin
       .from('bank_transactions')
       .select('*')
       .is('matched_request_id', null)
       .order('trade_date', { ascending: false });
+
+    console.log(`📊 조회 결과: ${unmatchedDeposits ? unmatchedDeposits.length : 0}건`);
+    console.log(`❌ 오류: ${depositError ? JSON.stringify(depositError) : '없음'}`);
 
     if (depositError) {
       console.error('❌ 미매칭 입금 조회 오류:', depositError);
