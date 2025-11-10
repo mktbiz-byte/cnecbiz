@@ -208,7 +208,7 @@ export default function SignupWithVerification() {
           businessNumber,
           ceoName,
           companyName,
-          phoneNumber: contactPhone,
+          phoneNumber: contactPhone.replace(/[^0-9]/g, ''),
           smsCode,
           email,
           password
