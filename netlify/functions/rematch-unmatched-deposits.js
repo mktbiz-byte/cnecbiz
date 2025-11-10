@@ -242,6 +242,24 @@ exports.handler = async (event, context) => {
             console.log(`  💰 포인트 충전: ${parseInt(bestMatch.amount).toLocaleString()}P`);
           }
 
+          // 매출 기록 추가
+          const { error: revenueError } = await supabase
+            .from('financial_records')
+            .insert({
+              record_date: deposit.trade_date || new Date().toISOString().slice(0, 10),
+              type: 'revenue',
+              category: 'point_charge',
+              amount: parseInt(bestMatch.amount),
+              description: `포인트 충전 - ${bestMatch.depositor_name}`,
+              is_receivable: false
+            });
+
+          if (revenueError) {
+            console.error(`  ⚠️  매출 기록 실패:`, revenueError.message);
+          } else {
+            console.log(`  📊 매출 기록 완료: ${parseInt(bestMatch.amount).toLocaleString()}원`);
+          }
+
           matchedCount++;
           matchResults.push({
             deposit: deposit.briefs,
