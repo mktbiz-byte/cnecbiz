@@ -1,9 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Supabase Admin 클라이언트
-const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL;
+// Supabase Admin 클라이언트 (BIZ 프로젝트 사용)
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+console.log('[update-company-profile] Supabase URL:', supabaseUrl);
+console.log('[update-company-profile] Service Key exists:', !!supabaseServiceKey);
 
 /**
  * 회사 프로필 업데이트 API
