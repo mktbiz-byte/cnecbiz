@@ -188,39 +188,11 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 팝빌 기업정보 조회
-    console.log('[complete-signup] Checking business info:', cleanBusinessNumber)
-    let bizInfo
-    try {
-      bizInfo = await checkBizInfo(cleanBusinessNumber)
-      console.log('[complete-signup] Business info:', bizInfo)
-    } catch (error) {
-      console.error('[complete-signup] Popbill API error:', error)
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '기업정보 조회 중 오류가 발생했습니다.',
-          details: error.message
-        })
-      }
-    }
-
-    // 대표자명 검증
-    if (bizInfo.CEOName !== ceoName.trim()) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '대표자명이 일치하지 않습니다.',
-          hint: `등록된 대표자명: ${bizInfo.CEOName}`
-        })
-      }
-    }
+    // Step 1, 2에서 이미 사업자번호와 대표자명 검증 완료
+    console.log('[complete-signup] Step 3: Business verification already completed in Step 1')
 
     // Supabase Auth 계정 생성
+    console.log('[complete-signup] Step 4: Creating auth user:', email)
     console.log('[complete-signup] Creating auth user:', email)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
