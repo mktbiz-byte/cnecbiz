@@ -15,6 +15,7 @@ export default function VideoFeedback() {
   const [referenceFile, setReferenceFile] = useState(null);
   const [uploadingReference, setUploadingReference] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [isPlaying, setIsPlaying] = useState(false);
   
   const videoRef = useRef(null);
@@ -148,6 +149,24 @@ export default function VideoFeedback() {
       
       // 박스 내부 클릭 시 모달 열기
       if (isClickInsideBox(x, y)) {
+        // 모달 위치 계산 (박스 오른쪽에 표시)
+        const modalWidth = 400;
+        const modalHeight = 500;
+        let modalX = currentBox.x + currentBox.width + 20;
+        let modalY = currentBox.y;
+        
+        // 화면 밖으로 나가면 왼쪽에 표시
+        if (modalX + modalWidth > rect.width) {
+          modalX = currentBox.x - modalWidth - 20;
+        }
+        
+        // 위쪽으로 나가면 조정
+        if (modalY < 0) modalY = 0;
+        if (modalY + modalHeight > rect.height) {
+          modalY = rect.height - modalHeight;
+        }
+        
+        setModalPosition({ x: modalX, y: modalY });
         setShowCommentModal(true);
         return;
       }
@@ -574,9 +593,24 @@ export default function VideoFeedback() {
       )}
 
       {/* 코멘트 입력 모달 */}
-      {showCommentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      {showCommentModal && currentBox && (
+        <div className="fixed inset-0 z-50" onClick={() => {
+          setShowCommentModal(false);
+          setCurrentBox(null);
+          setComment('');
+          setAuthor('');
+          setReferenceFile(null);
+        }}>
+          <div 
+            className="absolute bg-white rounded-lg p-6 shadow-2xl border-2 border-gray-300"
+            style={{
+              left: `${containerRef.current?.getBoundingClientRect().left + modalPosition.x}px`,
+              top: `${containerRef.current?.getBoundingClientRect().top + modalPosition.y}px`,
+              width: '400px',
+              maxHeight: '500px',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">피드백 작성</h3>
             <input
               type="text"
