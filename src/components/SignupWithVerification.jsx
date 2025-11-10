@@ -207,8 +207,8 @@ export default function SignupWithVerification() {
         body: JSON.stringify({
           businessNumber,
           ceoName,
-          contactPerson,
-          contactPhone,
+          companyName,
+          phoneNumber: contactPhone,
           smsCode,
           email,
           password
