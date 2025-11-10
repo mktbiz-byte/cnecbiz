@@ -12,6 +12,8 @@ export default function VideoFeedback() {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [comment, setComment] = useState('');
   const [author, setAuthor] = useState('');
+  const [referenceFile, setReferenceFile] = useState(null);
+  const [uploadingReference, setUploadingReference] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   
@@ -124,7 +126,14 @@ export default function VideoFeedback() {
     }
   };
 
-  // 캔버스 클릭 - 박스 생성 또는 리사이징 핸들 클릭 감지
+  // 박스 내부 클릭 확인
+  const isClickInsideBox = (x, y) => {
+    if (!currentBox) return false;
+    const { x: bx, y: by, width: bw, height: bh } = currentBox;
+    return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
+  };
+
+  // 캔버스 클릭 - 박스 생성 또는 박스 클릭 시 모달 열기
   const handleCanvasClick = (e) => {
     if (!videoRef.current) return;
 
@@ -136,6 +145,12 @@ export default function VideoFeedback() {
     if (currentBox) {
       const handle = getResizeHandle(x, y);
       if (handle) return; // 핸들 클릭은 mousedown에서 처리
+      
+      // 박스 내부 클릭 시 모달 열기
+      if (isClickInsideBox(x, y)) {
+        setShowCommentModal(true);
+        return;
+      }
     }
 
     // 새 박스 생성 (100x100 정사각형)
@@ -150,13 +165,6 @@ export default function VideoFeedback() {
     setCurrentBox(newBox);
     if (videoRef.current.playing) {
       videoRef.current.pause();
-    }
-  };
-
-  // 캔버스 더블클릭 - 피드백 입력 모달 열기
-  const handleCanvasDoubleClick = () => {
-    if (currentBox) {
-      setShowCommentModal(true);
     }
   };
 
@@ -277,6 +285,47 @@ export default function VideoFeedback() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentBox]);
 
+  // 참고 파일 업로드
+  const handleReferenceFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 파일 크기 체크 (50MB 제한)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('파일 크기는 50MB를 초과할 수 없습니다.');
+      return;
+    }
+
+    setUploadingReference(true);
+
+    try {
+      // 파일명 생성 (한글 제거)
+      const timestamp = Date.now();
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileName = `reference_${timestamp}_${sanitizedName}`;
+
+      // Supabase Storage에 업로드
+      const { data, error } = await supabaseBiz.storage
+        .from('videos')
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      // Public URL 가져오기
+      const { data: { publicUrl } } = supabaseBiz.storage
+        .from('videos')
+        .getPublicUrl(fileName);
+
+      setReferenceFile({ name: file.name, url: publicUrl });
+      alert('참고 파일이 업로드되었습니다.');
+    } catch (error) {
+      console.error('참고 파일 업로드 오류:', error);
+      alert('참고 파일 업로드 실패');
+    } finally {
+      setUploadingReference(false);
+    }
+  };
+
   // 피드백 저장
   const saveFeedback = async () => {
     if (!comment.trim()) {
@@ -296,7 +345,8 @@ export default function VideoFeedback() {
         box_width: Math.round(currentBox.width),
         box_height: Math.round(currentBox.height),
         comment: comment.trim(),
-        author: author.trim() || '익명'
+        author: author.trim() || '익명',
+        reference_file_url: referenceFile?.url || null
       }]);
 
     if (error) {
@@ -308,6 +358,7 @@ export default function VideoFeedback() {
     // 초기화
     setComment('');
     setAuthor('');
+    setReferenceFile(null);
     setShowCommentModal(false);
     setCurrentBox(null);
     loadFeedbacks(selectedVideo.id);
@@ -358,8 +409,31 @@ export default function VideoFeedback() {
         ctx.fillRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
         ctx.strokeRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
       });
+      
+      // 박스 번호 표시 (오렌지 원 안에 숫자)
+      const circleRadius = 16;
+      const circleX = x + width + circleRadius;
+      const circleY = y - circleRadius;
+      
+      // 오렌지 원
+      ctx.fillStyle = '#ff8c00';
+      ctx.beginPath();
+      ctx.arc(circleX, circleY, circleRadius, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // 흰색 테두리
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // 흰색 숫자 (feedbacks.length + 1)
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(feedbacks.length + 1), circleX, circleY);
     }
-  }, [currentBox]);
+  }, [currentBox, feedbacks.length]);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -408,6 +482,7 @@ export default function VideoFeedback() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="bg-black rounded-lg overflow-hidden shadow-lg">
+              {/* 비디오 영역 */}
               <div
                 ref={containerRef}
                 className="relative"
@@ -416,7 +491,6 @@ export default function VideoFeedback() {
                 <video
                   ref={videoRef}
                   src={selectedVideo.video_url}
-                  controls
                   className="w-full h-full"
                   style={{ display: 'block' }}
                 />
@@ -425,7 +499,6 @@ export default function VideoFeedback() {
                   width={containerRef.current?.offsetWidth || 800}
                   height={containerRef.current?.offsetHeight || 450}
                   onClick={handleCanvasClick}
-                  onDoubleClick={handleCanvasDoubleClick}
                   onMouseDown={handleCanvasMouseDown}
                   onMouseMove={handleCanvasMouseMove}
                   onMouseUp={handleCanvasMouseUp}
@@ -433,9 +506,28 @@ export default function VideoFeedback() {
                   style={{ pointerEvents: 'auto' }}
                 />
               </div>
+              
+              {/* 컨트롤 영역 */}
               <div className="p-4 bg-gray-800 text-white">
-                <p className="text-sm">
-                  💡 클릭: 박스 생성 | 드래그: 크기 조절 | 더블클릭: 피드백 입력 | ESC: 박스 삭제
+                <div className="flex items-center gap-4 mb-3">
+                  <button
+                    onClick={() => {
+                      if (videoRef.current.paused) {
+                        videoRef.current.play();
+                      } else {
+                        videoRef.current.pause();
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold"
+                  >
+                    {isPlaying ? '⏸️ 일시정지' : '▶️ 재생'}
+                  </button>
+                  <span className="text-sm">
+                    {Math.floor(videoRef.current?.currentTime || 0)}초 / {Math.floor(videoRef.current?.duration || 0)}초
+                  </span>
+                </div>
+                <p className="text-sm text-gray-300">
+                  💡 화면 클릭: 박스 생성 | 핸들 드래그: 크기 조절 | 박스 클릭: 피드백 입력 | ESC: 박스 삭제
                 </p>
               </div>
             </div>
@@ -458,6 +550,17 @@ export default function VideoFeedback() {
                     <span className="text-xs text-gray-500">{feedback.author}</span>
                   </div>
                   <p className="text-sm text-gray-700">{feedback.comment}</p>
+                  {feedback.reference_file_url && (
+                    <a
+                      href={feedback.reference_file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-block mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      📎 참고 파일 보기
+                    </a>
+                  )}
                 </div>
               ))}
               {feedbacks.length === 0 && (
@@ -483,12 +586,35 @@ export default function VideoFeedback() {
               className="w-full px-3 py-2 border rounded mb-3"
             />
             <textarea
-              placeholder="피드백 내용을 입력하세요"
+              placeholder="피드백 내용을 입력하세요 (CTRL+ENTER로 저장)"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.ctrlKey && e.key === 'Enter') {
+                  saveFeedback();
+                }
+              }}
               className="w-full px-3 py-2 border rounded mb-4 h-32"
               autoFocus
             />
+            
+            {/* 참고 파일 첨부 */}
+            <div className="mb-4">
+              <label className="block text-sm font-semibold mb-2">참고 파일 (선택)</label>
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={handleReferenceFileUpload}
+                disabled={uploadingReference}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+              />
+              {uploadingReference && <p className="mt-1 text-xs text-gray-600">업로드 중...</p>}
+              {referenceFile && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                  <p className="text-xs text-green-700">✓ {referenceFile.name}</p>
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={saveFeedback}
@@ -499,10 +625,10 @@ export default function VideoFeedback() {
               <button
                 onClick={() => {
                   setShowCommentModal(false);
-                  setDrawStart(null);
                   setCurrentBox(null);
                   setComment('');
                   setAuthor('');
+                  setReferenceFile(null);
                 }}
                 className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
               >
