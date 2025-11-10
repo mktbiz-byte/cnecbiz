@@ -139,7 +139,7 @@ exports.handler = async (event, context) => {
     console.log('\n🔍 2단계: 대기 중인 충전 요청 조회');
     const { data: requests, error: requestError } = await supabase
       .from('points_charge_requests')
-      .select('*')
+      .select('id, company_id, depositor_name, amount, status, payment_method, created_at')
       .eq('status', 'pending')
       .eq('payment_method', 'bank_transfer')
       .order('created_at', { ascending: true });
