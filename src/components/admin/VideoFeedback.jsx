@@ -26,6 +26,7 @@ export default function VideoFeedback() {
   const [commentAuthor, setCommentAuthor] = useState('');
   const [expandedFeedback, setExpandedFeedback] = useState(null);
   const [editingComment, setEditingComment] = useState(null); // 수정 중인 댓글 ID
+  const [editingFeedback, setEditingFeedback] = useState(null); // 수정 중인 피드백
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -484,7 +485,7 @@ export default function VideoFeedback() {
     }
   };
 
-  // 피드백 저장
+  // 피드백 저장 또는 수정
   const saveFeedback = async () => {
     if (!comment.trim()) {
       alert('피드백 내용을 입력해주세요.');
@@ -493,24 +494,49 @@ export default function VideoFeedback() {
 
     const timestamp = videoRef.current.currentTime;
 
-    const { error } = await supabaseBiz
-      .from('video_feedbacks')
-      .insert([{
-        video_id: selectedVideo.id,
-        timestamp,
-        box_x: Math.round(currentBox.x),
-        box_y: Math.round(currentBox.y),
-        box_width: Math.round(currentBox.width),
-        box_height: Math.round(currentBox.height),
-        comment: comment.trim(),
-        author: author.trim() || '익명',
-        reference_file_url: referenceFile?.url || null
-      }]);
+    if (editingFeedback) {
+      // 피드백 수정
+      const { error } = await supabaseBiz
+        .from('video_feedbacks')
+        .update({
+          box_x: Math.round(currentBox.x),
+          box_y: Math.round(currentBox.y),
+          box_width: Math.round(currentBox.width),
+          box_height: Math.round(currentBox.height),
+          comment: comment.trim(),
+          author: author.trim() || '익명',
+          reference_file_url: referenceFile?.url || null
+        })
+        .eq('id', editingFeedback.id);
 
-    if (error) {
-      console.error('피드백 저장 오류:', error);
-      alert('피드백 저장 실패');
-      return;
+      if (error) {
+        console.error('피드백 수정 오류:', error);
+        alert('피드백 수정 실패');
+        return;
+      }
+      
+      setEditingFeedback(null);
+    } else {
+      // 피드백 추가
+      const { error } = await supabaseBiz
+        .from('video_feedbacks')
+        .insert([{
+          video_id: selectedVideo.id,
+          timestamp,
+          box_x: Math.round(currentBox.x),
+          box_y: Math.round(currentBox.y),
+          box_width: Math.round(currentBox.width),
+          box_height: Math.round(currentBox.height),
+          comment: comment.trim(),
+          author: author.trim() || '익명',
+          reference_file_url: referenceFile?.url || null
+        }]);
+
+      if (error) {
+        console.error('피드백 저장 오류:', error);
+        alert('피드백 저장 실패');
+        return;
+      }
     }
 
     // 초기화
@@ -519,6 +545,66 @@ export default function VideoFeedback() {
     setReferenceFile(null);
     setShowCommentModal(false);
     setCurrentBox(null);
+    loadFeedbacks(selectedVideo.id);
+  };
+  
+  // 피드백 수정 모드 시작
+  const editFeedback = (feedback) => {
+    setEditingFeedback(feedback);
+    setComment(feedback.comment);
+    setAuthor(feedback.author);
+    setCurrentBox({
+      x: feedback.box_x,
+      y: feedback.box_y,
+      width: feedback.box_width,
+      height: feedback.box_height
+    });
+    if (feedback.reference_file_url) {
+      setReferenceFile({ url: feedback.reference_file_url, name: '기존 파일' });
+    }
+    
+    // 모달 위치 계산
+    const rect = canvasRef.current.getBoundingClientRect();
+    const modalWidth = 400;
+    const modalHeight = 500;
+    let modalX = feedback.box_x + feedback.box_width + 20;
+    let modalY = feedback.box_y;
+    
+    if (modalX + modalWidth > rect.width) {
+      modalX = feedback.box_x - modalWidth - 20;
+    }
+    if (modalY < 0) modalY = 0;
+    if (modalY + modalHeight > rect.height) {
+      modalY = rect.height - modalHeight;
+    }
+    
+    setModalPosition({ x: modalX, y: modalY });
+    setShowCommentModal(true);
+    
+    // 일시정지 및 해당 시간으로 이동
+    if (videoRef.current) {
+      videoRef.current.currentTime = feedback.timestamp;
+      if (!videoRef.current.paused) {
+        videoRef.current.pause();
+      }
+    }
+  };
+  
+  // 피드백 삭제
+  const deleteFeedback = async (feedbackId) => {
+    if (!confirm('피드백을 삭제하시겠습니까?')) return;
+
+    const { error } = await supabaseBiz
+      .from('video_feedbacks')
+      .delete()
+      .eq('id', feedbackId);
+
+    if (error) {
+      console.error('피드백 삭제 오류:', error);
+      alert('피드백 삭제 실패');
+      return;
+    }
+
     loadFeedbacks(selectedVideo.id);
   };
 
@@ -914,7 +1000,7 @@ export default function VideoFeedback() {
               overflowY: 'auto'
             }}
             onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold mb-4">피드백 작성</h3>
+            <h3 className="text-lg font-semibold mb-4">{editingFeedback ? '피드백 수정' : '피드백 작성'}</h3>
             <input
               type="text"
               placeholder="작성자 이름 (선택)"
