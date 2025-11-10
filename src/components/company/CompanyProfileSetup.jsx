@@ -187,32 +187,48 @@ export default function CompanyProfileSetup() {
         ? `${formData.companyAddress} ${formData.companyAddressDetail}`
         : formData.companyAddress
 
+      // 업데이트할 데이터 준비
+      const updateData = {
+        company_name: formData.companyName,
+        ceo_name: formData.ceoName,
+        business_type: formData.businessType,
+        business_category: formData.businessCategory,
+        company_postal_code: formData.companyPostalCode,
+        company_address: fullAddress,
+        notification_contact_person: formData.notificationContactPerson,
+        notification_email: formData.notificationEmail,
+        notification_phone: formData.notificationPhone,
+        tax_invoice_email: formData.taxInvoiceEmail,
+        is_agency: formData.isAgency,
+        email_notification_consent: formData.emailNotificationConsent,
+        sms_notification_consent: formData.smsNotificationConsent,
+        marketing_consent: formData.marketingConsent,
+        consent_date: new Date().toISOString(),
+        profile_completed: true,
+        profile_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      // tax_invoice_contact_person은 별도로 업데이트 (스키마 캐시 문제 회피)
       const { error: updateError } = await supabaseBiz
         .from('companies')
-        .update({
-          company_name: formData.companyName,
-          ceo_name: formData.ceoName,
-          business_type: formData.businessType,
-          business_category: formData.businessCategory,
-          company_postal_code: formData.companyPostalCode,
-          company_address: fullAddress,
-          notification_contact_person: formData.notificationContactPerson,
-          notification_email: formData.notificationEmail,
-          notification_phone: formData.notificationPhone,
-          tax_invoice_email: formData.taxInvoiceEmail,
-          tax_invoice_contact_person: formData.taxInvoiceContactPerson,
-          is_agency: formData.isAgency,
-          email_notification_consent: formData.emailNotificationConsent,
-          sms_notification_consent: formData.smsNotificationConsent,
-          marketing_consent: formData.marketingConsent,
-          consent_date: new Date().toISOString(),
-          profile_completed: true,
-          profile_completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('user_id', user.id)
 
       if (updateError) throw updateError
+
+      // tax_invoice_contact_person 별도 업데이트
+      if (formData.taxInvoiceContactPerson) {
+        try {
+          await supabaseBiz
+            .from('companies')
+            .update({ tax_invoice_contact_person: formData.taxInvoiceContactPerson })
+            .eq('user_id', user.id)
+        } catch (taxError) {
+          console.error('tax_invoice_contact_person 업데이트 실패:', taxError)
+          // 이 필드 실패해도 계속 진행
+        }
+      }
 
       console.log('[ProfileSetup] 프로필 설정 완료 - 환영 알림 발송 시작')
       console.log('[ProfileSetup] 회사명:', formData.companyName)
