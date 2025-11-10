@@ -468,6 +468,7 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
   const region = searchParams.get('region') || 'korea'
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [fetchingStats, setFetchingStats] = useState(false)
   const [formData, setFormData] = useState({
     tracking_number: application.tracking_number || '',
     shipping_date: application.shipping_date ? new Date(application.shipping_date).toISOString().split('T')[0] : '',
@@ -776,8 +777,48 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
           {/* 업로드된 영상 */}
           {application.video_links && (
             <div>
-              <h3 className="text-lg font-semibold mb-3">업로드된 영상</h3>
-              <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold">업로드된 영상</h3>
+                {application.video_links.includes('youtube.com') || application.video_links.includes('youtu.be') ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setFetchingStats(true)
+                      try {
+                        const response = await fetch('/.netlify/functions/fetch-youtube-stats', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            application_id: application.id,
+                            region: region,
+                            video_url: application.video_links
+                          })
+                        })
+                        
+                        const data = await response.json()
+                        
+                        if (response.ok) {
+                          alert('통계가 업데이트되었습니다')
+                          window.location.reload()
+                        } else {
+                          alert('오류: ' + (data.error || 'Unknown error'))
+                        }
+                      } catch (error) {
+                        console.error('Error fetching stats:', error)
+                        alert('통계 업데이트 실패: ' + error.message)
+                      } finally {
+                        setFetchingStats(false)
+                      }
+                    }}
+                    disabled={fetchingStats}
+                  >
+                    {fetchingStats ? '업데이트 중...' : '통계 업데이트'}
+                  </Button>
+                ) : null}
+              </div>
+              
+              <div className="p-4 bg-blue-50 rounded-lg mb-4">
                 <a
                   href={application.video_links}
                   target="_blank"
@@ -787,6 +828,36 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
                   {application.video_links}
                 </a>
               </div>
+              
+              {/* YouTube 통계 */}
+              {application.youtube_stats && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="text-sm text-gray-500 mb-1">조회수</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      {application.youtube_stats.viewCount?.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="text-sm text-gray-500 mb-1">좋아요</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      {application.youtube_stats.likeCount?.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="text-sm text-gray-500 mb-1">댓글</div>
+                    <div className="text-2xl font-bold text-gray-900">
+                      {application.youtube_stats.commentCount?.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {application.stats_updated_at && (
+                <div className="mt-2 text-xs text-gray-500">
+                  마지막 업데이트: {new Date(application.stats_updated_at).toLocaleString('ko-KR')}
+                </div>
+              )}
             </div>
           )}
         </div>
