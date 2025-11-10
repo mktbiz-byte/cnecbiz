@@ -43,6 +43,7 @@ import CreatorsManagement from './components/admin/CreatorsManagement'
 
 import FAQManagement from './components/admin/FAQManagement'
 import VideoManagement from './components/admin/VideoManagement'
+import VideoFeedback from './components/admin/VideoFeedback'
 import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApprovals'
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
@@ -129,6 +130,7 @@ function App() {
 
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
+        <Route path="/admin/video-feedback" element={<VideoFeedback />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/site-management" element={<SiteManagement />} />
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
