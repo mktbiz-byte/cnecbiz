@@ -56,26 +56,32 @@ async function checkBizInfo(checkCorpNum) {
  * SMS 인증 확인
  */
 async function verifySMSCode(phoneNumber, code) {
+  // verified 상태와 관계없이 최근 인증 레코드 찾기
   const { data, error } = await supabaseAdmin
     .from('sms_verifications')
     .select('*')
     .eq('phone_number', phoneNumber)
     .eq('verification_code', code)
-    .eq('verified', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
 
   if (error || !data) {
+    console.log('[verifySMSCode] No matching verification found:', error)
     return false
   }
 
-  // 인증 완료 표시
-  await supabaseAdmin
-    .from('sms_verifications')
-    .update({ verified: true })
-    .eq('id', data.id)
+  // 이미 인증되었더라도 만료되지 않았으면 허용
+  console.log('[verifySMSCode] Verification found:', { id: data.id, verified: data.verified })
+  
+  // 아직 verified=false이면 업데이트
+  if (!data.verified) {
+    await supabaseAdmin
+      .from('sms_verifications')
+      .update({ verified: true })
+      .eq('id', data.id)
+  }
 
   return true
 }
