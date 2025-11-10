@@ -1,0 +1,411 @@
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { 
+  ArrowLeft, 
+  Users, 
+  FileText, 
+  Calendar,
+  DollarSign,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  XCircle,
+  Eye
+} from 'lucide-react'
+import { getSupabaseClient } from '../../lib/supabaseClients'
+import AdminNavigation from './AdminNavigation'
+
+export default function AdminCampaignDetail() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const searchParams = new URLSearchParams(window.location.search)
+  const region = searchParams.get('region') || 'korea'
+  
+  const [campaign, setCampaign] = useState(null)
+  const [applications, setApplications] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchCampaignDetail()
+    fetchApplications()
+  }, [id, region])
+
+  const fetchCampaignDetail = async () => {
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) {
+        console.error('No Supabase client for region:', region)
+        return
+      }
+
+      const { data, error } = await client
+        .from('campaigns')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) throw error
+      
+      // 지역별 스키마 차이를 통일된 형식으로 매핑
+      const normalizedCampaign = {
+        ...data,
+        region,
+        // 제목 통일
+        campaign_name: data.title || data.product_name || data.campaign_name || '제목 없음',
+        // 예산 계산
+        budget: data.estimated_cost || (data.reward_amount && data.max_participants 
+          ? data.reward_amount * data.max_participants 
+          : data.budget || 0),
+        // 크리에이터 수
+        creator_count: data.total_slots || data.max_participants || data.creator_count || 0,
+        // 날짜 필드 통일
+        application_deadline: data.application_deadline || data.recruitment_deadline,
+        // 통화 단위
+        currency: {
+          'korea': '₩',
+          'japan': '¥',
+          'us': '$',
+          'taiwan': 'NT$',
+          'biz': '₩'
+        }[region] || '₩'
+      }
+      
+      setCampaign(normalizedCampaign)
+    } catch (error) {
+      console.error('Error fetching campaign:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchApplications = async () => {
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) return
+
+      const { data, error } = await client
+        .from('applications')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setApplications(data || [])
+    } catch (error) {
+      console.error('Error fetching applications:', error)
+    }
+  }
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      pending: { label: '대기중', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+      approved: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+      virtual_selected: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+      selected: { label: '선정 완료', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+      rejected: { label: '거절됨', color: 'bg-red-100 text-red-700', icon: XCircle },
+      completed: { label: '완료', color: 'bg-blue-100 text-blue-700', icon: CheckCircle }
+    }
+    const badge = badges[status] || { label: status, color: 'bg-gray-100 text-gray-700', icon: AlertCircle }
+    const Icon = badge.icon
+    
+    return (
+      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+        <Icon className="w-3 h-3" />
+        {badge.label}
+      </span>
+    )
+  }
+
+  const getRegionLabel = (region) => {
+    const labels = {
+      korea: '🇰🇷 한국',
+      japan: '🇯🇵 일본',
+      us: '🇺🇸 미국',
+      taiwan: '🇹🇼 대만',
+      biz: '🌐 Biz'
+    }
+    return labels[region] || region
+  }
+
+  // 상태별로 applications 분류
+  const pendingApplications = applications.filter(app => app.status === 'pending')
+  const selectedApplications = applications.filter(app => 
+    ['approved', 'virtual_selected', 'selected'].includes(app.status)
+  )
+  const completedApplications = applications.filter(app => app.status === 'completed')
+  const rejectedApplications = applications.filter(app => app.status === 'rejected')
+
+  if (loading) {
+    return (
+      <>
+        <AdminNavigation />
+        <div className="min-h-screen bg-gray-50 lg:ml-64 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">로딩 중...</p>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (!campaign) {
+    return (
+      <>
+        <AdminNavigation />
+        <div className="min-h-screen bg-gray-50 lg:ml-64 flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <p className="text-xl font-semibold text-gray-800 mb-2">캠페인을 찾을 수 없습니다</p>
+            <Button onClick={() => navigate('/admin/campaigns')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              목록으로 돌아가기
+            </Button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="max-w-7xl mx-auto p-6">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/admin/campaigns')}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                목록으로
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold">{campaign.campaign_name}</h1>
+                <p className="text-gray-600 mt-1">{getRegionLabel(region)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 캠페인 기본 정보 */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>캠페인 정보</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">브랜드</div>
+                  <div className="font-semibold text-lg">{campaign.brand || '-'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">예산</div>
+                  <div className="font-semibold text-lg text-blue-600">
+                    {campaign.currency}{campaign.budget?.toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">모집 인원</div>
+                  <div className="font-semibold text-lg">{campaign.creator_count}명</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">상태</div>
+                  <div>{getStatusBadge(campaign.approval_status || campaign.status)}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pt-6 border-t">
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">모집 마감일</div>
+                  <div className="font-medium">
+                    {campaign.application_deadline 
+                      ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR', { 
+                          year: 'numeric', month: 'numeric', day: 'numeric' 
+                        }).replace(/\. /g, '. ')
+                      : '-'
+                    }
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">캠페인 시작일</div>
+                  <div className="font-medium">
+                    {campaign.start_date 
+                      ? new Date(campaign.start_date).toLocaleDateString('ko-KR', { 
+                          year: 'numeric', month: 'numeric', day: 'numeric' 
+                        }).replace(/\. /g, '. ')
+                      : '-'
+                    }
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-500 mb-1">캠페인 종료일</div>
+                  <div className="font-medium">
+                    {campaign.end_date 
+                      ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { 
+                          year: 'numeric', month: 'numeric', day: 'numeric' 
+                        }).replace(/\. /g, '. ')
+                      : '-'
+                    }
+                  </div>
+                </div>
+              </div>
+
+              {campaign.description && (
+                <div className="mt-6 pt-6 border-t">
+                  <div className="text-sm text-gray-500 mb-2">캠페인 설명</div>
+                  <div className="text-gray-800 whitespace-pre-wrap">{campaign.description}</div>
+                </div>
+              )}
+
+              {campaign.requirements && (
+                <div className="mt-6 pt-6 border-t">
+                  <div className="text-sm text-gray-500 mb-2">요구사항</div>
+                  <div className="text-gray-800 whitespace-pre-wrap">{campaign.requirements}</div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 통계 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-500 mb-1">총 지원자</div>
+                    <div className="text-3xl font-bold">{applications.length}</div>
+                  </div>
+                  <Users className="w-10 h-10 text-gray-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-500 mb-1">대기중</div>
+                    <div className="text-3xl font-bold text-yellow-600">{pendingApplications.length}</div>
+                  </div>
+                  <Clock className="w-10 h-10 text-yellow-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-500 mb-1">선정 완료</div>
+                    <div className="text-3xl font-bold text-green-600">{selectedApplications.length}</div>
+                  </div>
+                  <CheckCircle className="w-10 h-10 text-green-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-500 mb-1">완료</div>
+                    <div className="text-3xl font-bold text-blue-600">{completedApplications.length}</div>
+                  </div>
+                  <CheckCircle className="w-10 h-10 text-blue-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 크리에이터 목록 - 상태별 탭 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>크리에이터 목록</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="all" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="all">전체 ({applications.length})</TabsTrigger>
+                  <TabsTrigger value="pending">대기중 ({pendingApplications.length})</TabsTrigger>
+                  <TabsTrigger value="selected">선정 완료 ({selectedApplications.length})</TabsTrigger>
+                  <TabsTrigger value="completed">완료 ({completedApplications.length})</TabsTrigger>
+                  <TabsTrigger value="rejected">거절됨 ({rejectedApplications.length})</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="all" className="mt-6">
+                  <ApplicationList applications={applications} getStatusBadge={getStatusBadge} />
+                </TabsContent>
+
+                <TabsContent value="pending" className="mt-6">
+                  <ApplicationList applications={pendingApplications} getStatusBadge={getStatusBadge} />
+                </TabsContent>
+
+                <TabsContent value="selected" className="mt-6">
+                  <ApplicationList applications={selectedApplications} getStatusBadge={getStatusBadge} />
+                </TabsContent>
+
+                <TabsContent value="completed" className="mt-6">
+                  <ApplicationList applications={completedApplications} getStatusBadge={getStatusBadge} />
+                </TabsContent>
+
+                <TabsContent value="rejected" className="mt-6">
+                  <ApplicationList applications={rejectedApplications} getStatusBadge={getStatusBadge} />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// 크리에이터 목록 컴포넌트
+function ApplicationList({ applications, getStatusBadge }) {
+  if (applications.length === 0) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <p>지원자가 없습니다</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {applications.map((app) => (
+        <div key={app.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h4 className="font-semibold text-lg">{app.creator_name || app.user_name || '크리에이터'}</h4>
+                {getStatusBadge(app.status)}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                <div>
+                  <span className="font-medium">이메일:</span> {app.email || '-'}
+                </div>
+                <div>
+                  <span className="font-medium">전화번호:</span> {app.phone || app.phone_number || '-'}
+                </div>
+                <div>
+                  <span className="font-medium">지원일:</span>{' '}
+                  {app.created_at 
+                    ? new Date(app.created_at).toLocaleDateString('ko-KR')
+                    : '-'
+                  }
+                </div>
+                <div>
+                  <span className="font-medium">SNS:</span> {app.sns_handle || app.instagram_handle || '-'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

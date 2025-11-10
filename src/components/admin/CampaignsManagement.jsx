@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, FileText, ExternalLink } from 'lucide-react'
+import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -415,27 +415,11 @@ export default function CampaignsManagement() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
+                          onClick={() => navigate(`/admin/campaigns/${campaign.id}?region=${campaign.region}`)}
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           상세보기
                         </Button>
-                        {/* 기업보고서 버튼 - 일본/미국 캐페인에만 표시 */}
-                        {(campaign.region === 'japan' || campaign.region === 'us') && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const baseUrl = campaign.region === 'japan' ? 'https://cnec.jp' : 'https://cnecus.com'
-                              window.open(`${baseUrl}/confirmed-creators/${campaign.id}`, '_blank')
-                            }}
-                            className="text-purple-600 border-purple-600 hover:bg-purple-50"
-                          >
-                            <FileText className="w-4 h-4 mr-2" />
-                            기업보고서
-                            <ExternalLink className="w-3 h-3 ml-1" />
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </div>

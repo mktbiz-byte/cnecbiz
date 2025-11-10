@@ -38,6 +38,7 @@ import WithdrawalManagement from './components/admin/WithdrawalManagement'
 import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
+import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import CreatorsManagement from './components/admin/CreatorsManagement'
 
 import FAQManagement from './components/admin/FAQManagement'
@@ -121,6 +122,7 @@ function App() {
         <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
+        <Route path="/admin/campaigns/:id" element={<AdminCampaignDetail />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
