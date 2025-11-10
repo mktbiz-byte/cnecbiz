@@ -12,6 +12,7 @@ export default function VideoFeedback() {
   const [comment, setComment] = useState('');
   const [author, setAuthor] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -27,6 +28,23 @@ export default function VideoFeedback() {
     if (selectedVideo) {
       loadFeedbacks(selectedVideo.id);
     }
+  }, [selectedVideo]);
+
+  // 영상 재생/일시정지 이벤트 감지
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+
+    return () => {
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+    };
   }, [selectedVideo]);
 
   const loadVideos = async () => {
@@ -274,7 +292,7 @@ export default function VideoFeedback() {
                   onMouseMove={handleCanvasMouseMove}
                   onMouseUp={handleCanvasMouseUp}
                   className="absolute top-0 left-0 w-full h-full cursor-crosshair"
-                  style={{ pointerEvents: 'auto' }}
+                  style={{ pointerEvents: isPlaying ? 'auto' : 'none' }}
                 />
               </div>
               <div className="p-4 bg-gray-800 text-white">
