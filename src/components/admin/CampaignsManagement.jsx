@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react'
-import { supabaseBiz, getCampaignsFromAllRegions, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function CampaignsManagement() {
@@ -49,7 +49,7 @@ export default function CampaignsManagement() {
     console.log('[CampaignsManagement] Starting to fetch campaigns...')
     setLoading(true)
     try {
-      const allCampaigns = await getCampaignsFromAllRegions()
+      const allCampaigns = await getCampaignsWithStats()
       console.log('[CampaignsManagement] Fetched campaigns:', allCampaigns.length)
       setCampaigns(allCampaigns)
     } catch (error) {
@@ -353,20 +353,32 @@ export default function CampaignsManagement() {
                         <p className="text-sm text-gray-600 mb-3">
                           {campaign.description || '설명 없음'}
                         </p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">예산:</span> {campaign.currency || '₩'}{campaign.budget?.toLocaleString()}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="bg-white p-3 rounded-lg">
+                            <div className="text-gray-500 text-xs mb-1">예산</div>
+                            <div className="font-semibold text-gray-900">{campaign.currency || '₩'}{campaign.budget?.toLocaleString()}</div>
                           </div>
-                          <div>
-                            <span className="font-medium">크리에이터:</span> {campaign.creator_count || 0}명
+                          <div className="bg-white p-3 rounded-lg">
+                            <div className="text-gray-500 text-xs mb-1">모집 인원</div>
+                            <div className="font-semibold text-gray-900">{campaign.creator_count || 0}명</div>
                           </div>
-                          <div>
-                            <div className="font-medium mb-1">모집 마감일</div>
-                            <div>{campaign.application_deadline ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ') : '-'}</div>
+                          <div className="bg-white p-3 rounded-lg">
+                            <div className="text-gray-500 text-xs mb-1">지원자</div>
+                            <div className="font-semibold text-blue-600">{campaign.application_stats?.total || 0}명</div>
                           </div>
-                          <div>
-                            <div className="font-medium mb-1">캠페인 기간</div>
-                            <div>
+                          <div className="bg-white p-3 rounded-lg">
+                            <div className="text-gray-500 text-xs mb-1">선정 완료</div>
+                            <div className="font-semibold text-green-600">{campaign.application_stats?.selected || 0}명</div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-3">
+                          <div className="bg-white p-3 rounded-lg">
+                            <div className="text-gray-500 text-xs mb-1">모집 마감일</div>
+                            <div className="font-medium text-gray-900">{campaign.application_deadline ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ') : '-'}</div>
+                          </div>
+                          <div className="bg-white p-3 rounded-lg">
+                            <div className="text-gray-500 text-xs mb-1">캠페인 기간</div>
+                            <div className="font-medium text-gray-900">
                               {campaign.start_date && campaign.end_date 
                                 ? `${new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')} - ${new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')}`
                                 : '-'

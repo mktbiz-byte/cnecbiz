@@ -312,3 +312,77 @@ export const getCampaignStatsFromAllRegions = async () => {
   return stats
 }
 
+
+// Helper function to get application statistics for campaigns
+export const getApplicationStatsForCampaigns = async (campaignIds, region) => {
+  const client = getSupabaseClient(region)
+  if (!client) return {}
+
+  try {
+    const { data, error } = await client
+      .from('applications')
+      .select('campaign_id, status')
+      .in('campaign_id', campaignIds)
+
+    if (error) {
+      console.error(`Error fetching application stats from ${region}:`, error)
+      return {}
+    }
+
+    // 캠페인별로 지원자 통계 집계
+    const stats = {}
+    data.forEach(app => {
+      if (!stats[app.campaign_id]) {
+        stats[app.campaign_id] = {
+          total: 0,        // 총 지원자
+          selected: 0,     // 선정 완료
+          completed: 0     // 작업 완료
+        }
+      }
+      
+      stats[app.campaign_id].total++
+      
+      if (app.status === 'selected') {
+        stats[app.campaign_id].selected++
+      } else if (app.status === 'completed') {
+        stats[app.campaign_id].completed++
+      }
+    })
+
+    return stats
+  } catch (error) {
+    console.error(`Exception fetching application stats from ${region}:`, error)
+    return {}
+  }
+}
+
+// Helper function to get campaigns with application statistics
+export const getCampaignsWithStats = async () => {
+  const campaigns = await getCampaignsFromAllRegions()
+  
+  // 지역별로 캠페인 그룹화
+  const campaignsByRegion = {}
+  campaigns.forEach(campaign => {
+    if (!campaignsByRegion[campaign.region]) {
+      campaignsByRegion[campaign.region] = []
+    }
+    campaignsByRegion[campaign.region].push(campaign)
+  })
+
+  // 각 지역별로 지원자 통계 조회
+  for (const [region, regionCampaigns] of Object.entries(campaignsByRegion)) {
+    const campaignIds = regionCampaigns.map(c => c.id)
+    const stats = await getApplicationStatsForCampaigns(campaignIds, region)
+    
+    // 캠페인에 통계 추가
+    regionCampaigns.forEach(campaign => {
+      campaign.application_stats = stats[campaign.id] || {
+        total: 0,
+        selected: 0,
+        completed: 0
+      }
+    })
+  }
+
+  return campaigns
+}
