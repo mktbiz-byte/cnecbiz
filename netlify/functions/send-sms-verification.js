@@ -128,12 +128,17 @@ exports.handler = async (event, context) => {
 
     // 인증번호 생성
     const verificationCode = generateVerificationCode()
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10분 후 만료
+    // 명시적으로 UTC 시간 사용 (Supabase는 UTC 저장)
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000) // 10분 후 만료
+    
+    console.log('[sendSMS] Current time (UTC):', now.toISOString())
+    console.log('[sendSMS] Expires at (UTC):', expiresAt.toISOString())
 
     // SMS 메시지 작성
     const message = `[CNEC] 인증번호: ${verificationCode}\n10분 이내에 입력해주세요.`
 
-    console.log('팝빌 SMS 발송 시작:', cleanPhoneNumber)
+    console.log('팡빌 SMS 발송 시작:', cleanPhoneNumber)
 
     // 팝빌 SMS 발송
     try {

@@ -13,6 +13,12 @@ const supabase = createClient(supabaseUrl, supabaseKey)
  * SMS 인증번호 확인
  */
 async function verifySMSCode(phone, code) {
+  // 명시적으로 UTC 시간 사용
+  const now = new Date()
+  const nowISO = now.toISOString()
+  
+  console.log('[verifySMSCode] Current time (UTC):', nowISO)
+  
   // 인증번호 조회
   const { data, error } = await supabase
     .from('sms_verifications')
@@ -20,14 +26,23 @@ async function verifySMSCode(phone, code) {
     .eq('phone_number', phone)
     .eq('verification_code', code)
     .eq('verified', false)
-    .gte('expires_at', new Date().toISOString())
+    .gte('expires_at', nowISO)
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
 
   if (error || !data) {
+    console.log('[verifySMSCode] No matching verification found')
+    console.log('[verifySMSCode] Error:', error)
+    console.log('[verifySMSCode] Phone:', phone, 'Code:', code)
     return null
   }
+  
+  console.log('[verifySMSCode] Found verification:', {
+    id: data.id,
+    expires_at: data.expires_at,
+    created_at: data.created_at
+  })
 
   // 인증 완료 처리
   await supabase
