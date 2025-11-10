@@ -159,7 +159,9 @@ export default function VideoFeedback() {
     }
 
     loadComments(feedbackId);
-  };(e) => {
+  };
+  
+  const handleVideoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
