@@ -214,6 +214,92 @@ export default function CompanyProfileSetup() {
 
       if (updateError) throw updateError
 
+      console.log('[ProfileSetup] 프로필 설정 완료 - 환영 알림 발송 시작')
+      console.log('[ProfileSetup] 회사명:', formData.companyName)
+      console.log('[ProfileSetup] 이메일:', formData.notificationEmail || formData.email)
+      console.log('[ProfileSetup] 전화번호:', formData.notificationPhone || formData.phone)
+
+      // 프로필 설정 완료 후 환영 알림 발송 (비동기)
+      try {
+        const notificationPhone = formData.notificationPhone || formData.phone
+        const notificationEmail = formData.notificationEmail || formData.email
+
+        // 1. 카카오톡 알림톡 발송
+        if (notificationPhone) {
+          console.log('[ProfileSetup] 카카오톡 발송 시도:', notificationPhone)
+          try {
+            const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: notificationPhone,
+                receiverName: formData.companyName,
+                templateCode: '025100000912',
+                variables: {
+                  '회원명': formData.companyName
+                }
+              })
+            })
+            const kakaoResult = await kakaoResponse.json()
+            if (kakaoResult.success) {
+              console.log('[ProfileSetup] ✅ 카카오톡 발송 성공')
+            } else {
+              console.error('[ProfileSetup] ❌ 카카오톡 발송 실패:', kakaoResult.error)
+            }
+          } catch (kakaoError) {
+            console.error('[ProfileSetup] ❌ 카카오톡 발송 오류:', kakaoError.message)
+          }
+        }
+
+        // 2. 이메일 발송
+        if (notificationEmail) {
+          console.log('[ProfileSetup] 이메일 발송 시도:', notificationEmail)
+          try {
+            const emailResponse = await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: notificationEmail,
+                subject: '[CNEC BIZ] 회원가입을 환영합니다',
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #333;">회원가입을 환영합니다!</h2>
+                    <p>안녕하세요, <strong>${formData.companyName}</strong>님.</p>
+                    <p>CNEC BIZ 회원가입이 완료되었습니다.</p>
+                    <p>앞으로도 많은 관심과 이용 부탁 드립니다.</p>
+                    
+                    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                      <h3 style="margin-top: 0; color: #555;">가입 정보</h3>
+                      <p><strong>회사명:</strong> ${formData.companyName}</p>
+                      <p><strong>이메일:</strong> ${formData.email}</p>
+                      <p><strong>대표자:</strong> ${formData.ceoName}</p>
+                    </div>
+                    
+                    <p>문의: 1833-6025</p>
+                    <p style="color: #999; font-size: 12px; margin-top: 30px;">
+                      본 메일은 발신전용입니다. 문의사항은 고객센터로 연락주세요.
+                    </p>
+                  </div>
+                `
+              })
+            })
+            const emailResult = await emailResponse.json()
+            if (emailResult.success) {
+              console.log('[ProfileSetup] ✅ 이메일 발송 성공')
+            } else {
+              console.error('[ProfileSetup] ❌ 이메일 발송 실패:', emailResult.error)
+            }
+          } catch (emailError) {
+            console.error('[ProfileSetup] ❌ 이메일 발송 오류:', emailError.message)
+          }
+        }
+
+        console.log('[ProfileSetup] 환영 알림 발송 완료')
+      } catch (notificationError) {
+        console.error('[ProfileSetup] 환영 알림 발송 중 오류:', notificationError)
+        // 알림 실패해도 프로필 저장은 성공
+      }
+
       // 완료 후 대시보드로 이동
       setTimeout(() => {
         navigate('/company/dashboard')

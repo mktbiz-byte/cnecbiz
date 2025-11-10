@@ -265,22 +265,7 @@ exports.handler = async (event, context) => {
       }
     }
     console.log('[complete-signup] Company data saved:', companyData.id)
-
-    // 회원가입 카카오톡 전송 (비동기 - 실패해도 회원가입은 성공)
-    try {
-      await fetch('/.netlify/functions/send-signup-kakao', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userName: companyName,
-          userPhone: phoneNumber,
-          userEmail: email
-        })
-      })
-    } catch (kakaoError) {
-      console.error('카카오톡 전송 실패:', kakaoError)
-      // 카카오톡 실패는 무시
-    }
+    console.log('[complete-signup] 회원가입 알림은 프로필 설정 완료 후 발송됩니다.')
 
     return {
       statusCode: 200,
