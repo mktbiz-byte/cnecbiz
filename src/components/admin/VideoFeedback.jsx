@@ -19,6 +19,7 @@ export default function VideoFeedback() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [mouseDownPos, setMouseDownPos] = useState(null);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -155,27 +156,8 @@ export default function VideoFeedback() {
       const handle = getResizeHandle(x, y);
       if (handle) return; // 핸들 클릭은 mousedown에서 처리
       
-      // 박스 내부 클릭 시 모달 열기
+      // 박스 내부 클릭은 mouseup에서 처리하므로 여기서는 무시
       if (isClickInsideBox(x, y)) {
-        // 모달 위치 계산 (박스 오른쪽에 표시)
-        const modalWidth = 400;
-        const modalHeight = 500;
-        let modalX = currentBox.x + currentBox.width + 20;
-        let modalY = currentBox.y;
-        
-        // 화면 밖으로 나가면 왼쪽에 표시
-        if (modalX + modalWidth > rect.width) {
-          modalX = currentBox.x - modalWidth - 20;
-        }
-        
-        // 위쪽으로 나가면 조정
-        if (modalY < 0) modalY = 0;
-        if (modalY + modalHeight > rect.height) {
-          modalY = rect.height - modalHeight;
-        }
-        
-        setModalPosition({ x: modalX, y: modalY });
-        setShowCommentModal(true);
         return;
       }
     }
@@ -239,11 +221,14 @@ export default function VideoFeedback() {
 
   // 리사이징 시작
   const handleCanvasMouseDown = (e) => {
-    if (!currentBox) return;
-
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    
+    // 마우스 다운 위치 기록
+    setMouseDownPos({ x, y });
+    
+    if (!currentBox) return;
 
     const handle = getResizeHandle(x, y);
     if (handle) {
@@ -314,10 +299,49 @@ export default function VideoFeedback() {
   };
 
   // 리사이징 완료
-  const handleCanvasMouseUp = () => {
+  const handleCanvasMouseUp = (e) => {
+    const wasResizing = isResizing;
     setIsResizing(false);
     setResizeHandle(null);
     setResizeStart(null);
+    
+    // 리사이징 중이었으면 모달 열지 않음
+    if (wasResizing) {
+      setMouseDownPos(null);
+      return;
+    }
+    
+    // 드래그 거리 확인 (5px 미만이면 클릭으로 간주)
+    if (mouseDownPos && currentBox) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const distance = Math.sqrt(Math.pow(x - mouseDownPos.x, 2) + Math.pow(y - mouseDownPos.y, 2));
+      
+      if (distance < 5 && isClickInsideBox(mouseDownPos.x, mouseDownPos.y)) {
+        // 박스 내부 클릭 시 모달 열기
+        const modalWidth = 400;
+        const modalHeight = 500;
+        let modalX = currentBox.x + currentBox.width + 20;
+        let modalY = currentBox.y;
+        
+        // 화면 밖으로 나가면 왼쪽에 표시
+        if (modalX + modalWidth > rect.width) {
+          modalX = currentBox.x - modalWidth - 20;
+        }
+        
+        // 위쪽으로 나가면 조정
+        if (modalY < 0) modalY = 0;
+        if (modalY + modalHeight > rect.height) {
+          modalY = rect.height - modalHeight;
+        }
+        
+        setModalPosition({ x: modalX, y: modalY });
+        setShowCommentModal(true);
+      }
+    }
+    
+    setMouseDownPos(null);
   };
 
   // 박스 삭제 (ESC 키)
