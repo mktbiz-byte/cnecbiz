@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { supabaseBiz } from '../../lib/supabase';
+import { supabaseBiz } from '../../lib/supabaseClients';
 
 export default function VideoFeedback() {
   const [videos, setVideos] = useState([]);
