@@ -14,7 +14,8 @@ import {
   Clock,
   AlertCircle,
   XCircle,
-  Eye
+  Eye,
+  X
 } from 'lucide-react'
 import { getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -28,6 +29,7 @@ export default function AdminCampaignDetail() {
   const [campaign, setCampaign] = useState(null)
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
+  const [selectedApplication, setSelectedApplication] = useState(null)
 
   useEffect(() => {
     fetchCampaignDetail()
@@ -336,35 +338,64 @@ export default function AdminCampaignDetail() {
                 </TabsList>
 
                 <TabsContent value="all" className="mt-6">
-                  <ApplicationList applications={applications} getStatusBadge={getStatusBadge} />
+                  <ApplicationList 
+                    applications={applications} 
+                    getStatusBadge={getStatusBadge}
+                    onViewDetails={setSelectedApplication}
+                  />
                 </TabsContent>
 
                 <TabsContent value="pending" className="mt-6">
-                  <ApplicationList applications={pendingApplications} getStatusBadge={getStatusBadge} />
+                  <ApplicationList 
+                    applications={pendingApplications} 
+                    getStatusBadge={getStatusBadge}
+                    onViewDetails={setSelectedApplication}
+                  />
                 </TabsContent>
 
                 <TabsContent value="selected" className="mt-6">
-                  <ApplicationList applications={selectedApplications} getStatusBadge={getStatusBadge} />
+                  <ApplicationList 
+                    applications={selectedApplications} 
+                    getStatusBadge={getStatusBadge}
+                    onViewDetails={setSelectedApplication}
+                  />
                 </TabsContent>
 
                 <TabsContent value="completed" className="mt-6">
-                  <ApplicationList applications={completedApplications} getStatusBadge={getStatusBadge} />
+                  <ApplicationList 
+                    applications={completedApplications} 
+                    getStatusBadge={getStatusBadge}
+                    onViewDetails={setSelectedApplication}
+                  />
                 </TabsContent>
 
                 <TabsContent value="rejected" className="mt-6">
-                  <ApplicationList applications={rejectedApplications} getStatusBadge={getStatusBadge} />
+                  <ApplicationList 
+                    applications={rejectedApplications} 
+                    getStatusBadge={getStatusBadge}
+                    onViewDetails={setSelectedApplication}
+                  />
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* 지원서 상세보기 모달 */}
+      {selectedApplication && (
+        <ApplicationDetailModal 
+          application={selectedApplication}
+          onClose={() => setSelectedApplication(null)}
+          getStatusBadge={getStatusBadge}
+        />
+      )}
     </>
   )
 }
 
 // 크리에이터 목록 컴포넌트
-function ApplicationList({ applications, getStatusBadge }) {
+function ApplicationList({ applications, getStatusBadge, onViewDetails }) {
   if (applications.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -381,15 +412,17 @@ function ApplicationList({ applications, getStatusBadge }) {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <h4 className="font-semibold text-lg">{app.creator_name || app.user_name || '크리에이터'}</h4>
+                <h4 className="font-semibold text-lg">
+                  {app.applicant_name || app.creator_name || app.user_name || '크리에이터'}
+                </h4>
                 {getStatusBadge(app.status)}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                 <div>
-                  <span className="font-medium">이메일:</span> {app.email || '-'}
+                  <span className="font-medium">전화번호:</span> {app.phone_number || app.phone || '-'}
                 </div>
                 <div>
-                  <span className="font-medium">전화번호:</span> {app.phone || app.phone_number || '-'}
+                  <span className="font-medium">나이:</span> {app.age || '-'}
                 </div>
                 <div>
                   <span className="font-medium">지원일:</span>{' '}
@@ -399,13 +432,200 @@ function ApplicationList({ applications, getStatusBadge }) {
                   }
                 </div>
                 <div>
-                  <span className="font-medium">SNS:</span> {app.sns_handle || app.instagram_handle || '-'}
+                  <span className="font-medium">인스타그램:</span>{' '}
+                  {app.instagram_url ? (
+                    <a 
+                      href={app.instagram_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      링크
+                    </a>
+                  ) : '-'}
                 </div>
               </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onViewDetails(app)}
+              className="ml-4"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              상세보기
+            </Button>
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// 지원서 상세보기 모달
+function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">
+              {application.applicant_name || application.creator_name || '크리에이터'}
+            </h2>
+            <div className="mt-2">{getStatusBadge(application.status)}</div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* 기본 정보 */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">기본 정보</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">이름:</span>
+                <span className="ml-2 font-medium">
+                  {application.applicant_name || application.creator_name || '-'}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">나이:</span>
+                <span className="ml-2 font-medium">{application.age || '-'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">전화번호:</span>
+                <span className="ml-2 font-medium">{application.phone_number || application.phone || '-'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">피부 타입:</span>
+                <span className="ml-2 font-medium">{application.skin_type || '-'}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-gray-500">주소:</span>
+                <span className="ml-2 font-medium">
+                  {application.postal_code && application.address 
+                    ? `${application.postal_code} ${application.address}`
+                    : '-'
+                  }
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SNS 정보 */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">SNS 정보</h3>
+            <div className="space-y-2 text-sm">
+              {application.instagram_url && (
+                <div>
+                  <span className="text-gray-500">Instagram:</span>
+                  <a 
+                    href={application.instagram_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="ml-2 text-blue-600 hover:underline"
+                  >
+                    {application.instagram_url}
+                  </a>
+                </div>
+              )}
+              {application.youtube_url && (
+                <div>
+                  <span className="text-gray-500">YouTube:</span>
+                  <a 
+                    href={application.youtube_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="ml-2 text-blue-600 hover:underline"
+                  >
+                    {application.youtube_url}
+                  </a>
+                </div>
+              )}
+              {application.tiktok_url && (
+                <div>
+                  <span className="text-gray-500">TikTok:</span>
+                  <a 
+                    href={application.tiktok_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="ml-2 text-blue-600 hover:underline"
+                  >
+                    {application.tiktok_url}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 지원서 답변 */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3">지원서 답변</h3>
+            <div className="space-y-4">
+              {application.answer_1 && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-500 mb-1">질문 1</div>
+                  <div className="text-gray-800">{application.answer_1}</div>
+                </div>
+              )}
+              {application.answer_2 && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-500 mb-1">질문 2</div>
+                  <div className="text-gray-800">{application.answer_2}</div>
+                </div>
+              )}
+              {application.answer_3 && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-500 mb-1">질문 3</div>
+                  <div className="text-gray-800">{application.answer_3}</div>
+                </div>
+              )}
+              {application.answer_4 && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-500 mb-1">질문 4</div>
+                  <div className="text-gray-800">{application.answer_4}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 추가 정보 */}
+          {application.additional_info && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">추가 정보</h3>
+              <div className="p-4 bg-gray-50 rounded-lg text-gray-800 whitespace-pre-wrap">
+                {application.additional_info}
+              </div>
+            </div>
+          )}
+
+          {/* 오프라인 방문 */}
+          {application.offline_visit_available !== null && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">오프라인 방문</h3>
+              <div className="text-sm">
+                <span className="text-gray-500">가능 여부:</span>
+                <span className="ml-2 font-medium">
+                  {application.offline_visit_available ? '가능' : '불가능'}
+                </span>
+                {application.offline_visit_notes && (
+                  <div className="mt-2 p-4 bg-gray-50 rounded-lg text-gray-800">
+                    {application.offline_visit_notes}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t px-6 py-4">
+          <Button onClick={onClose} className="w-full">
+            닫기
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }
