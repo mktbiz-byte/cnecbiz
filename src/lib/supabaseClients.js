@@ -342,7 +342,8 @@ export const getApplicationStatsForCampaigns = async (campaignIds, region) => {
       
       stats[app.campaign_id].total++
       
-      if (app.status === 'selected') {
+      // 선정 완료: 'selected', 'virtual_selected', 'approved' (일본/미국 사이트에서 사용)
+      if (app.status === 'selected' || app.status === 'virtual_selected' || app.status === 'approved') {
         stats[app.campaign_id].selected++
       } else if (app.status === 'completed') {
         stats[app.campaign_id].completed++
