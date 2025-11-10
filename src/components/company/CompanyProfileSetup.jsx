@@ -187,37 +187,41 @@ export default function CompanyProfileSetup() {
         ? `${formData.companyAddress} ${formData.companyAddressDetail}`
         : formData.companyAddress
 
-      // Netlify Function을 통해 서버 사이드에서 업데이트 (스키마 캐시 문제 회피)
-      console.log('[ProfileSetup] Netlify Function을 통한 업데이트 시작')
+      // 직접 Supabase에 업데이트
+      const updateData = {
+        company_name: formData.companyName,
+        ceo_name: formData.ceoName,
+        business_type: formData.businessType,
+        business_category: formData.businessCategory,
+        company_postal_code: formData.companyPostalCode,
+        company_address: fullAddress,
+        is_agency: formData.isAgency,
+        profile_completed: true,
+        profile_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
 
-      const response = await fetch('/.netlify/functions/update-company-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          companyName: formData.companyName,
-          ceoName: formData.ceoName,
-          businessType: formData.businessType,
-          businessCategory: formData.businessCategory,
-          companyPostalCode: formData.companyPostalCode,
-          companyAddress: fullAddress,
-          notificationContactPerson: formData.notificationContactPerson,
-          notificationEmail: formData.notificationEmail,
-          notificationPhone: formData.notificationPhone,
-          taxInvoiceEmail: formData.taxInvoiceEmail,
-          taxInvoiceContactPerson: formData.taxInvoiceContactPerson,
-          isAgency: formData.isAgency,
-          emailNotificationConsent: formData.emailNotificationConsent,
-          smsNotificationConsent: formData.smsNotificationConsent,
-          marketingConsent: formData.marketingConsent
-        })
-      })
+      // 선택 사항 필드들 (값이 있을 때만 추가)
+      if (formData.notificationContactPerson) updateData.notification_contact_person = formData.notificationContactPerson
+      if (formData.notificationEmail) updateData.notification_email = formData.notificationEmail
+      if (formData.notificationPhone) updateData.notification_phone = formData.notificationPhone
+      if (formData.taxInvoiceEmail) updateData.tax_invoice_email = formData.taxInvoiceEmail
+      if (formData.taxInvoiceContactPerson) updateData.tax_invoice_contact_person = formData.taxInvoiceContactPerson
+      if (formData.emailNotificationConsent !== undefined) updateData.email_notification_consent = formData.emailNotificationConsent
+      if (formData.smsNotificationConsent !== undefined) updateData.sms_notification_consent = formData.smsNotificationConsent
+      if (formData.marketingConsent !== undefined) updateData.marketing_consent = formData.marketingConsent
+      if (formData.marketingConsent !== undefined) updateData.consent_date = new Date().toISOString()
 
-      const result = await response.json()
+      console.log('[ProfileSetup] 업데이트 데이터:', updateData)
 
-      if (!result.success) {
-        console.error('[ProfileSetup] 업데이트 실패:', result.error)
-        throw new Error(result.error || '프로필 업데이트에 실패했습니다.')
+      const { error: updateError } = await supabaseBiz
+        .from('companies')
+        .update(updateData)
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        console.error('[ProfileSetup] 업데이트 오류:', updateError)
+        throw updateError
       }
 
       console.log('[ProfileSetup] 프로필 업데이트 성공')
