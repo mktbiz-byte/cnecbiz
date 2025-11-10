@@ -325,6 +325,21 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // 충전 신청 생성 후 기존 입금 거래와 자동 매칭 시도
+    try {
+      console.log('[INFO] 기존 입금 거래와 매칭 시도...')
+      const axios = require('axios')
+      await axios.post(
+        `${process.env.URL}/.netlify/functions/rematch-unmatched-deposits`,
+        {},
+        { timeout: 10000 }
+      )
+      console.log('[SUCCESS] 재매칭 함수 호출 성공')
+    } catch (rematchError) {
+      console.error('[ERROR] 재매칭 오류:', rematchError.message)
+      // 재매칭 실패해도 충전 신청은 성공
+    }
+
     return {
       statusCode: 200,
       headers,
