@@ -66,8 +66,11 @@ export default function VideoFeedback() {
     setUploading(true);
     
     try {
-      // Supabase Storage에 업로드
-      const fileName = `${Date.now()}_${file.name}`;
+      // 파일명 새니타이징 (한글/공백/특수문자 제거)
+      const sanitizedName = file.name
+        .replace(/[^a-zA-Z0-9._-]/g, '_')
+        .replace(/_{2,}/g, '_');
+      const fileName = `${Date.now()}_${sanitizedName}`;
       const { data: uploadData, error: uploadError } = await supabaseBiz.storage
         .from('videos')
         .upload(fileName, file);
