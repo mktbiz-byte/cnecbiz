@@ -7,6 +7,7 @@ import { Input } from '../ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { Checkbox } from '../ui/checkbox'
 import { X, Plus } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
@@ -30,6 +31,26 @@ const CampaignGuideEditor = () => {
   const [videoTone, setVideoTone] = useState('')
   const [additionalDetails, setAdditionalDetails] = useState('')
 
+  // 필수 촬영 장면 체크박스
+  const [shootingScenes, setShootingScenes] = useState({
+    baPhoto: false,
+    noMakeup: false,
+    closeup: false,
+    productCloseup: false,
+    productTexture: false,
+    outdoor: false,
+    couple: false,
+    child: false,
+    troubledSkin: false,
+    wrinkles: false
+  })
+
+  // 추가 요청사항
+  const [additionalShootingRequests, setAdditionalShootingRequests] = useState('')
+
+  // 메타광고코드 발급 요청
+  const [metaAdCodeRequested, setMetaAdCodeRequested] = useState(false)
+
   // 캠페인 정보 및 가이드 로드
   useEffect(() => {
     if (campaignId) {
@@ -46,13 +67,34 @@ const CampaignGuideEditor = () => {
     }, 10000)
 
     return () => clearTimeout(timer)
-  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, campaignId])
+  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId])
 
   const loadCampaignGuide = async () => {
     try {
       const { data, error } = await supabase
         .from('campaigns')
-        .select('title, required_dialogues, required_scenes, required_hashtags, video_duration, video_tempo, video_tone, additional_details')
+        .select(`
+          title, 
+          required_dialogues, 
+          required_scenes, 
+          required_hashtags, 
+          video_duration, 
+          video_tempo, 
+          video_tone, 
+          additional_details,
+          shooting_scenes_ba_photo,
+          shooting_scenes_no_makeup,
+          shooting_scenes_closeup,
+          shooting_scenes_product_closeup,
+          shooting_scenes_product_texture,
+          shooting_scenes_outdoor,
+          shooting_scenes_couple,
+          shooting_scenes_child,
+          shooting_scenes_troubled_skin,
+          shooting_scenes_wrinkles,
+          additional_shooting_requests,
+          meta_ad_code_requested
+        `)
         .eq('id', campaignId)
         .single()
 
@@ -67,6 +109,20 @@ const CampaignGuideEditor = () => {
         setVideoTempo(data.video_tempo || '')
         setVideoTone(data.video_tone || '')
         setAdditionalDetails(data.additional_details || '')
+        setShootingScenes({
+          baPhoto: data.shooting_scenes_ba_photo || false,
+          noMakeup: data.shooting_scenes_no_makeup || false,
+          closeup: data.shooting_scenes_closeup || false,
+          productCloseup: data.shooting_scenes_product_closeup || false,
+          productTexture: data.shooting_scenes_product_texture || false,
+          outdoor: data.shooting_scenes_outdoor || false,
+          couple: data.shooting_scenes_couple || false,
+          child: data.shooting_scenes_child || false,
+          troubledSkin: data.shooting_scenes_troubled_skin || false,
+          wrinkles: data.shooting_scenes_wrinkles || false
+        })
+        setAdditionalShootingRequests(data.additional_shooting_requests || '')
+        setMetaAdCodeRequested(data.meta_ad_code_requested || false)
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
@@ -86,7 +142,19 @@ const CampaignGuideEditor = () => {
           video_duration: videoDuration,
           video_tempo: videoTempo,
           video_tone: videoTone,
-          additional_details: additionalDetails
+          additional_details: additionalDetails,
+          shooting_scenes_ba_photo: shootingScenes.baPhoto,
+          shooting_scenes_no_makeup: shootingScenes.noMakeup,
+          shooting_scenes_closeup: shootingScenes.closeup,
+          shooting_scenes_product_closeup: shootingScenes.productCloseup,
+          shooting_scenes_product_texture: shootingScenes.productTexture,
+          shooting_scenes_outdoor: shootingScenes.outdoor,
+          shooting_scenes_couple: shootingScenes.couple,
+          shooting_scenes_child: shootingScenes.child,
+          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
+          shooting_scenes_wrinkles: shootingScenes.wrinkles,
+          additional_shooting_requests: additionalShootingRequests,
+          meta_ad_code_requested: metaAdCodeRequested
         })
         .eq('id', campaignId)
 
@@ -113,7 +181,19 @@ const CampaignGuideEditor = () => {
           video_duration: videoDuration,
           video_tempo: videoTempo,
           video_tone: videoTone,
-          additional_details: additionalDetails
+          additional_details: additionalDetails,
+          shooting_scenes_ba_photo: shootingScenes.baPhoto,
+          shooting_scenes_no_makeup: shootingScenes.noMakeup,
+          shooting_scenes_closeup: shootingScenes.closeup,
+          shooting_scenes_product_closeup: shootingScenes.productCloseup,
+          shooting_scenes_product_texture: shootingScenes.productTexture,
+          shooting_scenes_outdoor: shootingScenes.outdoor,
+          shooting_scenes_couple: shootingScenes.couple,
+          shooting_scenes_child: shootingScenes.child,
+          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
+          shooting_scenes_wrinkles: shootingScenes.wrinkles,
+          additional_shooting_requests: additionalShootingRequests,
+          meta_ad_code_requested: metaAdCodeRequested
         })
         .eq('id', campaignId)
 
@@ -158,6 +238,14 @@ const CampaignGuideEditor = () => {
     const newHashtags = [...requiredHashtags]
     newHashtags[index] = value
     setRequiredHashtags(newHashtags)
+  }
+
+  // 촬영 장면 체크박스 변경 함수
+  const handleShootingSceneChange = (scene, checked) => {
+    setShootingScenes(prev => ({
+      ...prev,
+      [scene]: checked
+    }))
   }
 
   return (
@@ -226,6 +314,127 @@ const CampaignGuideEditor = () => {
                 )}
               </div>
             ))}
+          </div>
+
+          {/* 필수 촬영 장면 체크박스 */}
+          <div>
+            <Label className="text-base font-semibold mb-3 block">필수 촬영 장면</Label>
+            <p className="text-sm text-gray-600 mb-3">필요한 촬영 장면을 선택하세요</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="ba-photo" 
+                  checked={shootingScenes.baPhoto}
+                  onCheckedChange={(checked) => handleShootingSceneChange('baPhoto', checked)}
+                />
+                <label htmlFor="ba-photo" className="text-sm cursor-pointer">
+                  확실한 B&A 촬영
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="no-makeup" 
+                  checked={shootingScenes.noMakeup}
+                  onCheckedChange={(checked) => handleShootingSceneChange('noMakeup', checked)}
+                />
+                <label htmlFor="no-makeup" className="text-sm cursor-pointer">
+                  노메이크업
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="closeup" 
+                  checked={shootingScenes.closeup}
+                  onCheckedChange={(checked) => handleShootingSceneChange('closeup', checked)}
+                />
+                <label htmlFor="closeup" className="text-sm cursor-pointer">
+                  클로즈업
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="product-closeup" 
+                  checked={shootingScenes.productCloseup}
+                  onCheckedChange={(checked) => handleShootingSceneChange('productCloseup', checked)}
+                />
+                <label htmlFor="product-closeup" className="text-sm cursor-pointer">
+                  제품 클로즈업
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="product-texture" 
+                  checked={shootingScenes.productTexture}
+                  onCheckedChange={(checked) => handleShootingSceneChange('productTexture', checked)}
+                />
+                <label htmlFor="product-texture" className="text-sm cursor-pointer">
+                  제품 제형 클로즈업
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="outdoor" 
+                  checked={shootingScenes.outdoor}
+                  onCheckedChange={(checked) => handleShootingSceneChange('outdoor', checked)}
+                />
+                <label htmlFor="outdoor" className="text-sm cursor-pointer">
+                  외부촬영(카페, 외출 등)
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="couple" 
+                  checked={shootingScenes.couple}
+                  onCheckedChange={(checked) => handleShootingSceneChange('couple', checked)}
+                />
+                <label htmlFor="couple" className="text-sm cursor-pointer">
+                  커플출연
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="child" 
+                  checked={shootingScenes.child}
+                  onCheckedChange={(checked) => handleShootingSceneChange('child', checked)}
+                />
+                <label htmlFor="child" className="text-sm cursor-pointer">
+                  아이출연
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="troubled-skin" 
+                  checked={shootingScenes.troubledSkin}
+                  onCheckedChange={(checked) => handleShootingSceneChange('troubledSkin', checked)}
+                />
+                <label htmlFor="troubled-skin" className="text-sm cursor-pointer">
+                  트러블 피부 노출
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="wrinkles" 
+                  checked={shootingScenes.wrinkles}
+                  onCheckedChange={(checked) => handleShootingSceneChange('wrinkles', checked)}
+                />
+                <label htmlFor="wrinkles" className="text-sm cursor-pointer">
+                  피부 주름 노출
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* 추가 촬영 요청사항 */}
+          <div>
+            <Label className="text-base font-semibold">추가 촬영 요청사항</Label>
+            <p className="text-sm text-gray-600 mb-2">위 항목 외에 추가로 요청하고 싶은 촬영 장면이나 요구사항을 작성하세요</p>
+            <Textarea
+              value={additionalShootingRequests}
+              onChange={(e) => setAdditionalShootingRequests(e.target.value)}
+              placeholder="예: 자연광에서 촬영해주세요, 밝은 배경에서 촬영 부탁드립니다"
+              rows={3}
+              className="resize-none"
+            />
           </div>
 
           {/* 필수 해시태그 */}
@@ -314,6 +523,23 @@ const CampaignGuideEditor = () => {
             />
           </div>
 
+          {/* 메타광고코드 발급 요청 */}
+          <div className="border-t pt-6">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="meta-ad-code" 
+                checked={metaAdCodeRequested}
+                onCheckedChange={setMetaAdCodeRequested}
+              />
+              <label htmlFor="meta-ad-code" className="text-base font-semibold cursor-pointer">
+                메타광고코드 발급 요청
+              </label>
+            </div>
+            <p className="text-sm text-gray-600 mt-2 ml-6">
+              체크하시면 메타(Facebook/Instagram) 광고 코드를 발급해드립니다
+            </p>
+          </div>
+
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {error}
@@ -354,4 +580,3 @@ const CampaignGuideEditor = () => {
 }
 
 export default CampaignGuideEditor
-
