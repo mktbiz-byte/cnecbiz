@@ -5,11 +5,6 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Supabase 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
 /**
  * 회사명 정규화 (띄어쓰기, 주식회사/(주) 제거)
  */
@@ -64,6 +59,24 @@ function calculateSimilarity(str1, str2) {
 
 exports.handler = async (event, context) => {
   console.log('🔄 [REMATCH] 기존 미매칭 거래 재매칭 시작');
+
+  // Supabase 클라이언트 초기화 (함수 내부에서)
+  const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('❌ 환경변수 오류: VITE_SUPABASE_BIZ_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 없습니다');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        success: false,
+        error: '환경변수 오류'
+      })
+    };
+  }
+  
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+  console.log('✅ Supabase 클라이언트 초기화 성공');
 
   // CORS 헤더
   const headers = {
