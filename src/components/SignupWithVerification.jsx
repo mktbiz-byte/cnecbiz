@@ -120,8 +120,8 @@ export default function SignupWithVerification() {
       }
 
       setSmsSent(true)
-      setSmsTimer(300) // 5분
-      alert('인증번호가 발송되었습니다.')
+      setSmsTimer(600) // 10분
+      alert('인증번호가 발송되었습니다. (10분 이내 입력)')
       
     } catch (error) {
       console.error('SMS 발송 오류:', error)

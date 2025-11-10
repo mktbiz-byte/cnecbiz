@@ -128,10 +128,10 @@ exports.handler = async (event, context) => {
 
     // 인증번호 생성
     const verificationCode = generateVerificationCode()
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000) // 5분 후 만료
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10분 후 만료
 
     // SMS 메시지 작성
-    const message = `[CNEC] 인증번호: ${verificationCode}\n5분 이내에 입력해주세요.`
+    const message = `[CNEC] 인증번호: ${verificationCode}\n10분 이내에 입력해주세요.`
 
     console.log('팝빌 SMS 발송 시작:', cleanPhoneNumber)
 
@@ -173,7 +173,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         message: 'SMS 인증번호가 발송되었습니다.',
-        expiresIn: 300 // 5분 (초 단위)
+        expiresIn: 600 // 10분 (초 단위)
       })
     }
 
