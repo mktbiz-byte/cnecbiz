@@ -47,7 +47,12 @@ export default function VideoFeedback() {
     const video = videoRef.current;
     if (!video) return;
 
-    const handlePlay = () => setIsPlaying(true);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      // 재생 시작 시 박스 숨기기
+      setCurrentBox(null);
+      setShowCommentModal(false);
+    };
     const handlePause = () => setIsPlaying(false);
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
     const handleLoadedMetadata = () => setDuration(video.duration);
@@ -544,28 +549,7 @@ export default function VideoFeedback() {
         ctx.strokeRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
       });
       
-      // 박스 번호 표시 (오렌지 원 안에 숫자)
-      const circleRadius = 16;
-      const circleX = x + width + circleRadius;
-      const circleY = y - circleRadius;
-      
-      // 오렌지 원
-      ctx.fillStyle = '#ff8c00';
-      ctx.beginPath();
-      ctx.arc(circleX, circleY, circleRadius, 0, 2 * Math.PI);
-      ctx.fill();
-      
-      // 흰색 테두리
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // 흰색 숫자 (feedbacks.length + 1)
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 18px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(feedbacks.length + 1), circleX, circleY);
+      // 박스 번호 표시 제거 (혼란 방지)
     }
   }, [currentBox, feedbacks.length]);
 
