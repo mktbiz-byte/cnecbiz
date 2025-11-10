@@ -464,6 +464,48 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails }) {
 
 // 지원서 상세보기 모달
 function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
+  const searchParams = new URLSearchParams(window.location.search)
+  const region = searchParams.get('region') || 'korea'
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [formData, setFormData] = useState({
+    tracking_number: application.tracking_number || '',
+    shipping_date: application.shipping_date ? new Date(application.shipping_date).toISOString().split('T')[0] : '',
+    guide_url: application.guide_url || ''
+  })
+
+  const isSelected = ['approved', 'virtual_selected', 'selected'].includes(application.status)
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      const client = getSupabaseClient(region)
+      
+      const updateData = {
+        tracking_number: formData.tracking_number || null,
+        shipping_date: formData.shipping_date ? new Date(formData.shipping_date).toISOString() : null,
+        guide_url: formData.guide_url || null,
+        updated_at: new Date().toISOString()
+      }
+
+      const { error } = await client
+        .from('applications')
+        .update(updateData)
+        .eq('id', application.id)
+
+      if (error) throw error
+
+      alert('저장되었습니다')
+      setEditing(false)
+      window.location.reload() // 데이터 새로고침
+    } catch (error) {
+      console.error('Error saving:', error)
+      alert('저장 실패: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -615,6 +657,135 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
                     {application.offline_visit_notes}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* 배송 및 가이드 정보 (선정 완료된 크리에이터만) */}
+          {isSelected && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold">배송 및 가이드 정보</h3>
+                {!editing ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditing(true)}
+                  >
+                    편집
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditing(false)
+                        setFormData({
+                          tracking_number: application.tracking_number || '',
+                          shipping_date: application.shipping_date ? new Date(application.shipping_date).toISOString().split('T')[0] : '',
+                          guide_url: application.guide_url || ''
+                        })
+                      }}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSave}
+                      disabled={saving}
+                    >
+                      {saving ? '저장 중...' : '저장'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    송장번호
+                  </label>
+                  {editing ? (
+                    <input
+                      type="text"
+                      value={formData.tracking_number}
+                      onChange={(e) => setFormData({...formData, tracking_number: e.target.value})}
+                      placeholder="송장번호를 입력하세요"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <div className="px-3 py-2 bg-gray-50 rounded-md">
+                      {application.tracking_number || '-'}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    발송일
+                  </label>
+                  {editing ? (
+                    <input
+                      type="date"
+                      value={formData.shipping_date}
+                      onChange={(e) => setFormData({...formData, shipping_date: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <div className="px-3 py-2 bg-gray-50 rounded-md">
+                      {application.shipping_date 
+                        ? new Date(application.shipping_date).toLocaleDateString('ko-KR')
+                        : '-'
+                      }
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    가이드 URL
+                  </label>
+                  {editing ? (
+                    <input
+                      type="url"
+                      value={formData.guide_url}
+                      onChange={(e) => setFormData({...formData, guide_url: e.target.value})}
+                      placeholder="https://..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <div className="px-3 py-2 bg-gray-50 rounded-md">
+                      {application.guide_url ? (
+                        <a
+                          href={application.guide_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {application.guide_url}
+                        </a>
+                      ) : '-'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 업로드된 영상 */}
+          {application.video_links && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">업로드된 영상</h3>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <a
+                  href={application.video_links}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  {application.video_links}
+                </a>
               </div>
             </div>
           )}
