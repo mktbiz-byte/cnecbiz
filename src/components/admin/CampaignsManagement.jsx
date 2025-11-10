@@ -355,18 +355,23 @@ export default function CampaignsManagement() {
                         </p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                           <div>
-                            <span className="font-medium">예산:</span> {campaign.budget?.toLocaleString()}원
+                            <span className="font-medium">예산:</span> {campaign.currency || '₩'}{campaign.budget?.toLocaleString()}
                           </div>
                           <div>
                             <span className="font-medium">크리에이터:</span> {campaign.creator_count || 0}명
                           </div>
                           <div>
-                            <span className="font-medium">기간:</span>{' '}
-                            {campaign.start_date && new Date(campaign.start_date).toLocaleDateString('ko-KR')}
+                            <div className="font-medium mb-1">모집 마감일</div>
+                            <div>{campaign.application_deadline ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ') : '-'}</div>
                           </div>
                           <div>
-                            <span className="font-medium">생성일:</span>{' '}
-                            {new Date(campaign.created_at).toLocaleDateString('ko-KR')}
+                            <div className="font-medium mb-1">캠페인 기간</div>
+                            <div>
+                              {campaign.start_date && campaign.end_date 
+                                ? `${new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')} - ${new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')}`
+                                : '-'
+                              }
+                            </div>
                           </div>
                         </div>
                       </div>

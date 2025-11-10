@@ -222,24 +222,35 @@ export const getCampaignsFromAllRegions = async () => {
         
         // 지역별 스키마 차이를 통일된 형식으로 매핑
         const normalizedCampaigns = data.map(campaign => {
+          // 지역별 통화 단위
+          const currencySymbol = {
+            'korea': '₩',
+            'japan': '¥',
+            'us': '$',
+            'taiwan': 'NT$',
+            'biz': '₩'
+          }[region] || '₩'
+          
           // 기본 필드 매핑
           const normalized = {
             ...campaign,
             region,
+            currency: currencySymbol,
             // 제목 통일
             campaign_name: campaign.title || campaign.product_name || campaign.campaign_name || '제목 없음',
             // 설명 통일
             description: campaign.description || '설명 없음',
-            // 예산 계산 (보상금액 * 최대 참가자)
-            budget: campaign.reward_amount && campaign.max_participants 
-              ? campaign.reward_amount * campaign.max_participants 
-              : campaign.budget || 0,
-            // 크리에이터 수
-            creator_count: campaign.current_participants || campaign.creator_count || 0,
+            // 예산 계산
+            budget: campaign.estimated_cost || // 한국 (estimated_cost)
+                   (campaign.reward_amount && campaign.max_participants 
+                     ? campaign.reward_amount * campaign.max_participants  // 일본/미국/대만
+                     : campaign.budget || 0),
+            // 크리에이터 수 (모집 인원)
+            creator_count: campaign.total_slots || campaign.max_participants || campaign.creator_count || 0,
             // 날짜 필드 통일
             start_date: campaign.start_date,
             end_date: campaign.end_date,
-            application_deadline: campaign.application_deadline,
+            application_deadline: campaign.application_deadline || campaign.recruitment_deadline,
             // 상태 통일
             status: campaign.status,
             approval_status: campaign.approval_status || campaign.status

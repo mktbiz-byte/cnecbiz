@@ -388,18 +388,36 @@ export default function CompanyDashboard() {
                           </div>
                         </div>
 
+                        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <div className="text-gray-500 mb-1">모집 마감일</div>
+                              <div className="font-medium">
+                                {campaign.recruitment_deadline || campaign.application_deadline 
+                                  ? new Date(campaign.recruitment_deadline || campaign.application_deadline).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')
+                                  : '-'
+                                }
+                                {recruitmentDays !== null && recruitmentDays >= 0 && (
+                                  <span className={`ml-2 ${recruitmentDays < 7 ? 'text-red-600' : 'text-blue-600'}`}>
+                                    (D-{recruitmentDays})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-500 mb-1">캠페인 기간</div>
+                              <div className="font-medium">
+                                {campaign.start_date && campaign.end_date
+                                  ? `${new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')} - ${new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')}`
+                                  : '-'
+                                }
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-4">
-                            {recruitmentDays !== null && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-4 h-4 text-gray-500" />
-                                <span className="text-gray-600">
-                                  모집 마감: <span className={recruitmentDays < 7 ? 'text-red-600 font-semibold' : 'font-medium'}>
-                                    {recruitmentDays > 0 ? `D-${recruitmentDays}` : '마감'}
-                                  </span>
-                                </span>
-                              </div>
-                            )}
                             {submissionDays !== null && (
                               <div className="flex items-center gap-1">
                                 <AlertCircle className="w-4 h-4 text-gray-500" />
