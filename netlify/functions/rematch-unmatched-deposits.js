@@ -79,8 +79,9 @@ exports.handler = async (event, context) => {
 
   try {
     // Supabase 클라이언트 초기화
-    const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Netlify Functions에서는 VITE_ 접두사 없이 환경변수 접근
+    const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.SUPABASE_BIZ_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_BIZ_SERVICE_KEY;
     
     console.log('📌 환경변수 확인:');
     console.log(`  - VITE_SUPABASE_BIZ_URL: ${supabaseUrl ? '✅' : '❌'}`);
@@ -224,15 +225,15 @@ exports.handler = async (event, context) => {
           // 포인트 충전
           const { data: company, error: companyError } = await supabase
             .from('companies')
-            .select('points')
+            .select('points_balance')
             .eq('user_id', bestMatch.company_id)
             .single();
 
           if (!companyError && company) {
-            const newPoints = (company.points || 0) + parseInt(bestMatch.amount);
+            const newPoints = (company.points_balance || 0) + parseInt(bestMatch.amount);
             await supabase
               .from('companies')
-              .update({ points: newPoints })
+              .update({ points_balance: newPoints })
               .eq('user_id', bestMatch.company_id);
 
             console.log(`  💰 포인트 충전: ${parseInt(bestMatch.amount).toLocaleString()}P`);

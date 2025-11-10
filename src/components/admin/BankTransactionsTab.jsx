@@ -269,16 +269,16 @@ export default function BankTransactionsTab() {
                         )}
                       </td>
                       <td className="p-3 text-center">
-                        {tx.isMatched && tx.matchedRequest?.status === 'confirmed' ? (
+                        {tx.isMatched && tx.matchedRequest?.status === 'completed' ? (
                           <span className="text-xs text-gray-500">처리완료</span>
-                        ) : tx.matchedRequest ? (
+                        ) : tx.matchedRequest && tx.matchedRequest.status === 'pending' ? (
                           <Button
                             size="sm"
                             onClick={() => handleManualMatch(tx, tx.matchedRequest)}
                             className="text-xs"
                           >
                             <LinkIcon className="w-3 h-3 mr-1" />
-                            매칭
+                            승인
                           </Button>
                         ) : (
                           <span className="text-xs text-gray-400">매칭불가</span>
