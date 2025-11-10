@@ -17,6 +17,8 @@ export default function VideoFeedback() {
   const [uploading, setUploading] = useState(false);
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -41,13 +43,19 @@ export default function VideoFeedback() {
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+    const handleLoadedMetadata = () => setDuration(video.duration);
 
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
 
     return () => {
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
   }, [selectedVideo]);
 
@@ -182,9 +190,29 @@ export default function VideoFeedback() {
     };
     
     setCurrentBox(newBox);
-    if (videoRef.current.playing) {
+    if (!videoRef.current.paused) {
       videoRef.current.pause();
     }
+    
+    // 모달 위치 계산 (박스 오른쪽에 표시)
+    const modalWidth = 400;
+    const modalHeight = 500;
+    let modalX = newBox.x + newBox.width + 20;
+    let modalY = newBox.y;
+    
+    // 화면 밖으로 나가면 왼쪽에 표시
+    if (modalX + modalWidth > rect.width) {
+      modalX = newBox.x - modalWidth - 20;
+    }
+    
+    // 위쪽으로 나가면 조정
+    if (modalY < 0) modalY = 0;
+    if (modalY + modalHeight > rect.height) {
+      modalY = rect.height - modalHeight;
+    }
+    
+    setModalPosition({ x: modalX, y: modalY });
+    setShowCommentModal(true);
   };
 
   // 리사이징 핸들 위치 확인 (8개 핸들: 4개 모서리 + 4개 변)
@@ -528,6 +556,7 @@ export default function VideoFeedback() {
               
               {/* 컨트롤 영역 */}
               <div className="p-4 bg-gray-800 text-white">
+                {/* 재생 버튼 및 시간 */}
                 <div className="flex items-center gap-4 mb-3">
                   <button
                     onClick={() => {
@@ -542,9 +571,26 @@ export default function VideoFeedback() {
                     {isPlaying ? '⏸️ 일시정지' : '▶️ 재생'}
                   </button>
                   <span className="text-sm">
-                    {Math.floor(videoRef.current?.currentTime || 0)}초 / {Math.floor(videoRef.current?.duration || 0)}초
+                    {Math.floor(currentTime)}초 / {Math.floor(duration)}초
                   </span>
                 </div>
+                
+                {/* 진행 바 */}
+                <div 
+                  className="relative w-full h-2 bg-gray-600 rounded cursor-pointer mb-3"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const percentage = x / rect.width;
+                    videoRef.current.currentTime = percentage * duration;
+                  }}
+                >
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-red-600 rounded"
+                    style={{ width: `${(currentTime / duration) * 100}%` }}
+                  />
+                </div>
+                
                 <p className="text-sm text-gray-300">
                   💡 화면 클릭: 박스 생성 | 핸들 드래그: 크기 조절 | 박스 클릭: 피드백 입력 | ESC: 박스 삭제
                 </p>
