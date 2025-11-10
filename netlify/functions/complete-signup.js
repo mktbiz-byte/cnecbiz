@@ -151,8 +151,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // SMS 인증 확인
-    console.log('[complete-signup] Verifying SMS:', phoneNumber.replace(/[^0-9]/    console.log('[complete-signup] Step 1: Checking for existing email')
+    console.log('[complete-signup] Step 1: Checking for existing email')
     
     // 이메일 중복 체크 (사업자번호는 중복 허용)
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
