@@ -254,16 +254,19 @@ exports.handler = async (event, context) => {
     console.log('[complete-signup] Auth user created:', authData.user.id)
 
     // companies 테이블에 기업 정보 저장
+    console.log('[complete-signup] Step 5: Inserting company data')
     const { data: companyData, error: companyError } = await supabaseAdmin
       .from('companies')
       .insert([{
-        id: authData.user.id,
+        user_id: authData.user.id,
         company_name: companyName,
         business_registration_number: cleanBusinessNumber,
         ceo_name: ceoName,
         email,
-        phone_number: phoneNumber.replace(/[^0-9]/g, ''),
-        verified: true,
+        phone: phoneNumber.replace(/[^0-9]/g, ''),
+        status: 'active',
+        points_balance: 0,
+        profile_completed: false,
         created_at: new Date().toISOString()
       }])
       .select()
