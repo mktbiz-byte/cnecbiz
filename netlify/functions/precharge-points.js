@@ -113,7 +113,7 @@ exports.handler = async (event) => {
     console.log('🔍 [STEP 3] 포인트 거래 내역 기록...');
 
     const { error: transactionError } = await supabaseAdmin
-      .from('point_transactions')
+      .from('points_transactions')
       .insert({
         company_id: request.company_id,
         type: 'charge',

@@ -216,7 +216,7 @@ async function autoMatchTransaction(transaction) {
 
     // 포인트 거래 내역 기록
     await supabaseAdmin
-      .from('point_transactions')
+      .from('points_transactions')
       .insert({
         company_id: request.company_id,
         amount: parseInt(request.amount),

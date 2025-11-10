@@ -36,7 +36,7 @@ async function processDeposit(request, transaction) {
 
   // 2. 포인트 거래 내역 기록
   const { error: transactionError } = await supabaseAdmin
-    .from('point_transactions')
+    .from('points_transactions')
     .insert({
       company_id,
       amount,
