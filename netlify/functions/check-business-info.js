@@ -245,12 +245,34 @@ exports.handler = async (event, context) => {
     // 3. 휴폐업 상태 확인 (대표자명, 회사명 검증 제거)
     console.log('🔍 [STEP 4] 휴폐업 상태 확인...');
     console.log('  - state:', closedownInfo.state);
+    console.log('  - state type:', typeof closedownInfo.state);
     console.log('  - stateDate:', closedownInfo.stateDate);
     console.log('  - type:', closedownInfo.type);
+    console.log('  - corpNum:', closedownInfo.corpNum);
+    console.log('  - corpName:', closedownInfo.corpName);
 
-    // 휴폐업 조회 API는 state 필드를 사용
-    // state: 1 = 정상, 2 = 휴업, 3 = 폐업
-    if (closedownInfo.state === '3' || closedownInfo.state === 3) {
+    // 휴폐업 조회 API state 필드:
+    // 0 = 국세청 미등록 (존재하지 않는 사업자번호)
+    // 1 = 사업중 (정상)
+    // 2 = 휴업
+    // 3 = 폐업
+    
+    // state가 정확히 1인 경우만 통과
+    const stateValue = String(closedownInfo.state);
+    
+    if (stateValue === '0') {
+      console.error('❌ [STEP 4] 국세청 미등록 사업자');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '국세청에 등록되지 않은 사업자등록번호입니다.',
+        }),
+      };
+    }
+    
+    if (stateValue === '3') {
       console.error('❌ [STEP 4] 폐업 사업자');
       return {
         statusCode: 400,
@@ -262,7 +284,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (closedownInfo.state === '2' || closedownInfo.state === 2) {
+    if (stateValue === '2') {
       console.error('❌ [STEP 4] 휴업 사업자');
       return {
         statusCode: 400,
@@ -273,8 +295,20 @@ exports.handler = async (event, context) => {
         }),
       };
     }
+    
+    if (stateValue !== '1') {
+      console.error('❌ [STEP 4] 알 수 없는 사업자 상태:', stateValue);
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '사업자 상태를 확인할 수 없습니다. 사업자등록번호를 다시 확인해주세요.',
+        }),
+      };
+    }
 
-    console.log('✅ [STEP 4] 휴폐업 상태 확인 통과');
+    console.log('✅ [STEP 4] 휴폐업 상태 확인 통과 (사업중)');
 
     // 4. 검증 로그 저장
     console.log('🔍 [STEP 5] 검증 로그 저장...');
