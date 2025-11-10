@@ -21,6 +21,10 @@ export default function VideoFeedback() {
   const [duration, setDuration] = useState(0);
   const [mouseDownPos, setMouseDownPos] = useState(null);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [comments, setComments] = useState({}); // { feedbackId: [comments] }
+  const [newComment, setNewComment] = useState('');
+  const [commentAuthor, setCommentAuthor] = useState('');
+  const [expandedFeedback, setExpandedFeedback] = useState(null);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -78,14 +82,79 @@ export default function VideoFeedback() {
       .select('*')
       .eq('video_id', videoId)
       .order('timestamp', { ascending: true });
+
+    if (error) {
+      console.error('피드백 로드 오류:', error);
+      return;
+    }
+
+    setFeedbacks(data || []);
     
-    if (!error && data) {
-      setFeedbacks(data);
+    // 각 피드백의 댓글 로드
+    if (data && data.length > 0) {
+      data.forEach(feedback => loadComments(feedback.id));
     }
   };
+  
+  // 댓글 로드
+  const loadComments = async (feedbackId) => {
+    const { data, error } = await supabaseBiz
+      .from('video_feedback_comments')
+      .select('*')
+      .eq('feedback_id', feedbackId)
+      .order('created_at', { ascending: true });
 
-  // 영상 업로드
-  const handleVideoUpload = async (e) => {
+    if (error) {
+      console.error('댓글 로드 오류:', error);
+      return;
+    }
+
+    setComments(prev => ({ ...prev, [feedbackId]: data || [] }));
+  };
+  
+  // 댓글 추가
+  const addComment = async (feedbackId) => {
+    if (!newComment.trim()) {
+      alert('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    const { error } = await supabaseBiz
+      .from('video_feedback_comments')
+      .insert([{
+        feedback_id: feedbackId,
+        author: commentAuthor.trim() || '익명',
+        comment: newComment.trim()
+      }]);
+
+    if (error) {
+      console.error('댓글 추가 오류:', error);
+      alert('댓글 추가 실패');
+      return;
+    }
+
+    setNewComment('');
+    setCommentAuthor('');
+    loadComments(feedbackId);
+  };
+  
+  // 댓글 삭제
+  const deleteComment = async (commentId, feedbackId) => {
+    if (!confirm('댓글을 삭제하시겠습니까?')) return;
+
+    const { error } = await supabaseBiz
+      .from('video_feedback_comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('댓글 삭제 오류:', error);
+      alert('댓글 삭제 실패');
+      return;
+    }
+
+    loadComments(feedbackId);
+  };(e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -177,25 +246,7 @@ export default function VideoFeedback() {
       videoRef.current.pause();
     }
     
-    // 모달 위치 계산 (박스 오른쪽에 표시)
-    const modalWidth = 400;
-    const modalHeight = 500;
-    let modalX = newBox.x + newBox.width + 20;
-    let modalY = newBox.y;
-    
-    // 화면 밖으로 나가면 왼쪽에 표시
-    if (modalX + modalWidth > rect.width) {
-      modalX = newBox.x - modalWidth - 20;
-    }
-    
-    // 위쪽으로 나가면 조정
-    if (modalY < 0) modalY = 0;
-    if (modalY + modalHeight > rect.height) {
-      modalY = rect.height - modalHeight;
-    }
-    
-    setModalPosition({ x: modalX, y: modalY });
-    setShowCommentModal(true);
+    // 새 박스 생성 시에는 모달을 열지 않고, 박스 클릭 시에만 열림
   };
 
   // 리사이징 핸들 위치 확인 (8개 핸들: 4개 모서리 + 4개 변)
@@ -684,26 +735,91 @@ export default function VideoFeedback() {
               {feedbacks.map(feedback => (
                 <div
                   key={feedback.id}
-                  onClick={() => jumpToFeedback(feedback)}
-                  className="p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100 transition"
+                  className="p-3 bg-gray-50 rounded"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-blue-600">
-                      {Math.floor(feedback.timestamp / 60)}:{String(Math.floor(feedback.timestamp % 60)).padStart(2, '0')}
-                    </span>
-                    <span className="text-xs text-gray-500">{feedback.author}</span>
+                  {/* 피드백 내용 */}
+                  <div 
+                    onClick={() => jumpToFeedback(feedback)}
+                    className="cursor-pointer hover:bg-gray-100 p-2 -m-2 rounded"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-blue-600">
+                        {Math.floor(feedback.timestamp / 60)}:{String(Math.floor(feedback.timestamp % 60)).padStart(2, '0')}
+                      </span>
+                      <span className="text-xs text-gray-500">{feedback.author}</span>
+                    </div>
+                    <p className="text-sm text-gray-700">{feedback.comment}</p>
+                    {feedback.reference_file_url && (
+                      <a
+                        href={feedback.reference_file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-block mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                      >
+                        📎 참고 파일 보기
+                      </a>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-700">{feedback.comment}</p>
-                  {feedback.reference_file_url && (
-                    <a
-                      href={feedback.reference_file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-block mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                    >
-                      📎 참고 파일 보기
-                    </a>
+                  
+                  {/* 댓글 토글 버튼 */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedFeedback(expandedFeedback === feedback.id ? null : feedback.id);
+                    }}
+                    className="mt-2 text-xs text-gray-600 hover:text-gray-800"
+                  >
+                    💬 댓글 ({comments[feedback.id]?.length || 0})
+                  </button>
+                  
+                  {/* 댓글 섹션 */}
+                  {expandedFeedback === feedback.id && (
+                    <div className="mt-3 pt-3 border-t border-gray-300" onClick={(e) => e.stopPropagation()}>
+                      {/* 기존 댓글 목록 */}
+                      <div className="space-y-2 mb-3">
+                        {comments[feedback.id]?.map(comment => (
+                          <div key={comment.id} className="bg-white p-2 rounded text-xs">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold text-gray-700">{comment.author}</span>
+                              <button
+                                onClick={() => deleteComment(comment.id, feedback.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <p className="text-gray-600">{comment.comment}</p>
+                            <span className="text-gray-400 text-[10px]">
+                              {new Date(comment.created_at).toLocaleString('ko-KR')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* 댓글 입력 */}
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          placeholder="작성자 (선택)"
+                          value={expandedFeedback === feedback.id ? commentAuthor : ''}
+                          onChange={(e) => setCommentAuthor(e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-xs"
+                        />
+                        <textarea
+                          placeholder="댓글 내용"
+                          value={expandedFeedback === feedback.id ? newComment : ''}
+                          onChange={(e) => setNewComment(e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-xs h-16"
+                        />
+                        <button
+                          onClick={() => addComment(feedback.id)}
+                          className="w-full px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                        >
+                          댓글 작성
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
