@@ -79,13 +79,46 @@ function generateEmailHtml(templateCode, variables) {
   const templates = {
     // 기업용
     '025100000912': { // 회원가입
-      subject: '[CNEC] 가입을 환영합니다',
+      subject: `[CNEC BIZ] ${variables['회원명']}님, 회원가입을 환영합니다!`,
       html: `
-        <h2>가입을 환영합니다!</h2>
-        <p>${variables['회원명']}님, CNEC BIZ에 가입해주셔서 감사합니다.</p>
-        <p>앞으로도 많은 관심과 이용 부탁 드립니다.</p>
-        <p>가입 후 기업 프로필을 설정해 주세요.</p>
-        <p>문의: 1833-6025</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">CNEC BIZ</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">글로벌 인플루언서 마케팅 플랫폼</p>
+          </div>
+          
+          <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #1f2937; margin-top: 0;">🎉 ${variables['회원명']}님, 환영합니다!</h2>
+            
+            <p style="color: #4b5563; line-height: 1.6;">
+              안녕하세요, ${variables['회원명']}님!<br><br>
+              <strong>CNEC BIZ</strong> 회원가입이 완료되었습니다.<br>
+              앞으로도 많은 관심과 이용 부탁 드립니다.
+            </p>
+            
+            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
+              <h3 style="color: #1f2937; margin-top: 0; font-size: 16px;">📋 다음 단계</h3>
+              <ol style="color: #4b5563; line-height: 1.8; margin: 0; padding-left: 20px;">
+                <li>로그인 후 <strong>기업 프로필</strong>을 설정해 주세요</li>
+                <li>진행 중인 <strong>캠페인</strong>을 확인하세요</li>
+                <li>관심 있는 캠페인에 <strong>지원</strong>하세요</li>
+              </ol>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://cnectotal.netlify.app/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">로그인하기</a>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              문의사항이 있으시면 <a href="tel:1833-6025" style="color: #667eea; text-decoration: none;">1833-6025</a>로 연락주세요.<br>
+              또는 이메일로 문의하실 수 있습니다.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+            <p>© 2025 CNEC BIZ. All rights reserved.</p>
+          </div>
+        </div>
       `
     },
     '025100000918': { // 캠페인 신청 및 입금 안내
@@ -104,16 +137,48 @@ function generateEmailHtml(templateCode, variables) {
       `
     },
     '025100000943': { // 포인트 충전 완료
-      subject: '[CNEC] 포인트 충전 완료',
+      subject: `[CNEC BIZ] ${variables['회사명']}님, 포인트 충전이 완료되었습니다`,
       html: `
-        <h2>포인트 충전 완료</h2>
-        <p>${variables['회사명']}님, 포인트 충전이 완료되었습니다.</p>
-        <ul>
-          <li><strong>충전 포인트:</strong> ${variables['포인트']}P</li>
-          ${variables['캠페인명'] ? `<li><strong>캠페인:</strong> ${variables['캠페인명']}</li>` : ''}
-        </ul>
-        <p>캠페인 진행에 사용하실 수 있습니다.</p>
-        <p>문의: 1833-6025</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px;">CNEC BIZ</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">글로벌 인플루언서 마케팅 플랫폼</p>
+          </div>
+          
+          <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #1f2937; margin-top: 0;">✅ 포인트 충전 완료</h2>
+            
+            <p style="color: #4b5563; line-height: 1.6;">
+              안녕하세요, ${variables['회사명']}님!<br><br>
+              포인트 충전이 성공적으로 완료되었습니다.
+            </p>
+            
+            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
+              <h3 style="color: #1f2937; margin-top: 0; font-size: 16px;">💳 충전 내역</h3>
+              <ul style="color: #4b5563; line-height: 1.8; margin: 0; padding-left: 20px; list-style: none;">
+                <li style="margin-bottom: 10px;"><strong>충전 포인트:</strong> <span style="color: #667eea; font-size: 18px; font-weight: bold;">${variables['포인트']}P</span></li>
+                ${variables['캠페인명'] ? `<li><strong>캠페인:</strong> ${variables['캠페인명']}</li>` : ''}
+              </ul>
+            </div>
+            
+            <p style="color: #4b5563; line-height: 1.6;">
+              충전된 포인트는 캠페인 진행에 사용하실 수 있습니다.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="https://cnectotal.netlify.app/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">대시보드 바로가기</a>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              문의사항이 있으시면 <a href="tel:1833-6025" style="color: #667eea; text-decoration: none;">1833-6025</a>로 연락주세요.<br>
+              또는 이메일로 문의하실 수 있습니다.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+            <p>© 2025 CNEC BIZ. All rights reserved.</p>
+          </div>
+        </div>
       `
     },
     '025100001005': { // 캠페인 승인 및 모집 시작

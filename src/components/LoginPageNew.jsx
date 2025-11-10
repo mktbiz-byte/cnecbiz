@@ -147,6 +147,23 @@ export default function LoginPageNew() {
                 회원가입
               </button>
             </div>
+            <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+              <button
+                type="button"
+                className="hover:text-blue-600 hover:underline"
+                onClick={() => navigate('/find-email')}
+              >
+                ID 찾기
+              </button>
+              <span className="text-gray-400">|</span>
+              <button
+                type="button"
+                className="hover:text-blue-600 hover:underline"
+                onClick={() => navigate('/find-password')}
+              >
+                비밀번호 찾기
+              </button>
+            </div>
           </div>
 
           <div className="pt-4 border-t">

@@ -5,6 +5,9 @@ import LoginPageNew from './components/LoginPageNew'
 import LoginPageOld from './components/LoginPageOld'
 import SignupPageNew from './components/SignupPageNew'
 import SignupWithVerification from './components/SignupWithVerification'
+import FindEmailPage from './components/FindEmailPage'
+import FindPasswordPage from './components/FindPasswordPage'
+import ResetPasswordPage from './components/ResetPasswordPage'
 import CompanyDashboard from './components/company/CompanyDashboard'
 import CreateCampaign from './components/company/CreateCampaign'
 import CreateCampaignRouter from './components/company/CreateCampaignRouter'
@@ -75,6 +78,9 @@ function App() {
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />
         <Route path="/signup" element={<SignupWithVerification />} />
+        <Route path="/find-email" element={<FindEmailPage />} />
+        <Route path="/find-password" element={<FindPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/signup-old" element={<SignupPageNew />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 

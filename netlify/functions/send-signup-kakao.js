@@ -175,75 +175,22 @@ function sendSMS(phone, userName) {
   });
 }
 
-// 이메일 발송 (Gmail SMTP 사용)
+// 이메일 발송 (send-notification-helper 사용)
 async function sendEmail(email, userName) {
   try {
+    const { generateEmailHtml } = require('./send-notification-helper');
+    const templateCode = '025100000912'; // 회원가입
+    const variables = { '회원명': userName };
+    const emailTemplate = generateEmailHtml(templateCode, variables);
+    
     // send-email Function 호출
     const response = await fetch('/.netlify/functions/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to: email,
-        subject: `[CNEC BIZ] ${userName}님, 회원가입을 환영합니다!`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">CNEC BIZ</h1>
-              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">글로벌 인플루언서 마케팅 플랫폼</p>
-            </div>
-            
-            <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-              <h2 style="color: #1f2937; margin-top: 0;">🎉 ${userName}님, 환영합니다!</h2>
-              
-              <p style="color: #4b5563; line-height: 1.6;">
-                안녕하세요, ${userName}님!<br><br>
-                <strong>CNEC BIZ</strong> 회원가입이 완료되었습니다.<br>
-                앞으로도 많은 관심과 이용 부탁 드립니다.
-              </p>
-              
-              <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
-                <h3 style="color: #1f2937; margin-top: 0; font-size: 16px;">📋 다음 단계</h3>
-                <ol style="color: #4b5563; line-height: 1.8; margin: 0; padding-left: 20px;">
-                  <li>로그인 후 <strong>기업 프로필</strong>을 설정해 주세요</li>
-                  <li>진행 중인 <strong>캠페인</strong>을 확인하세요</li>
-                  <li>관심 있는 캠페인에 <strong>지원</strong>하세요</li>
-                </ol>
-              </div>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="https://cnecbiz.com/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">로그인하기</a>
-              </div>
-              
-              <p style="color: #6b7280; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                문의사항이 있으시면 <a href="tel:1833-6025" style="color: #667eea; text-decoration: none;">1833-6025</a>로 연락주세요.<br>
-                또는 이메일로 문의하실 수 있습니다.
-              </p>
-            </div>
-            
-            <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
-              <p>© 2025 CNEC BIZ. All rights reserved.</p>
-            </div>
-          </div>
-        `,
-        text: `
-[CNEC BIZ] ${userName}님, 환영합니다!
-
-안녕하세요, ${userName}님!
-
-CNEC BIZ 회원가입이 완료되었습니다.
-앞으로도 많은 관심과 이용 부탁 드립니다.
-
-다음 단계:
-1. 로그인 후 기업 프로필을 설정해 주세요
-2. 진행 중인 캠페인을 확인하세요
-3. 관심 있는 캠페인에 지원하세요
-
-로그인: https://cnecbiz.com/login
-
-문의사항이 있으시면 1833-6025로 연락주세요.
-
-© 2025 CNEC BIZ. All rights reserved.
-        `
+        subject: emailTemplate.subject,
+        html: emailTemplate.html
       })
     });
 
