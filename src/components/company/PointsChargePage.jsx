@@ -34,7 +34,8 @@ function ChargeForm({ onSuccess }) {
     address: '',
     businessType: '',
     businessItem: '',
-    email: ''
+    email: '',
+    contactPerson: ''
   })
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
@@ -71,7 +72,8 @@ function ChargeForm({ onSuccess }) {
             address: companyData.company_address || '',
             businessType: companyData.business_type || '',
             businessItem: companyData.business_category || '',
-            email: companyData.email || ''
+            email: companyData.tax_invoice_email || companyData.email || '',
+            contactPerson: companyData.tax_invoice_contact_person || companyData.contact_person || ''
           })
           // 입금자명 기본값 설정
           setDepositorName(companyData.contact_person || companyData.company_name || '')
@@ -481,7 +483,21 @@ function ChargeForm({ onSuccess }) {
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
-                    이메일 <span className="text-red-500">*</span>
+                    세금계산서 담당자 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={taxInvoiceInfo.contactPerson}
+                    onChange={(e) => setTaxInvoiceInfo({...taxInvoiceInfo, contactPerson: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    placeholder="세금계산서 담당자 이름"
+                    required={needsTaxInvoice}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    세금계산서 수신 이메일 <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"

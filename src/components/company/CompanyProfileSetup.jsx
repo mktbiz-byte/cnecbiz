@@ -35,6 +35,10 @@ export default function CompanyProfileSetup() {
     notificationEmail: '',
     notificationPhone: '',
     
+    // 세금계산서 담당자
+    taxInvoiceEmail: '',
+    taxInvoiceContactPerson: '',
+    
     // 기업 구분
     isAgency: false,
     
@@ -89,6 +93,8 @@ export default function CompanyProfileSetup() {
           notificationContactPerson: companyData.notification_contact_person || companyData.contact_person || '',
           notificationEmail: companyData.notification_email || companyData.email || '',
           notificationPhone: companyData.notification_phone || companyData.phone || '',
+          taxInvoiceEmail: companyData.tax_invoice_email || companyData.email || '',
+          taxInvoiceContactPerson: companyData.tax_invoice_contact_person || companyData.contact_person || '',
           isAgency: companyData.is_agency || false,
           emailNotificationConsent: companyData.email_notification_consent !== false,
           smsNotificationConsent: companyData.sms_notification_consent !== false,
@@ -112,6 +118,10 @@ export default function CompanyProfileSetup() {
   const handleNextStep = () => {
     // Step 1 유효성 검사
     if (currentStep === 1) {
+      if (!formData.companyName) {
+        setError('회사명을 입력해주세요.')
+        return
+      }
       if (!formData.ceoName) {
         setError('대표자명을 입력해주세요.')
         return
@@ -122,6 +132,14 @@ export default function CompanyProfileSetup() {
       }
       if (!formData.businessCategory) {
         setError('종목을 입력해주세요.')
+        return
+      }
+      if (!formData.taxInvoiceContactPerson) {
+        setError('세금계산서 담당자를 입력해주세요.')
+        return
+      }
+      if (!formData.taxInvoiceEmail) {
+        setError('세금계산서 수신 이메일을 입력해주세요.')
         return
       }
       if (!formData.companyPostalCode || !formData.companyAddress) {
@@ -172,6 +190,7 @@ export default function CompanyProfileSetup() {
       const { error: updateError } = await supabaseBiz
         .from('companies')
         .update({
+          company_name: formData.companyName,
           ceo_name: formData.ceoName,
           business_type: formData.businessType,
           business_category: formData.businessCategory,
@@ -180,6 +199,8 @@ export default function CompanyProfileSetup() {
           notification_contact_person: formData.notificationContactPerson,
           notification_email: formData.notificationEmail,
           notification_phone: formData.notificationPhone,
+          tax_invoice_email: formData.taxInvoiceEmail,
+          tax_invoice_contact_person: formData.taxInvoiceContactPerson,
           is_agency: formData.isAgency,
           email_notification_consent: formData.emailNotificationConsent,
           sms_notification_consent: formData.smsNotificationConsent,
@@ -296,10 +317,6 @@ export default function CompanyProfileSetup() {
                     <h3 className="font-semibold text-blue-900 mb-2">회원가입 시 입력한 정보</h3>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-600">회사명:</span>
-                        <span className="ml-2 font-medium">{formData.companyName}</span>
-                      </div>
-                      <div>
                         <span className="text-gray-600">사업자등록번호:</span>
                         <span className="ml-2 font-medium">{formData.businessNumber || '미입력'}</span>
                       </div>
@@ -310,6 +327,26 @@ export default function CompanyProfileSetup() {
                       <div>
                         <span className="text-gray-600">이메일:</span>
                         <span className="ml-2 font-medium">{formData.email}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">회사 기본 정보</h3>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">회사명 *</label>
+                      <div className="relative">
+                        <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input
+                          type="text"
+                          name="companyName"
+                          placeholder="주식회사 하우파파"
+                          value={formData.companyName}
+                          onChange={handleChange}
+                          className="pl-10 h-12"
+                          required
+                        />
                       </div>
                     </div>
                   </div>
@@ -362,6 +399,40 @@ export default function CompanyProfileSetup() {
                         className="h-12"
                         required
                       />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">세금계산서 담당자 *</label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <Input
+                            type="text"
+                            name="taxInvoiceContactPerson"
+                            placeholder="박현호"
+                            value={formData.taxInvoiceContactPerson}
+                            onChange={handleChange}
+                            className="pl-10 h-12"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">세금계산서 수신 이메일 *</label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <Input
+                            type="email"
+                            name="taxInvoiceEmail"
+                            placeholder="예: 회계팀, 대표 메일"
+                            value={formData.taxInvoiceEmail}
+                            onChange={handleChange}
+                            className="pl-10 h-12"
+                            required
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
