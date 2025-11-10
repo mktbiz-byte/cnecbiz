@@ -152,7 +152,28 @@ exports.handler = async (event, context) => {
     }
 
     // SMS 인증 확인
+    console.log('[complete-signup] Verifying SMS:', phoneNumber.replace(/[^0-9]/    console.log('[complete-signup] Step 1: Checking for existing email')
+    
+    // 이메일 중복 체크 (사업자번호는 중복 허용)
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
+    const emailExists = existingUser?.users?.some(u => u.email === email)
+    if (emailExists) {
+      console.log('[complete-signup] Email already exists:', email)
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '이미 가입된 이메일입니다.'
+        })
+      }
+    }
+    
+    console.log('[complete-signup] Step 2: Verifying SMS')
+    
+    // SMS 인증 확인
     const smsVerified = await verifySMSCode(phoneNumber.replace(/[^0-9]/g, ''), smsCode)
+    console.log('[complete-signup] SMS verified:', smsVerified)
     if (!smsVerified) {
       return {
         statusCode: 400,
@@ -165,17 +186,20 @@ exports.handler = async (event, context) => {
     }
 
     // 팝빌 기업정보 조회
+    console.log('[complete-signup] Checking business info:', cleanBusinessNumber)
     let bizInfo
     try {
       bizInfo = await checkBizInfo(cleanBusinessNumber)
+      console.log('[complete-signup] Business info:', bizInfo)
     } catch (error) {
-      console.error('팝빌 API 오류:', error)
+      console.error('[complete-signup] Popbill API error:', error)
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           success: false,
-          error: '기업정보 조회 중 오류가 발생했습니다.'
+          error: '기업정보 조회 중 오류가 발생했습니다.',
+          details: error.message
         })
       }
     }
@@ -194,6 +218,7 @@ exports.handler = async (event, context) => {
     }
 
     // Supabase Auth 계정 생성
+    console.log('[complete-signup] Creating auth user:', email)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -201,7 +226,20 @@ exports.handler = async (event, context) => {
     })
 
     if (authError) {
-      console.error('Auth 계정 생성 오류:', authError)
+      console.error('[complete-signup] Auth creation error:', authError)
+      
+      // 중복 이메일 오류 처리
+      if (authError.message?.includes('already registered') || authError.message?.includes('already exists')) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: '이미 가입된 이메일입니다.'
+          })
+        }
+      }
+      
       return {
         statusCode: 500,
         headers,
@@ -212,6 +250,8 @@ exports.handler = async (event, context) => {
         })
       }
     }
+    console.log('[complete-signup] Auth user created:', authData.user.id)
+    console.log('[complete-signup] Auth user created:', authData.user.id)
 
     // companies 테이블에 기업 정보 저장
     const { data: companyData, error: companyError } = await supabaseAdmin
@@ -230,20 +270,23 @@ exports.handler = async (event, context) => {
       .single()
 
     if (companyError) {
-      console.error('회사 정보 저장 오류:', companyError)
+      console.error('[complete-signup] Company insert error:', companyError)
       
       // Auth 계정 롤백
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+      
       
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           success: false,
-          error: '회사 정보 저장 중 오류가 발생했습니다.'
+          error: '회사 정보 저장 중 오류가 발생했습니다.',
+          details: companyError.message
         })
       }
     }
+    console.log('[complete-signup] Company data saved:', companyData.id)
 
     // 회원가입 카카오톡 전송 (비동기 - 실패해도 회원가입은 성공)
     try {
@@ -276,14 +319,16 @@ exports.handler = async (event, context) => {
     }
 
   } catch (error) {
-    console.error('서버 오류:', error)
+    console.error('[complete-signup] Unexpected error:', error)
+    console.error('[complete-signup] Error stack:', error.stack)
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         success: false,
         error: '서버 오류가 발생했습니다.',
-        details: error.message
+        details: error.message,
+        stack: error.stack
       })
     }
   }
