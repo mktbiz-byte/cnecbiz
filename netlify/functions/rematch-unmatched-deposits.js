@@ -200,7 +200,10 @@ exports.handler = async (event, context) => {
           // bank_transactions 업데이트
           const { error: updateDepositError } = await supabase
             .from('bank_transactions')
-            .update({ matched_request_id: bestMatch.id })
+            .update({ 
+              matched_request_id: bestMatch.id,
+              is_matched: true 
+            })
             .eq('id', deposit.id);
 
           if (updateDepositError) {
