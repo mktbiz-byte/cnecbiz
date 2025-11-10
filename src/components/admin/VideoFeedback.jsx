@@ -25,6 +25,7 @@ export default function VideoFeedback() {
   const [newComment, setNewComment] = useState('');
   const [commentAuthor, setCommentAuthor] = useState('');
   const [expandedFeedback, setExpandedFeedback] = useState(null);
+  const [editingComment, setEditingComment] = useState(null); // 수정 중인 댓글 ID
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -117,30 +118,57 @@ export default function VideoFeedback() {
     setComments(prev => ({ ...prev, [feedbackId]: data || [] }));
   };
   
-  // 댓글 추가
+  // 댓글 추가 또는 수정
   const addComment = async (feedbackId) => {
     if (!newComment.trim()) {
       alert('댓글 내용을 입력해주세요.');
       return;
     }
 
-    const { error } = await supabaseBiz
-      .from('video_feedback_comments')
-      .insert([{
-        feedback_id: feedbackId,
-        author: commentAuthor.trim() || '익명',
-        comment: newComment.trim()
-      }]);
+    if (editingComment) {
+      // 댓글 수정
+      const { error } = await supabaseBiz
+        .from('video_feedback_comments')
+        .update({
+          author: commentAuthor.trim() || '익명',
+          comment: newComment.trim()
+        })
+        .eq('id', editingComment);
 
-    if (error) {
-      console.error('댓글 추가 오류:', error);
-      alert('댓글 추가 실패');
-      return;
+      if (error) {
+        console.error('댓글 수정 오류:', error);
+        alert('댓글 수정 실패');
+        return;
+      }
+      
+      setEditingComment(null);
+    } else {
+      // 댓글 추가
+      const { error } = await supabaseBiz
+        .from('video_feedback_comments')
+        .insert([{
+          feedback_id: feedbackId,
+          author: commentAuthor.trim() || '익명',
+          comment: newComment.trim()
+        }]);
+
+      if (error) {
+        console.error('댓글 추가 오류:', error);
+        alert('댓글 추가 실패');
+        return;
+      }
     }
 
     setNewComment('');
     setCommentAuthor('');
     loadComments(feedbackId);
+  };
+  
+  // 댓글 수정 모드 시작
+  const startEditComment = (comment) => {
+    setEditingComment(comment.id);
+    setCommentAuthor(comment.author);
+    setNewComment(comment.comment);
   };
   
   // 댓글 삭제
@@ -735,29 +763,55 @@ export default function VideoFeedback() {
                       <span className="text-xs text-gray-500">{feedback.author}</span>
                     </div>
                     <p className="text-sm text-gray-700">{feedback.comment}</p>
-                    {feedback.reference_file_url && (
-                      <a
-                        href={feedback.reference_file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-block mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
-                      >
-                        📎 참고 파일 보기
-                      </a>
-                    )}
                   </div>
                   
-                  {/* 댓글 토글 버튼 */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedFeedback(expandedFeedback === feedback.id ? null : feedback.id);
-                    }}
-                    className="mt-2 text-xs text-gray-600 hover:text-gray-800"
-                  >
-                    💬 댓글 ({comments[feedback.id]?.length || 0})
-                  </button>
+                  {/* 참고 파일 및 버튼 */}
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {feedback.reference_file_url && (
+                        <a
+                          href={feedback.reference_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          📎 참고 파일
+                        </a>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedFeedback(expandedFeedback === feedback.id ? null : feedback.id);
+                        }}
+                        className="text-xs text-gray-600 hover:text-gray-800"
+                      >
+                        💬 댓글 ({comments[feedback.id]?.length || 0})
+                      </button>
+                    </div>
+                    
+                    {/* 수정/삭제 버튼 */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          editFeedback(feedback);
+                        }}
+                        className="text-xs text-green-600 hover:text-green-800"
+                      >
+                        ✏️ 수정
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteFeedback(feedback.id);
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        🗑️ 삭제
+                      </button>
+                    </div>
+                  </div>
                   
                   {/* 댓글 섹션 */}
                   {expandedFeedback === feedback.id && (
@@ -768,12 +822,20 @@ export default function VideoFeedback() {
                           <div key={comment.id} className="bg-white p-2 rounded text-xs">
                             <div className="flex items-center justify-between mb-1">
                               <span className="font-semibold text-gray-700">{comment.author}</span>
-                              <button
-                                onClick={() => deleteComment(comment.id, feedback.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                ✕
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => startEditComment(comment)}
+                                  className="text-green-600 hover:text-green-800"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => deleteComment(comment.id, feedback.id)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  ✕
+                                </button>
+                              </div>
                             </div>
                             <p className="text-gray-600">{comment.comment}</p>
                             <span className="text-gray-400 text-[10px]">
@@ -798,12 +860,26 @@ export default function VideoFeedback() {
                           onChange={(e) => setNewComment(e.target.value)}
                           className="w-full px-2 py-1 border rounded text-xs h-16"
                         />
-                        <button
-                          onClick={() => addComment(feedback.id)}
-                          className="w-full px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                        >
-                          댓글 작성
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => addComment(feedback.id)}
+                            className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                          >
+                            {editingComment ? '댓글 수정' : '댓글 작성'}
+                          </button>
+                          {editingComment && (
+                            <button
+                              onClick={() => {
+                                setEditingComment(null);
+                                setNewComment('');
+                                setCommentAuthor('');
+                              }}
+                              className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
+                            >
+                              취소
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
