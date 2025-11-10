@@ -215,7 +215,39 @@ exports.handler = async (event, context) => {
             }
           }
 
-          // 2. 이메일 발송
+          // 2. 네이버 웍스 메시지 발송 (관리자용)
+          try {
+            console.log('[INFO] Sending Naver Works notification to admin')
+            const koreanDate = new Date().toLocaleString('ko-KR', { 
+              timeZone: 'Asia/Seoul',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+
+            const naverMessage = `💰 포인트 충전 신청\n\n` +
+              `회사명: ${companyName}\n` +
+              `충전 금액: ${parseInt(amount).toLocaleString()}원\n` +
+              `세금계산서: ${needsTaxInvoice ? '신청' : '미신청'}\n` +
+              `입금자명: ${depositorName}\n` +
+              `신청 시간: ${koreanDate}\n\n` +
+              `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`;
+
+            await axios.post(
+              `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+              {
+                message: naverMessage,
+                isAdminNotification: true
+              }
+            )
+            console.log('[SUCCESS] Naver Works notification sent')
+          } catch (naverError) {
+            console.error('[ERROR] Failed to send Naver Works notification:', naverError.message)
+          }
+
+          // 3. 이메일 발송
           if (companyEmail) {
             try {
               console.log('[INFO] Attempting to send email to:', companyEmail)

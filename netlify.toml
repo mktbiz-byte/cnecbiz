@@ -10,6 +10,9 @@
 [functions."scheduled-collect-transactions"]
   schedule = "*/5 * * * *"
 
+[functions."scheduled-unmatched-deposits-alert"]
+  schedule = "0 7 * * *"  # 매일 오후 4시 (한국시간 = UTC+9)
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

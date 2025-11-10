@@ -68,16 +68,68 @@ async function waitForJobCompletion(jobID, maxAttempts = 10) {
 }
 
 /**
- * 자동 매칭 로직
+ * 회사명 정규화 (띄어쓰기, 주식회사/(주) 제거)
+ */
+function normalizeCompanyName(name) {
+  if (!name) return '';
+  return name
+    .replace(/\s+/g, '') // 모든 띄어쓰기 제거
+    .replace(/주식회사/g, '') // "주식회사" 제거
+    .replace(/\(주\)/g, '') // "(주)" 제거
+    .replace(/주\)/g, '') // "주)" 제거 (여는 괄호 누락)
+    .toLowerCase();
+}
+
+/**
+ * 문자열 유사도 계산 (Levenshtein Distance)
+ */
+function calculateSimilarity(str1, str2) {
+  const s1 = normalizeCompanyName(str1);
+  const s2 = normalizeCompanyName(str2);
+  
+  if (s1 === s2) return 100;
+  if (s1.length === 0 || s2.length === 0) return 0;
+  
+  // Levenshtein Distance
+  const matrix = [];
+  for (let i = 0; i <= s2.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= s1.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= s2.length; i++) {
+    for (let j = 1; j <= s1.length; j++) {
+      if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  const distance = matrix[s2.length][s1.length];
+  const maxLength = Math.max(s1.length, s2.length);
+  const similarity = ((maxLength - distance) / maxLength) * 100;
+  
+  return Math.round(similarity);
+}
+
+/**
+ * 자동 매칭 로직 (유사도 매칭 포함)
  */
 async function autoMatchTransaction(transaction) {
   try {
     console.log(`🔍 [AUTO-MATCH] 매칭 시도: ${transaction.briefs} / ${transaction.trade_balance}원`);
 
-    // 충전 요청에서 입금자명과 금액이 일치하는 것 찾기
-    const { data: requests, error } = await supabaseAdmin
+    // 1단계: 정확한 일치 (100% 매칭)
+    let { data: requests, error } = await supabaseAdmin
       .from('points_charge_requests')
-      .select('*')
+      .select('*, companies(company_name)')
       .eq('status', 'pending')
       .eq('payment_method', 'bank_transfer')
       .eq('depositor_name', transaction.briefs)
@@ -90,9 +142,48 @@ async function autoMatchTransaction(transaction) {
       return null;
     }
 
+    // 2단계: 유사도 매칭 (70% 이상)
     if (!requests || requests.length === 0) {
-      console.log(`ℹ️  매칭되는 충전 요청 없음`);
-      return null;
+      console.log(`ℹ️  정확한 매칭 없음 - 유사도 매칭 시도`);
+      
+      const { data: allRequests, error: allError } = await supabaseAdmin
+        .from('points_charge_requests')
+        .select('*, companies(company_name)')
+        .eq('status', 'pending')
+        .eq('payment_method', 'bank_transfer')
+        .eq('amount', parseInt(transaction.trade_balance))
+        .order('created_at', { ascending: true });
+
+      if (allError || !allRequests || allRequests.length === 0) {
+        console.log(`ℹ️  매칭되는 충전 요청 없음`);
+        return null;
+      }
+
+      // 유사도 계산
+      let bestMatch = null;
+      let bestSimilarity = 0;
+
+      for (const req of allRequests) {
+        const similarity = calculateSimilarity(transaction.briefs, req.depositor_name);
+        console.log(`  - ${req.depositor_name}: ${similarity}% 유사`);
+        
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity;
+          bestMatch = req;
+        }
+      }
+
+      if (bestSimilarity >= 70) {
+        console.log(`✅ 유사도 매칭 발견: ${bestMatch.depositor_name} (${bestSimilarity}%)`);
+        requests = [bestMatch];
+      } else if (bestSimilarity >= 50) {
+        console.log(`⚠️  중간 유사도: ${bestMatch.depositor_name} (${bestSimilarity}%) - 수동 확인 필요`);
+        // TODO: 네이버 웍스 경고 메시지 발송
+        return { needsManualReview: true, similarity: bestSimilarity, match: bestMatch };
+      } else {
+        console.log(`❌ 유사도 너무 낮음: ${bestSimilarity}%`);
+        return null;
+      }
     }
 
     const request = requests[0];

@@ -1,18 +1,20 @@
+/**
+ * 매일 오후 4시(한국시간) 실행되는 미매칭 입금 건 알림
+ * Netlify Scheduled Function
+ * 
+ * Cron: 0 7 * * * (UTC 7시 = 한국시간 16시)
+ */
+
+const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const crypto = require('crypto');
 
-/**
- * 네이버웍스 메시지 전송 Netlify Function
- * 추천 크리에이터 문의를 네이버웍스 메시지방으로 전송
- * 
- * 환경 변수:
- * - NAVER_WORKS_CLIENT_ID: Client ID
- * - NAVER_WORKS_CLIENT_SECRET: Client Secret
- * - NAVER_WORKS_BOT_ID: Bot ID
- * - NAVER_WORKS_CHANNEL_ID: 메시지방 채널 ID
- */
+// Supabase 클라이언트 초기화
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-// Private Key (환경 변수 크기 제한으로 코드에 포함)
+// 네이버 웍스 Private Key
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
 MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
 MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
@@ -42,26 +44,25 @@ h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
 skmeYX6UpJwnuTP2xN5NDDI=
 -----END PRIVATE KEY-----`;
 
-// JWT 생성 함수
+console.log('Scheduled function: unmatched-deposits-alert initialized');
+
+/**
+ * JWT 생성
+ */
 function generateJWT(clientId, serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
   
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT'
-  };
-  
+  const header = { alg: 'RS256', typ: 'JWT' };
   const payload = {
     iss: clientId,
     sub: serviceAccount,
     iat: now,
-    exp: now + 3600, // 1시간 후 만료
+    exp: now + 3600,
     scope: 'bot'
   };
   
   const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  
   const signatureInput = `${base64Header}.${base64Payload}`;
   const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), PRIVATE_KEY);
   const base64Signature = signature.toString('base64url');
@@ -69,7 +70,9 @@ function generateJWT(clientId, serviceAccount) {
   return `${signatureInput}.${base64Signature}`;
 }
 
-// Access Token 발급 함수
+/**
+ * Access Token 발급
+ */
 async function getAccessToken(clientId, clientSecret, serviceAccount) {
   return new Promise((resolve, reject) => {
     const jwt = generateJWT(clientId, serviceAccount);
@@ -111,8 +114,10 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
   });
 }
 
-// 메시지 전송 함수
-async function sendMessage(accessToken, botId, channelId, message) {
+/**
+ * 네이버 웍스 메시지 전송
+ */
+async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({
       content: {
@@ -150,112 +155,130 @@ async function sendMessage(accessToken, botId, channelId, message) {
   });
 }
 
+/**
+ * Gmail API로 이메일 전송
+ */
+async function sendEmail(to, subject, body) {
+  try {
+    const response = await fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject, body })
+    });
+
+    if (!response.ok) {
+      throw new Error(`이메일 전송 실패: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('이메일 전송 오류:', error);
+    throw error;
+  }
+}
+
+/**
+ * 메인 핸들러
+ */
 exports.handler = async (event, context) => {
-  // CORS 헤더
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-  };
-
-  // OPTIONS 요청 처리 (CORS preflight)
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
-  }
-
-  // POST 요청만 허용
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
-  }
+  console.log('🔔 [UNMATCHED-ALERT] 미매칭 입금 건 알림 시작');
 
   try {
-    // 요청 본문 파싱
-    const { creators, companyName, brandName, message, isAdminNotification } = JSON.parse(event.body);
+    // 오늘 날짜 (한국시간)
+    const now = new Date();
+    const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const todayStr = koreaTime.toISOString().split('T')[0];
 
-    // 관리자 알림인 경우 message만 사용
-    if (isAdminNotification) {
-      if (!message) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: '메시지가 필요합니다.' })
-        };
-      }
-    } else {
-      // 크리에이터 추천 알림인 경우
-      if (!creators || creators.length === 0) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: '크리에이터를 선택해주세요.' })
-        };
-      }
+    console.log(`📅 확인 날짜: ${todayStr}`);
+
+    // 미매칭 입금 건 조회 (오늘 날짜 기준)
+    const { data: unmatchedDeposits, error } = await supabaseAdmin
+      .from('bank_transactions')
+      .select('*')
+      .is('matched_request_id', null)
+      .gte('trade_date', todayStr)
+      .order('trade_date', { ascending: false });
+
+    if (error) {
+      console.error('❌ 미매칭 입금 조회 오류:', error);
+      throw error;
     }
 
-    // 환경 변수 확인
-    const clientId = process.env.NAVER_WORKS_CLIENT_ID;
-    const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
-    const botId = process.env.NAVER_WORKS_BOT_ID;
-    const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
-    const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
-
-    if (!clientId || !clientSecret || !botId || !channelId) {
-      throw new Error('네이버웍스 설정이 누락되었습니다.');
+    if (!unmatchedDeposits || unmatchedDeposits.length === 0) {
+      console.log('✅ 미매칭 입금 건 없음');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: '미매칭 입금 건 없음' })
+      };
     }
 
-    // Access Token 발급
-    const accessToken = await getAccessToken(clientId, clientSecret, serviceAccount);
+    console.log(`⚠️  미매칭 입금 건 ${unmatchedDeposits.length}건 발견`);
 
     // 메시지 작성
-    let finalMessage;
-    
-    if (isAdminNotification) {
-      // 관리자 알림은 전달받은 message 사용
-      finalMessage = message;
-    } else {
-      // 크리에이터 추천 알림
-      const creatorNames = creators.map(c => c.nickname || c.creator_name || c.name).join(', ');
-      const koreanDate = new Date().toLocaleString('ko-KR', { 
-        timeZone: 'Asia/Seoul',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+    const koreanDate = koreaTime.toLocaleString('ko-KR', { 
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
 
-      finalMessage = `${companyName || '기업명 미입력'} / ${brandName || '브랜드명 미입력'} - ${creatorNames}\n\n${companyName || '기업'}의 ${brandName || '브랜드'}가 추천 크리에이터에서 선택하였습니다.\n\n${koreanDate}`;
+    let message = `⚠️ 미매칭 입금 건 알림 (${koreanDate})\n\n`;
+    message += `총 ${unmatchedDeposits.length}건의 미매칭 입금이 있습니다.\n\n`;
+
+    unmatchedDeposits.forEach((deposit, index) => {
+      const date = new Date(deposit.trade_date).toLocaleDateString('ko-KR');
+      message += `${index + 1}. ${date} - ${deposit.briefs} / ${deposit.trade_balance.toLocaleString()}원\n`;
+    });
+
+    message += `\n관리자 페이지에서 확인해주세요:\nhttps://cnectotal.netlify.app/admin/deposits`;
+
+    // 네이버 웍스 메시지 전송
+    try {
+      const clientId = process.env.NAVER_WORKS_CLIENT_ID;
+      const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
+      const botId = process.env.NAVER_WORKS_BOT_ID;
+      const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
+      const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
+
+      const accessToken = await getAccessToken(clientId, clientSecret, serviceAccount);
+      await sendNaverWorksMessage(accessToken, botId, channelId, message);
+      console.log('✅ 네이버 웍스 메시지 전송 완료');
+    } catch (naverError) {
+      console.error('❌ 네이버 웍스 전송 실패:', naverError);
     }
 
-    // 메시지 전송
-    await sendMessage(accessToken, botId, channelId, finalMessage);
+    // 이메일 전송
+    try {
+      const emailBody = message.replace(/\n/g, '<br>');
+      await sendEmail(
+        'mkt@howlab.co.kr',
+        `⚠️ 미매칭 입금 건 ${unmatchedDeposits.length}건 알림`,
+        emailBody
+      );
+      console.log('✅ 이메일 전송 완료');
+    } catch (emailError) {
+      console.error('❌ 이메일 전송 실패:', emailError);
+    }
+
+    console.log('🎉 미매칭 입금 알림 완료');
 
     return {
       statusCode: 200,
-      headers,
-      body: JSON.stringify({ 
-        success: true, 
-        message: '문의가 성공적으로 전송되었습니다.' 
+      body: JSON.stringify({
+        success: true,
+        unmatchedCount: unmatchedDeposits.length,
+        message: '알림 전송 완료'
       })
     };
 
   } catch (error) {
-    console.error('Error:', error);
-
+    console.error('❌ 예상치 못한 오류:', error);
     return {
       statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        error: '메시지 전송에 실패했습니다.',
-        details: error.message 
+      body: JSON.stringify({
+        success: false,
+        error: error.message
       })
     };
   }
