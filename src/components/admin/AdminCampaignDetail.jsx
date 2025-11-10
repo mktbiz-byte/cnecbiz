@@ -779,7 +779,7 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold">업로드된 영상</h3>
-                {application.video_links.includes('youtube.com') || application.video_links.includes('youtu.be') ? (
+                {(typeof application.video_links === 'string' && (application.video_links.includes('youtube.com') || application.video_links.includes('youtu.be'))) ? (
                   <Button
                     variant="outline"
                     size="sm"
