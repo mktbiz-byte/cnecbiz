@@ -56,6 +56,8 @@ async function checkBizInfo(checkCorpNum) {
  * SMS 인증 확인
  */
 async function verifySMSCode(phoneNumber, code) {
+  console.log('[verifySMSCode] Searching for:', { phoneNumber, code })
+  
   // verified 상태와 관계없이 최근 인증 레코드 찾기
   const { data, error } = await supabaseAdmin
     .from('sms_verifications')
@@ -68,7 +70,9 @@ async function verifySMSCode(phoneNumber, code) {
     .single()
 
   if (error || !data) {
-    console.log('[verifySMSCode] No matching verification found:', error)
+    console.log('[verifySMSCode] No matching verification found')
+    console.log('[verifySMSCode] Error:', error)
+    console.log('[verifySMSCode] Searching with phone:', phoneNumber, 'code:', code)
     return false
   }
 
