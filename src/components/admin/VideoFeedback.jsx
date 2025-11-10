@@ -20,6 +20,7 @@ export default function VideoFeedback() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [mouseDownPos, setMouseDownPos] = useState(null);
+  const [playbackRate, setPlaybackRate] = useState(1);
   
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -608,6 +609,49 @@ export default function VideoFeedback() {
                   <span className="text-sm">
                     {Math.floor(currentTime)}초 / {Math.floor(duration)}초
                   </span>
+                  
+                  {/* 재생 속도 조절 */}
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => {
+                        videoRef.current.playbackRate = 0.5;
+                        setPlaybackRate(0.5);
+                      }}
+                      className={`px-3 py-1 rounded text-sm ${
+                        playbackRate === 0.5
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-600 text-white hover:bg-gray-500'
+                      }`}
+                    >
+                      0.5x
+                    </button>
+                    <button
+                      onClick={() => {
+                        videoRef.current.playbackRate = 1;
+                        setPlaybackRate(1);
+                      }}
+                      className={`px-3 py-1 rounded text-sm ${
+                        playbackRate === 1
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-600 text-white hover:bg-gray-500'
+                      }`}
+                    >
+                      1x
+                    </button>
+                    <button
+                      onClick={() => {
+                        videoRef.current.playbackRate = 2;
+                        setPlaybackRate(2);
+                      }}
+                      className={`px-3 py-1 rounded text-sm ${
+                        playbackRate === 2
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-600 text-white hover:bg-gray-500'
+                      }`}
+                    >
+                      2x
+                    </button>
+                  </div>
                 </div>
                 
                 {/* 진행 바 */}
