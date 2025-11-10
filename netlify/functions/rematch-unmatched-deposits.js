@@ -91,8 +91,13 @@ exports.handler = async (event, context) => {
       throw new Error('환경변수가 설정되지 않았습니다');
     }
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    console.log('✅ Supabase 클라이언트 초기화 성공\n');
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+    console.log('✅ Supabase 클라이언트 초기화 성공 (Service Role Key 사용)\n');
 
     // 1. 미매칭 입금 건 조회
     console.log('🔍 1단계: 미매칭 입금 건 조회');
@@ -222,6 +227,9 @@ exports.handler = async (event, context) => {
 
           if (updateRequestError) {
             console.error(`  ❌ points_charge_requests 업데이트 실패:`, updateRequestError);
+            console.error(`  에러 상세:`, JSON.stringify(updateRequestError, null, 2));
+            console.error(`  충전 요청 ID: ${bestMatch.id}`);
+            console.error(`  Service Role Key 사용 여부: ${supabaseServiceKey ? '✅' : '❌'}`);
             continue;
           }
 
