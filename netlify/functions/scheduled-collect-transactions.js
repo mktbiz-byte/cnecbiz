@@ -240,6 +240,131 @@ async function autoMatchTransaction(transaction) {
 
     console.log(`🎉 자동 매칭 완료! 충전: ${request.amount}원, 새 잔액: ${newPoints}원`);
 
+    // 입금 확인 알림 발송 (비동기 - 실패해도 매칭은 완료)
+    try {
+      const axios = require('axios');
+      const koreanDate = new Date().toLocaleString('ko-KR', { 
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // 회사 정보 조회
+      const { data: companyInfo, error: companyInfoError } = await supabaseAdmin
+        .from('companies')
+        .select('company_name, notification_email, notification_phone')
+        .eq('id', request.company_id)
+        .single();
+
+      if (companyInfoError) {
+        console.error('❌ 회사 정보 조회 실패:', companyInfoError);
+      } else {
+        const companyName = companyInfo.company_name || '고객사';
+        const companyEmail = companyInfo.notification_email;
+        const companyPhone = companyInfo.notification_phone;
+
+        // 1. 고객에게 알림톡 발송
+        if (companyPhone) {
+          try {
+            console.log(`📱 알림톡 발송: ${companyPhone}`);
+            await axios.post(
+              `${process.env.URL}/.netlify/functions/send-kakao-notification`,
+              {
+                receiverNum: companyPhone,
+                receiverName: companyName,
+                templateCode: '025100000943',
+                variables: {
+                  '회사명': companyName,
+                  '포인트': parseInt(request.amount).toLocaleString()
+                }
+              }
+            );
+            console.log('✅ 알림톡 발송 완료');
+          } catch (kakaoError) {
+            console.error('❌ 알림톡 발송 실패:', kakaoError.message);
+          }
+        }
+
+        // 2. 고객에게 이메일 발송
+        if (companyEmail) {
+          try {
+            console.log(`📧 이메일 발송: ${companyEmail}`);
+            await axios.post(
+              `${process.env.URL}/.netlify/functions/send-email`,
+              {
+                to: companyEmail,
+                subject: '[CNEC] 포인트 충전 완료',
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #4CAF50;">✅ 입금이 확인되었습니다</h2>
+                    <p>안녕하세요, <strong>${companyName}</strong>님.</p>
+                    <p>입금이 확인되어 포인트가 충전되었습니다.</p>
+                    
+                    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                      <h3 style="margin-top: 0; color: #555;">충전 내역</h3>
+                      <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                          <td style="padding: 8px 0; color: #666;"><strong>충전 포인트:</strong></td>
+                          <td style="padding: 8px 0; font-size: 18px; color: #4CAF50;"><strong>${parseInt(request.amount).toLocaleString()}P</strong></td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 8px 0; color: #666;"><strong>현재 잔액:</strong></td>
+                          <td style="padding: 8px 0;">${newPoints.toLocaleString()}P</td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 8px 0; color: #666;"><strong>확인 시간:</strong></td>
+                          <td style="padding: 8px 0;">${koreanDate}</td>
+                        </tr>
+                      </table>
+                    </div>
+                    
+                    <p style="color: #666;">이제 포인트를 사용하실 수 있습니다.</p>
+                    <p style="color: #666;">문의: <strong>1833-6025</strong></p>
+                    
+                    <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                    <p style="font-size: 12px; color: #999; text-align: center;">
+                      본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
+                    </p>
+                  </div>
+                `
+              }
+            );
+            console.log('✅ 이메일 발송 완료');
+          } catch (emailError) {
+            console.error('❌ 이메일 발송 실패:', emailError.message);
+          }
+        }
+
+        // 3. 관리자에게 네이버 웍스 알림
+        try {
+          console.log('📢 관리자 네이버 웍스 알림 발송');
+          const naverMessage = `✅ 입금 확인 완료\n\n` +
+            `회사명: ${companyName}\n` +
+            `충전 금액: ${parseInt(request.amount).toLocaleString()}원\n` +
+            `새 잔액: ${newPoints.toLocaleString()}P\n` +
+            `확인 시간: ${koreanDate}\n\n` +
+            `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`;
+
+          await axios.post(
+            `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+            {
+              message: naverMessage,
+              isAdminNotification: true
+            }
+          );
+          console.log('✅ 관리자 알림 발송 완료');
+        } catch (naverError) {
+          console.error('❌ 관리자 알림 발송 실패:', naverError.message);
+        }
+      }
+    } catch (notificationError) {
+      console.error('❌ 알림 발송 오류:', notificationError);
+      // 알림 실패해도 매칭은 완료
+    }
+
     return request.id;
   } catch (error) {
     console.error('❌ 자동 매칭 오류:', error);
