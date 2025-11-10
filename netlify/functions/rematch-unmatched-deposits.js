@@ -219,10 +219,7 @@ exports.handler = async (event, context) => {
           // points_charge_requests 업데이트
           const { error: updateRequestError } = await supabase
             .from('points_charge_requests')
-            .update({
-              status: 'completed',
-              completed_at: new Date().toISOString()
-            })
+            .update({ status: 'completed' })
             .eq('id', bestMatch.id);
 
           if (updateRequestError) {
