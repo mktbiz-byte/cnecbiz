@@ -136,6 +136,9 @@ exports.handler = async (event, context) => {
     }
 
     console.log(`📊 총 ${pendingRequests.length}건의 대기 중인 충전 요청`);
+    pendingRequests.forEach(req => {
+      console.log(`  - ${req.depositor_name}: ${parseInt(req.amount).toLocaleString()}원`);
+    });
 
     let matchedCount = 0;
     const matchResults = [];
