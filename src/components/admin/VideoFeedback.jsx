@@ -5,9 +5,10 @@ export default function VideoFeedback() {
   const [videos, setVideos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawStart, setDrawStart] = useState(null);
   const [currentBox, setCurrentBox] = useState(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState(null);
+  const [resizeStart, setResizeStart] = useState(null);
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [comment, setComment] = useState('');
   const [author, setAuthor] = useState('');
@@ -123,47 +124,158 @@ export default function VideoFeedback() {
     }
   };
 
-  // 캔버스에 박스 그리기 시작
-  const handleCanvasMouseDown = (e) => {
-    if (!videoRef.current || videoRef.current.paused) return;
+  // 캔버스 클릭 - 박스 생성 또는 리사이징 핸들 클릭 감지
+  const handleCanvasClick = (e) => {
+    if (!videoRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    setIsDrawing(true);
-    setDrawStart({ x, y });
-    videoRef.current.pause();
-  };
+    // 기존 박스가 있으면 핸들 클릭 체크
+    if (currentBox) {
+      const handle = getResizeHandle(x, y);
+      if (handle) return; // 핸들 클릭은 mousedown에서 처리
+    }
 
-  // 박스 그리는 중
-  const handleCanvasMouseMove = (e) => {
-    if (!isDrawing || !drawStart) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    setCurrentBox({
-      x: Math.min(drawStart.x, x),
-      y: Math.min(drawStart.y, y),
-      width: Math.abs(x - drawStart.x),
-      height: Math.abs(y - drawStart.y)
-    });
-  };
-
-  // 박스 그리기 완료
-  const handleCanvasMouseUp = () => {
-    if (!isDrawing) return;
-
-    setIsDrawing(false);
-    if (currentBox && currentBox.width > 10 && currentBox.height > 10) {
-      setShowCommentModal(true);
-    } else {
-      setDrawStart(null);
-      setCurrentBox(null);
+    // 새 박스 생성 (100x100 정사각형)
+    const boxSize = 100;
+    const newBox = {
+      x: Math.max(0, Math.min(x - boxSize / 2, rect.width - boxSize)),
+      y: Math.max(0, Math.min(y - boxSize / 2, rect.height - boxSize)),
+      width: boxSize,
+      height: boxSize
+    };
+    
+    setCurrentBox(newBox);
+    if (videoRef.current.playing) {
+      videoRef.current.pause();
     }
   };
+
+  // 캔버스 더블클릭 - 피드백 입력 모달 열기
+  const handleCanvasDoubleClick = () => {
+    if (currentBox) {
+      setShowCommentModal(true);
+    }
+  };
+
+  // 리사이징 핸들 위치 확인 (8개 핸들: 4개 모서리 + 4개 변)
+  const getResizeHandle = (x, y) => {
+    if (!currentBox) return null;
+    
+    const handleSize = 8;
+    const { x: bx, y: by, width: bw, height: bh } = currentBox;
+    
+    // 모서리 핸들
+    if (Math.abs(x - bx) < handleSize && Math.abs(y - by) < handleSize) return 'nw';
+    if (Math.abs(x - (bx + bw)) < handleSize && Math.abs(y - by) < handleSize) return 'ne';
+    if (Math.abs(x - bx) < handleSize && Math.abs(y - (by + bh)) < handleSize) return 'sw';
+    if (Math.abs(x - (bx + bw)) < handleSize && Math.abs(y - (by + bh)) < handleSize) return 'se';
+    
+    // 변 핸들
+    if (Math.abs(x - bx) < handleSize && y > by && y < by + bh) return 'w';
+    if (Math.abs(x - (bx + bw)) < handleSize && y > by && y < by + bh) return 'e';
+    if (Math.abs(y - by) < handleSize && x > bx && x < bx + bw) return 'n';
+    if (Math.abs(y - (by + bh)) < handleSize && x > bx && x < bx + bw) return 's';
+    
+    return null;
+  };
+
+  // 리사이징 시작
+  const handleCanvasMouseDown = (e) => {
+    if (!currentBox) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const handle = getResizeHandle(x, y);
+    if (handle) {
+      setIsResizing(true);
+      setResizeHandle(handle);
+      setResizeStart({ x, y, box: { ...currentBox } });
+      e.preventDefault();
+    }
+  };
+
+  // 리사이징 중
+  const handleCanvasMouseMove = (e) => {
+    if (!isResizing || !resizeStart || !resizeHandle) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const dx = x - resizeStart.x;
+    const dy = y - resizeStart.y;
+    const { box } = resizeStart;
+    
+    let newBox = { ...box };
+    
+    // 핸들에 따라 박스 크기 조정
+    switch (resizeHandle) {
+      case 'nw':
+        newBox.x = box.x + dx;
+        newBox.y = box.y + dy;
+        newBox.width = box.width - dx;
+        newBox.height = box.height - dy;
+        break;
+      case 'ne':
+        newBox.y = box.y + dy;
+        newBox.width = box.width + dx;
+        newBox.height = box.height - dy;
+        break;
+      case 'sw':
+        newBox.x = box.x + dx;
+        newBox.width = box.width - dx;
+        newBox.height = box.height + dy;
+        break;
+      case 'se':
+        newBox.width = box.width + dx;
+        newBox.height = box.height + dy;
+        break;
+      case 'n':
+        newBox.y = box.y + dy;
+        newBox.height = box.height - dy;
+        break;
+      case 's':
+        newBox.height = box.height + dy;
+        break;
+      case 'w':
+        newBox.x = box.x + dx;
+        newBox.width = box.width - dx;
+        break;
+      case 'e':
+        newBox.width = box.width + dx;
+        break;
+    }
+    
+    // 최소 크기 제한
+    if (newBox.width < 20) newBox.width = 20;
+    if (newBox.height < 20) newBox.height = 20;
+    
+    setCurrentBox(newBox);
+  };
+
+  // 리사이징 완료
+  const handleCanvasMouseUp = () => {
+    setIsResizing(false);
+    setResizeHandle(null);
+    setResizeStart(null);
+  };
+
+  // 박스 삭제 (ESC 키)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && currentBox) {
+        setCurrentBox(null);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentBox]);
 
   // 피드백 저장
   const saveFeedback = async () => {
@@ -197,7 +309,6 @@ export default function VideoFeedback() {
     setComment('');
     setAuthor('');
     setShowCommentModal(false);
-    setDrawStart(null);
     setCurrentBox(null);
     loadFeedbacks(selectedVideo.id);
   };
@@ -219,9 +330,34 @@ export default function VideoFeedback() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (currentBox) {
+      // 박스 그리기
       ctx.strokeStyle = '#ff0000';
       ctx.lineWidth = 3;
       ctx.strokeRect(currentBox.x, currentBox.y, currentBox.width, currentBox.height);
+      
+      // 리사이징 핸들 그리기 (8개: 4개 모서리 + 4개 변)
+      const handleSize = 8;
+      const { x, y, width, height } = currentBox;
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#ff0000';
+      ctx.lineWidth = 2;
+      
+      const handles = [
+        { x: x, y: y }, // nw
+        { x: x + width, y: y }, // ne
+        { x: x, y: y + height }, // sw
+        { x: x + width, y: y + height }, // se
+        { x: x, y: y + height / 2 }, // w
+        { x: x + width, y: y + height / 2 }, // e
+        { x: x + width / 2, y: y }, // n
+        { x: x + width / 2, y: y + height }, // s
+      ];
+      
+      handles.forEach(handle => {
+        ctx.fillRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
+        ctx.strokeRect(handle.x - handleSize / 2, handle.y - handleSize / 2, handleSize, handleSize);
+      });
     }
   }, [currentBox]);
 
@@ -288,16 +424,18 @@ export default function VideoFeedback() {
                   ref={canvasRef}
                   width={containerRef.current?.offsetWidth || 800}
                   height={containerRef.current?.offsetHeight || 450}
+                  onClick={handleCanvasClick}
+                  onDoubleClick={handleCanvasDoubleClick}
                   onMouseDown={handleCanvasMouseDown}
                   onMouseMove={handleCanvasMouseMove}
                   onMouseUp={handleCanvasMouseUp}
                   className="absolute top-0 left-0 w-full h-full cursor-crosshair"
-                  style={{ pointerEvents: isPlaying ? 'auto' : 'none' }}
+                  style={{ pointerEvents: 'auto' }}
                 />
               </div>
               <div className="p-4 bg-gray-800 text-white">
                 <p className="text-sm">
-                  💡 영상을 재생하고 원하는 순간에 화면을 클릭하여 박스를 그리세요
+                  💡 클릭: 박스 생성 | 드래그: 크기 조절 | 더블클릭: 피드백 입력 | ESC: 박스 삭제
                 </p>
               </div>
             </div>
