@@ -112,7 +112,7 @@ exports.handler = async (event, context) => {
     // 대기 중인 충전 요청 조회
     const { data: pendingRequests, error: requestError } = await supabaseAdmin
       .from('points_charge_requests')
-      .select('*, companies(company_name, notification_email, notification_phone)')
+      .select('*')
       .eq('status', 'pending')
       .eq('payment_method', 'bank_transfer')
       .order('created_at', { ascending: true });
@@ -236,9 +236,17 @@ exports.handler = async (event, context) => {
           // 알림 발송 (비동기)
           try {
             const axios = require('axios');
-            const companyName = bestMatch.companies?.company_name || '고객사';
-            const companyEmail = bestMatch.companies?.notification_email;
-            const companyPhone = bestMatch.companies?.notification_phone;
+            
+            // 회사 정보 조회
+            const { data: companyData } = await supabaseAdmin
+              .from('companies')
+              .select('company_name, notification_email, notification_phone')
+              .eq('user_id', bestMatch.company_id)
+              .single();
+            
+            const companyName = companyData?.company_name || '고객사';
+            const companyEmail = companyData?.notification_email;
+            const companyPhone = companyData?.notification_phone;
 
             // 알림톡
             if (companyPhone) {
