@@ -415,7 +415,18 @@ export default function VideoFeedback() {
   const jumpToFeedback = (feedback) => {
     if (videoRef.current) {
       videoRef.current.currentTime = feedback.timestamp;
-      videoRef.current.play();
+      // 일시정지 상태 유지
+      if (!videoRef.current.paused) {
+        videoRef.current.pause();
+      }
+      
+      // 저장된 박스 좌표 표시
+      setCurrentBox({
+        x: feedback.box_x,
+        y: feedback.box_y,
+        width: feedback.box_width,
+        height: feedback.box_height
+      });
     }
   };
 
