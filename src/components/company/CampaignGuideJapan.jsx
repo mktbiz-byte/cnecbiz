@@ -32,6 +32,12 @@ const CampaignGuideJapan = () => {
   const [videoTone, setVideoTone] = useState('')
   const [additionalDetails, setAdditionalDetails] = useState('')
 
+  // 제품 정보
+  const [brandName, setBrandName] = useState('')
+  const [productName, setProductName] = useState('')
+  const [productDescription, setProductDescription] = useState('')
+  const [productFeatures, setProductFeatures] = useState([''])
+
   // 필수 촬영 장면 체크박스
   const [shootingScenes, setShootingScenes] = useState({
     baPhoto: false,
@@ -53,6 +59,10 @@ const CampaignGuideJapan = () => {
   const [metaAdCodeRequested, setMetaAdCodeRequested] = useState(false)
 
   // 일본어 번역 미리보기
+  const [translatedBrandName, setTranslatedBrandName] = useState('')
+  const [translatedProductName, setTranslatedProductName] = useState('')
+  const [translatedProductDesc, setTranslatedProductDesc] = useState('')
+  const [translatedProductFeatures, setTranslatedProductFeatures] = useState([])
   const [translatedDialogues, setTranslatedDialogues] = useState([])
   const [translatedScenes, setTranslatedScenes] = useState([])
   const [translatedHashtags, setTranslatedHashtags] = useState([])
@@ -88,7 +98,10 @@ const CampaignGuideJapan = () => {
       const { data, error } = await supabase
         .from('campaigns')
         .select(`
-          title, 
+          title,
+          brand_name,
+          product_name,
+          description,
           required_dialogues, 
           required_scenes, 
           required_hashtags, 
@@ -116,6 +129,9 @@ const CampaignGuideJapan = () => {
 
       if (data) {
         setCampaignTitle(data.title)
+        setBrandName(data.brand_name || '')
+        setProductName(data.product_name || '')
+        setProductDescription(data.description || '')
         setRequiredDialogues(data.required_dialogues || [''])
         setRequiredScenes(data.required_scenes || [''])
         setRequiredHashtags(data.required_hashtags || [''])
@@ -243,6 +259,15 @@ const CampaignGuideJapan = () => {
       // 번역할 필드 준비
       const fieldsToTranslate = []
       
+      // 제품 정보
+      if (brandName.trim()) fieldsToTranslate.push({ key: 'brandName', label: '브랜드명', value: brandName })
+      if (productName.trim()) fieldsToTranslate.push({ key: 'productName', label: '제품명', value: productName })
+      if (productDescription.trim()) fieldsToTranslate.push({ key: 'productDesc', label: '제품설명', value: productDescription })
+      
+      productFeatures.filter(f => f.trim()).forEach((feature, idx) => {
+        fieldsToTranslate.push({ key: `feature${idx}`, label: `제품특징${idx + 1}`, value: feature })
+      })
+      
       // 필수 대사
       requiredDialogues.filter(d => d.trim()).forEach((dialogue, idx) => {
         fieldsToTranslate.push({ key: `dialogue${idx}`, label: `필수대사${idx + 1}`, value: dialogue })
@@ -320,6 +345,23 @@ const CampaignGuideJapan = () => {
 
       // 번역 결과 파싱
       const cleanText = translatedText.replace(/\*\*/g, '')
+      
+      // 제품 정보 파싱
+      const brandNameMatch = cleanText.match(/\[(브랜드명|ブランド名)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const productNameMatch = cleanText.match(/\[(제품명|製品名)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const productDescMatch = cleanText.match(/\[(제품설명|製品説明)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      
+      setTranslatedBrandName(brandNameMatch ? brandNameMatch[2].trim() : '')
+      setTranslatedProductName(productNameMatch ? productNameMatch[2].trim() : '')
+      setTranslatedProductDesc(productDescMatch ? productDescMatch[2].trim() : '')
+      
+      // 제품 특징 파싱
+      const newTranslatedFeatures = []
+      productFeatures.forEach((_, idx) => {
+        const match = cleanText.match(new RegExp(`\\[(제품특징${idx + 1}|製品特徴${idx + 1})\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
+        if (match) newTranslatedFeatures.push(match[2].trim())
+      })
+      setTranslatedProductFeatures(newTranslatedFeatures)
       
       // 필수 대사 파싱
       const newTranslatedDialogues = []
@@ -447,6 +489,83 @@ const CampaignGuideJapan = () => {
             </CardHeader>
 
         <CardContent className="space-y-6">
+          {/* 제품 정보 */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <Label className="text-lg font-bold text-blue-900 mb-4 block">📦 제품 정보</Label>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-semibold">브랜드명</Label>
+                  <Input
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    placeholder="브랜드명 입력"
+                    className="mt-1 bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold">제품명</Label>
+                  <Input
+                    value={productName}
+                    onChange={(e) => setProductName(e.target.value)}
+                    placeholder="제품명 입력"
+                    className="mt-1 bg-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">제품 설명</Label>
+                <Textarea
+                  value={productDescription}
+                  onChange={(e) => setProductDescription(e.target.value)}
+                  placeholder="제품의 특징, 효능, 사용법 등을 상세히 설명해주세요"
+                  rows={4}
+                  className="mt-1 bg-white resize-none"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <Label className="text-sm font-semibold">제품 특징 (키 포인트)</Label>
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setProductFeatures([...productFeatures, ''])}
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> 추가
+                  </Button>
+                </div>
+                {productFeatures.map((feature, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      value={feature}
+                      onChange={(e) => {
+                        const newFeatures = [...productFeatures]
+                        newFeatures[index] = e.target.value
+                        setProductFeatures(newFeatures)
+                      }}
+                      placeholder={`특징 ${index + 1} (예: 저자극, 보습력 우수)`}
+                      className="bg-white"
+                    />
+                    {productFeatures.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const newFeatures = productFeatures.filter((_, i) => i !== index)
+                          setProductFeatures(newFeatures)
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* 필수 대사 */}
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -768,6 +887,49 @@ const CampaignGuideJapan = () => {
         </CardHeader>
 
         <CardContent className="space-y-8 p-6">
+          {/* 제품 정보 미리보기 */}
+          {(translatedBrandName || translatedProductName || translatedProductDesc || translatedProductFeatures.length > 0) && (
+            <div className="border-l-4 border-indigo-500 pl-4">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">📦</span>
+                <Label className="text-xl font-bold text-gray-800">製品情報</Label>
+              </div>
+              <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 space-y-4">
+                {translatedBrandName && (
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 mb-1">ブランド名</p>
+                    <p className="text-lg font-bold text-gray-900">{translatedBrandName}</p>
+                  </div>
+                )}
+                {translatedProductName && (
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 mb-1">製品名</p>
+                    <p className="text-lg font-bold text-gray-900">{translatedProductName}</p>
+                  </div>
+                )}
+                {translatedProductDesc && (
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 mb-1">製品説明</p>
+                    <p className="text-base text-gray-700 leading-relaxed">{translatedProductDesc}</p>
+                  </div>
+                )}
+                {translatedProductFeatures.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-600 mb-2">製品特徴</p>
+                    <div className="space-y-2">
+                      {translatedProductFeatures.map((feature, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <span className="flex-shrink-0 w-5 h-5 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">✓</span>
+                          <p className="text-base text-gray-800">{feature}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 필수 대사 미리보기 */}
           {translatedDialogues.length > 0 && (
             <div className="border-l-4 border-blue-500 pl-4">
