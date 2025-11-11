@@ -6,7 +6,6 @@ import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 const CreateCampaignJapan = () => {
   const supabase = getSupabaseClient('japan')
@@ -21,21 +20,12 @@ const CreateCampaignJapan = () => {
     requirements: '',
     category: 'beauty',
     image_url: '',
-    product_name: '',
-    product_description: '',
-    product_link: '',
-    product_detail_file_url: '',
-    package_type: 'junior',
-    total_slots: 10,
-    remaining_slots: 10,
-    estimated_cost: 2000000,
-    reward_amount: '',
-    max_participants: '',
+    reward_amount: 0,  // 자동 계산 (숨김)
+    max_participants: 10,
     application_deadline: '',
     start_date: '',
     end_date: '',
     status: 'draft',
-    creator_guide: '',
     target_platforms: {
       instagram: true,
       youtube: false,
@@ -55,19 +45,19 @@ const CreateCampaignJapan = () => {
     question4_options: '',
     age_requirement: '',
     skin_type_requirement: '',
-    offline_visit_requirement: ''
+    offline_visit_requirement: '',
+    // 결제 관련
+    package_type: 'junior',
+    total_slots: 10,
+    remaining_slots: 10,
+    estimated_cost: 220000  // VAT 포함 원화
   })
-
-  const [questionCount, setQuestionCount] = useState(1)
 
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [uploadingDetailImage, setUploadingDetailImage] = useState(false)
-  const [imageFile, setImageFile] = useState(null)
   const thumbnailInputRef = useRef(null)
-  const detailImageInputRef = useRef(null)
 
   // 번역 시스템 state
   const [koreanText, setKoreanText] = useState('')
@@ -75,19 +65,14 @@ const CreateCampaignJapan = () => {
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState('')
 
-  // 카테고리 옵션
-  const categoryOptions = [
-    { value: 'youtube', label: '🎬 유튜브 모집', platforms: { youtube: true, instagram: false, tiktok: false } },
-    { value: 'instagram', label: '📸 인스타 모집', platforms: { instagram: true, youtube: false, tiktok: false } }
-  ]
-
-  // 패키지 옵션
+  // 패키지 옵션 (원화 결제, 엔화 보상)
   const packageOptions = [
     { 
       value: 'junior', 
       label: '초급 크리에이터 패키지', 
-      price: 200000,
+      price: 200000,  // 원화
       priceWithVat: 220000,
+      rewardYen: 12000,  // 엔화 보상
       description: '팔로워 1만~5만 (인스타 기준)',
       expectedApplicants: { youtube: 5, instagram: 8, tiktok: 10 }
     },
@@ -96,6 +81,7 @@ const CreateCampaignJapan = () => {
       label: '중급 크리에이터 패키지', 
       price: 300000,
       priceWithVat: 330000,
+      rewardYen: 18000,
       description: '팔로워 5만~20만 (인스타 기준)',
       expectedApplicants: { youtube: 10, instagram: 15, tiktok: 15 }
     },
@@ -104,6 +90,7 @@ const CreateCampaignJapan = () => {
       label: '상급 크리에이터 패키지', 
       price: 400000,
       priceWithVat: 440000,
+      rewardYen: 24000,
       description: '팔로워 20만 이상 (인스타 기준)',
       expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
     },
@@ -112,105 +99,28 @@ const CreateCampaignJapan = () => {
       label: '4주 챌린지 프로그램', 
       price: 600000,
       priceWithVat: 660000,
+      rewardYen: 36000,
       description: '4주간 지속적인 콘텐츠 제작',
       expectedApplicants: { youtube: 8, instagram: 15, tiktok: 12 }
     }
   ]
 
-  // 입금 금액에 따른 할인율 계산 (1천만원 이상 5% 할인)
+  // 할인율 계산
   const calculateDiscount = (amount) => {
-    if (amount >= 10000000) return 5 // 1천만원 이상: 5% 할인
-    return 0 // 할인 없음
+    if (amount >= 10000000) return 5
+    return 0
   }
 
-  // 최종 결제 금액 계산 (부가세 10% + 할인 적용)
+  // 최종 결제 금액 계산
   const calculateFinalCost = (packagePrice, slots) => {
     const originalCost = packagePrice * slots
-    const vat = Math.floor(originalCost * 0.1) // 부가세 10%
+    const vat = Math.floor(originalCost * 0.1)
     const discountRate = calculateDiscount(originalCost)
     const discountAmount = Math.floor(originalCost * (discountRate / 100))
     return originalCost + vat - discountAmount
   }
 
-  // 초기 로드 시 할인가 계산
-  useEffect(() => {
-    if (!editId) {
-      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
-      if (selectedPackage) {
-        const finalCost = calculateFinalCost(selectedPackage.price, campaignForm.total_slots)
-        setCampaignForm(prev => ({
-          ...prev,
-          estimated_cost: finalCost
-        }))
-      }
-    }
-  }, [])
-
-  // 편집 모드일 때 데이터 로드
-  useEffect(() => {
-    if (editId) {
-      loadCampaignData()
-    }
-  }, [editId])
-
-  const loadCampaignData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('id', editId)
-        .single()
-
-      if (error) throw error
-      
-      if (data) {
-        // questions JSONB 배열을 question1-4로 복원
-        let question1 = ''
-        let question2 = ''
-        let question3 = ''
-        let question4 = ''
-        
-        if (data.questions && Array.isArray(data.questions)) {
-          question1 = data.questions[0]?.question || ''
-          question2 = data.questions[1]?.question || ''
-          question3 = data.questions[2]?.question || ''
-          question4 = data.questions[3]?.question || ''
-        }
-
-        setCampaignForm({
-          ...data,
-          target_platforms: data.target_platforms || { instagram: true, youtube: false, tiktok: false },
-          question1,
-          question2,
-          question3,
-          question4
-        })
-        
-        // 질문 개수 계산
-        let count = 0
-        if (question1) count = 1
-        if (question2) count = 2
-        if (question3) count = 3
-        if (question4) count = 4
-        setQuestionCount(count || 1)
-      }
-    } catch (err) {
-      console.error('캠페인 데이터 로드 실패:', err)
-      setError('캠페인 데이터를 불러오는데 실패했습니다.')
-    }
-  }
-
-  // 카테고리 변경 시 target_platforms 자동 업데이트
-  const handleCategoryChange = (value) => {
-    const selected = categoryOptions.find(opt => opt.value === value)
-    setCampaignForm(prev => ({
-      ...prev,
-      category: value,
-      target_platforms: selected ? selected.platforms : prev.target_platforms
-    }))
-  }
-
-  // 패키지 변경 핸들러 (결제 금액 자동 계산)
+  // 패키지 변경 핸들러
   const handlePackageChange = (value) => {
     const selectedPackage = packageOptions.find(p => p.value === value)
     if (selectedPackage) {
@@ -218,12 +128,14 @@ const CreateCampaignJapan = () => {
       setCampaignForm(prev => ({
         ...prev,
         package_type: value,
-        estimated_cost: finalCost
+        estimated_cost: finalCost,
+        reward_amount: selectedPackage.rewardYen,  // 엔화 보상 자동 설정
+        max_participants: prev.total_slots
       }))
     }
   }
 
-  // 모집 인원 변경 핸들러 (결제 금액 자동 계산)
+  // 모집 인원 변경 핸들러
   const handleSlotsChange = (value) => {
     const slots = parseInt(value) || 0
     const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
@@ -233,6 +145,7 @@ const CreateCampaignJapan = () => {
       ...prev,
       total_slots: slots,
       remaining_slots: slots,
+      max_participants: slots,
       estimated_cost: finalCost
     }))
   }
@@ -279,69 +192,59 @@ const CreateCampaignJapan = () => {
     }
   }
 
+  // 클립보드 복사
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      alert('클립보드에 복사되었습니다!')
+    } catch (error) {
+      console.error('클립보드 복사 실패:', error)
+    }
+  }
+
   // 썸네일 이미지 업로드
   const handleThumbnailUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // 파일 크기 체크 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('이미지 파일은 5MB 이하여야 합니다.')
+      return
+    }
+
+    // 파일 형식 체크
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      setError('JPG, PNG, WEBP 형식만 업로드 가능합니다.')
+      return
+    }
 
     setUploadingImage(true)
     setError('')
 
     try {
       const fileExt = file.name.split('.').pop()
-      const fileName = `thumbnail-${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = `campaign-images/${fileName}`
+      const fileName = `campaign-${Date.now()}.${fileExt}`
+      const filePath = `campaigns/${fileName}`
 
-      const { error: uploadError } = await storage
+      const { error: uploadError } = await supabase.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = storage
+      const { data: { publicUrl } } = supabase.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
       setCampaignForm(prev => ({ ...prev, image_url: publicUrl }))
-      setSuccess('썸네일이 업로드되었습니다!')
+      setSuccess('썸네일 이미지가 업로드되었습니다!')
     } catch (err) {
-      console.error('썸네일 업로드 실패:', err)
-      setError('썸네일 업로드에 실패했습니다: ' + err.message)
+      console.error('이미지 업로드 실패:', err)
+      setError('이미지 업로드에 실패했습니다: ' + err.message)
     } finally {
       setUploadingImage(false)
-    }
-  }
-
-  // 상품 상세 이미지 업로드
-  const handleProductDetailImageUpload = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploadingDetailImage(true)
-    setError('')
-
-    try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `product-detail-${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = `campaign-images/${fileName}`
-
-      const { error: uploadError } = await storage
-        .from('campaign-images')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = storage
-        .from('campaign-images')
-        .getPublicUrl(filePath)
-
-      setCampaignForm(prev => ({ ...prev, product_detail_file_url: publicUrl }))
-      setSuccess('상품 상세 이미지가 업로드되었습니다!')
-    } catch (err) {
-      console.error('상품 상세 이미지 업로드 실패:', err)
-      setError('상품 상세 이미지 업로드에 실패했습니다: ' + err.message)
-    } finally {
-      setUploadingDetailImage(false)
     }
   }
 
@@ -353,54 +256,56 @@ const CreateCampaignJapan = () => {
     setSuccess('')
 
     try {
-      // question1-4를 questions JSONB 배열로 변환
-      const questions = [
-        campaignForm.question1,
-        campaignForm.question2,
-        campaignForm.question3,
-        campaignForm.question4
-      ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
+      // 필수 필드 검증
+      if (!campaignForm.title || !campaignForm.brand || !campaignForm.requirements) {
+        throw new Error('제목, 브랜드, 참가조건은 필수 입력 항목입니다.')
+      }
 
-      const { question1, question2, question3, question4, target_platforms, ...restForm } = campaignForm
+      if (!campaignForm.application_deadline || !campaignForm.start_date || !campaignForm.end_date) {
+        throw new Error('모집 마감일, 모집 발표일, 촬영 마감일을 모두 입력해주세요.')
+      }
 
-      // 카테고리명 가져오기 (이모지 제거)
-      const categoryLabel = categoryOptions.find(opt => opt.value === campaignForm.category)?.label || ''
-      const categoryName = categoryLabel.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
-      
-      // 제목 자동 생성
-      const autoTitle = `${campaignForm.brand} ${campaignForm.product_name} ${categoryName}`.trim()
+      // 날짜 논리 검증
+      const applicationDeadline = new Date(campaignForm.application_deadline)
+      const startDate = new Date(campaignForm.start_date)
+      const endDate = new Date(campaignForm.end_date)
 
-      // 로그인한 사용자 정보 가져오기
+      if (applicationDeadline >= startDate) {
+        throw new Error('모집 마감일은 모집 발표일보다 이전이어야 합니다.')
+      }
+
+      if (startDate >= endDate) {
+        throw new Error('모집 발표일은 촬영 마감일보다 이전이어야 합니다.')
+      }
+
+      // SNS 플랫폼 검증
+      const hasSelectedPlatform = Object.values(campaignForm.target_platforms).some(Boolean)
+      if (!hasSelectedPlatform) {
+        throw new Error('최소 하나의 SNS 플랫폼을 선택해주세요.')
+      }
+
+      // 로그인 정보 가져오기
       let userEmail = null
       try {
         const { data: { user } } = await supabaseBiz.auth.getUser()
-        if (user) {
-          userEmail = user.email
-        }
+        if (user) userEmail = user.email
       } catch (authError) {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
       }
 
       const campaignData = {
-        title: autoTitle,
+        title: campaignForm.title,
         brand: campaignForm.brand,
         description: campaignForm.description || '',
         requirements: campaignForm.requirements || '',
         category: campaignForm.category,
         image_url: campaignForm.image_url || '',
-        product_name: campaignForm.product_name || '',
-        product_description: campaignForm.product_description || '',
-        product_link: campaignForm.product_link || '',
-        product_detail_file_url: campaignForm.product_detail_file_url || '',
-        reward_amount: parseInt(campaignForm.reward_amount) || 0,
-        max_participants: parseInt(campaignForm.max_participants) || parseInt(campaignForm.total_slots) || 0,
-        total_slots: parseInt(campaignForm.total_slots) || 0,
-        remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
-        application_deadline: campaignForm.application_deadline || '',
-        start_date: campaignForm.start_date || '',
-        end_date: campaignForm.end_date || '',
-        status: campaignForm.status || 'draft',
-        creator_guide: campaignForm.creator_guide || '',
+        reward_amount: campaignForm.reward_amount,  // 엔화 보상
+        max_participants: campaignForm.max_participants,
+        application_deadline: campaignForm.application_deadline,
+        start_date: campaignForm.start_date,
+        end_date: campaignForm.end_date,
+        status: campaignForm.status,
         target_platforms: campaignForm.target_platforms,
         question1: campaignForm.question1 || '',
         question1_type: campaignForm.question1_type || 'short',
@@ -421,7 +326,7 @@ const CreateCampaignJapan = () => {
       }
 
       if (editId) {
-        // 수정 모드: 포인트 차감 없이 수정만 진행
+        // 수정 모드
         const { error } = await supabase
           .from('campaigns')
           .update(campaignData)
@@ -430,7 +335,6 @@ const CreateCampaignJapan = () => {
         if (error) throw error
         setSuccess('캠페인이 수정되었습니다!')
         
-        // 크리에이터 가이드 페이지로 이동
         setTimeout(() => {
           navigate(`/company/campaigns/guide?id=${editId}`)
         }, 1500)
@@ -439,7 +343,6 @@ const CreateCampaignJapan = () => {
         // 신규 생성: 포인트 차감 또는 견적서 발행
         const finalCost = campaignForm.estimated_cost
         
-        // 1. 회사 포인트 잔액 확인
         const { data: { user } } = await supabaseBiz.auth.getUser()
         if (!user) throw new Error('로그인이 필요합니다')
 
@@ -454,7 +357,7 @@ const CreateCampaignJapan = () => {
         const currentPoints = companyData.points_balance || 0
 
         if (currentPoints >= finalCost) {
-          // 2-A. 포인트 충분: 캠페인 생성 + 포인트 차감
+          // 포인트 충분: 캠페인 생성 + 포인트 차감
           const { data, error } = await supabase
             .from('campaigns')
             .insert([campaignData])
@@ -477,19 +380,14 @@ const CreateCampaignJapan = () => {
               company_id: companyData.id,
               amount: -finalCost,
               type: 'campaign_creation',
-              description: `캠페인 생성: ${autoTitle}`,
+              description: `일본 캠페인 생성: ${campaignForm.title}`,
               campaign_id: data[0].id
             }])
-            .select()
-          
-          if (transactionError) {
-            console.error('포인트 거래 기록 오류:', transactionError)
-            // 거래 기록 실패해도 캠페인은 생성되었으므로 계속 진행
-          }
 
-          setSuccess(`캠페인이 생성되었습니다! ${finalCost.toLocaleString()}포인트가 차감되었습니다.`)
+          if (transactionError) throw transactionError
+
+          setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
-          // 크리에이터 가이드 페이지로 이동
           setTimeout(() => {
             if (data && data[0]) {
               navigate(`/company/campaigns/guide?id=${data[0].id}`)
@@ -499,16 +397,15 @@ const CreateCampaignJapan = () => {
           }, 1500)
           return
         } else {
-          // 2-B. 포인트 부족: 캠페인 생성 + 견적서 발행
+          // 포인트 부족: 캠페인 생성 + 견적서 발행
           const neededPoints = finalCost - currentPoints
           
-          // 캠페인 먼저 생성 (draft 상태)
           const { data, error } = await supabase
             .from('campaigns')
             .insert([{
               ...campaignData,
               status: 'draft',
-              approval_status: 'pending_payment'  // 입금 대기 상태
+              approval_status: 'pending_payment'
             }])
             .select()
 
@@ -517,11 +414,6 @@ const CreateCampaignJapan = () => {
           const campaignId = data[0].id
           
           // 견적서 데이터 저장
-          console.log('[CreateCampaign] Inserting charge request:', {
-            company_id: companyData.id,
-            amount: finalCost
-          })
-
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert({
@@ -533,7 +425,7 @@ const CreateCampaignJapan = () => {
               status: 'pending',
               bank_transfer_info: {
                 campaign_id: campaignId,
-                campaign_title: autoTitle,
+                campaign_title: campaignForm.title,
                 campaign_cost: finalCost,
                 current_points: currentPoints,
                 needed_points: neededPoints,
@@ -544,13 +436,12 @@ const CreateCampaignJapan = () => {
             .single()
 
           if (quoteError) {
-            console.error('[CreateCampaign] Charge request error:', quoteError)
+            console.error('Charge request error:', quoteError)
             throw quoteError
           }
 
           setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
-          // 크리에이터 가이드 페이지로 이동
           setTimeout(() => {
             navigate(`/company/campaigns/guide?id=${campaignId}`)
           }, 1500)
@@ -558,7 +449,6 @@ const CreateCampaignJapan = () => {
         }
       }
 
-      // 수정 모드일 경우만 여기로 도달
       setTimeout(() => {
         navigate('/company/campaigns')
       }, 1500)
@@ -572,290 +462,481 @@ const CreateCampaignJapan = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-6">
         <div className="mb-6">
           <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
             ← 캠페인 목록으로
           </Button>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              🇰🇷 {editId ? '캠페인 수정' : '한국 캠페인 생성'}
-            </CardTitle>
-            <p className="text-sm text-gray-600 mt-2">cnec-kr 데이터베이스에 캠페인이 생성됩니다</p>
-          </CardHeader>
-          <CardContent>
+
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">🇯🇵 {editId ? '캠페인 수정' : '일본 캠페인 생성'}</h1>
+          <p className="text-gray-600 mt-2">왼쪽에서 캠페인 정보를 입력하고, 오른쪽 번역기를 활용하세요.</p>
+        </div>
+
+        {/* 알림 메시지 */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800">{success}</p>
+          </div>
+        )}
+
+        {/* 좌우 분할 레이아웃 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* 왼쪽: 캠페인 생성 폼 */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">📝 캠페인 정보</h2>
+            
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 카테고리 선택 */}
+              
+              {/* 패키지 선택 */}
               <div>
-                <Label htmlFor="category">캠페인 카테고리 *</Label>
-                <Select value={campaignForm.category} onValueChange={handleCategoryChange}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="카테고리 선택" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {categoryOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="package_type">패키지 선택 *</Label>
+                <select
+                  id="package_type"
+                  value={campaignForm.package_type}
+                  onChange={(e) => handlePackageChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {packageOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label} - ₩{opt.priceWithVat.toLocaleString()} (VAT 포함) / 보상 ¥{opt.rewardYen.toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-gray-500 mt-1">
+                  {packageOptions.find(p => p.value === campaignForm.package_type)?.description}
+                </p>
               </div>
 
-
-              {/* 브랜드명 */}
+              {/* 모집 인원 */}
               <div>
-                <Label htmlFor="brand">브랜드명 *</Label>
+                <Label htmlFor="total_slots">모집 인원 *</Label>
                 <Input
-                  id="brand"
-                  value={campaignForm.brand}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
-                  placeholder="예: 에이블씨엔씨"
+                  id="total_slots"
+                  type="number"
+                  value={campaignForm.total_slots}
+                  onChange={(e) => handleSlotsChange(e.target.value)}
+                  min="1"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  총 비용: ₩{campaignForm.estimated_cost.toLocaleString()} (VAT 10% 포함)
+                </p>
+              </div>
+
+              {/* 캠페인 제목 */}
+              <div>
+                <Label htmlFor="title">캠페인 제목 *</Label>
+                <Input
+                  id="title"
+                  value={campaignForm.title}
+                  onChange={(e) => setCampaignForm({...campaignForm, title: e.target.value})}
+                  placeholder="캠페인 제목을 입력하세요"
                   required
                 />
               </div>
 
-              {/* 참여 조건 */}
+              {/* 브랜드 */}
               <div>
-                <Label htmlFor="requirements">참여 조건</Label>
+                <Label htmlFor="brand">브랜드 *</Label>
+                <Input
+                  id="brand"
+                  value={campaignForm.brand}
+                  onChange={(e) => setCampaignForm({...campaignForm, brand: e.target.value})}
+                  placeholder="브랜드명을 입력하세요"
+                  required
+                />
+              </div>
+
+              {/* 썸네일 이미지 */}
+              <div>
+                <Label htmlFor="thumbnail">썸네일 이미지</Label>
+                <input
+                  type="file"
+                  ref={thumbnailInputRef}
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleThumbnailUpload}
+                  disabled={uploadingImage}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {uploadingImage && (
+                  <p className="text-sm text-blue-600 mt-1">이미지 업로드 중...</p>
+                )}
+                {campaignForm.image_url && (
+                  <div className="mt-2">
+                    <img 
+                      src={campaignForm.image_url} 
+                      alt="Campaign preview" 
+                      className="h-32 w-auto object-cover rounded border"
+                    />
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-1">최대 5MB. 형식: JPG, PNG, WEBP</p>
+              </div>
+
+              {/* 캠페인 설명 */}
+              <div>
+                <Label htmlFor="description">캠페인 설명</Label>
+                <Textarea
+                  id="description"
+                  value={campaignForm.description}
+                  onChange={(e) => setCampaignForm({...campaignForm, description: e.target.value})}
+                  rows={3}
+                  placeholder="캠페인 설명을 입력하세요"
+                />
+              </div>
+
+              {/* 참가조건 */}
+              <div>
+                <Label htmlFor="requirements">참가조건 *</Label>
                 <Textarea
                   id="requirements"
                   value={campaignForm.requirements}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                  placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
+                  onChange={(e) => setCampaignForm({...campaignForm, requirements: e.target.value})}
                   rows={3}
+                  placeholder="참가 조건을 입력하세요"
+                  required
                 />
               </div>
 
-              {/* 패키지 선택 */}
-              <div>
-                <Label htmlFor="package_type">패키지 선택 *</Label>
-                <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="패키지 선택" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {packageOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()} <span className="text-sm text-gray-500">(VAT 별도)</span></span>
-                          <span className="text-xs text-gray-500">{opt.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">
-                    예상 지원 크리에이터 (플랫폼별)
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div className="flex items-center gap-1">
-                      <span className="text-red-600">🎥</span>
-                      <span className="text-gray-700">유튜브:</span>
-                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube}명</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-pink-600">📸</span>
-                      <span className="text-gray-700">인스타:</span>
-                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-black">🎵</span>
-                      <span className="text-gray-700">틱톡:</span>
-                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok}명</span>
-                    </div>
+              {/* 일정 설정 */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 border-b pb-2">📅 일정 설정</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="application_deadline">모집 마감일 *</Label>
+                    <Input
+                      type="date"
+                      id="application_deadline"
+                      value={campaignForm.application_deadline}
+                      onChange={(e) => setCampaignForm({...campaignForm, application_deadline: e.target.value})}
+                      required
+                    />
                   </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    * 금액대에 따라 지원율이 다소 차이가 납니다. 위 수치는 평균 예상치입니다.
+
+                  <div>
+                    <Label htmlFor="start_date">모집 발표일 *</Label>
+                    <Input
+                      type="date"
+                      id="start_date"
+                      value={campaignForm.start_date}
+                      onChange={(e) => setCampaignForm({...campaignForm, start_date: e.target.value})}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="end_date">촬영 마감일 *</Label>
+                    <Input
+                      type="date"
+                      id="end_date"
+                      value={campaignForm.end_date}
+                      onChange={(e) => setCampaignForm({...campaignForm, end_date: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <p className="text-sm text-blue-800">
+                    💡 <strong>일정 가이드:</strong> 모집 마감일 → 모집 발표일 → 촬영 마감일 순서로 설정해주세요.
                   </p>
                 </div>
               </div>
 
-              {/* 모집 인원 및 결제 예상 금액 */}
+              {/* SNS 플랫폼 선택 */}
+              <div>
+                <Label className="mb-3">대상 SNS 플랫폼 *</Label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignForm.target_platforms.instagram}
+                      onChange={(e) => setCampaignForm({
+                        ...campaignForm,
+                        target_platforms: {
+                          ...campaignForm.target_platforms,
+                          instagram: e.target.checked
+                        }
+                      })}
+                      className="mr-2"
+                    />
+                    📷 Instagram
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignForm.target_platforms.youtube}
+                      onChange={(e) => setCampaignForm({
+                        ...campaignForm,
+                        target_platforms: {
+                          ...campaignForm.target_platforms,
+                          youtube: e.target.checked
+                        }
+                      })}
+                      className="mr-2"
+                    />
+                    🎥 YouTube
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={campaignForm.target_platforms.tiktok}
+                      onChange={(e) => setCampaignForm({
+                        ...campaignForm,
+                        target_platforms: {
+                          ...campaignForm.target_platforms,
+                          tiktok: e.target.checked
+                        }
+                      })}
+                      className="mr-2"
+                    />
+                    🎵 TikTok
+                  </label>
+                </div>
+              </div>
+
+              {/* 연령 및 피부타입 */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="total_slots">모집 인원 *</Label>
+                  <Label htmlFor="age_requirement">연령 조건</Label>
                   <Input
-                    id="total_slots"
-                    type="number"
-                    value={campaignForm.total_slots}
-                    onChange={(e) => handleSlotsChange(e.target.value)}
-                    placeholder="10"
-                    required
-                    min="1"
+                    id="age_requirement"
+                    value={campaignForm.age_requirement || ''}
+                    onChange={(e) => setCampaignForm({...campaignForm, age_requirement: e.target.value})}
+                    placeholder="예: 20-30세"
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="estimated_cost">결제 예상 금액 (VAT 포함)</Label>
-                  <Input
-                    id="estimated_cost"
-                    type="text"
-                    value={`₩${campaignForm.estimated_cost.toLocaleString()}`}
-                    disabled
-                    className="bg-gray-100 font-semibold text-blue-600"
-                  />
-                  {(() => {
-                    const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
-                    const packagePrice = pkg?.price || 0
-                    const subtotal = packagePrice * campaignForm.total_slots
-                    const discountRate = calculateDiscount(subtotal)
-                    const discountAmount = Math.floor(subtotal * (discountRate / 100))
-                    const finalBeforeVat = subtotal - discountAmount
-                    const vat = Math.round(finalBeforeVat * 0.1)
-                    const totalWithVat = finalBeforeVat + vat
-                    
-                    return (
-                      <div className="text-xs text-gray-500 mt-1 space-y-1">
-                        <div>패키지 금액: {campaignForm.total_slots}명 × ₩{packagePrice.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
-                        {discountRate > 0 && (
-                          <div className="text-green-600 font-medium">
-                            할인 ({discountRate}%): -₩{discountAmount.toLocaleString()}
-                          </div>
-                        )}
-                        <div className="border-t pt-1 mt-1">
-                          <div>부가세(10%): ₩{vat.toLocaleString()}</div>
-                          <div className="font-semibold text-blue-600">총 결제액: ₩{totalWithVat.toLocaleString()}</div>
-                        </div>
-                      </div>
-                    )
-                  })()}
+                  <Label htmlFor="skin_type_requirement">피부타입</Label>
+                  <select
+                    id="skin_type_requirement"
+                    value={campaignForm.skin_type_requirement || ''}
+                    onChange={(e) => setCampaignForm({...campaignForm, skin_type_requirement: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">선택하세요</option>
+                    <option value="건성">건성</option>
+                    <option value="지성">지성</option>
+                    <option value="복합성">복합성</option>
+                    <option value="민감성">민감성</option>
+                    <option value="모든타입">모든타입</option>
+                  </select>
                 </div>
               </div>
 
-              {/* 날짜 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 오프라인 방문 조건 */}
+              {campaignForm.offline_visit_requirement !== null && (
                 <div>
-                  <Label htmlFor="application_deadline">모집 마감일 *</Label>
-                  <Input
-                    id="application_deadline"
-                    type="date"
-                    value={campaignForm.application_deadline}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="start_date">촬영 마감일 *</Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={campaignForm.start_date}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="end_date">SNS 업로드일 *</Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={campaignForm.end_date}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* 썸네일 업로드 */}
-              <div>
-                <Label>캠페인 썸네일</Label>
-                <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
-                <input
-                  ref={thumbnailInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleThumbnailUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="w-full"
-                >
-                  {uploadingImage ? '업로드 중...' : campaignForm.image_url ? '썸네일 변경' : '썸네일 업로드'}
-                </Button>
-                {campaignForm.image_url && (
-                  <div className="mt-4">
-                    <p className="text-sm text-green-600 mb-2">✓ 썸네일이 업로드되었습니다</p>
-                    <img src={campaignForm.image_url} alt="썸네일" className="w-full max-w-md rounded border" />
-                  </div>
-                )}
-              </div>
-
-              {/* 상품 상세 정보 */}
-              <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">📦 상품 상세 정보</h3>
-                
-                <div className="space-y-4">
-                  {/* 상품명 */}
-                  <div>
-                    <Label htmlFor="product_name">상품명</Label>
-                    <Input
-                      id="product_name"
-                      value={campaignForm.product_name}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
-                      placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
-                    />
-                  </div>
-
-                  {/* 상품 설명 */}
-                  <div>
-                    <Label htmlFor="product_description">상품 설명</Label>
-                    <Textarea
-                      id="product_description"
-                      value={campaignForm.product_description}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
-                      placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
-                      rows={4}
-                    />
-                  </div>
-
-                  {/* 상품 링크 */}
-                  <div>
-                    <Label htmlFor="product_link">상품 링크 (URL)</Label>
-                    <Input
-                      id="product_link"
-                      type="url"
-                      value={campaignForm.product_link}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
-                      placeholder="https://example.com/product"
-                    />
-                    <p className="text-sm text-gray-500 mt-1">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
-                  </div>
-
-                  {/* 상품 상세 페이지 이미지 */}
-                  <div className="border-t pt-4 mt-4">
-                    <Label>상품 상세 페이지 이미지</Label>
-                    <p className="text-sm text-gray-600 mb-2">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
-                    <input
-                      ref={detailImageInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProductDetailImageUpload}
-                      className="hidden"
-                    />
-                    <Button
+                  <Label htmlFor="offline_visit_requirement">
+                    오프라인 방문 조건
+                    <button
                       type="button"
-                      variant="outline"
-                      onClick={() => detailImageInputRef.current?.click()}
-                      disabled={uploadingDetailImage}
-                      className="w-full"
+                      onClick={() => setCampaignForm({...campaignForm, offline_visit_requirement: null})}
+                      className="ml-2 text-xs text-red-600 hover:text-red-800"
                     >
-                      {uploadingDetailImage ? '업로드 중...' : campaignForm.product_detail_file_url ? '이미지 변경' : '이미지 업로드'}
-                    </Button>
-                    {campaignForm.product_detail_file_url && (
-                      <div className="mt-4">
-                        <p className="text-sm text-green-600 mb-2">✓ 상품 상세 이미지가 업로드되었습니다</p>
-                        <img 
-                          src={campaignForm.product_detail_file_url} 
-                          alt="상품 상세" 
-                          className="max-w-full h-auto rounded border"
-                          style={{ maxHeight: '500px' }}
+                      [조건 없애기]
+                    </button>
+                  </Label>
+                  <Textarea
+                    id="offline_visit_requirement"
+                    value={campaignForm.offline_visit_requirement || ''}
+                    onChange={(e) => setCampaignForm({...campaignForm, offline_visit_requirement: e.target.value})}
+                    rows={3}
+                    placeholder="예: 도쿄 시부야 오프라인 매장 방문 필수, 체험 후기 작성 등 (선택사항)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    오프라인 방문이 필요한 경우에만 작성하세요. 비워두면 온라인 전용 캠페인이 됩니다.
+                  </p>
+                </div>
+              )}
+
+              {campaignForm.offline_visit_requirement === null && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setCampaignForm({...campaignForm, offline_visit_requirement: ''})}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    + 오프라인 방문 조건 추가
+                  </button>
+                </div>
+              )}
+
+              {/* 질문 4가지 */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">질문</h3>
+                
+                <div className="space-y-6">
+                  {/* 질문 1 */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <Label htmlFor="question1">질문 1</Label>
+                        <Input
+                          id="question1"
+                          value={campaignForm.question1 || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question1: e.target.value})}
+                          placeholder="질문 1을 입력하세요"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="question1_type">답변 형태</Label>
+                        <select
+                          id="question1_type"
+                          value={campaignForm.question1_type || 'short'}
+                          onChange={(e) => setCampaignForm({...campaignForm, question1_type: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="short">짧은답변</option>
+                          <option value="long">긴답변</option>
+                          <option value="checkbox">체크박스</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {campaignForm.question1_type === 'checkbox' && (
+                      <div>
+                        <Label htmlFor="question1_options">선택 옵션 (쉼표로 구분)</Label>
+                        <Input
+                          id="question1_options"
+                          value={campaignForm.question1_options || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question1_options: e.target.value})}
+                          placeholder="옵션1, 옵션2, 옵션3"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 질문 2 */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <Label htmlFor="question2">질문 2</Label>
+                        <Input
+                          id="question2"
+                          value={campaignForm.question2 || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question2: e.target.value})}
+                          placeholder="질문 2를 입력하세요"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="question2_type">답변 형태</Label>
+                        <select
+                          id="question2_type"
+                          value={campaignForm.question2_type || 'short'}
+                          onChange={(e) => setCampaignForm({...campaignForm, question2_type: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="short">짧은답변</option>
+                          <option value="long">긴답변</option>
+                          <option value="checkbox">체크박스</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {campaignForm.question2_type === 'checkbox' && (
+                      <div>
+                        <Label htmlFor="question2_options">선택 옵션 (쉼표로 구분)</Label>
+                        <Input
+                          id="question2_options"
+                          value={campaignForm.question2_options || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question2_options: e.target.value})}
+                          placeholder="옵션1, 옵션2, 옵션3"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 질문 3 */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <Label htmlFor="question3">질문 3</Label>
+                        <Input
+                          id="question3"
+                          value={campaignForm.question3 || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question3: e.target.value})}
+                          placeholder="질문 3을 입력하세요"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="question3_type">답변 형태</Label>
+                        <select
+                          id="question3_type"
+                          value={campaignForm.question3_type || 'short'}
+                          onChange={(e) => setCampaignForm({...campaignForm, question3_type: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="short">짧은답변</option>
+                          <option value="long">긴답변</option>
+                          <option value="checkbox">체크박스</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {campaignForm.question3_type === 'checkbox' && (
+                      <div>
+                        <Label htmlFor="question3_options">선택 옵션 (쉼표로 구분)</Label>
+                        <Input
+                          id="question3_options"
+                          value={campaignForm.question3_options || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question3_options: e.target.value})}
+                          placeholder="옵션1, 옵션2, 옵션3"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 질문 4 */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <Label htmlFor="question4">질문 4</Label>
+                        <Input
+                          id="question4"
+                          value={campaignForm.question4 || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question4: e.target.value})}
+                          placeholder="질문 4를 입력하세요"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="question4_type">답변 형태</Label>
+                        <select
+                          id="question4_type"
+                          value={campaignForm.question4_type || 'short'}
+                          onChange={(e) => setCampaignForm({...campaignForm, question4_type: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="short">짧은답변</option>
+                          <option value="long">긴답변</option>
+                          <option value="checkbox">체크박스</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {campaignForm.question4_type === 'checkbox' && (
+                      <div>
+                        <Label htmlFor="question4_options">선택 옵션 (쉼표로 구분)</Label>
+                        <Input
+                          id="question4_options"
+                          value={campaignForm.question4_options || ''}
+                          onChange={(e) => setCampaignForm({...campaignForm, question4_options: e.target.value})}
+                          placeholder="옵션1, 옵션2, 옵션3"
                         />
                       </div>
                     )}
@@ -863,114 +944,106 @@ const CreateCampaignJapan = () => {
                 </div>
               </div>
 
-              {/* 상태 안내 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  📌 캠페인은 "<strong>임시저장</strong>" 상태로 저장됩니다. 
-                  저장 후 캠페인 목록에서 <strong>"승인 요청하기"</strong>를 누르면 관리자가 검토합니다.
-                </p>
-              </div>
-
-              {/* 질문 섹션 */}
-              <div className="border-t pt-6 mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <Label className="text-lg font-semibold">지원자 질문 (선택사항)</Label>
-                  {questionCount < 4 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setQuestionCount(prev => Math.min(prev + 1, 4))}
-                    >
-                      + 질문 추가
-                    </Button>
-                  )}
-                </div>
-                <p className="text-sm text-gray-500 mb-4">지원자에게 물어볼 질문을 최대 4개까지 추가할 수 있습니다.</p>
-                
-                <div className="space-y-4">
-                  {/* 질문 1 */}
-                  {questionCount >= 1 && (
-                    <div>
-                      <Label htmlFor="question1">질문 1</Label>
-                      <Textarea
-                        id="question1"
-                        value={campaignForm.question1}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question1: e.target.value }))}
-                        placeholder="예: 본인의 피부 타입과 주요 피부 고민을 알려주세요."
-                        rows={2}
-                      />
-                    </div>
-                  )}
-
-                  {/* 질문 2 */}
-                  {questionCount >= 2 && (
-                    <div>
-                      <Label htmlFor="question2">질문 2</Label>
-                      <Textarea
-                        id="question2"
-                        value={campaignForm.question2}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question2: e.target.value }))}
-                        placeholder="예: 평소 사용하는 스킨케어 제품을 알려주세요."
-                        rows={2}
-                      />
-                    </div>
-                  )}
-
-                  {/* 질문 3 */}
-                  {questionCount >= 3 && (
-                    <div>
-                      <Label htmlFor="question3">질문 3</Label>
-                      <Textarea
-                        id="question3"
-                        value={campaignForm.question3}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question3: e.target.value }))}
-                        placeholder="예: 이 캠페인에 지원한 이유를 알려주세요."
-                        rows={2}
-                      />
-                    </div>
-                  )}
-
-                  {/* 질문 4 */}
-                  {questionCount >= 4 && (
-                    <div>
-                      <Label htmlFor="question4">질문 4</Label>
-                      <Textarea
-                        id="question4"
-                        value={campaignForm.question4}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question4: e.target.value }))}
-                        placeholder="예: 콘텐츠 제작 시 중점적으로 다루고 싶은 부분이 있나요?"
-                        rows={2}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 에러/성공 메시지 */}
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                  {error}
-                </div>
-              )}
-              {success && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-                  {success}
-                </div>
-              )}
-
-              {/* 버튼 */}
+              {/* 제출 버튼 */}
               <div className="flex gap-4">
                 <Button type="submit" disabled={processing} className="flex-1">
-                  {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
+                  {processing ? '처리 중...' : (editId ? '수정' : '생성')}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
                   취소
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* 오른쪽: 번역기 */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">🌐 한국어 → 일본어 번역기</h2>
+            
+            <div className="space-y-4">
+              {/* 한국어 입력 */}
+              <div>
+                <Label htmlFor="koreanText">🇰🇷 한국어 입력</Label>
+                <Textarea
+                  id="koreanText"
+                  value={koreanText}
+                  onChange={(e) => setKoreanText(e.target.value)}
+                  rows={6}
+                  placeholder="번역할 한국어 텍스트를 입력하세요..."
+                />
+                <div className="text-sm text-gray-500 mt-1">
+                  {koreanText.length} / 500자
+                </div>
+              </div>
+
+              {/* 번역 버튼 */}
+              <button
+                type="button"
+                onClick={() => translateText(koreanText)}
+                disabled={isTranslating || !koreanText.trim()}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isTranslating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    번역 중...
+                  </>
+                ) : (
+                  '🔄 번역하기'
+                )}
+              </button>
+
+              {/* 번역 오류 */}
+              {translationError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-800 text-sm">{translationError}</p>
+                </div>
+              )}
+
+              {/* 일본어 결과 */}
+              <div>
+                <Label htmlFor="japaneseText">🇯🇵 일본어 번역 결과</Label>
+                <div className="relative">
+                  <Textarea
+                    id="japaneseText"
+                    value={japaneseText}
+                    onChange={(e) => setJapaneseText(e.target.value)}
+                    rows={6}
+                    className="bg-green-50 border-green-300"
+                    placeholder="번역 결과가 여기에 표시됩니다..."
+                  />
+                  {japaneseText && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(japaneseText)}
+                      className="absolute top-2 right-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                    >
+                      📋 복사
+                    </button>
+                  )}
+                </div>
+                {japaneseText && (
+                  <div className="text-sm text-gray-500 mt-1">
+                    {japaneseText.length}자
+                  </div>
+                )}
+              </div>
+
+              {/* 사용 팁 */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <h4 className="font-medium text-yellow-800 mb-2">💡 사용 팁</h4>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  <li>• 번역 결과는 수정 가능합니다</li>
+                  <li>• 복사 버튼으로 쉽게 캠페인 폼에 붙여넣기 할 수 있습니다</li>
+                  <li>• 마케팅 문구는 현지 감각에 맞게 자연스럽게 번역됩니다</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
