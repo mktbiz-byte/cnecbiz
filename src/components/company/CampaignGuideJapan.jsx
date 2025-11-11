@@ -1211,6 +1211,25 @@ const CampaignGuideJapan = () => {
             </div>
           )}
 
+          {/* 메타광고코드 발급 요청 미리보기 */}
+          {metaAdCodeRequested && (
+            <div className="border-t pt-6 mt-6">
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center">
+                    <span className="text-white text-xs">✓</span>
+                  </div>
+                  <label className="text-base font-bold text-purple-900">
+                    📱 Meta広告コード発行リクエスト
+                  </label>
+                </div>
+                <p className="text-sm text-purple-700 mt-2 ml-8">
+                  Meta(Facebook/Instagram)広告コードを発行いたします
+                </p>
+              </div>
+            </div>
+          )}
+
           {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
