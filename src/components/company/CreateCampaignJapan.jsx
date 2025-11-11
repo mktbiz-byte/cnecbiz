@@ -242,24 +242,26 @@ const CreateCampaignJapan = () => {
       console.log('원본:', textToTranslate)
       console.log('번역:', translatedText)
 
-      // 번역 결과 파싱
-      const titleMatch = translatedText.match(/\[제목\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const brandMatch = translatedText.match(/\[브랜드\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const descMatch = translatedText.match(/\[설명\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const reqMatch = translatedText.match(/\[참가조건\]\s*([\s\S]*?)(?=\n\[|$)/)
+      // 번역 결과 파싱 (한국어/일본어 레이블 모두 처리, 볼드 마크다운 제거)
+      const cleanText = translatedText.replace(/\*\*/g, '') // 볼드 마크다운 제거
+      
+      const titleMatch = cleanText.match(/\[(제목|タイトル)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const brandMatch = cleanText.match(/\[(브랜드|ブランド)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const descMatch = cleanText.match(/\[(설명|説明)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const reqMatch = cleanText.match(/\[(참가조건|参加条件)\]\s*([\s\S]*?)(?=\n\[|$)/)
 
       console.log('파싱 결과:')
-      console.log('- 제목:', titleMatch ? titleMatch[1].trim() : 'null')
-      console.log('- 브랜드:', brandMatch ? brandMatch[1].trim() : 'null')
-      console.log('- 설명:', descMatch ? descMatch[1].trim() : 'null')
-      console.log('- 참가조건:', reqMatch ? reqMatch[1].trim() : 'null')
+      console.log('- 제목:', titleMatch ? titleMatch[2].trim() : 'null')
+      console.log('- 브랜드:', brandMatch ? brandMatch[2].trim() : 'null')
+      console.log('- 설명:', descMatch ? descMatch[2].trim() : 'null')
+      console.log('- 참가조건:', reqMatch ? reqMatch[2].trim() : 'null')
 
       const newForm = {
         ...campaignForm,
-        title: titleMatch ? titleMatch[1].trim() : campaignForm.title,
-        brand: brandMatch ? brandMatch[1].trim() : campaignForm.brand,
-        description: descMatch ? descMatch[1].trim() : campaignForm.description,
-        requirements: reqMatch ? reqMatch[1].trim() : campaignForm.requirements
+        title: titleMatch ? titleMatch[2].trim() : campaignForm.title,
+        brand: brandMatch ? brandMatch[2].trim() : campaignForm.brand,
+        description: descMatch ? descMatch[2].trim() : campaignForm.description,
+        requirements: reqMatch ? reqMatch[2].trim() : campaignForm.requirements
       }
 
       console.log('업데이트 후 폼:', newForm)
