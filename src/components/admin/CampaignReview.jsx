@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Loader2, CheckCircle, XCircle, ArrowLeft, AlertCircle } from 'lucide-react'
@@ -8,6 +8,10 @@ import { sendCampaignApprovedNotification } from '../../services/notifications'
 export default function CampaignReview() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
+  const supabase = region === 'japan' ? getSupabaseClient('japan') : supabaseBiz
+  
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [campaign, setCampaign] = useState(null)
@@ -23,7 +27,7 @@ export default function CampaignReview() {
     setLoading(true)
     try {
       // Load campaign
-      const { data: campaignData, error: campaignError } = await supabaseBiz
+      const { data: campaignData, error: campaignError } = await supabase
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -33,7 +37,7 @@ export default function CampaignReview() {
       setCampaign(campaignData)
 
       // Load guide
-      const { data: guideData, error: guideError } = await supabaseBiz
+      const { data: guideData, error: guideError } = await supabase
         .from('campaign_guides')
         .select('*')
         .eq('campaign_id', id)
