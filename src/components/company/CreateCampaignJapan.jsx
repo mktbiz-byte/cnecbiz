@@ -11,7 +11,7 @@ const CreateCampaignJapan = () => {
   const supabase = getSupabaseClient('japan')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const editId = searchParams.get('edit')
+  const editId = searchParams.get('id') || searchParams.get('edit')  // id 또는 edit 파라미터 모두 지원
 
   const [campaignForm, setCampaignForm] = useState({
     title: '',
@@ -64,6 +64,66 @@ const CreateCampaignJapan = () => {
   const [japaneseText, setJapaneseText] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState('')
+
+  // 캐페인 로드 (editId가 있을 때)
+  useEffect(() => {
+    if (editId) {
+      loadCampaign()
+    }
+  }, [editId])
+
+  const loadCampaign = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('id', editId)
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setCampaignForm({
+          title: data.title || '',
+          brand: data.brand || '',
+          description: data.description || '',
+          requirements: data.requirements || '',
+          category: data.category || 'beauty',
+          image_url: data.image_url || '',
+          reward_amount: data.reward_amount || 0,
+          max_participants: data.max_participants || 10,
+          application_deadline: data.application_deadline || '',
+          start_date: data.start_date || '',
+          end_date: data.end_date || '',
+          status: data.status || 'draft',
+          target_platforms: data.target_platforms || { instagram: true, youtube: false, tiktok: false },
+          question1: data.question1 || '',
+          question1_type: data.question1_type || 'short',
+          question1_options: data.question1_options || '',
+          question2: data.question2 || '',
+          question2_type: data.question2_type || 'short',
+          question2_options: data.question2_options || '',
+          question3: data.question3 || '',
+          question3_type: data.question3_type || 'short',
+          question3_options: data.question3_options || '',
+          question4: data.question4 || '',
+          question4_type: data.question4_type || 'short',
+          question4_options: data.question4_options || '',
+          age_requirement: data.age_requirement || '',
+          skin_type_requirement: data.skin_type_requirement || '',
+          offline_visit_requirement: data.offline_visit_requirement || '',
+          package_type: data.package_type || 'junior',
+          total_slots: data.total_slots || data.max_participants || 10,
+          remaining_slots: data.remaining_slots || data.max_participants || 10,
+          estimated_cost: data.estimated_cost || 0
+        })
+        console.log('캐페인 데이터 로드 성공:', data)
+      }
+    } catch (err) {
+      console.error('캐페인 로드 실패:', err)
+      setError('캐페인 데이터를 불러오는데 실패했습니다: ' + err.message)
+    }
+  }
 
   // 패키지 옵션 (원화 결제, 엔화 보상)
   const packageOptions = [
