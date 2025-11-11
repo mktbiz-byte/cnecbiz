@@ -367,8 +367,7 @@ const CreateCampaignJapan = () => {
         question4_options: campaignForm.question4_options || '',
         age_requirement: campaignForm.age_requirement || '',
         skin_type_requirement: campaignForm.skin_type_requirement || '',
-        offline_visit_requirement: campaignForm.offline_visit_requirement || '',
-        company_email: userEmail
+        offline_visit_requirement: campaignForm.offline_visit_requirement || ''
       }
 
       if (editId) {
@@ -475,8 +474,7 @@ const CreateCampaignJapan = () => {
         question4_options: campaignForm.question4_options || '',
         age_requirement: campaignForm.age_requirement || '',
         skin_type_requirement: campaignForm.skin_type_requirement || '',
-        offline_visit_requirement: campaignForm.offline_visit_requirement || '',
-        company_email: userEmail
+        offline_visit_requirement: campaignForm.offline_visit_requirement || ''
       }
 
       if (editId) {
@@ -558,8 +556,7 @@ const CreateCampaignJapan = () => {
             .from('campaigns')
             .insert([{
               ...campaignData,
-              status: 'draft',
-              approval_status: 'pending_payment'
+              status: 'draft'
             }])
             .select()
 
