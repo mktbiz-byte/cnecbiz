@@ -482,10 +482,15 @@ export default function CampaignDetail() {
           <div className="flex items-center gap-3">
             {getApprovalStatusBadge(campaign.approval_status)}
             {/* 수정 버튼: draft, pending_payment, rejected 상태에서 표시 (취소되지 않은 경우만) */}
-            {['draft', 'pending_payment', 'rejected'].includes(campaign.approval_status) && !campaign.is_cancelled && (
+            {(campaign.status === 'draft' || ['draft', 'pending_payment', 'rejected'].includes(campaign.approval_status)) && !campaign.is_cancelled && (
               <Button 
                 variant="outline"
-                onClick={() => navigate(`/company/campaigns/create/korea?edit=${id}`)}
+                onClick={() => {
+                  const editPath = region === 'japan' 
+                    ? `/company/campaigns/create/japan?id=${id}`
+                    : `/company/campaigns/create/korea?edit=${id}`
+                  navigate(editPath)
+                }}
               >
                 수정
               </Button>
