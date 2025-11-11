@@ -61,6 +61,7 @@ const CampaignGuideJapan = () => {
   const [translatedTone, setTranslatedTone] = useState('')
   const [translatedAdditionalDetails, setTranslatedAdditionalDetails] = useState('')
   const [translatedShootingRequests, setTranslatedShootingRequests] = useState('')
+  const [translatedShootingScenes, setTranslatedShootingScenes] = useState([])
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState('')
 
@@ -257,6 +258,28 @@ const CampaignGuideJapan = () => {
         fieldsToTranslate.push({ key: `hashtag${idx}`, label: `필수해시태그${idx + 1}`, value: hashtag })
       })
       
+      // 필수 촬영 장면 (체크된 항목만)
+      const shootingSceneLabels = {
+        baPhoto: '확실한 B&A 촬영',
+        noMakeup: '노메이크업',
+        closeup: '클로즈업',
+        productCloseup: '제품 클로즈업',
+        productTexture: '제품 제형 클로즈업',
+        outdoor: '외부촬영(카페, 외출 등)',
+        couple: '커플출연',
+        child: '아이출연',
+        troubledSkin: '트러블 피부 노출',
+        wrinkles: '피부 주름 노출'
+      }
+      
+      const checkedScenes = Object.entries(shootingScenes)
+        .filter(([key, checked]) => checked)
+        .map(([key]) => shootingSceneLabels[key])
+      
+      if (checkedScenes.length > 0) {
+        fieldsToTranslate.push({ key: 'shootingScenes', label: '필수촬영장면', value: checkedScenes.join(', ') })
+      }
+      
       // 기타 필드
       if (videoDuration.trim()) fieldsToTranslate.push({ key: 'duration', label: '영상시간', value: videoDuration })
       if (videoTempo.trim()) fieldsToTranslate.push({ key: 'tempo', label: '영상템포', value: videoTempo })
@@ -325,6 +348,7 @@ const CampaignGuideJapan = () => {
       const toneMatch = cleanText.match(/\[(영상톤|動画トーン)\]\s*([\s\S]*?)(?=\n\[|$)/)
       const additionalMatch = cleanText.match(/\[(추가전달사항|追加伝達事項)\]\s*([\s\S]*?)(?=\n\[|$)/)
       const shootingMatch = cleanText.match(/\[(추가촬영요청|追加撮影リクエスト)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const shootingScenesMatch = cleanText.match(/\[(필수촬영장면|必須撮影シーン)\]\s*([\s\S]*?)(?=\n\[|$)/)
 
       setTranslatedDialogues(newTranslatedDialogues)
       setTranslatedScenes(newTranslatedScenes)
@@ -334,6 +358,15 @@ const CampaignGuideJapan = () => {
       setTranslatedTone(toneMatch ? toneMatch[2].trim() : '')
       setTranslatedAdditionalDetails(additionalMatch ? additionalMatch[2].trim() : '')
       setTranslatedShootingRequests(shootingMatch ? shootingMatch[2].trim() : '')
+      
+      // 촬영 장면을 배열로 변환
+      if (shootingScenesMatch) {
+        const scenesText = shootingScenesMatch[2].trim()
+        const scenesArray = scenesText.split(/[,、]/).map(s => s.trim()).filter(s => s)
+        setTranslatedShootingScenes(scenesArray)
+      } else {
+        setTranslatedShootingScenes([])
+      }
 
       setSuccess('일괄 번역이 완료되었습니다!')
       setTimeout(() => setSuccess(''), 3000)
@@ -787,6 +820,24 @@ const CampaignGuideJapan = () => {
                   <span key={index} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-semibold shadow-md">
                     {hashtag}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 필수 촬영 장면 미리보기 */}
+          {translatedShootingScenes.length > 0 && (
+            <div className="border-l-4 border-teal-500 pl-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">📷</span>
+                <Label className="text-xl font-bold text-gray-800">必須撮影シーン</Label>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {translatedShootingScenes.map((scene, index) => (
+                  <div key={index} className="flex items-center gap-2 p-3 bg-teal-50 rounded-lg border border-teal-200">
+                    <span className="text-teal-600">✓</span>
+                    <p className="text-sm text-gray-800">{scene}</p>
+                  </div>
                 ))}
               </div>
             </div>
