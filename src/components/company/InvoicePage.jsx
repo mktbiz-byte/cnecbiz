@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -49,6 +49,8 @@ const InvoicePage = () => {
   `;
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
 
   const [campaign, setCampaign] = useState(null)
   const [company, setCompany] = useState(null)
@@ -83,17 +85,17 @@ const InvoicePage = () => {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
 
-      // 캠페인 정보 로드 - Biz DB 먼저 시도
-      let { data: campaignData, error: campaignError } = await supabaseBiz
+      // 캐페인 정보 로드 - region에 따라 올바른 DB 사용
+      const regionClient = getSupabaseClient(region)
+      let { data: campaignData, error: campaignError } = await regionClient
         .from('campaigns')
         .select('*')
         .eq('id', id)
         .maybeSingle()
 
-      // Biz DB에 없으면 Korea DB 시도
+      // region DB에 없으면 Biz DB 시도
       if (!campaignData && !campaignError) {
-        const koreaClient = getSupabaseClient('korea')
-        const result = await koreaClient
+        const result = await supabaseBiz
           .from('campaigns')
           .select('*')
           .eq('id', id)
@@ -120,11 +122,11 @@ const InvoicePage = () => {
         setCompany(companyData)
       }
 
-      // 입금 계좌 정보 로드 (Biz DB)
+      // 입금 계좌 정보 로드 (Biz DB) - region에 따라
       const { data: accountData, error: accountError } = await supabaseBiz
         .from('payment_accounts')
         .select('*')
-        .eq('region', 'korea')
+        .eq('region', region)
         .maybeSingle()
 
       if (accountError && accountError.code !== 'PGRST116') {

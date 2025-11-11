@@ -164,7 +164,11 @@ const OrderConfirmation = () => {
 
   const handlePayAdditional = () => {
     // 견적서 페이지로 이동 (입금 계좌 정보 확인)
-    navigate(`/company/campaigns/${id}/invoice`)
+    if (region === 'japan') {
+      navigate(`/company/campaigns/${id}/invoice?region=japan`)
+    } else {
+      navigate(`/company/campaigns/${id}/invoice`)
+    }
   }
 
   if (loading) {
@@ -207,7 +211,9 @@ const OrderConfirmation = () => {
   }
   
   const discountAmount = Math.floor(subtotal * discountRate)
-  const totalCost = subtotal - discountAmount
+  const afterDiscount = subtotal - discountAmount
+  const vat = Math.floor(afterDiscount * 0.1) // 부가세 10%
+  const totalCost = afterDiscount + vat
   
   const shortfall = Math.max(0, totalCost - pointsBalance)
   const canPayWithPoints = shortfall === 0
@@ -259,13 +265,16 @@ const OrderConfirmation = () => {
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">소계</span>
                 <span className="font-medium">{subtotal.toLocaleString()}원</span>
-              </div>
-              {discountRate > 0 && (
+              </div              {discountAmount > 0 && (
                 <div className="flex justify-between items-center text-green-600">
                   <span className="font-medium">할인 ({discountRate * 100}%)</span>
                   <span className="font-medium">-{discountAmount.toLocaleString()}원</span>
                 </div>
               )}
+              <div className="flex justify-between items-center text-gray-600 mt-2">
+                <span className="font-medium">부가세 (10%)</span>
+                <span className="font-medium">+{vat.toLocaleString()}원</span>
+              </div>
               <div className="border-t border-blue-200 pt-4 mt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-xl font-semibold">예상 총 비용</span>
