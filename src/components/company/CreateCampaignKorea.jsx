@@ -68,7 +68,7 @@ const CampaignCreationKorea = () => {
       label: '초급 크리에이터 패키지', 
       price: 200000,
       priceWithVat: 220000,
-      description: '팔로워 1만~5만',
+      description: '팔로워 1만~5만 (인스타 기준)',
       expectedApplicants: { youtube: 5, instagram: 8, tiktok: 10 }
     },
     { 
@@ -76,7 +76,7 @@ const CampaignCreationKorea = () => {
       label: '중급 크리에이터 패키지', 
       price: 300000,
       priceWithVat: 330000,
-      description: '팔로워 5만~20만',
+      description: '팔로워 5만~20만 (인스타 기준)',
       expectedApplicants: { youtube: 10, instagram: 15, tiktok: 15 }
     },
     { 
@@ -84,7 +84,7 @@ const CampaignCreationKorea = () => {
       label: '상급 크리에이터 패키지', 
       price: 400000,
       priceWithVat: 440000,
-      description: '팔로워 20만 이상',
+      description: '팔로워 20만 이상 (인스타 기준)',
       expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
     },
     { 
