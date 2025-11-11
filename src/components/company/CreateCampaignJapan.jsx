@@ -585,7 +585,7 @@ const CreateCampaignJapan = () => {
         setSuccess('캠페인이 수정되었습니다!')
         
         setTimeout(() => {
-          navigate(`/company/campaigns/guide?id=${editId}`)
+          navigate(`/company/campaigns/guide/japan?id=${editId}`)
         }, 1500)
         return
       } else {
