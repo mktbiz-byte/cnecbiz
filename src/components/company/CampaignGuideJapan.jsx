@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getSupabaseClient } from '../../lib/supabaseClients'
-import { supabase as supabaseBiz } from '../../lib/supabase'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
