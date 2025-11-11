@@ -238,19 +238,32 @@ const CreateCampaignJapan = () => {
       const data = await response.json()
       const translatedText = data.candidates[0]?.content?.parts[0]?.text || '번역 실패'
 
+      console.log('=== 일괄 번역 결과 ====')
+      console.log('원본:', textToTranslate)
+      console.log('번역:', translatedText)
+
       // 번역 결과 파싱
       const titleMatch = translatedText.match(/\[제목\]\s*([\s\S]*?)(?=\n\[|$)/)
       const brandMatch = translatedText.match(/\[브랜드\]\s*([\s\S]*?)(?=\n\[|$)/)
       const descMatch = translatedText.match(/\[설명\]\s*([\s\S]*?)(?=\n\[|$)/)
       const reqMatch = translatedText.match(/\[참가조건\]\s*([\s\S]*?)(?=\n\[|$)/)
 
-      setCampaignForm(prev => ({
-        ...prev,
-        title: titleMatch ? titleMatch[1].trim() : prev.title,
-        brand: brandMatch ? brandMatch[1].trim() : prev.brand,
-        description: descMatch ? descMatch[1].trim() : prev.description,
-        requirements: reqMatch ? reqMatch[1].trim() : prev.requirements
-      }))
+      console.log('파싱 결과:')
+      console.log('- 제목:', titleMatch ? titleMatch[1].trim() : 'null')
+      console.log('- 브랜드:', brandMatch ? brandMatch[1].trim() : 'null')
+      console.log('- 설명:', descMatch ? descMatch[1].trim() : 'null')
+      console.log('- 참가조건:', reqMatch ? reqMatch[1].trim() : 'null')
+
+      const newForm = {
+        ...campaignForm,
+        title: titleMatch ? titleMatch[1].trim() : campaignForm.title,
+        brand: brandMatch ? brandMatch[1].trim() : campaignForm.brand,
+        description: descMatch ? descMatch[1].trim() : campaignForm.description,
+        requirements: reqMatch ? reqMatch[1].trim() : campaignForm.requirements
+      }
+
+      console.log('업데이트 후 폼:', newForm)
+      setCampaignForm(newForm)
 
       setSuccess('일괄 번역이 완료되었습니다!')
       setTimeout(() => setSuccess(''), 3000)
