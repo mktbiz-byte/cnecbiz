@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabaseKorea'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -9,6 +9,9 @@ import { ArrowLeft, CheckCircle } from 'lucide-react'
 const GuideReview = () => {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
+  const supabase = getSupabaseClient(region)
 
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -41,7 +44,11 @@ const GuideReview = () => {
   }
 
   const handleEdit = () => {
-    navigate(`/company/campaigns/guide?id=${id}`)
+    if (region === 'japan') {
+      navigate(`/company/campaigns/guide/japan?id=${id}`)
+    } else {
+      navigate(`/company/campaigns/guide?id=${id}`)
+    }
   }
 
   if (loading) {
