@@ -69,7 +69,7 @@ const CampaignCreationKorea = () => {
       price: 200000,
       priceWithVat: 220000,
       description: '팔로워 1만~5만',
-      expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
+      expectedApplicants: { youtube: 5, instagram: 8, tiktok: 10 }
     },
     { 
       value: 'intermediate', 
@@ -77,7 +77,7 @@ const CampaignCreationKorea = () => {
       price: 300000,
       priceWithVat: 330000,
       description: '팔로워 5만~20만',
-      expectedApplicants: { youtube: 10, instagram: 18, tiktok: 15 }
+      expectedApplicants: { youtube: 10, instagram: 15, tiktok: 15 }
     },
     { 
       value: 'senior', 
@@ -85,7 +85,7 @@ const CampaignCreationKorea = () => {
       price: 400000,
       priceWithVat: 440000,
       description: '팔로워 20만 이상',
-      expectedApplicants: { youtube: 5, instagram: 10, tiktok: 8 }
+      expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
     },
     { 
       value: '4week_challenge', 
