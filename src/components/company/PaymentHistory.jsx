@@ -187,10 +187,15 @@ export default function PaymentHistory() {
   // 총 결제 건수
   const totalCount = payments.length + chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').length
   
-  // 현재 포인트 계산 (완료된 충전 건의 points_awarded 합계, 취소 건 자동 제외)
-  const currentPoints = chargeRequests
-    .filter(r => (r.status === 'completed' || r.status === 'confirmed') && r.points_awarded)
-    .reduce((sum, r) => sum + r.points_awarded, 0)
+  // 현재 포인트 계산 (충전 완료 건 합계 - 사용 포인트)
+  const totalCharged = chargeRequests
+    .filter(r => r.status === 'completed' || r.status === 'confirmed')
+    .reduce((sum, r) => sum + (r.amount || 0), 0)
+  
+  const totalUsed = pointUsages
+    .reduce((sum, c) => sum + (c.total_price || 0), 0)
+  
+  const currentPoints = totalCharged - totalUsed
 
   return (
     <>
@@ -224,7 +229,7 @@ export default function PaymentHistory() {
             <CardContent className="p-6">
               <div className="text-sm text-gray-600 mb-2">현재 포인트</div>
               <div className="text-3xl font-bold text-blue-600">
-                {(company?.points_balance || 0).toLocaleString()}P
+                {currentPoints.toLocaleString()}P
               </div>
             </CardContent>
           </Card>
