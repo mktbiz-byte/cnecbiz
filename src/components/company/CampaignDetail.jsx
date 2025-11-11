@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,11 +15,14 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 
 export default function CampaignDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
+  const supabase = region === 'japan' ? getSupabaseClient('japan') : supabaseKorea
   const [campaign, setCampaign] = useState(null)
   const [participants, setParticipants] = useState([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +56,7 @@ export default function CampaignDetail() {
 
   const fetchCampaignDetail = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const { data, error } = await supabase
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -70,7 +73,7 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const { data, error } = await supabase
         .from('campaign_participants')
         .select('*')
         .eq('campaign_id', id)
@@ -131,7 +134,7 @@ export default function CampaignDetail() {
         platform
       })
 
-      const { error: updateError } = await supabaseKorea
+      const { error: updateError } = await supabase
         .from('campaign_participants')
         .update({
           views,
@@ -155,7 +158,7 @@ export default function CampaignDetail() {
 
   const handleTrackingNumberChange = async (participantId, trackingNumber) => {
     try {
-      const { error } = await supabaseKorea
+      const { error } = await supabase
         .from('campaign_participants')
         .update({ tracking_number: trackingNumber })
         .eq('id', participantId)
@@ -185,7 +188,7 @@ export default function CampaignDetail() {
     try {
       // 선택된 크리에이터들의 상태를 'selected'로 변경
       for (const participantId of selectedParticipants) {
-        await supabaseKorea
+        await supabase
           .from('campaign_participants')
           .update({
             selection_status: 'selected',
@@ -195,7 +198,7 @@ export default function CampaignDetail() {
       }
 
       // 캠페인의 selected_participants_count 업데이트
-      await supabaseKorea
+      await supabase
         .from('campaigns')
         .update({
           selected_participants_count: selectedParticipants.length
@@ -273,7 +276,7 @@ export default function CampaignDetail() {
 
   const handleUpdateCreatorStatus = async (participantId, newStatus) => {
     try {
-      const { error } = await supabaseKorea
+      const { error } = await supabase
         .from('campaign_participants')
         .update({ creator_status: newStatus })
         .eq('id', participantId)
@@ -281,7 +284,7 @@ export default function CampaignDetail() {
       if (error) throw error
 
       // 참여자 목록 재로드
-      const { data, error: fetchError } = await supabaseKorea
+      const { data, error: fetchError } = await supabase
         .from('campaign_participants')
         .select('*')
         .eq('campaign_id', id)
@@ -327,7 +330,7 @@ export default function CampaignDetail() {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       
       // 1. 캠페인 취소
-      const { error } = await supabaseKorea
+      const { error } = await supabase
         .from('campaigns')
         .update({
           is_cancelled: true,
@@ -404,7 +407,7 @@ export default function CampaignDetail() {
 
   const handleRequestApproval = async () => {
     try {
-      const { error } = await supabaseKorea
+      const { error } = await supabase
         .from('campaigns')
         .update({
           approval_status: 'pending',

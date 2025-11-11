@@ -450,7 +450,7 @@ export default function MyCampaigns() {
                     <div 
                       key={campaign.id}
                       className="border rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
+                      onClick={() => navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)}
                     >
                       {/* Header */}
                       <div className="flex items-start justify-between mb-4">
@@ -548,7 +548,7 @@ export default function MyCampaigns() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
-                              navigate(`/company/campaigns/${campaign.id}`)
+                              navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
                             }}
                           >
                             <Eye className="w-4 h-4 mr-2" />
