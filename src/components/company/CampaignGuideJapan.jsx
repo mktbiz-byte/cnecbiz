@@ -120,7 +120,20 @@ const CampaignGuideJapan = () => {
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
           additional_shooting_requests,
-          meta_ad_code_requested
+          meta_ad_code_requested,
+          brand_name_ja,
+          product_name_ja,
+          product_description_ja,
+          product_features_ja,
+          required_dialogues_ja,
+          required_scenes_ja,
+          required_hashtags_ja,
+          video_duration_ja,
+          video_tempo_ja,
+          video_tone_ja,
+          additional_details_ja,
+          additional_shooting_requests_ja,
+          shooting_scenes_ja
         `)
         .eq('id', campaignId)
         .single()
@@ -153,6 +166,21 @@ const CampaignGuideJapan = () => {
         })
         setAdditionalShootingRequests(data.additional_shooting_requests || '')
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
+        
+        // 일본어 번역 데이터 로드
+        setTranslatedBrandName(data.brand_name_ja || '')
+        setTranslatedProductName(data.product_name_ja || '')
+        setTranslatedProductDesc(data.product_description_ja || '')
+        setTranslatedProductFeatures(data.product_features_ja || [])
+        setTranslatedDialogues(data.required_dialogues_ja || [])
+        setTranslatedScenes(data.required_scenes_ja || [])
+        setTranslatedHashtags(data.required_hashtags_ja || [])
+        setTranslatedDuration(data.video_duration_ja || '')
+        setTranslatedTempo(data.video_tempo_ja || '')
+        setTranslatedTone(data.video_tone_ja || '')
+        setTranslatedAdditionalDetails(data.additional_details_ja || '')
+        setTranslatedShootingRequests(data.additional_shooting_requests_ja || '')
+        setTranslatedShootingScenes(data.shooting_scenes_ja || [])
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
@@ -163,29 +191,46 @@ const CampaignGuideJapan = () => {
   const autoSaveGuide = async () => {
     setAutoSaving(true)
     try {
+      const updateData = {
+        required_dialogues: requiredDialogues.filter(d => d.trim()),
+        required_scenes: requiredScenes.filter(s => s.trim()),
+        required_hashtags: requiredHashtags.filter(h => h.trim()),
+        video_duration: videoDuration,
+        video_tempo: videoTempo,
+        video_tone: videoTone,
+        additional_details: additionalDetails,
+        shooting_scenes_ba_photo: shootingScenes.baPhoto,
+        shooting_scenes_no_makeup: shootingScenes.noMakeup,
+        shooting_scenes_closeup: shootingScenes.closeup,
+        shooting_scenes_product_closeup: shootingScenes.productCloseup,
+        shooting_scenes_product_texture: shootingScenes.productTexture,
+        shooting_scenes_outdoor: shootingScenes.outdoor,
+        shooting_scenes_couple: shootingScenes.couple,
+        shooting_scenes_child: shootingScenes.child,
+        shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
+        shooting_scenes_wrinkles: shootingScenes.wrinkles,
+        additional_shooting_requests: additionalShootingRequests,
+        meta_ad_code_requested: metaAdCodeRequested
+      }
+
+      // 일본어 번역이 있으면 추가
+      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
+      if (translatedProductName) updateData.product_name_ja = translatedProductName
+      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_ja = translatedDuration
+      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
+      if (translatedTone) updateData.video_tone_ja = translatedTone
+      if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
+      if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
+
       const { error } = await supabase
         .from('campaigns')
-        .update({
-          required_dialogues: requiredDialogues.filter(d => d.trim()),
-          required_scenes: requiredScenes.filter(s => s.trim()),
-          required_hashtags: requiredHashtags.filter(h => h.trim()),
-          video_duration: videoDuration,
-          video_tempo: videoTempo,
-          video_tone: videoTone,
-          additional_details: additionalDetails,
-          shooting_scenes_ba_photo: shootingScenes.baPhoto,
-          shooting_scenes_no_makeup: shootingScenes.noMakeup,
-          shooting_scenes_closeup: shootingScenes.closeup,
-          shooting_scenes_product_closeup: shootingScenes.productCloseup,
-          shooting_scenes_product_texture: shootingScenes.productTexture,
-          shooting_scenes_outdoor: shootingScenes.outdoor,
-          shooting_scenes_couple: shootingScenes.couple,
-          shooting_scenes_child: shootingScenes.child,
-          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
-          shooting_scenes_wrinkles: shootingScenes.wrinkles,
-          additional_shooting_requests: additionalShootingRequests,
-          meta_ad_code_requested: metaAdCodeRequested
-        })
+        .update(updateData)
         .eq('id', campaignId)
 
       if (error) throw error
@@ -202,29 +247,46 @@ const CampaignGuideJapan = () => {
     setSuccess('')
 
     try {
+      const updateData = {
+        required_dialogues: requiredDialogues.filter(d => d.trim()),
+        required_scenes: requiredScenes.filter(s => s.trim()),
+        required_hashtags: requiredHashtags.filter(h => h.trim()),
+        video_duration: videoDuration,
+        video_tempo: videoTempo,
+        video_tone: videoTone,
+        additional_details: additionalDetails,
+        shooting_scenes_ba_photo: shootingScenes.baPhoto,
+        shooting_scenes_no_makeup: shootingScenes.noMakeup,
+        shooting_scenes_closeup: shootingScenes.closeup,
+        shooting_scenes_product_closeup: shootingScenes.productCloseup,
+        shooting_scenes_product_texture: shootingScenes.productTexture,
+        shooting_scenes_outdoor: shootingScenes.outdoor,
+        shooting_scenes_couple: shootingScenes.couple,
+        shooting_scenes_child: shootingScenes.child,
+        shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
+        shooting_scenes_wrinkles: shootingScenes.wrinkles,
+        additional_shooting_requests: additionalShootingRequests,
+        meta_ad_code_requested: metaAdCodeRequested
+      }
+
+      // 일본어 번역이 있으면 추가
+      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
+      if (translatedProductName) updateData.product_name_ja = translatedProductName
+      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_ja = translatedDuration
+      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
+      if (translatedTone) updateData.video_tone_ja = translatedTone
+      if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
+      if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
+
       const { error } = await supabase
         .from('campaigns')
-        .update({
-          required_dialogues: requiredDialogues.filter(d => d.trim()),
-          required_scenes: requiredScenes.filter(s => s.trim()),
-          required_hashtags: requiredHashtags.filter(h => h.trim()),
-          video_duration: videoDuration,
-          video_tempo: videoTempo,
-          video_tone: videoTone,
-          additional_details: additionalDetails,
-          shooting_scenes_ba_photo: shootingScenes.baPhoto,
-          shooting_scenes_no_makeup: shootingScenes.noMakeup,
-          shooting_scenes_closeup: shootingScenes.closeup,
-          shooting_scenes_product_closeup: shootingScenes.productCloseup,
-          shooting_scenes_product_texture: shootingScenes.productTexture,
-          shooting_scenes_outdoor: shootingScenes.outdoor,
-          shooting_scenes_couple: shootingScenes.couple,
-          shooting_scenes_child: shootingScenes.child,
-          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
-          shooting_scenes_wrinkles: shootingScenes.wrinkles,
-          additional_shooting_requests: additionalShootingRequests,
-          meta_ad_code_requested: metaAdCodeRequested
-        })
+        .update(updateData)
         .eq('id', campaignId)
 
       if (error) throw error
@@ -897,30 +959,51 @@ const CampaignGuideJapan = () => {
               <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 space-y-4">
                 {translatedBrandName && (
                   <div>
-                    <p className="text-xs font-semibold text-indigo-600 mb-1">ブランド名</p>
-                    <p className="text-lg font-bold text-gray-900">{translatedBrandName}</p>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">ブランド名</Label>
+                    <Input
+                      value={translatedBrandName}
+                      onChange={(e) => setTranslatedBrandName(e.target.value)}
+                      className="mt-1 bg-white border-indigo-200 focus:border-indigo-400 font-bold"
+                    />
                   </div>
                 )}
                 {translatedProductName && (
                   <div>
-                    <p className="text-xs font-semibold text-indigo-600 mb-1">製品名</p>
-                    <p className="text-lg font-bold text-gray-900">{translatedProductName}</p>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品名</Label>
+                    <Input
+                      value={translatedProductName}
+                      onChange={(e) => setTranslatedProductName(e.target.value)}
+                      className="mt-1 bg-white border-indigo-200 focus:border-indigo-400 font-bold"
+                    />
                   </div>
                 )}
                 {translatedProductDesc && (
                   <div>
-                    <p className="text-xs font-semibold text-indigo-600 mb-1">製品説明</p>
-                    <p className="text-base text-gray-700 leading-relaxed">{translatedProductDesc}</p>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品説明</Label>
+                    <Textarea
+                      value={translatedProductDesc}
+                      onChange={(e) => setTranslatedProductDesc(e.target.value)}
+                      className="mt-1 bg-white border-indigo-200 focus:border-indigo-400 resize-none"
+                      rows={4}
+                    />
                   </div>
                 )}
                 {translatedProductFeatures.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-indigo-600 mb-2">製品特徴</p>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-2">製品特徴</Label>
                     <div className="space-y-2">
                       {translatedProductFeatures.map((feature, index) => (
                         <div key={index} className="flex items-start gap-2">
                           <span className="flex-shrink-0 w-5 h-5 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">✓</span>
-                          <p className="text-base text-gray-800">{feature}</p>
+                          <Input
+                            value={feature}
+                            onChange={(e) => {
+                              const newFeatures = [...translatedProductFeatures]
+                              newFeatures[index] = e.target.value
+                              setTranslatedProductFeatures(newFeatures)
+                            }}
+                            className="flex-1 bg-white border-indigo-200 focus:border-indigo-400"
+                          />
                         </div>
                       ))}
                     </div>
@@ -939,10 +1022,19 @@ const CampaignGuideJapan = () => {
               </div>
               <div className="space-y-3">
                 {translatedDialogues.map((dialogue, index) => (
-                  <div key={index} className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                  <div key={index} className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
                     <div className="flex items-start gap-3">
                       <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
-                      <p className="text-base text-gray-800 leading-relaxed">{dialogue}</p>
+                      <Textarea
+                        value={dialogue}
+                        onChange={(e) => {
+                          const newDialogues = [...translatedDialogues]
+                          newDialogues[index] = e.target.value
+                          setTranslatedDialogues(newDialogues)
+                        }}
+                        className="flex-1 bg-white border-blue-200 focus:border-blue-400 resize-none"
+                        rows={2}
+                      />
                     </div>
                   </div>
                 ))}
@@ -959,10 +1051,19 @@ const CampaignGuideJapan = () => {
               </div>
               <div className="space-y-3">
                 {translatedScenes.map((scene, index) => (
-                  <div key={index} className="p-4 bg-green-50 rounded-lg border-l-4 border-green-400">
+                  <div key={index} className="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
                     <div className="flex items-start gap-3">
                       <span className="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
-                      <p className="text-base text-gray-800 leading-relaxed">{scene}</p>
+                      <Textarea
+                        value={scene}
+                        onChange={(e) => {
+                          const newScenes = [...translatedScenes]
+                          newScenes[index] = e.target.value
+                          setTranslatedScenes(newScenes)
+                        }}
+                        className="flex-1 bg-white border-green-200 focus:border-green-400 resize-none"
+                        rows={2}
+                      />
                     </div>
                   </div>
                 ))}
@@ -977,11 +1078,20 @@ const CampaignGuideJapan = () => {
                 <span className="text-2xl">#️⃣</span>
                 <Label className="text-xl font-bold text-gray-800">必須ハッシュタグ</Label>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="space-y-2">
                 {translatedHashtags.map((hashtag, index) => (
-                  <span key={index} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-semibold shadow-md">
-                    {hashtag}
-                  </span>
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-purple-500 font-bold">#</span>
+                    <Input
+                      value={hashtag}
+                      onChange={(e) => {
+                        const newHashtags = [...translatedHashtags]
+                        newHashtags[index] = e.target.value
+                        setTranslatedHashtags(newHashtags)
+                      }}
+                      className="flex-1 bg-white border-purple-200 focus:border-purple-400"
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -994,11 +1104,19 @@ const CampaignGuideJapan = () => {
                 <span className="text-2xl">📷</span>
                 <Label className="text-xl font-bold text-gray-800">必須撮影シーン</Label>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
                 {translatedShootingScenes.map((scene, index) => (
-                  <div key={index} className="flex items-center gap-2 p-3 bg-teal-50 rounded-lg border border-teal-200">
-                    <span className="text-teal-600">✓</span>
-                    <p className="text-sm text-gray-800">{scene}</p>
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-teal-600 font-bold">✓</span>
+                    <Input
+                      value={scene}
+                      onChange={(e) => {
+                        const newScenes = [...translatedShootingScenes]
+                        newScenes[index] = e.target.value
+                        setTranslatedShootingScenes(newScenes)
+                      }}
+                      className="flex-1 bg-white border-teal-200 focus:border-teal-400"
+                    />
                   </div>
                 ))}
               </div>
@@ -1014,21 +1132,33 @@ const CampaignGuideJapan = () => {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {translatedDuration && (
-                  <div className="p-4 bg-orange-50 rounded-lg text-center">
-                    <p className="text-xs text-gray-600 mb-2">希望時間</p>
-                    <p className="text-lg font-bold text-orange-700">{translatedDuration}</p>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <Label className="text-xs text-gray-600 mb-2">希望時間</Label>
+                    <Input
+                      value={translatedDuration}
+                      onChange={(e) => setTranslatedDuration(e.target.value)}
+                      className="bg-white border-orange-200 focus:border-orange-400 font-bold text-center"
+                    />
                   </div>
                 )}
                 {translatedTempo && (
-                  <div className="p-4 bg-orange-50 rounded-lg text-center">
-                    <p className="text-xs text-gray-600 mb-2">テンポ</p>
-                    <p className="text-lg font-bold text-orange-700">{translatedTempo}</p>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <Label className="text-xs text-gray-600 mb-2">テンポ</Label>
+                    <Input
+                      value={translatedTempo}
+                      onChange={(e) => setTranslatedTempo(e.target.value)}
+                      className="bg-white border-orange-200 focus:border-orange-400 font-bold text-center"
+                    />
                   </div>
                 )}
                 {translatedTone && (
-                  <div className="p-4 bg-orange-50 rounded-lg text-center">
-                    <p className="text-xs text-gray-600 mb-2">トーン</p>
-                    <p className="text-lg font-bold text-orange-700">{translatedTone}</p>
+                  <div className="p-3 bg-orange-50 rounded-lg">
+                    <Label className="text-xs text-gray-600 mb-2">トーン</Label>
+                    <Input
+                      value={translatedTone}
+                      onChange={(e) => setTranslatedTone(e.target.value)}
+                      className="bg-white border-orange-200 focus:border-orange-400 font-bold text-center"
+                    />
                   </div>
                 )}
               </div>
@@ -1042,9 +1172,12 @@ const CampaignGuideJapan = () => {
                 <span className="text-2xl">📝</span>
                 <Label className="text-xl font-bold text-gray-800">追加伝達事項</Label>
               </div>
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap">{translatedAdditionalDetails}</p>
-              </div>
+              <Textarea
+                value={translatedAdditionalDetails}
+                onChange={(e) => setTranslatedAdditionalDetails(e.target.value)}
+                className="bg-yellow-50 border-yellow-200 focus:border-yellow-400 resize-none"
+                rows={4}
+              />
             </div>
           )}
 
@@ -1055,9 +1188,12 @@ const CampaignGuideJapan = () => {
                 <span className="text-2xl">📸</span>
                 <Label className="text-xl font-bold text-gray-800">追加撮影リクエスト</Label>
               </div>
-              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap">{translatedShootingRequests}</p>
-              </div>
+              <Textarea
+                value={translatedShootingRequests}
+                onChange={(e) => setTranslatedShootingRequests(e.target.value)}
+                className="bg-red-50 border-red-200 focus:border-red-400 resize-none"
+                rows={4}
+              />
             </div>
           )}
 
