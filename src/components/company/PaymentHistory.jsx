@@ -12,6 +12,7 @@ export default function PaymentHistory() {
   const [payments, setPayments] = useState([])
   const [chargeRequests, setChargeRequests] = useState([])  // 포인트 충전 신청
   const [taxInvoices, setTaxInvoices] = useState([])
+  const [pointUsages, setPointUsages] = useState([])  // 포인트 사용 내역
   const [selectedTab, setSelectedTab] = useState('payments')
   const [loading, setLoading] = useState(false)
   const [selectedTaxInfo, setSelectedTaxInfo] = useState(null)
@@ -43,6 +44,7 @@ export default function PaymentHistory() {
       fetchPayments(companyData.id)
       fetchTaxInvoices(companyData.id)
       fetchChargeRequests(user.id)
+      fetchPointUsages(companyData.id)
     }
   }
 
@@ -95,6 +97,24 @@ export default function PaymentHistory() {
       }
     } catch (error) {
       console.error('Error fetching tax invoices:', error)
+    }
+  }
+
+  const fetchPointUsages = async (companyId) => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('campaigns')
+        .select('id, brand_name, package_type, total_price, status, approved_at, created_at')
+        .eq('company_id', companyId)
+        .in('status', ['approved', 'active', 'completed'])
+        .order('approved_at', { ascending: false })
+
+      if (!error && data) {
+        console.log('[PaymentHistory] 포인트 사용 내역:', data)
+        setPointUsages(data)
+      }
+    } catch (error) {
+      console.error('Error fetching point usages:', error)
     }
   }
 
@@ -204,7 +224,7 @@ export default function PaymentHistory() {
             <CardContent className="p-6">
               <div className="text-sm text-gray-600 mb-2">현재 포인트</div>
               <div className="text-3xl font-bold text-blue-600">
-                {currentPoints.toLocaleString()}P
+                {(company?.points_balance || 0).toLocaleString()}P
               </div>
             </CardContent>
           </Card>
@@ -217,6 +237,12 @@ export default function PaymentHistory() {
             onClick={() => setSelectedTab('payments')}
           >
             결제 내역
+          </Button>
+          <Button
+            variant={selectedTab === 'usages' ? 'default' : 'outline'}
+            onClick={() => setSelectedTab('usages')}
+          >
+            포인트 사용 내역
           </Button>
           <Button
             variant={selectedTab === 'invoices' ? 'default' : 'outline'}
@@ -279,6 +305,67 @@ export default function PaymentHistory() {
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Point Usages Tab */}
+        {selectedTab === 'usages' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>포인트 사용 내역 ({pointUsages.length}건)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pointUsages.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  포인트 사용 내역이 없습니다
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-4">날짜</th>
+                        <th className="text-left p-4">캠페인명</th>
+                        <th className="text-left p-4">패키지</th>
+                        <th className="text-left p-4">차감 포인트</th>
+                        <th className="text-left p-4">상태</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pointUsages.map((campaign) => (
+                        <tr key={campaign.id} className="border-b hover:bg-gray-50">
+                          <td className="p-4 text-sm">
+                            {new Date(campaign.approved_at || campaign.created_at).toLocaleDateString('ko-KR')}
+                          </td>
+                          <td className="p-4">
+                            {campaign.brand_name}
+                          </td>
+                          <td className="p-4 text-sm">
+                            {campaign.package_type}
+                          </td>
+                          <td className="p-4 font-bold text-red-600">
+                            -{campaign.total_price?.toLocaleString()}P
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              campaign.status === 'approved' ? 'bg-green-100 text-green-700' :
+                              campaign.status === 'active' ? 'bg-blue-100 text-blue-700' :
+                              campaign.status === 'completed' ? 'bg-gray-100 text-gray-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {campaign.status === 'approved' ? '승인됨' :
+                               campaign.status === 'active' ? '진행중' :
+                               campaign.status === 'completed' ? '완료' :
+                               campaign.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
