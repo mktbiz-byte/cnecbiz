@@ -192,6 +192,76 @@ const CreateCampaignJapan = () => {
     }
   }
 
+  // 일괄 번역 함수
+  const translateAllFields = async () => {
+    if (!campaignForm.title && !campaignForm.brand && !campaignForm.description && !campaignForm.requirements) {
+      setTranslationError('번역할 내용이 없습니다.')
+      return
+    }
+
+    setIsTranslating(true)
+    setTranslationError('')
+
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('API 키가 설정되지 않았습니다.')
+      }
+
+      const fieldsToTranslate = [
+        { key: 'title', label: '제목', value: campaignForm.title },
+        { key: 'brand', label: '브랜드', value: campaignForm.brand },
+        { key: 'description', label: '설명', value: campaignForm.description },
+        { key: 'requirements', label: '참가조건', value: campaignForm.requirements }
+      ].filter(f => f.value && f.value.trim())
+
+      const textToTranslate = fieldsToTranslate.map(f => `[${f.label}]\n${f.value}`).join('\n\n')
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ 
+              parts: [{ 
+                text: `다음 한국어 캠페인 정보를 일본어로 자연스럽게 번역해주세요. 각 필드별로 [제목], [브랜드], [설명], [참가조건] 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
+              }] 
+            }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+          })
+        }
+      )
+
+      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+      const data = await response.json()
+      const translatedText = data.candidates[0]?.content?.parts[0]?.text || '번역 실패'
+
+      // 번역 결과 파싱
+      const titleMatch = translatedText.match(/\[제목\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const brandMatch = translatedText.match(/\[브랜드\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const descMatch = translatedText.match(/\[설명\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const reqMatch = translatedText.match(/\[참가조건\]\s*([\s\S]*?)(?=\n\[|$)/)
+
+      setCampaignForm(prev => ({
+        ...prev,
+        title: titleMatch ? titleMatch[1].trim() : prev.title,
+        brand: brandMatch ? brandMatch[1].trim() : prev.brand,
+        description: descMatch ? descMatch[1].trim() : prev.description,
+        requirements: reqMatch ? reqMatch[1].trim() : prev.requirements
+      }))
+
+      setSuccess('일괄 번역이 완료되었습니다!')
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (error) {
+      console.error('일괄 번역 오류:', error)
+      setTranslationError(error.message || '일괄 번역 중 오류가 발생했습니다.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
   // 클립보드 복사
   const copyToClipboard = async (text) => {
     try {
@@ -976,7 +1046,17 @@ const CreateCampaignJapan = () => {
                 </div>
               </div>
 
-              {/* 번역 버튼 */}
+              {/* 일괄 번역 버튼 */}
+              <button
+                type="button"
+                onClick={translateAllFields}
+                disabled={isTranslating}
+                className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              >
+                {isTranslating ? '번역 중...' : '🚀 제목/브랜드/설명/참가조건 일괄 번역'}
+              </button>
+
+              {/* 개별 번역 버튼 */}
               <button
                 type="button"
                 onClick={() => translateText(koreanText)}
