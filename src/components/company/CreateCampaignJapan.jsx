@@ -212,7 +212,12 @@ const CreateCampaignJapan = () => {
         { key: 'title', label: '제목', value: campaignForm.title },
         { key: 'brand', label: '브랜드', value: campaignForm.brand },
         { key: 'description', label: '설명', value: campaignForm.description },
-        { key: 'requirements', label: '참가조건', value: campaignForm.requirements }
+        { key: 'requirements', label: '참가조건', value: campaignForm.requirements },
+        { key: 'question1', label: '질문1', value: campaignForm.question1 },
+        { key: 'question2', label: '질문2', value: campaignForm.question2 },
+        { key: 'question3', label: '질문3', value: campaignForm.question3 },
+        { key: 'question4', label: '질문4', value: campaignForm.question4 },
+        { key: 'offline_visit_requirement', label: '오프라인방문', value: campaignForm.offline_visit_requirement }
       ].filter(f => f.value && f.value.trim())
 
       const textToTranslate = fieldsToTranslate.map(f => `[${f.label}]\n${f.value}`).join('\n\n')
@@ -225,7 +230,7 @@ const CreateCampaignJapan = () => {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `다음 한국어 캠페인 정보를 일본어로 자연스럽게 번역해주세요. 각 필드별로 [제목], [브랜드], [설명], [참가조건] 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
+                text: `다음 한국어 캠페인 정보를 일본어로 자연스럽게 번역해주세요. 각 필드별로 [제목], [브랜드], [설명], [참가조건], [질문1], [질문2], [질문3], [질문4], [오프라인방문] 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
               }] 
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
@@ -249,19 +254,34 @@ const CreateCampaignJapan = () => {
       const brandMatch = cleanText.match(/\[(브랜드|ブランド)\]\s*([\s\S]*?)(?=\n\[|$)/)
       const descMatch = cleanText.match(/\[(설명|説明)\]\s*([\s\S]*?)(?=\n\[|$)/)
       const reqMatch = cleanText.match(/\[(참가조건|参加条件)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const q1Match = cleanText.match(/\[(질문1|質問1)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const q2Match = cleanText.match(/\[(질문2|質問2)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const q3Match = cleanText.match(/\[(질문3|質問3)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const q4Match = cleanText.match(/\[(질문4|質問4)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const offlineMatch = cleanText.match(/\[(오프라인방문|オフライン訪問)\]\s*([\s\S]*?)(?=\n\[|$)/)
 
       console.log('파싱 결과:')
       console.log('- 제목:', titleMatch ? titleMatch[2].trim() : 'null')
       console.log('- 브랜드:', brandMatch ? brandMatch[2].trim() : 'null')
       console.log('- 설명:', descMatch ? descMatch[2].trim() : 'null')
       console.log('- 참가조건:', reqMatch ? reqMatch[2].trim() : 'null')
+      console.log('- 질문1:', q1Match ? q1Match[2].trim() : 'null')
+      console.log('- 질문2:', q2Match ? q2Match[2].trim() : 'null')
+      console.log('- 질문3:', q3Match ? q3Match[2].trim() : 'null')
+      console.log('- 질문4:', q4Match ? q4Match[2].trim() : 'null')
+      console.log('- 오프라인방문:', offlineMatch ? offlineMatch[2].trim() : 'null')
 
       const newForm = {
         ...campaignForm,
         title: titleMatch ? titleMatch[2].trim() : campaignForm.title,
         brand: brandMatch ? brandMatch[2].trim() : campaignForm.brand,
         description: descMatch ? descMatch[2].trim() : campaignForm.description,
-        requirements: reqMatch ? reqMatch[2].trim() : campaignForm.requirements
+        requirements: reqMatch ? reqMatch[2].trim() : campaignForm.requirements,
+        question1: q1Match ? q1Match[2].trim() : campaignForm.question1,
+        question2: q2Match ? q2Match[2].trim() : campaignForm.question2,
+        question3: q3Match ? q3Match[2].trim() : campaignForm.question3,
+        question4: q4Match ? q4Match[2].trim() : campaignForm.question4,
+        offline_visit_requirement: offlineMatch ? offlineMatch[2].trim() : campaignForm.offline_visit_requirement
       }
 
       console.log('업데이트 후 폼:', newForm)
