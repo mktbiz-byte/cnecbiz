@@ -17,7 +17,7 @@ import {
   CheckCircle,
   DollarSign
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
 import RegionSelectModal from './RegionSelectModal'
 import CompanyNavigation from './CompanyNavigation'
@@ -66,19 +66,37 @@ export default function MyCampaigns() {
       console.log('[MyCampaigns] Fetching campaigns for email:', userEmail)
       
       // 한국 지역 캠페인 가져오기 (company_email 기준)
-      const { data: koreaCampaigns, error } = await supabaseKorea
+      const { data: koreaCampaigns, error: koreaError } = await supabaseKorea
         .from('campaigns')
         .select('*')
         .eq('company_email', userEmail)
         .order('created_at', { ascending: false })
       
-      console.log('[MyCampaigns] Korea campaigns result:', { koreaCampaigns, error })
+      console.log('[MyCampaigns] Korea campaigns result:', { koreaCampaigns, koreaError })
+
+      // 일본 지역 캠페인 가져오기 (company_email 기준)
+      const supabaseJapan = getSupabaseClient('japan')
+      const { data: japanCampaigns, error: japanError } = await supabaseJapan
+        .from('campaigns')
+        .select('*')
+        .eq('company_email', userEmail)
+        .order('created_at', { ascending: false })
+      
+      console.log('[MyCampaigns] Japan campaigns result:', { japanCampaigns, japanError })
 
       // 지역 표시를 위해 region 필드 추가
-      const campaignsWithRegion = (koreaCampaigns || []).map(c => ({
+      const koreaCampaignsWithRegion = (koreaCampaigns || []).map(c => ({
         ...c,
         region: 'korea'
       }))
+
+      const japanCampaignsWithRegion = (japanCampaigns || []).map(c => ({
+        ...c,
+        region: 'japan'
+      }))
+
+      // 한국 + 일본 캠페인 합치기
+      const campaignsWithRegion = [...koreaCampaignsWithRegion, ...japanCampaignsWithRegion]
 
       // 취소된 캠페인은 하단으로 정렬
       const sortedCampaigns = campaignsWithRegion.sort((a, b) => {
