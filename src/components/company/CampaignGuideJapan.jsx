@@ -146,10 +146,11 @@ const CampaignGuideJapan = () => {
 
       if (data) {
         setCampaignTitle(data.title)
-        setBrandName(data.brand_name || '')
-        setProductName(data.product_name || '')
-        setProductDescription(data.description || '')
-        setProductFeatures(data.product_features || [''])
+        // 제품 정보는 기업이 직접 입력하도록 빈 상태로 시작
+        // setBrandName(data.brand_name || '')
+        // setProductName(data.product_name || '')
+        // setProductDescription(data.description || '')
+        // setProductFeatures(data.product_features || [''])
         setRequiredDialogues(data.required_dialogues || [''])
         setRequiredScenes(data.required_scenes || [''])
         setRequiredHashtags(data.required_hashtags || [''])
@@ -172,11 +173,11 @@ const CampaignGuideJapan = () => {
         setAdditionalShootingRequests(data.additional_shooting_requests || '')
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
         
-        // 일본어 번역 데이터 로드
-        setTranslatedBrandName(data.brand_name_ja || '')
-        setTranslatedProductName(data.product_name_ja || '')
-        setTranslatedProductDesc(data.product_description_ja || '')
-        setTranslatedProductFeatures(data.product_features_ja || [])
+        // 일본어 번역 데이터 로드 (저장된 경우에만)
+        if (data.brand_name_ja) setTranslatedBrandName(data.brand_name_ja)
+        if (data.product_name_ja) setTranslatedProductName(data.product_name_ja)
+        if (data.product_description_ja) setTranslatedProductDesc(data.product_description_ja)
+        if (data.product_features_ja && data.product_features_ja.length > 0) setTranslatedProductFeatures(data.product_features_ja)
         setTranslatedDialogues(data.required_dialogues_ja || [])
         setTranslatedScenes(data.required_scenes_ja || [])
         setTranslatedHashtags(data.required_hashtags_ja || [])
