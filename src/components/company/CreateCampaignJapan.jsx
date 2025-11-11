@@ -318,6 +318,90 @@ const CreateCampaignJapan = () => {
     }
   }
 
+  // 임시저장
+  const handleSaveDraft = async () => {
+    setProcessing(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      // 최소 필수 필드만 검증
+      if (!campaignForm.title || !campaignForm.brand) {
+        throw new Error('제목과 브랜드는 필수 입력 항목입니다.')
+      }
+
+      // 로그인 정보 가져오기
+      let userEmail = null
+      try {
+        const { data: { user } } = await supabaseBiz.auth.getUser()
+        if (user) userEmail = user.email
+      } catch (authError) {
+        console.warn('로그인 정보를 가져올 수 없습니다:', authError)
+      }
+
+      const campaignData = {
+        title: campaignForm.title,
+        brand: campaignForm.brand,
+        description: campaignForm.description || '',
+        requirements: campaignForm.requirements || '',
+        category: campaignForm.category,
+        image_url: campaignForm.image_url || '',
+        reward_amount: campaignForm.reward_amount,
+        max_participants: campaignForm.max_participants,
+        application_deadline: campaignForm.application_deadline || null,
+        start_date: campaignForm.start_date || null,
+        end_date: campaignForm.end_date || null,
+        status: 'draft',  // 임시저장 상태
+        target_platforms: campaignForm.target_platforms,
+        question1: campaignForm.question1 || '',
+        question1_type: campaignForm.question1_type || 'short',
+        question1_options: campaignForm.question1_options || '',
+        question2: campaignForm.question2 || '',
+        question2_type: campaignForm.question2_type || 'short',
+        question2_options: campaignForm.question2_options || '',
+        question3: campaignForm.question3 || '',
+        question3_type: campaignForm.question3_type || 'short',
+        question3_options: campaignForm.question3_options || '',
+        question4: campaignForm.question4 || '',
+        question4_type: campaignForm.question4_type || 'short',
+        question4_options: campaignForm.question4_options || '',
+        age_requirement: campaignForm.age_requirement || '',
+        skin_type_requirement: campaignForm.skin_type_requirement || '',
+        offline_visit_requirement: campaignForm.offline_visit_requirement || '',
+        company_email: userEmail
+      }
+
+      if (editId) {
+        // 수정 모드
+        const { error } = await supabase
+          .from('campaigns')
+          .update(campaignData)
+          .eq('id', editId)
+
+        if (error) throw error
+        setSuccess('임시저장되었습니다!')
+      } else {
+        // 신규 생성
+        const { data, error } = await supabase
+          .from('campaigns')
+          .insert([campaignData])
+          .select()
+
+        if (error) throw error
+        setSuccess('임시저장되었습니다!')
+        
+        setTimeout(() => {
+          navigate(`/company/campaigns/create/japan?id=${data[0].id}`)
+        }, 1500)
+      }
+    } catch (err) {
+      console.error('임시저장 실패:', err)
+      setError('임시저장에 실패했습니다: ' + err.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   // 캠페인 저장
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -460,7 +544,7 @@ const CreateCampaignJapan = () => {
           
           setTimeout(() => {
             if (data && data[0]) {
-              navigate(`/company/campaigns/guide?id=${data[0].id}`)
+              navigate(`/company/campaigns/guide/japan?id=${data[0].id}`)
             } else {
               navigate('/company/campaigns')
             }
@@ -513,7 +597,7 @@ const CreateCampaignJapan = () => {
           setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
           setTimeout(() => {
-            navigate(`/company/campaigns/guide?id=${campaignId}`)
+            navigate(`/company/campaigns/guide/japan?id=${campaignId}`)
           }, 1500)
           return
         }
@@ -1016,6 +1100,9 @@ const CreateCampaignJapan = () => {
 
               {/* 제출 버튼 */}
               <div className="flex gap-4">
+                <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={processing} className="flex-1">
+                  {processing ? '처리 중...' : '임시저장'}
+                </Button>
                 <Button type="submit" disabled={processing} className="flex-1">
                   {processing ? '처리 중...' : (editId ? '수정' : '생성')}
                 </Button>
