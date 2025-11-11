@@ -82,16 +82,19 @@ const CampaignGuideJapan = () => {
     }
   }, [campaignId])
 
-  // 자동 저장 (10초마다)
+  // 데이터 로드 완료 여부
+  const [dataLoaded, setDataLoaded] = useState(false)
+
+  // 자동 저장 (10초마다, 데이터 로드 후에만)
   useEffect(() => {
-    if (!campaignId) return
+    if (!campaignId || !dataLoaded) return
 
     const timer = setTimeout(() => {
       autoSaveGuide()
     }, 10000)
 
     return () => clearTimeout(timer)
-  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId])
+  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId, dataLoaded])
 
   const loadCampaignGuide = async () => {
     try {
@@ -183,10 +186,13 @@ const CampaignGuideJapan = () => {
         setTranslatedAdditionalDetails(data.additional_details_ja || '')
         setTranslatedShootingRequests(data.additional_shooting_requests_ja || '')
         setTranslatedShootingScenes(data.shooting_scenes_ja || [])
+        
+        // 데이터 로드 완료
+        setDataLoaded(true)
       }
     } catch (err) {
-      console.error('캠페인 정보 로드 실패:', err)
-      setError('캠페인 정보를 불러오는데 실패했습니다.')
+      console.error('캐페인 정보 로드 실패:', err)
+      setError('캐페인 정보를 불러오는데 실패했습니다.')
     }
   }
 
