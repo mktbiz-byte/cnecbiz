@@ -23,7 +23,7 @@ const CampaignGuideJapan = () => {
   const [success, setSuccess] = useState('')
   const [autoSaving, setAutoSaving] = useState(false)
 
-  // 가이드 상세 필드
+  // ガイド詳細フィールド
   const [requiredDialogues, setRequiredDialogues] = useState([''])
   const [requiredScenes, setRequiredScenes] = useState([''])
   const [requiredHashtags, setRequiredHashtags] = useState([''])
@@ -32,7 +32,7 @@ const CampaignGuideJapan = () => {
   const [videoTone, setVideoTone] = useState('')
   const [additionalDetails, setAdditionalDetails] = useState('')
 
-  // 필수 촬영 장면 체크박스
+  // 必須撮影シーンチェックボックス
   const [shootingScenes, setShootingScenes] = useState({
     baPhoto: false,
     noMakeup: false,
@@ -46,20 +46,20 @@ const CampaignGuideJapan = () => {
     wrinkles: false
   })
 
-  // 추가 요청사항
+  // 追加リクエスト
   const [additionalShootingRequests, setAdditionalShootingRequests] = useState('')
 
-  // 메타광고코드 발급 요청
+  // Meta広告コード発行リクエスト
   const [metaAdCodeRequested, setMetaAdCodeRequested] = useState(false)
 
-  // 캠페인 정보 및 가이드 로드
+  // キャンペーン情報とガイド読み込み
   useEffect(() => {
     if (campaignId) {
       loadCampaignGuide()
     }
   }, [campaignId])
 
-  // 자동 저장 (10초마다)
+  // 自動保存（10秒ごと）
   useEffect(() => {
     if (!campaignId) return
 
@@ -126,8 +126,8 @@ const CampaignGuideJapan = () => {
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
       }
     } catch (err) {
-      console.error('캠페인 정보 로드 실패:', err)
-      setError('캠페인 정보를 불러오는데 실패했습니다.')
+      console.error('キャンペーン情報読み込み失敗：', err)
+      setError('キャンペーン情報の読み込みに失敗しました。')
     }
   }
 
@@ -161,7 +161,7 @@ const CampaignGuideJapan = () => {
 
       if (error) throw error
     } catch (err) {
-      console.error('자동 저장 실패:', err)
+      console.error('自動保存失敗：', err)
     } finally {
       setAutoSaving(false)
     }
@@ -200,13 +200,13 @@ const CampaignGuideJapan = () => {
 
       if (error) throw error
 
-      setSuccess('크리에이터 가이드가 저장되었습니다!')
+      setSuccess('クリエイターガイドが保存されました！')
       setTimeout(() => {
         navigate(`/company/campaigns/${campaignId}/review`)
       }, 1500)
     } catch (err) {
-      console.error('가이드 저장 실패:', err)
-      setError('가이드 저장에 실패했습니다: ' + err.message)
+      console.error('ガイド保存失敗：', err)
+      setError('ガイド保存に失敗しました： ' + err.message)
     } finally {
       setProcessing(false)
     }
@@ -216,7 +216,7 @@ const CampaignGuideJapan = () => {
     navigate('/company/campaigns')
   }
 
-  // 배열 필드 추가/삭제 함수
+  // 配列フィールド追加/削除関数
   const addDialogue = () => setRequiredDialogues([...requiredDialogues, ''])
   const removeDialogue = (index) => setRequiredDialogues(requiredDialogues.filter((_, i) => i !== index))
   const updateDialogue = (index, value) => {
@@ -241,7 +241,7 @@ const CampaignGuideJapan = () => {
     setRequiredHashtags(newHashtags)
   }
 
-  // 촬영 장면 체크박스 변경 함수
+  // 撮影シーンチェックボックス変更関数
   const handleShootingSceneChange = (scene, checked) => {
     setShootingScenes(prev => ({
       ...prev,
@@ -255,31 +255,31 @@ const CampaignGuideJapan = () => {
       <div className="container mx-auto p-6 max-w-4xl">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">크리에이터 가이드 작성</CardTitle>
+          <CardTitle className="text-2xl">クリエイターガイド作成</CardTitle>
           <p className="text-sm text-gray-600 mt-2">
             {campaignTitle && <span className="font-semibold">{campaignTitle}</span>}
           </p>
           {autoSaving && (
-            <p className="text-xs text-blue-600 mt-1">자동 저장 중...</p>
+            <p className="text-xs text-blue-600 mt-1">自動保存中...</p>
           )}
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* 필수 대사 */}
+          {/* 必須セリフ */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <Label className="text-base font-semibold">필수 대사</Label>
+              <Label className="text-base font-semibold">必須セリフ</Label>
               <Button type="button" size="sm" variant="outline" onClick={addDialogue}>
-                <Plus className="w-4 h-4 mr-1" /> 추가
+                <Plus className="w-4 h-4 mr-1" /> 追加
               </Button>
             </div>
-            <p className="text-sm text-gray-600 mb-3">크리에이터가 꼭 말해야 하는 대사를 입력하세요</p>
+            <p className="text-sm text-gray-600 mb-3">クリエイターが必ず言うべきセリフを入力してください</p>
             {requiredDialogues.map((dialogue, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <Input
                   value={dialogue}
                   onChange={(e) => updateDialogue(index, e.target.value)}
-                  placeholder={`필수 대사 ${index + 1}`}
+                  placeholder={`必須セリフ ${index + 1}`}
                   className="flex-1"
                 />
                 {requiredDialogues.length > 1 && (
@@ -291,21 +291,21 @@ const CampaignGuideJapan = () => {
             ))}
           </div>
 
-          {/* 필수 장면 */}
+          {/* 必須シーン */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <Label className="text-base font-semibold">필수 장면</Label>
+              <Label className="text-base font-semibold">必須シーン</Label>
               <Button type="button" size="sm" variant="outline" onClick={addScene}>
-                <Plus className="w-4 h-4 mr-1" /> 추가
+                <Plus className="w-4 h-4 mr-1" /> 追加
               </Button>
             </div>
-            <p className="text-sm text-gray-600 mb-3">영상에 꼭 포함되어야 하는 장면을 설명하세요</p>
+            <p className="text-sm text-gray-600 mb-3">動画に必ず含めるべきシーンを説明してください</p>
             {requiredScenes.map((scene, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <Input
                   value={scene}
                   onChange={(e) => updateScene(index, e.target.value)}
-                  placeholder={`필수 장면 ${index + 1} (예: 제품 클로즈업 촬영)`}
+                  placeholder={`必須シーン ${index + 1} (예: 製品クローズアップ 촬영)`}
                   className="flex-1"
                 />
                 {requiredScenes.length > 1 && (
@@ -317,10 +317,10 @@ const CampaignGuideJapan = () => {
             ))}
           </div>
 
-          {/* 필수 촬영 장면 체크박스 */}
+          {/* 必須撮影シーンチェックボックス */}
           <div>
-            <Label className="text-base font-semibold mb-3 block">필수 촬영 장면</Label>
-            <p className="text-sm text-gray-600 mb-3">필요한 촬영 장면을 선택하세요</p>
+            <Label className="text-base font-semibold mb-3 block">必須撮影シーン</Label>
+            <p className="text-sm text-gray-600 mb-3">必要な撮影シーンを選択してください</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center space-x-2">
                 <Checkbox 
@@ -329,7 +329,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('baPhoto', checked)}
                 />
                 <label htmlFor="ba-photo" className="text-sm cursor-pointer">
-                  확실한 B&A 촬영
+                  確実なB&A撮影
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -339,7 +339,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('noMakeup', checked)}
                 />
                 <label htmlFor="no-makeup" className="text-sm cursor-pointer">
-                  노메이크업
+                  ノーメイク
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -349,7 +349,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('closeup', checked)}
                 />
                 <label htmlFor="closeup" className="text-sm cursor-pointer">
-                  클로즈업
+                  クローズアップ
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -359,7 +359,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('productCloseup', checked)}
                 />
                 <label htmlFor="product-closeup" className="text-sm cursor-pointer">
-                  제품 클로즈업
+                  製品クローズアップ
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -369,7 +369,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('productTexture', checked)}
                 />
                 <label htmlFor="product-texture" className="text-sm cursor-pointer">
-                  제품 제형 클로즈업
+                  製品テクスチャークローズアップ
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -379,7 +379,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('outdoor', checked)}
                 />
                 <label htmlFor="outdoor" className="text-sm cursor-pointer">
-                  외부촬영(카페, 외출 등)
+                  屋外撮影（カフェ、外出など）
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -389,7 +389,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('couple', checked)}
                 />
                 <label htmlFor="couple" className="text-sm cursor-pointer">
-                  커플출연
+                  カップル出演
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -399,7 +399,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('child', checked)}
                 />
                 <label htmlFor="child" className="text-sm cursor-pointer">
-                  아이출연
+                  子供出演
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -409,7 +409,7 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('troubledSkin', checked)}
                 />
                 <label htmlFor="troubled-skin" className="text-sm cursor-pointer">
-                  트러블 피부 노출
+                  トラブル肌露出
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -419,34 +419,34 @@ const CampaignGuideJapan = () => {
                   onCheckedChange={(checked) => handleShootingSceneChange('wrinkles', checked)}
                 />
                 <label htmlFor="wrinkles" className="text-sm cursor-pointer">
-                  피부 주름 노출
+                  肌のシワ露出
                 </label>
               </div>
             </div>
           </div>
 
-          {/* 추가 촬영 요청사항 */}
+          {/* 追加撮影リクエスト */}
           <div>
-            <Label className="text-base font-semibold">추가 촬영 요청사항</Label>
-            <p className="text-sm text-gray-600 mb-2">위 항목 외에 추가로 요청하고 싶은 촬영 장면이나 요구사항을 작성하세요</p>
+            <Label className="text-base font-semibold">追加撮影リクエスト</Label>
+            <p className="text-sm text-gray-600 mb-2">上記以外に追加でリクエストしたい撮影シーンや要求事項を記入してください</p>
             <Textarea
               value={additionalShootingRequests}
               onChange={(e) => setAdditionalShootingRequests(e.target.value)}
-              placeholder="예: 자연광에서 촬영해주세요, 밝은 배경에서 촬영 부탁드립니다"
+              placeholder="例：自然光で撮影してください、明るい背景で撮影をお願いします"
               rows={3}
               className="resize-none"
             />
           </div>
 
-          {/* 필수 해시태그 */}
+          {/* 必須ハッシュタグ */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <Label className="text-base font-semibold">필수 해시태그</Label>
+              <Label className="text-base font-semibold">必須ハッシュタグ</Label>
               <Button type="button" size="sm" variant="outline" onClick={addHashtag}>
-                <Plus className="w-4 h-4 mr-1" /> 추가
+                <Plus className="w-4 h-4 mr-1" /> 追加
               </Button>
             </div>
-            <p className="text-sm text-gray-600 mb-3">게시물에 꼭 포함해야 하는 해시태그를 입력하세요</p>
+            <p className="text-sm text-gray-600 mb-3">投稿に必ず含めるべきハッシュタグを入力してください</p>
             {requiredHashtags.map((hashtag, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <Input
@@ -464,9 +464,9 @@ const CampaignGuideJapan = () => {
             ))}
           </div>
 
-          {/* 원하는 영상 시간 */}
+          {/* 希望動画時間 */}
           <div>
-            <Label className="text-base font-semibold">원하는 영상 시간</Label>
+            <Label className="text-base font-semibold">希望動画時間</Label>
             <Select value={videoDuration} onValueChange={setVideoDuration}>
               <SelectTrigger className="mt-2 bg-white">
                 <SelectValue placeholder="영상 시간을 선택하세요" />
@@ -480,24 +480,24 @@ const CampaignGuideJapan = () => {
             </Select>
           </div>
 
-          {/* 영상 템포 */}
+          {/* 動画テンポ */}
           <div>
-            <Label className="text-base font-semibold">영상 템포</Label>
+            <Label className="text-base font-semibold">動画テンポ</Label>
             <Select value={videoTempo} onValueChange={setVideoTempo}>
               <SelectTrigger className="mt-2 bg-white">
-                <SelectValue placeholder="영상 템포를 선택하세요" />
+                <SelectValue placeholder="動画テンポ를 선택하세요" />
               </SelectTrigger>
               <SelectContent className="bg-white">
                 <SelectItem value="fast">빠름 (역동적, 빠른 편집)</SelectItem>
-                <SelectItem value="normal">보통 (자연스러운 속도)</SelectItem>
+                <SelectItem value="normal">普通 (자연스러운 속도)</SelectItem>
                 <SelectItem value="slow">느림 (차분하고 여유로운)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* 영상 톤앤매너 */}
+          {/* 動画トーン앤매너 */}
           <div>
-            <Label className="text-base font-semibold">영상 톤앤매너</Label>
+            <Label className="text-base font-semibold">動画トーン앤매너</Label>
             <Select value={videoTone} onValueChange={setVideoTone}>
               <SelectTrigger className="mt-2 bg-white">
                 <SelectValue placeholder="영상 분위기를 선택하세요" />
@@ -514,7 +514,7 @@ const CampaignGuideJapan = () => {
           {/* 기타 디테일 요청사항 */}
           <div>
             <Label className="text-base font-semibold">기타 디테일 요청사항</Label>
-            <p className="text-sm text-gray-600 mb-2">추가로 요청하고 싶은 사항을 자유롭게 작성하세요</p>
+            <p className="text-sm text-gray-600 mb-2">追加로 요청하고 싶은 사항을 自由に 작성하세요</p>
             <Textarea
               value={additionalDetails}
               onChange={(e) => setAdditionalDetails(e.target.value)}
@@ -524,7 +524,7 @@ const CampaignGuideJapan = () => {
             />
           </div>
 
-          {/* 메타광고코드 발급 요청 */}
+          {/* Meta広告コード発行リクエスト */}
           <div className="border-t pt-6">
             <div className="flex items-center space-x-2">
               <Checkbox 
@@ -533,7 +533,7 @@ const CampaignGuideJapan = () => {
                 onCheckedChange={setMetaAdCodeRequested}
               />
               <label htmlFor="meta-ad-code" className="text-base font-semibold cursor-pointer">
-                메타광고코드 발급 요청
+                Meta広告コード発行リクエスト
               </label>
             </div>
             <p className="text-sm text-gray-600 mt-2 ml-6">
@@ -559,7 +559,7 @@ const CampaignGuideJapan = () => {
               disabled={processing}
               className="flex-1"
             >
-              {processing ? '저장 중...' : '저장하고 완료'}
+              {processing ? '保存 중...' : '保存하고 완료'}
             </Button>
             <Button
               onClick={handleSkip}
@@ -571,7 +571,7 @@ const CampaignGuideJapan = () => {
           </div>
 
           <p className="text-xs text-gray-500 text-center">
-            작성 중인 내용은 10초마다 자동으로 저장됩니다
+            작성 중인 내용은 10초마다 자동으로 保存됩니다
           </p>
         </CardContent>
       </Card>
