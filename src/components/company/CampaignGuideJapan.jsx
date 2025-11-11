@@ -1215,7 +1215,7 @@ const CampaignGuideJapan = () => {
           {metaAdCodeRequested && (
             <div className="border-t pt-6 mt-6">
               <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 mb-4">
                   <div className="w-5 h-5 bg-purple-600 rounded flex items-center justify-center">
                     <span className="text-white text-xs">✓</span>
                   </div>
@@ -1223,9 +1223,23 @@ const CampaignGuideJapan = () => {
                     📱 Meta広告コード発行リクエスト
                   </label>
                 </div>
-                <p className="text-sm text-purple-700 mt-2 ml-8">
+                <p className="text-sm text-purple-700 mb-4 ml-8">
                   Meta(Facebook/Instagram)広告コードを発行いたします
                 </p>
+                
+                {/* 발급 방법 안내 */}
+                <div className="ml-8 mt-4 p-3 bg-white border border-purple-100 rounded-lg">
+                  <p className="text-xs font-bold text-purple-900 mb-2">📝 発行方法</p>
+                  <ol className="text-xs text-gray-700 space-y-1.5 list-decimal list-inside">
+                    <li>プロフィール→「プロフェッショナルダッシュボード」→「ブランデッドコンテンツ」で使用設定</li>
+                    <li>投稿の「…」ボタン→「パートナーシップラベルと広告」選択</li>
+                    <li>「パートナーシップ広告コードを取得」トグルON</li>
+                    <li>「コピー」ボタンでコードをコピーして企業に提供</li>
+                  </ol>
+                  <p className="text-xs text-red-600 mt-3 font-semibold">
+                    ⚠️ 注意：Instagram内蔵音楽の使用は不可（外部編集で著作権フリー音源を使用）
+                  </p>
+                </div>
               </div>
             </div>
           )}
