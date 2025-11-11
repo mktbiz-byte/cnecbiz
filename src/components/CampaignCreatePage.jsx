@@ -56,26 +56,30 @@ const CampaignCreatePage = () => {
       value: 200000,
       name: '기본형',
       price: '200,000원',
-      features: ['일반 퀄리티 지원자', '영상 수정 불가']
+      priceWithVat: '220,000원',
+      features: ['일반 퀸리티 지원자', '영상 수정 불가']
     },
     {
       value: 300000,
       name: '스탠다드',
       price: '300,000원',
-      features: ['향상된 퀄리티 지원자', '영상 수정 1회 가능'],
+      priceWithVat: '330,000원',
+      features: ['향상된 퀸리티 지원자', '영상 수정 1회 가능'],
       popular: true
     },
     {
       value: 400000,
       name: '프리미엄',
       price: '400,000원',
-      features: ['최고 퀄리티 지원자', '영상 수정 1회 가능', '우선 지원']
+      priceWithVat: '440,000원',
+      features: ['최고 퀸리티 지원자', '영상 수정 1회 가능', '우선 지원']
     },
     {
       value: 600000,
       name: '4주 연속',
       price: '600,000원',
-      features: ['매주 1건씩 총 4주간', '프리미엄 퀄리티', '영상 수정 1회 가능', '전담 매니저']
+      priceWithVat: '660,000원',
+      features: ['매주 1건씩 총 4주간', '프리미엄 퀸리티', '영상 수정 1회 가능', '전담 매니저']
     }
   ]
 
@@ -318,7 +322,7 @@ const CampaignCreatePage = () => {
                     <div>
                       <CardTitle className="text-xl">{pkg.name}</CardTitle>
                       <CardDescription className="text-lg font-semibold text-blue-600">
-                        {pkg.price}
+                        {pkg.price} <span className="text-sm text-gray-500">(VAT 별도)</span>
                       </CardDescription>
                     </div>
                   </div>
@@ -373,16 +377,29 @@ const CampaignCreatePage = () => {
         )}
       </div>
 
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <p className="text-sm text-gray-700">
-          <strong>예상 금액:</strong>{' '}
-          {(formData.package_type * formData.regions.length).toLocaleString()}원
+      <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+        <div className="text-sm text-gray-700">
+          <strong>결제 예상 금액 (VAT 포함):</strong>
+        </div>
+        <div className="space-y-1 text-sm">
+          <div className="flex justify-between">
+            <span>패키지 금액:</span>
+            <span>{(formData.package_type * formData.regions.length).toLocaleString()}원</span>
+          </div>
+          <div className="flex justify-between text-gray-600">
+            <span>부가세(10%):</span>
+            <span>{(formData.package_type * formData.regions.length * 0.1).toLocaleString()}원</span>
+          </div>
+          <div className="flex justify-between font-bold text-lg text-blue-600 pt-2 border-t border-blue-200">
+            <span>총 결제액:</span>
+            <span>{(formData.package_type * formData.regions.length * 1.1).toLocaleString()}원</span>
+          </div>
           {formData.regions.length > 1 && (
-            <span className="text-gray-600">
-              {' '}({formData.package_type.toLocaleString()}원 × {formData.regions.length}개 지역)
-            </span>
+            <div className="text-xs text-gray-500 pt-1">
+              ({formData.package_type.toLocaleString()}원 × {formData.regions.length}개 지역)
+            </div>
           )}
-        </p>
+        </div>
       </div>
     </div>
   )
@@ -580,11 +597,24 @@ const CampaignCreatePage = () => {
             <p className="font-semibold">{formData.brand_name} - {formData.product_name}</p>
           </div>
 
-          <div className="pt-4 border-t">
-            <p className="text-sm text-gray-600">총 금액</p>
-            <p className="text-2xl font-bold text-blue-600">
-              {(formData.package_type * formData.regions.length).toLocaleString()}원
-            </p>
+          <div className="pt-4 border-t space-y-2">
+            <p className="text-sm text-gray-600">결제 금액</p>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>패키지 금액:</span>
+                <span>{(formData.package_type * formData.regions.length).toLocaleString()}원</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>부가세(10%):</span>
+                <span>+{(formData.package_type * formData.regions.length * 0.1).toLocaleString()}원</span>
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="text-sm text-gray-600">총 결제액 (VAT 포함)</span>
+              <p className="text-2xl font-bold text-blue-600">
+                {(formData.package_type * formData.regions.length * 1.1).toLocaleString()}원
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

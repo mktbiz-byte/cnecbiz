@@ -277,10 +277,11 @@ export default function PaymentHistory() {
                       <tr className="border-b">
                         <th className="text-left p-4">날짜</th>
                         <th className="text-left p-4">캠페인</th>
-                        <th className="text-left p-4">금액</th>
+                        <th className="text-left p-4">금액 (VAT포함)</th>
+                        <th className="text-left p-4">부가세</th>
                         <th className="text-left p-4">상태</th>
                         <th className="text-left p-4">세금계산서</th>
-                        <th className="text-left p-4">포인트</th>
+                        <th className="text-left p-4">충전 포인트</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -296,6 +297,9 @@ export default function PaymentHistory() {
                             <td className="p-4 font-bold">
                               {formatCurrency(request.amount)}
                             </td>
+                            <td className="p-4 text-sm text-gray-600">
+                              {formatCurrency(Math.round(request.amount * 0.1))}
+                            </td>
                             <td className="p-4">{getStatusBadge(request.status)}</td>
                             <td className="p-4 text-sm">
                               {request.needs_tax_invoice ? (
@@ -305,7 +309,8 @@ export default function PaymentHistory() {
                               )}
                             </td>
                             <td className="p-4 text-sm">
-                              {request.points_awarded ? `${request.points_awarded.toLocaleString()}P` : '-'}
+                              {(request.status === 'completed' || request.status === 'confirmed') ? 
+                                `${Math.round(request.amount / 1.1).toLocaleString()}P` : '-'}
                             </td>
                           </tr>
                         );
