@@ -67,6 +67,7 @@ const CampaignCreationKorea = () => {
       value: 'junior', 
       label: '초급 크리에이터 패키지', 
       price: 200000,
+      priceWithVat: 220000,
       description: '팔로워 1만~5만',
       expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
     },
@@ -74,6 +75,7 @@ const CampaignCreationKorea = () => {
       value: 'intermediate', 
       label: '중급 크리에이터 패키지', 
       price: 300000,
+      priceWithVat: 330000,
       description: '팔로워 5만~20만',
       expectedApplicants: { youtube: 10, instagram: 18, tiktok: 15 }
     },
@@ -81,6 +83,7 @@ const CampaignCreationKorea = () => {
       value: 'senior', 
       label: '상급 크리에이터 패키지', 
       price: 400000,
+      priceWithVat: 440000,
       description: '팔로워 20만 이상',
       expectedApplicants: { youtube: 5, instagram: 10, tiktok: 8 }
     },
@@ -88,6 +91,7 @@ const CampaignCreationKorea = () => {
       value: '4week_challenge', 
       label: '4주 챌린지 프로그램', 
       price: 600000,
+      priceWithVat: 660000,
       description: '4주간 지속적인 콘텐츠 제작',
       expectedApplicants: { youtube: 8, instagram: 15, tiktok: 12 }
     }
@@ -545,7 +549,7 @@ const CampaignCreationKorea = () => {
                     {packageOptions.map(opt => (
                       <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
                         <div className="flex flex-col">
-                          <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()}</span>
+                          <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()} <span className="text-sm text-gray-500">(VAT 별도)</span></span>
                           <span className="text-xs text-gray-500">{opt.description}</span>
                         </div>
                       </SelectItem>
@@ -594,7 +598,7 @@ const CampaignCreationKorea = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="estimated_cost">결제 예상 금액</Label>
+                  <Label htmlFor="estimated_cost">결제 예상 금액 (VAT 포함)</Label>
                   <Input
                     id="estimated_cost"
                     type="text"
@@ -608,15 +612,22 @@ const CampaignCreationKorea = () => {
                     const subtotal = packagePrice * campaignForm.total_slots
                     const discountRate = calculateDiscount(subtotal)
                     const discountAmount = Math.floor(subtotal * (discountRate / 100))
+                    const finalBeforeVat = subtotal - discountAmount
+                    const vat = Math.round(finalBeforeVat * 0.1)
+                    const totalWithVat = finalBeforeVat + vat
                     
                     return (
                       <div className="text-xs text-gray-500 mt-1 space-y-1">
-                        <div>{campaignForm.total_slots}명 × ₩{packagePrice.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
+                        <div>패키지 금액: {campaignForm.total_slots}명 × ₩{packagePrice.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
                         {discountRate > 0 && (
                           <div className="text-green-600 font-medium">
                             할인 ({discountRate}%): -₩{discountAmount.toLocaleString()}
                           </div>
                         )}
+                        <div className="border-t pt-1 mt-1">
+                          <div>부가세(10%): ₩{vat.toLocaleString()}</div>
+                          <div className="font-semibold text-blue-600">총 결제액: ₩{totalWithVat.toLocaleString()}</div>
+                        </div>
                       </div>
                     )
                   })()}
