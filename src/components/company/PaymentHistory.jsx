@@ -14,6 +14,7 @@ export default function PaymentHistory() {
   const [taxInvoices, setTaxInvoices] = useState([])
   const [selectedTab, setSelectedTab] = useState('payments')
   const [loading, setLoading] = useState(false)
+  const [selectedTaxInfo, setSelectedTaxInfo] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -333,10 +334,7 @@ export default function PaymentHistory() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
-                                  const info = request.tax_invoice_info;
-                                  alert(`회사명: ${info?.companyName || '-'}\\n사업자번호: ${info?.businessNumber || '-'}\\n대표자: ${info?.ceoName || '-'}\\n주소: ${info?.address || '-'}\\n업태: ${info?.businessType || '-'}\\n종목: ${info?.businessItem || '-'}\\n이메일: ${info?.email || '-'}`);
-                                }}
+                                onClick={() => setSelectedTaxInfo(request.tax_invoice_info)}
                               >
                                 <FileText className="w-4 h-4 mr-2" />
                                 신청 정보 보기
@@ -477,6 +475,68 @@ export default function PaymentHistory() {
         </Card>
         </div>
       </div>
+      
+      {/* 세금계산서 정보 모달 */}
+      {selectedTaxInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSelectedTaxInfo(null)}>
+          <div className="bg-white rounded-lg p-8 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-900">세금계산서 신청 정보</h3>
+              <button onClick={() => setSelectedTaxInfo(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">회사명</label>
+                  <p className="mt-1 text-lg text-gray-900">{selectedTaxInfo.companyName || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">사업자번호</label>
+                  <p className="mt-1 text-lg text-gray-900">{selectedTaxInfo.businessNumber || '-'}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">대표자</label>
+                  <p className="mt-1 text-lg text-gray-900">{selectedTaxInfo.ceoName || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">이메일</label>
+                  <p className="mt-1 text-lg text-gray-900">{selectedTaxInfo.email || '-'}</p>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-500">주소</label>
+                <p className="mt-1 text-lg text-gray-900">{selectedTaxInfo.address || '-'}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">업태</label>
+                  <p className="mt-1 text-lg text-gray-900">{selectedTaxInfo.businessType || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">종목</label>
+                  <p className="mt-1 text-lg text-gray-900">{selectedTaxInfo.businessItem || '-'}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setSelectedTaxInfo(null)}>
+                확인
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

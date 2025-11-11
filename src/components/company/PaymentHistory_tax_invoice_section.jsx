@@ -44,10 +44,7 @@
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
-                                  const info = request.tax_invoice_info;
-                                  alert(`회사명: ${info?.companyName || '-'}\\n사업자번호: ${info?.businessNumber || '-'}\\n대표자: ${info?.ceoName || '-'}\\n주소: ${info?.address || '-'}\\n업태: ${info?.businessType || '-'}\\n종목: ${info?.businessItem || '-'}\\n이메일: ${info?.email || '-'}`);
-                                }}
+                                onClick={() => setSelectedTaxInfo(request.tax_invoice_info)}
                               >
                                 <FileText className="w-4 h-4 mr-2" />
                                 신청 정보 보기
