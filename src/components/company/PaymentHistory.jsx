@@ -217,16 +217,16 @@ export default function PaymentHistory() {
           </Button>
         </div>
 
-        {/* Payments Tab */}
+        {/* Payments Tab - 포인트 충전 신청 내역으로 통합 */}
         {selectedTab === 'payments' && (
           <Card>
             <CardHeader>
-              <CardTitle>결제 내역 ({payments.length}건)</CardTitle>
+              <CardTitle>결제 내역 ({chargeRequests.length}건)</CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-center py-12 text-gray-500">로딩 중...</div>
-              ) : payments.length === 0 ? (
+              ) : chargeRequests.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   결제 내역이 없습니다
                 </div>
@@ -236,47 +236,27 @@ export default function PaymentHistory() {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-4">날짜</th>
-                        <th className="text-left p-4">내용</th>
+                        <th className="text-left p-4">캠페인</th>
                         <th className="text-left p-4">금액</th>
-                        <th className="text-left p-4">결제수단</th>
                         <th className="text-left p-4">상태</th>
-                        <th className="text-left p-4">세금계산서</th>
+                        <th className="text-left p-4">포인트</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {payments.map((payment) => (
-                        <tr key={payment.id} className="border-b hover:bg-gray-50">
+                      {chargeRequests.map((request) => (
+                        <tr key={request.id} className="border-b hover:bg-gray-50">
                           <td className="p-4 text-sm">
-                            {new Date(payment.created_at).toLocaleDateString('ko-KR', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
+                            {new Date(request.created_at).toLocaleDateString('ko-KR')}
                           </td>
                           <td className="p-4">
-                            <div className="font-medium">포인트 충전</div>
-                            <div className="text-sm text-gray-500">
-                              결제 ID: {payment.id.slice(0, 8)}...
-                            </div>
+                            {request.bank_transfer_info?.campaign_name || '-'}
                           </td>
                           <td className="p-4 font-bold">
-                            {formatCurrency(payment.amount)}
+                            {formatCurrency(request.amount)}
                           </td>
+                          <td className="p-4">{getStatusBadge(request.status)}</td>
                           <td className="p-4 text-sm">
-                            {payment.payment_method || '신용카드'}
-                          </td>
-                          <td className="p-4">{getStatusBadge(payment.status)}</td>
-                          <td className="p-4">
-                            {payment.status === 'completed' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleRequestInvoice(payment.id)}
-                              >
-                                <FileText className="w-4 h-4 mr-2" />
-                                발급 요청
-                              </Button>
-                            )}
+                            {request.points_awarded ? `${request.points_awarded.toLocaleString()}P` : '-'}
                           </td>
                         </tr>
                       ))}
@@ -402,77 +382,6 @@ export default function PaymentHistory() {
             </CardContent>
           </Card>
         )}
-        {/* 포인트 충전 신청 내역 */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>포인트 충전 신청 내역 ({chargeRequests.length}건)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {chargeRequests.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                충전 신청 내역이 없습니다.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-4">신청일시</th>
-                      <th className="text-left p-4">회사명</th>
-                      <th className="text-left p-4">입금자명</th>
-                      <th className="text-right p-4">금액</th>
-                      <th className="text-center p-4">세금계산서</th>
-                      <th className="text-center p-4">상태</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {chargeRequests.map((request) => (
-                      <tr key={request.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4 text-sm">
-                          {new Date(request.created_at).toLocaleString('ko-KR')}
-                        </td>
-                        <td className="p-4 text-sm">
-                          {request.tax_invoice_info?.companyName || '-'}<br />
-                          <span className="text-xs text-gray-500">{request.tax_invoice_info?.email || '-'}</span>
-                        </td>
-                        <td className="p-4 text-sm">
-                          {request.depositor_name || '-'}
-                        </td>
-                        <td className="p-4 text-sm text-right font-medium">
-                          {request.amount?.toLocaleString()}원
-                        </td>
-                        <td className="p-4 text-sm text-center">
-                          {request.needs_tax_invoice ? (
-                            <span className="text-blue-600">필요함</span>
-                          ) : (
-                            <span className="text-gray-400">불필요</span>
-                          )}
-                        </td>
-                        <td className="p-4 text-center">
-                          {request.status === 'pending' && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              <span className="mr-1">⏱</span> 입금 대기
-                            </span>
-                          )}
-                          {(request.status === 'confirmed' || request.status === 'completed') && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              입금 확인
-                            </span>
-                          )}
-                          {request.status === 'cancelled' && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              취소됨
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
         </div>
       </div>
       
