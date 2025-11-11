@@ -20,7 +20,7 @@ const CreateCampaignJapan = () => {
     requirements: '',
     category: 'beauty',
     image_url: '',
-    reward_amount: 0,  // 자동 계산 (숨김)
+    reward_amount: 12000,  // 초급 패키지 기본 보상 (엔화)
     max_participants: 10,
     application_deadline: '',
     start_date: '',
