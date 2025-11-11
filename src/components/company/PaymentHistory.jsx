@@ -249,8 +249,6 @@ export default function PaymentHistory() {
                     </thead>
                     <tbody>
                       {chargeRequests.map((request) => {
-                        // 포인트 계산: points_awarded가 있으면 사용, 없으면 금액으로 계산 (1원 = 1포인트)
-                        const points = request.points_awarded || request.amount;
                         return (
                           <tr key={request.id} className="border-b hover:bg-gray-50">
                             <td className="p-4 text-sm">
@@ -271,7 +269,7 @@ export default function PaymentHistory() {
                               )}
                             </td>
                             <td className="p-4 text-sm">
-                              {(request.status === 'completed' || request.status === 'confirmed') ? `${points.toLocaleString()}P` : '-'}
+                              {request.points_awarded ? `${request.points_awarded.toLocaleString()}P` : '-'}
                             </td>
                           </tr>
                         );
