@@ -130,16 +130,20 @@ export default function PaymentHistory() {
   const getStatusBadge = (status) => {
     const badges = {
       completed: 'bg-green-100 text-green-700',
+      confirmed: 'bg-green-100 text-green-700',
       pending: 'bg-yellow-100 text-yellow-700',
       failed: 'bg-red-100 text-red-700',
       refunded: 'bg-gray-100 text-gray-700',
+      cancelled: 'bg-gray-100 text-gray-700',
       issued: 'bg-blue-100 text-blue-700'
     }
     const labels = {
       completed: '완료',
+      confirmed: '완료',
       pending: '대기중',
       failed: '실패',
       refunded: '환불',
+      cancelled: '취소',
       issued: '발급완료'
     }
     return (
@@ -239,27 +243,39 @@ export default function PaymentHistory() {
                         <th className="text-left p-4">캠페인</th>
                         <th className="text-left p-4">금액</th>
                         <th className="text-left p-4">상태</th>
+                        <th className="text-left p-4">세금계산서</th>
                         <th className="text-left p-4">포인트</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {chargeRequests.map((request) => (
-                        <tr key={request.id} className="border-b hover:bg-gray-50">
-                          <td className="p-4 text-sm">
-                            {new Date(request.created_at).toLocaleDateString('ko-KR')}
-                          </td>
-                          <td className="p-4">
-                            {request.bank_transfer_info?.campaign_name || '-'}
-                          </td>
-                          <td className="p-4 font-bold">
-                            {formatCurrency(request.amount)}
-                          </td>
-                          <td className="p-4">{getStatusBadge(request.status)}</td>
-                          <td className="p-4 text-sm">
-                            {request.points_awarded ? `${request.points_awarded.toLocaleString()}P` : '-'}
-                          </td>
-                        </tr>
-                      ))}
+                      {chargeRequests.map((request) => {
+                        // 포인트 계산: points_awarded가 있으면 사용, 없으면 금액으로 계산 (1원 = 1포인트)
+                        const points = request.points_awarded || request.amount;
+                        return (
+                          <tr key={request.id} className="border-b hover:bg-gray-50">
+                            <td className="p-4 text-sm">
+                              {new Date(request.created_at).toLocaleDateString('ko-KR')}
+                            </td>
+                            <td className="p-4">
+                              {request.bank_transfer_info?.campaign_name || '-'}
+                            </td>
+                            <td className="p-4 font-bold">
+                              {formatCurrency(request.amount)}
+                            </td>
+                            <td className="p-4">{getStatusBadge(request.status)}</td>
+                            <td className="p-4 text-sm">
+                              {request.needs_tax_invoice ? (
+                                <span className="text-blue-600">필요함</span>
+                              ) : (
+                                <span className="text-gray-400">불필요</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-sm">
+                              {(request.status === 'completed' || request.status === 'confirmed') ? `${points.toLocaleString()}P` : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
