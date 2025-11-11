@@ -726,23 +726,29 @@ const CampaignGuideJapan = () => {
       </Card>
 
       {/* 오른쪽: 일본어 번역 미리보기 */}
-      <Card className="bg-gray-50">
-        <CardHeader>
-          <CardTitle className="text-2xl">일본어 번역 미리보기</CardTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            왼쪽에 한국어로 입력 후 "일괄 번역" 버튼을 클릭하면 일본어 번역이 표시됩니다.
+      <Card className="bg-white shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+          <CardTitle className="text-3xl font-bold">🎬 クリエイターガイド</CardTitle>
+          <p className="text-sm text-blue-100 mt-2">
+            {campaignTitle || 'キャンペーンタイトル'}
           </p>
         </CardHeader>
 
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-8 p-6">
           {/* 필수 대사 미리보기 */}
           {translatedDialogues.length > 0 && (
-            <div>
-              <Label className="text-base font-semibold">必須セリフ</Label>
-              <div className="space-y-2 mt-2">
+            <div className="border-l-4 border-blue-500 pl-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">💬</span>
+                <Label className="text-xl font-bold text-gray-800">必須セリフ</Label>
+              </div>
+              <div className="space-y-3">
                 {translatedDialogues.map((dialogue, index) => (
-                  <div key={index} className="p-3 bg-white rounded border">
-                    <p className="text-sm text-gray-700">{dialogue}</p>
+                  <div key={index} className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
+                      <p className="text-base text-gray-800 leading-relaxed">{dialogue}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -751,12 +757,18 @@ const CampaignGuideJapan = () => {
 
           {/* 필수 장면 미리보기 */}
           {translatedScenes.length > 0 && (
-            <div>
-              <Label className="text-base font-semibold">必須シーン</Label>
-              <div className="space-y-2 mt-2">
+            <div className="border-l-4 border-green-500 pl-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">🎥</span>
+                <Label className="text-xl font-bold text-gray-800">必須シーン</Label>
+              </div>
+              <div className="space-y-3">
                 {translatedScenes.map((scene, index) => (
-                  <div key={index} className="p-3 bg-white rounded border">
-                    <p className="text-sm text-gray-700">{scene}</p>
+                  <div key={index} className="p-4 bg-green-50 rounded-lg border-l-4 border-green-400">
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
+                      <p className="text-base text-gray-800 leading-relaxed">{scene}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -765,11 +777,14 @@ const CampaignGuideJapan = () => {
 
           {/* 필수 해시태그 미리보기 */}
           {translatedHashtags.length > 0 && (
-            <div>
-              <Label className="text-base font-semibold">必須ハッシュタグ</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
+            <div className="border-l-4 border-purple-500 pl-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">#️⃣</span>
+                <Label className="text-xl font-bold text-gray-800">必須ハッシュタグ</Label>
+              </div>
+              <div className="flex flex-wrap gap-3">
                 {translatedHashtags.map((hashtag, index) => (
-                  <span key={index} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+                  <span key={index} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-semibold shadow-md">
                     {hashtag}
                   </span>
                 ))}
@@ -777,49 +792,67 @@ const CampaignGuideJapan = () => {
             </div>
           )}
 
-          {/* 영상 시간 미리보기 */}
-          {translatedDuration && (
-            <div>
-              <Label className="text-base font-semibold">希望動画時間</Label>
-              <p className="text-sm text-gray-700 mt-2 p-3 bg-white rounded border">{translatedDuration}</p>
-            </div>
-          )}
-
-          {/* 영상 템포 미리보기 */}
-          {translatedTempo && (
-            <div>
-              <Label className="text-base font-semibold">動画テンポ</Label>
-              <p className="text-sm text-gray-700 mt-2 p-3 bg-white rounded border">{translatedTempo}</p>
-            </div>
-          )}
-
-          {/* 영상 톤 미리보기 */}
-          {translatedTone && (
-            <div>
-              <Label className="text-base font-semibold">動画トーン</Label>
-              <p className="text-sm text-gray-700 mt-2 p-3 bg-white rounded border">{translatedTone}</p>
+          {/* 영상 정보 미리보기 */}
+          {(translatedDuration || translatedTempo || translatedTone) && (
+            <div className="border-l-4 border-orange-500 pl-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">🎬</span>
+                <Label className="text-xl font-bold text-gray-800">動画仕様</Label>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {translatedDuration && (
+                  <div className="p-4 bg-orange-50 rounded-lg text-center">
+                    <p className="text-xs text-gray-600 mb-2">希望時間</p>
+                    <p className="text-lg font-bold text-orange-700">{translatedDuration}</p>
+                  </div>
+                )}
+                {translatedTempo && (
+                  <div className="p-4 bg-orange-50 rounded-lg text-center">
+                    <p className="text-xs text-gray-600 mb-2">テンポ</p>
+                    <p className="text-lg font-bold text-orange-700">{translatedTempo}</p>
+                  </div>
+                )}
+                {translatedTone && (
+                  <div className="p-4 bg-orange-50 rounded-lg text-center">
+                    <p className="text-xs text-gray-600 mb-2">トーン</p>
+                    <p className="text-lg font-bold text-orange-700">{translatedTone}</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* 추가 전달사항 미리보기 */}
           {translatedAdditionalDetails && (
-            <div>
-              <Label className="text-base font-semibold">追加伝達事項</Label>
-              <p className="text-sm text-gray-700 mt-2 p-3 bg-white rounded border whitespace-pre-wrap">{translatedAdditionalDetails}</p>
+            <div className="border-l-4 border-yellow-500 pl-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">📝</span>
+                <Label className="text-xl font-bold text-gray-800">追加伝達事項</Label>
+              </div>
+              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <p className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap">{translatedAdditionalDetails}</p>
+              </div>
             </div>
           )}
 
           {/* 추가 촬영 요청 미리보기 */}
           {translatedShootingRequests && (
-            <div>
-              <Label className="text-base font-semibold">追加撮影リクエスト</Label>
-              <p className="text-sm text-gray-700 mt-2 p-3 bg-white rounded border whitespace-pre-wrap">{translatedShootingRequests}</p>
+            <div className="border-l-4 border-red-500 pl-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">📸</span>
+                <Label className="text-xl font-bold text-gray-800">追加撮影リクエスト</Label>
+              </div>
+              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap">{translatedShootingRequests}</p>
+              </div>
             </div>
           )}
 
           {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
-            <div className="text-center py-12 text-gray-400">
-              <p>일괄 번역을 실행하면 여기에 일본어 번역이 표시됩니다.</p>
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">📝</div>
+              <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
+              <p className="text-sm text-gray-400">左側に韓国語で入力後、「一括翻訳」ボタンをクリックしてください</p>
             </div>
           )}
         </CardContent>
