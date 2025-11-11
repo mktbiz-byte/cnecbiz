@@ -577,7 +577,7 @@ const CreateCampaignJapan = () => {
                 >
                   {packageOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>
-                      {opt.label} - ₩{opt.priceWithVat.toLocaleString()} (VAT 포함) / 보상 ¥{opt.rewardYen.toLocaleString()}
+                      {opt.label} - ₩{opt.priceWithVat.toLocaleString()} (VAT 포함)
                     </option>
                   ))}
                 </select>
