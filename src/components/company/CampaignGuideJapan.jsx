@@ -898,20 +898,23 @@ const CampaignGuideJapan = () => {
           </div>
 
           {/* 메타광고코드 발급 요청 */}
-          <div className="border-t pt-6">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="meta-ad-code" 
-                checked={metaAdCodeRequested}
-                onCheckedChange={setMetaAdCodeRequested}
-              />
-              <label htmlFor="meta-ad-code" className="text-base font-semibold cursor-pointer">
-                메타광고코드 발급 요청
-              </label>
+          <div className="border-t pt-6 mt-6">
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Checkbox 
+                  id="meta-ad-code" 
+                  checked={metaAdCodeRequested}
+                  onCheckedChange={setMetaAdCodeRequested}
+                  className="w-5 h-5"
+                />
+                <label htmlFor="meta-ad-code" className="text-base font-bold text-purple-900 cursor-pointer">
+                  📱 메타광고코드 발급 요청
+                </label>
+              </div>
+              <p className="text-sm text-purple-700 mt-2 ml-8">
+                체크하시면 메타(Facebook/Instagram) 광고 코드를 발급해드립니다
+              </p>
             </div>
-            <p className="text-sm text-gray-600 mt-2 ml-6">
-              체크하시면 메타(Facebook/Instagram) 광고 코드를 발급해드립니다
-            </p>
           </div>
 
           {error && (
