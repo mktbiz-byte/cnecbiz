@@ -146,11 +146,11 @@ const CampaignGuideJapan = () => {
 
       if (data) {
         setCampaignTitle(data.title)
-        // 제품 정보는 기업이 직접 입력하도록 빈 상태로 시작
-        // setBrandName(data.brand_name || '')
-        // setProductName(data.product_name || '')
-        // setProductDescription(data.description || '')
-        // setProductFeatures(data.product_features || [''])
+        // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
+        if (data.brand_name) setBrandName(data.brand_name)
+        if (data.product_name) setProductName(data.product_name)
+        if (data.description) setProductDescription(data.description)
+        if (data.product_features && data.product_features.length > 0) setProductFeatures(data.product_features)
         setRequiredDialogues(data.required_dialogues || [''])
         setRequiredScenes(data.required_scenes || [''])
         setRequiredHashtags(data.required_hashtags || [''])
