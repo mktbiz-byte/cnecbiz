@@ -40,7 +40,11 @@ const GuideReview = () => {
   }
 
   const handleConfirm = () => {
-    navigate(`/company/campaigns/${id}/order-confirmation`)
+    if (region === 'japan') {
+      navigate(`/company/campaigns/${id}/order-confirmation?region=japan`)
+    } else {
+      navigate(`/company/campaigns/${id}/order-confirmation`)
+    }
   }
 
   const handleEdit = () => {

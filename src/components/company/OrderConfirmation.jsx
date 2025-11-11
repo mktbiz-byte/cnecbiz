@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -10,6 +10,8 @@ import CompanyNavigation from './CompanyNavigation'
 const OrderConfirmation = () => {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
 
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -23,21 +25,21 @@ const OrderConfirmation = () => {
 
   const loadData = async () => {
     try {
-      console.log('[OrderConfirmation] Loading campaign:', id)
+      console.log('[OrderConfirmation] Loading campaign:', id, 'region:', region)
       
-      // 1. 캠페인 정보 로드 - Biz DB 먼저 시도
-      let { data: campaignData, error: campaignError } = await supabaseBiz
+      // 1. 캐페인 정보 로드 - region에 따라 올바른 DB 사용
+      const regionClient = getSupabaseClient(region)
+      let { data: campaignData, error: campaignError } = await regionClient
         .from('campaigns')
         .select('*')
         .eq('id', id)
         .maybeSingle()
 
-      console.log('[OrderConfirmation] Biz DB result:', { campaignData, campaignError })
+      console.log(`[OrderConfirmation] ${region} DB result:`, { campaignData, campaignError })
       
-      // Biz DB에 없으면 Korea DB 시도
+      // region DB에 없으면 Biz DB 시도
       if (!campaignData && !campaignError) {
-        const koreaClient = getSupabaseClient('korea')
-        const result = await koreaClient
+        const result = await supabaseBiz
           .from('campaigns')
           .select('*')
           .eq('id', id)
@@ -45,7 +47,7 @@ const OrderConfirmation = () => {
         
         campaignData = result.data
         campaignError = result.error
-        console.log('[OrderConfirmation] Korea DB result:', { campaignData, campaignError })
+        console.log('[OrderConfirmation] Biz DB result:', { campaignData, campaignError })
       }
       
       if (campaignError) throw campaignError
