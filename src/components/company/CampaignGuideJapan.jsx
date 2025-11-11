@@ -102,6 +102,7 @@ const CampaignGuideJapan = () => {
           brand_name,
           product_name,
           description,
+          product_features,
           required_dialogues, 
           required_scenes, 
           required_hashtags, 
@@ -145,6 +146,7 @@ const CampaignGuideJapan = () => {
         setBrandName(data.brand_name || '')
         setProductName(data.product_name || '')
         setProductDescription(data.description || '')
+        setProductFeatures(data.product_features || [''])
         setRequiredDialogues(data.required_dialogues || [''])
         setRequiredScenes(data.required_scenes || [''])
         setRequiredHashtags(data.required_hashtags || [''])
@@ -192,6 +194,7 @@ const CampaignGuideJapan = () => {
     setAutoSaving(true)
     try {
       const updateData = {
+        product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
         required_hashtags: requiredHashtags.filter(h => h.trim()),
@@ -248,6 +251,7 @@ const CampaignGuideJapan = () => {
 
     try {
       const updateData = {
+        product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
         required_hashtags: requiredHashtags.filter(h => h.trim()),
