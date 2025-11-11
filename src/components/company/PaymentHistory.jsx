@@ -188,9 +188,10 @@ export default function PaymentHistory() {
   const totalCount = payments.length + chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').length
   
   // 현재 포인트 계산 (충전 완료 건 합계 - 사용 포인트)
+  // 충전 포인트 = 금액 / 1.1 (부가세 제외)
   const totalCharged = chargeRequests
     .filter(r => r.status === 'completed' || r.status === 'confirmed')
-    .reduce((sum, r) => sum + (r.amount || 0), 0)
+    .reduce((sum, r) => sum + Math.round((r.amount || 0) / 1.1), 0)
   
   const totalUsed = pointUsages
     .reduce((sum, c) => sum + (c.total_price || 0), 0)
