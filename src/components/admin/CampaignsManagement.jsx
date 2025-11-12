@@ -457,7 +457,7 @@ export default function CampaignsManagement() {
                           </div>
                           <div className="bg-white p-3 rounded-lg">
                             <div className="text-gray-500 text-xs mb-1">모집 인원</div>
-                            <div className="font-semibold text-gray-900">{campaign.creator_count || 0}명</div>
+                            <div className="font-semibold text-gray-900">{campaign.max_participants || 0}명</div>
                           </div>
                           <div className="bg-white p-3 rounded-lg">
                             <div className="text-gray-500 text-xs mb-1">지원자</div>
