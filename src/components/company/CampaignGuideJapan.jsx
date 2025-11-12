@@ -94,7 +94,7 @@ const CampaignGuideJapan = () => {
     }, 10000)
 
     return () => clearTimeout(timer)
-  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId, dataLoaded])
+  }, [brandName, productName, productDescription, productFeatures, requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId, dataLoaded])
 
   const loadCampaignGuide = async () => {
     try {
@@ -149,7 +149,8 @@ const CampaignGuideJapan = () => {
         // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
         if (data.brand_name) setBrandName(data.brand_name)
         if (data.product_name) setProductName(data.product_name)
-        if (data.description) setProductDescription(data.description)
+        // description은 캠페인 설명이므로 제품 설명으로 사용하지 않음
+        // if (data.description) setProductDescription(data.description)
         if (data.product_features && data.product_features.length > 0) setProductFeatures(data.product_features)
         setRequiredDialogues(data.required_dialogues || [''])
         setRequiredScenes(data.required_scenes || [''])
@@ -201,6 +202,8 @@ const CampaignGuideJapan = () => {
     setAutoSaving(true)
     try {
       const updateData = {
+        brand_name: brandName,
+        product_name: productName,
         product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
@@ -258,6 +261,8 @@ const CampaignGuideJapan = () => {
 
     try {
       const updateData = {
+        brand_name: brandName,
+        product_name: productName,
         product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit } from 'lucide-react'
+import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -16,6 +16,7 @@ export default function CampaignsManagement() {
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [loading, setLoading] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -42,7 +43,10 @@ export default function CampaignsManagement() {
 
     if (!adminData) {
       navigate('/admin/dashboard')
+      return
     }
+
+    setIsSuperAdmin(adminData.role === 'super_admin')
   }
 
   const fetchCampaigns = async () => {
@@ -124,6 +128,74 @@ export default function CampaignsManagement() {
     } catch (error) {
       console.error('입금 확인 오류:', error)
       alert(error.message)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  const handleStatusChange = async (campaign, newStatus) => {
+    const statusLabels = {
+      draft: '임시',
+      active: '활성',
+      paused: '중단',
+      completed: '완료'
+    }
+
+    if (!confirm(`캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`)) {
+      return
+    }
+
+    setConfirming(true)
+    try {
+      const region = campaign.region || 'biz'
+      const supabaseClient = getSupabaseClient(region)
+
+      const { error } = await supabaseClient
+        .from('campaigns')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaign.id)
+
+      if (error) throw error
+
+      alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+      fetchCampaigns()
+    } catch (error) {
+      console.error('상태 변경 오류:', error)
+      alert('상태 변경에 실패했습니다: ' + error.message)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  const handleDelete = async (campaign) => {
+    if (!confirm(`⚠️ 정말로 이 캠페인을 삭제하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n이 작업은 되돌릴 수 없습니다.`)) {
+      return
+    }
+
+    if (!confirm('⚠️ 최종 확인: 캠페인과 관련된 모든 데이터가 삭제됩니다. 계속하시겠습니까?')) {
+      return
+    }
+
+    setConfirming(true)
+    try {
+      const region = campaign.region || 'biz'
+      const supabaseClient = getSupabaseClient(region)
+
+      const { error } = await supabaseClient
+        .from('campaigns')
+        .delete()
+        .eq('id', campaign.id)
+
+      if (error) throw error
+
+      alert('캠페인이 삭제되었습니다.')
+      fetchCampaigns()
+    } catch (error) {
+      console.error('삭제 오류:', error)
+      alert('삭제에 실패했습니다: ' + error.message)
     } finally {
       setConfirming(false)
     }
@@ -411,6 +483,30 @@ export default function CampaignsManagement() {
                             <CheckCircle className="w-4 h-4 mr-2" />
                             승인
                           </Button>
+                        )}
+                        {isSuperAdmin && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleStatusChange(campaign, 'active')}
+                              disabled={confirming || campaign.status === 'active'}
+                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                            >
+                              <PlayCircle className="w-4 h-4 mr-2" />
+                              활성화
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(campaign)}
+                              disabled={confirming}
+                              className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              삭제
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="outline"
