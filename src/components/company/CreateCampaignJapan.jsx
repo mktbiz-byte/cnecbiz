@@ -91,7 +91,7 @@ const CreateCampaignJapan = () => {
           category: data.category || 'beauty',
           image_url: data.image_url || '',
           reward_amount: data.reward_amount || 0,
-          max_participants: data.max_participants || 10,
+          max_participants: data.target_count || data.max_participants || 10,
           application_deadline: data.application_deadline || '',
           start_date: data.start_date || '',
           end_date: data.end_date || '',
@@ -113,8 +113,8 @@ const CreateCampaignJapan = () => {
           skin_type_requirement: data.skin_type_requirement || '',
           offline_visit_requirement: data.offline_visit_requirement || '',
           package_type: data.package_type || 'junior',
-          total_slots: data.total_slots || data.max_participants || 10,
-          remaining_slots: data.remaining_slots || data.max_participants || 10,
+          total_slots: data.target_count || data.total_slots || data.max_participants || 10,
+          remaining_slots: data.target_count || data.remaining_slots || data.max_participants || 10,
           estimated_cost: data.estimated_cost || 0
         })
         console.log('캐페인 데이터 로드 성공:', data)
@@ -442,7 +442,8 @@ const CreateCampaignJapan = () => {
         category: campaignForm.category,
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,
-        max_participants: campaignForm.max_participants,
+        target_count: campaignForm.total_slots,
+        max_participants: campaignForm.total_slots,
         application_deadline: campaignForm.application_deadline || null,
         start_date: campaignForm.start_date || null,
         end_date: campaignForm.end_date || null,
@@ -550,7 +551,8 @@ const CreateCampaignJapan = () => {
         category: campaignForm.category,
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,  // 엔화 보상
-        max_participants: campaignForm.max_participants,
+        target_count: campaignForm.total_slots,
+        max_participants: campaignForm.total_slots,
         application_deadline: campaignForm.application_deadline,
         start_date: campaignForm.start_date,
         end_date: campaignForm.end_date,

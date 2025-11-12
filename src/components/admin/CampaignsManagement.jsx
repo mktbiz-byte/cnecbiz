@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react'
+import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -412,6 +412,15 @@ export default function CampaignsManagement() {
                             승인
                           </Button>
                         )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/campaigns/${campaign.id}/edit?region=${campaign.region}`)}
+                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          수정
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
