@@ -229,6 +229,9 @@ const OrderConfirmation = () => {
   // 포인트는 부가세 제외 금액으로 계산
   const shortfall = Math.max(0, afterDiscount - pointsBalance)
   const canPayWithPoints = shortfall === 0
+  
+  // 추가금 결제는 부가세 포함 금액
+  const totalShortfall = Math.max(0, totalCost - pointsBalance)
 
   return (
     <>
@@ -367,8 +370,8 @@ const OrderConfirmation = () => {
                       {shortfall > 0 ? '추가금 결제하기' : '계좌 입금하기'}
                     </div>
                     <div className="text-xs opacity-80">
-                      {shortfall > 0 
-                        ? `${shortfall.toLocaleString()}원 입금` 
+                      {totalShortfall > 0 
+                        ? `${totalShortfall.toLocaleString()}원 입금` 
                         : '견적서에서 입금 계좌 확인'}
                     </div>
                   </div>
