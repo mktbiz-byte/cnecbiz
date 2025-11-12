@@ -122,11 +122,11 @@ const InvoicePage = () => {
         setCompany(companyData)
       }
 
-      // 입금 계좌 정보 로드 (Biz DB) - region에 따라
+      // 입금 계좌 정보 로드 (Biz DB) - 항상 korea 계좌 사용
       const { data: accountData, error: accountError } = await supabaseBiz
         .from('payment_accounts')
         .select('*')
-        .eq('region', region)
+        .eq('region', 'korea')
         .maybeSingle()
 
       if (accountError && accountError.code !== 'PGRST116') {
@@ -287,7 +287,9 @@ const InvoicePage = () => {
     discountRate = 0.05 // 5% 할인
   }
   const discountAmount = Math.floor(subtotal * discountRate)
-  const totalCost = subtotal - discountAmount
+  const afterDiscount = subtotal - discountAmount
+  const vat = Math.floor(afterDiscount * 0.1) // 부가세 10%
+  const totalCost = afterDiscount + vat
   
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
 
@@ -363,6 +365,14 @@ const InvoicePage = () => {
                       </td>
                     </tr>
                   )}
+                  <tr className="bg-gray-50">
+                    <td colSpan="3" className="px-4 py-3 text-sm text-right text-gray-700 font-medium">
+                      부가세 (10%)
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-700 font-medium">
+                      +{vat.toLocaleString()}원
+                    </td>
+                  </tr>
                 </tbody>
                 <tfoot className="bg-blue-50">
                   <tr>

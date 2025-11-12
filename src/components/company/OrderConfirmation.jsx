@@ -78,13 +78,24 @@ const OrderConfirmation = () => {
   const handlePayWithPoints = async () => {
     if (processing) return
     
-    const shortfall = totalCost - pointsBalance
+    // 포인트는 부가세 제외 금액으로 계산
+    const packagePrice = packagePrices[campaign.package_type] || 200000
+    const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
+    const subtotal = packagePrice * recruitmentCount
+    let discountRate = 0
+    if (subtotal >= 10000000) {
+      discountRate = 0.05
+    }
+    const discountAmount = Math.floor(subtotal * discountRate)
+    const afterDiscount = subtotal - discountAmount
+    
+    const shortfall = afterDiscount - pointsBalance
     if (shortfall > 0) {
       alert(`포인트가 ${shortfall.toLocaleString()}원 부족합니다. 추가금 결제를 진행해주세요.`)
       return
     }
 
-    if (!confirm(`${totalCost.toLocaleString()}원을 포인트로 결제하시겠습니까?`)) {
+    if (!confirm(`${afterDiscount.toLocaleString()}원을 포인트로 결제하시겠습니까?`)) {
       return
     }
 
@@ -102,8 +113,8 @@ const OrderConfirmation = () => {
 
       if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다')
 
-      // 2. 포인트 차감
-      const newBalance = companyData.points_balance - totalCost
+      // 2. 포인트 차감 (부가세 제외 금액)
+      const newBalance = companyData.points_balance - afterDiscount
       const { error: updateError } = await supabaseBiz
         .from('companies')
         .update({ points_balance: newBalance })
@@ -117,9 +128,9 @@ const OrderConfirmation = () => {
         .insert([{
           company_id: companyData.id,
           campaign_id: id,
-          amount: -totalCost,
+          amount: -afterDiscount,
           type: 'campaign_payment',
-          description: `캠페인 결제: ${campaign.title}`,
+          description: `캐페인 결제: ${campaign.title}`,
           balance_after: newBalance
         }])
 
@@ -215,7 +226,8 @@ const OrderConfirmation = () => {
   const vat = Math.floor(afterDiscount * 0.1) // 부가세 10%
   const totalCost = afterDiscount + vat
   
-  const shortfall = Math.max(0, totalCost - pointsBalance)
+  // 포인트는 부가세 제외 금액으로 계산
+  const shortfall = Math.max(0, afterDiscount - pointsBalance)
   const canPayWithPoints = shortfall === 0
 
   return (
