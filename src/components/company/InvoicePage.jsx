@@ -237,7 +237,128 @@ const InvoicePage = () => {
 
       if (chargeError) throw chargeError
 
-      setSuccess('입금 요청이 제출되었습니다! 입금 확인 후 캠페인이 시작됩니다.')
+      // 3. 알림 발송 (카카오톡, 이메일, 네이버 웍스)
+      try {
+        const companyName = company.company_name || ''
+        const companyEmail = company.notification_email || company.email || ''
+        const companyPhone = company.notification_phone || company.phone || ''
+
+        if (companyName && (companyEmail || companyPhone)) {
+          // 1. 카카오톡 알림톡 발송
+          if (companyPhone) {
+            try {
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: companyPhone,
+                  receiverName: companyName,
+                  templateCode: '025100000942',
+                  variables: {
+                    '회사명': companyName,
+                    '금액': totalCost.toLocaleString()
+                  }
+                })
+              })
+              console.log('[SUCCESS] Kakao notification sent')
+            } catch (kakaoError) {
+              console.error('[ERROR] Failed to send Kakao notification:', kakaoError)
+            }
+          }
+
+          // 2. 네이버 웍스 메시지 발송 (관리자용)
+          try {
+            const koreanDate = new Date().toLocaleString('ko-KR', { 
+              timeZone: 'Asia/Seoul',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            const naverMessage = `💰 포인트 충전 신청 (${region === 'japan' ? '일본 캐페인' : '한국 캐페인'})\n\n` +
+              `회사명: ${companyName}\n` +
+              `충전 금액: ${totalCost.toLocaleString()}원\n` +
+              `세금계산서: ${needsTaxInvoice ? '신청' : '미신청'}\n` +
+              `입금자명: ${depositorName}\n` +
+              `캐페인 ID: ${id}\n` +
+              `신청 시간: ${koreanDate}\n\n` +
+              `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`
+
+            await fetch('/.netlify/functions/send-naver-works-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: naverMessage,
+                isAdminNotification: true
+              })
+            })
+            console.log('[SUCCESS] Naver Works notification sent')
+          } catch (naverError) {
+            console.error('[ERROR] Failed to send Naver Works notification:', naverError)
+          }
+
+          // 3. 이메일 발송
+          if (companyEmail) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: companyEmail,
+                  subject: '[CNEC] 포인트 충전 입금 안내',
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #333;">포인트 충전 신청이 완료되었습니다</h2>
+                      <p>안녕하세요, <strong>${companyName}</strong>님.</p>
+                      <p>포인트 충전 신청이 완료되었습니다.</p>
+                      
+                      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #555;">입금 정보</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>입금 계좌:</strong></td>
+                            <td style="padding: 8px 0;">${paymentAccount?.bank_name || 'IBK기업은행'} ${paymentAccount?.account_number || '047-122753-04-011'}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>예금주:</strong></td>
+                            <td style="padding: 8px 0;">${paymentAccount?.account_holder || '주식회사 하우파파'}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>입금자명:</strong></td>
+                            <td style="padding: 8px 0;">${depositorName}</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 8px 0; color: #666;"><strong>입금 금액:</strong></td>
+                            <td style="padding: 8px 0; font-size: 18px; color: #4CAF50;"><strong>${totalCost.toLocaleString()}원</strong></td>
+                          </tr>
+                        </table>
+                      </div>
+                      
+                      <p style="color: #666;">입금 확인 후 포인트가 자동으로 충전됩니다.</p>
+                      <p style="color: #666;">문의: <strong>1833-6025</strong></p>
+                      
+                      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                      <p style="font-size: 12px; color: #999; text-align: center;">
+                        본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
+                      </p>
+                    </div>
+                  `
+                })
+              })
+              console.log('[SUCCESS] Email sent')
+            } catch (emailError) {
+              console.error('[ERROR] Failed to send email:', emailError)
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error('[ERROR] Notification error:', notificationError)
+        // 알림 발송 실패해도 입금 요청은 성공으로 처리
+      }
+
+      setSuccess('입금 요청이 제출되었습니다! 입금 확인 후 캐페인이 시작됩니다.')
       setTimeout(() => {
         navigate('/company/campaigns')
       }, 2000)
