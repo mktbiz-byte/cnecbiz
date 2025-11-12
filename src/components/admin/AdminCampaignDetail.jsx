@@ -15,9 +15,12 @@ import {
   AlertCircle,
   XCircle,
   Eye,
-  X
+  X,
+  Edit,
+  Trash2,
+  PlayCircle
 } from 'lucide-react'
-import { getSupabaseClient } from '../../lib/supabaseClients'
+import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function AdminCampaignDetail() {
@@ -30,11 +33,34 @@ export default function AdminCampaignDetail() {
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedApplication, setSelectedApplication] = useState(null)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
   useEffect(() => {
+    checkAuth()
     fetchCampaignDetail()
     fetchApplications()
   }, [id, region])
+
+  const checkAuth = async () => {
+    try {
+      if (!supabaseBiz) return
+
+      const { data: { user }, error: userError } = await supabaseBiz.auth.getUser()
+      if (userError || !user) return
+
+      const { data: adminData, error: adminError } = await supabaseBiz
+        .from('admin_users')
+        .select('*')
+        .eq('email', user.email)
+        .single()
+
+      if (adminError || !adminData) return
+
+      setIsSuperAdmin(adminData.role === 'super_admin')
+    } catch (error) {
+      console.error('Auth check error:', error)
+    }
+  }
 
   const fetchCampaignDetail = async () => {
     try {
@@ -99,6 +125,69 @@ export default function AdminCampaignDetail() {
       setApplications(data || [])
     } catch (error) {
       console.error('Error fetching applications:', error)
+    }
+  }
+
+  const handleStatusChange = async (newStatus) => {
+    const statusLabels = {
+      draft: '임시',
+      active: '활성',
+      paused: '중단',
+      completed: '완료'
+    }
+
+    if (!confirm(`캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) throw new Error('Supabase client not found')
+
+      const { error } = await client
+        .from('campaigns')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setCampaign({ ...campaign, status: newStatus })
+      alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+      window.location.reload()
+    } catch (error) {
+      console.error('Error changing status:', error)
+      alert('상태 변경에 실패했습니다: ' + error.message)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('⚠️ 정말로 이 캠페인을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) {
+      return
+    }
+
+    if (!confirm('⚠️ 최종 확인: 캠페인과 관련된 모든 데이터가 삭제됩니다. 계속하시겠습니까?')) {
+      return
+    }
+
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) throw new Error('Supabase client not found')
+
+      const { error } = await client
+        .from('campaigns')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('캠페인이 삭제되었습니다.')
+      navigate(`/admin/campaigns?region=${region}`)
+    } catch (error) {
+      console.error('Error deleting campaign:', error)
+      alert('삭제에 실패했습니다: ' + error.message)
     }
   }
 
@@ -193,7 +282,101 @@ export default function AdminCampaignDetail() {
                 <p className="text-gray-600 mt-1">{getRegionLabel(region)}</p>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => navigate(`/admin/campaigns/${id}/edit?region=${region}`)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                수정
+              </Button>
+              {isSuperAdmin && (
+                <Button
+                  onClick={handleDelete}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  삭제
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* 상태 변경 버튼 (슈퍼 관리자만) */}
+          {isSuperAdmin && (
+            <Card className="mb-6 border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-blue-900 flex items-center gap-2">
+                  {campaign.status === 'draft' && <Clock className="w-5 h-5" />}
+                  {campaign.status === 'active' && <PlayCircle className="w-5 h-5" />}
+                  {campaign.status === 'paused' && <XCircle className="w-5 h-5" />}
+                  {campaign.status === 'completed' && <CheckCircle className="w-5 h-5" />}
+                  캠페인 상태 관리
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="text-sm text-gray-600 mb-2">현재 상태</div>
+                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium ${
+                      campaign.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                      campaign.status === 'active' ? 'bg-green-100 text-green-800' :
+                      campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {campaign.status === 'draft' && <><Clock className="w-4 h-4" /> 임시</>}
+                      {campaign.status === 'active' && <><PlayCircle className="w-4 h-4" /> 활성</>}
+                      {campaign.status === 'paused' && <><XCircle className="w-4 h-4" /> 중단</>}
+                      {campaign.status === 'completed' && <><CheckCircle className="w-4 h-4" /> 완료</>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      onClick={() => handleStatusChange('draft')}
+                      disabled={campaign.status === 'draft'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Clock className="w-4 h-4" />
+                      임시
+                    </Button>
+                    <Button
+                      onClick={() => handleStatusChange('active')}
+                      disabled={campaign.status === 'active'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 border-green-300 text-green-700 hover:bg-green-50"
+                    >
+                      <PlayCircle className="w-4 h-4" />
+                      활성
+                    </Button>
+                    <Button
+                      onClick={() => handleStatusChange('paused')}
+                      disabled={campaign.status === 'paused'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      중단
+                    </Button>
+                    <Button
+                      onClick={() => handleStatusChange('completed')}
+                      disabled={campaign.status === 'completed'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      완료
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* 캠페인 기본 정보 */}
           <Card className="mb-6">
