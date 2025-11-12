@@ -191,12 +191,12 @@ exports.handler = async (event, context) => {
 
     console.log(`📅 확인 날짜: ${todayStr}`);
 
-    // 미매칭 입금 건 조회 (오늘 날짜 기준)
+    // 미매칭 입금 건 조회 (당일 입금 건만)
     const { data: unmatchedDeposits, error } = await supabaseAdmin
       .from('bank_transactions')
       .select('*')
       .is('matched_request_id', null)
-      .gte('trade_date', todayStr)
+      .eq('trade_date', todayStr)  // 당일 입금 건만 조회
       .order('trade_date', { ascending: false });
 
     if (error) {
