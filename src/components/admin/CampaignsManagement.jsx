@@ -24,29 +24,54 @@ export default function CampaignsManagement() {
   }, [])
 
   const checkAuth = async () => {
-    if (!supabaseBiz) {
-      navigate('/login')
-      return
+    console.log('[CampaignsManagement] checkAuth started')
+    try {
+      if (!supabaseBiz) {
+        console.log('[CampaignsManagement] No supabaseBiz client')
+        navigate('/login')
+        return
+      }
+
+      console.log('[CampaignsManagement] Getting user...')
+      const { data: { user }, error: userError } = await supabaseBiz.auth.getUser()
+      if (userError) {
+        console.error('[CampaignsManagement] User error:', userError)
+        navigate('/login')
+        return
+      }
+      if (!user) {
+        console.log('[CampaignsManagement] No user found')
+        navigate('/login')
+        return
+      }
+
+      console.log('[CampaignsManagement] User email:', user.email)
+      console.log('[CampaignsManagement] Fetching admin data...')
+      const { data: adminData, error: adminError } = await supabaseBiz
+        .from('admin_users')
+        .select('*')
+        .eq('email', user.email)
+        .single()
+
+      if (adminError) {
+        console.error('[CampaignsManagement] Admin data error:', adminError)
+      }
+
+      if (!adminData) {
+        console.log('[CampaignsManagement] No admin data found')
+        // 일반 관리자도 접근 가능하도록 변경
+        setIsSuperAdmin(false)
+        return
+      }
+
+      console.log('[CampaignsManagement] Admin role:', adminData.role)
+      const isSuperAdminValue = adminData.role === 'super_admin'
+      console.log('[CampaignsManagement] isSuperAdmin:', isSuperAdminValue)
+      setIsSuperAdmin(isSuperAdminValue)
+    } catch (error) {
+      console.error('[CampaignsManagement] checkAuth error:', error)
+      setIsSuperAdmin(false)
     }
-
-    const { data: { user } } = await supabaseBiz.auth.getUser()
-    if (!user) {
-      navigate('/login')
-      return
-    }
-
-    const { data: adminData } = await supabaseBiz
-      .from('admin_users')
-      .select('*')
-      .eq('email', user.email)
-      .single()
-
-    if (!adminData) {
-      navigate('/admin/dashboard')
-      return
-    }
-
-    setIsSuperAdmin(adminData.role === 'super_admin')
   }
 
   const fetchCampaigns = async () => {
