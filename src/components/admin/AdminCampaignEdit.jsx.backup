@@ -1,0 +1,468 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { ArrowLeft, Save, Trash2, CheckCircle, XCircle, Clock, PlayCircle } from 'lucide-react'
+import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
+import AdminNavigation from './AdminNavigation'
+
+export default function AdminCampaignEdit() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
+  
+  const [campaign, setCampaign] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+
+  useEffect(() => {
+    checkAuth()
+    fetchCampaign()
+  }, [id, region])
+
+  const checkAuth = async () => {
+    if (!supabaseBiz) {
+      navigate('/login')
+      return
+    }
+
+    const { data: { user } } = await supabaseBiz.auth.getUser()
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
+    const { data: adminData } = await supabaseBiz
+      .from('admin_users')
+      .select('*')
+      .eq('email', user.email)
+      .single()
+
+    if (!adminData) {
+      navigate('/admin/dashboard')
+      return
+    }
+
+    // 슈퍼 관리자 확인
+    setIsSuperAdmin(adminData.role === 'super_admin')
+  }
+
+  const fetchCampaign = async () => {
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) {
+        console.error('No Supabase client for region:', region)
+        return
+      }
+
+      const { data, error } = await client
+        .from('campaigns')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) throw error
+      setCampaign(data)
+    } catch (error) {
+      console.error('Error fetching campaign:', error)
+      alert('캠페인 정보를 불러오는데 실패했습니다: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!confirm('캠페인 정보를 수정하시겠습니까?')) {
+      return
+    }
+
+    setSaving(true)
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) throw new Error('Supabase client not found')
+
+      const updateData = {
+        title: campaign.title,
+        brand: campaign.brand,
+        description: campaign.description,
+        max_participants: campaign.max_participants,
+        application_deadline: campaign.application_deadline,
+        start_date: campaign.start_date,
+        end_date: campaign.end_date,
+        status: campaign.status,
+        updated_at: new Date().toISOString()
+      }
+
+      // 슈퍼 관리자만 reward_amount 수정 가능
+      if (isSuperAdmin) {
+        updateData.reward_amount = campaign.reward_amount
+      }
+
+      const { error } = await client
+        .from('campaigns')
+        .update(updateData)
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('캠페인이 수정되었습니다!')
+      navigate(`/admin/campaigns/${id}?region=${region}`)
+    } catch (error) {
+      console.error('Error saving campaign:', error)
+      alert('저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleStatusChange = async (newStatus) => {
+    const statusLabels = {
+      draft: '임시',
+      active: '활성',
+      paused: '중단',
+      completed: '완료'
+    }
+
+    if (!confirm(`캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) throw new Error('Supabase client not found')
+
+      const { error } = await client
+        .from('campaigns')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setCampaign({ ...campaign, status: newStatus })
+      alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+    } catch (error) {
+      console.error('Error changing status:', error)
+      alert('상태 변경에 실패했습니다: ' + error.message)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('⚠️ 정말로 이 캠페인을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) {
+      return
+    }
+
+    if (!confirm('⚠️ 최종 확인: 캠페인과 관련된 모든 데이터가 삭제됩니다. 계속하시겠습니까?')) {
+      return
+    }
+
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) throw new Error('Supabase client not found')
+
+      const { error } = await client
+        .from('campaigns')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('캠페인이 삭제되었습니다.')
+      navigate(`/admin/campaigns?region=${region}`)
+    } catch (error) {
+      console.error('Error deleting campaign:', error)
+      alert('삭제에 실패했습니다: ' + error.message)
+    }
+  }
+
+  if (loading) {
+    return (
+      <>
+        <AdminNavigation />
+        <div className="min-h-screen bg-gray-50 lg:ml-64">
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="text-center py-12">로딩 중...</div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (!campaign) {
+    return (
+      <>
+        <AdminNavigation />
+        <div className="min-h-screen bg-gray-50 lg:ml-64">
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="text-center py-12 text-red-600">캠페인을 찾을 수 없습니다</div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  const regionLabels = {
+    korea: '🇰🇷 한국',
+    japan: '🇯🇵 일본',
+    us: '🇺🇸 미국',
+    taiwan: '🇹🇼 대만'
+  }
+
+  const currencySymbols = {
+    korea: '₩',
+    japan: '¥',
+    us: '$',
+    taiwan: 'NT$'
+  }
+
+  return (
+    <>
+      <AdminNavigation />
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
+        <div className="max-w-4xl mx-auto p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/admin/campaigns/${id}?region=${region}`)}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                뒤로
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold">캠페인 수정</h1>
+                <p className="text-gray-600 mt-1">{regionLabels[region]}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {saving ? '저장 중...' : '저장'}
+              </Button>
+              {isSuperAdmin && (
+                <Button
+                  onClick={handleDelete}
+                  variant="destructive"
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  삭제
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* 상태 변경 버튼 */}
+          {isSuperAdmin && (
+            <Card className="mb-6 border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-blue-900 flex items-center gap-2">
+                  {campaign.status === 'draft' && <Clock className="w-5 h-5" />}
+                  {campaign.status === 'active' && <PlayCircle className="w-5 h-5" />}
+                  {campaign.status === 'paused' && <XCircle className="w-5 h-5" />}
+                  {campaign.status === 'completed' && <CheckCircle className="w-5 h-5" />}
+                  캠페인 상태 관리
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="text-sm text-gray-600 mb-2">현재 상태</div>
+                    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-medium ${
+                      campaign.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                      campaign.status === 'active' ? 'bg-green-100 text-green-800' :
+                      campaign.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {campaign.status === 'draft' && <><Clock className="w-4 h-4" /> 임시</>}
+                      {campaign.status === 'active' && <><PlayCircle className="w-4 h-4" /> 활성</>}
+                      {campaign.status === 'paused' && <><XCircle className="w-4 h-4" /> 중단</>}
+                      {campaign.status === 'completed' && <><CheckCircle className="w-4 h-4" /> 완료</>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleStatusChange('draft')}
+                      disabled={campaign.status === 'draft'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Clock className="w-4 h-4" />
+                      임시
+                    </Button>
+                    <Button
+                      onClick={() => handleStatusChange('active')}
+                      disabled={campaign.status === 'active'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 border-green-300 text-green-700 hover:bg-green-50"
+                    >
+                      <PlayCircle className="w-4 h-4" />
+                      활성
+                    </Button>
+                    <Button
+                      onClick={() => handleStatusChange('paused')}
+                      disabled={campaign.status === 'paused'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      중단
+                    </Button>
+                    <Button
+                      onClick={() => handleStatusChange('completed')}
+                      disabled={campaign.status === 'completed'}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      완료
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Form */}
+          <div className="space-y-6">
+            {/* 기본 정보 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>기본 정보</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="title">캠페인 제목 *</Label>
+                  <Input
+                    id="title"
+                    value={campaign.title || ''}
+                    onChange={(e) => setCampaign({ ...campaign, title: e.target.value })}
+                    placeholder="캠페인 제목을 입력하세요"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="brand">브랜드명 *</Label>
+                  <Input
+                    id="brand"
+                    value={campaign.brand || ''}
+                    onChange={(e) => setCampaign({ ...campaign, brand: e.target.value })}
+                    placeholder="브랜드명을 입력하세요"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="description">캠페인 설명</Label>
+                  <Textarea
+                    id="description"
+                    value={campaign.description || ''}
+                    onChange={(e) => setCampaign({ ...campaign, description: e.target.value })}
+                    placeholder="캠페인 설명을 입력하세요"
+                    rows={4}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="max_participants">모집 인원 *</Label>
+                  <Input
+                    id="max_participants"
+                    type="number"
+                    value={campaign.max_participants || ''}
+                    onChange={(e) => setCampaign({ ...campaign, max_participants: parseInt(e.target.value) || 0 })}
+                    placeholder="모집 인원을 입력하세요"
+                    min="1"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 크리에이터 비용 (슈퍼 관리자만 표시) */}
+            {isSuperAdmin && (
+              <Card className="border-purple-200 bg-purple-50">
+                <CardHeader>
+                  <CardTitle className="text-purple-900">💰 크리에이터 비용 (관리자 전용)</CardTitle>
+                  <p className="text-sm text-purple-700">기업 페이지에는 표시되지 않습니다</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="reward_amount">크리에이터당 지급 비용 ({currencySymbols[region]})</Label>
+                    <Input
+                      id="reward_amount"
+                      type="number"
+                      value={campaign.reward_amount || ''}
+                      onChange={(e) => setCampaign({ ...campaign, reward_amount: parseInt(e.target.value) || 0 })}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg">
+                    <div className="text-sm text-gray-600 mb-1">총 크리에이터 비용</div>
+                    <div className="text-2xl font-bold text-purple-900">
+                      {currencySymbols[region]}{((campaign.reward_amount || 0) * (campaign.max_participants || 0)).toLocaleString()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 일정 */}
+            <Card>
+              <CardHeader>
+                <CardTitle>캠페인 일정</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="application_deadline">모집 마감일</Label>
+                  <Input
+                    id="application_deadline"
+                    type="date"
+                    value={campaign.application_deadline ? new Date(campaign.application_deadline).toISOString().split('T')[0] : ''}
+                    onChange={(e) => setCampaign({ ...campaign, application_deadline: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="start_date">캠페인 시작일</Label>
+                    <Input
+                      id="start_date"
+                      type="date"
+                      value={campaign.start_date ? new Date(campaign.start_date).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setCampaign({ ...campaign, start_date: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="end_date">캠페인 종료일</Label>
+                    <Input
+                      id="end_date"
+                      type="date"
+                      value={campaign.end_date ? new Date(campaign.end_date).toISOString().split('T')[0] : ''}
+                      onChange={(e) => setCampaign({ ...campaign, end_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
