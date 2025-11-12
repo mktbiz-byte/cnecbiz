@@ -265,7 +265,8 @@ const OrderConfirmation = () => {
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">소계</span>
                 <span className="font-medium">{subtotal.toLocaleString()}원</span>
-              </div              {discountAmount > 0 && (
+              </div>
+              {discountAmount > 0 && (
                 <div className="flex justify-between items-center text-green-600">
                   <span className="font-medium">할인 ({discountRate * 100}%)</span>
                   <span className="font-medium">-{discountAmount.toLocaleString()}원</span>
