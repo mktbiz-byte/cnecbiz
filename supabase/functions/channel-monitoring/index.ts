@@ -234,21 +234,22 @@ async function analyzeChannel(channel: Channel, config: any, supabase: any): Pro
 
     // 3. 구독자 급증
     if (previousSnapshot.subscriber_count > 0) {
-      const subscriberGrowthRate = (currentSubscribers - previousSnapshot.subscriber_count) / previousSnapshot.subscriber_count
+      const newSubscribers = currentSubscribers - previousSnapshot.subscriber_count
       
-      if (subscriberGrowthRate >= config.subscriber_surge_threshold) {
+      if (newSubscribers >= config.subscriber_surge_count) {
+        const subscriberGrowthRate = newSubscribers / previousSnapshot.subscriber_count
         alerts.push({
           channel_id: channel.id,
           channel_name: channel.channel_name,
           alert_type: 'subscriber_surge',
           severity: 'medium',
           title: `🚀 ${channel.channel_name} - 구독자 급증`,
-          message: `구독자가 ${(subscriberGrowthRate * 100).toFixed(1)}% 증가했습니다! (${previousSnapshot.subscriber_count.toLocaleString()} → ${currentSubscribers.toLocaleString()})`,
+          message: `구독자가 ${newSubscribers.toLocaleString()}명 증가했습니다! (${previousSnapshot.subscriber_count.toLocaleString()} → ${currentSubscribers.toLocaleString()}, +${(subscriberGrowthRate * 100).toFixed(1)}%)`,
           details: {
             previous_subscribers: previousSnapshot.subscriber_count,
             current_subscribers: currentSubscribers,
             growth_rate: subscriberGrowthRate,
-            new_subscribers: currentSubscribers - previousSnapshot.subscriber_count
+            new_subscribers: newSubscribers
           }
         })
       }

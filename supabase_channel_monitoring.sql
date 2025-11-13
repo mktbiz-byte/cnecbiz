@@ -77,9 +77,9 @@ CREATE TABLE IF NOT EXISTS naver_works_config (
   
   -- 임계값 설정
   no_upload_days INTEGER DEFAULT 3,
-  views_drop_threshold DECIMAL DEFAULT 0.30,  -- 30% 하락
-  subscriber_surge_threshold DECIMAL DEFAULT 0.20,  -- 20% 증가
-  viral_video_multiplier DECIMAL DEFAULT 2.0,  -- 평균 대비 2배
+  views_drop_threshold DECIMAL DEFAULT 0.20,  -- 20% 하락
+  subscriber_surge_count INTEGER DEFAULT 100,  -- 100명 이상 증가
+  viral_video_multiplier DECIMAL DEFAULT 1.5,  -- 평균 대비 1.5배
   
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

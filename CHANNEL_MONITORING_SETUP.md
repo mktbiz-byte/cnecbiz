@@ -5,9 +5,9 @@
 ## 📋 모니터링 항목
 
 1. **영상 업로드 중단** - 3일 이상 새 영상이 없을 경우
-2. **조회수 급락** - 평균 조회수가 30% 이상 하락할 경우
-3. **구독자 급증** - 구독자가 20% 이상 증가할 경우
-4. **영상 바이럴** - 신규 영상 조회수가 평균 대비 2배 이상일 경우
+2. **조회수 급락** - 평균 조회수가 20% 이상 하락할 경우
+3. **구독자 급증** - 구독자가 100명 이상 증가할 경우
+4. **영상 바이럴** - 신규 영상 조회수가 평균 대비 1.5배 이상일 경우
 
 ---
 
@@ -71,9 +71,9 @@ WHERE config_name = 'default';
 UPDATE naver_works_config
 SET 
   no_upload_days = 3,                    -- 업로드 없음 기준 (일)
-  views_drop_threshold = 0.30,           -- 조회수 하락 기준 (30%)
-  subscriber_surge_threshold = 0.20,     -- 구독자 증가 기준 (20%)
-  viral_video_multiplier = 2.0           -- 바이럴 영상 기준 (평균 대비 2배)
+  views_drop_threshold = 0.20,           -- 조회수 하락 기준 (20%)
+  subscriber_surge_count = 100,          -- 구독자 증가 기준 (100명)
+  viral_video_multiplier = 1.5           -- 바이럴 영상 기준 (평균 대비 1.5배)
 WHERE config_name = 'default';
 ```
 
