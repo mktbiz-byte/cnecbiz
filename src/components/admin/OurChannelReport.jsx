@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, TrendingUp, Users, Video, Eye, ThumbsUp, MessageCircle, Sparkles, Save, FileText, Send, Download } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -17,8 +17,8 @@ export default function OurChannelReport() {
   const [loading, setLoading] = useState(true)
   const [loadingInsights, setLoadingInsights] = useState(false)
   const [managerComment, setManagerComment] = useState('')
-  const [savedReports, setSavedReports] = useState([])
   const [savingReport, setSavingReport] = useState(false)
+  const [savedReports, setSavedReports] = useState([])
 
   useEffect(() => {
     loadChannelData()
@@ -116,83 +116,92 @@ export default function OurChannelReport() {
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY
       
-      // 업로드 주기 계산
-      const uploadDates = videos.map(v => new Date(v.publishedAt)).sort((a, b) => b - a)
-      const intervals = []
-      for (let i = 0; i < uploadDates.length - 1; i++) {
-        const diff = Math.abs(uploadDates[i] - uploadDates[i + 1]) / (1000 * 60 * 60 * 24)
-        intervals.push(diff)
-      }
-      const avgInterval = intervals.length > 0 ? (intervals.reduce((sum, val) => sum + val, 0) / intervals.length).toFixed(1) : 'N/A'
+      const avgViews = videos.length > 0 ? videos.reduce((sum, v) => sum + v.viewCount, 0) / videos.length : 0
+      const uploadDates = videos.map(v => new Date(v.publishedAt))
+      const daysBetween = uploadDates.length > 1 ? (uploadDates[0] - uploadDates[uploadDates.length - 1]) / (1000 * 60 * 60 * 24) / (uploadDates.length - 1) : 0
 
-      const prompt = `당신은 YouTube 채널 분석 전문가입니다. 다음 채널 데이터를 분석하고 상세한 보고서를 작성해주세요.
+      const prompt = `당신은 YouTube 채널 분석 전문가입니다. 다음 채널 데이터를 **매우 상세하게** 분석하고 구체적인 인사이트를 제공해주세요.
 
 **채널 정보:**
 - 채널명: ${channel.channel_name}
 - 구독자: ${stats.subscriberCount.toLocaleString()}명
 - 총 영상: ${stats.videoCount}개
 - 총 조회수: ${stats.viewCount.toLocaleString()}회
-- 평균 업로드 간격: ${avgInterval}일
+- 평균 조회수: ${Math.round(avgViews).toLocaleString()}회
+- 평균 업로드 주기: ${daysBetween > 0 ? `약 ${Math.round(daysBetween)}일` : '데이터 부족'}
 
 **최근 영상 (최대 10개):**
 ${videos.map((v, i) => `${i + 1}. ${v.title}
-   - 조회수: ${v.viewCount.toLocaleString()}
-   - 좋아요: ${v.likeCount.toLocaleString()}
-   - 댓글: ${v.commentCount.toLocaleString()}
+   - 조회수: ${v.viewCount.toLocaleString()}회 (평균 대비 ${((v.viewCount / avgViews - 1) * 100).toFixed(1)}%)
+   - 좋아요: ${v.likeCount.toLocaleString()}개
+   - 댓글: ${v.commentCount.toLocaleString()}개
+   - 참여율: ${((v.likeCount + v.commentCount) / v.viewCount * 100).toFixed(2)}%
    - 게시일: ${new Date(v.publishedAt).toLocaleDateString()}`).join('\n\n')}
 
-다음 JSON 형식으로 **반드시 정확하게** 응답해주세요:
+다음 5가지 항목을 **매우 구체적이고 상세하게** 분석하여 JSON 형식으로 응답해주세요:
+
 {
   "overall_score": 채널 전체 점수 (0-100),
-  "performance_summary": "채널 성과 요약 (2-3문장)",
+  "performance_summary": "채널 성과 요약 (3-4문장, 구체적인 수치 포함)",
   
-  "weaknesses": [
-    {
-      "category": "카테고리명",
-      "issue": "구체적인 문제점",
-      "severity": "high/medium/low",
-      "suggestion": "개선 방안"
-    }
-  ],
-  
-  "upload_schedule": {
-    "current_frequency": "현재 업로드 빈도 설명",
-    "consistency": "일관적/불규칙",
-    "recommendation": "권장 업로드 스케줄",
-    "optimal_days": ["월요일", "목요일"],
-    "optimal_time": "오후 6시"
+  "weaknesses": {
+    "categories": [
+      {
+        "category": "카테고리명 (예: 콘텐츠 품질, 업로드 일관성, 썸네일, 제목 등)",
+        "issues": ["구체적인 문제점 1", "구체적인 문제점 2"],
+        "impact": "이 문제가 채널에 미치는 영향 (2-3문장)",
+        "solution": "해결 방안 (구체적인 실행 계획)"
+      }
+    ],
+    "priority_fixes": ["가장 시급한 개선 사항 1", "가장 시급한 개선 사항 2"]
   },
   
-  "top_videos_analysis": [
-    {
-      "rank": 1,
-      "title": "영상 제목",
-      "success_factors": ["성공 요인 1", "성공 요인 2"],
-      "key_metrics": "주요 지표 설명",
-      "lessons": "배울 점"
-    }
-  ],
+  "upload_schedule": {
+    "current_frequency": "현재 업로드 빈도 (예: 주 2회, 월 8회 등)",
+    "consistency_score": 일관성 점수 (0-100),
+    "consistency_analysis": "업로드 일관성 분석 (2-3문장)",
+    "recommended_schedule": "권장 업로드 스케줄 (구체적으로)",
+    "best_upload_times": ["추천 업로드 시간대 1", "추천 업로드 시간대 2"],
+    "rationale": "권장 스케줄의 근거 (2-3문장)"
+  },
   
-  "improvements": [
-    {
-      "title": "개선 항목 제목",
-      "priority": "high/medium/low",
-      "description": "상세 설명",
-      "action_items": ["실행 항목 1", "실행 항목 2", "실행 항목 3"],
-      "expected_impact": "기대 효과"
-    }
-  ],
+  "top_videos_analysis": {
+    "best_performing": [
+      {
+        "title": "영상 제목",
+        "views": 조회수,
+        "success_factors": ["성공 요인 1", "성공 요인 2", "성공 요인 3"],
+        "lessons": "이 영상에서 배울 점 (2-3문장)"
+      }
+    ],
+    "common_patterns": ["인기 영상들의 공통 패턴 1", "공통 패턴 2"],
+    "content_recommendations": "향후 콘텐츠 제작 방향 (3-4문장)"
+  },
   
-  "strengths": ["강점 1", "강점 2", "강점 3"],
-  "trending_topics": ["인기 주제 1", "인기 주제 2"],
-  "engagement_analysis": "참여율 분석 (2-3문장)",
-  "growth_prediction": "성장 전망 (2-3문장)",
+  "improvements": {
+    "immediate_actions": [
+      {
+        "action": "즉시 실행 가능한 개선 사항",
+        "expected_impact": "예상 효과",
+        "difficulty": "쉬움/보통/어려움"
+      }
+    ],
+    "short_term": ["1-2주 내 실행할 개선 사항 1", "개선 사항 2"],
+    "long_term": ["1-3개월 내 실행할 개선 사항 1", "개선 사항 2"],
+    "investment_needed": "필요한 투자 (시간, 비용, 장비 등)"
+  },
   
   "overall_evaluation": {
-    "grade": "A/B/C/D/F",
-    "summary": "종합 평가 요약",
-    "next_milestone": "다음 목표"
-  }
+    "grade": "A+/A/B+/B/C+/C/D",
+    "strengths": ["주요 강점 1 (구체적으로)", "강점 2", "강점 3"],
+    "growth_potential": "성장 가능성 평가 (3-4문장)",
+    "competitive_position": "경쟁력 분석 (2-3문장)",
+    "next_milestone": "다음 목표 (구체적인 수치와 기간)",
+    "final_comment": "종합 평가 및 격려 메시지 (3-4문장)"
+  },
+  
+  "trending_topics": ["현재 트렌드 주제 1", "주제 2", "주제 3"],
+  "engagement_analysis": "참여율 분석 및 개선 방안 (3-4문장)"
 }`
 
       const response = await fetch(
@@ -230,8 +239,7 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
     }
   }
 
-  // 보고서 저장 (임시저장 또는 게시)
-  const saveReport = async (status = 'draft') => {
+  const saveReport = async (status) => {
     if (!insights) {
       alert('먼저 AI 인사이트를 생성해주세요.')
       return
@@ -241,42 +249,30 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       
-      const reportData = {
-        channel_id: channelId,
-        channel_name: channel.channel_name,
-        report_type: 'our_channel',
-        status,
-        ai_analysis: insights,
-        weaknesses: insights.weaknesses || [],
-        upload_schedule: insights.upload_schedule || {},
-        top_videos_analysis: insights.top_videos_analysis || [],
-        improvements: insights.improvements || [],
-        overall_evaluation: insights.overall_evaluation || {},
-        manager_comment: managerComment,
-        stats,
-        videos,
-        created_by: user?.email,
-        published_at: status === 'published' ? new Date().toISOString() : null
-      }
-
-      const { data, error } = await supabaseBiz
+      const { error } = await supabaseBiz
         .from('creator_reports')
-        .insert([reportData])
-        .select()
+        .insert({
+          channel_id: channelId,
+          channel_name: channel.channel_name,
+          report_type: 'our_channel',
+          status: status,
+          ai_analysis: insights,
+          manager_comment: managerComment,
+          created_by: user?.id
+        })
 
       if (error) throw error
 
-      alert(status === 'published' ? '보고서가 게시되었습니다!' : '보고서가 임시저장되었습니다!')
+      alert(status === 'draft' ? '임시저장되었습니다.' : '보고서가 게시되었습니다.')
       loadSavedReports()
-    } catch (error) {
-      console.error('보고서 저장 실패:', error)
+    } catch (err) {
+      console.error('보고서 저장 실패:', err)
       alert('보고서 저장에 실패했습니다.')
     } finally {
       setSavingReport(false)
     }
   }
 
-  // 저장된 보고서 목록 로드
   const loadSavedReports = async () => {
     try {
       const { data, error } = await supabaseBiz
@@ -287,31 +283,11 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
 
       if (error) throw error
       setSavedReports(data || [])
-    } catch (error) {
-      console.error('보고서 로드 실패:', error)
+    } catch (err) {
+      console.error('보고서 로드 실패:', err)
     }
   }
 
-  // 보고서 삭제
-  const deleteReport = async (reportId) => {
-    if (!confirm('이 보고서를 삭제하시겠습니까?')) return
-
-    try {
-      const { error } = await supabaseBiz
-        .from('creator_reports')
-        .delete()
-        .eq('id', reportId)
-
-      if (error) throw error
-      alert('보고서가 삭제되었습니다.')
-      loadSavedReports()
-    } catch (error) {
-      console.error('보고서 삭제 실패:', error)
-      alert('보고서 삭제에 실패했습니다.')
-    }
-  }
-
-  // 크리에이터에게 전송
   const sendToCreator = async (reportId) => {
     try {
       const { error } = await supabaseBiz
@@ -320,11 +296,29 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
         .eq('id', reportId)
 
       if (error) throw error
-      alert('크리에이터에게 보고서가 전송되었습니다!')
+      alert('크리에이터에게 전송되었습니다.')
       loadSavedReports()
-    } catch (error) {
-      console.error('전송 실패:', error)
-      alert('보고서 전송에 실패했습니다.')
+    } catch (err) {
+      console.error('전송 실패:', err)
+      alert('전송에 실패했습니다.')
+    }
+  }
+
+  const deleteReport = async (reportId) => {
+    if (!confirm('정말로 삭제하시겠습니까?')) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('creator_reports')
+        .delete()
+        .eq('id', reportId)
+
+      if (error) throw error
+      alert('삭제되었습니다.')
+      loadSavedReports()
+    } catch (err) {
+      console.error('삭제 실패:', err)
+      alert('삭제에 실패했습니다.')
     }
   }
 
@@ -593,129 +587,99 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
 
-        {/* 매니저 코멘트 및 저장 */}
-        {insights && (
-          <Card className="mb-6 border-2 border-blue-200">
-            <CardHeader>
-              <CardTitle className="flex items-center text-blue-900">
-                <FileText className="w-5 h-5 mr-2" />
-                매니저 코멘트
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  크리에이터에게 전달할 코멘트를 작성하세요
-                </label>
+            {/* 매니저 코멘트 */}
+            <Card className="border-2 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center text-blue-900">
+                  <FileText className="w-5 h-5 mr-2" />
+                  매니저 코멘트
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <Textarea
                   value={managerComment}
                   onChange={(e) => setManagerComment(e.target.value)}
-                  placeholder="예: 이번 달 영상 품질이 많이 향상되었습니다. 특히 썸네일 디자인이 좋았어요. 다음 달에는 업로드 주기를 좀 더 일정하게 유지해주시면 좋겠습니다."
-                  rows={5}
-                  className="w-full"
+                  placeholder="크리에이터에게 전달할 피드백을 작성하세요..."
+                  className="min-h-[150px] mb-4"
                 />
-              </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => saveReport('draft')}
+                    disabled={savingReport}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {savingReport ? '저장 중...' : '임시저장'}
+                  </Button>
+                  <Button
+                    onClick={() => saveReport('published')}
+                    disabled={savingReport}
+                    className="flex-1"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    {savingReport ? '저장 중...' : '게시'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => saveReport('draft')}
-                  disabled={savingReport}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {savingReport ? '저장 중...' : '임시저장'}
-                </Button>
-
-                <Button
-                  onClick={() => saveReport('published')}
-                  disabled={savingReport}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-                >
-                  <Send className="w-4 h-4" />
-                  {savingReport ? '게시 중...' : '보고서 게시'}
-                </Button>
-
-                <div className="flex-1" />
-
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  onClick={() => alert('PDF 다운로드 기능은 곧 추가됩니다.')}
-                >
-                  <Download className="w-4 h-4" />
-                  PDF 다운로드
-                </Button>
-              </div>
-
-              <p className="text-xs text-gray-500">
-                💡 임시저장: 작성 중인 보고서를 저장합니다. | 게시: 보고서를 확정하고 크리에이터에게 전송 가능한 상태로 만듭니다.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 저장된 보고서 목록 */}
-        {savedReports.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>저장된 보고서 ({savedReports.length}개)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {savedReports.map((report) => (
-                  <div key={report.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          report.status === 'published' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {report.status === 'published' ? '게시됨' : '임시저장'}
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          {new Date(report.created_at).toLocaleString('ko-KR')}
-                        </span>
+            {/* 저장된 보고서 목록 */}
+            {savedReports.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>저장된 보고서 ({savedReports.length}개)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {savedReports.map((report) => (
+                      <div key={report.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              report.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {report.status === 'published' ? '게시됨' : '임시저장'}
+                            </span>
+                            <span className="ml-2 text-sm text-gray-600">
+                              {new Date(report.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            {!report.sent_to_creator_at && (
+                              <Button
+                                size="sm"
+                                onClick={() => sendToCreator(report.id)}
+                              >
+                                <Send className="w-4 h-4 mr-1" />
+                                전송
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteReport(report.id)}
+                            >
+                              삭제
+                            </Button>
+                          </div>
+                        </div>
+                        {report.manager_comment && (
+                          <p className="text-sm text-gray-700 mt-2">{report.manager_comment}</p>
+                        )}
+                        {report.sent_to_creator_at && (
+                          <p className="text-xs text-green-600 mt-2">
+                            ✓ {new Date(report.sent_to_creator_at).toLocaleString()} 전송됨
+                          </p>
+                        )}
                       </div>
-                      {report.manager_comment && (
-                        <p className="text-sm text-gray-700 mt-2 line-clamp-2">
-                          {report.manager_comment}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      {report.status === 'published' && !report.sent_to_creator_at && (
-                        <Button
-                          size="sm"
-                          onClick={() => sendToCreator(report.id)}
-                          className="flex items-center gap-1"
-                        >
-                          <Send className="w-3 h-3" />
-                          전송
-                        </Button>
-                      )}
-                      {report.sent_to_creator_at && (
-                        <span className="text-xs text-green-600">
-                          ✓ 전송됨 ({new Date(report.sent_to_creator_at).toLocaleDateString()})
-                        </span>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteReport(report.id)}
-                      >
-                        삭제
-                      </Button>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
 
         {/* 최근 영상 목록 */}

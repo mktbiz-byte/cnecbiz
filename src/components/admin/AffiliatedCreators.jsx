@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus, Users, Eye, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, Users, Eye, RefreshCw, Trash2, FileText } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function AffiliatedCreators({ onUpdate }) {
@@ -233,30 +233,40 @@ export default function AffiliatedCreators({ onUpdate }) {
                   </p>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="space-y-2">
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => window.open(creator.platform_url, '_blank')}
-                    className="flex-1"
+                    className="w-full"
+                    onClick={() => window.location.href = `/admin/creator-report/${creator.id}`}
                   >
-                    <Eye className="w-4 h-4 mr-1" />
-                    보기
+                    <FileText className="w-4 h-4 mr-2" />
+                    보고서 보기
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRefreshStats(creator)}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDeleteCreator(creator.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(creator.platform_url, '_blank')}
+                      className="flex-1"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      보기
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRefreshStats(creator)}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteCreator(creator.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <p className="text-xs text-gray-400 mt-3">
