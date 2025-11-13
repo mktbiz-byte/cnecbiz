@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus, Users, Eye, RefreshCw, Trash2, FileText } from 'lucide-react'
+import { Plus, Users, Eye, Trash2, RefreshCw, FileText } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function AffiliatedCreators({ onUpdate }) {
+  const navigate = useNavigate()
   const [creators, setCreators] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -91,6 +93,10 @@ export default function AffiliatedCreators({ onUpdate }) {
 
   const handleRefreshStats = async (creator) => {
     alert('통계 새로고침 기능은 준비 중입니다.')
+  }
+
+  const handleViewReport = (creatorId) => {
+    navigate(`/admin/channel-report/${creatorId}`)
   }
 
   if (loading) {
@@ -236,12 +242,13 @@ export default function AffiliatedCreators({ onUpdate }) {
                 <div className="space-y-2">
                   <Button
                     size="sm"
+                    onClick={() => handleViewReport(creator.id)}
                     className="w-full"
-                    onClick={() => window.location.href = `/admin/creator-report/${creator.id}`}
                   >
                     <FileText className="w-4 h-4 mr-2" />
                     보고서 보기
                   </Button>
+                  
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -286,4 +293,3 @@ export default function AffiliatedCreators({ onUpdate }) {
     </div>
   )
 }
-

@@ -99,7 +99,7 @@ export default function OurChannels({ onUpdate }) {
   }
 
   const handleViewReport = (channelId) => {
-    navigate(`/admin/channel-report/${channelId}?type=our_channel`)
+    navigate(`/admin/our-channel-report/${channelId}`)
   }
 
   if (loading) {
