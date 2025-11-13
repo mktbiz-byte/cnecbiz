@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus, Users, Eye, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, Users, Eye, Trash2, RefreshCw, FileText } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function AffiliatedCreators({ onUpdate }) {
+  const navigate = useNavigate()
   const [creators, setCreators] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -91,6 +93,10 @@ export default function AffiliatedCreators({ onUpdate }) {
 
   const handleRefreshStats = async (creator) => {
     alert('통계 새로고침 기능은 준비 중입니다.')
+  }
+
+  const handleViewReport = (creatorId) => {
+    navigate(`/admin/channel-report/${creatorId}`)
   }
 
   if (loading) {
@@ -233,30 +239,41 @@ export default function AffiliatedCreators({ onUpdate }) {
                   </p>
                 )}
                 
-                <div className="flex gap-2">
+                <div className="space-y-2">
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => window.open(creator.platform_url, '_blank')}
-                    className="flex-1"
+                    onClick={() => handleViewReport(creator.id)}
+                    className="w-full"
                   >
-                    <Eye className="w-4 h-4 mr-1" />
-                    보기
+                    <FileText className="w-4 h-4 mr-2" />
+                    보고서 보기
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRefreshStats(creator)}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDeleteCreator(creator.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(creator.platform_url, '_blank')}
+                      className="flex-1"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      보기
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRefreshStats(creator)}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDeleteCreator(creator.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <p className="text-xs text-gray-400 mt-3">
@@ -276,4 +293,3 @@ export default function AffiliatedCreators({ onUpdate }) {
     </div>
   )
 }
-

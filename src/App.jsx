@@ -61,6 +61,7 @@ import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
 import OurChannelReport from './components/admin/OurChannelReport'
+import CreatorReport from './components/admin/CreatorReport'
 import SignContract from './pages/SignContract'
 import ContractManagement from './components/company/ContractManagement'
 import Guidebook from './pages/Guidebook'
@@ -108,7 +109,8 @@ function App() {
         <Route path="/featured-creators" element={<FeaturedCreatorsPage />} />
         <Route path="/featured-creators/:id" element={<FeaturedCreatorProfile />} />
         <Route path="/admin/creators" element={<CreatorManagementPage />} />
-        <Route path="/admin/channel-report/:channelId" element={<OurChannelReport />} />
+        <Route path="/admin/channel-report/:creatorId" element={<CreatorReport />} />
+        <Route path="/admin/our-channel-report/:channelId" element={<OurChannelReport />} />
         
         {/* Super Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />
