@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Users, Eye, Trash2, RefreshCw, FileText } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
+// Creator report feature added - v1.1
 export default function AffiliatedCreators({ onUpdate }) {
   const navigate = useNavigate()
   const [creators, setCreators] = useState([])
