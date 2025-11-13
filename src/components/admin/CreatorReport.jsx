@@ -164,7 +164,7 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
    - 게시일: ${new Date(v.publishedAt).toLocaleDateString()}`).join('\n\n')}
 ` : ''
       
-      const prompt = `당신은 크리에이터 성과 분석 전문가입니다. 다음 크리에이터 데이터를 분석하고 상세한 보고서를 작성해주세요.
+      const prompt = `당신은 YouTube 채널 성과 분석 전문 컨설턴트입니다. 아래 실제 데이터를 기반으로 **즉시 실행 가능한 구체적인 인사이트**를 제공해주세요.
 
 **크리에이터 정보:**
 - 이름: ${creator.creator_name}
@@ -174,21 +174,41 @@ ${creator.description ? `- 설명: ${creator.description}` : ''}
 ${statsInfo}
 ${videosInfo}
 
-다음 5가지 항목에 대해 **구체적이고 상세하게** 분석해주세요. 각 항목은 최소 3-5문장 이상으로 작성하고, 구체적인 수치와 예시를 포함해주세요:
+**분석 요구사항:**
+각 항목은 **실제 데이터 기반**으로 작성하고, 일반론이 아닌 **이 채널만의 구체적인 인사이트**를 제공하세요.
 
-1. **약점 및 개선 필요 사항**: 현재 채널의 구체적인 문제점과 개선이 필요한 부분을 상세히 분석
-2. **업로드 빈도 분석**: 영상 업로드 주기, 일관성, 최적 업로드 시간대 등을 구체적으로 분석
-3. **인기 영상 분석**: 조회수가 높은 영상들의 공통점, 주제, 스타일 등을 상세히 분석
-4. **개선 계획**: 단기/중기/장기 개선 방안을 구체적인 실행 계획과 함께 제시
-5. **종합 평가**: 채널의 현재 상태, 성장 가능성, 강점과 약점을 종합적으로 평가
+1. **핵심 문제점 및 즉시 개선 사항** (3-4문장)
+   - 조회수/참여율 데이터에서 발견된 구체적 문제
+   - 숫자로 표현 가능한 개선 목표 제시
+   - 예: "최근 10개 영상 중 5개가 평균 조회수의 50% 미만. 썸네일 A/B 테스트로 클릭률 20% 개선 목표"
 
-JSON 형식으로 응답해주세요:
+2. **업로드 패턴 및 최적화 제안** (3-4문장)
+   - 실제 업로드 날짜 기반 주기 계산
+   - 조회수가 높은 영상의 업로드 요일/시간대 패턴
+   - 구체적인 업로드 스케줄 제안
+
+3. **인기 영상 성공 요인 분석** (3-4문장)
+   - 상위 조회수 영상의 구체적인 공통점 (제목 패턴, 주제, 길이 등)
+   - 숫자 기반 비교 (예: "상위 3개 영상 평균 조회수 50만 vs 하위 평균 5만")
+   - 재현 가능한 성공 공식 제시
+
+4. **3개월 실행 계획** (우선순위별 3-5개 액션)
+   - 1순위: [구체적 액션] - 예상 효과: [%]
+   - 2순위: [구체적 액션] - 예상 효과: [%]
+   - 각 액션은 측정 가능한 KPI 포함
+
+5. **채널 성장 잠재력 평가** (3-4문장)
+   - 현재 성과 vs 동일 카테고리 벤치마크 비교
+   - 3개월/6개월 성장 목표 (구독자, 조회수)
+   - 핵심 강점 1개, 핵심 약점 1개
+
+JSON 형식으로 응답:
 {
-  "weaknesses": "약점 및 개선 필요 사항 (상세하게 3-5문장)",
-  "upload_frequency": "업로드 빈도 분석 (상세하게 3-5문장)",
-  "popular_videos": "인기 영상 분석 (상세하게 3-5문장)",
-  "improvement_plan": "개선 계획 (상세하게 3-5문장)",
-  "overall_evaluation": "종합 평가 (상세하게 3-5문장)"
+  "weaknesses": "구체적 수치 포함",
+  "upload_frequency": "실제 날짜 기반 분석",
+  "popular_videos": "상위 영상 데이터 비교",
+  "improvement_plan": "우선순위별 액션 리스트",
+  "overall_evaluation": "숫자 기반 평가"
 }`
 
       const response = await fetch(
@@ -314,6 +334,21 @@ JSON 형식으로 응답해주세요:
     ? Math.round(videos.reduce((sum, v) => sum + v.commentCount, 0) / videos.length)
     : 0
 
+  // 총 조회수 계산
+  const totalViews = videos.reduce((sum, v) => sum + v.viewCount, 0)
+
+  // 업로드 주기 계산 (일 단위)
+  const uploadFrequency = videos.length > 1
+    ? (() => {
+        const dates = videos.map(v => new Date(v.publishedAt)).sort((a, b) => b - a)
+        const daysDiff = (dates[0] - dates[dates.length - 1]) / (1000 * 60 * 60 * 24)
+        return Math.round(daysDiff / (videos.length - 1))
+      })()
+    : 0
+
+  // 참여율 계산
+  const engagementRate = avgViews > 0 ? ((avgLikes + avgComments) / avgViews * 100).toFixed(2) : 0
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminNavigation />
@@ -392,9 +427,53 @@ JSON 형식으로 응답해주세요:
           </div>
         )}
 
-        {/* 평균 통계 */}
+        {/* 상세 통계 대시보드 */}
         {videos.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">통계 대시보드</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium text-blue-700">최근 영상 수</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-blue-900">{videos.length}개</p>
+                  <p className="text-xs text-blue-600 mt-1">분석 기준</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium text-purple-700">총 조회수</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-purple-900">{totalViews.toLocaleString()}</p>
+                  <p className="text-xs text-purple-600 mt-1">최근 영상 합계</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-50 to-green-100">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium text-green-700">업로드 주기</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-green-900">{uploadFrequency}일</p>
+                  <p className="text-xs text-green-600 mt-1">평균 간격</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium text-orange-700">참여율</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-orange-900">{engagementRate}%</p>
+                  <p className="text-xs text-orange-600 mt-1">좋아요+댓글/조회</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-gray-600">평균 조회수</CardTitle>
@@ -439,41 +518,70 @@ JSON 형식으로 응답해주세요:
 
         {/* AI 분석 결과 */}
         {Object.values(aiAnalysis).some(value => value && value.trim() !== '') && (
-          <div className="mb-6 space-y-6">
-            <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
-              <CardHeader>
-                <CardTitle className="flex items-center text-purple-900">
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  AI 성과 분석
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">1. 약점 및 개선 필요 사항</h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{aiAnalysis.weaknesses}</p>
-                </div>
+          <div className="mb-6">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                <Sparkles className="w-6 h-6 mr-2 text-purple-600" />
+                AI 성과 분석
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+              <Card className="border-l-4 border-l-red-500 hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-bold text-red-700 flex items-center">
+                    🚨 핵심 문제점 및 즉시 개선 사항
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.weaknesses}</p>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">2. 업로드 빈도 분석</h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{aiAnalysis.upload_frequency}</p>
-                </div>
+              <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-bold text-blue-700 flex items-center">
+                    📅 업로드 패턴 및 최적화 제안
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.upload_frequency}</p>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">3. 인기 영상 분석</h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{aiAnalysis.popular_videos}</p>
-                </div>
+              <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-bold text-green-700 flex items-center">
+                    🏆 인기 영상 성공 요인 분석
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.popular_videos}</p>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">4. 개선 계획</h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{aiAnalysis.improvement_plan}</p>
-                </div>
+              <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-bold text-purple-700 flex items-center">
+                    🎯 3개월 실행 계획
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.improvement_plan}</p>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">5. 종합 평가</h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{aiAnalysis.overall_evaluation}</p>
-                </div>
-              </CardContent>
-            </Card>
+              <Card className="border-l-4 border-l-yellow-500 hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-bold text-yellow-700 flex items-center">
+                    📊 채널 성장 잠재력 평가
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.overall_evaluation}</p>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* 담당자 코멘트 */}
             <Card>
