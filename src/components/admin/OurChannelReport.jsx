@@ -530,7 +530,7 @@ JSON 형식으로 응답:
               <Card className="border-l-4 border-l-red-500 hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-bold text-red-700 flex items-center">
-                    🚨 핵심 문제점 및 즉시 개선 사항
+                    [핵심] 문제점 및 즉시 개선 사항
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -541,7 +541,7 @@ JSON 형식으로 응답:
               <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-bold text-blue-700 flex items-center">
-                    📅 업로드 패턴 및 최적화 제안
+                    [업로드] 패턴 및 최적화 제안
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -552,7 +552,7 @@ JSON 형식으로 응답:
               <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-bold text-green-700 flex items-center">
-                    🏆 인기 영상 성공 요인 분석
+                    [인기] 영상 성공 요인 분석
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -563,7 +563,7 @@ JSON 형식으로 응답:
               <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-bold text-purple-700 flex items-center">
-                    🎯 3개월 실행 계획
+                    [계획] 3개월 실행 계획
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -574,7 +574,7 @@ JSON 형식으로 응답:
               <Card className="border-l-4 border-l-yellow-500 hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-bold text-yellow-700 flex items-center">
-                    📊 채널 성장 잠재력 평가
+                    [평가] 채널 성장 잠재력
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
