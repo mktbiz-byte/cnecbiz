@@ -753,52 +753,36 @@ ${weekData.required_scenes}
                 </div>
               </div>
 
-              {/* 선택된 카테고리의 주차별 예시 */}
+              {/* 선택된 카테고리의 미션 예시 리스트 */}
               {selectedCategory && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg">
                     <h4 className="font-bold text-lg mb-4">
-                      {missionExamples[selectedCategory].name} - Week {currentWeekForExample}
+                      {missionExamples[selectedCategory].name} - Week {currentWeekForExample} 미션 예시
                     </h4>
-                    {(() => {
-                      const weekKey = `week${currentWeekForExample}`
-                      const weekData = missionExamples[selectedCategory].weeks[weekKey]
-                      return (
-                        <div className="space-y-4">
-                          <div className="bg-white p-4 rounded-lg">
-                            <h5 className="font-semibold text-purple-700 mb-2">주차별 미션</h5>
-                            <p className="text-gray-700">{weekData.mission}</p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      아래 예시 중 하나를 선택하거나 참고하여 미션을 작성하세요.
+                    </p>
+                    <div className="bg-white rounded-lg p-4">
+                      <div className="space-y-3">
+                        {missionExamples[selectedCategory].missions.map((mission, index) => (
+                          <div
+                            key={index}
+                            className="flex items-start gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer border border-gray-200 hover:border-purple-300"
+                            onClick={() => {
+                              // 클릭 시 해당 미션을 입력 필드에 복사할 수 있도록
+                              const weekKey = `week${currentWeekForExample}`
+                              updateWeeklyGuide(weekKey, 'mission', mission)
+                              setShowExamplesModal(false)
+                            }}
+                          >
+                            <span className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-sm font-semibold">
+                              {index + 1}
+                            </span>
+                            <p className="text-gray-700 flex-1">{mission}</p>
                           </div>
-                          <div className="bg-white p-4 rounded-lg">
-                            <h5 className="font-semibold text-blue-700 mb-2">참고 레퍼런스</h5>
-                            <p className="text-gray-700">{weekData.reference}</p>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg">
-                            <h5 className="font-semibold text-green-700 mb-2">필수 대사</h5>
-                            <pre className="text-gray-700 whitespace-pre-wrap font-sans">{weekData.required_dialogue}</pre>
-                          </div>
-                          <div className="bg-white p-4 rounded-lg">
-                            <h5 className="font-semibold text-orange-700 mb-2">필수 장면</h5>
-                            <pre className="text-gray-700 whitespace-pre-wrap font-sans">{weekData.required_scenes}</pre>
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
-
-                  {/* 모든 주차 보기 */}
-                  <div className="border-t pt-6">
-                    <h4 className="font-bold text-lg mb-4">
-                      {missionExamples[selectedCategory].name} - 전체 4주 흐름
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(missionExamples[selectedCategory].weeks).map(([weekKey, weekData], index) => (
-                        <div key={weekKey} className="bg-gray-50 p-4 rounded-lg">
-                          <h5 className="font-semibold text-purple-700 mb-2">Week {index + 1}</h5>
-                          <p className="text-sm text-gray-700 font-semibold mb-1">{weekData.mission}</p>
-                          <p className="text-xs text-gray-600">{weekData.reference}</p>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
