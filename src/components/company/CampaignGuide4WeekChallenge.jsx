@@ -128,9 +128,53 @@ export default function CampaignGuide4WeekChallenge() {
     setGenerating(true)
 
     try {
-      // AI 가이드 생성 (추후 구현)
-      // 여기서는 임시로 입력된 내용을 조합하여 저장
-      const generatedGuide = `[${week.toUpperCase()} 미션]\n${weekData.mission}\n\n[참고 레퍼런스]\n${weekData.reference || '없음'}\n\n[필수 대사]\n${weekData.required_dialogue}\n\n[필수 장면]\n${weekData.required_scenes}`
+      // Gemini API를 사용한 AI 가이드 생성
+      const weekNumber = week.replace('week', '')
+      const prompt = `당신은 전문 마케팅 콘텐츠 기획자입니다. 4주 챌린지 캠페인의 Week ${weekNumber} 가이드를 작성해주세요.
+
+[제품 정보]
+브랜드: ${productData.brand}
+제품명: ${productData.product_name}
+제품 특징: ${productData.product_features}
+핵심 포인트: ${productData.product_key_points}
+
+[기본 가이드]
+${baseGuide}
+
+[Week ${weekNumber} 미션]
+${weekData.mission}
+
+[참고 레퍼런스]
+${weekData.reference || '없음'}
+
+[필수 대사]
+${weekData.required_dialogue}
+
+[필수 장면]
+${weekData.required_scenes}
+
+위 정보를 바탕으로 크리에이터가 실제로 촬영할 수 있는 상세한 콘텐츠 가이드를 작성해주세요.
+다음 항목을 포함해야 합니다:
+1. 콘텐츠 개요 (이번 주차의 목표와 메시지)
+2. 촬영 가이드 (구체적인 장면 구성과 순서)
+3. 필수 요소 체크리스트 (반드시 포함해야 할 대사와 장면)
+4. 편집 팁 (영상 분위기, 음악, 자막 등)
+5. 주의사항
+
+전문적이고 실용적인 가이드를 작성해주세요.`
+
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + import.meta.env.VITE_GEMINI_API_KEY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      })
+
+      if (!response.ok) throw new Error('AI 생성 실패')
+      
+      const data = await response.json()
+      const generatedGuide = data.candidates[0].content.parts[0].text
       
       setWeeklyGuides(prev => ({
         ...prev,
@@ -140,7 +184,7 @@ export default function CampaignGuide4WeekChallenge() {
         }
       }))
 
-      alert(`Week ${week.replace('week', '')} 가이드가 생성되었습니다!`)
+      alert(`Week ${weekNumber} 가이드가 생성되었습니다!`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
