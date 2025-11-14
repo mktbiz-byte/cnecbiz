@@ -178,14 +178,26 @@ JSON만 응답하세요.`
       )
 
       if (!response.ok) {
-        throw new Error('AI 가이드 생성 실패')
+        const errorData = await response.json()
+        console.error('Gemini API 에러:', errorData)
+        throw new Error(`AI 가이드 생성 실패: ${errorData.error?.message || response.statusText}`)
       }
 
       const result = await response.json()
+      
+      if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+        console.error('Gemini API 응답 형식 오류:', result)
+        throw new Error('AI 응답 형식이 올바르지 않습니다.')
+      }
+
       const generatedText = result.candidates[0].content.parts[0].text
       const guideData = JSON.parse(generatedText)
 
       setAiGuide(guideData)
+      // 모든 컨셉을 기본으로 선택
+      if (guideData.video_concepts) {
+        setSelectedConcepts(guideData.video_concepts.map((_, index) => index))
+      }
 
       // Supabase에 저장
       const { error } = await supabase
@@ -197,7 +209,7 @@ JSON만 응답하세요.`
 
     } catch (error) {
       console.error('AI 가이드 생성 실패:', error)
-      alert('AI 가이드 생성 중 오류가 발생했습니다.')
+      alert(`AI 가이드 생성 중 오류가 발생했습니다.\n\n${error.message}`)
     } finally {
       setGenerating(false)
     }
@@ -285,14 +297,26 @@ JSON 형식으로만 응답해주세요.`
       )
 
       if (!response.ok) {
-        throw new Error('AI 가이드 생성 실패')
+        const errorData = await response.json()
+        console.error('Gemini API 에러:', errorData)
+        throw new Error(`AI 가이드 생성 실패: ${errorData.error?.message || response.statusText}`)
       }
 
       const result = await response.json()
+      
+      if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+        console.error('Gemini API 응답 형식 오류:', result)
+        throw new Error('AI 응답 형식이 올바르지 않습니다.')
+      }
+
       const generatedText = result.candidates[0].content.parts[0].text
       const guideData = JSON.parse(generatedText)
 
       setAiGuide(guideData)
+      // 모든 컨셉을 기본으로 선택
+      if (guideData.video_concepts) {
+        setSelectedConcepts(guideData.video_concepts.map((_, index) => index))
+      }
 
       // Supabase에 저장
       const { error } = await supabase
@@ -304,7 +328,7 @@ JSON 형식으로만 응답해주세요.`
 
     } catch (error) {
       console.error('AI 가이드 생성 실패:', error)
-      alert('AI 가이드 생성 중 오류가 발생했습니다.')
+      alert(`AI 가이드 생성 중 오류가 발생했습니다.\n\n${error.message}`)
     } finally {
       setGenerating(false)
     }
