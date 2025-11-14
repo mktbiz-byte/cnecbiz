@@ -15,8 +15,14 @@ let _supabaseBiz = null
 const getSupabaseKorea = () => {
   if (_supabaseKorea) return _supabaseKorea
   
+  console.log('[DEBUG] VITE_SUPABASE_KOREA_URL:', import.meta.env.VITE_SUPABASE_KOREA_URL)
+  console.log('[DEBUG] VITE_SUPABASE_KOREA_ANON_KEY:', import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY ? 'exists' : 'missing')
+  
   const url = import.meta.env.VITE_SUPABASE_KOREA_URL || 'https://vluqhvuhykncicgvkosd.supabase.co'
   const key = import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsdXFodnVoeWtuY2ljZ3Zrb3NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNjg2MzAsImV4cCI6MjA3Njg0NDYzMH0.ikEqdx6Le54YJUP-NROKg6EmeHJ4TbKkQ76pw29OQG8'
+  
+  console.log('[DEBUG] Using URL:', url)
+  console.log('[DEBUG] Using KEY:', key ? key.substring(0, 20) + '...' : 'missing')
   
   if (url && key && url.startsWith('http')) {
     _supabaseKorea = createClient(url, key, {
