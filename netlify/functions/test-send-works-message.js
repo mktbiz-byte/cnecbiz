@@ -161,19 +161,19 @@ exports.handler = async (event, context) => {
     // 환경 변수 확인
     const CLIENT_ID = process.env.NAVER_WORKS_CLIENT_ID;
     const CLIENT_SECRET = process.env.NAVER_WORKS_CLIENT_SECRET;
-    const SERVICE_ACCOUNT = process.env.NAVER_WORKS_SERVICE_ACCOUNT;
+    const SERVICE_ACCOUNT = '7c15c.serviceaccount@howlab.co.kr';  // 하드코딩
     const BOT_ID = process.env.NAVER_WORKS_BOT_ID;
     const CHANNEL_ID = process.env.NAVER_WORKS_CHANNEL_ID;
 
     console.log('환경 변수 확인:', {
       CLIENT_ID: CLIENT_ID ? '설정됨' : '없음',
       CLIENT_SECRET: CLIENT_SECRET ? '설정됨' : '없음',
-      SERVICE_ACCOUNT: SERVICE_ACCOUNT ? '설정됨' : '없음',
+      SERVICE_ACCOUNT: '하드코딩됨',
       BOT_ID: BOT_ID ? '설정됨' : '없음',
       CHANNEL_ID: CHANNEL_ID ? '설정됨' : '없음'
     });
 
-    if (!CLIENT_ID || !CLIENT_SECRET || !SERVICE_ACCOUNT || !BOT_ID || !CHANNEL_ID) {
+    if (!CLIENT_ID || !CLIENT_SECRET || !BOT_ID || !CHANNEL_ID) {
       throw new Error('네이버 웍스 환경 변수가 설정되지 않았습니다');
     }
 
