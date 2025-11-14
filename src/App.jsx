@@ -12,6 +12,8 @@ import CompanyDashboard from './components/company/CompanyDashboard'
 import CreateCampaign from './components/company/CreateCampaign'
 import CreateCampaignRouter from './components/company/CreateCampaignRouter'
 import CampaignGuide from './components/company/CampaignGuide'
+import CampaignGuideOliveYoung from './components/company/CampaignGuideOliveYoung'
+import CampaignGuide4WeekChallenge from './components/company/CampaignGuide4WeekChallenge'
 import CampaignGuideEditor from './components/company/CampaignGuideEditor'
 import CampaignGuideJapan from './components/company/CampaignGuideJapan'
 import AdvancedGuideJapan from './components/company/AdvancedGuideJapan'
@@ -99,6 +101,8 @@ function App() {
         <Route path="/company/campaigns/guide/japan" element={<CampaignGuideJapan />} />
         <Route path="/company/campaigns/guide/japan/advanced" element={<AdvancedGuideJapan />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
+        <Route path="/company/campaigns/guide/oliveyoung" element={<CampaignGuideOliveYoung />} />
+        <Route path="/company/campaigns/guide/4week" element={<CampaignGuide4WeekChallenge />} />
         <Route path="/company/campaigns/:id/review" element={<CampaignGuideReview />} />
         <Route path="/company/campaigns/:id/review-old" element={<GuideReview />} />
         <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />

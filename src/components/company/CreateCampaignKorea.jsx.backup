@@ -1,50 +1,51 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { supabaseBiz } from '../../lib/supabase'
-import { storage } from '../../lib/supabase'
+import { supabase, storage } from '../../lib/supabaseKorea'
+import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 const CampaignCreationKorea = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const editId = searchParams.get('id')
-  const thumbnailInputRef = useRef(null)
-  const detailImageInputRef = useRef(null)
+  const editId = searchParams.get('edit')
 
   const [campaignForm, setCampaignForm] = useState({
-    campaign_type: 'regular',  // 'regular', 'oliveyoung', '4week_challenge'
-    package_type: 'beginner',
+    title: '',
     brand: '',
+    requirements: '',
+    category: [],  // ['youtube', 'instagram', 'tiktok']
+    image_url: '',
     product_name: '',
     product_description: '',
     product_link: '',
-    category: [],
+    product_detail_file_url: '',
+    package_type: 'junior',  // junior, intermediate, senior, 4week_challenge
     total_slots: 10,
     remaining_slots: 10,
+    estimated_cost: 2000000,  // 자동 계산
     application_deadline: '',
     start_date: '',
     end_date: '',
-    reward_points: 0,
-    estimated_cost: 0,
-    requirements: '',
-    image_url: '',
-    product_detail_file_url: '',
+    status: 'draft',
+    creator_guide: '',  // 크리에이터 가이드
+
     question1: '',
     question2: '',
     question3: '',
     question4: '',
-    is_oliveyoung_sale: false,
-    target_platforms: [],
-    oliveyoung_subtype: 'pick',
+    campaign_type: 'regular',  // regular, oliveyoung, 4week_challenge
+    is_oliveyoung_sale: false,  // 하위 호환성 유지
+    oliveyoung_subtype: 'sale',  // pick, sale, special
     oliveyoung_logo_url: '',
-    provide_logo: false,
+    provide_logo: false,  // 로고 제공 여부
+    target_platforms: [],  // ['youtube', 'instagram', 'tiktok']
     sale_season: '',
-    content_type: 'store_visit',
+    content_type: '',
     emblem_required: false,
     step1_deadline: '',
     step2_deadline: '',
@@ -55,96 +56,163 @@ const CampaignCreationKorea = () => {
     week4_deadline: ''
   })
 
+  const [questionCount, setQuestionCount] = useState(1)
+
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingDetailImage, setUploadingDetailImage] = useState(false)
-  const [questionCount, setQuestionCount] = useState(0)
+  const [imageFile, setImageFile] = useState(null)
+  const thumbnailInputRef = useRef(null)
+  const detailImageInputRef = useRef(null)
 
+  // 카테고리 옵션 (체크박스용)
   const categoryOptions = [
-    { value: 'youtube', label: '🎥 유튜브' },
+    { value: 'youtube', label: '🎬 유튜브' },
     { value: 'instagram', label: '📸 인스타그램' },
     { value: 'tiktok', label: '🎵 틱톡' }
   ]
 
-  const packageOptions = [
-    { 
-      value: 'beginner', 
-      label: '초급 패키지', 
-      price: 200000, 
-      description: '구독자 1천~1만 (유튜브) / 팔로워 1천~1만 (인스타/틱톡)',
-      expectedApplicants: { youtube: 30, instagram: 50, tiktok: 40 }
-    },
-    { 
-      value: 'intermediate', 
-      label: '중급 패키지', 
-      price: 300000, 
-      description: '구독자 1만~10만 (유튜브) / 팔로워 1만~10만 (인스타/틱톡)',
-      expectedApplicants: { youtube: 20, instagram: 30, tiktok: 25 }
-    },
-    { 
-      value: 'advanced', 
-      label: '상급 패키지', 
-      price: 400000, 
-      description: '구독자 10만+ (유튜브) / 팔로워 10만+ (인스타/틱톡)',
-      expectedApplicants: { youtube: 10, instagram: 15, tiktok: 12 }
+  // 패키지 옵션 - 캠페인 타입별
+  const getPackageOptions = (campaignType) => {
+    if (campaignType === 'regular') {
+      return [
+        { 
+          value: 'junior', 
+          label: '초급 크리에이터 패키지', 
+          price: 200000,
+          priceWithVat: 220000,
+          description: '팔로워 1만~5만 (인스타 기준)',
+          expectedApplicants: { youtube: 5, instagram: 8, tiktok: 10 }
+        },
+        { 
+          value: 'intermediate', 
+          label: '중급 크리에이터 패키지', 
+          price: 300000,
+          priceWithVat: 330000,
+          description: '팔로워 5만~20만 (인스타 기준)',
+          expectedApplicants: { youtube: 10, instagram: 15, tiktok: 15 }
+        },
+        { 
+          value: 'senior', 
+          label: '상급 크리에이터 패키지', 
+          price: 400000,
+          priceWithVat: 440000,
+          description: '팔로워 20만 이상 (인스타 기준)',
+          expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
+        }
+      ]
+    } else if (campaignType === 'oliveyoung') {
+      return [
+        { 
+          value: 'intermediate', 
+          label: '중급 크리에이터 패키지', 
+          price: 300000,
+          priceWithVat: 330000,
+          description: '팔로워 5만~20만 (인스타 기준)',
+          expectedApplicants: { youtube: 10, instagram: 15, tiktok: 15 }
+        },
+        { 
+          value: 'senior', 
+          label: '상급 크리에이터 패키지', 
+          price: 400000,
+          priceWithVat: 440000,
+          description: '팔로워 20만 이상 (인스타 기준)',
+          expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
+        }
+      ]
+    } else if (campaignType === '4week_challenge') {
+      return [
+        { 
+          value: '4week_challenge', 
+          label: '4주 챌린지 프로그램', 
+          price: 600000,
+          priceWithVat: 660000,
+          description: '4주간 지속적인 콘텐츠 제작',
+          expectedApplicants: { youtube: 8, instagram: 15, tiktok: 12 }
+        }
+      ]
     }
-  ]
-
-  // 할인율 계산 함수
-  const calculateDiscount = (subtotal) => {
-    if (subtotal >= 10000000) return 10  // 1000만원 이상 10%
-    if (subtotal >= 5000000) return 7    // 500만원 이상 7%
-    if (subtotal >= 3000000) return 5    // 300만원 이상 5%
-    return 0
+    return []
   }
 
-  // 최종 결제 금액 계산 (할인 + VAT 포함)
+  const packageOptions = getPackageOptions(campaignForm.campaign_type)
+
+  // 입금 금액에 따른 할인율 계산 (1천만원 이상 5% 할인)
+  const calculateDiscount = (amount) => {
+    if (amount >= 10000000) return 5 // 1천만원 이상: 5% 할인
+    return 0 // 할인 없음
+  }
+
+  // 최종 결제 금액 계산 (부가세 10% + 할인 적용)
   const calculateFinalCost = (packagePrice, slots) => {
-    const subtotal = packagePrice * slots
-    const discountRate = calculateDiscount(subtotal)
-    const discountAmount = Math.floor(subtotal * (discountRate / 100))
-    const finalBeforeVat = subtotal - discountAmount
-    const vat = Math.round(finalBeforeVat * 0.1)
-    return finalBeforeVat + vat
+    const originalCost = packagePrice * slots
+    const vat = Math.floor(originalCost * 0.1) // 부가세 10%
+    const discountRate = calculateDiscount(originalCost)
+    const discountAmount = Math.floor(originalCost * (discountRate / 100))
+    return originalCost + vat - discountAmount
   }
 
-  // 수정 모드일 경우 기존 데이터 불러오기
+  // campaign_type 변경 시 package_type 자동 설정
+  useEffect(() => {
+    if (campaignForm.campaign_type === '4week_challenge') {
+      setCampaignForm(prev => ({
+        ...prev,
+        package_type: '4week_challenge'
+      }))
+    } else if (campaignForm.campaign_type === 'regular' || campaignForm.campaign_type === 'oliveyoung') {
+      // 일반 및 올영 캐페인은 중급 패키지를 기본으로 설정
+      setCampaignForm(prev => ({
+        ...prev,
+        package_type: 'intermediate'
+      }))
+    }
+  }, [campaignForm.campaign_type])
+
+  // 초기 로드 시 할인가 계산
+  useEffect(() => {
+    if (!editId) {
+      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+      if (selectedPackage) {
+        const finalCost = calculateFinalCost(selectedPackage.price, campaignForm.total_slots)
+        setCampaignForm(prev => ({
+          ...prev,
+          estimated_cost: finalCost
+        }))
+      }
+    }
+  }, [])
+
+  // 편집 모드일 때 데이터 로드
   useEffect(() => {
     if (editId) {
-      loadCampaign()
+      loadCampaignData()
     }
   }, [editId])
 
-  const loadCampaign = async () => {
+  const loadCampaignData = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabase
         .from('campaigns')
         .select('*')
         .eq('id', editId)
         .single()
 
       if (error) throw error
-
+      
       if (data) {
-        // questions JSONB 배열을 question1-4로 분리
-        const questions = data.questions || []
-        const question1 = questions[0]?.question || ''
-        const question2 = questions[1]?.question || ''
-        const question3 = questions[2]?.question || ''
-        const question4 = questions[3]?.question || ''
-
-        // 질문 개수 설정
-        const qCount = [question1, question2, question3, question4].filter(q => q.trim() !== '').length
-        setQuestionCount(qCount)
-
-        // 카테고리 처리
-        let categoryArray = []
-        if (Array.isArray(data.category)) {
-          categoryArray = data.category
-        } else if (typeof data.category === 'string') {
-          categoryArray = data.category.split(',').map(c => c.trim()).filter(Boolean)
+        // questions JSONB 배열을 question1-4로 복원
+        let question1 = ''
+        let question2 = ''
+        let question3 = ''
+        let question4 = ''
+        
+        if (data.questions && Array.isArray(data.questions)) {
+          question1 = data.questions[0]?.question || ''
+          question2 = data.questions[1]?.question || ''
+          question3 = data.questions[2]?.question || ''
+          question4 = data.questions[3]?.question || ''
         }
 
         setCampaignForm({
@@ -153,24 +221,31 @@ const CampaignCreationKorea = () => {
           question1,
           question2,
           question3,
-          question4,
-          category: categoryArray
+          question4
         })
+        
+        // 질문 개수 계산
+        let count = 0
+        if (question1) count = 1
+        if (question2) count = 2
+        if (question3) count = 3
+        if (question4) count = 4
+        setQuestionCount(count || 1)
       }
     } catch (err) {
-      console.error('캠페인 불러오기 실패:', err)
-      setError('캠페인 정보를 불러오는데 실패했습니다: ' + err.message)
+      console.error('캠페인 데이터 로드 실패:', err)
+      setError('캠페인 데이터를 불러오는데 실패했습니다.')
     }
   }
 
-  // 카테고리 토글 핸들러 (체크박스)
+  // 카테고리 체크박스 변경 핸들러
   const handleCategoryToggle = (value) => {
     setCampaignForm(prev => {
       const newCategory = prev.category.includes(value)
         ? prev.category.filter(c => c !== value)
         : [...prev.category, value]
       
-      // target_platforms도 함께 업데이트
+      // target_platforms 자동 업데이트
       const newTargetPlatforms = {
         youtube: newCategory.includes('youtube'),
         instagram: newCategory.includes('instagram'),
@@ -373,57 +448,106 @@ const CampaignCreationKorea = () => {
 
       if (editId) {
         // 수정 모드: 포인트 차감 없이 수정만 진행
-        const { error: updateError } = await supabaseBiz
+        const { error } = await supabase
           .from('campaigns')
           .update(campaignData)
           .eq('id', editId)
 
-        if (updateError) throw updateError
-
+        if (error) throw error
         setSuccess('캠페인이 수정되었습니다!')
+        
+        // 크리에이터 가이드 페이지로 이동
+        setTimeout(() => {
+          navigate(`/company/campaigns/guide?id=${editId}`)
+        }, 1500)
+        return
       } else {
-        // 신규 생성 모드
-        const { data: insertData, error: insertError } = await supabaseBiz
-          .from('campaigns')
-          .insert([{
-            ...campaignData,
-            status: 'draft'
-          }])
-          .select()
-          .single()
-
-        if (insertError) throw insertError
-
-        const campaignId = insertData.id
-        console.log('[CreateCampaign] Campaign created with ID:', campaignId)
-
-        // 포인트 차감 로직
+        // 신규 생성: 포인트 차감 또는 견적서 발행
+        const finalCost = campaignForm.estimated_cost
+        
+        // 1. 회사 포인트 잔액 확인
         const { data: { user } } = await supabaseBiz.auth.getUser()
         if (!user) throw new Error('로그인이 필요합니다')
 
-        const finalCost = campaignForm.estimated_cost
-
-        // 현재 포인트 조회
-        const { data: companyData, error: companyError } = await supabaseBiz
+        const { data: companyData } = await supabaseBiz
           .from('companies')
-          .select('points')
-          .eq('id', user.id)
+          .select('id, points_balance')
+          .eq('user_id', user.id)
           .single()
 
-        if (companyError) {
-          console.error('[CreateCampaign] Company fetch error:', companyError)
-          throw companyError
-        }
+        if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다')
 
-        const currentPoints = companyData?.points || 0
-        const neededPoints = finalCost
+        const currentPoints = companyData.points_balance || 0
 
-        console.log('[CreateCampaign] Points check:', { currentPoints, neededPoints })
+        if (currentPoints >= finalCost) {
+          // 2-A. 포인트 충분: 캠페인 생성 + 포인트 차감
+          const { data, error } = await supabase
+            .from('campaigns')
+            .insert([campaignData])
+            .select()
 
-        // 포인트 부족 시 charge request 생성
-        if (currentPoints < neededPoints) {
-          console.log('[CreateCampaign] Insufficient points, creating charge request')
+          if (error) throw error
+
+          // 포인트 차감
+          const { error: pointsError } = await supabaseBiz
+            .from('companies')
+            .update({ points_balance: currentPoints - finalCost })
+            .eq('id', companyData.id)
+
+          if (pointsError) throw pointsError
+
+          // 포인트 거래 기록
+          const { error: transactionError } = await supabaseBiz
+            .from('points_transactions')
+            .insert([{
+              company_id: companyData.id,
+              amount: -finalCost,
+              type: 'campaign_creation',
+              description: `캠페인 생성: ${autoTitle}`,
+              campaign_id: data[0].id
+            }])
+            .select()
           
+          if (transactionError) {
+            console.error('포인트 거래 기록 오류:', transactionError)
+            // 거래 기록 실패해도 캠페인은 생성되었으므로 계속 진행
+          }
+
+          setSuccess(`캠페인이 생성되었습니다! ${finalCost.toLocaleString()}포인트가 차감되었습니다.`)
+          
+          // 크리에이터 가이드 페이지로 이동
+          setTimeout(() => {
+            if (data && data[0]) {
+              navigate(`/company/campaigns/guide?id=${data[0].id}`)
+            } else {
+              navigate('/company/campaigns')
+            }
+          }, 1500)
+          return
+        } else {
+          // 2-B. 포인트 부족: 캠페인 생성 + 견적서 발행
+          const neededPoints = finalCost - currentPoints
+          
+          // 캠페인 먼저 생성 (draft 상태)
+          const { data, error } = await supabase
+            .from('campaigns')
+            .insert([{
+              ...campaignData,
+              status: 'draft',
+              approval_status: 'pending_payment'  // 입금 대기 상태
+            }])
+            .select()
+
+          if (error) throw error
+
+          const campaignId = data[0].id
+          
+          // 견적서 데이터 저장
+          console.log('[CreateCampaign] Inserting charge request:', {
+            company_id: companyData.id,
+            amount: finalCost
+          })
+
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert({
@@ -452,15 +576,9 @@ const CampaignCreationKorea = () => {
 
           setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
-          // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
+          // 크리에이터 가이드 페이지로 이동
           setTimeout(() => {
-            if (campaignForm.campaign_type === 'oliveyoung') {
-              navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
-            } else if (campaignForm.campaign_type === '4week_challenge') {
-              navigate(`/company/campaigns/guide/4week?id=${campaignId}`)
-            } else {
-              navigate(`/company/campaigns/guide?id=${campaignId}`)
-            }
+            navigate(`/company/campaigns/guide?id=${campaignId}`)
           }, 1500)
           return
         }
@@ -495,9 +613,144 @@ const CampaignCreationKorea = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              
-              {/* 1. 캠페인 타입 선택 */}
+              {/* 카테고리 선택 (체크박스) */}
               <div>
+                <Label>모집 채널 * (여러 개 선택 가능)</Label>
+                <div className="flex gap-4 mt-2">
+                  {categoryOptions.map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={campaignForm.category.includes(opt.value)}
+                        onChange={() => handleCategoryToggle(opt.value)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {campaignForm.category.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">최소 1개 이상 선택해주세요</p>
+                )}
+              </div>
+
+
+              {/* 브랜드명 */}
+              <div>
+                <Label htmlFor="brand">브랜드명 *</Label>
+                <Input
+                  id="brand"
+                  value={campaignForm.brand}
+                  onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
+                  placeholder="예: 에이블씨엔씨"
+                  required
+                />
+              </div>
+
+              {/* 참여 조건 */}
+              <div>
+                <Label htmlFor="requirements">참여 조건</Label>
+                <Textarea
+                  id="requirements"
+                  value={campaignForm.requirements}
+                  onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
+                  placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
+                  rows={3}
+                />
+              </div>
+
+
+              {/* 모집 인원 및 결제 예상 금액 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="total_slots">모집 인원 *</Label>
+                  <Input
+                    id="total_slots"
+                    type="number"
+                    value={campaignForm.total_slots}
+                    onChange={(e) => handleSlotsChange(e.target.value)}
+                    placeholder="10"
+                    required
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="estimated_cost">결제 예상 금액 (VAT 포함)</Label>
+                  <Input
+                    id="estimated_cost"
+                    type="text"
+                    value={`₩${campaignForm.estimated_cost.toLocaleString()}`}
+                    disabled
+                    className="bg-gray-100 font-semibold text-blue-600"
+                  />
+                  {(() => {
+                    const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
+                    const packagePrice = pkg?.price || 0
+                    const subtotal = packagePrice * campaignForm.total_slots
+                    const discountRate = calculateDiscount(subtotal)
+                    const discountAmount = Math.floor(subtotal * (discountRate / 100))
+                    const finalBeforeVat = subtotal - discountAmount
+                    const vat = Math.round(finalBeforeVat * 0.1)
+                    const totalWithVat = finalBeforeVat + vat
+                    
+                    return (
+                      <div className="text-xs text-gray-500 mt-1 space-y-1">
+                        <div>패키지 금액: {campaignForm.total_slots}명 × ₩{packagePrice.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
+                        {discountRate > 0 && (
+                          <div className="text-green-600 font-medium">
+                            할인 ({discountRate}%): -₩{discountAmount.toLocaleString()}
+                          </div>
+                        )}
+                        <div className="border-t pt-1 mt-1">
+                          <div>부가세(10%): ₩{vat.toLocaleString()}</div>
+                          <div className="font-semibold text-blue-600">총 결제액: ₩{totalWithVat.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* 날짜 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="application_deadline">모집 마감일 *</Label>
+                  <Input
+                    id="application_deadline"
+                    type="date"
+                    value={campaignForm.application_deadline}
+                    onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
+                    required
+                  />
+                </div>
+                {campaignForm.campaign_type === 'regular' && (
+                  <>
+                    <div>
+                      <Label htmlFor="start_date">촬영 마감일 *</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        value={campaignForm.start_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="end_date">SNS 업로드일 *</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        value={campaignForm.end_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 캠페인 타입 선택 */}
+              <div className="border-t pt-6 mt-6">
                 <h3 className="text-lg font-semibold mb-4">🎯 캠페인 타입 선택 *</h3>
                 <div className="space-y-3">
                   {/* 일반 캠페인 */}
@@ -562,11 +815,11 @@ const CampaignCreationKorea = () => {
                 </div>
               </div>
 
-              {/* 2. 패키지 선택 */}
+              {/* 패키지 선택 */}
               <div className="border-t pt-6 mt-6">
                 <Label htmlFor="package_type">패키지 선택 *</Label>
                 {campaignForm.campaign_type === '4week_challenge' ? (
-                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 mt-2">
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-purple-900">4주 챌린지 프로그램 - ₩600,000 <span className="text-sm text-gray-500">(VAT 별도)</span></p>
@@ -578,7 +831,7 @@ const CampaignCreationKorea = () => {
                 ) : (
                   <>
                     <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
-                      <SelectTrigger className="bg-white mt-2">
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="패키지 선택" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
@@ -621,144 +874,6 @@ const CampaignCreationKorea = () => {
                 )}
               </div>
 
-              {/* 3. 모집 인원 및 결제 예상 금액 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="total_slots">모집 인원 *</Label>
-                  <Input
-                    id="total_slots"
-                    type="number"
-                    value={campaignForm.total_slots}
-                    onChange={(e) => handleSlotsChange(e.target.value)}
-                    placeholder="10"
-                    required
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="estimated_cost">결제 예상 금액 (VAT 포함)</Label>
-                  <Input
-                    id="estimated_cost"
-                    type="text"
-                    value={`₩${campaignForm.estimated_cost.toLocaleString()}`}
-                    disabled
-                    className="bg-gray-100 font-semibold text-blue-600"
-                  />
-                  {(() => {
-                    const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
-                    const packagePrice = pkg?.price || 0
-                    const subtotal = packagePrice * campaignForm.total_slots
-                    const discountRate = calculateDiscount(subtotal)
-                    const discountAmount = Math.floor(subtotal * (discountRate / 100))
-                    const finalBeforeVat = subtotal - discountAmount
-                    const vat = Math.round(finalBeforeVat * 0.1)
-                    const totalWithVat = finalBeforeVat + vat
-                    
-                    return (
-                      <div className="text-xs text-gray-500 mt-1 space-y-1">
-                        <div>패키지 금액: {campaignForm.total_slots}명 × ₩{packagePrice.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
-                        {discountRate > 0 && (
-                          <div className="text-green-600 font-medium">
-                            할인 ({discountRate}%): -₩{discountAmount.toLocaleString()}
-                          </div>
-                        )}
-                        <div className="border-t pt-1 mt-1">
-                          <div>부가세(10%): ₩{vat.toLocaleString()}</div>
-                          <div className="font-semibold text-blue-600">총 결제액: ₩{totalWithVat.toLocaleString()}</div>
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-
-              {/* 4. 브랜드명 */}
-              <div>
-                <Label htmlFor="brand">브랜드명 *</Label>
-                <Input
-                  id="brand"
-                  value={campaignForm.brand}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
-                  placeholder="예: 에이블씨엔씨"
-                  required
-                />
-              </div>
-
-              {/* 5. 참여 조건 */}
-              <div>
-                <Label htmlFor="requirements">참여 조건</Label>
-                <Textarea
-                  id="requirements"
-                  value={campaignForm.requirements}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                  placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
-                  rows={3}
-                />
-              </div>
-
-              {/* 6. 모집 채널 (카테고리) */}
-              <div>
-                <Label>모집 채널 * (여러 개 선택 가능)</Label>
-                <div className="flex gap-4 mt-2">
-                  {categoryOptions.map(opt => (
-                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={campaignForm.category.includes(opt.value)}
-                        onChange={() => handleCategoryToggle(opt.value)}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-sm">{opt.label}</span>
-                    </label>
-                  ))}
-                </div>
-                {campaignForm.category.length === 0 && (
-                  <p className="text-sm text-red-500 mt-1">최소 1개 이상 선택해주세요</p>
-                )}
-              </div>
-
-              {/* 7. 업로드 스케줄 */}
-              <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">📅 업로드 스케줄</h3>
-                
-                {/* 모집 마감일 */}
-                <div className="mb-4">
-                  <Label htmlFor="application_deadline">모집 마감일 *</Label>
-                  <Input
-                    id="application_deadline"
-                    type="date"
-                    value={campaignForm.application_deadline}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                {/* 일반 캠페인 스케줄 */}
-                {campaignForm.campaign_type === 'regular' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="start_date">촬영 마감일 *</Label>
-                      <Input
-                        id="start_date"
-                        type="date"
-                        value={campaignForm.start_date}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="end_date">SNS 업로드일 *</Label>
-                      <Input
-                        id="end_date"
-                        type="date"
-                        value={campaignForm.end_date}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* 올영세일 캠페인 상세 설정 */}
               {campaignForm.campaign_type === 'oliveyoung' && (
@@ -870,10 +985,40 @@ const CampaignCreationKorea = () => {
                           </Label>
                         </div>
                       </div>
-                      {campaignForm.target_platforms.length === 0 && (
-                        <p className="text-sm text-red-500 mt-2">최소 1개 이상 선택해주세요</p>
-                      )}
                     </div>
+
+                    {/* 로고 제공 여부 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="provide_logo"
+                        checked={campaignForm.provide_logo}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, provide_logo: e.target.checked }))}
+                        className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                      />
+                      <Label htmlFor="provide_logo" className="cursor-pointer">
+                        크리에이터에게 기업 브랜드 로고 파일 제공 (PNG)
+                      </Label>
+                    </div>
+
+                    {/* 로고 파일 업로드 */}
+                    {campaignForm.provide_logo && (
+                      <div>
+                        <Label>로고 파일 (PNG) *</Label>
+                        <p className="text-sm text-gray-600 mb-2">크리에이터가 다운로드하여 사용할 로고 파일을 업로드하세요</p>
+                        <input
+                          type="file"
+                          accept="image/png"
+                          onChange={handleLogoUpload}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                        />
+                        {campaignForm.oliveyoung_logo_url && (
+                          <div className="mt-2">
+                            <img src={campaignForm.oliveyoung_logo_url} alt="로고 미리보기" className="max-h-20" />
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* 세일 시즌 선택 (올영세일일 경우만) */}
                     {campaignForm.oliveyoung_subtype === 'sale' && (
@@ -979,7 +1124,7 @@ const CampaignCreationKorea = () => {
                   <h3 className="text-lg font-semibold mb-4">🏆 4주 챌린지 상세 설정</h3>
                   <div className="space-y-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
                     {/* 4주 마감일 */}
-                    <div>
+                    <div className="border-t pt-4 mt-4">
                       <h4 className="font-semibold mb-3">📅 4주 콘텐츠 스케줄</h4>
                       <div className="space-y-3">
                         <div>
@@ -1037,7 +1182,7 @@ const CampaignCreationKorea = () => {
               )}
 
               {/* 캠페인 썸네일 */}
-              <div className="border-t pt-6 mt-6">
+              <div>
                 <Label>캠페인 썸네일</Label>
                 <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
                 <input
