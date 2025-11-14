@@ -81,6 +81,16 @@ export default function CampaignGuideReview() {
 
 ## 캠페인 정보
 
+${campaignData.is_oliveyoung_sale ? `### 🌸 올영세일 캠페인
+- **세일 시즌**: ${campaignData.sale_season === 'spring' ? '봄 세일 (3월 1~7일)' : campaignData.sale_season === 'summer' ? '여름 세일 (5월 31일~6월 6일)' : campaignData.sale_season === 'fall' ? '가을 세일 (8월 30일~9월 5일)' : '겨울 세일 (12월 초)'}
+- **콘텐츠 타입**: ${campaignData.content_type === 'store_visit' ? '매장 방문형 (진정성 강조)' : '제품 소개형 (빠른 제작)'}
+- **앰블럼 삽입**: ${campaignData.emblem_required ? '필요' : '불필요'}
+- **3단계 콘텐츠 전략**: 릴스 2건 + 스토리 1건
+  - STEP 1 (세일 7일 전): 기대감 형성 - 올리브영 방문형 콘텐츠 (마감: ${campaignData.step1_deadline || '미정'})
+  - STEP 2 (세일 1일 전): 구매 전환 유도 - 추천팁 콘텐츠 (마감: ${campaignData.step2_deadline || '미정'})
+  - STEP 3 (세일 당일): 즉시 구매 유도 - 스토리 릴크 삽입 (마감: ${campaignData.step3_deadline || '미정'})
+
+` : ''}
 ### 제품 정보
 - **브랜드**: ${campaignData.guide_brand}
 - **제품명**: ${campaignData.guide_product_name}
@@ -144,6 +154,7 @@ ${autonomyNote}
 2. **실용성**: 크리에이터가 바로 실행 가능한 구체적 내용
 3. **가독성**: 짧은 문장, 명확한 구조
 4. **완성도**: 위 모든 정보를 반영하여 통합된 가이드 작성
+${campaignData.is_oliveyoung_sale ? `5. **올영세일 전용**: 3단계 콘텐츠 전략을 명확히 구분하여 작성. 각 STEP별 목표와 콘텐츠 방향을 구체적으로 제시` : ''}
 5. **주의사항**: 피부 트러블, 과장 광고 등 일반적인 내용은 제외. 다음 필수 주의사항을 반드시 포함:
    - FHD(1920x1080) 이상 해상도로 영상 제공 필수
    - 과도한 필터 사용 자제 (제품 본연의 색상 왜곡 방지)

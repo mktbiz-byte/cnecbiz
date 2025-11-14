@@ -41,7 +41,14 @@ const CampaignCreationKorea = () => {
     question1: '',
     question2: '',
     question3: '',
-    question4: ''
+    question4: '',
+    is_oliveyoung_sale: false,
+    sale_season: '',
+    content_type: '',
+    emblem_required: false,
+    step1_deadline: '',
+    step2_deadline: '',
+    step3_deadline: ''
   })
 
   const [questionCount, setQuestionCount] = useState(1)
@@ -689,7 +696,121 @@ const CampaignCreationKorea = () => {
                 </div>
               </div>
 
-              {/* 썸네일 업로드 */}
+              {/* 올영세일 캠페인 옵션 */}
+              <div className="border-t pt-6 mt-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <input
+                    type="checkbox"
+                    id="is_oliveyoung_sale"
+                    checked={campaignForm.is_oliveyoung_sale}
+                    onChange={(e) => setCampaignForm(prev => ({ ...prev, is_oliveyoung_sale: e.target.checked }))}
+                    className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
+                  />
+                  <Label htmlFor="is_oliveyoung_sale" className="text-lg font-semibold cursor-pointer">
+                    🌸 올영세일 캠페인
+                  </Label>
+                </div>
+                <p className="text-sm text-gray-600 mb-4">올영세일 전용 3단계 콘텐츠 전략으로 진행됩니다 (릴스 2건 + 스토리 1건)</p>
+
+                {campaignForm.is_oliveyoung_sale && (
+                  <div className="space-y-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
+                    {/* 세일 시즌 선택 */}
+                    <div>
+                      <Label htmlFor="sale_season">세일 시즌 *</Label>
+                      <Select 
+                        value={campaignForm.sale_season} 
+                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, sale_season: value }))}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="세일 시즌 선택" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="spring" className="bg-white hover:bg-gray-100">🌸 봄 세일 (3월 1~7일)</SelectItem>
+                          <SelectItem value="summer" className="bg-white hover:bg-gray-100">☀️ 여름 세일 (5월 31일~6월 6일)</SelectItem>
+                          <SelectItem value="fall" className="bg-white hover:bg-gray-100">🍂 가을 세일 (8월 30일~9월 5일)</SelectItem>
+                          <SelectItem value="winter" className="bg-white hover:bg-gray-100">❄️ 겨울 세일 (12월 초)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 콘텐츠 타입 선택 */}
+                    <div>
+                      <Label htmlFor="content_type">콘텐츠 타입 *</Label>
+                      <Select 
+                        value={campaignForm.content_type} 
+                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, content_type: value }))}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="콘텐츠 타입 선택" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="store_visit" className="bg-white hover:bg-gray-100">🏪 매장 방문형 (진정성 강조)</SelectItem>
+                          <SelectItem value="product_only" className="bg-white hover:bg-gray-100">📦 제품 소개형 (빠른 제작)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 앰블럼 삽입 여부 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="emblem_required"
+                        checked={campaignForm.emblem_required}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, emblem_required: e.target.checked }))}
+                        className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                      />
+                      <Label htmlFor="emblem_required" className="cursor-pointer">
+                        올영세일 앰블럼 삽입
+                      </Label>
+                    </div>
+
+                    {/* 3단계 스케줄 */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold mb-3">📅 3단계 콘텐츠 스케줄</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="step1_deadline">STEP 1: 세일 7일 전 릴스 마감일 *</Label>
+                          <Input
+                            id="step1_deadline"
+                            type="date"
+                            value={campaignForm.step1_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
+                            required={campaignForm.is_oliveyoung_sale}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">기대감 형성 - 올리브영 방문형 콘텐츠</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="step2_deadline">STEP 2: 세일 1일 전 릴스 마감일 *</Label>
+                          <Input
+                            id="step2_deadline"
+                            type="date"
+                            value={campaignForm.step2_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_deadline: e.target.value }))}
+                            required={campaignForm.is_oliveyoung_sale}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">구매 전환 유도 - 추천팁 콘텐츠</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="step3_deadline">STEP 3: 세일 당일 스토리 마감일 *</Label>
+                          <Input
+                            id="step3_deadline"
+                            type="date"
+                            value={campaignForm.step3_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step3_deadline: e.target.value }))}
+                            required={campaignForm.is_oliveyoung_sale}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">즉시 구매 유도 - 스토리 릴크 삽입</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 캠페인 썸네일 */}
               <div>
                 <Label>캠페인 썸네일</Label>
                 <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
