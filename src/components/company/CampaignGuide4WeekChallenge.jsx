@@ -617,7 +617,7 @@ ${weekData.required_scenes}
                     </p>
                     <div className="bg-white rounded-lg p-4">
                       <div className="space-y-3">
-                        {missionExamples[selectedCategory].missions.map((mission, index) => (
+                        {missionExamples[selectedCategory].weeks[currentWeekForExample].map((mission, index) => (
                           <div
                             key={index}
                             className="flex items-start gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer border border-gray-200 hover:border-purple-300"
