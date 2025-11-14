@@ -824,9 +824,7 @@ export default function CampaignDetail() {
                     </div>
                   </div>
                 )}
-              </CardHeader>
-              <CardContent>
-                {renderParticipantsTable(participants)}
+                    {renderParticipantsTable(participants)}
                   </TabsContent>
                   
                   {/* 유튜브 */}
@@ -845,6 +843,8 @@ export default function CampaignDetail() {
                   </TabsContent>
                 </Tabs>
               </CardHeader>
+              <CardContent>
+              </CardContent>
             </Card>
           </TabsContent>
 
