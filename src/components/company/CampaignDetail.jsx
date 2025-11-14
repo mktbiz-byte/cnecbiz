@@ -181,6 +181,113 @@ export default function CampaignDetail() {
     }
   }
 
+  // 크리에이터별 맞춤 가이드 생성
+  const generatePersonalizedGuides = async (participantIds) => {
+    try {
+      for (const participantId of participantIds) {
+        // 참여자 정보 가져오기
+        const participant = participants.find(p => p.id === participantId)
+        if (!participant || !participant.content_url) {
+          console.log(`Skipping participant ${participantId}: no content URL`)
+          continue
+        }
+
+        // 플랫폼 판별
+        let platform = 'unknown'
+        let username = ''
+        
+        if (participant.content_url.includes('youtube.com') || participant.content_url.includes('youtu.be')) {
+          platform = 'youtube'
+          const channelMatch = participant.content_url.match(/youtube\.com\/channel\/([\w-]+)/)
+          const handleMatch = participant.content_url.match(/youtube\.com\/@([\w-]+)/)
+          username = channelMatch?.[1] || handleMatch?.[1] || ''
+        } else if (participant.content_url.includes('instagram.com')) {
+          platform = 'instagram'
+          const match = participant.content_url.match(/instagram\.com\/([\w.]+)/)
+          username = match?.[1] || ''
+        } else if (participant.content_url.includes('tiktok.com')) {
+          platform = 'tiktok'
+          const match = participant.content_url.match(/tiktok\.com\/@([\w.]+)/)
+          username = match?.[1] || ''
+        }
+
+        if (!username) {
+          console.log(`Skipping participant ${participantId}: could not extract username`)
+          continue
+        }
+
+        // 플랫폼별 분석 API 호출
+        let analysisResponse
+        if (platform === 'youtube') {
+          analysisResponse = await fetch('/.netlify/functions/analyze-youtube-creator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channelUrl: participant.content_url })
+          })
+        } else if (platform === 'instagram') {
+          analysisResponse = await fetch('/.netlify/functions/analyze-instagram-creator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+          })
+        } else if (platform === 'tiktok') {
+          analysisResponse = await fetch('/.netlify/functions/analyze-tiktok-creator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+          })
+        }
+
+        if (!analysisResponse || !analysisResponse.ok) {
+          console.error(`Failed to analyze ${platform} creator: ${username}`)
+          continue
+        }
+
+        const creatorAnalysis = await analysisResponse.json()
+        creatorAnalysis.platform = platform
+
+        // 맞춤 가이드 생성
+        const guideResponse = await fetch('/.netlify/functions/generate-personalized-guide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            creatorAnalysis,
+            productInfo: {
+              brand: campaign.brand,
+              product_name: campaign.product_name,
+              product_features: campaign.product_features,
+              product_key_points: campaign.product_key_points
+            },
+            baseGuide: campaign.ai_guide || ''
+          })
+        })
+
+        if (!guideResponse.ok) {
+          console.error(`Failed to generate guide for participant ${participantId}`)
+          continue
+        }
+
+        const { personalizedGuide } = await guideResponse.json()
+
+        // 데이터베이스에 저장
+        await supabase
+          .from('campaign_participants')
+          .update({
+            personalized_guide: personalizedGuide,
+            creator_analysis: creatorAnalysis
+          })
+          .eq('id', participantId)
+
+        console.log(`Personalized guide generated for participant ${participantId}`)
+      }
+
+      alert('모든 크리에이터의 맞춤 가이드가 생성되었습니다!')
+    } catch (error) {
+      console.error('Error generating personalized guides:', error)
+      alert('맞춤 가이드 생성 중 오류가 발생했습니다.')
+    }
+  }
+
   const handleConfirmSelection = async () => {
     if (selectedParticipants.length === 0) {
       alert('크리에이터를 선택해주세요.')
@@ -208,6 +315,13 @@ export default function CampaignDetail() {
         .eq('id', id)
 
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
+      
+      // 기획형 캠페인인 경우 맞춤 가이드 생성
+      if (campaign.campaign_type === 'regular') {
+        alert('크리에이터별 맞춤 가이드를 생성하고 있습니다. 잠시만 기다려주세요...')
+        await generatePersonalizedGuides(selectedParticipants)
+      }
+      
       await fetchParticipants()
       await fetchCampaignDetail()
       setSelectedParticipants([])
