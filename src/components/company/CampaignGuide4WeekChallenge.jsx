@@ -508,6 +508,149 @@ ${weekData.required_scenes}
           })}
         </div>
 
+        {/* 업로드 스케줄 체크리스트 */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-6 mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">📅</span>
+            <h3 className="text-xl font-semibold text-blue-900">업로드 스케줄 체크리스트</h3>
+          </div>
+          <p className="text-sm text-blue-700 mb-4">
+            크리에이터가 각 주차별 마감일을 명확히 확인하고 준수할 수 있도록 스케줄을 설정해주세요.
+          </p>
+
+          <div className="space-y-4">
+            {/* Week 1 스케줄 */}
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 1</span>
+                  <span className="font-semibold text-gray-800">1주차 챌린지</span>
+                </div>
+                <span className="text-xs text-gray-500">마감일</span>
+              </div>
+              <Input
+                type="datetime-local"
+                value={campaign.week1_deadline ? new Date(campaign.week1_deadline).toISOString().slice(0, 16) : ''}
+                onChange={async (e) => {
+                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
+                  try {
+                    await supabaseBiz
+                      .from('campaigns')
+                      .update({ week1_deadline: newDeadline })
+                      .eq('id', id)
+                    setCampaign({ ...campaign, week1_deadline: newDeadline })
+                  } catch (error) {
+                    console.error('Error updating deadline:', error)
+                  }
+                }}
+                className="mt-2"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                💡 1주차 챌린지 영상 제작 및 업로드 마감일
+              </p>
+            </div>
+
+            {/* Week 2 스케줄 */}
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 2</span>
+                  <span className="font-semibold text-gray-800">2주차 챌린지</span>
+                </div>
+                <span className="text-xs text-gray-500">마감일</span>
+              </div>
+              <Input
+                type="datetime-local"
+                value={campaign.week2_deadline ? new Date(campaign.week2_deadline).toISOString().slice(0, 16) : ''}
+                onChange={async (e) => {
+                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
+                  try {
+                    await supabaseBiz
+                      .from('campaigns')
+                      .update({ week2_deadline: newDeadline })
+                      .eq('id', id)
+                    setCampaign({ ...campaign, week2_deadline: newDeadline })
+                  } catch (error) {
+                    console.error('Error updating deadline:', error)
+                  }
+                }}
+                className="mt-2"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                💡 2주차 챌린지 영상 제작 및 업로드 마감일
+              </p>
+            </div>
+
+            {/* Week 3 스케줄 */}
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 3</span>
+                  <span className="font-semibold text-gray-800">3주차 챌린지</span>
+                </div>
+                <span className="text-xs text-gray-500">마감일</span>
+              </div>
+              <Input
+                type="datetime-local"
+                value={campaign.week3_deadline ? new Date(campaign.week3_deadline).toISOString().slice(0, 16) : ''}
+                onChange={async (e) => {
+                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
+                  try {
+                    await supabaseBiz
+                      .from('campaigns')
+                      .update({ week3_deadline: newDeadline })
+                      .eq('id', id)
+                    setCampaign({ ...campaign, week3_deadline: newDeadline })
+                  } catch (error) {
+                    console.error('Error updating deadline:', error)
+                  }
+                }}
+                className="mt-2"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                💡 3주차 챌린지 영상 제작 및 업로드 마감일
+              </p>
+            </div>
+
+            {/* Week 4 스케줄 */}
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 4</span>
+                  <span className="font-semibold text-gray-800">4주차 챌린지</span>
+                </div>
+                <span className="text-xs text-gray-500">마감일</span>
+              </div>
+              <Input
+                type="datetime-local"
+                value={campaign.week4_deadline ? new Date(campaign.week4_deadline).toISOString().slice(0, 16) : ''}
+                onChange={async (e) => {
+                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
+                  try {
+                    await supabaseBiz
+                      .from('campaigns')
+                      .update({ week4_deadline: newDeadline })
+                      .eq('id', id)
+                    setCampaign({ ...campaign, week4_deadline: newDeadline })
+                  } catch (error) {
+                    console.error('Error updating deadline:', error)
+                  }
+                }}
+                className="mt-2"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                💡 4주차 챌린지 영상 제작 및 업로드 마감일
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <strong>⚠️ 주의사항:</strong> 각 주차의 마감일을 명확히 설정하여 크리에이터가 4주 동안 꾸준히 콘텐츠를 업로드할 수 있도록 해주세요.
+            </p>
+          </div>
+        </div>
+
         {/* 버튼 */}
         <div className="flex gap-4 mt-8">
           <Button

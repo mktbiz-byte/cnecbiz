@@ -361,6 +361,118 @@ ${step3Guide}
               required
             />
           </div>
+
+          {/* 업로드 스케줄 체크리스트 */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-2xl">📅</span>
+              <h3 className="text-xl font-semibold text-blue-900">업로드 스케줄 체크리스트</h3>
+            </div>
+            <p className="text-sm text-blue-700 mb-4">
+              크리에이터가 각 STEP별 마감일을 명확히 확인하고 준수할 수 있도록 스케줄을 설정해주세요.
+            </p>
+
+            <div className="space-y-4">
+              {/* STEP 1 스케줄 */}
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded text-sm font-semibold">STEP 1</span>
+                    <span className="font-semibold text-gray-800">상품 리뷰 콘텐츠</span>
+                  </div>
+                  <span className="text-xs text-gray-500">마감일</span>
+                </div>
+                <Input
+                  type="datetime-local"
+                  value={campaign.step1_deadline ? new Date(campaign.step1_deadline).toISOString().slice(0, 16) : ''}
+                  onChange={async (e) => {
+                    const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
+                    try {
+                      await supabaseBiz
+                        .from('campaigns')
+                        .update({ step1_deadline: newDeadline })
+                        .eq('id', id)
+                      setCampaign({ ...campaign, step1_deadline: newDeadline })
+                    } catch (error) {
+                      console.error('Error updating deadline:', error)
+                    }
+                  }}
+                  className="mt-2"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 제품 리뷰 영상 제작 및 업로드 마감일
+                </p>
+              </div>
+
+              {/* STEP 2 스케줄 */}
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded text-sm font-semibold">STEP 2</span>
+                    <span className="font-semibold text-gray-800">세일 홍보 콘텐츠</span>
+                  </div>
+                  <span className="text-xs text-gray-500">마감일</span>
+                </div>
+                <Input
+                  type="datetime-local"
+                  value={campaign.step2_deadline ? new Date(campaign.step2_deadline).toISOString().slice(0, 16) : ''}
+                  onChange={async (e) => {
+                    const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
+                    try {
+                      await supabaseBiz
+                        .from('campaigns')
+                        .update({ step2_deadline: newDeadline })
+                        .eq('id', id)
+                      setCampaign({ ...campaign, step2_deadline: newDeadline })
+                    } catch (error) {
+                      console.error('Error updating deadline:', error)
+                    }
+                  }}
+                  className="mt-2"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 세일 홍보 영상 제작 및 업로드 마감일
+                </p>
+              </div>
+
+              {/* STEP 3 스케줄 */}
+              <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded text-sm font-semibold">STEP 3</span>
+                    <span className="font-semibold text-gray-800">세일 당일 스토리</span>
+                  </div>
+                  <span className="text-xs text-gray-500">마감일</span>
+                </div>
+                <Input
+                  type="datetime-local"
+                  value={campaign.step3_deadline ? new Date(campaign.step3_deadline).toISOString().slice(0, 16) : ''}
+                  onChange={async (e) => {
+                    const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
+                    try {
+                      await supabaseBiz
+                        .from('campaigns')
+                        .update({ step3_deadline: newDeadline })
+                        .eq('id', id)
+                      setCampaign({ ...campaign, step3_deadline: newDeadline })
+                    } catch (error) {
+                      console.error('Error updating deadline:', error)
+                    }
+                  }}
+                  className="mt-2"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 세일 당일 스토리 업로드 마감일 (보통 세일 당일)
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                <strong>⚠️ 주의사항:</strong> 각 STEP의 마감일을 명확히 설정하여 크리에이터가 일정을 준수할 수 있도록 해주세요.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* 버튼 */}
