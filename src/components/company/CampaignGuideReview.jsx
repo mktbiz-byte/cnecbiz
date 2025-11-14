@@ -34,9 +34,9 @@ export default function CampaignGuideReview() {
       if (error) throw error
       setCampaign(data)
 
-      // AI 가이드가 이미 생성되어 있으면 표시
+      // AI 가이드가 이미 생성되어 있으면 표시 (JSONB는 이미 객체로 반환됨)
       if (data.ai_generated_guide) {
-        const guide = JSON.parse(data.ai_generated_guide)
+        const guide = data.ai_generated_guide
         setAiGuide(guide)
         // 모든 컨셉을 기본으로 선택
         if (guide.video_concepts) {
