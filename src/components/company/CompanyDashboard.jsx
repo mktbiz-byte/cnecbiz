@@ -192,6 +192,20 @@ export default function CompanyDashboard() {
     return diffDays
   }
 
+  const getCampaignTypeBadge = (campaignType) => {
+    const badges = {
+      regular: { label: '📝 일반', color: 'bg-blue-100 text-blue-700', icon: '📝' },
+      oliveyoung: { label: '🌸 올영세일', color: 'bg-pink-100 text-pink-700', icon: '🌸' },
+      '4week_challenge': { label: '💪 4주 챌린지', color: 'bg-purple-100 text-purple-700', icon: '💪' }
+    }
+    const badge = badges[campaignType] || badges.regular
+    return (
+      <Badge variant="outline" className={`${badge.color} font-semibold`}>
+        {badge.label}
+      </Badge>
+    )
+  }
+
   const getRegionBadge = (region) => {
     const badges = {
       korea: { label: '🇰🇷 한국', color: 'bg-blue-100 text-blue-700' },
@@ -350,7 +364,10 @@ export default function CompanyDashboard() {
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-1">{campaign.title}</h3>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-lg">{campaign.title}</h3>
+                              {getCampaignTypeBadge(campaign.campaign_type)}
+                            </div>
                             <div className="flex items-center gap-2 text-sm text-gray-600">
                               {getRegionBadge(campaign.region)}
                               <span>•</span>
