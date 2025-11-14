@@ -16,6 +16,7 @@ import CampaignGuideEditor from './components/company/CampaignGuideEditor'
 import CampaignGuideJapan from './components/company/CampaignGuideJapan'
 import AdvancedGuideJapan from './components/company/AdvancedGuideJapan'
 import GuideReview from './components/company/GuideReview'
+import CampaignGuideReview from './components/company/CampaignGuideReview'
 import OrderConfirmation from './components/company/OrderConfirmation'
 import InvoicePage from './components/company/InvoicePage'
 import MyCampaigns from './components/company/MyCampaigns'
@@ -98,7 +99,8 @@ function App() {
         <Route path="/company/campaigns/guide/japan" element={<CampaignGuideJapan />} />
         <Route path="/company/campaigns/guide/japan/advanced" element={<AdvancedGuideJapan />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
-        <Route path="/company/campaigns/:id/review" element={<GuideReview />} />
+        <Route path="/company/campaigns/:id/review" element={<CampaignGuideReview />} />
+        <Route path="/company/campaigns/:id/review-old" element={<GuideReview />} />
         <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/company/campaigns/:id/invoice" element={<InvoicePage />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
