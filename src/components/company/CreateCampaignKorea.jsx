@@ -107,12 +107,36 @@ const CampaignCreationKorea = () => {
     return finalBeforeVat + vat
   }
 
+  // 초기 로드 시 금액 계산
+  useEffect(() => {
+    if (!editId) {
+      // 신규 생성 시 초기 금액 계산
+      const initialCost = calculateFinalCost(300000, 10) // 중급 패키지 × 10명
+      setCampaignForm(prev => ({ ...prev, estimated_cost: initialCost }))
+    }
+  }, [])
+
   // 수정 모드일 경우 기존 데이터 불러오기
   useEffect(() => {
     if (editId) {
       loadCampaign()
     }
   }, [editId])
+
+  // 캠페인 타입 변경 시 금액 재계산
+  useEffect(() => {
+    if (campaignForm.campaign_type === '4week_challenge') {
+      // 4주 챌린지: 고정 금액 660,000원 (VAT 포함)
+      setCampaignForm(prev => ({ ...prev, estimated_cost: 660000 }))
+    } else {
+      // 일반/올영세일: 패키지 × 인원수
+      const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
+      if (pkg) {
+        const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots)
+        setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost }))
+      }
+    }
+  }, [campaignForm.campaign_type])
 
   const loadCampaign = async () => {
     try {
@@ -655,7 +679,15 @@ const CampaignCreationKorea = () => {
                     disabled
                     className="bg-gray-100 font-semibold text-blue-600"
                   />
-                  {(() => {
+                  {campaignForm.campaign_type === '4week_challenge' ? (
+                    <div className="text-xs text-gray-500 mt-1 space-y-1">
+                      <div className="text-purple-600 font-medium">고정 금액: ₩600,000</div>
+                      <div className="border-t pt-1 mt-1">
+                        <div>부가세(10%): ₩60,000</div>
+                        <div className="font-semibold text-blue-600">총 결제액: ₩660,000</div>
+                      </div>
+                    </div>
+                  ) : (() => {
                     const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
                     const packagePrice = pkg?.price || 0
                     const subtotal = packagePrice * campaignForm.total_slots
