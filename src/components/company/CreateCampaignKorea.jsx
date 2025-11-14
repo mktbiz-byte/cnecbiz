@@ -581,7 +581,15 @@ const CampaignCreationKorea = () => {
                         <SelectValue placeholder="패키지 선택" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        {packageOptions.map(opt => (
+                        {packageOptions
+                          .filter(opt => {
+                            // 올영세일 캠페인일 경우 초급 패키지 제외
+                            if (campaignForm.campaign_type === 'oliveyoung') {
+                              return opt.value !== 'beginner'
+                            }
+                            return true
+                          })
+                          .map(opt => (
                           <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
                             <div className="flex flex-col">
                               <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()} <span className="text-sm text-gray-500">(VAT 별도)</span></span>
@@ -627,8 +635,14 @@ const CampaignCreationKorea = () => {
                   <Input
                     id="total_slots"
                     type="number"
-                    value={campaignForm.total_slots}
-                    onChange={(e) => handleSlotsChange(e.target.value)}
+                    value={campaignForm.total_slots || ''}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      // 빈 문자열이거나 숫자인 경우만 처리
+                      if (value === '' || !isNaN(value)) {
+                        handleSlotsChange(value === '' ? '' : parseInt(value))
+                      }
+                    }}
                     placeholder="10"
                     required
                     min="1"
@@ -821,11 +835,12 @@ const CampaignCreationKorea = () => {
                           <input
                             type="checkbox"
                             id="platform_youtube"
-                            checked={campaignForm.target_platforms.includes('youtube')}
+                            checked={Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.includes('youtube')}
                             onChange={(e) => {
+                              const currentPlatforms = Array.isArray(campaignForm.target_platforms) ? campaignForm.target_platforms : []
                               const platforms = e.target.checked
-                                ? [...campaignForm.target_platforms, 'youtube']
-                                : campaignForm.target_platforms.filter(p => p !== 'youtube')
+                                ? [...currentPlatforms, 'youtube']
+                                : currentPlatforms.filter(p => p !== 'youtube')
                               setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
                             }}
                             className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
@@ -838,11 +853,12 @@ const CampaignCreationKorea = () => {
                           <input
                             type="checkbox"
                             id="platform_instagram"
-                            checked={campaignForm.target_platforms.includes('instagram')}
+                            checked={Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.includes('instagram')}
                             onChange={(e) => {
+                              const currentPlatforms = Array.isArray(campaignForm.target_platforms) ? campaignForm.target_platforms : []
                               const platforms = e.target.checked
-                                ? [...campaignForm.target_platforms, 'instagram']
-                                : campaignForm.target_platforms.filter(p => p !== 'instagram')
+                                ? [...currentPlatforms, 'instagram']
+                                : currentPlatforms.filter(p => p !== 'instagram')
                               setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
                             }}
                             className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
@@ -855,11 +871,12 @@ const CampaignCreationKorea = () => {
                           <input
                             type="checkbox"
                             id="platform_tiktok"
-                            checked={campaignForm.target_platforms.includes('tiktok')}
+                            checked={Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.includes('tiktok')}
                             onChange={(e) => {
+                              const currentPlatforms = Array.isArray(campaignForm.target_platforms) ? campaignForm.target_platforms : []
                               const platforms = e.target.checked
-                                ? [...campaignForm.target_platforms, 'tiktok']
-                                : campaignForm.target_platforms.filter(p => p !== 'tiktok')
+                                ? [...currentPlatforms, 'tiktok']
+                                : currentPlatforms.filter(p => p !== 'tiktok')
                               setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
                             }}
                             className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
