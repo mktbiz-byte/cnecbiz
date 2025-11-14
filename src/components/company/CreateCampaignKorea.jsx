@@ -47,6 +47,7 @@ const CampaignCreationKorea = () => {
     oliveyoung_subtype: 'sale',  // pick, sale, special
     oliveyoung_logo_url: '',
     provide_logo: false,  // 로고 제공 여부
+    target_platforms: [],  // ['youtube', 'instagram', 'tiktok']
     sale_season: '',
     content_type: '',
     emblem_required: false,
@@ -429,6 +430,15 @@ const CampaignCreationKorea = () => {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
       }
 
+      // 올리브영 캐페인 검증
+      if (campaignForm.campaign_type === 'oliveyoung') {
+        if (campaignForm.target_platforms.length === 0) {
+          setError('타겟 채널을 1개 이상 선택해주세요.')
+          setProcessing(false)
+          return
+        }
+      }
+
       const campaignData = {
         ...restForm,
         title: autoTitle,
@@ -436,6 +446,7 @@ const CampaignCreationKorea = () => {
         total_slots: parseInt(campaignForm.total_slots) || 0,
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
+        target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
         company_email: userEmail  // 회사 이메일 저장
       }
 
@@ -855,20 +866,109 @@ const CampaignCreationKorea = () => {
                   <div className="space-y-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
                     {/* 올영 패키지 타입 선택 */}
                     <div>
-                      <Label htmlFor="oliveyoung_subtype">올리브영 패키지 타입 *</Label>
-                      <Select 
-                        value={campaignForm.oliveyoung_subtype} 
-                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: value }))}
-                      >
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="패키지 타입 선택" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectItem value="pick" className="bg-white hover:bg-gray-100">🌟 올영픽 (Olive Young Pick)</SelectItem>
-                          <SelectItem value="sale" className="bg-white hover:bg-gray-100">🌸 올영세일 (Olive Young Sale)</SelectItem>
-                          <SelectItem value="special" className="bg-white hover:bg-gray-100">🔥 오특 (오늘의 특가)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="block mb-3">올리브영 패키지 타입 *</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="subtype_pick"
+                            name="oliveyoung_subtype"
+                            value="pick"
+                            checked={campaignForm.oliveyoung_subtype === 'pick'}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
+                            className="w-4 h-4 text-pink-600"
+                          />
+                          <Label htmlFor="subtype_pick" className="cursor-pointer">
+                            🌟 올영픽 (Olive Young Pick)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="subtype_sale"
+                            name="oliveyoung_subtype"
+                            value="sale"
+                            checked={campaignForm.oliveyoung_subtype === 'sale'}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
+                            className="w-4 h-4 text-pink-600"
+                          />
+                          <Label htmlFor="subtype_sale" className="cursor-pointer">
+                            🌸 올영세일 (Olive Young Sale)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="subtype_special"
+                            name="oliveyoung_subtype"
+                            value="special"
+                            checked={campaignForm.oliveyoung_subtype === 'special'}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
+                            className="w-4 h-4 text-pink-600"
+                          />
+                          <Label htmlFor="subtype_special" className="cursor-pointer">
+                            🔥 오특 (오늘의 특가)
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 타겟 채널 선택 */}
+                    <div>
+                      <Label className="block mb-3">타겟 채널 * (1개 이상 선택)</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="platform_youtube"
+                            checked={campaignForm.target_platforms.includes('youtube')}
+                            onChange={(e) => {
+                              const platforms = e.target.checked
+                                ? [...campaignForm.target_platforms, 'youtube']
+                                : campaignForm.target_platforms.filter(p => p !== 'youtube')
+                              setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
+                            }}
+                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                          />
+                          <Label htmlFor="platform_youtube" className="cursor-pointer">
+                            🎥 유튜브 (YouTube)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="platform_instagram"
+                            checked={campaignForm.target_platforms.includes('instagram')}
+                            onChange={(e) => {
+                              const platforms = e.target.checked
+                                ? [...campaignForm.target_platforms, 'instagram']
+                                : campaignForm.target_platforms.filter(p => p !== 'instagram')
+                              setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
+                            }}
+                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                          />
+                          <Label htmlFor="platform_instagram" className="cursor-pointer">
+                            📸 인스타그램 (Instagram)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="platform_tiktok"
+                            checked={campaignForm.target_platforms.includes('tiktok')}
+                            onChange={(e) => {
+                              const platforms = e.target.checked
+                                ? [...campaignForm.target_platforms, 'tiktok']
+                                : campaignForm.target_platforms.filter(p => p !== 'tiktok')
+                              setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
+                            }}
+                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                          />
+                          <Label htmlFor="platform_tiktok" className="cursor-pointer">
+                            🎵 틱톡 (TikTok)
+                          </Label>
+                        </div>
+                      </div>
                     </div>
 
                     {/* 로고 제공 여부 */}
