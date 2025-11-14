@@ -359,14 +359,19 @@ ${weekData.required_scenes}
 
           {/* 기본 가이드 */}
           <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-xl font-semibold mb-4">📋 기본 가이드 (전체 캠페인 개요)</h3>
+            <h3 className="text-xl font-semibold mb-4">⚠️ 캠페인 주의사항</h3>
             <p className="text-sm text-gray-600 mb-3">
-              4주 챌린지 전체 개요, 참여 방법, 주의사항 등을 작성해주세요.
+              사용불가 단어, 유료음원 금지, 공통 주의사항 등을 작성해주세요.
             </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+              <p className="text-sm text-yellow-800">
+                <strong>필수:</strong> 각 영상은 7일 정도 텀을 두고 업로드해야 합니다.
+              </p>
+            </div>
             <textarea
               value={baseGuide}
               onChange={(e) => setBaseGuide(e.target.value)}
-              placeholder="예:&#10;[4주 챌린지 개요]&#10;- 4주간 매주 1회 콘텐츠 제작 및 업로드&#10;- 제품 사용 전후 변화 기록&#10;- 주차별 미션 수행 및 인증&#10;&#10;[참여 방법]&#10;- 매주 월요일 새로운 미션 발송&#10;- 해당 주 일요일까지 콘텐츠 업로드&#10;- URL 및 영상 파일 제출&#10;&#10;[주의사항]&#10;- 제품은 매일 사용해주세요&#10;- 솔직한 후기 작성 권장&#10;- 브랜드명 및 제품명 정확히 언급"
+              placeholder="예:&#10;[사용불가 단어]&#10;- 의료 효능 표현 금지 (치료, 개선, 완치 등)&#10;- 최상급 표현 금지 (최고, 최상, 1등 등)&#10;&#10;[유료음원 금지]&#10;- 저작권이 있는 음악 사용 금지&#10;- 유튜브 오디오 라이브러리 또는 무료 음원 사용&#10;&#10;[공통 주의사항]&#10;- 브랜드명 및 제품명 정확히 언급&#10;- 각 영상은 7일 정도 텀을 두고 업로드&#10;- 솔직한 후기 작성 권장&#10;- 제품은 매일 사용해주세요"
               className="w-full h-48 p-3 border rounded-lg resize-none"
               required
             />
@@ -487,7 +492,7 @@ ${weekData.required_scenes}
                       type="button"
                       onClick={() => handleGenerateWeeklyGuide(weekKey)}
                       disabled={generating}
-                      className="w-full bg-purple-600 hover:bg-purple-700"
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                     >
                       {generating ? (
                         <>
@@ -529,8 +534,8 @@ ${weekData.required_scenes}
                 <span className="text-xs text-gray-500">마감일</span>
               </div>
               <Input
-                type="datetime-local"
-                value={campaign.week1_deadline ? new Date(campaign.week1_deadline).toISOString().slice(0, 16) : ''}
+                type="date"
+                value={campaign.week1_deadline ? new Date(campaign.week1_deadline).toISOString().split("T")[0] : ''}
                 onChange={async (e) => {
                   const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
                   try {
@@ -560,8 +565,8 @@ ${weekData.required_scenes}
                 <span className="text-xs text-gray-500">마감일</span>
               </div>
               <Input
-                type="datetime-local"
-                value={campaign.week2_deadline ? new Date(campaign.week2_deadline).toISOString().slice(0, 16) : ''}
+                type="date"
+                value={campaign.week2_deadline ? new Date(campaign.week2_deadline).toISOString().split("T")[0] : ''}
                 onChange={async (e) => {
                   const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
                   try {
@@ -591,8 +596,8 @@ ${weekData.required_scenes}
                 <span className="text-xs text-gray-500">마감일</span>
               </div>
               <Input
-                type="datetime-local"
-                value={campaign.week3_deadline ? new Date(campaign.week3_deadline).toISOString().slice(0, 16) : ''}
+                type="date"
+                value={campaign.week3_deadline ? new Date(campaign.week3_deadline).toISOString().split("T")[0] : ''}
                 onChange={async (e) => {
                   const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
                   try {
@@ -622,8 +627,8 @@ ${weekData.required_scenes}
                 <span className="text-xs text-gray-500">마감일</span>
               </div>
               <Input
-                type="datetime-local"
-                value={campaign.week4_deadline ? new Date(campaign.week4_deadline).toISOString().slice(0, 16) : ''}
+                type="date"
+                value={campaign.week4_deadline ? new Date(campaign.week4_deadline).toISOString().split("T")[0] : ''}
                 onChange={async (e) => {
                   const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
                   try {
