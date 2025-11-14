@@ -255,13 +255,13 @@ const CampaignCreationKorea = () => {
       const fileName = `logo-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-logos/${fileName}`
 
-      const { error: uploadError } = await storage
+      const { error: uploadError } = await supabaseBiz.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = storage
+      const { data: { publicUrl } } = supabaseBiz.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -288,13 +288,13 @@ const CampaignCreationKorea = () => {
       const fileName = `thumbnail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await storage
+      const { error: uploadError } = await supabaseBiz.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = storage
+      const { data: { publicUrl } } = supabaseBiz.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -321,13 +321,13 @@ const CampaignCreationKorea = () => {
       const fileName = `product-detail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await storage
+      const { error: uploadError } = await supabaseBiz.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = storage
+      const { data: { publicUrl } } = supabaseBiz.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
