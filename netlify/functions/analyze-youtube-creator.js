@@ -17,11 +17,21 @@ export async function handler(event) {
       }
     }
 
-    const API_KEY = process.env.YOUTUBE_API_KEY || process.env.VITE_YOUTUBE_API_KEY
+    // YouTube API 키 목록 (폴백 지원)
+    const API_KEYS = [
+      process.env.YOUTUBE_API_KEY,
+      process.env.YOUTUBE_API_KEY_1,
+      process.env.YOUTUBE_API_KEY_2,
+      process.env.YOUTUBE_API_KEY_3,
+      process.env.VITE_YOUTUBE_API_KEY
+    ].filter(Boolean)
     
-    if (!API_KEY) {
-      throw new Error('YouTube API key not configured')
+    if (API_KEYS.length === 0) {
+      throw new Error('No YouTube API keys configured')
     }
+
+    let API_KEY = API_KEYS[0]
+    let apiKeyIndex = 0
 
     let finalChannelId = channelId
 
@@ -46,17 +56,43 @@ export async function handler(event) {
       throw new Error('Could not extract channel ID from URL')
     }
 
-    // 채널 정보 가져오기
-    const channelResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,brandingSettings&id=${finalChannelId}&key=${API_KEY}`
-    )
-
-    if (!channelResponse.ok) {
-      throw new Error('Failed to fetch YouTube channel data')
+    // 채널 정보 가져오기 (폴백 지원)
+    let channelResponse
+    let channelData
+    
+    for (let i = 0; i < API_KEYS.length; i++) {
+      try {
+        channelResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,brandingSettings&id=${finalChannelId}&key=${API_KEYS[i]}`
+        )
+        
+        if (channelResponse.ok) {
+          channelData = await channelResponse.json()
+          if (channelData.items && channelData.items.length > 0) {
+            API_KEY = API_KEYS[i]
+            apiKeyIndex = i
+            console.log(`Using YouTube API key ${i + 1}`)
+            break
+          }
+        }
+        
+        // Quota exceeded 오류인 경우 다음 키로
+        const errorData = await channelResponse.json().catch(() => ({}))
+        if (errorData.error?.errors?.[0]?.reason === 'quotaExceeded') {
+          console.log(`API key ${i + 1} quota exceeded, trying next key...`)
+          continue
+        }
+      } catch (error) {
+        console.error(`Error with API key ${i + 1}:`, error)
+        continue
+      }
     }
 
-    const channelData = await channelResponse.json()
-    const channel = channelData.items?.[0]
+    if (!channelData || !channelData.items || channelData.items.length === 0) {
+      throw new Error('Failed to fetch YouTube channel data with all available API keys')
+    }
+
+    const channel = channelData.items[0]
 
     if (!channel) {
       throw new Error('Channel not found')
@@ -67,31 +103,44 @@ export async function handler(event) {
     
     let recentVideos = []
     if (uploadsPlaylistId) {
-      const playlistResponse = await fetch(
-        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=10&key=${API_KEY}`
-      )
-      const playlistData = await playlistResponse.json()
-      
-      // 비디오 ID 추출
-      const videoIds = playlistData.items?.map(item => item.snippet.resourceId.videoId).join(',')
-      
-      if (videoIds) {
-        // 비디오 상세 정보 가져오기
-        const videosResponse = await fetch(
-          `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${API_KEY}`
+      try {
+        const playlistResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=10&key=${API_KEY}`
         )
-        const videosData = await videosResponse.json()
         
-        recentVideos = videosData.items?.map(video => ({
-          title: video.snippet.title,
-          description: video.snippet.description,
-          views: parseInt(video.statistics.viewCount) || 0,
-          likes: parseInt(video.statistics.likeCount) || 0,
-          comments: parseInt(video.statistics.commentCount) || 0,
-          duration: video.contentDetails.duration,
-          publishedAt: video.snippet.publishedAt,
-          tags: video.snippet.tags || []
-        })) || []
+        if (!playlistResponse.ok) {
+          console.error('Failed to fetch playlist, skipping video analysis')
+        } else {
+          const playlistData = await playlistResponse.json()
+          
+          // 비디오 ID 추출
+          const videoIds = playlistData.items?.map(item => item.snippet.resourceId.videoId).join(',')
+          
+          if (videoIds) {
+            // 비디오 상세 정보 가져오기
+            const videosResponse = await fetch(
+              `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}&key=${API_KEY}`
+            )
+            
+            if (videosResponse.ok) {
+              const videosData = await videosResponse.json()
+              
+              recentVideos = videosData.items?.map(video => ({
+                title: video.snippet.title,
+                description: video.snippet.description,
+                views: parseInt(video.statistics.viewCount) || 0,
+                likes: parseInt(video.statistics.likeCount) || 0,
+                comments: parseInt(video.statistics.commentCount) || 0,
+                duration: video.contentDetails.duration,
+                publishedAt: video.snippet.publishedAt,
+                tags: video.snippet.tags || []
+              })) || []
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching videos:', error)
+        // 비디오 분석 실패해도 채널 정보는 반환
       }
     }
 
