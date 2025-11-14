@@ -80,7 +80,7 @@ const CampaignGuideEditor = () => {
     }, 10000)
 
     return () => clearTimeout(timer)
-  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, brand, productName, productFeatures, productKeyPoints, creatorAutonomy, videoDeadline, snsUploadDate, campaignId])
+  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, brand, productName, productFeatures, productKeyPoints, creatorAutonomy, campaignId])
 
   const loadCampaignGuide = async () => {
     try {
@@ -189,9 +189,7 @@ const CampaignGuideEditor = () => {
           guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy,
-          video_deadline: videoDeadline,
-          sns_upload_date: snsUploadDate
+          creator_autonomy: creatorAutonomy
         })
         .eq('id', campaignId)
 
@@ -236,9 +234,7 @@ const CampaignGuideEditor = () => {
           guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy,
-          video_deadline: videoDeadline,
-          sns_upload_date: snsUploadDate
+          creator_autonomy: creatorAutonomy
         })
         .eq('id', campaignId)
 
@@ -287,9 +283,7 @@ const CampaignGuideEditor = () => {
           guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy,
-          video_deadline: videoDeadline,
-          sns_upload_date: snsUploadDate
+          creator_autonomy: creatorAutonomy
         })
         .eq('id', campaignId)
 
@@ -426,30 +420,35 @@ const CampaignGuideEditor = () => {
             />
           </div>
 
-          {/* 영상 마감일 */}
-          <div>
-            <Label className="text-base font-semibold mb-2 block">
-              영상 마감일 <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              type="date"
-              value={videoDeadline}
-              onChange={(e) => setVideoDeadline(e.target.value)}
-              className="text-base"
-            />
-          </div>
-
-          {/* SNS 업로드일 */}
-          <div>
-            <Label className="text-base font-semibold mb-2 block">
-              SNS 업로드일 <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              type="date"
-              value={snsUploadDate}
-              onChange={(e) => setSnsUploadDate(e.target.value)}
-              className="text-base"
-            />
+          {/* 일정 정보 (읽기 전용) */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-3">
+              📅 다음 일정은 캠페인 생성 시 입력한 정보입니다.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-base font-semibold mb-2 block">
+                  영상 마감일
+                </Label>
+                <Input
+                  type="date"
+                  value={videoDeadline}
+                  disabled
+                  className="text-base bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <Label className="text-base font-semibold mb-2 block">
+                  SNS 업로드일
+                </Label>
+                <Input
+                  type="date"
+                  value={snsUploadDate}
+                  disabled
+                  className="text-base bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </div>
           </div>
 
           {/* 제품 특징 */}
