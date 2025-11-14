@@ -601,944 +601,806 @@ const CampaignCreationKorea = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">한국 캠페인 생성</h1>
-        <Button 
-          variant="outline" 
-          onClick={() => navigate('/company/campaigns')}
-        >
-          목록으로
-        </Button>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="mb-6">
+          <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
+            ← 캠페인 목록으로
+          </Button>
         </div>
-      )}
-
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-          {success}
-        </div>
-      )}
-
-      {/* ========================================
-          SECTION 1: 캠페인 기본 정보
-          ======================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📋 캠페인 기본 정보</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* 캠페인 타입 선택 */}
-          <div>
-            <Label className="text-lg font-semibold mb-4 block">🎯 캠페인 타입 선택 *</Label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* 일반 캠페인 */}
-              <label
-                className={`relative flex flex-col p-6 border-2 rounded-lg cursor-pointer transition-all ${
-                  campaignForm.campaign_type === 'regular'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="campaign_type"
-                  value="regular"
-                  checked={campaignForm.campaign_type === 'regular'}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, campaign_type: e.target.value }))}
-                  className="sr-only"
-                />
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">📝</span>
-                  <span className="font-semibold text-lg">일반 캠페인</span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  가격: 20만원 / 30만원 / 40만원<br />
-                  대사 + 촬영장면 개별 제공, SNS URL 1개 제출
-                </p>
-              </label>
-
-              {/* 올영세일 캠페인 */}
-              <label
-                className={`relative flex flex-col p-6 border-2 rounded-lg cursor-pointer transition-all ${
-                  campaignForm.campaign_type === 'oliveyoung'
-                    ? 'border-pink-500 bg-pink-50'
-                    : 'border-gray-200 hover:border-pink-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="campaign_type"
-                  value="oliveyoung"
-                  checked={campaignForm.campaign_type === 'oliveyoung'}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, campaign_type: e.target.value }))}
-                  className="sr-only"
-                />
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">🌸</span>
-                  <span className="font-semibold text-lg">올영세일 캠페인</span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  가격: 30만원 / 40만원 (2단계만)<br />
-                  통합 가이드, 3단계 콘텐츠 (릴스 2개 + 스토리 1개), URL 3개 제출
-                </p>
-              </label>
-
-              {/* 4주 챌린지 */}
-              <label
-                className={`relative flex flex-col p-6 border-2 rounded-lg cursor-pointer transition-all ${
-                  campaignForm.campaign_type === '4week_challenge'
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-gray-200 hover:border-purple-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="campaign_type"
-                  value="4week_challenge"
-                  checked={campaignForm.campaign_type === '4week_challenge'}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, campaign_type: e.target.value }))}
-                  className="sr-only"
-                />
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">🏆</span>
-                  <span className="font-semibold text-lg">4주 챌린지</span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  가격: 60만원 (고정)<br />
-                  주차별 통합 가이드 4개, 4주 연속 콘텐츠 제작, URL 4개 + 영상 4개 제출
-                </p>
-              </label>
-            </div>
-          </div>
-
-          {/* 패키지 선택 */}
-          <div>
-            <Label htmlFor="package_type" className="text-lg font-semibold">💎 패키지 선택 *</Label>
-            <Select 
-              value={campaignForm.package_type} 
-              onValueChange={handlePackageChange}
-              disabled={campaignForm.campaign_type === '4week_challenge'}
-            >
-              <SelectTrigger className="bg-white">
-                <SelectValue placeholder="패키지 선택" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {packageOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{opt.label}</span>
-                      <span className="text-sm text-gray-500">{opt.description}</span>
-                      <span className="text-sm font-medium text-blue-600">
-                        {opt.price.toLocaleString()}원 (VAT 포함: {opt.priceWithVat.toLocaleString()}원)
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {campaignForm.campaign_type === '4week_challenge' && (
-              <p className="text-sm text-gray-500 mt-2">
-                4주 챌린지는 60만원 고정 패키지입니다.
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ========================================
-          SECTION 2: 모집 설정
-          ======================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle>👥 모집 설정</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* 모집 인원 */}
-          <div>
-            <Label htmlFor="total_slots">모집 인원 *</Label>
-            <Input
-              id="total_slots"
-              type="number"
-              min="1"
-              value={campaignForm.total_slots}
-              onChange={(e) => handleSlotsChange(e.target.value)}
-              className="bg-white"
-              required
-            />
-          </div>
-
-          {/* 예상 크리에이터 정보 (자동 계산) */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-semibold mb-3">예상 지원 크리에이터 (플랫폼별)</h3>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-2xl mb-1">🎬</div>
-                <div className="text-sm text-gray-600">유튜브</div>
-                <div className="text-xl font-bold text-blue-600">
-                  {packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube || 0}명
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl mb-1">📸</div>
-                <div className="text-sm text-gray-600">인스타</div>
-                <div className="text-xl font-bold text-pink-600">
-                  {packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram || 0}명
-                </div>
-              </div>
-              <div>
-                <div className="text-2xl mb-1">🎵</div>
-                <div className="text-sm text-gray-600">틱톡</div>
-                <div className="text-xl font-bold text-purple-600">
-                  {packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok || 0}명
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-blue-200">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700">패키지 금액: <span className="font-semibold">{campaignForm.total_slots}명 × {packageOptions.find(p => p.value === campaignForm.package_type)?.price.toLocaleString() || 0}원</span></span>
-                <span className="text-gray-700">= {(campaignForm.total_slots * (packageOptions.find(p => p.value === campaignForm.package_type)?.price || 0)).toLocaleString()}원</span>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-gray-700">부가세(10%): </span>
-                <span className="text-gray-700">+ {Math.floor((campaignForm.total_slots * (packageOptions.find(p => p.value === campaignForm.package_type)?.price || 0)) * 0.1).toLocaleString()}원</span>
-              </div>
-              {calculateDiscount(campaignForm.total_slots * (packageOptions.find(p => p.value === campaignForm.package_type)?.price || 0)) > 0 && (
-                <div className="flex justify-between items-center mt-2 text-green-600">
-                  <span>할인({calculateDiscount(campaignForm.total_slots * (packageOptions.find(p => p.value === campaignForm.package_type)?.price || 0))}%): </span>
-                  <span>- {Math.floor((campaignForm.total_slots * (packageOptions.find(p => p.value === campaignForm.package_type)?.price || 0)) * (calculateDiscount(campaignForm.total_slots * (packageOptions.find(p => p.value === campaignForm.package_type)?.price || 0)) / 100)).toLocaleString()}원</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-blue-200">
-                <span className="text-lg font-bold">총 결제액:</span>
-                <span className="text-2xl font-bold text-blue-600">₩{campaignForm.estimated_cost.toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ========================================
-          SECTION 3: 일정 관리
-          ======================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📅 일정 관리</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* 모집 마감일 - 모든 타입 공통 */}
-          <div>
-            <Label htmlFor="application_deadline">모집 마감일 *</Label>
-            <Input
-              id="application_deadline"
-              type="date"
-              value={campaignForm.application_deadline}
-              onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
-              className="bg-white"
-              required
-            />
-          </div>
-
-          {/* 일반 캠페인 전용 마감일 */}
-          {campaignForm.campaign_type === 'regular' && (
-            <>
-              <div>
-                <Label htmlFor="start_date">촬영 마감일 *</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={campaignForm.start_date}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="end_date">SNS 업로드일 *</Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={campaignForm.end_date}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          {/* 올영세일 캠페인 전용 - 3단계 콘텐츠 업로드 스케줄 */}
-          {campaignForm.campaign_type === 'oliveyoung' && (
-            <div className="bg-pink-50 p-6 rounded-lg space-y-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <span>📅</span>
-                <span>3단계 콘텐츠 업로드 스케줄</span>
-              </h3>
-              <p className="text-sm text-gray-600">
-                올영세일 전용 3단계 콘텐츠 전략으로 진행됩니다 (릴스 2건 + 스토리 1건)
-              </p>
-
-              <div>
-                <Label htmlFor="step1_deadline">STEP 1: 상품 리뷰 마감일 *</Label>
-                <Input
-                  id="step1_deadline"
-                  type="date"
-                  value={campaignForm.step1_deadline}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">기대감 형성 - 후리뷰형 방문형 콘텐츠</p>
-              </div>
-
-              <div>
-                <Label htmlFor="step2_deadline">STEP 2: 세일 홍보 마감일 *</Label>
-                <Input
-                  id="step2_deadline"
-                  type="date"
-                  value={campaignForm.step2_deadline}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_deadline: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">구매 전환 유도 - 추천형 콘텐츠</p>
-              </div>
-
-              <div>
-                <Label htmlFor="step3_deadline">STEP 3: 세일 당일 스토리 마감일 *</Label>
-                <Input
-                  id="step3_deadline"
-                  type="date"
-                  value={campaignForm.step3_deadline}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step3_deadline: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">즉시 구매 유도 - 스토리 릴업 상업</p>
-                <p className="text-xs text-blue-600 mt-1">
-                  ※ 본 영상은 STEP 2의 영상이 업로드 + URL이 삽입됩니다.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* 4주 챌린지 전용 - 주차별 마감일 */}
-          {campaignForm.campaign_type === '4week_challenge' && (
-            <div className="bg-purple-50 p-6 rounded-lg space-y-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <span>🗓️</span>
-                <span>4주 챌린지 스케줄</span>
-              </h3>
-              <p className="text-sm text-gray-600">
-                주차별 통합 가이드 4개, 4주 연속 콘텐츠 제작
-              </p>
-
-              <div>
-                <Label htmlFor="week1_deadline">Week 1 마감일 *</Label>
-                <Input
-                  id="week1_deadline"
-                  type="date"
-                  value={campaignForm.week1_deadline}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, week1_deadline: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="week2_deadline">Week 2 마감일 *</Label>
-                <Input
-                  id="week2_deadline"
-                  type="date"
-                  value={campaignForm.week2_deadline}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, week2_deadline: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="week3_deadline">Week 3 마감일 *</Label>
-                <Input
-                  id="week3_deadline"
-                  type="date"
-                  value={campaignForm.week3_deadline}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, week3_deadline: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="week4_deadline">Week 4 마감일 *</Label>
-                <Input
-                  id="week4_deadline"
-                  type="date"
-                  value={campaignForm.week4_deadline}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, week4_deadline: e.target.value }))}
-                  className="bg-white"
-                  required
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ========================================
-          SECTION 4: 타입별 상세 설정 (올영세일 전용)
-          ======================================== */}
-      {campaignForm.campaign_type === 'oliveyoung' && (
         <Card>
           <CardHeader>
-            <CardTitle>🎯 올리브영 캠페인 상세 설정</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2">
+              🇰🇷 {editId ? '캠페인 수정' : '한국 캠페인 생성'}
+            </CardTitle>
+            <p className="text-sm text-gray-600 mt-2">cnec-kr 데이터베이스에 캠페인이 생성됩니다</p>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 올리브영 패키지 타입 */}
-            <div>
-              <Label className="block mb-3">올리브영 패키지 타입 *</Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <label
-                  htmlFor="subtype_pick"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    campaignForm.oliveyoung_subtype === 'pick'
-                      ? 'border-pink-500 bg-pink-50'
-                      : 'border-gray-200 hover:border-pink-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    id="subtype_pick"
-                    name="oliveyoung_subtype"
-                    value="pick"
-                    checked={campaignForm.oliveyoung_subtype === 'pick'}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
-                    className="sr-only"
-                  />
-                  <span className="text-2xl">🌟</span>
-                  <Label htmlFor="subtype_pick" className="cursor-pointer">
-                    올영픽 (Olive Young Pick)
-                  </Label>
-                </label>
-
-                <label
-                  htmlFor="subtype_sale"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    campaignForm.oliveyoung_subtype === 'sale'
-                      ? 'border-pink-500 bg-pink-50'
-                      : 'border-gray-200 hover:border-pink-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    id="subtype_sale"
-                    name="oliveyoung_subtype"
-                    value="sale"
-                    checked={campaignForm.oliveyoung_subtype === 'sale'}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
-                    className="sr-only"
-                  />
-                  <span className="text-2xl">🌸</span>
-                  <Label htmlFor="subtype_sale" className="cursor-pointer">
-                    올영세일 (Olive Young Sale)
-                  </Label>
-                </label>
-
-                <label
-                  htmlFor="subtype_special"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    campaignForm.oliveyoung_subtype === 'special'
-                      ? 'border-pink-500 bg-pink-50'
-                      : 'border-gray-200 hover:border-pink-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    id="subtype_special"
-                    name="oliveyoung_subtype"
-                    value="special"
-                    checked={campaignForm.oliveyoung_subtype === 'special'}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
-                    className="sr-only"
-                  />
-                  <span className="text-2xl">🔥</span>
-                  <Label htmlFor="subtype_special" className="cursor-pointer">
-                    오특 (오늘의 특가)
-                  </Label>
-                </label>
-              </div>
-            </div>
-
-            {/* 타겟 채널 선택 */}
-            <div>
-              <Label className="block mb-3">타겟 채널 * (1개 이상 선택)</Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <label
-                  htmlFor="platform_youtube"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    campaignForm.target_platforms.includes('youtube')
-                      ? 'border-red-500 bg-red-50'
-                      : 'border-gray-200 hover:border-red-300'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    id="platform_youtube"
-                    checked={campaignForm.target_platforms.includes('youtube')}
-                    onChange={(e) => {
-                      const newPlatforms = e.target.checked
-                        ? [...campaignForm.target_platforms, 'youtube']
-                        : campaignForm.target_platforms.filter(p => p !== 'youtube')
-                      setCampaignForm(prev => ({ ...prev, target_platforms: newPlatforms }))
-                    }}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-2xl">🎬</span>
-                  <Label htmlFor="platform_youtube" className="cursor-pointer">
-                    유튜브 (YouTube)
-                  </Label>
-                </label>
-
-                <label
-                  htmlFor="platform_instagram"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    campaignForm.target_platforms.includes('instagram')
-                      ? 'border-pink-500 bg-pink-50'
-                      : 'border-gray-200 hover:border-pink-300'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    id="platform_instagram"
-                    checked={campaignForm.target_platforms.includes('instagram')}
-                    onChange={(e) => {
-                      const newPlatforms = e.target.checked
-                        ? [...campaignForm.target_platforms, 'instagram']
-                        : campaignForm.target_platforms.filter(p => p !== 'instagram')
-                      setCampaignForm(prev => ({ ...prev, target_platforms: newPlatforms }))
-                    }}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-2xl">📸</span>
-                  <Label htmlFor="platform_instagram" className="cursor-pointer">
-                    인스타그램 (Instagram)
-                  </Label>
-                </label>
-
-                <label
-                  htmlFor="platform_tiktok"
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    campaignForm.target_platforms.includes('tiktok')
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 hover:border-purple-300'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    id="platform_tiktok"
-                    checked={campaignForm.target_platforms.includes('tiktok')}
-                    onChange={(e) => {
-                      const newPlatforms = e.target.checked
-                        ? [...campaignForm.target_platforms, 'tiktok']
-                        : campaignForm.target_platforms.filter(p => p !== 'tiktok')
-                      setCampaignForm(prev => ({ ...prev, target_platforms: newPlatforms }))
-                    }}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-2xl">🎵</span>
-                  <Label htmlFor="platform_tiktok" className="cursor-pointer">
-                    틱톡 (TikTok)
-                  </Label>
-                </label>
-              </div>
-            </div>
-
-            {/* 기업 브랜드 로고 파일 제공 */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="provide_logo"
-                checked={campaignForm.provide_logo}
-                onChange={(e) => setCampaignForm(prev => ({ ...prev, provide_logo: e.target.checked }))}
-                className="w-5 h-5"
-              />
-              <Label htmlFor="provide_logo" className="cursor-pointer">
-                크리에이터에게 기업 브랜드 로고 파일 제공 (PNG)
-              </Label>
-            </div>
-
-            {/* 로고 파일 업로드 */}
-            {campaignForm.provide_logo && (
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* 카테고리 선택 (체크박스) */}
               <div>
-                <Label>로고 파일 (PNG) *</Label>
+                <Label>모집 채널 * (여러 개 선택 가능)</Label>
+                <div className="flex gap-4 mt-2">
+                  {categoryOptions.map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={campaignForm.category.includes(opt.value)}
+                        onChange={() => handleCategoryToggle(opt.value)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {campaignForm.category.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">최소 1개 이상 선택해주세요</p>
+                )}
+              </div>
+
+
+              {/* 브랜드명 */}
+              <div>
+                <Label htmlFor="brand">브랜드명 *</Label>
                 <Input
-                  type="file"
-                  accept=".png"
-                  onChange={handleLogoUpload}
-                  className="bg-white"
+                  id="brand"
+                  value={campaignForm.brand}
+                  onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
+                  placeholder="예: 에이블씨엔씨"
+                  required
                 />
-                {campaignForm.oliveyoung_logo_url && (
-                  <div className="mt-2">
-                    <img 
-                      src={campaignForm.oliveyoung_logo_url} 
-                      alt="로고 미리보기" 
-                      className="w-32 h-32 object-contain border rounded"
+              </div>
+
+              {/* 참여 조건 */}
+              <div>
+                <Label htmlFor="requirements">참여 조건</Label>
+                <Textarea
+                  id="requirements"
+                  value={campaignForm.requirements}
+                  onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
+                  placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
+                  rows={3}
+                />
+              </div>
+
+
+              {/* 모집 인원 및 결제 예상 금액 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="total_slots">모집 인원 *</Label>
+                  <Input
+                    id="total_slots"
+                    type="number"
+                    value={campaignForm.total_slots}
+                    onChange={(e) => handleSlotsChange(e.target.value)}
+                    placeholder="10"
+                    required
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="estimated_cost">결제 예상 금액 (VAT 포함)</Label>
+                  <Input
+                    id="estimated_cost"
+                    type="text"
+                    value={`₩${campaignForm.estimated_cost.toLocaleString()}`}
+                    disabled
+                    className="bg-gray-100 font-semibold text-blue-600"
+                  />
+                  {(() => {
+                    const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
+                    const packagePrice = pkg?.price || 0
+                    const subtotal = packagePrice * campaignForm.total_slots
+                    const discountRate = calculateDiscount(subtotal)
+                    const discountAmount = Math.floor(subtotal * (discountRate / 100))
+                    const finalBeforeVat = subtotal - discountAmount
+                    const vat = Math.round(finalBeforeVat * 0.1)
+                    const totalWithVat = finalBeforeVat + vat
+                    
+                    return (
+                      <div className="text-xs text-gray-500 mt-1 space-y-1">
+                        <div>패키지 금액: {campaignForm.total_slots}명 × ₩{packagePrice.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
+                        {discountRate > 0 && (
+                          <div className="text-green-600 font-medium">
+                            할인 ({discountRate}%): -₩{discountAmount.toLocaleString()}
+                          </div>
+                        )}
+                        <div className="border-t pt-1 mt-1">
+                          <div>부가세(10%): ₩{vat.toLocaleString()}</div>
+                          <div className="font-semibold text-blue-600">총 결제액: ₩{totalWithVat.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* 날짜 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="application_deadline">모집 마감일 *</Label>
+                  <Input
+                    id="application_deadline"
+                    type="date"
+                    value={campaignForm.application_deadline}
+                    onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
+                    required
+                  />
+                </div>
+                {campaignForm.campaign_type === 'regular' && (
+                  <>
+                    <div>
+                      <Label htmlFor="start_date">촬영 마감일 *</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        value={campaignForm.start_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="end_date">SNS 업로드일 *</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        value={campaignForm.end_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 캠페인 타입 선택 */}
+              <div className="border-t pt-6 mt-6">
+                <h3 className="text-lg font-semibold mb-4">🎯 캠페인 타입 선택 *</h3>
+                <div className="space-y-3">
+                  {/* 일반 캠페인 */}
+                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'regular', is_oliveyoung_sale: false }))}>
+                    <input
+                      type="radio"
+                      id="campaign_type_regular"
+                      name="campaign_type"
+                      value="regular"
+                      checked={campaignForm.campaign_type === 'regular'}
+                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'regular', is_oliveyoung_sale: false }))}
+                      className="w-5 h-5 mt-1 text-blue-600"
                     />
+                    <div className="flex-1">
+                      <Label htmlFor="campaign_type_regular" className="text-base font-semibold cursor-pointer">
+                        📝 일반 캠페인
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">가격: 초급 20만원 / 중급 30만원 / 상급 40만원</p>
+                      <p className="text-xs text-gray-500 mt-1">대사 + 촬영장면 개별 제공, SNS URL 1개 제출</p>
+                    </div>
+                  </div>
+
+                  {/* 올영세일 캠페인 */}
+                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-pink-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}>
+                    <input
+                      type="radio"
+                      id="campaign_type_oliveyoung"
+                      name="campaign_type"
+                      value="oliveyoung"
+                      checked={campaignForm.campaign_type === 'oliveyoung'}
+                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}
+                      className="w-5 h-5 mt-1 text-pink-600"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="campaign_type_oliveyoung" className="text-base font-semibold cursor-pointer">
+                        🌸 올영세일 캠페인
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">가격: 중급 30만원 / 상급 40만원 (2단계만)</p>
+                      <p className="text-xs text-gray-500 mt-1">통합 가이드, 3단계 콘텐츠 (릴스 2건 + 스토리 1건), URL 3개 + 영상 폴더 2개 제출</p>
+                    </div>
+                  </div>
+
+                  {/* 4주 챌린지 */}
+                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-purple-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: '4week_challenge', is_oliveyoung_sale: false }))}>
+                    <input
+                      type="radio"
+                      id="campaign_type_4week"
+                      name="campaign_type"
+                      value="4week_challenge"
+                      checked={campaignForm.campaign_type === '4week_challenge'}
+                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: '4week_challenge', is_oliveyoung_sale: false }))}
+                      className="w-5 h-5 mt-1 text-purple-600"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="campaign_type_4week" className="text-base font-semibold cursor-pointer">
+                        🏆 4주 챌린지
+                      </Label>
+                      <p className="text-sm text-gray-600 mt-1">가격: 60만원 (고정)</p>
+                      <p className="text-xs text-gray-500 mt-1">주차별 통합 가이드 4개, 4주 연속 콘텐츠, URL 4개 + 영상 4개 제출</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 패키지 선택 */}
+              <div className="border-t pt-6 mt-6">
+                <Label htmlFor="package_type">패키지 선택 *</Label>
+                {campaignForm.campaign_type === '4week_challenge' ? (
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-purple-900">4주 챌린지 프로그램 - ₩600,000 <span className="text-sm text-gray-500">(VAT 별도)</span></p>
+                        <p className="text-sm text-gray-600 mt-1">4주간 지속적인 콘텐츠 제작</p>
+                      </div>
+                      <span className="text-purple-600 font-semibold">고정 금액</span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="패키지 선택" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {packageOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
+                            <div className="flex flex-col">
+                              <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()} <span className="text-sm text-gray-500">(VAT 별도)</span></span>
+                              <span className="text-xs text-gray-500">{opt.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm font-semibold text-blue-900 mb-2">
+                        예상 지원 크리에이터 (플랫폼별)
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="flex items-center gap-1">
+                          <span className="text-red-600">🎥</span>
+                          <span className="text-gray-700">유튜브:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube}명</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-pink-600">📸</span>
+                          <span className="text-gray-700">인스타:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-black">🎵</span>
+                          <span className="text-gray-700">틱톡:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok}명</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        * 금액대에 따라 지원율이 다소 차이가 납니다. 위 수치는 평균 예상치입니다.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+
+              {/* 올영세일 캠페인 상세 설정 */}
+              {campaignForm.campaign_type === 'oliveyoung' && (
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-semibold mb-4">🌸 올리브영 캠페인 상세 설정</h3>
+                  <div className="space-y-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
+                    {/* 올영 패키지 타입 선택 */}
+                    <div>
+                      <Label className="block mb-3">올리브영 패키지 타입 *</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="subtype_pick"
+                            name="oliveyoung_subtype"
+                            value="pick"
+                            checked={campaignForm.oliveyoung_subtype === 'pick'}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
+                            className="w-4 h-4 text-pink-600"
+                          />
+                          <Label htmlFor="subtype_pick" className="cursor-pointer">
+                            🌟 올영픽 (Olive Young Pick)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="subtype_sale"
+                            name="oliveyoung_subtype"
+                            value="sale"
+                            checked={campaignForm.oliveyoung_subtype === 'sale'}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
+                            className="w-4 h-4 text-pink-600"
+                          />
+                          <Label htmlFor="subtype_sale" className="cursor-pointer">
+                            🌸 올영세일 (Olive Young Sale)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            id="subtype_special"
+                            name="oliveyoung_subtype"
+                            value="special"
+                            checked={campaignForm.oliveyoung_subtype === 'special'}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
+                            className="w-4 h-4 text-pink-600"
+                          />
+                          <Label htmlFor="subtype_special" className="cursor-pointer">
+                            🔥 오특 (오늘의 특가)
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 타겟 채널 선택 */}
+                    <div>
+                      <Label className="block mb-3">타겟 채널 * (1개 이상 선택)</Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="platform_youtube"
+                            checked={campaignForm.target_platforms.includes('youtube')}
+                            onChange={(e) => {
+                              const platforms = e.target.checked
+                                ? [...campaignForm.target_platforms, 'youtube']
+                                : campaignForm.target_platforms.filter(p => p !== 'youtube')
+                              setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
+                            }}
+                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                          />
+                          <Label htmlFor="platform_youtube" className="cursor-pointer">
+                            🎥 유튜브 (YouTube)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="platform_instagram"
+                            checked={campaignForm.target_platforms.includes('instagram')}
+                            onChange={(e) => {
+                              const platforms = e.target.checked
+                                ? [...campaignForm.target_platforms, 'instagram']
+                                : campaignForm.target_platforms.filter(p => p !== 'instagram')
+                              setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
+                            }}
+                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                          />
+                          <Label htmlFor="platform_instagram" className="cursor-pointer">
+                            📸 인스타그램 (Instagram)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="platform_tiktok"
+                            checked={campaignForm.target_platforms.includes('tiktok')}
+                            onChange={(e) => {
+                              const platforms = e.target.checked
+                                ? [...campaignForm.target_platforms, 'tiktok']
+                                : campaignForm.target_platforms.filter(p => p !== 'tiktok')
+                              setCampaignForm(prev => ({ ...prev, target_platforms: platforms }))
+                            }}
+                            className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                          />
+                          <Label htmlFor="platform_tiktok" className="cursor-pointer">
+                            🎵 틱톡 (TikTok)
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 로고 제공 여부 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="provide_logo"
+                        checked={campaignForm.provide_logo}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, provide_logo: e.target.checked }))}
+                        className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                      />
+                      <Label htmlFor="provide_logo" className="cursor-pointer">
+                        크리에이터에게 기업 브랜드 로고 파일 제공 (PNG)
+                      </Label>
+                    </div>
+
+                    {/* 로고 파일 업로드 */}
+                    {campaignForm.provide_logo && (
+                      <div>
+                        <Label>로고 파일 (PNG) *</Label>
+                        <p className="text-sm text-gray-600 mb-2">크리에이터가 다운로드하여 사용할 로고 파일을 업로드하세요</p>
+                        <input
+                          type="file"
+                          accept="image/png"
+                          onChange={handleLogoUpload}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                        />
+                        {campaignForm.oliveyoung_logo_url && (
+                          <div className="mt-2">
+                            <img src={campaignForm.oliveyoung_logo_url} alt="로고 미리보기" className="max-h-20" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 세일 시즌 선택 (올영세일일 경우만) */}
+                    {campaignForm.oliveyoung_subtype === 'sale' && (
+                      <div>
+                        <Label htmlFor="sale_season">세일 시즌 *</Label>
+                      <Select 
+                        value={campaignForm.sale_season} 
+                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, sale_season: value }))}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="세일 시즌 선택" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="spring" className="bg-white hover:bg-gray-100">🌸 봄 세일 (3월 1~7일)</SelectItem>
+                          <SelectItem value="summer" className="bg-white hover:bg-gray-100">☀️ 여름 세일 (5월 31일~6월 6일)</SelectItem>
+                          <SelectItem value="fall" className="bg-white hover:bg-gray-100">🍂 가을 세일 (8월 30일~9월 5일)</SelectItem>
+                          <SelectItem value="winter" className="bg-white hover:bg-gray-100">❄️ 겨울 세일 (12월 초)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      </div>
+                    )}
+
+                    {/* 콘텐츠 타입 선택 */}
+                    <div>
+                      <Label htmlFor="content_type">콘텐츠 타입 *</Label>
+                      <Select 
+                        value={campaignForm.content_type} 
+                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, content_type: value }))}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="콘텐츠 타입 선택" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="store_visit" className="bg-white hover:bg-gray-100">🏪 매장 방문형 (진정성 강조)</SelectItem>
+                          <SelectItem value="product_only" className="bg-white hover:bg-gray-100">📦 제품 소개형 (빠른 제작)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 앰블럼 삽입 여부 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="emblem_required"
+                        checked={campaignForm.emblem_required}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, emblem_required: e.target.checked }))}
+                        className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                      />
+                      <Label htmlFor="emblem_required" className="cursor-pointer">
+                        올영세일 앰블럼 삽입
+                      </Label>
+                    </div>
+
+                    {/* 3단계 스케줄 */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold mb-3">📅 3단계 콘텐츠 업로드 스케줄</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="step1_deadline">STEP 1: 상품 리뷰 마감일 *</Label>
+                          <Input
+                            id="step1_deadline"
+                            type="date"
+                            value={campaignForm.step1_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
+                            required={campaignForm.is_oliveyoung_sale}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">상품 리뷰 콘텐츠 제작 및 업로드</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="step2_deadline">STEP 2: 세일 홍보 마감일 *</Label>
+                          <Input
+                            id="step2_deadline"
+                            type="date"
+                            value={campaignForm.step2_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_deadline: e.target.value }))}
+                            required={campaignForm.is_oliveyoung_sale}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">세일 홍보 콘텐츠 제작 및 업로드</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="step3_deadline">STEP 3: 세일 당일 스토리 마감일 *</Label>
+                          <Input
+                            id="step3_deadline"
+                            type="date"
+                            value={campaignForm.step3_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step3_deadline: e.target.value }))}
+                            required={campaignForm.is_oliveyoung_sale}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">본 영상은 STEP 2의 영상이 업로드 + URL이 삽입됩니다</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4주 챌린지 상세 설정 */}
+              {campaignForm.campaign_type === '4week_challenge' && (
+                <div className="border-t pt-6 mt-6">
+                  <h3 className="text-lg font-semibold mb-4">🏆 4주 챌린지 상세 설정</h3>
+                  <div className="space-y-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    {/* 4주 마감일 */}
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold mb-3">📅 4주 콘텐츠 스케줄</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="week1_deadline">Week 1 마감일 *</Label>
+                          <Input
+                            id="week1_deadline"
+                            type="date"
+                            value={campaignForm.week1_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week1_deadline: e.target.value }))}
+                            required={campaignForm.campaign_type === '4week_challenge'}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">첫 주차 콘텐츠 제출 마감</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="week2_deadline">Week 2 마감일 *</Label>
+                          <Input
+                            id="week2_deadline"
+                            type="date"
+                            value={campaignForm.week2_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week2_deadline: e.target.value }))}
+                            required={campaignForm.campaign_type === '4week_challenge'}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">2주차 콘텐츠 제출 마감</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="week3_deadline">Week 3 마감일 *</Label>
+                          <Input
+                            id="week3_deadline"
+                            type="date"
+                            value={campaignForm.week3_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week3_deadline: e.target.value }))}
+                            required={campaignForm.campaign_type === '4week_challenge'}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">3주차 콘텐츠 제출 마감</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="week4_deadline">Week 4 마감일 *</Label>
+                          <Input
+                            id="week4_deadline"
+                            type="date"
+                            value={campaignForm.week4_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week4_deadline: e.target.value }))}
+                            required={campaignForm.campaign_type === '4week_challenge'}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">최종 주차 콘텐츠 제출 마감</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 캠페인 썸네일 */}
+              <div>
+                <Label>캠페인 썸네일</Label>
+                <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
+                <input
+                  ref={thumbnailInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => thumbnailInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="w-full"
+                >
+                  {uploadingImage ? '업로드 중...' : campaignForm.image_url ? '썸네일 변경' : '썸네일 업로드'}
+                </Button>
+                {campaignForm.image_url && (
+                  <div className="mt-4">
+                    <p className="text-sm text-green-600 mb-2">✓ 썸네일이 업로드되었습니다</p>
+                    <img src={campaignForm.image_url} alt="썸네일" className="w-full max-w-md rounded border" />
                   </div>
                 )}
               </div>
-            )}
 
-            {/* 세일 시즌 선택 - 올영세일 타입만 */}
-            {campaignForm.oliveyoung_subtype === 'sale' && (
-              <div>
-                <Label htmlFor="sale_season">세일 시즌 *</Label>
-                <Select 
-                  value={campaignForm.sale_season}
-                  onValueChange={(value) => setCampaignForm(prev => ({ ...prev, sale_season: value }))}
-                >
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="세일 시즌 선택" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="spring" className="bg-white hover:bg-gray-100">🌸 봄 세일 (3월 1~7일)</SelectItem>
-                    <SelectItem value="summer" className="bg-white hover:bg-gray-100">☀️ 여름 세일 (5월 31일~6월 6일)</SelectItem>
-                    <SelectItem value="fall" className="bg-white hover:bg-gray-100">🍂 가을 세일 (8월 30일~9월 5일)</SelectItem>
-                    <SelectItem value="winter" className="bg-white hover:bg-gray-100">❄️ 겨울 세일 (12월 초)</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* 상품 상세 정보 */}
+              <div className="border-t pt-6 mt-6">
+                <h3 className="text-lg font-semibold mb-4">📦 상품 상세 정보</h3>
+                
+                <div className="space-y-4">
+                  {/* 상품명 */}
+                  <div>
+                    <Label htmlFor="product_name">상품명</Label>
+                    <Input
+                      id="product_name"
+                      value={campaignForm.product_name}
+                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                      placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
+                    />
+                  </div>
+
+                  {/* 상품 설명 */}
+                  <div>
+                    <Label htmlFor="product_description">상품 설명</Label>
+                    <Textarea
+                      id="product_description"
+                      value={campaignForm.product_description}
+                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
+                      placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* 상품 링크 */}
+                  <div>
+                    <Label htmlFor="product_link">상품 링크 (URL)</Label>
+                    <Input
+                      id="product_link"
+                      type="url"
+                      value={campaignForm.product_link}
+                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
+                      placeholder="https://example.com/product"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
+                  </div>
+
+                  {/* 상품 상세 페이지 이미지 */}
+                  <div className="border-t pt-4 mt-4">
+                    <Label>상품 상세 페이지 이미지</Label>
+                    <p className="text-sm text-gray-600 mb-2">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
+                    <input
+                      ref={detailImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProductDetailImageUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => detailImageInputRef.current?.click()}
+                      disabled={uploadingDetailImage}
+                      className="w-full"
+                    >
+                      {uploadingDetailImage ? '업로드 중...' : campaignForm.product_detail_file_url ? '이미지 변경' : '이미지 업로드'}
+                    </Button>
+                    {campaignForm.product_detail_file_url && (
+                      <div className="mt-4">
+                        <p className="text-sm text-green-600 mb-2">✓ 상품 상세 이미지가 업로드되었습니다</p>
+                        <img 
+                          src={campaignForm.product_detail_file_url} 
+                          alt="상품 상세" 
+                          className="max-w-full h-auto rounded border"
+                          style={{ maxHeight: '500px' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
 
-            {/* 콘텐츠 타입 */}
-            <div>
-              <Label htmlFor="content_type">콘텐츠 타입 *</Label>
-              <Select 
-                value={campaignForm.content_type}
-                onValueChange={(value) => setCampaignForm(prev => ({ ...prev, content_type: value }))}
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue placeholder="콘텐츠 타입 선택" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="store_visit" className="bg-white hover:bg-gray-100">🏪 매장 방문형 (진정성 강조)</SelectItem>
-                  <SelectItem value="product_only" className="bg-white hover:bg-gray-100">📦 제품 소개형 (빠른 제작)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* 상태 안내 */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  📌 캠페인은 "<strong>임시저장</strong>" 상태로 저장됩니다. 
+                  저장 후 캠페인 목록에서 <strong>"승인 요청하기"</strong>를 누르면 관리자가 검토합니다.
+                </p>
+              </div>
 
-            {/* 올영세일 엠블럼 삽입 */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="emblem_required"
-                checked={campaignForm.emblem_required}
-                onChange={(e) => setCampaignForm(prev => ({ ...prev, emblem_required: e.target.checked }))}
-                className="w-5 h-5"
-              />
-              <Label htmlFor="emblem_required" className="cursor-pointer">
-                올영세일 엠블럼 삽입
-              </Label>
-            </div>
+              {/* 질문 섹션 */}
+              <div className="border-t pt-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Label className="text-lg font-semibold">지원자 질문 (선택사항)</Label>
+                  {questionCount < 4 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuestionCount(prev => Math.min(prev + 1, 4))}
+                    >
+                      + 질문 추가
+                    </Button>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mb-4">지원자에게 물어볼 질문을 최대 4개까지 추가할 수 있습니다.</p>
+                
+                <div className="space-y-4">
+                  {/* 질문 1 */}
+                  {questionCount >= 1 && (
+                    <div>
+                      <Label htmlFor="question1">질문 1</Label>
+                      <Textarea
+                        id="question1"
+                        value={campaignForm.question1}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question1: e.target.value }))}
+                        placeholder="예: 본인의 피부 타입과 주요 피부 고민을 알려주세요."
+                        rows={2}
+                      />
+                    </div>
+                  )}
+
+                  {/* 질문 2 */}
+                  {questionCount >= 2 && (
+                    <div>
+                      <Label htmlFor="question2">질문 2</Label>
+                      <Textarea
+                        id="question2"
+                        value={campaignForm.question2}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question2: e.target.value }))}
+                        placeholder="예: 평소 사용하는 스킨케어 제품을 알려주세요."
+                        rows={2}
+                      />
+                    </div>
+                  )}
+
+                  {/* 질문 3 */}
+                  {questionCount >= 3 && (
+                    <div>
+                      <Label htmlFor="question3">질문 3</Label>
+                      <Textarea
+                        id="question3"
+                        value={campaignForm.question3}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question3: e.target.value }))}
+                        placeholder="예: 이 캠페인에 지원한 이유를 알려주세요."
+                        rows={2}
+                      />
+                    </div>
+                  )}
+
+                  {/* 질문 4 */}
+                  {questionCount >= 4 && (
+                    <div>
+                      <Label htmlFor="question4">질문 4</Label>
+                      <Textarea
+                        id="question4"
+                        value={campaignForm.question4}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question4: e.target.value }))}
+                        placeholder="예: 콘텐츠 제작 시 중점적으로 다루고 싶은 부분이 있나요?"
+                        rows={2}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 에러/성공 메시지 */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+                  {success}
+                </div>
+              )}
+
+              {/* 버튼 */}
+              <div className="flex gap-4">
+                <Button 
+                  type="submit" 
+                  disabled={processing || campaignForm.category.length === 0} 
+                  className="flex-1"
+                >
+                  {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
+                  취소
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
-      )}
-
-      {/* ========================================
-          SECTION 5: 상품 정보
-          ======================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📦 상품 정보</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <Label htmlFor="product_name">상품명</Label>
-            <Input
-              id="product_name"
-              value={campaignForm.product_name}
-              onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
-              placeholder="예: 올리브영 베스트셀러 제품"
-              className="bg-white"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="product_description">상품 설명</Label>
-            <Textarea
-              id="product_description"
-              value={campaignForm.product_description}
-              onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
-              placeholder="상품의 주요 특징과 장점을 입력하세요"
-              className="bg-white min-h-[100px]"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="product_link">상품 링크 (URL)</Label>
-            <Input
-              id="product_link"
-              type="url"
-              value={campaignForm.product_link}
-              onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
-              placeholder="https://www.oliveyoung.co.kr/..."
-              className="bg-white"
-            />
-          </div>
-
-          <div>
-            <Label>상품 상세 페이지 이미지</Label>
-            <input
-              type="file"
-              ref={detailImageInputRef}
-              accept="image/*"
-              onChange={handleDetailImageUpload}
-              className="hidden"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => detailImageInputRef.current?.click()}
-              disabled={uploadingDetailImage}
-              className="w-full"
-            >
-              {uploadingDetailImage ? '업로드 중...' : '이미지 선택'}
-            </Button>
-            {campaignForm.product_detail_file_url && (
-              <div className="mt-4">
-                <img 
-                  src={campaignForm.product_detail_file_url} 
-                  alt="상품 상세 이미지" 
-                  className="max-w-full h-auto rounded border"
-                />
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ========================================
-          SECTION 6: 캠페인 상세
-          ======================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle>📝 캠페인 상세</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* 캠페인 썸네일 */}
-          <div>
-            <Label>캠페인 썸네일</Label>
-            <input
-              type="file"
-              ref={thumbnailInputRef}
-              accept="image/*"
-              onChange={handleThumbnailUpload}
-              className="hidden"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => thumbnailInputRef.current?.click()}
-              disabled={uploadingImage}
-              className="w-full"
-            >
-              {uploadingImage ? '업로드 중...' : '썸네일 선택'}
-            </Button>
-            {campaignForm.image_url && (
-              <div className="mt-4">
-                <img 
-                  src={campaignForm.image_url} 
-                  alt="캠페인 썸네일" 
-                  className="max-w-full h-auto rounded border"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 캠페인 제목 */}
-          <div>
-            <Label htmlFor="title">캠페인 제목 *</Label>
-            <Input
-              id="title"
-              value={campaignForm.title}
-              onChange={(e) => setCampaignForm(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="예: 올리브영 봄 세일 캠페인"
-              className="bg-white"
-              required
-            />
-          </div>
-
-          {/* 브랜드명 */}
-          <div>
-            <Label htmlFor="brand">브랜드명 *</Label>
-            <Input
-              id="brand"
-              value={campaignForm.brand}
-              onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
-              placeholder="예: 올리브영"
-              className="bg-white"
-              required
-            />
-          </div>
-
-          {/* 캠페인 설명 */}
-          <div>
-            <Label htmlFor="requirements">캠페인 설명 *</Label>
-            <Textarea
-              id="requirements"
-              value={campaignForm.requirements}
-              onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-              placeholder="캠페인 목표, 요구사항, 주의사항 등을 입력하세요"
-              className="bg-white min-h-[150px]"
-              required
-            />
-          </div>
-
-          {/* 카테고리 (플랫폼) 선택 */}
-          <div>
-            <Label className="block mb-3">모집 플랫폼 * (1개 이상 선택)</Label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {categoryOptions.map(option => (
-                <label
-                  key={option.value}
-                  className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    campaignForm.category.includes(option.value)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={campaignForm.category.includes(option.value)}
-                    onChange={() => handleCategoryToggle(option.value)}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-lg">{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ========================================
-          SECTION 7: 지원자 질문 (선택사항)
-          ======================================== */}
-      <Card>
-        <CardHeader>
-          <CardTitle>❓ 지원자 질문 (선택사항)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <p className="text-sm text-gray-600">
-            크리에이터에게 추가로 물어볼 질문을 입력하세요 (최대 4개)
-          </p>
-
-          {questionCount >= 1 && (
-            <div>
-              <Label htmlFor="question1">질문 1</Label>
-              <Input
-                id="question1"
-                value={campaignForm.question1}
-                onChange={(e) => setCampaignForm(prev => ({ ...prev, question1: e.target.value }))}
-                placeholder="예: 이전에 뷰티 제품 리뷰 경험이 있나요?"
-                className="bg-white"
-              />
-            </div>
-          )}
-
-          {questionCount >= 2 && (
-            <div>
-              <Label htmlFor="question2">질문 2</Label>
-              <Input
-                id="question2"
-                value={campaignForm.question2}
-                onChange={(e) => setCampaignForm(prev => ({ ...prev, question2: e.target.value }))}
-                placeholder="예: 선호하는 콘텐츠 스타일은 무엇인가요?"
-                className="bg-white"
-              />
-            </div>
-          )}
-
-          {questionCount >= 3 && (
-            <div>
-              <Label htmlFor="question3">질문 3</Label>
-              <Input
-                id="question3"
-                value={campaignForm.question3}
-                onChange={(e) => setCampaignForm(prev => ({ ...prev, question3: e.target.value }))}
-                placeholder="추가 질문을 입력하세요"
-                className="bg-white"
-              />
-            </div>
-          )}
-
-          {questionCount >= 4 && (
-            <div>
-              <Label htmlFor="question4">질문 4</Label>
-              <Input
-                id="question4"
-                value={campaignForm.question4}
-                onChange={(e) => setCampaignForm(prev => ({ ...prev, question4: e.target.value }))}
-                placeholder="추가 질문을 입력하세요"
-                className="bg-white"
-              />
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            {questionCount < 4 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setQuestionCount(prev => prev + 1)}
-              >
-                + 질문 추가
-              </Button>
-            )}
-            {questionCount > 1 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setQuestionCount(prev => prev - 1)
-                  // 마지막 질문 초기화
-                  if (questionCount === 4) {
-                    setCampaignForm(prev => ({ ...prev, question4: '' }))
-                  } else if (questionCount === 3) {
-                    setCampaignForm(prev => ({ ...prev, question3: '' }))
-                  } else if (questionCount === 2) {
-                    setCampaignForm(prev => ({ ...prev, question2: '' }))
-                  }
-                }}
-              >
-                - 질문 제거
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 제출 버튼 */}
-      <div className="flex gap-4">
-        <Button
-          onClick={handleSubmit}
-          disabled={processing}
-          className="flex-1"
-        >
-          {processing ? '처리 중...' : (editId ? '캠페인 수정' : '캠페인 생성')}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => navigate('/company/campaigns')}
-          disabled={processing}
-        >
-          취소
-        </Button>
       </div>
     </div>
   )
