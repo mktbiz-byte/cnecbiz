@@ -513,6 +513,7 @@ JSON 형식으로 응답:
                 </p>
               </CardContent>
             </Card>
+            </div>
           </div>
         )}
 
