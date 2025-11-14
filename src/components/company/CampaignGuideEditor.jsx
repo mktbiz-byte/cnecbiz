@@ -60,9 +60,9 @@ const CampaignGuideEditor = () => {
   // 크리에이터 자율성
   const [creatorAutonomy, setCreatorAutonomy] = useState(false)
   
-  // 날짜 필드
-  const [videoDeadline, setVideoDeadline] = useState('')
-  const [snsUploadDate, setSnsUploadDate] = useState('')
+  // 날짜 필드 (start_date = 촬영 마감일, end_date = SNS 업로드일)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   // 캠페인 정보 및 가이드 로드
   useEffect(() => {
@@ -114,8 +114,8 @@ const CampaignGuideEditor = () => {
           creator_autonomy,
           guide_brand,
           guide_product_name,
-          video_deadline,
-          sns_upload_date
+          start_date,
+          end_date
         `)
         .eq('id', campaignId)
         .single()
@@ -151,8 +151,8 @@ const CampaignGuideEditor = () => {
         setProductFeatures(data.product_features || '')
         setProductKeyPoints(data.product_key_points || '')
         setCreatorAutonomy(data.creator_autonomy || false)
-        setVideoDeadline(data.video_deadline || '')
-        setSnsUploadDate(data.sns_upload_date || '')
+        setStartDate(data.start_date || '')
+        setEndDate(data.end_date || '')
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
@@ -428,11 +428,11 @@ const CampaignGuideEditor = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-base font-semibold mb-2 block">
-                  영상 마감일
+                  촬영 마감일
                 </Label>
                 <Input
                   type="date"
-                  value={videoDeadline}
+                  value={startDate}
                   disabled
                   className="text-base bg-gray-100 cursor-not-allowed"
                 />
@@ -443,7 +443,7 @@ const CampaignGuideEditor = () => {
                 </Label>
                 <Input
                   type="date"
-                  value={snsUploadDate}
+                  value={endDate}
                   disabled
                   className="text-base bg-gray-100 cursor-not-allowed"
                 />

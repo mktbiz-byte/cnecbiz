@@ -85,8 +85,8 @@ export default function CampaignGuideReview() {
 - **핵심 소구 포인트**: ${campaignData.product_key_points}
 
 ### 일정
-- **영상 마감일**: ${campaignData.video_deadline || '미정'}
-- **SNS 업로드일**: ${campaignData.sns_upload_date || '미정'}
+- **촬영 마감일**: ${campaignData.start_date || '미정'}
+- **SNS 업로드일**: ${campaignData.end_date || '미정'}
 
 ### 필수 대사
 ${campaignData.required_dialogues && campaignData.required_dialogues.length > 0 ? campaignData.required_dialogues.map((d, i) => `${i + 1}. "${d}"`).join('\n') : '- 없음'}
@@ -237,8 +237,8 @@ JSON만 응답하세요.`
 - 핵심 소구 포인트: ${campaign.product_key_points}
 
 **일정:**
-- 영상 마감일: ${campaign.video_deadline || '미정'}
-- SNS 업로드일: ${campaign.sns_upload_date || '미정'}
+- 촬영 마감일: ${campaign.start_date || '미정'}
+- SNS 업로드일: ${campaign.end_date || '미정'}
 ${autonomyNote}
 
 **가이드 작성 요구사항:**
