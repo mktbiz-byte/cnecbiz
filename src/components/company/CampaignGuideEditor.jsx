@@ -51,6 +51,9 @@ const CampaignGuideEditor = () => {
   // 메타광고코드 발급 요청
   const [metaAdCodeRequested, setMetaAdCodeRequested] = useState(false)
 
+  // 참고 레퍼런스 URL
+  const [referenceLinks, setReferenceLinks] = useState([''])
+
   // 제품 정보 필드
   const [brand, setBrand] = useState('')
   const [productName, setProductName] = useState('')
@@ -115,7 +118,8 @@ const CampaignGuideEditor = () => {
           guide_brand,
           guide_product_name,
           start_date,
-          end_date
+          end_date,
+          reference_links
         `)
         .eq('id', campaignId)
         .single()
@@ -153,6 +157,7 @@ const CampaignGuideEditor = () => {
         setCreatorAutonomy(data.creator_autonomy || false)
         setStartDate(data.start_date || '')
         setEndDate(data.end_date || '')
+        setReferenceLinks(data.reference_links || [''])
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
@@ -189,7 +194,8 @@ const CampaignGuideEditor = () => {
           guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy
+          creator_autonomy: creatorAutonomy,
+          reference_links: referenceLinks.filter(link => link.trim())
         })
         .eq('id', campaignId)
 
@@ -234,7 +240,8 @@ const CampaignGuideEditor = () => {
           guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy
+          creator_autonomy: creatorAutonomy,
+          reference_links: referenceLinks.filter(link => link.trim())
         })
         .eq('id', campaignId)
 
@@ -283,7 +290,8 @@ const CampaignGuideEditor = () => {
           guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy
+          creator_autonomy: creatorAutonomy,
+          reference_links: referenceLinks.filter(link => link.trim())
         })
         .eq('id', campaignId)
 
@@ -757,6 +765,54 @@ const CampaignGuideEditor = () => {
             <p className="text-sm text-gray-600 mt-2 ml-6">
               체크하시면 메타(Facebook/Instagram) 광고 코드를 발급해드립니다
             </p>
+          </div>
+
+          {/* 참고 레퍼런스 URL */}
+          <div className="border-t pt-6">
+            <Label className="text-base font-semibold">참고 레퍼런스 (선택)</Label>
+            <p className="text-sm text-gray-600 mt-1 mb-3">
+              크리에이터가 참고할 수 있는 영상/이미지 URL을 추가하세요 (예: YouTube, Instagram, 틱톡 링크)
+            </p>
+            <div className="space-y-2">
+              {referenceLinks.map((link, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    type="url"
+                    value={link}
+                    onChange={(e) => {
+                      const newLinks = [...referenceLinks]
+                      newLinks[index] = e.target.value
+                      setReferenceLinks(newLinks)
+                    }}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="flex-1"
+                  />
+                  {referenceLinks.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const newLinks = referenceLinks.filter((_, i) => i !== index)
+                        setReferenceLinks(newLinks)
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setReferenceLinks([...referenceLinks, ''])}
+                className="mt-2"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                레퍼런스 추가
+              </Button>
+            </div>
           </div>
 
           {error && (

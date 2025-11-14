@@ -135,6 +135,9 @@ ${campaignData.required_hashtags && campaignData.required_hashtags.length > 0 ? 
 ### 기타 요청사항
 ${campaignData.additional_details || '- 없음'}
 
+### 참고 레퍼런스
+${campaignData.reference_links && campaignData.reference_links.length > 0 ? campaignData.reference_links.map((link, i) => `${i + 1}. ${link}`).join('\n') : '- 없음'}
+
 ### 메타 파트너십 광고코드 (필수)
 ${campaignData.meta_ad_code_requested ? `- 요청됨: 영상 완료 후 파트너십 광고 코드를 발급받아 마이페이지 해당 캠페인의 코드 작성 공간에 반드시 제공해주세요.
 
