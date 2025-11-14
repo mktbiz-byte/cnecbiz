@@ -126,8 +126,9 @@ const CampaignCreationKorea = () => {
   // 캠페인 타입 변경 시 금액 재계산
   useEffect(() => {
     if (campaignForm.campaign_type === '4week_challenge') {
-      // 4주 챌린지: 고정 금액 660,000원 (VAT 포함)
-      setCampaignForm(prev => ({ ...prev, estimated_cost: 660000 }))
+      // 4주 챌린지: 1명당 60,000원 × 인원수
+      const finalCost = calculateFinalCost(60000, campaignForm.total_slots)
+      setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost }))
     } else {
       // 일반/올영세일: 패키지 × 인원수
       const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
@@ -679,15 +680,22 @@ const CampaignCreationKorea = () => {
                     disabled
                     className="bg-gray-100 font-semibold text-blue-600"
                   />
-                  {campaignForm.campaign_type === '4week_challenge' ? (
-                    <div className="text-xs text-gray-500 mt-1 space-y-1">
-                      <div className="text-purple-600 font-medium">고정 금액: ₩600,000</div>
-                      <div className="border-t pt-1 mt-1">
-                        <div>부가세(10%): ₩60,000</div>
-                        <div className="font-semibold text-blue-600">총 결제액: ₩660,000</div>
+                  {campaignForm.campaign_type === '4week_challenge' ? (() => {
+                    const pricePerPerson = 60000
+                    const subtotal = pricePerPerson * campaignForm.total_slots
+                    const vat = Math.round(subtotal * 0.1)
+                    const totalWithVat = subtotal + vat
+                    
+                    return (
+                      <div className="text-xs text-gray-500 mt-1 space-y-1">
+                        <div className="text-purple-600 font-medium">4주 챌린지: {campaignForm.total_slots}명 × ₩{pricePerPerson.toLocaleString()} = ₩{subtotal.toLocaleString()}</div>
+                        <div className="border-t pt-1 mt-1">
+                          <div>부가세(10%): ₩{vat.toLocaleString()}</div>
+                          <div className="font-semibold text-blue-600">총 결제액: ₩{totalWithVat.toLocaleString()}</div>
+                        </div>
                       </div>
-                    </div>
-                  ) : (() => {
+                    )
+                  })() : (() => {
                     const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
                     const packagePrice = pkg?.price || 0
                     const subtotal = packagePrice * campaignForm.total_slots
