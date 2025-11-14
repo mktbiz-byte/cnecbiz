@@ -33,11 +33,7 @@ const CampaignCreationKorea = () => {
     end_date: '',
     status: 'draft',
     creator_guide: '',  // 크리에이터 가이드
-    target_platforms: {
-      instagram: false,
-      youtube: true,
-      tiktok: false
-    },
+
     question1: '',
     question2: '',
     question3: '',
@@ -221,7 +217,7 @@ const CampaignCreationKorea = () => {
 
         setCampaignForm({
           ...data,
-          target_platforms: data.target_platforms || { instagram: true, youtube: false, tiktok: false },
+          target_platforms: Array.isArray(data.target_platforms) ? data.target_platforms : [],
           question1,
           question2,
           question3,
