@@ -137,8 +137,7 @@ const CampaignGuideEditor = () => {
         })
         setAdditionalShootingRequests(data.additional_shooting_requests || '')
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
-        setBrand(data.brand || '')
-        setProductName(data.product_name || '')
+        // brand와 product_name은 사용자가 직접 입력하도록 비워둡
         setProductFeatures(data.product_features || '')
         setProductKeyPoints(data.product_key_points || '')
         setCreatorAutonomy(data.creator_autonomy || false)
