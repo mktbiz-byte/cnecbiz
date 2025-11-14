@@ -206,10 +206,10 @@ JSON만 응답하세요.`
         setSelectedConcepts(guideData.video_concepts.map((_, index) => index))
       }
 
-      // Supabase에 저장
+      // Supabase에 저장 (JSONB 타입이므로 객체 그대로 저장)
       const { error: saveError } = await supabase
         .from('campaigns')
-        .update({ ai_generated_guide: JSON.stringify(guideData) })
+        .update({ ai_generated_guide: guideData })
         .eq('id', id)
 
       if (saveError) {
@@ -331,10 +331,10 @@ JSON 형식으로만 응답해주세요.`
         setSelectedConcepts(guideData.video_concepts.map((_, index) => index))
       }
 
-      // Supabase에 저장
+      // Supabase에 저장 (JSONB 타입이므로 객체 그대로 저장)
       const { error: saveError } = await supabase
         .from('campaigns')
-        .update({ ai_generated_guide: JSON.stringify(guideData) })
+        .update({ ai_generated_guide: guideData })
         .eq('id', id)
 
       if (saveError) {
@@ -375,10 +375,10 @@ JSON 형식으로만 응답해주세요.`
 
       setAiGuide(updatedGuide)
 
-      // Supabase에 저장
+      // Supabase에 저장 (JSONB 타입이므로 객체 그대로 저장)
       const { error } = await supabase
         .from('campaigns')
-        .update({ ai_generated_guide: JSON.stringify(updatedGuide) })
+        .update({ ai_generated_guide: updatedGuide })
         .eq('id', id)
 
       if (error) throw error
@@ -409,17 +409,30 @@ JSON 형식으로만 응답해주세요.`
       
       const finalConcepts = [...selectedConceptsList, ...additionalConceptsList]
 
+      // 메타 파트너십 광고코드 발급 방법 추가
+      const metaAdCodeInfo = campaign.meta_ad_code_requested ? [
+        '영상 완료 후 파트너십 광고 코드를 발급받아 마이페이지 해당 캠페인의 코드 작성 공간에 반드시 제공해주세요.',
+        '',
+        '파트너십 광고 코드 발급 방법:',
+        '1. Instagram 앱에서 업로드한 게시물/릴스/스토리로 이동',
+        '2. 오른쪽 상단 점 3개(⋯) 아이콘 클릭',
+        '3. "파트너십 레이블 및 광고" 선택',
+        '4. "파트너십 광고 코드 받기" 토글 켜기',
+        '5. 코드 복사 후 마이페이지에 입력'
+      ] : []
+
       const finalGuide = {
         ...aiGuide,
-        video_concepts: finalConcepts
+        video_concepts: finalConcepts,
+        cautions: [...(aiGuide.cautions || []), ...metaAdCodeInfo]
       }
 
       setAiGuide(finalGuide)
 
-      // Supabase에 저장
+      // Supabase에 저장 (JSONB 타입이므로 객체 그대로 저장)
       const { error } = await supabase
         .from('campaigns')
-        .update({ ai_generated_guide: JSON.stringify(finalGuide) })
+        .update({ ai_generated_guide: finalGuide })
         .eq('id', id)
 
       if (error) throw error
