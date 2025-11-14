@@ -447,7 +447,7 @@ const CampaignCreationKorea = () => {
         // 현재 포인트 조회 (supabaseBiz에서)
         const { data: companyData, error: companyError } = await supabaseBiz
           .from('companies')
-          .select('points')
+          .select('points_balance')
           .eq('id', user.id)
           .single()
 
@@ -456,7 +456,7 @@ const CampaignCreationKorea = () => {
           throw companyError
         }
 
-        const currentPoints = companyData?.points || 0
+        const currentPoints = companyData?.points_balance || 0
         const neededPoints = finalCost
 
         console.log('[CreateCampaign] Points check:', { currentPoints, neededPoints })
