@@ -727,26 +727,30 @@ const CampaignCreationKorea = () => {
                     required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="start_date">촬영 마감일 *</Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={campaignForm.start_date}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="end_date">SNS 업로드일 *</Label>
-                  <Input
-                    id="end_date"
-                    type="date"
-                    value={campaignForm.end_date}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
-                    required
-                  />
-                </div>
+                {campaignForm.campaign_type === 'regular' && (
+                  <>
+                    <div>
+                      <Label htmlFor="start_date">촬영 마감일 *</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        value={campaignForm.start_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="end_date">SNS 업로드일 *</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        value={campaignForm.end_date}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* 캠페인 타입 선택 */}
