@@ -403,11 +403,11 @@ JSON 형식으로만 응답해주세요.`
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-gray-600 mb-1">브랜드</p>
-              <p className="text-base font-medium">{campaign.brand || '미입력'}</p>
+              <p className="text-base font-medium">{campaign.guide_brand || '미입력'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">제품명</p>
-              <p className="text-base font-medium">{campaign.product_name || '미입력'}</p>
+              <p className="text-base font-medium">{campaign.guide_product_name || '미입력'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">제품 특징</p>
