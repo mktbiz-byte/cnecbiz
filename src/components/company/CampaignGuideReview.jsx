@@ -207,12 +207,16 @@ JSON만 응답하세요.`
       }
 
       // Supabase에 저장
-      const { error } = await supabase
+      const { error: saveError } = await supabase
         .from('campaigns')
         .update({ ai_generated_guide: JSON.stringify(guideData) })
         .eq('id', id)
 
-      if (error) throw error
+      if (saveError) {
+        console.error('Supabase 저장 에러:', saveError)
+        // 저장 실패해도 AI 가이드는 화면에 표시됨
+        alert('가이드가 생성되었지만 저장에 실패했습니다. 다시 시도해주세요.')
+      }
 
     } catch (error) {
       console.error('AI 가이드 생성 실패:', error)
@@ -328,12 +332,16 @@ JSON 형식으로만 응답해주세요.`
       }
 
       // Supabase에 저장
-      const { error } = await supabase
+      const { error: saveError } = await supabase
         .from('campaigns')
         .update({ ai_generated_guide: JSON.stringify(guideData) })
         .eq('id', id)
 
-      if (error) throw error
+      if (saveError) {
+        console.error('Supabase 저장 에러:', saveError)
+        // 저장 실패해도 AI 가이드는 화면에 표시됨
+        alert('가이드가 생성되었지만 저장에 실패했습니다. 다시 시도해주세요.')
+      }
 
     } catch (error) {
       console.error('AI 가이드 생성 실패:', error)
