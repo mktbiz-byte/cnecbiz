@@ -276,6 +276,168 @@ export default function CampaignDetail() {
     }
   }
 
+  // 크리에이터 테이블 렌더링 함수
+  const renderParticipantsTable = (filteredParticipants) => {
+    if (filteredParticipants.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          해당 플랫폼의 크리에이터가 없습니다.
+        </div>
+      )
+    }
+
+    return (
+      <>
+        {filteredParticipants.length > 0 && (
+          <div className="flex gap-4 mt-3 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">가이드 확인중:</span>
+              <Badge className="bg-purple-100 text-purple-700">
+                {filteredParticipants.filter(p => p.creator_status === 'guide_confirmation').length}명
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">촬영중:</span>
+              <Badge className="bg-yellow-100 text-yellow-700">
+                {filteredParticipants.filter(p => p.creator_status === 'filming').length}명
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">수정중:</span>
+              <Badge className="bg-pink-100 text-pink-700">
+                {filteredParticipants.filter(p => p.creator_status === 'editing').length}명
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">제출완료:</span>
+              <Badge className="bg-blue-100 text-blue-700">
+                {filteredParticipants.filter(p => p.creator_status === 'submitted').length}명
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">승인완료:</span>
+              <Badge className="bg-green-100 text-green-700">
+                {filteredParticipants.filter(p => p.creator_status === 'approved').length}명
+              </Badge>
+            </div>
+          </div>
+        )}
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedParticipants.length === filteredParticipants.length && filteredParticipants.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedParticipants(filteredParticipants.map(p => p.id))
+                      } else {
+                        setSelectedParticipants([])
+                      }
+                    }}
+                    className="w-4 h-4"
+                  />
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">선택 상태</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">참여일</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredParticipants.map((participant) => (
+                <tr key={participant.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedParticipants.includes(participant.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedParticipants([...selectedParticipants, participant.id])
+                        } else {
+                          setSelectedParticipants(selectedParticipants.filter(id => id !== participant.id))
+                        }
+                      }}
+                      className="w-4 h-4"
+                    />
+                  </td>
+                  <td className="px-4 py-3">{participant.creator_name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email}</td>
+                  <td className="px-4 py-3">{participant.creator_platform}</td>
+                  <td className="px-4 py-3">
+                    {participant.selection_status === 'selected' ? (
+                      <Badge className="bg-green-100 text-green-800">확정</Badge>
+                    ) : (
+                      <Badge className="bg-gray-100 text-gray-800">대기</Badge>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={participant.creator_status || 'guide_confirmation'}
+                      onChange={(e) => handleUpdateCreatorStatus(participant.id, e.target.value)}
+                      className="text-sm border rounded px-2 py-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <option value="guide_confirmation">가이드 확인중</option>
+                      <option value="filming">촬영중</option>
+                      <option value="editing">수정중</option>
+                      <option value="submitted">제출완료</option>
+                      <option value="approved">승인완료</option>
+                      <option value="rejected">거부</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {new Date(participant.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {filteredParticipants.length > 0 && (
+          <div className="mt-6 flex items-center justify-between border-t pt-4">
+            <div className="text-sm text-gray-600">
+              선택된 크리에이터: <span className="font-semibold">{selectedParticipants.length}명</span>
+              {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
+                <span className="ml-2 text-red-600">
+                  (추가 {selectedParticipants.length - campaign.total_slots}명)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={handleSendDeadlineReminder}
+                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                마감 독촉 메일 보내기
+              </Button>
+              {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
+                <Button
+                  variant="outline"
+                  onClick={handleRequestAdditionalPayment}
+                  className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                >
+                  추가 입금 요청 ({selectedParticipants.length - campaign.total_slots}명)
+                </Button>
+              )}
+              <Button
+                onClick={handleConfirmSelection}
+                disabled={selectedParticipants.length === 0}
+              >
+                선택 확정
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
+
   const handleUpdateCreatorStatus = async (participantId, newStatus) => {
     try {
       const { error } = await supabase
@@ -608,6 +770,26 @@ export default function CampaignDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>참여 크리에이터 리스트</CardTitle>
+                
+                {/* 플랫폼별 필터 탭 */}
+                <Tabs defaultValue="all" className="mt-4">
+                  <TabsList>
+                    <TabsTrigger value="all">
+                      전체 ({participants.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="youtube">
+                      유튜브 ({participants.filter(p => p.creator_platform?.toLowerCase().includes('youtube')).length})
+                    </TabsTrigger>
+                    <TabsTrigger value="instagram">
+                      인스타 ({participants.filter(p => p.creator_platform?.toLowerCase().includes('instagram')).length})
+                    </TabsTrigger>
+                    <TabsTrigger value="tiktok">
+                      틱톡 ({participants.filter(p => p.creator_platform?.toLowerCase().includes('tiktok')).length})
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  {/* 전체 */}
+                  <TabsContent value="all">
                 {participants.length > 0 && (
                   <div className="flex gap-4 mt-3 text-sm">
                     <div className="flex items-center gap-2">
@@ -644,125 +826,25 @@ export default function CampaignDetail() {
                 )}
               </CardHeader>
               <CardContent>
-                {participants.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    아직 참여한 크리에이터가 없습니다.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={selectedParticipants.length === participants.length && participants.length > 0}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedParticipants(participants.map(p => p.id))
-                                } else {
-                                  setSelectedParticipants([])
-                                }
-                              }}
-                              className="w-4 h-4"
-                            />
-                          </th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">선택 상태</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">참여일</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {participants.map((participant) => (
-                          <tr key={participant.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <input
-                                type="checkbox"
-                                checked={selectedParticipants.includes(participant.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedParticipants([...selectedParticipants, participant.id])
-                                  } else {
-                                    setSelectedParticipants(selectedParticipants.filter(id => id !== participant.id))
-                                  }
-                                }}
-                                className="w-4 h-4"
-                              />
-                            </td>
-                            <td className="px-4 py-3">{participant.creator_name}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email}</td>
-                            <td className="px-4 py-3">{participant.creator_platform}</td>
-                            <td className="px-4 py-3">
-                              {participant.selection_status === 'selected' ? (
-                                <Badge className="bg-green-100 text-green-800">확정</Badge>
-                              ) : (
-                                <Badge className="bg-gray-100 text-gray-800">대기</Badge>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <select
-                                value={participant.creator_status || 'guide_confirmation'}
-                                onChange={(e) => handleUpdateCreatorStatus(participant.id, e.target.value)}
-                                className="text-sm border rounded px-2 py-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <option value="guide_confirmation">가이드 확인중</option>
-                                <option value="filming">촬영중</option>
-                                <option value="editing">수정중</option>
-                                <option value="submitted">제출완료</option>
-                                <option value="approved">승인완료</option>
-                                <option value="rejected">거부</option>
-                              </select>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
-                              {new Date(participant.created_at).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                {participants.length > 0 && (
-                  <div className="mt-6 flex items-center justify-between border-t pt-4">
-                    <div className="text-sm text-gray-600">
-                      선택된 크리에이터: <span className="font-semibold">{selectedParticipants.length}명</span>
-                      {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
-                        <span className="ml-2 text-red-600">
-                          (추가 {selectedParticipants.length - campaign.total_slots}명)
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="outline"
-                        onClick={handleSendDeadlineReminder}
-                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                      >
-                        마감 독촉 메일 보내기
-                      </Button>
-                      {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
-                        <Button
-                          variant="outline"
-                          onClick={handleRequestAdditionalPayment}
-                          className="text-orange-600 border-orange-600 hover:bg-orange-50"
-                        >
-                          추가 입금 요청 ({selectedParticipants.length - campaign.total_slots}명)
-                        </Button>
-                      )}
-                      <Button
-                        onClick={handleConfirmSelection}
-                        disabled={selectedParticipants.length === 0}
-                      >
-                        선택 확정
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
+                {renderParticipantsTable(participants)}
+                  </TabsContent>
+                  
+                  {/* 유튜브 */}
+                  <TabsContent value="youtube">
+                    {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('youtube')))}
+                  </TabsContent>
+                  
+                  {/* 인스타 */}
+                  <TabsContent value="instagram">
+                    {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('instagram')))}
+                  </TabsContent>
+                  
+                  {/* 틱톡 */}
+                  <TabsContent value="tiktok">
+                    {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('tiktok')))}
+                  </TabsContent>
+                </Tabs>
+              </CardHeader>
             </Card>
           </TabsContent>
 
