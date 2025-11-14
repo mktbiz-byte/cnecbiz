@@ -126,7 +126,14 @@ ${campaignData.required_hashtags && campaignData.required_hashtags.length > 0 ? 
 ${campaignData.additional_details || '- 없음'}
 
 ### 메타 파트너십 광고코드 (필수)
-${campaignData.meta_ad_code_requested ? '- 요청됨: 영상 완료 후 메타 비즈니스 세팅에서 파트너십 광고 코드를 발급받아 CNEC에 반드시 제공해주세요. (발급 방법: 메타 비즈니스 세팅 > 파트너십 광고 > 코드 발급)' : '- 요청 안함'}
+${campaignData.meta_ad_code_requested ? `- 요청됨: 영상 완료 후 파트너십 광고 코드를 발급받아 마이페이지 해당 캠페인의 코드 작성 공간에 반드시 제공해주세요.
+
+**발급 방법:**
+1. Instagram 앱에서 업로드한 게시물/릴스/스토리로 이동
+2. 오른쪽 상단 점 3개(⋯) 아이콘 클릭
+3. "파트너십 레이블 및 광고" 선택
+4. "파트너십 광고 코드 받기" 토글 켜기
+5. 코드 복사 후 마이페이지에 입력` : '- 요청 안함'}
 ${autonomyNote}
 
 ---
@@ -259,7 +266,9 @@ JSON만 응답하세요.`
 - SNS 업로드일: ${campaign.end_date || '미정'}
 
 **메타 파트너십 광고코드 (필수):**
-${campaign.meta_ad_code_requested ? '- 요청됨: 영상 완료 후 메타 비즈니스 세팅에서 파트너십 광고 코드를 발급받아 CNEC에 반드시 제공해주세요. (발급 방법: 메타 비즈니스 세팅 > 파트너십 광고 > 코드 발급)' : '- 요청 안함'}
+${campaign.meta_ad_code_requested ? `- 요청됨: 영상 완료 후 파트너십 광고 코드를 발급받아 마이페이지 해당 캠페인의 코드 작성 공간에 반드시 제공해주세요.
+
+발급 방법: Instagram 앱 > 게시물 선택 > 점 3개(⋯) > 파트너십 레이블 및 광고 > 파트너십 광고 코드 받기 토글 켜기 > 코드 복사` : '- 요청 안함'}
 ${autonomyNote}
 
 **가이드 작성 요구사항:**
