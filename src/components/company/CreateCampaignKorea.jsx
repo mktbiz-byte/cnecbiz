@@ -223,8 +223,16 @@ const CampaignCreationKorea = () => {
   // 모집 인원 변경 핸들러 (결제 금액 자동 계산)
   const handleSlotsChange = (value) => {
     const slots = parseInt(value) || 0
-    const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
-    const finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
+    let finalCost = 0
+    
+    if (campaignForm.campaign_type === '4week_challenge') {
+      // 4주 챌린지: 1명당 600,000원 (할인 없음)
+      finalCost = calculateFinalCost(600000, slots, false)
+    } else {
+      // 일반/올영세일: 패키지 가격
+      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+      finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
+    }
     
     setCampaignForm(prev => ({
       ...prev,
