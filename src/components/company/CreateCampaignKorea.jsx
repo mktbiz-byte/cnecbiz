@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+
+const supabaseKorea = getSupabaseClient('korea')
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -141,7 +143,7 @@ const CampaignCreationKorea = () => {
 
   const loadCampaign = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('campaigns')
         .select('*')
         .eq('id', editId)
@@ -255,13 +257,13 @@ const CampaignCreationKorea = () => {
       const fileName = `logo-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-logos/${fileName}`
 
-      const { error: uploadError } = await supabaseBiz.storage
+      const { error: uploadError } = await supabaseKorea.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseBiz.storage
+      const { data: { publicUrl } } = supabaseKorea.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -288,13 +290,13 @@ const CampaignCreationKorea = () => {
       const fileName = `thumbnail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await supabaseBiz.storage
+      const { error: uploadError } = await supabaseKorea.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseBiz.storage
+      const { data: { publicUrl } } = supabaseKorea.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -321,13 +323,13 @@ const CampaignCreationKorea = () => {
       const fileName = `product-detail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await supabaseBiz.storage
+      const { error: uploadError } = await supabaseKorea.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseBiz.storage
+      const { data: { publicUrl } } = supabaseKorea.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
