@@ -32,6 +32,10 @@ export default function CampaignDetail() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [selectedGuide, setSelectedGuide] = useState(null)
   const [showGuideModal, setShowGuideModal] = useState(false)
+  const [selectedParticipant, setSelectedParticipant] = useState(null)
+  const [showVideoModal, setShowVideoModal] = useState(false)
+  const [showExtensionModal, setShowExtensionModal] = useState(false)
+  const [revisionComment, setRevisionComment] = useState('')
 
   useEffect(() => {
     checkIfAdmin()
@@ -988,6 +992,9 @@ export default function CampaignDetail() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배 송장번호</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 확인</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">영상 상태</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">영상 관리</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">스케줄 연장</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">콘텐츠 URL</th>
                         </tr>
                       </thead>
@@ -1027,6 +1034,53 @@ export default function CampaignDetail() {
                                 </Button>
                               ) : (
                                 <span className="text-gray-400 text-sm">생성 중...</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {participant.video_status === 'pending' && <Badge className="bg-gray-100 text-gray-800">대기중</Badge>}
+                              {participant.video_status === 'uploaded' && <Badge className="bg-blue-100 text-blue-800">업로드 완료</Badge>}
+                              {participant.video_status === 'approved' && <Badge className="bg-green-100 text-green-800">승인됨</Badge>}
+                              {participant.video_status === 'revision_requested' && <Badge className="bg-yellow-100 text-yellow-800">수정 요청</Badge>}
+                            </td>
+                            <td className="px-4 py-3">
+                              {participant.video_files && participant.video_files.length > 0 ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedParticipant(participant)
+                                    setShowVideoModal(true)
+                                  }}
+                                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                >
+                                  영상 확인
+                                </Button>
+                              ) : (
+                                <span className="text-gray-400 text-sm">미업로드</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {participant.extension_requested ? (
+                                <div className="flex flex-col gap-1">
+                                  <Badge className={participant.extension_status === 'approved' ? 'bg-green-100 text-green-800' : participant.extension_status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}>
+                                    {participant.extension_status === 'approved' ? '승인됨' : participant.extension_status === 'rejected' ? '거부됨' : '대기중'}
+                                  </Badge>
+                                  {participant.extension_status === 'pending' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedParticipant(participant)
+                                        setShowExtensionModal(true)
+                                      }}
+                                      className="text-xs"
+                                    >
+                                      처리
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-sm">-</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -1285,6 +1339,258 @@ export default function CampaignDetail() {
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 가이드 복사
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 영상 확인 및 수정 요청 모달 */}
+      {showVideoModal && selectedParticipant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* 모달 헤더 */}
+            <div className="px-6 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+              <h2 className="text-2xl font-bold text-white">영상 확인 및 수정 요청</h2>
+              <p className="text-blue-100 mt-1">{selectedParticipant.creator_name}</p>
+            </div>
+
+            {/* 모달 컨텐츠 */}
+            <div className="p-6">
+              {/* 업로드된 영상 목록 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">업로드된 영상</h3>
+                <div className="space-y-3">
+                  {selectedParticipant.video_files?.map((file, index) => (
+                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
+                          <span className="text-sm font-medium">{file.name}</span>
+                        </div>
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          보기
+                        </a>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        업로드: {new Date(file.uploaded_at).toLocaleString('ko-KR')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 수정 요청 작성 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">수정 요청 사항</h3>
+                <textarea
+                  value={revisionComment}
+                  onChange={(e) => setRevisionComment(e.target.value)}
+                  placeholder="수정이 필요한 부분을 상세히 작성해주세요..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  rows={4}
+                />
+              </div>
+
+              {/* 기존 수정 요청 내역 */}
+              {selectedParticipant.revision_requests && selectedParticipant.revision_requests.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">이전 수정 요청 내역</h3>
+                  <div className="space-y-2">
+                    {selectedParticipant.revision_requests.map((request, index) => (
+                      <div key={index} className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                        <p className="text-sm text-gray-700">{request.comment}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(request.created_at).toLocaleString('ko-KR')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowVideoModal(false)
+                  setSelectedParticipant(null)
+                  setRevisionComment('')
+                }}
+              >
+                닫기
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase
+                      .from('campaign_participants')
+                      .update({
+                        video_status: 'approved'
+                      })
+                      .eq('id', selectedParticipant.id)
+
+                    if (error) throw error
+
+                    alert('영상이 승인되었습니다!')
+                    setShowVideoModal(false)
+                    setSelectedParticipant(null)
+                    fetchCampaignDetail()
+                  } catch (error) {
+                    console.error('Error approving video:', error)
+                    alert('승인에 실패했습니다.')
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                승인
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!revisionComment.trim()) {
+                    alert('수정 요청 사항을 입력해주세요.')
+                    return
+                  }
+
+                  try {
+                    const existingRequests = selectedParticipant.revision_requests || []
+                    const newRequest = {
+                      comment: revisionComment,
+                      created_at: new Date().toISOString()
+                    }
+
+                    const { error } = await supabase
+                      .from('campaign_participants')
+                      .update({
+                        video_status: 'revision_requested',
+                        revision_requests: [...existingRequests, newRequest]
+                      })
+                      .eq('id', selectedParticipant.id)
+
+                    if (error) throw error
+
+                    alert('수정 요청이 전송되었습니다!')
+                    setShowVideoModal(false)
+                    setSelectedParticipant(null)
+                    setRevisionComment('')
+                    fetchCampaignDetail()
+                  } catch (error) {
+                    console.error('Error requesting revision:', error)
+                    alert('수정 요청에 실패했습니다.')
+                  }
+                }}
+                className="bg-yellow-600 hover:bg-yellow-700"
+              >
+                수정 요청
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 스케줄 연장 처리 모달 */}
+      {showExtensionModal && selectedParticipant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            {/* 모달 헤더 */}
+            <div className="px-6 py-4 border-b">
+              <h2 className="text-xl font-bold">스케줄 연장 신청 처리</h2>
+              <p className="text-sm text-gray-600 mt-1">{selectedParticipant.creator_name}</p>
+            </div>
+
+            {/* 모달 컨텐츠 */}
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">연장 기간</p>
+                <p className="text-lg font-semibold">{selectedParticipant.extension_days}일</p>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">연장 사유</p>
+                <p className="text-sm mt-1 bg-gray-50 p-3 rounded-lg">{selectedParticipant.extension_reason}</p>
+              </div>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">신청 시간</p>
+                <p className="text-sm">{new Date(selectedParticipant.extension_requested_at).toLocaleString('ko-KR')}</p>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowExtensionModal(false)
+                  setSelectedParticipant(null)
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!confirm('연장 신청을 거부하시겠습니까? 거부 시 캠페인 취소 여부를 결정해야 합니다.')) return
+
+                  try {
+                    const { error } = await supabase
+                      .from('campaign_participants')
+                      .update({
+                        extension_status: 'rejected',
+                        extension_decided_at: new Date().toISOString()
+                      })
+                      .eq('id', selectedParticipant.id)
+
+                    if (error) throw error
+
+                    const cancelCampaign = confirm('캠페인을 취소하시겠습니까?')
+                    if (cancelCampaign) {
+                      // 캠페인 취소 로직 추가 가능
+                    }
+
+                    alert('연장 신청이 거부되었습니다.')
+                    setShowExtensionModal(false)
+                    setSelectedParticipant(null)
+                    fetchCampaignDetail()
+                  } catch (error) {
+                    console.error('Error rejecting extension:', error)
+                    alert('거부 처리에 실패했습니다.')
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                거부
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase
+                      .from('campaign_participants')
+                      .update({
+                        extension_status: 'approved',
+                        extension_decided_at: new Date().toISOString()
+                      })
+                      .eq('id', selectedParticipant.id)
+
+                    if (error) throw error
+
+                    alert('연장 신청이 승인되었습니다!')
+                    setShowExtensionModal(false)
+                    setSelectedParticipant(null)
+                    fetchCampaignDetail()
+                  } catch (error) {
+                    console.error('Error approving extension:', error)
+                    alert('승인 처리에 실패했습니다.')
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                승인
               </Button>
             </div>
           </div>

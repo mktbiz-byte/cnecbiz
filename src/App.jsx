@@ -46,6 +46,7 @@ import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
 import CreatorsManagement from './components/admin/CreatorsManagement'
+import CreatorMyPage from './components/creator/CreatorMyPage'
 
 import FAQManagement from './components/admin/FAQManagement'
 import VideoManagement from './components/admin/VideoManagement'
@@ -167,6 +168,7 @@ function App() {
         <Route path="/admin/campaigns/:campaignId/recommendations" element={<CampaignCreatorRecommendations />} />
 
         {/* Creator Routes */}
+        <Route path="/creator/mypage" element={<CreatorMyPage />} />
         <Route path="/creator/apply" element={<CreatorProfileApplication />} />
         <Route path="/creator/withdrawal" element={<WithdrawalRequest />} />
         <Route path="/creator/:creatorId" element={<CreatorDetailProfile />} />
