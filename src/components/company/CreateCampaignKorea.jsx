@@ -72,22 +72,22 @@ const CampaignCreationKorea = () => {
       value: 'beginner', 
       label: '초급 패키지', 
       price: 200000, 
-      description: '구독자 1천~1만 (유튜브) / 팔로워 1천~1만 (인스타/틱톡)',
-      expectedApplicants: { youtube: 30, instagram: 50, tiktok: 40 }
+      description: '인스타그램 기준: 1만~3만명',
+      expectedApplicants: { instagram: 30 }
     },
     { 
       value: 'intermediate', 
       label: '스탠다드 패키지', 
       price: 300000, 
-      description: '구독자 1만~10만 (유튜브) / 팔로워 1만~10만 (인스타/틱톡)',
-      expectedApplicants: { youtube: 20, instagram: 30, tiktok: 25 }
+      description: '인스타그램 기준: 3만~10만명',
+      expectedApplicants: { instagram: 25 }
     },
     { 
       value: 'advanced', 
       label: '프리미엄 패키지', 
       price: 400000, 
-      description: '구독자 10만+ (유튜브) / 팔로워 10만+ (인스타/틱톡)',
-      expectedApplicants: { youtube: 10, instagram: 15, tiktok: 12 }
+      description: '인스타그램 기준: 10만~30만명',
+      expectedApplicants: { instagram: 15 }
     }
   ]
 
@@ -634,22 +634,10 @@ const CampaignCreationKorea = () => {
                       <p className="text-sm font-semibold text-blue-900 mb-2">
                         예상 지원 크리에이터 (플랫폼별)
                       </p>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="flex items-center gap-1">
-                          <span className="text-red-600">🎥</span>
-                          <span className="text-gray-700">유튜브:</span>
-                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube}명</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-pink-600">📸</span>
-                          <span className="text-gray-700">인스타:</span>
-                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-black">🎵</span>
-                          <span className="text-gray-700">틱톡:</span>
-                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok}명</span>
-                        </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-pink-600">📸</span>
+                        <span className="text-gray-700">인스타:</span>
+                        <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
                       </div>
                       <p className="text-xs text-gray-600 mt-2">
                         * 금액대에 따라 지원율이 다소 차이가 납니다. 위 수치는 평균 예상치입니다.
