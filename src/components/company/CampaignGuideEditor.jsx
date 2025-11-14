@@ -190,6 +190,7 @@ const CampaignGuideEditor = () => {
   }
 
   const handleSave = async () => {
+    // 임시 저장
     setProcessing(true)
     setError('')
     setSuccess('')
@@ -227,14 +228,60 @@ const CampaignGuideEditor = () => {
 
       if (error) throw error
 
-      setSuccess('크리에이터 가이드가 저장되었습니다!')
-      setTimeout(() => {
-        navigate(`/company/campaigns/${campaignId}/review`)
-      }, 1500)
+      setSuccess('임시 저장되었습니다!')
     } catch (err) {
-      console.error('가이드 저장 실패:', err)
-      setError('가이드 저장에 실패했습니다: ' + err.message)
+      console.error('저장 실패:', err)
+      setError('저장에 실패했습니다: ' + err.message)
     } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleGenerateGuide = async () => {
+    // 가이드 생성 (저장 + AI 생성 + 리뷰 페이지로 이동)
+    setProcessing(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      // 1. 먼저 저장
+      const { error: saveError } = await supabase
+        .from('campaigns')
+        .update({
+          required_dialogues: requiredDialogues.filter(d => d.trim()),
+          required_scenes: requiredScenes.filter(s => s.trim()),
+          required_hashtags: requiredHashtags.filter(h => h.trim()),
+          video_duration: videoDuration,
+          video_tempo: videoTempo,
+          video_tone: videoTone,
+          additional_details: additionalDetails,
+          shooting_scenes_ba_photo: shootingScenes.baPhoto,
+          shooting_scenes_no_makeup: shootingScenes.noMakeup,
+          shooting_scenes_closeup: shootingScenes.closeup,
+          shooting_scenes_product_closeup: shootingScenes.productCloseup,
+          shooting_scenes_product_texture: shootingScenes.productTexture,
+          shooting_scenes_outdoor: shootingScenes.outdoor,
+          shooting_scenes_couple: shootingScenes.couple,
+          shooting_scenes_child: shootingScenes.child,
+          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
+          shooting_scenes_wrinkles: shootingScenes.wrinkles,
+          additional_shooting_requests: additionalShootingRequests,
+          meta_ad_code_requested: metaAdCodeRequested,
+          brand: brand,
+          product_name: productName,
+          product_features: productFeatures,
+          product_key_points: productKeyPoints,
+          creator_autonomy: creatorAutonomy
+        })
+        .eq('id', campaignId)
+
+      if (saveError) throw saveError
+
+      // 2. 리뷰 페이지로 이동 (AI 생성은 리뷰 페이지에서 수행)
+      navigate(`/company/campaigns/${campaignId}/review`)
+    } catch (err) {
+      console.error('가이드 생성 실패:', err)
+      setError('가이드 생성에 실패했습니다: ' + err.message)
       setProcessing(false)
     }
   }
@@ -679,16 +726,17 @@ const CampaignGuideEditor = () => {
             <Button
               onClick={handleSave}
               disabled={processing}
+              variant="outline"
               className="flex-1"
             >
-              {processing ? '저장 중...' : '저장하고 완료'}
+              {processing ? '저장 중...' : '임시 저장'}
             </Button>
             <Button
-              onClick={handleSkip}
-              variant="outline"
+              onClick={handleGenerateGuide}
               disabled={processing}
+              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
             >
-              나중에 작성
+              {processing ? '생성 중...' : '🎉 가이드 생성'}
             </Button>
           </div>
 

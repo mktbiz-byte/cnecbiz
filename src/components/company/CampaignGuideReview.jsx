@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabase } from '../../lib/supabaseKorea'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ArrowLeft, Edit, CheckCircle, Sparkles, Loader2, Save, X } from 'lucide-react'
@@ -23,7 +23,7 @@ export default function CampaignGuideReview() {
 
   const loadCampaignData = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabase
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -35,12 +35,113 @@ export default function CampaignGuideReview() {
       // AI 가이드가 이미 생성되어 있으면 표시
       if (data.ai_generated_guide) {
         setAiGuide(JSON.parse(data.ai_generated_guide))
+      } else {
+        // AI 가이드가 없으면 자동 생성
+        setLoading(false)
+        await generateAIGuideFromData(data)
+        return
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
       alert('캠페인 정보를 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const generateAIGuideFromData = async (campaignData) => {
+    if (!campaignData.brand || !campaignData.product_name || !campaignData.product_features || !campaignData.product_key_points) {
+      alert('제품 정보를 먼저 입력해주세요.')
+      navigate(`/company/campaigns/guide?id=${id}`)
+      return
+    }
+
+    setGenerating(true)
+
+    try {
+      // Gemini API 호출
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      
+      const autonomyNote = campaignData.creator_autonomy 
+        ? '\n\n**중요:** 이 캠페인은 크리에이터 자율성을 보장합니다. 촬영 장면과 대사는 크리에이터가 자유롭게 결정할 수 있으나, 핵심 소구 포인트는 반드시 포함되어야 합니다.'
+        : ''
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `당신은 한국 뷰티/패션 크리에이터를 위한 캠페인 가이드 작성 전문가입니다.
+
+다음 제품 정보를 바탕으로 크리에이터가 쉽게 이해하고 실행할 수 있는 가이드를 작성해주세요.
+
+**제품 정보:**
+- 브랜드: ${campaignData.brand}
+- 제품명: ${campaignData.product_name}
+- 제품 특징: ${campaignData.product_features}
+- 핵심 소구 포인트: ${campaignData.product_key_points}
+${autonomyNote}
+
+**가이드 작성 요구사항:**
+1. 한국인이 선호하는 단순하고 명료한 스타일로 작성
+2. 불필요한 수식어 제거, 핵심만 전달
+3. 실행 가능한 구체적인 내용 포함
+4. 다음 섹션으로 구성:
+   - 제품 소개 (간단명료하게)
+   - 영상 컨셉 제안 (2-3가지)
+   - 필수 포함 내용
+   - 추천 촬영 팁
+   - 주의사항
+
+**응답 형식 (JSON):**
+{
+  "product_intro": "제품 소개 내용",
+  "video_concepts": ["컨셙1", "컨셙2", "컨셙3"],
+  "must_include": ["필수1", "필수2", "필수3"],
+  "filming_tips": ["팁원1", "팁원2", "팁원3"],
+  "cautions": ["주의사항1", "주의사항2"]
+}
+
+JSON 형식으로만 응답해주세요.`
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json"
+            }
+          })
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('AI 가이드 생성 실패')
+      }
+
+      const result = await response.json()
+      const generatedText = result.candidates[0].content.parts[0].text
+      const guideData = JSON.parse(generatedText)
+
+      setAiGuide(guideData)
+
+      // Supabase에 저장
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ ai_generated_guide: JSON.stringify(guideData) })
+        .eq('id', id)
+
+      if (error) throw error
+
+    } catch (error) {
+      console.error('AI 가이드 생성 실패:', error)
+      alert('AI 가이드 생성 중 오류가 발생했습니다.')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -51,6 +152,10 @@ export default function CampaignGuideReview() {
       return
     }
 
+    await generateAIGuideFromData(campaign)
+  }
+
+  const regenerateAIGuide = async () => {
     setGenerating(true)
 
     try {
@@ -125,7 +230,7 @@ JSON 형식으로만 응답해주세요.`
       setAiGuide(guideData)
 
       // Supabase에 저장
-      const { error } = await supabaseBiz
+      const { error } = await supabase
         .from('campaigns')
         .update({ ai_generated_guide: JSON.stringify(guideData) })
         .eq('id', id)
@@ -165,7 +270,7 @@ JSON 형식으로만 응답해주세요.`
       setAiGuide(updatedGuide)
 
       // Supabase에 저장
-      const { error } = await supabaseBiz
+      const { error } = await supabase
         .from('campaigns')
         .update({ ai_generated_guide: JSON.stringify(updatedGuide) })
         .eq('id', id)
