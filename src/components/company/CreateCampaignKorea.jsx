@@ -95,7 +95,7 @@ const CampaignCreationKorea = () => {
   const calculateDiscount = (subtotal) => {
     if (subtotal >= 10000000) return 5  // 1000만원 이상 5%
     return 0  // 그 외 할인 없음
-  }  }
+  }
 
   // 최종 결제 금액 계산 (할인 + VAT 포함)
   const calculateFinalCost = (packagePrice, slots, applyDiscount = true) => {
