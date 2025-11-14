@@ -411,6 +411,9 @@ const CampaignCreationKorea = () => {
         }
       }
 
+      // 날짜 필드를 null로 변환 (빈 문자열은 PostgreSQL date 타입에서 오류 발생)
+      const convertEmptyToNull = (value) => value === '' ? null : value
+
       const campaignData = {
         ...restForm,
         title: autoTitle,
@@ -419,7 +422,18 @@ const CampaignCreationKorea = () => {
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
         target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
-        company_email: userEmail  // 회사 이메일 저장
+        company_email: userEmail,  // 회사 이메일 저장
+        // 날짜 필드 변환
+        application_deadline: convertEmptyToNull(campaignForm.application_deadline),
+        start_date: convertEmptyToNull(campaignForm.start_date),
+        end_date: convertEmptyToNull(campaignForm.end_date),
+        week1_deadline: convertEmptyToNull(campaignForm.week1_deadline),
+        week2_deadline: convertEmptyToNull(campaignForm.week2_deadline),
+        week3_deadline: convertEmptyToNull(campaignForm.week3_deadline),
+        week4_deadline: convertEmptyToNull(campaignForm.week4_deadline),
+        step1_deadline: convertEmptyToNull(campaignForm.step1_deadline),
+        step2_deadline: convertEmptyToNull(campaignForm.step2_deadline),
+        step3_deadline: convertEmptyToNull(campaignForm.step3_deadline)
       }
 
       if (editId) {
