@@ -30,6 +30,8 @@ export default function CampaignDetail() {
   const [selectedParticipants, setSelectedParticipants] = useState([])
   const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [selectedGuide, setSelectedGuide] = useState(null)
+  const [showGuideModal, setShowGuideModal] = useState(false)
 
   useEffect(() => {
     checkIfAdmin()
@@ -985,6 +987,7 @@ export default function CampaignDetail() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배 송장번호</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 확인</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">콘텐츠 URL</th>
                         </tr>
                       </thead>
@@ -1007,6 +1010,23 @@ export default function CampaignDetail() {
                                 <Badge className="bg-green-100 text-green-800">확인완료</Badge>
                               ) : (
                                 <Badge className="bg-gray-100 text-gray-800">미확인</Badge>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {participant.personalized_guide ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedGuide(participant)
+                                    setShowGuideModal(true)
+                                  }}
+                                  className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                                >
+                                  가이드 보기
+                                </Button>
+                              ) : (
+                                <span className="text-gray-400 text-sm">생성 중...</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -1166,6 +1186,110 @@ export default function CampaignDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 맞춤 가이드 모달 */}
+      {showGuideModal && selectedGuide && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* 모달 헤더 */}
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-purple-900">
+                  {selectedGuide.creator_name}님의 맞춤 가이드
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedGuide.creator_platform} · {selectedGuide.creator_email}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowGuideModal(false)
+                  setSelectedGuide(null)
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 모달 컨텐츠 */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {/* 크리에이터 분석 정보 */}
+              {selectedGuide.creator_analysis && (
+                <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <h3 className="font-semibold text-purple-900 mb-3">크리에이터 분석</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {selectedGuide.creator_analysis.followers && (
+                      <div>
+                        <span className="text-gray-600">팔로워:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedGuide.creator_analysis.followers.toLocaleString()}명
+                        </span>
+                      </div>
+                    )}
+                    {selectedGuide.creator_analysis.contentAnalysis?.engagementRate && (
+                      <div>
+                        <span className="text-gray-600">참여율:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedGuide.creator_analysis.contentAnalysis.engagementRate}%
+                        </span>
+                      </div>
+                    )}
+                    {selectedGuide.creator_analysis.style?.tone && (
+                      <div>
+                        <span className="text-gray-600">톤:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedGuide.creator_analysis.style.tone}
+                        </span>
+                      </div>
+                    )}
+                    {selectedGuide.creator_analysis.style?.topics && (
+                      <div>
+                        <span className="text-gray-600">주요 토픽:</span>
+                        <span className="ml-2 font-medium">
+                          {selectedGuide.creator_analysis.style.topics.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 맞춤 가이드 컨텐츠 */}
+              <div className="prose max-w-none">
+                <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
+                  {selectedGuide.personalized_guide}
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowGuideModal(false)
+                  setSelectedGuide(null)
+                }}
+              >
+                닫기
+              </Button>
+              <Button
+                onClick={() => {
+                  // 가이드 복사
+                  navigator.clipboard.writeText(selectedGuide.personalized_guide)
+                  alert('가이드가 클립보드에 복사되었습니다!')
+                }}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                가이드 복사
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

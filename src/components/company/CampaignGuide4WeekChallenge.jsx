@@ -361,18 +361,36 @@ ${weekData.required_scenes}
                 />
               </div>
             </div>
+
+            {/* 파트너십 광고코드 발급 */}
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={productData.partnership_code_required || false}
+                  onChange={(e) => setProductData({ ...productData, partnership_code_required: e.target.checked })}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="ml-3 text-base font-semibold text-blue-900">
+                  파트너십 광고코드 발급 필요
+                </span>
+              </label>
+              <p className="text-sm text-blue-700 mt-2 ml-8">
+                체크 시 크리에이터에게 파트너십 광고코드를 발급하여 영상에 표시하도록 안내합니다.
+              </p>
+            </div>
           </div>
 
           {/* 기본 가이드 */}
           <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-xl font-semibold mb-4">📋 기본 가이드 (전체 캠페인 개요)</h3>
+            <h3 className="text-xl font-semibold mb-4">⚠️ 캠페인 진행시 주의사항</h3>
             <p className="text-sm text-gray-600 mb-3">
-              4주 챌린지 전체 개요, 참여 방법, 주의사항 등을 작성해주세요.
+              크리에이터가 반드시 지켜야 할 주의사항을 작성해주세요.
             </p>
             <textarea
               value={baseGuide}
               onChange={(e) => setBaseGuide(e.target.value)}
-              placeholder="예:&#10;[4주 챌린지 개요]&#10;- 4주간 매주 1회 콘텐츠 제작 및 업로드&#10;- 제품 사용 전후 변화 기록&#10;- 주차별 미션 수행 및 인증&#10;&#10;[참여 방법]&#10;- 매주 월요일 새로운 미션 발송&#10;- 해당 주 일요일까지 콘텐츠 업로드&#10;- URL 및 영상 파일 제출&#10;&#10;[주의사항]&#10;- 제품은 매일 사용해주세요&#10;- 솔직한 후기 작성 권장&#10;- 브랜드명 및 제품명 정확히 언급"
+              placeholder="예:&#10;[사용 불가 멘트]&#10;- 제품 효과를 과대 포장하는 표현 금지&#10;- 타 브랜드 제품과 비교하는 표현 금지&#10;- '기적', '최고', '완벽' 등 절대적 표현 자제&#10;&#10;[영상 품질 기준]&#10;- 최소 1080p (Full HD) 해상도 유지&#10;- 적절한 조명 확보 (어두운 영상 금지)&#10;- 선명한 음질 필수 (잡음 최소화)&#10;&#10;[필터 및 보정 금지]&#10;- 과도한 미백 필터 사용 금지&#10;- 제품 색상을 왜곡하는 보정 금지&#10;- 얼굴 필터는 가벼게만 사용&#10;&#10;[기타 주의사항]&#10;- 브랜드명 및 제품명 정확히 언급&#10;- 제품 사용 방법 정확히 안내&#10;- 솔직한 후기 작성 권장"
               className="w-full h-48 p-3 border rounded-lg resize-none"
               required
             />
