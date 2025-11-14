@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+
+const supabaseKorea = getSupabaseClient('korea')
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
@@ -61,7 +63,7 @@ export default function CampaignGuide4WeekChallenge() {
 
   const loadCampaign = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -94,7 +96,7 @@ export default function CampaignGuide4WeekChallenge() {
     setLoading(true)
 
     try {
-      const { error } = await supabaseBiz
+      const { error } = await supabaseKorea
         .from('campaigns')
         .update({
           brand: productData.brand,
@@ -220,7 +222,7 @@ ${weekData.required_scenes}
 
     try {
       // 먼저 데이터 저장
-      const { error: updateError } = await supabaseBiz
+      const { error: updateError } = await supabaseKorea
         .from('campaigns')
         .update({
           brand: productData.brand,
