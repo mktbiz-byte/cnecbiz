@@ -117,7 +117,72 @@ export default function CampaignGuideOliveYoung() {
 
       if (updateError) throw updateError
 
-      // AI 가이드 생성 (추후 구현)
+      // AI 가이드 생성
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('Gemini API 키가 설정되지 않았습니다.')
+      }
+
+      const prompt = `당신은 올리브영 세일 캐페인 전문 기획자입니다. 다음 정보를 바탕으로 3단계 콘텐츠 제작 가이드를 생성해주세요.
+
+**제품 정보**
+- 브랜드: ${productData.brand}
+- 제품명: ${productData.product_name}
+- 제품 특징: ${productData.product_features}
+- 핵심 포인트: ${productData.product_key_points}
+
+**STEP 1 가이드 (상품 리뷰)**
+${step1Guide}
+
+**STEP 2 가이드 (세일 홈보)**
+${step2Guide}
+
+**STEP 3 가이드 (세일 당일 스토리)**
+${step3Guide}
+
+위 내용을 바탕으로 크리에이터가 실제로 사용할 수 있는 상세하고 전문적인 콘텐츠 제작 가이드를 작성해주세요.
+
+**가이드 포함 요소:**
+1. 각 STEP별 콘텐츠 개요
+2. 촬영 구성 및 장면 설명
+3. 필수 포함 요소 및 소품 리스트
+4. 필수 대사 및 멘트
+5. 촬영 팁 및 주의사항
+6. 편집 가이드라인
+
+명확하고 구체적이며 실행 가능한 가이드를 작성해주세요.`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }]
+          })
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('AI 가이드 생성에 실패했습니다.')
+      }
+
+      const result = await response.json()
+      const generatedGuide = result.candidates[0].content.parts[0].text
+
+      // 생성된 가이드를 DB에 저장
+      const { error: finalUpdateError } = await supabaseBiz
+        .from('campaigns')
+        .update({
+          ai_generated_guide: generatedGuide,
+          guide_generated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+
+      if (finalUpdateError) throw finalUpdateError
+
       alert('올영세일 가이드가 생성되었습니다! 리뷰 페이지로 이동합니다.')
       navigate(`/company/campaigns/${id}/review`)
     } catch (error) {
