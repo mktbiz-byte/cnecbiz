@@ -398,7 +398,18 @@ const CampaignCreationKorea = () => {
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
         target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
-        company_email: userEmail  // 회사 이메일 저장
+        company_email: userEmail,  // 회사 이메일 저장
+        // 빈 문자열인 날짜 필드를 null로 변환
+        application_deadline: campaignForm.application_deadline || null,
+        start_date: campaignForm.start_date || null,
+        end_date: campaignForm.end_date || null,
+        step1_deadline: campaignForm.step1_deadline || null,
+        step2_deadline: campaignForm.step2_deadline || null,
+        step3_deadline: campaignForm.step3_deadline || null,
+        week1_deadline: campaignForm.week1_deadline || null,
+        week2_deadline: campaignForm.week2_deadline || null,
+        week3_deadline: campaignForm.week3_deadline || null,
+        week4_deadline: campaignForm.week4_deadline || null
       }
 
       if (editId) {
