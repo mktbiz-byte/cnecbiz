@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -370,10 +370,10 @@ const CampaignCreationKorea = () => {
       // 제목 자동 생성
       const autoTitle = `${campaignForm.brand} ${campaignForm.product_name} ${categoryNames}`.trim()
 
-      // 로그인한 사용자 정보 가져오기
+      // 로그인한 사용자 정보 가져오기 (supabaseBiz에서)
       let userEmail = null
       try {
-        const { data: { user } } = await supabaseKorea.auth.getUser()
+        const { data: { user } } = await supabaseBiz.auth.getUser()
         if (user) {
           userEmail = user.email
         }
@@ -438,14 +438,14 @@ const CampaignCreationKorea = () => {
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
-        // 포인트 차감 로직
-        const { data: { user } } = await supabaseKorea.auth.getUser()
+        // 포인트 차감 로직 (supabaseBiz에서 사용자 확인)
+        const { data: { user } } = await supabaseBiz.auth.getUser()
         if (!user) throw new Error('로그인이 필요합니다')
 
         const finalCost = campaignForm.estimated_cost
 
-        // 현재 포인트 조회
-        const { data: companyData, error: companyError } = await supabaseKorea
+        // 현재 포인트 조회 (supabaseBiz에서)
+        const { data: companyData, error: companyError } = await supabaseBiz
           .from('companies')
           .select('points')
           .eq('id', user.id)
@@ -465,7 +465,7 @@ const CampaignCreationKorea = () => {
         if (currentPoints < neededPoints) {
           console.log('[CreateCampaign] Insufficient points, creating charge request')
           
-          const { data: quoteData, error: quoteError } = await supabaseKorea
+          const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert({
               company_id: user.id,
