@@ -165,8 +165,8 @@ const CampaignCreationKorea = () => {
         ...prev,
         package_type: '4week_challenge'
       }))
-    } else if (campaignForm.campaign_type === 'oliveyoung' && campaignForm.package_type === 'junior') {
-      // 올영세일은 junior 불가, 기본값 intermediate로 변경
+    } else if (campaignForm.campaign_type === 'regular' || campaignForm.campaign_type === 'oliveyoung') {
+      // 일반 및 올영 캐페인은 중급 패키지를 기본으로 설정
       setCampaignForm(prev => ({
         ...prev,
         package_type: 'intermediate'
@@ -663,50 +663,6 @@ const CampaignCreationKorea = () => {
                 />
               </div>
 
-              {/* 패키지 선택 */}
-              <div>
-                <Label htmlFor="package_type">패키지 선택 *</Label>
-                <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="패키지 선택" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {packageOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
-                        <div className="flex flex-col">
-                          <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()} <span className="text-sm text-gray-500">(VAT 별도)</span></span>
-                          <span className="text-xs text-gray-500">{opt.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">
-                    예상 지원 크리에이터 (플랫폼별)
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div className="flex items-center gap-1">
-                      <span className="text-red-600">🎥</span>
-                      <span className="text-gray-700">유튜브:</span>
-                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube}명</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-pink-600">📸</span>
-                      <span className="text-gray-700">인스타:</span>
-                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-black">🎵</span>
-                      <span className="text-gray-700">틱톡:</span>
-                      <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok}명</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    * 금액대에 따라 지원율이 다소 차이가 납니다. 위 수치는 평균 예상치입니다.
-                  </p>
-                </div>
-              </div>
 
               {/* 모집 인원 및 결제 예상 금액 */}
               <div className="grid grid-cols-2 gap-4">
@@ -858,6 +814,66 @@ const CampaignCreationKorea = () => {
                   </div>
                 </div>
               </div>
+
+              {/* 패키지 선택 */}
+              <div className="border-t pt-6 mt-6">
+                <Label htmlFor="package_type">패키지 선택 *</Label>
+                {campaignForm.campaign_type === '4week_challenge' ? (
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-purple-900">4주 챌린지 프로그램 - ₩600,000 <span className="text-sm text-gray-500">(VAT 별도)</span></p>
+                        <p className="text-sm text-gray-600 mt-1">4주간 지속적인 콘텐츠 제작</p>
+                      </div>
+                      <span className="text-purple-600 font-semibold">고정 금액</span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="패키지 선택" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {packageOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
+                            <div className="flex flex-col">
+                              <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()} <span className="text-sm text-gray-500">(VAT 별도)</span></span>
+                              <span className="text-xs text-gray-500">{opt.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm font-semibold text-blue-900 mb-2">
+                        예상 지원 크리에이터 (플랫폼별)
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="flex items-center gap-1">
+                          <span className="text-red-600">🎥</span>
+                          <span className="text-gray-700">유튜브:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube}명</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-pink-600">📸</span>
+                          <span className="text-gray-700">인스타:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-black">🎵</span>
+                          <span className="text-gray-700">틱톡:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok}명</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        * 금액대에 따라 지원율이 다소 차이가 납니다. 위 수치는 평균 예상치입니다.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
 
               {/* 올영세일 캠페인 상세 설정 */}
               {campaignForm.campaign_type === 'oliveyoung' && (
