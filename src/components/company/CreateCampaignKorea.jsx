@@ -598,7 +598,9 @@ const CampaignCreationKorea = () => {
     } finally {
       setProcessing(false)
     }
-  }  return (
+  }
+
+  return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">한국 캠페인 생성</h1>
