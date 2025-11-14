@@ -44,6 +44,9 @@ const CampaignCreationKorea = () => {
     question4: '',
     campaign_type: 'regular',  // regular, oliveyoung, 4week_challenge
     is_oliveyoung_sale: false,  // 하위 호환성 유지
+    oliveyoung_subtype: 'sale',  // pick, sale, special
+    oliveyoung_logo_url: '',
+    provide_logo: false,  // 로고 제공 여부
     sale_season: '',
     content_type: '',
     emblem_required: false,
@@ -285,6 +288,39 @@ const CampaignCreationKorea = () => {
       remaining_slots: slots,
       estimated_cost: finalCost
     }))
+  }
+
+  // 로고 파일 업로드
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(true)
+    setError('')
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `logo-${Math.random().toString(36).substring(2)}.${fileExt}`
+      const filePath = `campaign-logos/${fileName}`
+
+      const { error: uploadError } = await storage
+        .from('campaign-images')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = storage
+        .from('campaign-images')
+        .getPublicUrl(filePath)
+
+      setCampaignForm(prev => ({ ...prev, oliveyoung_logo_url: publicUrl }))
+      setSuccess('로고 파일이 업로드되었습니다!')
+    } catch (err) {
+      console.error('로고 업로드 실패:', err)
+      setError('로고 업로드에 실패했습니다: ' + err.message)
+    } finally {
+      setUploadingImage(false)
+    }
   }
 
   // 썸네일 이미지 업로드
@@ -815,11 +851,63 @@ const CampaignCreationKorea = () => {
               {/* 올영세일 캐페인 상세 설정 */}
               {campaignForm.campaign_type === 'oliveyoung' && (
                 <div className="border-t pt-6 mt-6">
-                  <h3 className="text-lg font-semibold mb-4">🌸 올영세일 캐페인 상세 설정</h3>
+                  <h3 className="text-lg font-semibold mb-4">🌸 올리브영 캐페인 상세 설정</h3>
                   <div className="space-y-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
-                    {/* 세일 시즌 선택 */}
+                    {/* 올영 패키지 타입 선택 */}
                     <div>
-                      <Label htmlFor="sale_season">세일 시즌 *</Label>
+                      <Label htmlFor="oliveyoung_subtype">올리브영 패키지 타입 *</Label>
+                      <Select 
+                        value={campaignForm.oliveyoung_subtype} 
+                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: value }))}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="패키지 타입 선택" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          <SelectItem value="pick" className="bg-white hover:bg-gray-100">🌟 올영픽 (Olive Young Pick)</SelectItem>
+                          <SelectItem value="sale" className="bg-white hover:bg-gray-100">🌸 올영세일 (Olive Young Sale)</SelectItem>
+                          <SelectItem value="special" className="bg-white hover:bg-gray-100">🔥 오특 (오늘의 특가)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* 로고 제공 여부 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="provide_logo"
+                        checked={campaignForm.provide_logo}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, provide_logo: e.target.checked }))}
+                        className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                      />
+                      <Label htmlFor="provide_logo" className="cursor-pointer">
+                        크리에이터에게 로고 파일 제공 (PNG)
+                      </Label>
+                    </div>
+
+                    {/* 로고 파일 업로드 */}
+                    {campaignForm.provide_logo && (
+                      <div>
+                        <Label>로고 파일 (PNG) *</Label>
+                        <p className="text-sm text-gray-600 mb-2">크리에이터가 다운로드하여 사용할 로고 파일을 업로드하세요</p>
+                        <input
+                          type="file"
+                          accept="image/png"
+                          onChange={handleLogoUpload}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                        />
+                        {campaignForm.oliveyoung_logo_url && (
+                          <div className="mt-2">
+                            <img src={campaignForm.oliveyoung_logo_url} alt="로고 미리보기" className="max-h-20" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 세일 시즌 선택 (올영세일일 경우만) */}
+                    {campaignForm.oliveyoung_subtype === 'sale' && (
+                      <div>
+                        <Label htmlFor="sale_season">세일 시즌 *</Label>
                       <Select 
                         value={campaignForm.sale_season} 
                         onValueChange={(value) => setCampaignForm(prev => ({ ...prev, sale_season: value }))}
@@ -834,7 +922,8 @@ const CampaignCreationKorea = () => {
                           <SelectItem value="winter" className="bg-white hover:bg-gray-100">❄️ 겨울 세일 (12월 초)</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
+                      </div>
+                    )}
 
                     {/* 콘텐츠 타입 선택 */}
                     <div>
