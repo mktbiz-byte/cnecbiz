@@ -73,6 +73,7 @@ import ContractManagement from './components/company/ContractManagement'
 import Guidebook from './pages/Guidebook'
 import GuidebookManagement from './components/admin/GuidebookManagement'
 import TestKakaoNotification from './components/admin/TestKakaoNotification'
+import TestNaverWorks from './pages/TestNaverWorks'
 
 import AuthCallback from './components/AuthCallback'
 import RegularCampaignIntro from './pages/RegularCampaignIntro'
@@ -159,6 +160,7 @@ function App() {
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />
+        <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
 
         <Route path="/admin/creator-approvals" element={<FeaturedCreatorApprovals />} />
