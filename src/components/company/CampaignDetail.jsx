@@ -17,6 +17,113 @@ import {
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 
+// 크리에이터별 맞춤 가이드 생성 함수
+async function generateCustomGuide(campaign, creator) {
+  const prompt = `당신은 한국 숙폼 콘텐츠 전문 기획자입니다. 조회수를 극대화하는 기가막힌 아이디어로 10개 씩의 촬영 가이드를 작성해주세요.
+
+**제품 정보**
+- 브랜드: ${campaign.brand}
+- 제품명: ${campaign.product_name}
+- 제품 특징: ${campaign.product_features}
+- 핵심 포인트: ${campaign.product_key_points}
+
+**크리에이터 정보**
+- 이름: ${creator.name}
+- 플랫폼: ${creator.platform}
+- 팔로워 수: ${creator.followers}
+- 주요 채널: ${creator.channel || '없음'}
+
+**필수 요구사항**
+1. **10개 씩 구성**: 각 씩마다 촬영 장면과 대사를 상세히 작성
+2. **첫 장면 (씩 1)**: 후킹력이 극대화된 장면 (3초 안에 시청자를 사로잡을 것)
+3. **B&A (Before & After) 중심**: 제품 사용 전후 비교가 명확히 드러나도록
+4. **한국형 콘텐츠 스타일**: 한국 시청자에게 친숙한 표현과 트렌드 반영
+5. **브랜드명/제품명 정확성**: "${campaign.brand}"와 "${campaign.product_name}"을 정확히 사용 (오타 금지)
+6. **조회수 위주**: 바이럴 가능성이 높은 기획
+
+**출력 형식 (JSON)**
+\`\`\`json
+{
+  "title": "가이드 제목",
+  "overview": "전체 콘텐츠 개요 (2-3문장)",
+  "hook_strategy": "첫 장면 후킹 전략 설명",
+  "scenes": [
+    {
+      "scene_number": 1,
+      "duration": "3초",
+      "title": "씩 제목",
+      "description": "촬영 장면 상세 설명",
+      "dialogue": "크리에이터가 말할 대사",
+      "camera_angle": "카메라 앵글 (예: 클로즈업, 풀샷 등)",
+      "notes": "주의사항 및 팁"
+    }
+    // ... 10개 씩
+  ],
+  "before_after": {
+    "before_scene": "사용 전 장면 설명 (어느 씩에서 촬영할지)",
+    "after_scene": "사용 후 장면 설명 (어느 씩에서 촬영할지)",
+    "comparison_tip": "비교 효과를 극대화하는 팁"
+  },
+  "brand_mentions": [
+    "브랜드명이 언급되는 씩과 대사 목록"
+  ],
+  "hashtags": ["추천 해시태그 5개"],
+  "music_suggestion": "추천 배경음악 스타일",
+  "editing_tips": [
+    "편집 팁 3-5개"
+  ],
+  "cautions": [
+    "주의사항 3-5개"
+  ]
+}
+\`\`\`
+
+**중요**: 반드시 JSON 형식으로만 출력하세요. 다른 설명은 포함하지 마세요.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.9,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 8192,
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const generatedText = data.candidates[0].content.parts[0].text;
+    
+    // JSON 추출 (```json ... ``` 제거)
+    const jsonMatch = generatedText.match(/```json\s*([\s\S]*?)\s*```/);
+    const jsonText = jsonMatch ? jsonMatch[1] : generatedText;
+    
+    const customGuide = JSON.parse(jsonText);
+    
+    // 브랜드명/제품명 검증
+    const guideText = JSON.stringify(customGuide);
+    if (!guideText.includes(campaign.brand) || !guideText.includes(campaign.product_name)) {
+      console.warn('Warning: Brand or product name might be missing or incorrect');
+    }
+    
+    return customGuide;
+  } catch (error) {
+    console.error('Error generating custom guide:', error);
+    throw error;
+  }
+}
+
 export default function CampaignDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -73,8 +180,8 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // Japan 캐페인은 campaign_applications, Korea 캐페인은 campaign_participants 사용
-      const tableName = region === 'japan' ? 'campaign_applications' : 'campaign_participants'
+      // 모든 지역에서 applications 테이블 사용
+      const tableName = 'applications'
       const { data, error } = await supabase
         .from(tableName)
         .select('*')
@@ -137,7 +244,7 @@ export default function CampaignDetail() {
       })
 
       const { error: updateError } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .update({
           views,
           last_view_check: new Date().toISOString(),
@@ -161,7 +268,7 @@ export default function CampaignDetail() {
   const handleTrackingNumberChange = async (participantId, trackingNumber) => {
     try {
       const { error } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .update({ tracking_number: trackingNumber })
         .eq('id', participantId)
 
@@ -188,15 +295,57 @@ export default function CampaignDetail() {
     }
 
     try {
-      // 선택된 크리에이터들의 상태를 'selected'로 변경
+      // 선택된 크리에이터들의 상태를 'selected'로 변경 및 맞춤 가이드 생성
       for (const participantId of selectedParticipants) {
+        // 1. 선정 상태 업데이트
         await supabase
-          .from('campaign_participants')
+          .from('applications')
           .update({
             selection_status: 'selected',
             selected_at: new Date().toISOString()
           })
           .eq('id', participantId)
+
+        // 2. 기획형 캠페인인 경우 맞춤 가이드 생성
+        if (campaign.campaign_type === 'regular') {
+          try {
+            // 크리에이터 정보 가져오기
+            const participant = participants.find(p => p.id === participantId)
+            if (!participant) continue
+
+            // 크리에이터 프로필 정보 가져오기
+            const { data: userProfile } = await supabase
+              .from('user_profiles')
+              .select('*')
+              .eq('id', participant.user_id)
+              .single()
+
+            // 맞춤 가이드 생성
+            const customGuide = await generateCustomGuide(campaign, {
+              name: participant.creator_name || userProfile?.name || '크리에이터',
+              platform: participant.creator_platform || 'Instagram',
+              followers: participant.creator_followers || userProfile?.instagram_followers || 0,
+              channel: participant.creator_platform?.toLowerCase().includes('instagram') 
+                ? userProfile?.instagram_url 
+                : participant.creator_platform?.toLowerCase().includes('youtube')
+                ? userProfile?.youtube_url
+                : userProfile?.tiktok_url
+            })
+
+            // 맞춤 가이드 저장
+            await supabase
+              .from('applications')
+              .update({
+                custom_guide: customGuide
+              })
+              .eq('id', participantId)
+
+            console.log(`크리에이터 ${participant.creator_name}의 맞춤 가이드 생성 완료`)
+          } catch (guideError) {
+            console.error(`맞춤 가이드 생성 실패 (${participantId}):`, guideError)
+            // 가이드 생성 실패해도 선정은 계속 진행
+          }
+        }
       }
 
       // 캠페인의 selected_participants_count 업데이트
@@ -207,7 +356,10 @@ export default function CampaignDetail() {
         })
         .eq('id', id)
 
-      alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
+      const guideMessage = campaign.campaign_type === 'regular' 
+        ? ' \n\n맞춤 가이드가 자동으로 생성되었습니다. (확정 크리에이터 탭에서 확인 가능)'
+        : ''
+      alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!${guideMessage}`)
       await fetchParticipants()
       await fetchCampaignDetail()
       setSelectedParticipants([])
@@ -441,7 +593,7 @@ export default function CampaignDetail() {
   const handleUpdateCreatorStatus = async (participantId, newStatus) => {
     try {
       const { error } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .update({ creator_status: newStatus })
         .eq('id', participantId)
 
@@ -449,7 +601,7 @@ export default function CampaignDetail() {
 
       // 참여자 목록 재로드
       const { data, error: fetchError } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .select('*')
         .eq('campaign_id', id)
 
