@@ -5,8 +5,9 @@ import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 const supabaseKorea = getSupabaseClient('korea')
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Lightbulb, X } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
+import { missionExamples } from './missionExamples'
 
 export default function CampaignGuide4WeekChallenge() {
   const [searchParams] = useSearchParams()
@@ -16,6 +17,9 @@ export default function CampaignGuide4WeekChallenge() {
   const [generating, setGenerating] = useState(false)
   const [campaign, setCampaign] = useState(null)
   const [expandedWeek, setExpandedWeek] = useState(1)
+  const [showExamplesModal, setShowExamplesModal] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('skinTrouble')
+  const [currentWeekForExample, setCurrentWeekForExample] = useState(1)
   
   const [productData, setProductData] = useState({
     brand: '',
@@ -409,10 +413,25 @@ ${weekData.required_scenes}
                   <div className="mt-4 space-y-4">
                     {/* 주차별 미션 */}
                     <div>
-                      <label className="block mb-2">
-                        <span className="text-base font-semibold">주차별 미션</span>
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="flex items-center gap-2">
+                          <span className="text-base font-semibold">주차별 미션</span>
+                          <span className="text-red-500 ml-1">*</span>
+                        </label>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setCurrentWeekForExample(weekNum)
+                            setShowExamplesModal(true)
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          <Lightbulb className="w-3 h-3 mr-1" />
+                          추천 예시 보기
+                        </Button>
+                      </div>
                       <p className="text-sm text-gray-600 mb-2">
                         이번 주에 크리에이터가 수행할 미션을 작성해주세요.
                       </p>
@@ -549,6 +568,85 @@ ${weekData.required_scenes}
           </Button>
         </div>
       </div>
+
+      {/* 미션 추천 모달 */}
+      {showExamplesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold">
+                <Lightbulb className="w-5 h-5 inline mr-2 text-yellow-500" />
+                Week {currentWeekForExample} 미션 추천 예시
+              </h3>
+              <button
+                onClick={() => setShowExamplesModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              {/* 카테고리 선택 */}
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 mb-3">제품 카테고리를 선택하면 해당 카테고리에 맞는 미션 예시를 볼 수 있습니다.</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {Object.entries(missionExamples).map(([key, category]) => (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedCategory(key)}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        selectedCategory === key
+                          ? 'border-purple-600 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="font-semibold">{category.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* 선택된 카테고리의 미션 예시 리스트 */}
+              {selectedCategory && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg">
+                    <h4 className="font-bold text-lg mb-4">
+                      {missionExamples[selectedCategory].name} - Week {currentWeekForExample} 미션 예시
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      아래 예시 중 하나를 선택하거나 참고하여 미션을 작성하세요.
+                    </p>
+                    <div className="bg-white rounded-lg p-4">
+                      <div className="space-y-3">
+                        {missionExamples[selectedCategory].missions.map((mission, index) => (
+                          <div
+                            key={index}
+                            className="flex items-start gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer border border-gray-200 hover:border-purple-300"
+                            onClick={() => {
+                              const weekKey = `week${currentWeekForExample}`
+                              updateWeeklyGuide(weekKey, 'mission', mission)
+                              setShowExamplesModal(false)
+                            }}
+                          >
+                            <span className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-sm font-semibold">
+                              {index + 1}
+                            </span>
+                            <p className="text-gray-700 flex-1">{mission}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  <strong>팁:</strong> 위 예시를 참고하여 본인의 제품과 캠페인 특성에 맞게 수정하여 사용하세요.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

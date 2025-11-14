@@ -337,6 +337,99 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 한국 캠페인 소개 배너 */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-3xl p-8 md:p-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">한국 캠페인 타입</h2>
+          <p className="text-center text-slate-600 mb-10">브랜드에 맞는 캠페인을 선택하세요</p>
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* 기획형 캠페인 */}
+            <div 
+              className="bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-400 hover:shadow-2xl transition-all cursor-pointer group"
+              onClick={() => window.open('/campaigns/intro/regular', '_blank')}
+            >
+              <div className="text-5xl mb-4">📝</div>
+              <h3 className="text-2xl font-bold mb-3 group-hover:text-blue-600 transition-colors">기획형 캠페인</h3>
+              <p className="text-lg text-slate-700 font-semibold mb-3">초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                  대사 + 촬영장면 개별 제공
+                </li>
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                  SNS URL 1개 제출
+                </li>
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                  인스타그램 1만~30만명
+                </li>
+              </ul>
+              <div className="flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
+                자세히 보기
+                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* 올영세일 캠페인 */}
+            <div 
+              className="bg-white p-6 rounded-2xl border-2 border-pink-200 hover:border-pink-400 hover:shadow-2xl transition-all cursor-pointer group"
+              onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
+            >
+              <div className="text-5xl mb-4">🌸</div>
+              <h3 className="text-2xl font-bold mb-3 group-hover:text-pink-600 transition-colors">올영세일 캠페인</h3>
+              <p className="text-lg text-slate-700 font-semibold mb-3">스탠다드 30만원 / 프리미엄 40만원</p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600"></div>
+                  3단계 콘텐츠 (릴스 2 + 스토리 1)
+                </li>
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600"></div>
+                  URL 3개 + 영상 폴더 2개
+                </li>
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600"></div>
+                  통합 가이드 제공
+                </li>
+              </ul>
+              <div className="flex items-center text-pink-600 font-semibold group-hover:gap-2 transition-all">
+                자세히 보기
+                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* 4주 챌린지 */}
+            <div 
+              className="bg-white p-6 rounded-2xl border-2 border-purple-200 hover:border-purple-400 hover:shadow-2xl transition-all cursor-pointer group"
+              onClick={() => window.open('/campaigns/intro/4week', '_blank')}
+            >
+              <div className="text-5xl mb-4">🏆</div>
+              <h3 className="text-2xl font-bold mb-3 group-hover:text-purple-600 transition-colors">4주 챌린지</h3>
+              <p className="text-lg text-slate-700 font-semibold mb-3">60만원 (고정)</p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                  주차별 통합 가이드 4개
+                </li>
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                  4주 연속 콘텐츠
+                </li>
+                <li className="flex items-center gap-2 text-slate-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                  URL 4개 + 영상 4개 제출
+                </li>
+              </ul>
+              <div className="flex items-center text-purple-600 font-semibold group-hover:gap-2 transition-all">
+                자세히 보기
+                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
