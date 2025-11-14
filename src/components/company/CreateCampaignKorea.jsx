@@ -1099,8 +1099,8 @@ const CampaignCreationKorea = () => {
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* 4주 챌린지 상세 설정 */}
               {campaignForm.campaign_type === '4week_challenge' && (
