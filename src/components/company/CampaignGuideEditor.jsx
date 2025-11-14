@@ -153,21 +153,28 @@ export default function CampaignGuideEditor() {
         </div>
 
         {/* 크리에이터 자율성 체크박스 */}
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={creatorAutonomy}
               onChange={(e) => setCreatorAutonomy(e.target.checked)}
-              className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="mt-1 w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-500"
             />
             <div>
-              <p className="text-base font-semibold text-gray-900">
+              <p className="text-base font-bold text-red-900">
                 촬영 장면 및 대사는 크리에이터 자율로 하겠습니다
               </p>
-              <p className="text-sm text-gray-600 mt-1">
-                체크 시 크리에이터가 제품 소개 방식을 자유롭게 결정할 수 있습니다.
-                단, 핵심 소구 포인트는 반드시 포함되어야 합니다.
+              <div className="text-sm text-red-800 mt-2 space-y-1">
+                <p className="font-semibold">
+                  ✓ 체크 시: 크리에이터가 제품 소개 방식을 자유롭게 결정합니다. (핵심 소구 포인트는 반드시 포함)
+                </p>
+                <p className="font-semibold">
+                  ✗ 체크 해제 시: CNEC에서 촬영 장면 및 대사를 상세히 기획하여 제공합니다.
+                </p>
+              </div>
+              <p className="text-xs text-red-700 mt-3 font-medium">
+                ⚠️ CNEC에서 촬영 가이드를 모두 기획하시길 원하시면 체크박스를 해제해주세요.
               </p>
             </div>
           </label>
