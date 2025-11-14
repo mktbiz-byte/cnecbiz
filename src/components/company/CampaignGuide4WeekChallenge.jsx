@@ -670,7 +670,7 @@ ${weekData.required_scenes}
 
           <div className="mt-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
             <p className="text-sm text-blue-800">
-              <strong>⚠️ 주의사항:</strong> 각 주차의 마감일을 명확히 설정하여 크리에이터가 4주 동안 꾸준히 콘텐츠를 업로드할 수 있도록 해주세요.
+              <strong>⚠️ 주의사항:</strong> 각 주차의 마감일을 명확히 설정하여 크리에이터가 4주 동안 꾸준히 콘텐츠를 업로드할 수 있도록 해주세요. 각 영상은 7일 정도 텀을 두고 업로드해야 합니다.
             </p>
           </div>
         </div>
