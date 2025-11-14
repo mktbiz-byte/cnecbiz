@@ -101,7 +101,50 @@ export default function CampaignGuide() {
 
       if (updateError) throw updateError
 
-      // AI 가이드 생성 (추후 구현)
+      // Gemini API를 사용한 AI 가이드 생성
+      const prompt = `당신은 전문 마케팅 콘텐츠 기획자입니다. 다음 제품에 대한 크리에이터 콘텐츠 가이드를 작성해주세요.
+
+[제품 정보]
+브랜드: ${productData.brand}
+제품명: ${productData.product_name}
+제품 특징: ${productData.product_features}
+핵심 포인트: ${productData.product_key_points}
+
+${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적인 콘텐츠를 만들 수 있도록 가이드해주세요.' : '구체적이고 상세한 가이드를 제공해주세요.'}
+
+다음 항목을 포함해야 합니다:
+1. 콘텐츠 개요 (목표와 메시지)
+2. 촬영 가이드 (장면 구성과 순서)
+3. 필수 요소 (대사, 장면, 해시태그)
+4. 편집 팁 (영상 분위기, 음악, 자막)
+5. 주의사항
+
+전문적이고 실용적인 가이드를 작성해주세요.`
+
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + import.meta.env.VITE_GEMINI_API_KEY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      })
+
+      if (!response.ok) throw new Error('AI 생성 실패')
+      
+      const data = await response.json()
+      const generatedGuide = data.candidates[0].content.parts[0].text
+
+      // AI 생성 가이드 저장
+      const { error: guideError } = await supabaseBiz
+        .from('campaigns')
+        .update({
+          ai_generated_guide: generatedGuide,
+          guide_generated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+
+      if (guideError) throw guideError
+
       alert('가이드가 생성되었습니다! 리뷰 페이지로 이동합니다.')
       navigate(`/company/campaigns/${id}/review`)
     } catch (error) {
