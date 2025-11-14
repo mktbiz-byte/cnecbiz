@@ -126,8 +126,8 @@ const CampaignCreationKorea = () => {
   // 캠페인 타입 변경 시 금액 재계산
   useEffect(() => {
     if (campaignForm.campaign_type === '4week_challenge') {
-      // 4주 챌린지: 1명당 60,000원 × 인원수
-      const finalCost = calculateFinalCost(60000, campaignForm.total_slots)
+      // 4주 챌린지: 1명당 600,000원 × 인원수
+      const finalCost = calculateFinalCost(600000, campaignForm.total_slots)
       setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost }))
     } else {
       // 일반/올영세일: 패키지 × 인원수
@@ -681,7 +681,7 @@ const CampaignCreationKorea = () => {
                     className="bg-gray-100 font-semibold text-blue-600"
                   />
                   {campaignForm.campaign_type === '4week_challenge' ? (() => {
-                    const pricePerPerson = 60000
+                    const pricePerPerson = 600000
                     const subtotal = pricePerPerson * campaignForm.total_slots
                     const vat = Math.round(subtotal * 0.1)
                     const totalWithVat = subtotal + vat
