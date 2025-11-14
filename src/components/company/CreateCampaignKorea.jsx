@@ -359,7 +359,7 @@ const CampaignCreationKorea = () => {
         campaignForm.question4
       ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
 
-      const { question1, question2, question3, question4, target_platforms, ...restForm } = campaignForm
+      const { question1, question2, question3, question4, target_platforms, additional_details_ja, ...restForm } = campaignForm
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
       const categoryNames = campaignForm.category
@@ -405,7 +405,7 @@ const CampaignCreationKorea = () => {
 
       if (editId) {
         // 수정 모드: 포인트 차감 없이 수정만 진행
-        const { error: updateError } = await supabaseBiz
+        const { error: updateError } = await supabaseKorea
           .from('campaigns')
           .update(campaignData)
           .eq('id', editId)
