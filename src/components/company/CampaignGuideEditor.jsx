@@ -29,11 +29,21 @@ export default function CampaignGuideEditor() {
 
   const loadCampaign = async () => {
     try {
+      console.log('Loading campaign with id:', id)
+      
+      if (!id) {
+        alert('캠페인 ID가 없습니다.')
+        return
+      }
+
       const { data, error } = await supabaseBiz
         .from('campaigns')
         .select('*')
         .eq('id', id)
         .single()
+      
+      console.log('Campaign data:', data)
+      console.log('Campaign error:', error)
 
       if (error) throw error
       setCampaign(data)
