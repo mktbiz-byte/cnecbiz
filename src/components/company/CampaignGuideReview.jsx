@@ -74,38 +74,86 @@ export default function CampaignGuideReview() {
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `당신은 한국 뷰티/패션 크리에이터를 위한 캠페인 가이드 작성 전문가입니다.
+                text: `당신은 한국 뷰티/패션 인플루언서 마케팅 전문가입니다. 크리에이터가 바로 실행할 수 있는 구체적이고 명확한 가이드를 작성해주세요.
 
-다음 제품 정보를 바탕으로 크리에이터가 쉽게 이해하고 실행할 수 있는 가이드를 작성해주세요.
+## 캠페인 정보
 
-**제품 정보:**
-- 브랜드: ${campaignData.brand}
-- 제품명: ${campaignData.product_name}
-- 제품 특징: ${campaignData.product_features}
-- 핵심 소구 포인트: ${campaignData.product_key_points}
+### 제품 정보
+- **브랜드**: ${campaignData.brand}
+- **제품명**: ${campaignData.product_name}
+- **제품 특징**: ${campaignData.product_features}
+- **핵심 소구 포인트**: ${campaignData.product_key_points}
+
+### 필수 대사
+${campaignData.required_dialogues && campaignData.required_dialogues.length > 0 ? campaignData.required_dialogues.map((d, i) => `${i + 1}. "${d}"`).join('\n') : '- 없음'}
+
+### 필수 촬영 장면
+${campaignData.required_scenes && campaignData.required_scenes.length > 0 ? campaignData.required_scenes.map((s, i) => `${i + 1}. ${s}`).join('\n') : '- 없음'}
+
+### 촬영 장면 요구사항
+${[
+  campaignData.shooting_scenes_ba_photo && '- BA 사진 (Before/After)',
+  campaignData.shooting_scenes_no_makeup && '- 노메이크업',
+  campaignData.shooting_scenes_closeup && '- 제품 제형 클로즈업',
+  campaignData.shooting_scenes_product_closeup && '- 제품 클로즈업',
+  campaignData.shooting_scenes_product_texture && '- 제품 텍스처',
+  campaignData.shooting_scenes_outdoor && '- 외부촬영',
+  campaignData.shooting_scenes_couple && '- 커플 출연',
+  campaignData.shooting_scenes_child && '- 아이 출연',
+  campaignData.shooting_scenes_troubled_skin && '- 트러블 피부 노출',
+  campaignData.shooting_scenes_wrinkles && '- 피부 주름 노출'
+].filter(Boolean).join('\n') || '- 없음'}
+
+### 추가 촬영 요청
+${campaignData.additional_shooting_requests || '- 없음'}
+
+### 필수 해시태그
+${campaignData.required_hashtags && campaignData.required_hashtags.length > 0 ? campaignData.required_hashtags.map(h => `#${h}`).join(' ') : '- 없음'}
+
+### 영상 요구사항
+- **영상 길이**: ${campaignData.video_duration || '자유'}
+- **영상 템포**: ${campaignData.video_tempo || '자유'}
+- **영상 톤앤매너**: ${campaignData.video_tone || '자유'}
+
+### 기타 요청사항
+${campaignData.additional_details || '- 없음'}
 ${autonomyNote}
 
-**가이드 작성 요구사항:**
-1. 한국인이 선호하는 단순하고 명료한 스타일로 작성
-2. 불필요한 수식어 제거, 핵심만 전달
-3. 실행 가능한 구체적인 내용 포함
-4. 다음 섹션으로 구성:
-   - 제품 소개 (간단명료하게)
-   - 영상 컨셉 제안 (2-3가지)
-   - 필수 포함 내용
-   - 추천 촬영 팁
-   - 주의사항
+---
 
-**응답 형식 (JSON):**
+## 작성 지침
+
+1. **한국인 취향**: 화려하지 않고 단순 명료하게
+2. **실용성**: 크리에이터가 바로 실행 가능한 구체적 내용
+3. **가독성**: 짧은 문장, 명확한 구조
+4. **완성도**: 위 모든 정보를 반영하여 통합된 가이드 작성
+
+## 응답 형식 (JSON)
+
 {
-  "product_intro": "제품 소개 내용",
-  "video_concepts": ["컨셙1", "컨셙2", "컨셙3"],
-  "must_include": ["필수1", "필수2", "필수3"],
-  "filming_tips": ["팁원1", "팁원2", "팁원3"],
-  "cautions": ["주의사항1", "주의사항2"]
+  "product_intro": "제품을 2-3문장으로 소개. 브랜드, 제품명, 핵심 특징 포함.",
+  "video_concepts": [
+    "컨셉 1: 구체적인 컨셉 설명 (예: 아침 루틴 브이로그 형식으로 자연스럽게 제품 사용)",
+    "컨셉 2: 다른 컨셉 설명",
+    "컨셉 3: 또 다른 컨셉 설명"
+  ],
+  "must_include": [
+    "필수 대사와 소구 포인트를 구체적으로 명시",
+    "필수 촬영 장면을 구체적으로 명시",
+    "필수 해시태그 사용법"
+  ],
+  "filming_tips": [
+    "촬영 장면 요구사항을 반영한 구체적 팁",
+    "영상 길이/템포/톤앤매너를 고려한 팁",
+    "추가 촬영 요청사항 반영"
+  ],
+  "cautions": [
+    "주의사항 1",
+    "주의사항 2"
+  ]
 }
 
-JSON 형식으로만 응답해주세요.`
+JSON만 응답하세요.`
               }]
             }],
             generationConfig: {
