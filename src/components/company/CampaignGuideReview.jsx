@@ -16,6 +16,8 @@ export default function CampaignGuideReview() {
   const [aiGuide, setAiGuide] = useState(null)
   const [editingSection, setEditingSection] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [selectedConcepts, setSelectedConcepts] = useState([])
+  const [additionalConcepts, setAdditionalConcepts] = useState('')
 
   useEffect(() => {
     loadCampaignData()
@@ -34,7 +36,12 @@ export default function CampaignGuideReview() {
 
       // AI 가이드가 이미 생성되어 있으면 표시
       if (data.ai_generated_guide) {
-        setAiGuide(JSON.parse(data.ai_generated_guide))
+        const guide = JSON.parse(data.ai_generated_guide)
+        setAiGuide(guide)
+        // 모든 컨셉을 기본으로 선택
+        if (guide.video_concepts) {
+          setSelectedConcepts(guide.video_concepts.map((_, index) => index))
+        }
       }
       // AI 가이드가 없어도 자동 생성하지 않음 (사용자가 버튼으로 생성)
     } catch (err) {
@@ -345,6 +352,46 @@ JSON 형식으로만 응답해주세요.`
     }
   }
 
+  const saveFinalGuide = async () => {
+    setSaving(true)
+
+    try {
+      // 선택된 컨셉만 포함
+      const selectedConceptsList = selectedConcepts
+        .sort((a, b) => a - b)
+        .map(index => aiGuide.video_concepts[index])
+      
+      // 추가 컨셉 포함
+      const additionalConceptsList = additionalConcepts
+        .split('\n')
+        .filter(line => line.trim())
+      
+      const finalConcepts = [...selectedConceptsList, ...additionalConceptsList]
+
+      const finalGuide = {
+        ...aiGuide,
+        video_concepts: finalConcepts
+      }
+
+      setAiGuide(finalGuide)
+
+      // Supabase에 저장
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ ai_generated_guide: JSON.stringify(finalGuide) })
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('최종 가이드가 저장되었습니다!')
+    } catch (error) {
+      console.error('저장 실패:', error)
+      alert('저장 중 오류가 발생했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <>
@@ -555,16 +602,46 @@ JSON 형식으로만 응답해주세요.`
                     </div>
                   </div>
                 ) : (
-                  <ul className="space-y-3">
-                    {aiGuide.video_concepts.map((concept, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-medium">
-                          {index + 1}
-                        </span>
-                        <span className="text-base">{concept}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      {aiGuide.video_concepts.map((concept, index) => (
+                        <label key={index} className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition">
+                          <input
+                            type="checkbox"
+                            checked={selectedConcepts.includes(index)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedConcepts([...selectedConcepts, index])
+                              } else {
+                                setSelectedConcepts(selectedConcepts.filter(i => i !== index))
+                              }
+                            }}
+                            className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <div className="flex-1">
+                            <span className="inline-block w-6 h-6 bg-blue-100 text-blue-700 rounded-full text-center text-sm font-medium leading-6 mr-2">
+                              {index + 1}
+                            </span>
+                            <span className="text-base">{concept}</span>
+                            {selectedConcepts.includes(index) && (
+                              <span className="ml-2 text-xs text-blue-600 font-medium">✓ 선택됨</span>
+                            )}
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="border-t pt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        추가 컨셉 (선택사항)
+                      </label>
+                      <textarea
+                        value={additionalConcepts}
+                        onChange={(e) => setAdditionalConcepts(e.target.value)}
+                        placeholder="추가하고 싶은 영상 컨셉을 입력하세요 (각 줄에 하나씩)"
+                        className="w-full h-24 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -725,16 +802,36 @@ JSON 형식으로만 응답해주세요.`
               </Card>
             )}
 
-            {/* 확인 버튼 */}
-            <div className="flex justify-end pt-4">
-              <Button
-                onClick={() => navigate('/company/campaigns')}
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <CheckCircle className="w-5 h-5 mr-2" />
-                확인 완료
-              </Button>
+            {/* 최종 가이드 저장 및 확인 버튼 */}
+            <div className="flex justify-between items-center pt-4">
+              <div className="text-sm text-gray-600">
+                선택된 컨셉: <strong>{selectedConcepts.length}개</strong>
+                {additionalConcepts.trim() && (
+                  <span className="ml-2">
+                    + 추가 컨셉: <strong>{additionalConcepts.split('\n').filter(line => line.trim()).length}개</strong>
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={saveFinalGuide}
+                  disabled={saving || selectedConcepts.length === 0}
+                  size="lg"
+                  variant="outline"
+                  className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                >
+                  <Save className="w-5 h-5 mr-2" />
+                  {saving ? '저장 중...' : '최종 가이드 저장'}
+                </Button>
+                <Button
+                  onClick={() => navigate('/company/campaigns')}
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  확인 완료
+                </Button>
+              </div>
             </div>
           </div>
         )}
