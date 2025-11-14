@@ -542,9 +542,20 @@ const CampaignCreationKorea = () => {
                       className="w-5 h-5 mt-1 text-blue-600"
                     />
                     <div className="flex-1">
-                      <Label htmlFor="campaign_type_regular" className="text-base font-semibold cursor-pointer">
-                        📝 기획형 캠페인
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="campaign_type_regular" className="text-base font-semibold cursor-pointer">
+                          📝 기획형 캠페인
+                        </Label>
+                        <a 
+                          href="/campaigns/intro/regular" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          자세히 보기
+                        </a>
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">가격: 초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</p>
                       <p className="text-xs text-gray-500 mt-1">대사 + 촬영장면 개별 제공, SNS URL 1개 제출</p>
                     </div>
@@ -562,9 +573,20 @@ const CampaignCreationKorea = () => {
                       className="w-5 h-5 mt-1 text-pink-600"
                     />
                     <div className="flex-1">
-                      <Label htmlFor="campaign_type_oliveyoung" className="text-base font-semibold cursor-pointer">
-                        🌸 올영세일 캠페인
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="campaign_type_oliveyoung" className="text-base font-semibold cursor-pointer">
+                          🌸 올영세일 캠페인
+                        </Label>
+                        <a 
+                          href="/campaigns/intro/oliveyoung" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-pink-600 hover:text-pink-800 underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          자세히 보기
+                        </a>
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">가격: 스탠다드 30만원 / 프리미엄 40만원 (2단계만)</p>
                       <p className="text-xs text-gray-500 mt-1">통합 가이드, 3단계 콘텐츠 (릴스 2건 + 스토리 1건), URL 3개 + 영상 폴더 2개 제출</p>
                     </div>
@@ -582,9 +604,20 @@ const CampaignCreationKorea = () => {
                       className="w-5 h-5 mt-1 text-purple-600"
                     />
                     <div className="flex-1">
-                      <Label htmlFor="campaign_type_4week" className="text-base font-semibold cursor-pointer">
-                        🏆 4주 챌린지
-                      </Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="campaign_type_4week" className="text-base font-semibold cursor-pointer">
+                          🏆 4주 챌린지
+                        </Label>
+                        <a 
+                          href="/campaigns/intro/4week" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-purple-600 hover:text-purple-800 underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          자세히 보기
+                        </a>
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">가격: 60만원 (고정)</p>
                       <p className="text-xs text-gray-500 mt-1">주차별 통합 가이드 4개, 4주 연속 콘텐츠, URL 4개 + 영상 4개 제출</p>
                     </div>
