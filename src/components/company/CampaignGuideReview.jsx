@@ -35,12 +35,8 @@ export default function CampaignGuideReview() {
       // AI 가이드가 이미 생성되어 있으면 표시
       if (data.ai_generated_guide) {
         setAiGuide(JSON.parse(data.ai_generated_guide))
-      } else {
-        // AI 가이드가 없으면 자동 생성
-        setLoading(false)
-        await generateAIGuideFromData(data)
-        return
       }
+      // AI 가이드가 없어도 자동 생성하지 않음 (사용자가 버튼으로 생성)
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
       alert('캠페인 정보를 불러오는데 실패했습니다.')
@@ -122,8 +118,8 @@ ${campaignData.required_hashtags && campaignData.required_hashtags.length > 0 ? 
 ### 기타 요청사항
 ${campaignData.additional_details || '- 없음'}
 
-### 메타 광고코드 발급
-${campaignData.meta_ad_code_requested ? '- 요청됨: 영상 제출 시 CNEC에서 메타 파트너십 광고코드를 발급해드립니다. 영상 설명란에 해당 코드를 포함해주세요.' : '- 요청 안함'}
+### 메타 파트너십 광고코드 (필수)
+${campaignData.meta_ad_code_requested ? '- 요청됨: 영상 완료 후 메타 비즈니스 세팅에서 파트너십 광고 코드를 발급받아 CNEC에 반드시 제공해주세요. (발급 방법: 메타 비즈니스 세팅 > 파트너십 광고 > 코드 발급)' : '- 요청 안함'}
 ${autonomyNote}
 
 ---
@@ -243,8 +239,8 @@ JSON만 응답하세요.`
 - 촬영 마감일: ${campaign.start_date || '미정'}
 - SNS 업로드일: ${campaign.end_date || '미정'}
 
-**메타 광고코드:**
-${campaign.meta_ad_code_requested ? '- 요청됨: 영상 제출 시 CNEC에서 메타 파트너십 광고코드를 발급해드립니다. 영상 설명란에 해당 코드를 포함해주세요.' : '- 요청 안함'}
+**메타 파트너십 광고코드 (필수):**
+${campaign.meta_ad_code_requested ? '- 요청됨: 영상 완료 후 메타 비즈니스 세팅에서 파트너십 광고 코드를 발급받아 CNEC에 반드시 제공해주세요. (발급 방법: 메타 비즈니스 세팅 > 파트너십 광고 > 코드 발급)' : '- 요청 안함'}
 ${autonomyNote}
 
 **가이드 작성 요구사항:**
