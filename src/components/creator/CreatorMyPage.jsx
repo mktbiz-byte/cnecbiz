@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabaseKorea } from '../../lib/supabase'
+import { supabaseKorea } from '../../lib/supabaseClients'
 import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare } from 'lucide-react'
 
 const CreatorMyPage = () => {
