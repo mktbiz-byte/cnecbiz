@@ -17,7 +17,7 @@ const CampaignCreationKorea = () => {
 
   const [campaignForm, setCampaignForm] = useState({
     campaign_type: 'regular',  // 'regular', 'oliveyoung', '4week_challenge'
-    package_type: 'beginner',
+    package_type: 'intermediate',  // 기본값: 중급 패키지
     brand: '',
     product_name: '',
     product_description: '',

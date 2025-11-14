@@ -75,6 +75,9 @@ import GuidebookManagement from './components/admin/GuidebookManagement'
 import TestKakaoNotification from './components/admin/TestKakaoNotification'
 
 import AuthCallback from './components/AuthCallback'
+import RegularCampaignIntro from './pages/RegularCampaignIntro'
+import OliveYoungCampaignIntro from './pages/OliveYoungCampaignIntro'
+import FourWeekChallengeCampaignIntro from './pages/FourWeekChallengeCampaignIntro'
 
 function App() {
   return (
@@ -83,6 +86,9 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/guidebook" element={<Guidebook />} />
+        <Route path="/campaigns/intro/regular" element={<RegularCampaignIntro />} />
+        <Route path="/campaigns/intro/oliveyoung" element={<OliveYoungCampaignIntro />} />
+        <Route path="/campaigns/intro/4week" element={<FourWeekChallengeCampaignIntro />} />
         <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />
