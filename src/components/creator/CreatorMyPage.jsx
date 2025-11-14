@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabaseKorea } from '../../lib/supabase'
-import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download } from 'lucide-react'
+import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare } from 'lucide-react'
 
 const CreatorMyPage = () => {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -259,10 +261,21 @@ const CreatorMyPage = () => {
 
                 {/* 영상 업로드 */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                    <Upload className="w-5 h-5 mr-2" />
-                    영상 업로드
-                  </h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                      <Upload className="w-5 h-5 mr-2" />
+                      영상 업로드
+                    </h3>
+                    {campaign.video_files && campaign.video_files.length > 0 && (
+                      <button
+                        onClick={() => navigate(`/creator/video-feedback?participantId=${campaign.id}`)}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-1" />
+                        피드백 확인
+                      </button>
+                    )}
+                  </div>
                   {campaign.video_files && campaign.video_files.length > 0 ? (
                     <div className="space-y-2">
                       {campaign.video_files.map((file, index) => (

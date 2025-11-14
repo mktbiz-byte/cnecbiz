@@ -1048,12 +1048,11 @@ export default function CampaignDetail() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => {
-                                    setSelectedParticipant(participant)
-                                    setShowVideoModal(true)
+                                    navigate(`/company/video-feedback?participantId=${participant.id}`)
                                   }}
                                   className="text-blue-600 border-blue-600 hover:bg-blue-50"
                                 >
-                                  영상 확인
+                                  영상 피드백
                                 </Button>
                               ) : (
                                 <span className="text-gray-400 text-sm">미업로드</span>

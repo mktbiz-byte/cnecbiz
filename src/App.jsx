@@ -47,6 +47,7 @@ import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
 import CreatorsManagement from './components/admin/CreatorsManagement'
 import CreatorMyPage from './components/creator/CreatorMyPage'
+import CampaignVideoFeedback from './components/company/CampaignVideoFeedback'
 
 import FAQManagement from './components/admin/FAQManagement'
 import VideoManagement from './components/admin/VideoManagement'
@@ -153,6 +154,8 @@ function App() {
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
         <Route path="/admin/video-feedback" element={<VideoFeedback />} />
+        <Route path="/company/video-feedback" element={<CampaignVideoFeedback />} />
+        <Route path="/creator/video-feedback" element={<CampaignVideoFeedback />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/site-management" element={<SiteManagement />} />
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
