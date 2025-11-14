@@ -18,7 +18,7 @@ const CampaignCreationKorea = () => {
     title: '',
     brand: '',
     requirements: '',
-    category: 'youtube',  // youtube, instagram
+    category: [],  // ['youtube', 'instagram', 'tiktok']
     image_url: '',
     product_name: '',
     product_description: '',
@@ -55,10 +55,11 @@ const CampaignCreationKorea = () => {
   const thumbnailInputRef = useRef(null)
   const detailImageInputRef = useRef(null)
 
-  // 카테고리 옵션
+  // 카테고리 옵션 (체크박스용)
   const categoryOptions = [
-    { value: 'youtube', label: '🎬 유튜브 모집', platforms: { youtube: true, instagram: false, tiktok: false } },
-    { value: 'instagram', label: '📸 인스타 모집', platforms: { instagram: true, youtube: false, tiktok: false } }
+    { value: 'youtube', label: '🎬 유튜브' },
+    { value: 'instagram', label: '📸 인스타그램' },
+    { value: 'tiktok', label: '🎵 틱톡' }
   ]
 
   // 패키지 옵션
@@ -180,14 +181,26 @@ const CampaignCreationKorea = () => {
     }
   }
 
-  // 카테고리 변경 시 target_platforms 자동 업데이트
-  const handleCategoryChange = (value) => {
-    const selected = categoryOptions.find(opt => opt.value === value)
-    setCampaignForm(prev => ({
-      ...prev,
-      category: value,
-      target_platforms: selected ? selected.platforms : prev.target_platforms
-    }))
+  // 카테고리 체크박스 변경 핸들러
+  const handleCategoryToggle = (value) => {
+    setCampaignForm(prev => {
+      const newCategory = prev.category.includes(value)
+        ? prev.category.filter(c => c !== value)
+        : [...prev.category, value]
+      
+      // target_platforms 자동 업데이트
+      const newTargetPlatforms = {
+        youtube: newCategory.includes('youtube'),
+        instagram: newCategory.includes('instagram'),
+        tiktok: newCategory.includes('tiktok')
+      }
+      
+      return {
+        ...prev,
+        category: newCategory,
+        target_platforms: newTargetPlatforms
+      }
+    })
   }
 
   // 패키지 변경 핸들러 (결제 금액 자동 계산)
@@ -301,12 +314,16 @@ const CampaignCreationKorea = () => {
 
       const { question1, question2, question3, question4, target_platforms, ...restForm } = campaignForm
 
-      // 카테고리명 가져오기 (이모지 제거)
-      const categoryLabel = categoryOptions.find(opt => opt.value === campaignForm.category)?.label || ''
-      const categoryName = categoryLabel.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
+      // 카테고리명 가져오기 (이모지 제거, 배열 처리)
+      const categoryNames = campaignForm.category
+        .map(cat => {
+          const label = categoryOptions.find(opt => opt.value === cat)?.label || ''
+          return label.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
+        })
+        .join('/')
       
       // 제목 자동 생성
-      const autoTitle = `${campaignForm.brand} ${campaignForm.product_name} ${categoryName}`.trim()
+      const autoTitle = `${campaignForm.brand} ${campaignForm.product_name} ${categoryNames}`.trim()
 
       // 로그인한 사용자 정보 가져오기
       let userEmail = null
@@ -496,21 +513,25 @@ const CampaignCreationKorea = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 카테고리 선택 */}
+              {/* 카테고리 선택 (체크박스) */}
               <div>
-                <Label htmlFor="category">캠페인 카테고리 *</Label>
-                <Select value={campaignForm.category} onValueChange={handleCategoryChange}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="카테고리 선택" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {categoryOptions.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value} className="bg-white hover:bg-gray-100">
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>모집 채널 * (여러 개 선택 가능)</Label>
+                <div className="flex gap-4 mt-2">
+                  {categoryOptions.map(opt => (
+                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={campaignForm.category.includes(opt.value)}
+                        onChange={() => handleCategoryToggle(opt.value)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm">{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+                {campaignForm.category.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">최소 1개 이상 선택해주세요</p>
+                )}
               </div>
 
 
@@ -870,7 +891,11 @@ const CampaignCreationKorea = () => {
 
               {/* 버튼 */}
               <div className="flex gap-4">
-                <Button type="submit" disabled={processing} className="flex-1">
+                <Button 
+                  type="submit" 
+                  disabled={processing || campaignForm.category.length === 0} 
+                  className="flex-1"
+                >
                   {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
