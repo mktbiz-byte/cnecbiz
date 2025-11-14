@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseKorea } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -141,7 +141,7 @@ const CampaignCreationKorea = () => {
 
   const loadCampaign = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('campaigns')
         .select('*')
         .eq('id', editId)
@@ -255,13 +255,13 @@ const CampaignCreationKorea = () => {
       const fileName = `logo-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-logos/${fileName}`
 
-      const { error: uploadError } = await supabaseBiz.storage
+      const { error: uploadError } = await supabaseKorea.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseBiz.storage
+      const { data: { publicUrl } } = supabaseKorea.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -288,13 +288,13 @@ const CampaignCreationKorea = () => {
       const fileName = `thumbnail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await supabaseBiz.storage
+      const { error: uploadError } = await supabaseKorea.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseBiz.storage
+      const { data: { publicUrl } } = supabaseKorea.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -321,13 +321,13 @@ const CampaignCreationKorea = () => {
       const fileName = `product-detail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await supabaseBiz.storage
+      const { error: uploadError } = await supabaseKorea.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseBiz.storage
+      const { data: { publicUrl } } = supabaseKorea.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -373,7 +373,7 @@ const CampaignCreationKorea = () => {
       // 로그인한 사용자 정보 가져오기
       let userEmail = null
       try {
-        const { data: { user } } = await supabaseBiz.auth.getUser()
+        const { data: { user } } = await supabaseKorea.auth.getUser()
         if (user) {
           userEmail = user.email
         }
@@ -403,7 +403,7 @@ const CampaignCreationKorea = () => {
 
       if (editId) {
         // 수정 모드: 포인트 차감 없이 수정만 진행
-        const { error: updateError } = await supabaseBiz
+        const { error: updateError } = await supabaseKorea
           .from('campaigns')
           .update(campaignData)
           .eq('id', editId)
@@ -413,7 +413,7 @@ const CampaignCreationKorea = () => {
         setSuccess('캠페인이 수정되었습니다!')
       } else {
         // 신규 생성 모드
-        const { data: insertData, error: insertError } = await supabaseBiz
+        const { data: insertData, error: insertError } = await supabaseKorea
           .from('campaigns')
           .insert([{
             ...campaignData,
@@ -428,13 +428,13 @@ const CampaignCreationKorea = () => {
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
         // 포인트 차감 로직
-        const { data: { user } } = await supabaseBiz.auth.getUser()
+        const { data: { user } } = await supabaseKorea.auth.getUser()
         if (!user) throw new Error('로그인이 필요합니다')
 
         const finalCost = campaignForm.estimated_cost
 
         // 현재 포인트 조회
-        const { data: companyData, error: companyError } = await supabaseBiz
+        const { data: companyData, error: companyError } = await supabaseKorea
           .from('companies')
           .select('points')
           .eq('id', user.id)
@@ -454,7 +454,7 @@ const CampaignCreationKorea = () => {
         if (currentPoints < neededPoints) {
           console.log('[CreateCampaign] Insufficient points, creating charge request')
           
-          const { data: quoteData, error: quoteError } = await supabaseBiz
+          const { data: quoteData, error: quoteError } = await supabaseKorea
             .from('points_charge_requests')
             .insert({
               company_id: user.id,
