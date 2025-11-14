@@ -17,7 +17,7 @@ const CampaignCreationKorea = () => {
 
   const [campaignForm, setCampaignForm] = useState({
     campaign_type: 'regular',  // 'regular', 'oliveyoung', '4week_challenge'
-    package_type: 'intermediate',  // 기본값: 중급 패키지
+    package_type: 'intermediate',  // 기본값: 스탠다드 패키지
     brand: '',
     product_name: '',
     product_description: '',
@@ -77,14 +77,14 @@ const CampaignCreationKorea = () => {
     },
     { 
       value: 'intermediate', 
-      label: '중급 패키지', 
+      label: '스탠다드 패키지', 
       price: 300000, 
       description: '구독자 1만~10만 (유튜브) / 팔로워 1만~10만 (인스타/틱톡)',
       expectedApplicants: { youtube: 20, instagram: 30, tiktok: 25 }
     },
     { 
       value: 'advanced', 
-      label: '상급 패키지', 
+      label: '프리미엄 패키지', 
       price: 400000, 
       description: '구독자 10만+ (유튜브) / 팔로워 10만+ (인스타/틱톡)',
       expectedApplicants: { youtube: 10, instagram: 15, tiktok: 12 }
@@ -111,7 +111,7 @@ const CampaignCreationKorea = () => {
   useEffect(() => {
     if (!editId) {
       // 신규 생성 시 초기 금액 계산
-      const initialCost = calculateFinalCost(300000, 10) // 중급 패키지 × 10명
+      const initialCost = calculateFinalCost(300000, 10) // 스탠다드 패키지 × 10명
       setCampaignForm(prev => ({ ...prev, estimated_cost: initialCost }))
     }
   }, [])
@@ -530,7 +530,7 @@ const CampaignCreationKorea = () => {
               <div>
                 <h3 className="text-lg font-semibold mb-4">🎯 캠페인 타입 선택 *</h3>
                 <div className="space-y-3">
-                  {/* 일반 캠페인 */}
+                  {/* 기획형 캠페인 */}
                   <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'regular', is_oliveyoung_sale: false }))}>
                     <input
                       type="radio"
@@ -543,9 +543,9 @@ const CampaignCreationKorea = () => {
                     />
                     <div className="flex-1">
                       <Label htmlFor="campaign_type_regular" className="text-base font-semibold cursor-pointer">
-                        📝 일반 캠페인
+                        📝 기획형 캠페인
                       </Label>
-                      <p className="text-sm text-gray-600 mt-1">가격: 초급 20만원 / 중급 30만원 / 상급 40만원</p>
+                      <p className="text-sm text-gray-600 mt-1">가격: 초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</p>
                       <p className="text-xs text-gray-500 mt-1">대사 + 촬영장면 개별 제공, SNS URL 1개 제출</p>
                     </div>
                   </div>
@@ -565,7 +565,7 @@ const CampaignCreationKorea = () => {
                       <Label htmlFor="campaign_type_oliveyoung" className="text-base font-semibold cursor-pointer">
                         🌸 올영세일 캠페인
                       </Label>
-                      <p className="text-sm text-gray-600 mt-1">가격: 중급 30만원 / 상급 40만원 (2단계만)</p>
+                      <p className="text-sm text-gray-600 mt-1">가격: 스탠다드 30만원 / 프리미엄 40만원 (2단계만)</p>
                       <p className="text-xs text-gray-500 mt-1">통합 가이드, 3단계 콘텐츠 (릴스 2건 + 스토리 1건), URL 3개 + 영상 폴더 2개 제출</p>
                     </div>
                   </div>
@@ -792,7 +792,7 @@ const CampaignCreationKorea = () => {
                   />
                 </div>
 
-                {/* 일반 캠페인 스케줄 */}
+                {/* 기획형 캠페인 스케줄 */}
                 {campaignForm.campaign_type === 'regular' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
