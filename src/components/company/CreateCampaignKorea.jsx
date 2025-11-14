@@ -516,6 +516,67 @@ const CampaignCreationKorea = () => {
             ← 캠페인 목록으로
           </Button>
         </div>
+
+        {/* 캠페인 타입 소개 배너 */}
+        <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6">
+          <h2 className="text-2xl font-bold text-center mb-6">한국 캠페인 타입</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            {/* 기획형 캠페인 */}
+            <div 
+              className="bg-white p-4 rounded-lg border-2 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => window.open('/campaigns/intro/regular', '_blank')}
+            >
+              <div className="text-3xl mb-2">📝</div>
+              <h3 className="font-bold text-lg mb-2">기획형 캠페인</h3>
+              <p className="text-sm text-gray-600 mb-2">초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</p>
+              <ul className="text-xs text-gray-500 space-y-1">
+                <li>• 대사 + 촬영장면 개별 제공</li>
+                <li>• SNS URL 1개 제출</li>
+                <li>• 인스타그램 1만~30만명</li>
+              </ul>
+              <div className="mt-3 text-blue-600 text-sm font-medium hover:underline">
+                자세히 보기 →
+              </div>
+            </div>
+
+            {/* 올영세일 캠페인 */}
+            <div 
+              className="bg-white p-4 rounded-lg border-2 border-pink-200 hover:border-pink-400 hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
+            >
+              <div className="text-3xl mb-2">🌸</div>
+              <h3 className="font-bold text-lg mb-2">올영세일 캠페인</h3>
+              <p className="text-sm text-gray-600 mb-2">스탠다드 30만원 / 프리미엄 40만원</p>
+              <ul className="text-xs text-gray-500 space-y-1">
+                <li>• 3단계 콘텐츠 (릴스 2 + 스토리 1)</li>
+                <li>• URL 3개 + 영상 폴더 2개</li>
+                <li>• 통합 가이드 제공</li>
+              </ul>
+              <div className="mt-3 text-pink-600 text-sm font-medium hover:underline">
+                자세히 보기 →
+              </div>
+            </div>
+
+            {/* 4주 챌린지 */}
+            <div 
+              className="bg-white p-4 rounded-lg border-2 border-purple-200 hover:border-purple-400 hover:shadow-lg transition-all cursor-pointer"
+              onClick={() => window.open('/campaigns/intro/4week', '_blank')}
+            >
+              <div className="text-3xl mb-2">🏆</div>
+              <h3 className="font-bold text-lg mb-2">4주 챌린지</h3>
+              <p className="text-sm text-gray-600 mb-2">60만원 (고정)</p>
+              <ul className="text-xs text-gray-500 space-y-1">
+                <li>• 주차별 통합 가이드 4개</li>
+                <li>• 4주 연속 콘텐츠</li>
+                <li>• URL 4개 + 영상 4개 제출</li>
+              </ul>
+              <div className="mt-3 text-purple-600 text-sm font-medium hover:underline">
+                자세히 보기 →
+              </div>
+            </div>
+          </div>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2">
