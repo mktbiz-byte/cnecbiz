@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
 import { supabaseKorea } from '../../lib/supabase'
 import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare } from 'lucide-react'
 
 const CreatorMyPage = () => {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const [user, setUser] = useState(null)
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -15,10 +14,28 @@ const CreatorMyPage = () => {
   const [showExtensionModal, setShowExtensionModal] = useState(false)
 
   useEffect(() => {
+    loadUser()
+  }, [])
+
+  useEffect(() => {
     if (user) {
       loadMyCampaigns()
     }
   }, [user])
+
+  const loadUser = async () => {
+    try {
+      const { data: { user } } = await supabaseKorea.auth.getUser()
+      if (user) {
+        setUser(user)
+      } else {
+        navigate('/login')
+      }
+    } catch (error) {
+      console.error('Error loading user:', error)
+      navigate('/login')
+    }
+  }
 
   const loadMyCampaigns = async () => {
     try {
