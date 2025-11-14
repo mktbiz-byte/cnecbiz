@@ -59,6 +59,10 @@ const CampaignGuideEditor = () => {
   
   // 크리에이터 자율성
   const [creatorAutonomy, setCreatorAutonomy] = useState(false)
+  
+  // 날짜 필드
+  const [videoDeadline, setVideoDeadline] = useState('')
+  const [snsUploadDate, setSnsUploadDate] = useState('')
 
   // 캠페인 정보 및 가이드 로드
   useEffect(() => {
@@ -76,7 +80,7 @@ const CampaignGuideEditor = () => {
     }, 10000)
 
     return () => clearTimeout(timer)
-  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, brand, productName, productFeatures, productKeyPoints, creatorAutonomy, campaignId])
+  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, brand, productName, productFeatures, productKeyPoints, creatorAutonomy, videoDeadline, snsUploadDate, campaignId])
 
   const loadCampaignGuide = async () => {
     try {
@@ -107,7 +111,11 @@ const CampaignGuideEditor = () => {
           product_name,
           product_features,
           product_key_points,
-          creator_autonomy
+          creator_autonomy,
+          guide_brand,
+          guide_product_name,
+          video_deadline,
+          sns_upload_date
         `)
         .eq('id', campaignId)
         .single()
@@ -137,10 +145,14 @@ const CampaignGuideEditor = () => {
         })
         setAdditionalShootingRequests(data.additional_shooting_requests || '')
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
-        // brand와 product_name은 사용자가 직접 입력하도록 비워둡
+        // guide_brand와 guide_product_name 사용 (별도 컬럼)
+        setBrand(data.guide_brand || '')
+        setProductName(data.guide_product_name || '')
         setProductFeatures(data.product_features || '')
         setProductKeyPoints(data.product_key_points || '')
         setCreatorAutonomy(data.creator_autonomy || false)
+        setVideoDeadline(data.video_deadline || '')
+        setSnsUploadDate(data.sns_upload_date || '')
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
@@ -173,11 +185,13 @@ const CampaignGuideEditor = () => {
           shooting_scenes_wrinkles: shootingScenes.wrinkles,
           additional_shooting_requests: additionalShootingRequests,
           meta_ad_code_requested: metaAdCodeRequested,
-          brand: brand,
-          product_name: productName,
+          guide_brand: brand,
+          guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy
+          creator_autonomy: creatorAutonomy,
+          video_deadline: videoDeadline,
+          sns_upload_date: snsUploadDate
         })
         .eq('id', campaignId)
 
@@ -218,11 +232,13 @@ const CampaignGuideEditor = () => {
           shooting_scenes_wrinkles: shootingScenes.wrinkles,
           additional_shooting_requests: additionalShootingRequests,
           meta_ad_code_requested: metaAdCodeRequested,
-          brand: brand,
-          product_name: productName,
+          guide_brand: brand,
+          guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy
+          creator_autonomy: creatorAutonomy,
+          video_deadline: videoDeadline,
+          sns_upload_date: snsUploadDate
         })
         .eq('id', campaignId)
 
@@ -267,11 +283,13 @@ const CampaignGuideEditor = () => {
           shooting_scenes_wrinkles: shootingScenes.wrinkles,
           additional_shooting_requests: additionalShootingRequests,
           meta_ad_code_requested: metaAdCodeRequested,
-          brand: brand,
-          product_name: productName,
+          guide_brand: brand,
+          guide_product_name: productName,
           product_features: productFeatures,
           product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy
+          creator_autonomy: creatorAutonomy,
+          video_deadline: videoDeadline,
+          sns_upload_date: snsUploadDate
         })
         .eq('id', campaignId)
 
@@ -365,8 +383,14 @@ const CampaignGuideEditor = () => {
                   <p className="font-semibold">
                     ✓ 체크 시: 크리에이터가 제품 소개 방식을 자유롭게 결정합니다. (핵심 소구 포인트는 반드시 포함)
                   </p>
-                  <p className="font-semibold">
+                  <p className="font-semibold text-blue-900">
+                    → 이 가이드가 통합가이드로 바로 전달됩니다.
+                  </p>
+                  <p className="font-semibold mt-2">
                     ✗ 체크 해제 시: CNEC에서 촬영 장면 및 대사를 상세히 기획하여 제공합니다.
+                  </p>
+                  <p className="font-semibold text-blue-900">
+                    → 크리에이터 선정 후 → CNEC에서 가이드 1번 더 검토 → 크리에이터에게 제공됩니다.
                   </p>
                 </div>
                 <p className="text-xs text-red-700 mt-3 font-medium">
@@ -398,6 +422,32 @@ const CampaignGuideEditor = () => {
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
               placeholder="예: 히알루론산 수분 크림"
+              className="text-base"
+            />
+          </div>
+
+          {/* 영상 마감일 */}
+          <div>
+            <Label className="text-base font-semibold mb-2 block">
+              영상 마감일 <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="date"
+              value={videoDeadline}
+              onChange={(e) => setVideoDeadline(e.target.value)}
+              className="text-base"
+            />
+          </div>
+
+          {/* SNS 업로드일 */}
+          <div>
+            <Label className="text-base font-semibold mb-2 block">
+              SNS 업로드일 <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="date"
+              value={snsUploadDate}
+              onChange={(e) => setSnsUploadDate(e.target.value)}
               className="text-base"
             />
           </div>

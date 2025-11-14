@@ -50,7 +50,7 @@ export default function CampaignGuideReview() {
   }
 
   const generateAIGuideFromData = async (campaignData) => {
-    if (!campaignData.brand || !campaignData.product_name || !campaignData.product_features || !campaignData.product_key_points) {
+    if (!campaignData.guide_brand || !campaignData.guide_product_name || !campaignData.product_features || !campaignData.product_key_points) {
       alert('제품 정보를 먼저 입력해주세요.')
       navigate(`/company/campaigns/guide?id=${id}`)
       return
@@ -79,10 +79,14 @@ export default function CampaignGuideReview() {
 ## 캠페인 정보
 
 ### 제품 정보
-- **브랜드**: ${campaignData.brand}
-- **제품명**: ${campaignData.product_name}
+- **브랜드**: ${campaignData.guide_brand}
+- **제품명**: ${campaignData.guide_product_name}
 - **제품 특징**: ${campaignData.product_features}
 - **핵심 소구 포인트**: ${campaignData.product_key_points}
+
+### 일정
+- **영상 마감일**: ${campaignData.video_deadline || '미정'}
+- **SNS 업로드일**: ${campaignData.sns_upload_date || '미정'}
 
 ### 필수 대사
 ${campaignData.required_dialogues && campaignData.required_dialogues.length > 0 ? campaignData.required_dialogues.map((d, i) => `${i + 1}. "${d}"`).join('\n') : '- 없음'}
@@ -194,7 +198,7 @@ JSON만 응답하세요.`
   }
 
   const generateAIGuide = async () => {
-    if (!campaign.brand || !campaign.product_name || !campaign.product_features || !campaign.product_key_points) {
+    if (!campaign.guide_brand || !campaign.guide_product_name || !campaign.product_features || !campaign.product_key_points) {
       alert('제품 정보를 먼저 입력해주세요.')
       navigate(`/company/campaigns/guide?id=${id}`)
       return
@@ -227,10 +231,14 @@ JSON만 응답하세요.`
 다음 제품 정보를 바탕으로 크리에이터가 쉽게 이해하고 실행할 수 있는 가이드를 작성해주세요.
 
 **제품 정보:**
-- 브랜드: ${campaign.brand}
-- 제품명: ${campaign.product_name}
+- 브랜드: ${campaign.guide_brand}
+- 제품명: ${campaign.guide_product_name}
 - 제품 특징: ${campaign.product_features}
 - 핵심 소구 포인트: ${campaign.product_key_points}
+
+**일정:**
+- 영상 마감일: ${campaign.video_deadline || '미정'}
+- SNS 업로드일: ${campaign.sns_upload_date || '미정'}
 ${autonomyNote}
 
 **가이드 작성 요구사항:**
