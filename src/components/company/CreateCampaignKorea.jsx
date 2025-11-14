@@ -78,7 +78,7 @@ const CampaignCreationKorea = () => {
     { value: 'tiktok', label: '🎵 틱톡' }
   ]
 
-  // 패키지 옵션 - 캐페인 타입별
+  // 패키지 옵션 - 캠페인 타입별
   const getPackageOptions = (campaignType) => {
     if (campaignType === 'regular') {
       return [
@@ -430,7 +430,7 @@ const CampaignCreationKorea = () => {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
       }
 
-      // 올리브영 캐페인 검증
+      // 올리브영 캠페인 검증
       if (campaignForm.campaign_type === 'oliveyoung') {
         if (campaignForm.target_platforms.length === 0) {
           setError('타겟 채널을 1개 이상 선택해주세요.')
@@ -793,11 +793,11 @@ const CampaignCreationKorea = () => {
                 </div>
               </div>
 
-              {/* 캐페인 타입 선택 */}
+              {/* 캠페인 타입 선택 */}
               <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">🎯 캐페인 타입 선택 *</h3>
+                <h3 className="text-lg font-semibold mb-4">🎯 캠페인 타입 선택 *</h3>
                 <div className="space-y-3">
-                  {/* 일반 캐페인 */}
+                  {/* 일반 캠페인 */}
                   <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'regular', is_oliveyoung_sale: false }))}>
                     <input
                       type="radio"
@@ -810,14 +810,14 @@ const CampaignCreationKorea = () => {
                     />
                     <div className="flex-1">
                       <Label htmlFor="campaign_type_regular" className="text-base font-semibold cursor-pointer">
-                        📝 일반 캐페인
+                        📝 일반 캠페인
                       </Label>
-                      <p className="text-sm text-gray-600 mt-1">가격: 20만원 / 30만원 / 40만원</p>
+                      <p className="text-sm text-gray-600 mt-1">가격: 초급 20만원 / 중급 30만원 / 상급 40만원</p>
                       <p className="text-xs text-gray-500 mt-1">대사 + 촬영장면 개별 제공, SNS URL 1개 제출</p>
                     </div>
                   </div>
 
-                  {/* 올영세일 캐페인 */}
+                  {/* 올영세일 캠페인 */}
                   <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-pink-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}>
                     <input
                       type="radio"
@@ -830,9 +830,9 @@ const CampaignCreationKorea = () => {
                     />
                     <div className="flex-1">
                       <Label htmlFor="campaign_type_oliveyoung" className="text-base font-semibold cursor-pointer">
-                        🌸 올영세일 캐페인
+                        🌸 올영세일 캠페인
                       </Label>
-                      <p className="text-sm text-gray-600 mt-1">가격: 30만원 / 40만원 (2단계만)</p>
+                      <p className="text-sm text-gray-600 mt-1">가격: 중급 30만원 / 상급 40만원 (2단계만)</p>
                       <p className="text-xs text-gray-500 mt-1">통합 가이드, 3단계 콘텐츠 (릴스 2건 + 스토리 1건), URL 3개 + 영상 폴더 2개 제출</p>
                     </div>
                   </div>
@@ -859,10 +859,10 @@ const CampaignCreationKorea = () => {
                 </div>
               </div>
 
-              {/* 올영세일 캐페인 상세 설정 */}
+              {/* 올영세일 캠페인 상세 설정 */}
               {campaignForm.campaign_type === 'oliveyoung' && (
                 <div className="border-t pt-6 mt-6">
-                  <h3 className="text-lg font-semibold mb-4">🌸 올리브영 캐페인 상세 설정</h3>
+                  <h3 className="text-lg font-semibold mb-4">🌸 올리브영 캠페인 상세 설정</h3>
                   <div className="space-y-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
                     {/* 올영 패키지 타입 선택 */}
                     <div>
@@ -981,7 +981,7 @@ const CampaignCreationKorea = () => {
                         className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
                       />
                       <Label htmlFor="provide_logo" className="cursor-pointer">
-                        크리에이터에게 로고 파일 제공 (PNG)
+                        크리에이터에게 기업 브랜드 로고 파일 제공 (PNG)
                       </Label>
                     </div>
 
@@ -1058,10 +1058,10 @@ const CampaignCreationKorea = () => {
 
                     {/* 3단계 스케줄 */}
                     <div className="border-t pt-4 mt-4">
-                      <h4 className="font-semibold mb-3">📅 3단계 콘텐츠 스케줄</h4>
+                      <h4 className="font-semibold mb-3">📅 3단계 콘텐츠 업로드 스케줄</h4>
                       <div className="space-y-3">
                         <div>
-                          <Label htmlFor="step1_deadline">STEP 1: 세일 7일 전 릴스 마감일 *</Label>
+                          <Label htmlFor="step1_deadline">STEP 1: 상품 리뷰 마감일 *</Label>
                           <Input
                             id="step1_deadline"
                             type="date"
@@ -1070,10 +1070,10 @@ const CampaignCreationKorea = () => {
                             required={campaignForm.is_oliveyoung_sale}
                             className="bg-white"
                           />
-                          <p className="text-xs text-gray-500 mt-1">기대감 형성 - 올리브영 방문형 콘텐츠</p>
+                          <p className="text-xs text-gray-500 mt-1">상품 리뷰 콘텐츠 제작 및 업로드</p>
                         </div>
                         <div>
-                          <Label htmlFor="step2_deadline">STEP 2: 세일 1일 전 릴스 마감일 *</Label>
+                          <Label htmlFor="step2_deadline">STEP 2: 세일 홍보 마감일 *</Label>
                           <Input
                             id="step2_deadline"
                             type="date"
@@ -1082,7 +1082,7 @@ const CampaignCreationKorea = () => {
                             required={campaignForm.is_oliveyoung_sale}
                             className="bg-white"
                           />
-                          <p className="text-xs text-gray-500 mt-1">구매 전환 유도 - 추천팁 콘텐츠</p>
+                          <p className="text-xs text-gray-500 mt-1">세일 홍보 콘텐츠 제작 및 업로드</p>
                         </div>
                         <div>
                           <Label htmlFor="step3_deadline">STEP 3: 세일 당일 스토리 마감일 *</Label>
@@ -1094,7 +1094,7 @@ const CampaignCreationKorea = () => {
                             required={campaignForm.is_oliveyoung_sale}
                             className="bg-white"
                           />
-                          <p className="text-xs text-gray-500 mt-1">즉시 구매 유도 - 스토리 릴크 삽입</p>
+                          <p className="text-xs text-gray-500 mt-1">본 영상은 STEP 2의 영상이 업로드 + URL이 삽입됩니다</p>
                         </div>
                       </div>
                     </div>
@@ -1165,7 +1165,7 @@ const CampaignCreationKorea = () => {
                 </div>
               )}
 
-              {/* 캐페인 썸네일 */}
+              {/* 캠페인 썸네일 */}
               <div>
                 <Label>캠페인 썸네일</Label>
                 <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
