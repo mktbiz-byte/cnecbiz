@@ -469,8 +469,8 @@ const CampaignCreationKorea = () => {
 
         const finalCost = campaignForm.estimated_cost
 
-        // 현재 포인트 조회
-        const { data: companyData, error: companyError } = await supabaseBiz
+        // 현재 포인트 조회 - supabaseKorea 사용
+        const { data: companyData, error: companyError } = await supabaseKorea
           .from('companies')
           .select('points')
           .eq('id', user.id)
@@ -490,7 +490,7 @@ const CampaignCreationKorea = () => {
         if (currentPoints < neededPoints) {
           console.log('[CreateCampaign] Insufficient points, creating charge request')
           
-          const { data: quoteData, error: quoteError } = await supabaseBiz
+          const { data: quoteData, error: quoteError } = await supabaseKorea
             .from('points_charge_requests')
             .insert({
               company_id: user.id,
