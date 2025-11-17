@@ -47,14 +47,21 @@ export default function MyCampaigns() {
       return
     }
 
-    // Korea DB에서 회사 정보 조회
-    let { data: companyData } = await supabaseKorea
-      .from('companies')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    // Korea DB에서 회사 정보 조회 (오류 시 Biz DB로 fallback)
+    let companyData = null
+    
+    try {
+      const result = await supabaseKorea
+        .from('companies')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      companyData = result.data
+    } catch (koreaError) {
+      console.log('[MyCampaigns] Korea DB query failed, trying Biz DB:', koreaError)
+    }
 
-    // Korea DB에 없으면 Biz DB에서 조회 (fallback)
+    // Korea DB에 없거나 오류 발생 시 Biz DB에서 조회
     if (!companyData) {
       const result = await supabaseBiz
         .from('companies')
@@ -157,15 +164,22 @@ export default function MyCampaigns() {
         return
       }
 
-      // Korea DB에서 회사 정보 조회
-      let { data: companyData } = await supabaseKorea
-        .from('companies')
-        .select('points_balance, id')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      // Korea DB에 없으면 Biz DB에서 조회 (fallback)
+      // Korea DB에서 회사 정보 조회 (오류 시 Biz DB로 fallback)
+      let companyData = null
       let companyDB = supabaseKorea
+      
+      try {
+        const result = await supabaseKorea
+          .from('companies')
+          .select('points_balance, id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        companyData = result.data
+      } catch (koreaError) {
+        console.log('[MyCampaigns] Korea DB query failed, trying Biz DB:', koreaError)
+      }
+
+      // Korea DB에 없거나 오류 발생 시 Biz DB에서 조회
       if (!companyData) {
         const result = await supabaseBiz
           .from('companies')
