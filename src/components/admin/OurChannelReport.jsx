@@ -20,7 +20,8 @@ export default function OurChannelReport() {
     upload_frequency: '',
     popular_videos: '',
     improvement_plan: '',
-    overall_evaluation: ''
+    overall_evaluation: '',
+    recommended_shorts: ''
   })
   const [managerComment, setManagerComment] = useState('')
   const [savedReports, setSavedReports] = useState([])
@@ -164,7 +165,7 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
    - 게시일: ${new Date(v.publishedAt).toLocaleDateString()}`).join('\n\n')}
 ` : ''
       
-      const prompt = `당신은 YouTube 채널 성과 분석 전문 컨설턴트입니다. 아래 실제 데이터를 기반으로 **즉시 실행 가능한 구체적인 인사이트**를 제공해주세요.
+      const prompt = `당신은 한국 뷰티/라이프스타일 YouTube 채널 전문 컨설턴트입니다. 아래 실제 데이터를 기반으로 **구체적인 근거와 함께 실행 가능한 인사이트**를 제공해주세요.
 
 **크리에이터 정보:**
 - 이름: ${creator.creator_name}
@@ -175,40 +176,59 @@ ${statsInfo}
 ${videosInfo}
 
 **분석 요구사항:**
-각 항목은 **실제 데이터 기반**으로 작성하고, 일반론이 아닌 **이 채널만의 구체적인 인사이트**를 제공하세요.
 
-1. **핵심 문제점 및 즉시 개선 사항** (3-4문장)
-   - 조회수/참여율 데이터에서 발견된 구체적 문제
-   - 숫자로 표현 가능한 개선 목표 제시
-   - 예: "최근 10개 영상 중 5개가 평균 조회수의 50% 미만. 썸네일 A/B 테스트로 클릭률 20% 개선 목표"
+1. **핵심 문제점 및 즉시 개선 사항** (5-6문장)
+   - 실제 데이터를 인용하며 구체적 문제점 지적
+   - 예: "최근 10개 영상 중 5개가 평균 조회수 50,000회의 절반인 25,000회에 못 미칩니다. 특히 [영상 제목]은 15,000회로 가장 저조합니다."
+   - 문제의 원인 분석 (썸네일, 제목, 초반 30초 등)
+   - 구체적 개선 방법과 예상 효과 제시
+   - 벤치마크 채널과 비교 (예: "동일 카테고리 상위 채널은 평균 조회수 100,000회")
 
-2. **업로드 패턴 및 최적화 제안** (3-4문장)
-   - 실제 업로드 날짜 기반 주기 계산
-   - 조회수가 높은 영상의 업로드 요일/시간대 패턴
-   - 구체적인 업로드 스케줄 제안
+2. **업로드 패턴 및 최적화 제안** (5-6문장)
+   - 실제 업로드 날짜를 분석하여 현재 주기 계산 (예: "평균 3.5일 간격")
+   - 조회수 상위 3개 영상의 업로드 요일/시간 패턴 분석
+   - 최적 업로드 시간대 제안 (데이터 기반 근거 포함)
+   - 일관성 있는 업로드 스케줄의 중요성 설명
+   - 구체적 스케줄 제안 (예: "매주 수요일 오후 6시, 토요일 오전 11시")
 
-3. **인기 영상 성공 요인 분석** (3-4문장)
-   - 상위 조회수 영상의 구체적인 공통점 (제목 패턴, 주제, 길이 등)
-   - 숫자 기반 비교 (예: "상위 3개 영상 평균 조회수 50만 vs 하위 평균 5만")
-   - 재현 가능한 성공 공식 제시
+3. **인기 영상 성공 요인 분석** (5-6문장)
+   - 상위 3개 영상의 제목, 조회수, 좋아요 수 명시
+   - 공통 패턴 분석 (제목 키워드, 썸네일 스타일, 영상 길이)
+   - 하위 영상과의 구체적 비교 (숫자 포함)
+   - 성공 요인의 재현 가능성 평가
+   - 다음 영상에 적용할 구체적 전략
 
-4. **3개월 실행 계획** (우선순위별 3-5개 액션)
-   - 1순위: [구체적 액션] - 예상 효과: [%]
-   - 2순위: [구체적 액션] - 예상 효과: [%]
-   - 각 액션은 측정 가능한 KPI 포함
+4. **3개월 실행 계획** (우선순위별 5개 액션, 각 2-3문장)
+   각 액션마다:
+   - 구체적 실행 방법
+   - 예상 효과 (% 또는 숫자)
+   - 측정 가능한 KPI
+   - 실행 난이도 (상/중/하)
+   
+   예시:
+   "1순위: 썸네일 A/B 테스트 - 현재 평균 CTR 3.5%를 5%로 향상. 매 영상마다 2가지 썸네일 버전 제작 후 커뮤니티 탭에서 사전 투표. 예상 효과: 조회수 15% 증가. KPI: CTR, 조회수. 난이도: 중"
 
-5. **채널 성장 잠재력 평가** (3-4문장)
-   - 현재 성과 vs 동일 카테고리 벤치마크 비교
-   - 3개월/6개월 성장 목표 (구독자, 조회수)
-   - 핵심 강점 1개, 핵심 약점 1개
+5. **채널 성장 잠재력 평가** (5-6문장)
+   - 현재 구독자 대비 조회수 비율 분석
+   - 동일 카테고리 벤치마크 채널과 비교 (구체적 채널명 언급 가능)
+   - 3개월 후 목표 (구독자 X명, 평균 조회수 Y회)
+   - 6개월 후 목표
+   - 핵심 강점 1개 (구체적 근거)
+   - 핵심 약점 1개 (개선 방법 포함)
+
+6. **참고할 만한 한국 뷰티 크리에이터 숏폼 영상** (3-5개)
+   - 10만 조회수 이상의 성공 사례
+   - 각 영상마다: 크리에이터명, 영상 주제, 성공 요인, 적용 가능한 인사이트
+   - 예: "다또아 - '3분 메이크업' 시리즈 (평균 50만 조회) - 짧은 시간 내 완성형 콘텐츠, 자막 활용 우수"
 
 JSON 형식으로 응답:
 {
-  "weaknesses": "구체적 수치 포함",
-  "upload_frequency": "실제 날짜 기반 분석",
-  "popular_videos": "상위 영상 데이터 비교",
-  "improvement_plan": "우선순위별 액션 리스트",
-  "overall_evaluation": "숫자 기반 평가"
+  "weaknesses": "실제 데이터 인용하며 5-6문장",
+  "upload_frequency": "날짜 분석 포함 5-6문장",
+  "popular_videos": "상위 영상 구체적 분석 5-6문장",
+  "improvement_plan": "우선순위별 5개 액션, 각 2-3문장의 상세 설명",
+  "overall_evaluation": "벤치마크 비교 포함 5-6문장",
+  "recommended_shorts": "한국 뷰티 크리에이터 숏폼 3-5개 추천, 각 추천마다 크리에이터명/주제/성공요인/적용방법 포함"
 }`
 
       const response = await fetch(
@@ -265,8 +285,11 @@ JSON 형식으로 응답:
         analysis_weaknesses: aiAnalysis.weaknesses,
         analysis_upload_frequency: aiAnalysis.upload_frequency,
         analysis_popular_videos: aiAnalysis.popular_videos,
-        analysis_improvement_plan: aiAnalysis.improvement_plan,
+        analysis_improvement_plan: typeof aiAnalysis.improvement_plan === 'string' 
+          ? aiAnalysis.improvement_plan 
+          : JSON.stringify(aiAnalysis.improvement_plan),
         analysis_overall_evaluation: aiAnalysis.overall_evaluation,
+        analysis_recommended_shorts: aiAnalysis.recommended_shorts || null,
         manager_comment: managerComment,
         is_published: isPublished,
         stats_snapshot: stats ? JSON.stringify(stats) : null
@@ -586,6 +609,19 @@ JSON 형식으로 응답:
                   <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.overall_evaluation}</p>
                 </CardContent>
               </Card>
+
+              {aiAnalysis.recommended_shorts && (
+                <Card className="border-l-4 border-l-pink-500 hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg font-bold text-pink-700 flex items-center">
+                      [추천] 한국 뷰티 크리에이터 숏폼 영상
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.recommended_shorts}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* 담당자 코멘트 */}
