@@ -13,6 +13,7 @@ import CreateCampaign from './components/company/CreateCampaign'
 import CreateCampaignRouter from './components/company/CreateCampaignRouter'
 import CampaignGuide from './components/company/CampaignGuide'
 import CampaignGuideOliveYoung from './components/company/CampaignGuideOliveYoung'
+import OliveYoungGuideViewer from './components/company/OliveYoungGuideViewer'
 import CampaignGuide4WeekChallenge from './components/company/CampaignGuide4WeekChallenge'
 import CampaignGuideEditor from './components/company/CampaignGuideEditor'
 import CampaignGuideJapan from './components/company/CampaignGuideJapan'
@@ -111,6 +112,7 @@ function App() {
         <Route path="/company/campaigns/guide/japan/advanced" element={<AdvancedGuideJapan />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns/guide/oliveyoung" element={<CampaignGuideOliveYoung />} />
+        <Route path="/company/campaigns/:id/guide/oliveyoung/preview" element={<OliveYoungGuideViewer />} />
         <Route path="/company/campaigns/guide/4week" element={<CampaignGuide4WeekChallenge />} />
         <Route path="/company/campaigns/:id/review" element={<CampaignGuideReview />} />
         <Route path="/company/campaigns/:id/review-old" element={<GuideReview />} />
