@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Supabase 클라이언트 생성
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
+// Supabase 클라이언트 생성 (Biz DB)
+const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -42,14 +42,7 @@ exports.handler = async (event) => {
     // 2. 충전 요청 정보 조회
     const { data: request, error: requestError } = await supabaseAdmin
       .from('points_charge_requests')
-      .select(`
-        *,
-        companies (
-          id,
-          company_name,
-          points
-        )
-      `)
+      .select('*')
       .eq('id', chargeRequestId)
       .single();
 
@@ -76,16 +69,35 @@ exports.handler = async (event) => {
       };
     }
 
+    // 회사 정보 조회
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select('id, company_name, points_balance')
+      .eq('user_id', request.company_id)
+      .single();
+
+    if (companyError || !company) {
+      console.error('❌ [STEP 1] 회사 정보 조회 실패:', companyError);
+      return {
+        statusCode: 404,
+        body: JSON.stringify({
+          success: false,
+          error: '회사 정보를 찾을 수 없습니다.'
+        })
+      };
+    }
+
     console.log('✅ [STEP 1] 충전 요청 정보 조회 완료');
-    console.log('   - 회사명:', request.companies.company_name);
+    console.log('   - 회사명:', company.company_name);
     console.log('   - 충전 금액:', request.amount.toLocaleString(), '원');
-    console.log('   - 충전 포인트:', request.points.toLocaleString(), 'P');
+    console.log('   - 충전 포인트:', request.amount.toLocaleString(), 'P');
 
     // 3. 포인트 충전
     console.log('🔍 [STEP 2] 포인트 충전 처리...');
 
-    const currentPoints = request.companies.points || 0;
-    const newPoints = currentPoints + request.points;
+    const currentPoints = company.points_balance || 0;
+    const pointsToAdd = request.amount; // 충전 금액 = 포인트
+    const newPoints = currentPoints + pointsToAdd;
 
     console.log('   - 현재 포인트:', currentPoints.toLocaleString(), 'P');
     console.log('   - 충전 후 포인트:', newPoints.toLocaleString(), 'P');
@@ -93,8 +105,8 @@ exports.handler = async (event) => {
     // 회사 포인트 업데이트
     const { error: updateError } = await supabaseAdmin
       .from('companies')
-      .update({ points: newPoints })
-      .eq('id', request.company_id);
+      .update({ points_balance: newPoints })
+      .eq('user_id', request.company_id);
 
     if (updateError) {
       console.error('❌ [STEP 2] 포인트 업데이트 실패:', updateError);
@@ -117,7 +129,7 @@ exports.handler = async (event) => {
       .insert({
         company_id: request.company_id,
         type: 'charge',
-        amount: request.points,
+        amount: pointsToAdd,
         description: `포인트 선충전 (입금 전) - ${adminNote || '관리자 승인'}`,
         balance_after: newPoints,
         charge_request_id: chargeRequestId,
@@ -156,10 +168,10 @@ exports.handler = async (event) => {
     const { error: receivableError } = await supabaseAdmin
       .from('receivables')
       .insert({
-        company_id: request.company_id,
+        company_id: company.id,
         type: 'precharge',
         amount: request.amount,
-        description: `포인트 선충전 - ${request.companies.company_name}`,
+        description: `포인트 선충전 - ${company.company_name}`,
         charge_request_id: chargeRequestId,
         status: 'pending',
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30일 후
@@ -173,7 +185,7 @@ exports.handler = async (event) => {
     }
 
     console.log('\n✅ [COMPLETE] 포인트 선충전 완료!');
-    console.log('   - 충전 포인트:', request.points.toLocaleString(), 'P');
+    console.log('   - 충전 포인트:', pointsToAdd.toLocaleString(), 'P');
     console.log('   - 새 잔액:', newPoints.toLocaleString(), 'P');
     console.log('   - 미수금:', request.amount.toLocaleString(), '원');
     console.log('📊 ========== 포인트 선충전 종료 ==========\n\n');
@@ -183,7 +195,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         message: '포인트 선충전 완료',
-        points: request.points,
+        points: pointsToAdd,
         newBalance: newPoints,
         receivableAmount: request.amount
       })

@@ -59,14 +59,26 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 관리자 권한 확인
-    const { data: admin, error: adminError } = await supabaseAdmin
-      .from('users')
-      .select('role')
-      .eq('id', adminUserId)
-      .single()
+    // 관리자 권한 확인 (이메일 기반)
+    const { data: adminUser, error: adminError } = await supabaseAdmin.auth.admin.getUserById(adminUserId)
 
-    if (adminError || !admin || admin.role !== 'admin') {
+    if (adminError || !adminUser) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '사용자 정보를 찾을 수 없습니다.'
+        })
+      }
+    }
+
+    // @cnec.co.kr 도메인 또는 특정 관리자 이메일 확인
+    const isAdmin = adminUser.user.email?.endsWith('@cnec.co.kr') || 
+                    adminUser.user.email === 'admin@test.com' ||
+                    adminUser.user.user_metadata?.role === 'admin'
+
+    if (!isAdmin) {
       return {
         statusCode: 403,
         headers,
