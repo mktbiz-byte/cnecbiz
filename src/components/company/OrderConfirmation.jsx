@@ -163,6 +163,34 @@ const OrderConfirmation = () => {
         if (koreaCampaignError) throw koreaCampaignError
       }
 
+      // 5. 네이버 웍스 알림 전송
+      try {
+        const campaignTypeText = 
+          campaign.campaign_type === 'oliveyoung' ? '올영세일' :
+          campaign.campaign_type === '4week' ? '4주 챌린지' :
+          '기획형'
+        
+        const message = `🔔 새로운 캠페인 승인 요청\n\n` +
+          `캠페인명: ${campaign.title}\n` +
+          `기업명: ${companyData.company_name}\n` +
+          `캠페인 타입: ${campaignTypeText}\n` +
+          `결제 금액: ${afterDiscount.toLocaleString()}원 (포인트)\n` +
+          `신청 시간: ${new Date().toLocaleString('ko-KR')}\n\n` +
+          `승인 페이지: https://cnectotal.netlify.app/admin/approvals`
+        
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message,
+            isAdminNotification: true
+          })
+        })
+      } catch (notifError) {
+        console.error('네이버 웍스 알림 전송 실패:', notifError)
+        // 알림 실패해도 결제는 성공으로 처리
+      }
+
       alert('포인트 결제가 완료되었습니다!')
       navigate(`/company/campaigns/${id}`)
     } catch (err) {

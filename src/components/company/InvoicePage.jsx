@@ -277,14 +277,21 @@ const InvoicePage = () => {
               minute: '2-digit'
             })
 
-            const naverMessage = `💰 포인트 충전 신청 (${region === 'japan' ? '일본 캠페인' : '한국 캠페인'})\n\n` +
-              `회사명: ${companyName}\n` +
-              `충전 금액: ${totalCost.toLocaleString()}원\n` +
+            const campaignTypeText = 
+              campaign.campaign_type === 'oliveyoung' ? '올영세일' :
+              campaign.campaign_type === '4week' ? '4주 챌린지' :
+              '기획형'
+            
+            const naverMessage = `🔔 새로운 캠페인 승인 요청 (${region === 'japan' ? '일본' : '한국'})\n\n` +
+              `캠페인명: ${campaign.title}\n` +
+              `기업명: ${companyName}\n` +
+              `캠페인 타입: ${campaignTypeText}\n` +
+              `결제 금액: ${totalCost.toLocaleString()}원 (입금)\n` +
               `세금계산서: ${needsTaxInvoice ? '신청' : '미신청'}\n` +
               `입금자명: ${depositorName}\n` +
-              `캠페인 ID: ${id}\n` +
               `신청 시간: ${koreanDate}\n\n` +
-              `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`
+              `승인 페이지: https://cnectotal.netlify.app/admin/approvals\n` +
+              `입금 확인: https://cnectotal.netlify.app/admin/deposits`
 
             await fetch('/.netlify/functions/send-naver-works-message', {
               method: 'POST',
