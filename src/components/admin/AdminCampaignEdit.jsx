@@ -658,7 +658,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="product_features">제품 특징 (한국어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="product_features"
-                      value={campaign.product_features?.join('\n') || ''}
+                      value={Array.isArray(campaign.product_features) ? campaign.product_features.join('\n') : (campaign.product_features || '')}
                       onChange={(e) => updateArrayField('product_features', e.target.value)}
                       rows={4}
                       placeholder="특징 1&#10;특징 2&#10;특징 3"
@@ -668,7 +668,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="product_features_ja">제품 특징 (일본어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="product_features_ja"
-                      value={campaign.product_features_ja?.join('\n') || ''}
+                      value={Array.isArray(campaign.product_features_ja) ? campaign.product_features_ja.join('\n') : (campaign.product_features_ja || '')}
                       onChange={(e) => updateArrayField('product_features_ja', e.target.value)}
                       rows={4}
                       placeholder="特徴 1&#10;特徴 2&#10;特徴 3"
@@ -689,7 +689,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="required_dialogues">필수 대사 (한국어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="required_dialogues"
-                      value={campaign.required_dialogues?.join('\n') || ''}
+                      value={Array.isArray(campaign.required_dialogues) ? campaign.required_dialogues.join('\n') : (campaign.required_dialogues || '')}
                       onChange={(e) => updateArrayField('required_dialogues', e.target.value)}
                       rows={3}
                     />
@@ -698,7 +698,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="required_dialogues_ja">필수 대사 (일본어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="required_dialogues_ja"
-                      value={campaign.required_dialogues_ja?.join('\n') || ''}
+                      value={Array.isArray(campaign.required_dialogues_ja) ? campaign.required_dialogues_ja.join('\n') : (campaign.required_dialogues_ja || '')}
                       onChange={(e) => updateArrayField('required_dialogues_ja', e.target.value)}
                       rows={3}
                     />
@@ -710,7 +710,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="required_scenes">필수 장면 (한국어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="required_scenes"
-                      value={campaign.required_scenes?.join('\n') || ''}
+                      value={Array.isArray(campaign.required_scenes) ? campaign.required_scenes.join('\n') : (campaign.required_scenes || '')}
                       onChange={(e) => updateArrayField('required_scenes', e.target.value)}
                       rows={3}
                     />
@@ -719,7 +719,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="required_scenes_ja">필수 장면 (일본어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="required_scenes_ja"
-                      value={campaign.required_scenes_ja?.join('\n') || ''}
+                      value={Array.isArray(campaign.required_scenes_ja) ? campaign.required_scenes_ja.join('\n') : (campaign.required_scenes_ja || '')}
                       onChange={(e) => updateArrayField('required_scenes_ja', e.target.value)}
                       rows={3}
                     />
@@ -731,7 +731,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="required_hashtags">필수 해시태그 (한국어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="required_hashtags"
-                      value={campaign.required_hashtags?.join('\n') || ''}
+                      value={Array.isArray(campaign.required_hashtags) ? campaign.required_hashtags.join('\n') : (campaign.required_hashtags || '')}
                       onChange={(e) => updateArrayField('required_hashtags', e.target.value)}
                       rows={3}
                     />
@@ -740,7 +740,7 @@ export default function AdminCampaignEdit() {
                     <Label htmlFor="required_hashtags_ja">필수 해시태그 (일본어, 줄바꿈으로 구분)</Label>
                     <Textarea
                       id="required_hashtags_ja"
-                      value={campaign.required_hashtags_ja?.join('\n') || ''}
+                      value={Array.isArray(campaign.required_hashtags_ja) ? campaign.required_hashtags_ja.join('\n') : (campaign.required_hashtags_ja || '')}
                       onChange={(e) => updateArrayField('required_hashtags_ja', e.target.value)}
                       rows={3}
                     />
