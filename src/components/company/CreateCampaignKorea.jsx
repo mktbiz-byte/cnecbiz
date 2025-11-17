@@ -425,7 +425,9 @@ const CampaignCreationKorea = () => {
         // 올영세일의 경우 category를 target_platforms에도 저장
         target_platforms: campaignForm.campaign_type === 'oliveyoung' 
           ? (campaignForm.category && campaignForm.category.length > 0 ? campaignForm.category : null)
-          : (campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null),
+          : (typeof campaignForm.target_platforms === 'object' && !Array.isArray(campaignForm.target_platforms)
+              ? Object.keys(campaignForm.target_platforms).filter(k => campaignForm.target_platforms[k])
+              : (Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null)),
         company_email: userEmail,  // 회사 이메일 저장
         // 날짜 필드 변환
         application_deadline: convertEmptyToNull(campaignForm.application_deadline),
