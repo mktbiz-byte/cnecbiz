@@ -15,7 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 
 export default function CampaignDetail() {
   const { id } = useParams()

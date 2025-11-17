@@ -17,8 +17,7 @@ import {
   CheckCircle,
   DollarSign
 } from 'lucide-react'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
-import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
+import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import RegionSelectModal from './RegionSelectModal'
 import CompanyNavigation from './CompanyNavigation'
 
@@ -48,7 +47,7 @@ export default function MyCampaigns() {
       return
     }
 
-    const { data: companyData } = await supabaseBiz
+    const { data: companyData } = await supabaseKorea
       .from('companies')
       .select('*')
       .eq('user_id', user.id)
@@ -145,9 +144,9 @@ export default function MyCampaigns() {
         return
       }
 
-      const { data: companyData } = await supabaseBiz
+      const { data: companyData } = await supabaseKorea
         .from('companies')
-        .select('points')
+        .select('points_balance')
         .eq('user_id', user.id)
         .single()
 
@@ -157,22 +156,22 @@ export default function MyCampaigns() {
       }
 
       // 포인트 부족 체크
-      if (companyData.points < totalCost) {
-        alert(`포인트가 모자랍니다.\n\n필요 포인트: ${totalCost.toLocaleString()}원\n현재 포인트: ${companyData.points.toLocaleString()}원\n부족 포인트: ${(totalCost - companyData.points).toLocaleString()}원`)
+      if (companyData.points_balance < totalCost) {
+        alert(`포인트가 모자랍니다.\n\n필요 포인트: ${totalCost.toLocaleString()}원\n현재 포인트: ${companyData.points_balance.toLocaleString()}원\n부족 포인트: ${(totalCost - companyData.points_balance).toLocaleString()}원`)
         return
       }
 
       // 확인 메시지
       const confirmed = window.confirm(
-        `포인트를 차감하고 관리자 승인을 요청하시겠습니까?\n\n차감 포인트: ${totalCost.toLocaleString()}원\n잔여 포인트: ${(companyData.points - totalCost).toLocaleString()}원`
+        `포인트를 차감하고 관리자 승인을 요청하시겠습니까?\n\n차감 포인트: ${totalCost.toLocaleString()}원\n잔여 포인트: ${(companyData.points_balance - totalCost).toLocaleString()}원`
       )
 
       if (!confirmed) return
 
       // 포인트 차감
-      const { error: pointsError } = await supabaseBiz
+      const { error: pointsError } = await supabaseKorea
         .from('companies')
-        .update({ points: companyData.points - totalCost })
+        .update({ points_balance: companyData.points_balance - totalCost })
         .eq('user_id', user.id)
 
       if (pointsError) throw pointsError

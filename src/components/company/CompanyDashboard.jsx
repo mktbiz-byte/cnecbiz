@@ -20,8 +20,7 @@ import {
   CreditCard,
   FileText
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
-import { supabase as supabaseKorea } from '../../lib/supabaseKorea'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import RegionSelectModal from './RegionSelectModal'
 import CompanyNavigation from './CompanyNavigation'
 
@@ -66,7 +65,7 @@ export default function CompanyDashboard() {
     setUser(user)
     
     // 회사 정보 가져오기
-    const { data: companyData } = await supabaseBiz
+    const { data: companyData } = await supabaseKorea
       .from('companies')
       .select('*')
       .eq('user_id', user.id)

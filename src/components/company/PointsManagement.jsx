@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Coins, CreditCard, History } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import CompanyNavigation from './CompanyNavigation'
 import { loadStripe } from '@stripe/stripe-js'
 
@@ -44,7 +44,7 @@ export default function PointsManagement() {
       return
     }
 
-    const { data: companyData } = await supabaseBiz
+    const { data: companyData } = await supabaseKorea
       .from('companies')
       .select('*')
       .eq('user_id', user.id)
@@ -59,7 +59,7 @@ export default function PointsManagement() {
 
   const fetchChargeHistory = async (companyId) => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('points_charge_requests')
         .select('*')
         .eq('company_id', companyId)
@@ -78,7 +78,7 @@ export default function PointsManagement() {
     setLoading(true)
     try {
       // Create charge request
-      const { data: chargeData, error: chargeError } = await supabaseBiz
+      const { data: chargeData, error: chargeError } = await supabaseKorea
         .from('points_charge_requests')
         .insert({
           company_id: company.id,
