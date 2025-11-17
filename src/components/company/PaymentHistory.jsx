@@ -344,31 +344,23 @@ export default function PaymentHistory() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pointUsages.map((campaign) => (
-                        <tr key={campaign.id} className="border-b hover:bg-gray-50">
+                      {pointUsages.map((transaction) => (
+                        <tr key={transaction.id} className="border-b hover:bg-gray-50">
                           <td className="p-4 text-sm">
-                            {new Date(campaign.approved_at || campaign.created_at).toLocaleDateString('ko-KR')}
+                            {new Date(transaction.created_at).toLocaleDateString('ko-KR')}
                           </td>
                           <td className="p-4">
-                            {campaign.brand_name}
+                            {transaction.description}
                           </td>
                           <td className="p-4 text-sm">
-                            {campaign.package_type}
+                            -
                           </td>
                           <td className="p-4 font-bold text-red-600">
-                            -{campaign.total_price?.toLocaleString()}P
+                            {Math.abs(transaction.amount).toLocaleString()}P
                           </td>
                           <td className="p-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              campaign.status === 'approved' ? 'bg-green-100 text-green-700' :
-                              campaign.status === 'active' ? 'bg-blue-100 text-blue-700' :
-                              campaign.status === 'completed' ? 'bg-gray-100 text-gray-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {campaign.status === 'approved' ? '승인됨' :
-                               campaign.status === 'active' ? '진행중' :
-                               campaign.status === 'completed' ? '완료' :
-                               campaign.status}
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                              사용
                             </span>
                           </td>
                         </tr>
