@@ -474,7 +474,7 @@ const CampaignCreationKorea = () => {
           .from('companies')
           .select('points')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
 
         if (companyError) {
           console.error('[CreateCampaign] Company fetch error:', companyError)
