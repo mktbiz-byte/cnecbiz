@@ -463,9 +463,9 @@ const CampaignCreationKorea = () => {
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
-        setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
+        setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
         
-        // 캐페인 타입에 따라 적절한 가이드 페이지로 이동
+        // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
         setTimeout(() => {
           if (campaignForm.campaign_type === 'oliveyoung') {
             navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)

@@ -27,7 +27,7 @@ const OrderConfirmation = () => {
     try {
       console.log('[OrderConfirmation] Loading campaign:', id, 'region:', region)
       
-      // 1. 캐페인 정보 로드 - region에 따라 올바른 DB 사용
+      // 1. 캠페인 정보 로드 - region에 따라 올바른 DB 사용
       const regionClient = getSupabaseClient(region)
       let { data: campaignData, error: campaignError } = await regionClient
         .from('campaigns')
@@ -130,7 +130,7 @@ const OrderConfirmation = () => {
           campaign_id: id,
           amount: -afterDiscount,
           type: 'campaign_payment',
-          description: `캐페인 결제: ${campaign.title}`,
+          description: `캠페인 결제: ${campaign.title}`,
           balance_after: newBalance
         }])
 

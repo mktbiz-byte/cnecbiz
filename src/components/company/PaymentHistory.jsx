@@ -277,7 +277,7 @@ export default function PaymentHistory() {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-4">날짜</th>
-                        <th className="text-left p-4">캐페인</th>
+                        <th className="text-left p-4">캠페인</th>
                         <th className="text-left p-4">금액</th>
                         <th className="text-left p-4">상태</th>
                         <th className="text-left p-4">세금계산서</th>

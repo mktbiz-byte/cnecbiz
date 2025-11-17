@@ -79,7 +79,7 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // Japan 캐페인은 campaign_applications, Korea 캐페인은 campaign_participants 사용
+      // Japan 캠페인은 campaign_applications, Korea 캠페인은 campaign_participants 사용
       const tableName = region === 'japan' ? 'campaign_applications' : 'campaign_participants'
       const { data, error } = await supabase
         .from(tableName)

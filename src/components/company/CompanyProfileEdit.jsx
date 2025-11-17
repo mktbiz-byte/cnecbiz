@@ -370,7 +370,7 @@ export default function CompanyProfileEdit() {
                       <span className="text-gray-700">광고대행사입니다</span>
                     </label>
                     <p className="text-sm text-gray-500">
-                      광고대행사는 여러 브랜드의 캐페인을 관리할 수 있습니다.
+                      광고대행사는 여러 브랜드의 캠페인을 관리할 수 있습니다.
                     </p>
                   </div>
                 </div>

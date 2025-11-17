@@ -125,7 +125,7 @@ export default function CampaignGuideOliveYoung() {
         throw new Error('Gemini API 키가 설정되지 않았습니다.')
       }
 
-      const prompt = `당신은 올리브영 세일 캐페인 전문 기획자입니다. 다음 정보를 바탕으로 3단계 콘텐츠 제작 가이드를 생성해주세요.
+      const prompt = `당신은 올리브영 세일 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 3단계 콘텐츠 제작 가이드를 생성해주세요.
 
 **제품 정보**
 - 브랜드: ${productData.brand}

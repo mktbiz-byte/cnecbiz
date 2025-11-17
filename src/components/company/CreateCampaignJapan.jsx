@@ -65,7 +65,7 @@ const CreateCampaignJapan = () => {
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState('')
 
-  // 캐페인 로드 (editId가 있을 때)
+  // 캠페인 로드 (editId가 있을 때)
   useEffect(() => {
     if (editId) {
       loadCampaign()
@@ -117,11 +117,11 @@ const CreateCampaignJapan = () => {
           remaining_slots: data.max_participants || data.remaining_slots || 10,
           estimated_cost: data.estimated_cost || 0
         })
-        console.log('캐페인 데이터 로드 성공:', data)
+        console.log('캠페인 데이터 로드 성공:', data)
       }
     } catch (err) {
-      console.error('캐페인 로드 실패:', err)
-      setError('캐페인 데이터를 불러오는데 실패했습니다: ' + err.message)
+      console.error('캠페인 로드 실패:', err)
+      setError('캠페인 데이터를 불러오는데 실패했습니다: ' + err.message)
     }
   }
 
@@ -629,7 +629,7 @@ const CreateCampaignJapan = () => {
               company_id: companyData.id,
               amount: -finalCost,
               type: 'campaign_creation',
-              description: `일본 캐페인 생성: ${campaignForm.title}`,
+              description: `일본 캠페인 생성: ${campaignForm.title}`,
               campaign_id: data[0].id
             }])
 

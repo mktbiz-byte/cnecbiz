@@ -85,7 +85,7 @@ const InvoicePage = () => {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
 
-      // 캐페인 정보 로드 - region에 따라 올바른 DB 사용
+      // 캠페인 정보 로드 - region에 따라 올바른 DB 사용
       const regionClient = getSupabaseClient(region)
       let { data: campaignData, error: campaignError } = await regionClient
         .from('campaigns')
@@ -277,12 +277,12 @@ const InvoicePage = () => {
               minute: '2-digit'
             })
 
-            const naverMessage = `💰 포인트 충전 신청 (${region === 'japan' ? '일본 캐페인' : '한국 캐페인'})\n\n` +
+            const naverMessage = `💰 포인트 충전 신청 (${region === 'japan' ? '일본 캠페인' : '한국 캠페인'})\n\n` +
               `회사명: ${companyName}\n` +
               `충전 금액: ${totalCost.toLocaleString()}원\n` +
               `세금계산서: ${needsTaxInvoice ? '신청' : '미신청'}\n` +
               `입금자명: ${depositorName}\n` +
-              `캐페인 ID: ${id}\n` +
+              `캠페인 ID: ${id}\n` +
               `신청 시간: ${koreanDate}\n\n` +
               `관리자 페이지: https://cnectotal.netlify.app/admin/deposits`
 
@@ -358,7 +358,7 @@ const InvoicePage = () => {
         // 알림 발송 실패해도 입금 요청은 성공으로 처리
       }
 
-      setSuccess('입금 요청이 제출되었습니다! 입금 확인 후 캐페인이 시작됩니다.')
+      setSuccess('입금 요청이 제출되었습니다! 입금 확인 후 캠페인이 시작됩니다.')
       setTimeout(() => {
         navigate('/company/campaigns')
       }, 2000)

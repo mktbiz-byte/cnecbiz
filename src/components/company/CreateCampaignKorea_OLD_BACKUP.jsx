@@ -166,7 +166,7 @@ const CampaignCreationKorea = () => {
         package_type: '4week_challenge'
       }))
     } else if (campaignForm.campaign_type === 'regular' || campaignForm.campaign_type === 'oliveyoung') {
-      // 일반 및 올영 캐페인은 중급 패키지를 기본으로 설정
+      // 일반 및 올영 캠페인은 중급 패키지를 기본으로 설정
       setCampaignForm(prev => ({
         ...prev,
         package_type: 'intermediate'

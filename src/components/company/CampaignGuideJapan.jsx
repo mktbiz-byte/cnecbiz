@@ -193,8 +193,8 @@ const CampaignGuideJapan = () => {
         setDataLoaded(true)
       }
     } catch (err) {
-      console.error('캐페인 정보 로드 실패:', err)
-      setError('캐페인 정보를 불러오는데 실패했습니다.')
+      console.error('캠페인 정보 로드 실패:', err)
+      setError('캠페인 정보를 불러오는데 실패했습니다.')
     }
   }
 
