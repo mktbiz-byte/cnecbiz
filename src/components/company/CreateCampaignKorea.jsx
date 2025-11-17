@@ -352,6 +352,7 @@ const CampaignCreationKorea = () => {
         .from('campaign-images')
         .getPublicUrl(filePath)
 
+      console.log('[DEBUG] Product detail image uploaded:', publicUrl)
       setCampaignForm(prev => ({ ...prev, product_detail_file_url: publicUrl }))
       setSuccess('상품 상세 이미지가 업로드되었습니다!')
     } catch (err) {
@@ -1252,6 +1253,11 @@ const CampaignCreationKorea = () => {
                           alt="상품 상세" 
                           className="max-w-full h-auto rounded border"
                           style={{ maxHeight: '500px' }}
+                          onError={(e) => {
+                            console.error('[ERROR] Image load failed:', campaignForm.product_detail_file_url)
+                            e.target.style.display = 'none'
+                          }}
+                          onLoad={() => console.log('[DEBUG] Image loaded successfully')}
                         />
                       </div>
                     )}
