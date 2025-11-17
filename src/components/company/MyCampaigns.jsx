@@ -47,16 +47,29 @@ export default function MyCampaigns() {
       return
     }
 
-    const { data: companyData } = await supabaseKorea
+    // Korea DB에서 회사 정보 조회
+    let { data: companyData } = await supabaseKorea
       .from('companies')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
+
+    // Korea DB에 없으면 Biz DB에서 조회 (fallback)
+    if (!companyData) {
+      const result = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      companyData = result.data
+    }
 
     if (companyData) {
       setCompany(companyData)
-      fetchCampaigns(user.email)
     }
+    
+    // 회사 정보가 없어도 캠페인은 조회
+    fetchCampaigns(user.email)
   }
 
   const fetchCampaigns = async (userEmail) => {
