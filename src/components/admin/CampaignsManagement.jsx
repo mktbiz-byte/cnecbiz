@@ -569,7 +569,7 @@ export default function CampaignsManagement() {
                           )}
                           <div className="bg-white p-3 rounded-lg">
                             <div className="text-gray-500 text-xs mb-1">모집 인원</div>
-                            <div className="font-semibold text-gray-900">{campaign.max_participants || 0}명</div>
+                            <div className="font-semibold text-gray-900">{campaign.max_participants || campaign.total_slots || 0}명</div>
                           </div>
                           <div className="bg-white p-3 rounded-lg">
                             <div className="text-gray-500 text-xs mb-1">지원자</div>
@@ -586,12 +586,43 @@ export default function CampaignsManagement() {
                             <div className="font-medium text-gray-900">{campaign.application_deadline ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ') : '-'}</div>
                           </div>
                           <div className="bg-white p-3 rounded-lg">
-                            <div className="text-gray-500 text-xs mb-1">캠페인 기간</div>
-                            <div className="font-medium text-gray-900">
-                              {campaign.start_date && campaign.end_date 
-                                ? `${new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')} - ${new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ')}`
-                                : '-'
-                              }
+                            <div className="text-gray-500 text-xs mb-1">캐페인 기간</div>
+                            <div className="font-medium text-gray-900 text-xs">
+                              {(() => {
+                                const formatDate = (date) => date ? new Date(date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ') : null
+                                
+                                // 4주 챌린지: 주차별 마감일
+                                if (campaign.campaign_type === '4week_challenge') {
+                                  const weeks = [
+                                    campaign.week1_deadline,
+                                    campaign.week2_deadline,
+                                    campaign.week3_deadline,
+                                    campaign.week4_deadline
+                                  ].filter(Boolean)
+                                  if (weeks.length > 0) {
+                                    return `1주차: ${formatDate(weeks[0])}${weeks.length > 1 ? ` ~ 4주차: ${formatDate(weeks[weeks.length-1])}` : ''}`
+                                  }
+                                }
+                                
+                                // 올영세일: 단계별 마감일
+                                if (campaign.campaign_type === 'oliveyoung') {
+                                  const steps = [
+                                    campaign.step1_deadline,
+                                    campaign.step2_deadline,
+                                    campaign.step3_deadline
+                                  ].filter(Boolean)
+                                  if (steps.length > 0) {
+                                    return `1단계: ${formatDate(steps[0])}${steps.length > 1 ? ` ~ ${steps.length}단계: ${formatDate(steps[steps.length-1])}` : ''}`
+                                  }
+                                }
+                                
+                                // 기획형/일반: start_date ~ end_date
+                                if (campaign.start_date && campaign.end_date) {
+                                  return `${formatDate(campaign.start_date)} - ${formatDate(campaign.end_date)}`
+                                }
+                                
+                                return '-'
+                              })()}
                             </div>
                           </div>
                         </div>
