@@ -216,14 +216,10 @@ ${weekData.required_scenes}
       return
     }
 
-    // 모든 주차 가이드 체크
-    const allWeeksComplete = Object.keys(weeklyGuides).every(week => {
-      const data = weeklyGuides[week]
-      return data.mission && data.required_dialogue && data.required_scenes && data.generated_guide
-    })
-
-    if (!allWeeksComplete) {
-      alert('모든 주차의 가이드를 생성해주세요.')
+    // 1주차 가이드 필수 체크 (나머지는 선택사항)
+    const week1Data = weeklyGuides.week1
+    if (!week1Data.mission || !week1Data.required_dialogue || !week1Data.required_scenes || !week1Data.generated_guide) {
+      alert('1주차 가이드는 필수입니다. 1주차 가이드를 먼저 생성해주세요.')
       return
     }
 
@@ -333,6 +329,7 @@ ${weekData.required_scenes}
             <p className="font-semibold mb-1">4주 챌린지 안내</p>
             <p>기본 가이드 + 주차별 미션 가이드를 작성해주세요.</p>
             <p className="mt-1">각 주차별로 가이드를 생성하고, 스케줄에 맞춰 크리에이터에게 발송됩니다.</p>
+            <p className="mt-2 font-semibold text-purple-900">ℹ️ 1주차 가이드는 필수이며, 2~4주차 가이드는 캐페인 진행하면서 나중에 생성해도 됩니다.</p>
           </div>
         </div>
 
@@ -459,6 +456,11 @@ ${weekData.required_scenes}
                       Week {weekNum}
                     </span>
                     <h3 className="text-xl font-semibold">주차별 미션 가이드</h3>
+                    {weekNum > 1 && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
+                        선택사항
+                      </span>
+                    )}
                     {weekData.generated_guide && (
                       <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-semibold">
                         생성 완료
