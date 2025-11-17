@@ -463,73 +463,18 @@ const CampaignCreationKorea = () => {
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
-        // 포인트 차감 로직
-        const { data: { user } } = await supabaseBiz.auth.getUser()
-        if (!user) throw new Error('로그인이 필요합니다')
-
-        const finalCost = campaignForm.estimated_cost
-
-        // 현재 포인트 조회 - supabaseKorea 사용
-        const { data: companyData, error: companyError } = await supabaseKorea
-          .from('companies')
-          .select('points')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        if (companyError) {
-          console.error('[CreateCampaign] Company fetch error:', companyError)
-          throw companyError
-        }
-
-        const currentPoints = companyData?.points || 0
-        const neededPoints = finalCost
-
-        console.log('[CreateCampaign] Points check:', { currentPoints, neededPoints })
-
-        // 포인트 부족 시 charge request 생성
-        if (currentPoints < neededPoints) {
-          console.log('[CreateCampaign] Insufficient points, creating charge request')
-          
-          const { data: quoteData, error: quoteError } = await supabaseKorea
-            .from('points_charge_requests')
-            .insert({
-              company_id: user.id,
-              amount: finalCost,
-              original_amount: finalCost,
-              discount_rate: 0,
-              payment_method: 'bank_transfer',
-              status: 'pending',
-              bank_transfer_info: {
-                campaign_id: campaignId,
-                campaign_title: autoTitle,
-                campaign_cost: finalCost,
-                current_points: currentPoints,
-                needed_points: neededPoints,
-                reason: 'campaign_creation'
-              }
-            })
-            .select()
-            .single()
-
-          if (quoteError) {
-            console.error('[CreateCampaign] Charge request error:', quoteError)
-            throw quoteError
+        setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
+        
+        // 캐페인 타입에 따라 적절한 가이드 페이지로 이동
+        setTimeout(() => {
+          if (campaignForm.campaign_type === 'oliveyoung') {
+            navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
+          } else if (campaignForm.campaign_type === '4week_challenge') {
+            navigate(`/company/campaigns/guide/4week?id=${campaignId}`)
+          } else {
+            navigate(`/company/campaigns/guide?id=${campaignId}`)
           }
-
-          setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
-          
-          // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
-          setTimeout(() => {
-            if (campaignForm.campaign_type === 'oliveyoung') {
-              navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
-            } else if (campaignForm.campaign_type === '4week_challenge') {
-              navigate(`/company/campaigns/guide/4week?id=${campaignId}`)
-            } else {
-              navigate(`/company/campaigns/guide?id=${campaignId}`)
-            }
-          }, 1500)
-          return
-        }
+        }, 1500)
       }
 
       // 수정 모드일 경우 가이드 페이지로 이동
