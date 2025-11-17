@@ -160,7 +160,7 @@ const OrderConfirmation = () => {
       const { error: transactionError } = await companyDB
         .from('points_transactions')
         .insert([{
-          company_id: companyData.id,
+          company_id: user.id,
           campaign_id: id,
           amount: -afterDiscount,
           type: 'spend',
