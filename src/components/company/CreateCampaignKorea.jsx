@@ -448,8 +448,8 @@ const CampaignCreationKorea = () => {
 
         setSuccess('캠페인이 수정되었습니다!')
       } else {
-        // 신규 생성 모드
-        const { data: insertData, error: insertError } = await supabaseBiz
+        // 신규 생성 모드 - supabaseKorea에 저장
+        const { data: insertData, error: insertError } = await supabaseKorea
           .from('campaigns')
           .insert([{
             ...campaignData,
