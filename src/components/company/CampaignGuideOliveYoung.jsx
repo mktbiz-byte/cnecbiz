@@ -499,14 +499,19 @@ ${step3Guide}
                 📌 유튜브/틱톡만 선택한 경우 STEP 2까지만 진행하면 됩니다.
               </p>
             </div>
-            <p className="text-sm text-gray-600 mb-3">
-              크리에이터가 STEP 2 영상에 URL을 삽입하는 방법을 안내해주세요.
+            <label className="block mb-2">
+              <span className="text-base font-semibold">제품 구매 URL</span>
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <p className="text-sm text-gray-600 mb-2">
+              상품으로 바로 가는 URL을 넣어주세요. (올리브영 앱 링크 또는 제품 페이지 URL)
             </p>
-            <textarea
+            <input
+              type="url"
               value={step3Guide}
               onChange={(e) => setStep3Guide(e.target.value)}
-              placeholder="예:&#10;[콘텐츠 개요]&#10;- 인스타그램 스토리 형식&#10;- STEP 2 영상에 제품 구매 URL 삽입&#10;- 새로운 영상 제작 없음&#10;&#10;[URL 삽입 방법]&#10;1. STEP 2에서 제작한 영상 준비&#10;2. 인스타그램 스토리에 업로드&#10;3. 스토리 편집에서 '링크' 스티커 추가&#10;4. 제품 구매 URL 삽입 (올리브영 앱 링크)&#10;&#10;[필수 포함 요소]&#10;- '오늘만' '지금 바로' 등 긴박감 텍스트&#10;- 제품 구매 링크 (위로 스와이프)&#10;- '세일 놓치지 마세요' 멘트"
-              className="w-full h-64 p-3 border rounded-lg resize-none"
+              placeholder="예: https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo=A000000123456"
+              className="w-full p-3 border rounded-lg"
               required
             />
 
