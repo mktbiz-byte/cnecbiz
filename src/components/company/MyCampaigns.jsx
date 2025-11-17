@@ -153,7 +153,12 @@ export default function MyCampaigns() {
   const handlePayWithPoints = async (campaign) => {
     try {
       // 캠페인 금액 계산
-      const packagePrice = getPackagePrice(campaign.package_type)
+      let packagePrice
+      if (campaign.campaign_type === '4week_challenge' || campaign.campaign_type === '4week') {
+        packagePrice = 600000 // 4주 챌린지는 60만원 고정
+      } else {
+        packagePrice = getPackagePrice(campaign.package_type)
+      }
       const recruitmentCount = campaign.total_slots || campaign.recruitment_count || 1
       const totalCost = packagePrice * recruitmentCount
 
