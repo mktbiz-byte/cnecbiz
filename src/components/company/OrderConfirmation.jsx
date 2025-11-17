@@ -163,7 +163,7 @@ const OrderConfirmation = () => {
           company_id: companyData.id,
           campaign_id: id,
           amount: -afterDiscount,
-          type: 'campaign_payment',
+          type: 'spend',
           description: `캠페인 결제: ${campaign.title}`,
           balance_after: newBalance
         }])
