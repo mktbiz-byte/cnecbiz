@@ -197,8 +197,8 @@ ${step3Guide}
 
       if (finalUpdateError) throw finalUpdateError
 
-      alert('올영세일 가이드가 생성되었습니다! 견적서 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/invoice`)
+      alert('올영세일 가이드가 생성되었습니다! 결제 페이지로 이동합니다.')
+      navigate(`/company/campaigns/${id}/order-confirmation`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)

@@ -241,8 +241,8 @@ ${weekData.required_scenes}
 
       if (updateError) throw updateError
 
-      alert('4주 챌린지 가이드가 완성되었습니다! 견적서 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/invoice`)
+      alert('4주 챌린지 가이드가 완성되었습니다! 결제 페이지로 이동합니다.')
+      navigate(`/company/campaigns/${id}/order-confirmation`)
     } catch (error) {
       console.error('Error finalizing guide:', error)
       alert('가이드 완성 중 오류가 발생했습니다: ' + error.message)
