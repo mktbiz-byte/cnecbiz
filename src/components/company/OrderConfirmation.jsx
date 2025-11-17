@@ -105,13 +105,16 @@ const OrderConfirmation = () => {
       if (!user) throw new Error('로그인이 필요합니다')
 
       // 1. 회사 정보 가져오기
-      const { data: companyData } = await supabaseBiz
+      const { data: companyData, error: companyError } = await supabaseBiz
         .from('companies')
         .select('*')
         .eq('user_id', user.id)
         .single()
 
-      if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다')
+      console.log('[OrderConfirmation] Company query result:', { companyData, companyError, userId: user.id })
+
+      if (companyError) throw new Error(`회사 정보 조회 실패: ${companyError.message}`)
+      if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다. 회사 프로필을 먼저 설정해주세요.')
 
       // 2. 포인트 차감 (부가세 제외 금액)
       const newBalance = companyData.points_balance - afterDiscount
