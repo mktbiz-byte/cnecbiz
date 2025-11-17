@@ -403,15 +403,14 @@ const CampaignCreationKorea = () => {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
       }
 
-      // 올리브영 캠페인 검증
+      // 올영세일 캠페인 경우 모집 채널 필수 (category에서 확인)
       if (campaignForm.campaign_type === 'oliveyoung') {
-        if (campaignForm.target_platforms.length === 0) {
-          setError('타겟 채널을 1개 이상 선택해주세요.')
+        if (!campaignForm.category || campaignForm.category.length === 0) {
+          setError('모집 채널을 1개 이상 선택해주세요.')
           setProcessing(false)
           return
         }
       }
-
       // 날짜 필드를 null로 변환 (빈 문자열은 PostgreSQL date 타입에서 오류 발생)
       const convertEmptyToNull = (value) => value === '' ? null : value
 
@@ -422,7 +421,10 @@ const CampaignCreationKorea = () => {
         total_slots: parseInt(campaignForm.total_slots) || 0,
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
-        target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
+        // 올영세일의 경우 category를 target_platforms에도 저장
+        target_platforms: campaignForm.campaign_type === 'oliveyoung' 
+          ? (campaignForm.category && campaignForm.category.length > 0 ? campaignForm.category : null)
+          : (campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null),
         company_email: userEmail,  // 회사 이메일 저장
         // 날짜 필드 변환
         application_deadline: convertEmptyToNull(campaignForm.application_deadline),
