@@ -104,8 +104,16 @@ export default function CampaignGuideOliveYoung() {
       return
     }
 
-    if (!step1Guide || !step2Guide || !step3Guide) {
-      alert('3단계 가이드를 모두 입력해주세요.')
+    // 인스타그램 선택 여부 확인
+    const hasInstagram = campaign.category && campaign.category.includes('instagram')
+    
+    if (!step1Guide || !step2Guide) {
+      alert('STEP 1, 2 가이드를 모두 입력해주세요.')
+      return
+    }
+    
+    if (hasInstagram && !step3Guide) {
+      alert('인스타그램이 선택되어 STEP 3 가이드가 필요합니다.')
       return
     }
 
@@ -276,8 +284,9 @@ ${step3Guide}
           <AlertCircle className="w-5 h-5 text-pink-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-pink-800">
             <p className="font-semibold mb-1">올영세일 캠페인 안내</p>
-            <p>3단계 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.</p>
-            <p className="mt-1">STEP 1: 상품 리뷰 → STEP 2: 세일 홍보 → STEP 3: 세일 당일 스토리</p>
+            <p>STEP 1: 상품 리뷰 (영상 제작) → STEP 2: 세일 홍보 (영상 제작)</p>
+            <p className="mt-1">→ STEP 3: 세일 당일 스토리 (<strong>인스타그램 선택 시에만, STEP 2 영상 + URL</strong>)</p>
+            <p className="text-xs mt-2 text-pink-700">📌 유튜브/틱톡만 선택한 경우 STEP 2까지만 진행하면 됩니다.</p>
           </div>
         </div>
 
@@ -471,7 +480,8 @@ ${step3Guide}
             </div>
           </div>
 
-          {/* STEP 3: 세일 당일 스토리 가이드 */}
+          {/* STEP 3: 세일 당일 스토리 가이드 (인스타그램 선택 시에만 표시) */}
+          {campaign.category && campaign.category.includes('instagram') && (
           <div className="bg-white rounded-lg border border-pink-200 p-6">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">STEP 3</span>
@@ -480,58 +490,28 @@ ${step3Guide}
             <p className="text-sm text-gray-600 mb-3">
               마감일: <span className="font-semibold">{campaign.step3_deadline || '미설정'}</span>
             </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+              <p className="text-sm text-yellow-800 font-semibold mb-1">⚠️ 중요: 인스타그램 선택 시에만 필요</p>
+              <p className="text-sm text-yellow-700">
+                STEP 3는 <strong>새로운 영상 제작이 아닙니다.</strong> STEP 2 영상에 <strong>제품 구매 URL만 추가</strong>하여 인스타그램 스토리에 업로드하는 단계입니다.
+              </p>
+              <p className="text-xs text-yellow-600 mt-1">
+                📌 유튜브/틱톡만 선택한 경우 STEP 2까지만 진행하면 됩니다.
+              </p>
+            </div>
             <p className="text-sm text-gray-600 mb-3">
-              세일 당일 스토리 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.
-            </p>
-            <p className="text-xs text-pink-600 mb-3">
-              ℹ️ 본 영상은 STEP 2의 영상이 업로드 + URL이 삽입됩니다
+              크리에이터가 STEP 2 영상에 URL을 삽입하는 방법을 안내해주세요.
             </p>
             <textarea
               value={step3Guide}
               onChange={(e) => setStep3Guide(e.target.value)}
-              placeholder="예:&#10;[콘텐츠 개요]&#10;- 인스타그램 스토리 형식&#10;- STEP 2 영상 링크 공유&#10;- 세일 당일 긴급 알림 느낌&#10;&#10;[필수 포함 요소]&#10;- STEP 2 영상 썸네일 또는 링크&#10;- '오늘만' '지금 바로' 등 긴박감 텍스트&#10;- 올리브영 앱 링크 또는 QR 코드&#10;- 할인 종료 시간 카운트다운 (선택)&#10;&#10;[필수 대사/텍스트]&#10;- '오늘이 마지막 날!'&#10;- '지금 바로 올리브영 가세요'&#10;- '이 영상 보고 바로 구매했어요' (STEP 2 링크)&#10;- '세일 놓치지 마세요 🔥'"
+              placeholder="예:&#10;[콘텐츠 개요]&#10;- 인스타그램 스토리 형식&#10;- STEP 2 영상에 제품 구매 URL 삽입&#10;- 새로운 영상 제작 없음&#10;&#10;[URL 삽입 방법]&#10;1. STEP 2에서 제작한 영상 준비&#10;2. 인스타그램 스토리에 업로드&#10;3. 스토리 편집에서 '링크' 스티커 추가&#10;4. 제품 구매 URL 삽입 (올리브영 앱 링크)&#10;&#10;[필수 포함 요소]&#10;- '오늘만' '지금 바로' 등 긴박감 텍스트&#10;- 제품 구매 링크 (위로 스와이프)&#10;- '세일 놓치지 마세요' 멘트"
               className="w-full h-64 p-3 border rounded-lg resize-none"
               required
             />
-            
-            {/* 가이드 첨부파일 (선택사항) */}
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <label className="block mb-2">
-                <span className="text-base font-semibold">가이드 첨부파일 (PPT/PDF)</span>
-                <span className="text-gray-500 text-sm ml-2">선택사항</span>
-              </label>
-              <p className="text-sm text-gray-600 mb-3">
-                가이드를 첨부파일로 전달하시고 싶으실 경우 첨부해 주세요.
-              </p>
-              <input
-                type="file"
-                accept=".pdf,.ppt,.pptx"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) handleGuideFileUpload('step3', file)
-                }}
-                className="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-500 file:text-white
-                  hover:file:bg-blue-600
-                  cursor-pointer"
-              />
-              {step3GuideFile && (
-                <div className="mt-2 flex items-center gap-2">
-                  <a
-                    href={step3GuideFile}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    첨부된 파일 보기
-                  </a>
-                </div>
-              )}
-            </div>
+
           </div>
+          )}
         </div>
 
         {/* 버튼 */}
