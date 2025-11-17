@@ -137,10 +137,7 @@ const OrderConfirmation = () => {
       if (companyError) throw new Error(`회사 정보 조회 실패: ${companyError.message}`)
       if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다. 회사 프로필을 먼저 설정해주세요.')
 
-      // 2. 포인트 차감 (부가세 제외 금액) - 회사가 있는 DB에 저장
-      const newBalance = companyData.points_balance - afterDiscount
-      
-      // 회사가 Korea DB에 있는지 Biz DB에 있는지 확인
+      // 2. 회사가 Korea DB에 있는지 Biz DB에 있는지 확인
       const isInKoreaDB = await supabaseKorea
         .from('companies')
         .select('id')
@@ -148,15 +145,9 @@ const OrderConfirmation = () => {
         .maybeSingle()
       
       const companyDB = isInKoreaDB.data ? supabaseKorea : supabaseBiz
-      
-      const { error: updateError } = await companyDB
-        .from('companies')
-        .update({ points_balance: newBalance })
-        .eq('id', companyData.id)
+      const newBalance = companyData.points_balance - afterDiscount
 
-      if (updateError) throw updateError
-
-      // 3. 포인트 거래 기록
+      // 3. 포인트 거래 기록 먼저 생성 (검증용)
       const { error: transactionError } = await companyDB
         .from('points_transactions')
         .insert([{
@@ -170,7 +161,15 @@ const OrderConfirmation = () => {
 
       if (transactionError) throw transactionError
 
-      // 4. 캠페인 상태 업데이트 (Biz DB 먼저 시도)
+      // 4. 포인트 차감 (거래 기록 생성 성공 후)
+      const { error: updateError } = await companyDB
+        .from('companies')
+        .update({ points_balance: newBalance })
+        .eq('id', companyData.id)
+
+      if (updateError) throw updateError
+
+      // 5. 캠페인 상태 업데이트 (Biz DB 먼저 시도)
       let campaignUpdated = false
       const { error: bizCampaignError } = await supabaseBiz
         .from('campaigns')
@@ -197,7 +196,7 @@ const OrderConfirmation = () => {
         if (koreaCampaignError) throw koreaCampaignError
       }
 
-      // 5. 네이버 웍스 알림 전송
+      // 6. 네이버 웍스 알림 전송
       try {
         const campaignTypeText = 
           campaign.campaign_type === 'oliveyoung' ? '올영세일' :
