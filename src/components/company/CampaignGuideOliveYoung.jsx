@@ -26,6 +26,9 @@ export default function CampaignGuideOliveYoung() {
   const [step1Guide, setStep1Guide] = useState('')
   const [step2Guide, setStep2Guide] = useState('')
   const [step3Guide, setStep3Guide] = useState('')
+  const [step1GuideFile, setStep1GuideFile] = useState('')
+  const [step2GuideFile, setStep2GuideFile] = useState('')
+  const [step3GuideFile, setStep3GuideFile] = useState('')
 
   useEffect(() => {
     loadCampaign()
@@ -54,6 +57,9 @@ export default function CampaignGuideOliveYoung() {
       setStep1Guide(data.oliveyoung_step1_guide || '')
       setStep2Guide(data.oliveyoung_step2_guide || '')
       setStep3Guide(data.oliveyoung_step3_guide || '')
+      setStep1GuideFile(data.oliveyoung_step1_guide_file || '')
+      setStep2GuideFile(data.oliveyoung_step2_guide_file || '')
+      setStep3GuideFile(data.oliveyoung_step3_guide_file || '')
     } catch (error) {
       console.error('Error loading campaign:', error)
       alert('캠페인을 불러오는데 실패했습니다.')
@@ -73,7 +79,10 @@ export default function CampaignGuideOliveYoung() {
           product_key_points: productData.product_key_points,
           oliveyoung_step1_guide: step1Guide,
           oliveyoung_step2_guide: step2Guide,
-          oliveyoung_step3_guide: step3Guide
+          oliveyoung_step3_guide: step3Guide,
+          oliveyoung_step1_guide_file: step1GuideFile,
+          oliveyoung_step2_guide_file: step2GuideFile,
+          oliveyoung_step3_guide_file: step3GuideFile
         })
         .eq('id', id)
 
@@ -113,7 +122,10 @@ export default function CampaignGuideOliveYoung() {
           product_key_points: productData.product_key_points,
           oliveyoung_step1_guide: step1Guide,
           oliveyoung_step2_guide: step2Guide,
-          oliveyoung_step3_guide: step3Guide
+          oliveyoung_step3_guide: step3Guide,
+          oliveyoung_step1_guide_file: step1GuideFile,
+          oliveyoung_step2_guide_file: step2GuideFile,
+          oliveyoung_step3_guide_file: step3GuideFile
         })
         .eq('id', id)
 
@@ -192,6 +204,49 @@ ${step3Guide}
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
     } finally {
       setGenerating(false)
+    }
+  }
+
+  // 가이드 파일 업로드
+  const handleGuideFileUpload = async (step, file) => {
+    if (!file) return
+
+    // 파일 크기 체크 (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('파일 크기는 10MB를 초과할 수 없습니다.')
+      return
+    }
+
+    // 파일 형식 체크
+    const allowedTypes = ['application/pdf', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation']
+    if (!allowedTypes.includes(file.type)) {
+      alert('PDF 또는 PPT 파일만 업로드 가능합니다.')
+      return
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${id}_${step}_guide_${Date.now()}.${fileExt}`
+      const filePath = `campaign-guides/${fileName}`
+
+      const { error: uploadError } = await supabaseKorea.storage
+        .from('campaign-files')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabaseKorea.storage
+        .from('campaign-files')
+        .getPublicUrl(filePath)
+
+      if (step === 'step1') setStep1GuideFile(publicUrl)
+      else if (step === 'step2') setStep2GuideFile(publicUrl)
+      else if (step === 'step3') setStep3GuideFile(publicUrl)
+      
+      alert('파일이 업로드되었습니다!')
+    } catch (error) {
+      console.error('File upload error:', error)
+      alert('파일 업로드에 실패했습니다.')
     }
   }
 
@@ -313,10 +368,48 @@ ${step3Guide}
             <textarea
               value={step1Guide}
               onChange={(e) => setStep1Guide(e.target.value)}
-              placeholder="예:&#10;[콘텐츠 개요]&#10;- 올리브영 매장 방문 후 제품 구매 장면&#10;- 제품 언박싱 및 텍스처 소개&#10;- 사용 후기 및 효과 리뷰&#10;&#10;[필수 포함 요소]&#10;- 올리브영 매장 외관 또는 내부&#10;- 제품 패키징 클로즈업&#10;- 텍스처 시연 (손등 또는 얼굴)&#10;- 사용 전후 비교&#10;&#10;[필수 대사]&#10;- '올리브영에서 발견한 이 제품'&#10;- '24시간 수분 지속력이 정말 대박'&#10;- '곧 올영세일 시작하니까 꼭 체크하세요'"
+              placeholder="예:&#10;[콘텐츠 개요]&#10;- 올리브영 매장 방문 후 제품 구매 장면&#10;- 제품 언박싱 및 텍스처 소개&#10;- 사용 후기 및 효과 리뷰&#10;&#10;[필수 포함 요소]&#10;- 올리브영 매장 외관 또는 내부&#10;- 제품 패키징 클로즈업&#10;- 텍스처 시연 (손등 또는 얼굴)&#10;- 사용 전후 비교&#10;&#10;[필수 대사]&#10;- '올리브영에서 발견한 이 제품'&#10;- '24시간 수분 지속력이 정말 대박'&#10;- '곳 올영세일 시작하니까 꼭 체크하세요'"
               className="w-full h-64 p-3 border rounded-lg resize-none"
               required
             />
+            
+            {/* 가이드 첨부파일 (선택사항) */}
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="block mb-2">
+                <span className="text-base font-semibold">가이드 첨부파일 (PPT/PDF)</span>
+                <span className="text-gray-500 text-sm ml-2">선택사항</span>
+              </label>
+              <p className="text-sm text-gray-600 mb-3">
+                가이드를 첨부파일로 전달하시고 싶으실 경우 첨부해 주세요.
+              </p>
+              <input
+                type="file"
+                accept=".pdf,.ppt,.pptx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleGuideFileUpload('step1', file)
+                }}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-500 file:text-white
+                  hover:file:bg-blue-600
+                  cursor-pointer"
+              />
+              {step1GuideFile && (
+                <div className="mt-2 flex items-center gap-2">
+                  <a
+                    href={step1GuideFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    첨부된 파일 보기
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* STEP 2: 세일 홍보 가이드 */}
@@ -334,10 +427,48 @@ ${step3Guide}
             <textarea
               value={step2Guide}
               onChange={(e) => setStep2Guide(e.target.value)}
-              placeholder="예:&#10;[콘텐츠 개요]&#10;- 올영세일 예고 및 할인 정보 강조&#10;- 제품 재사용 후기 및 추천 이유&#10;- 세일 기간 및 구매 방법 안내&#10;&#10;[필수 포함 요소]&#10;- 올영세일 앰블럼 또는 로고&#10;- 할인율 또는 특가 정보 텍스트&#10;- 제품 사용 장면 (일상 루틴)&#10;- 세일 기간 명시 (예: 3월 1~7일)&#10;&#10;[필수 대사]&#10;- '드디어 올영세일 시작!'&#10;- 'XX% 할인으로 만나보세요'&#10;- '이 가격이면 무조건 사야 해요'&#10;- '올리브영 앱에서 지금 바로 확인'"
+              placeholder="예:&#10;[콘텐츠 개요]&#10;- 올영세일 예고 및 할인 정보 강조&#10;- 제품 재사용 후기 및 추천 이유&#10;- 세일 기간 및 구매 방법 안내&#10;&#10;[필수 포함 요소]&#10;- 올영세일 앤블럼 또는 로고&#10;- 할인율 또는 특가 정보 텍스트&#10;- 제품 사용 장면 (일상 루틴)&#10;- 세일 기간 명시 (예: 3월 1~7일)&#10;&#10;[필수 대사]&#10;- '드디어 올영세일 시작!'&#10;- 'XX% 할인으로 만나보세요'&#10;- '이 가격이면 무조건 사야 해요'&#10;- '올리브영 앱에서 지금 바로 확인'"
               className="w-full h-64 p-3 border rounded-lg resize-none"
               required
             />
+            
+            {/* 가이드 첨부파일 (선택사항) */}
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="block mb-2">
+                <span className="text-base font-semibold">가이드 첨부파일 (PPT/PDF)</span>
+                <span className="text-gray-500 text-sm ml-2">선택사항</span>
+              </label>
+              <p className="text-sm text-gray-600 mb-3">
+                가이드를 첨부파일로 전달하시고 싶으실 경우 첨부해 주세요.
+              </p>
+              <input
+                type="file"
+                accept=".pdf,.ppt,.pptx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleGuideFileUpload('step2', file)
+                }}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-500 file:text-white
+                  hover:file:bg-blue-600
+                  cursor-pointer"
+              />
+              {step2GuideFile && (
+                <div className="mt-2 flex items-center gap-2">
+                  <a
+                    href={step2GuideFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    첨부된 파일 보기
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* STEP 3: 세일 당일 스토리 가이드 */}
@@ -362,6 +493,44 @@ ${step3Guide}
               className="w-full h-64 p-3 border rounded-lg resize-none"
               required
             />
+            
+            {/* 가이드 첨부파일 (선택사항) */}
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="block mb-2">
+                <span className="text-base font-semibold">가이드 첨부파일 (PPT/PDF)</span>
+                <span className="text-gray-500 text-sm ml-2">선택사항</span>
+              </label>
+              <p className="text-sm text-gray-600 mb-3">
+                가이드를 첨부파일로 전달하시고 싶으실 경우 첨부해 주세요.
+              </p>
+              <input
+                type="file"
+                accept=".pdf,.ppt,.pptx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleGuideFileUpload('step3', file)
+                }}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-500 file:text-white
+                  hover:file:bg-blue-600
+                  cursor-pointer"
+              />
+              {step3GuideFile && (
+                <div className="mt-2 flex items-center gap-2">
+                  <a
+                    href={step3GuideFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    첨부된 파일 보기
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

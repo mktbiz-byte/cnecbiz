@@ -37,28 +37,32 @@ export default function CampaignGuide4WeekChallenge() {
       reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      generated_guide: '',
+      guide_file: ''
     },
     week2: {
       mission: '',
       reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      generated_guide: '',
+      guide_file: ''
     },
     week3: {
       mission: '',
       reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      generated_guide: '',
+      guide_file: ''
     },
     week4: {
       mission: '',
       reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      generated_guide: '',
+      guide_file: ''
     }
   })
 
@@ -259,6 +263,46 @@ ${weekData.required_scenes}
         [field]: value
       }
     }))
+  }
+
+  // 가이드 파일 업로드
+  const handleGuideFileUpload = async (week, file) => {
+    if (!file) return
+
+    // 파일 크기 체크 (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('파일 크기는 10MB를 초과할 수 없습니다.')
+      return
+    }
+
+    // 파일 형식 체크
+    const allowedTypes = ['application/pdf', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation']
+    if (!allowedTypes.includes(file.type)) {
+      alert('PDF 또는 PPT 파일만 업로드 가능합니다.')
+      return
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${id}_${week}_guide_${Date.now()}.${fileExt}`
+      const filePath = `campaign-guides/${fileName}`
+
+      const { error: uploadError } = await supabaseKorea.storage
+        .from('campaign-files')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabaseKorea.storage
+        .from('campaign-files')
+        .getPublicUrl(filePath)
+
+      updateWeeklyGuide(week, 'guide_file', publicUrl)
+      alert('파일이 업로드되었습니다!')
+    } catch (error) {
+      console.error('File upload error:', error)
+      alert('파일 업로드에 실패했습니다.')
+    }
   }
 
   if (!campaign) {
@@ -512,6 +556,44 @@ ${weekData.required_scenes}
                         className="w-full h-32 p-3 border rounded-lg resize-none"
                         required
                       />
+                    </div>
+
+                    {/* 가이드 첨부파일 (선택사항) */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <label className="block mb-2">
+                        <span className="text-base font-semibold">가이드 첨부파일 (PPT/PDF)</span>
+                        <span className="text-gray-500 text-sm ml-2">선택사항</span>
+                      </label>
+                      <p className="text-sm text-gray-600 mb-3">
+                        가이드를 첨부파일로 전달하시고 싶으실 경우 첨부해 주세요.
+                      </p>
+                      <input
+                        type="file"
+                        accept=".pdf,.ppt,.pptx"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleGuideFileUpload(weekKey, file)
+                        }}
+                        className="block w-full text-sm text-gray-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-blue-500 file:text-white
+                          hover:file:bg-blue-600
+                          cursor-pointer"
+                      />
+                      {weekData.guide_file && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <a
+                            href={weekData.guide_file}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            첨부된 파일 보기
+                          </a>
+                        </div>
+                      )}
                     </div>
 
                     {/* 생성된 가이드 미리보기 - 탭 형식 */}
