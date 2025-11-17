@@ -8,6 +8,45 @@ import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit,
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
+// 크리에이터 포인트 계산 함수
+const calculateCreatorPoints = (campaign) => {
+  if (!campaign) return 0
+  
+  // 수동 설정값이 있으면 우선 사용
+  if (campaign.creator_points_override) {
+    return campaign.creator_points_override
+  }
+  
+  const campaignType = campaign.campaign_type
+  
+  // 4주 챌린지: reward_points 또는 주차별 합계 xd7 70%
+  if (campaignType === '4week_challenge') {
+    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) + 
+                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
+    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
+    return Math.round(totalReward * 0.7)
+  }
+  
+  // 기획형: 단계별 합계 xd7 60%
+  if (campaignType === 'planned') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) + 
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round(totalReward * 0.6)
+  }
+  
+  // 올영세일: 단계별 합계 xd7 70%
+  if (campaignType === 'oliveyoung') {
+    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) + 
+                     (campaign.step3_reward || 0)
+    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
+    return Math.round(totalReward * 0.7)
+  }
+  
+  // 기본: reward_points xd7 60%
+  return Math.round((campaign.reward_points || 0) * 0.6)
+}
+
 export default function CampaignsManagement() {
   const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
@@ -17,6 +56,8 @@ export default function CampaignsManagement() {
   const [loading, setLoading] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [editingPoints, setEditingPoints] = useState(null) // {campaignId, value}
+  const [savingPoints, setSavingPoints] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -155,6 +196,35 @@ export default function CampaignsManagement() {
       alert(error.message)
     } finally {
       setConfirming(false)
+    }
+  }
+
+  const handleSaveCreatorPoints = async (campaignId) => {
+    if (!editingPoints || editingPoints.campaignId !== campaignId) return
+    
+    setSavingPoints(true)
+    try {
+      const campaign = campaigns.find(c => c.id === campaignId)
+      const region = campaign?.region || 'biz'
+      const supabaseClient = getSupabaseClient(region)
+      
+      const { error } = await supabaseClient
+        .from('campaigns')
+        .update({ 
+          creator_points_override: parseInt(editingPoints.value) || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaignId)
+      
+      if (error) throw error
+      
+      setEditingPoints(null)
+      fetchCampaigns()
+    } catch (error) {
+      console.error('크리에이터 포인트 저장 오류:', error)
+      alert('포인트 저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingPoints(false)
     }
   }
 
@@ -456,9 +526,45 @@ export default function CampaignsManagement() {
                             <div className="font-semibold text-gray-900">{campaign.currency || '₩'}{campaign.budget?.toLocaleString()}</div>
                           </div>
                           {campaign.region === 'korea' && (
-                            <div className="bg-purple-50 p-3 rounded-lg">
+                            <div className="bg-purple-50 p-3 rounded-lg relative group">
                               <div className="text-purple-600 text-xs mb-1">크리에이터 P</div>
-                              <div className="font-semibold text-purple-900">₩{Math.round((campaign.reward_points || 0) * 0.6).toLocaleString()}</div>
+                              {editingPoints?.campaignId === campaign.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={editingPoints.value}
+                                    onChange={(e) => setEditingPoints({ campaignId: campaign.id, value: e.target.value })}
+                                    className="w-24 px-2 py-1 text-sm border rounded"
+                                    disabled={savingPoints}
+                                  />
+                                  <button
+                                    onClick={() => handleSaveCreatorPoints(campaign.id)}
+                                    disabled={savingPoints}
+                                    className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                                  >
+                                    <CheckCircle size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingPoints(null)}
+                                    disabled={savingPoints}
+                                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                                  >
+                                    <XCircle size={16} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <div className="font-semibold text-purple-900">₩{calculateCreatorPoints(campaign).toLocaleString()}</div>
+                                  {isSuperAdmin && (
+                                    <button
+                                      onClick={() => setEditingPoints({ campaignId: campaign.id, value: calculateCreatorPoints(campaign) })}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-purple-600 hover:text-purple-800"
+                                    >
+                                      <Edit size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                           <div className="bg-white p-3 rounded-lg">
