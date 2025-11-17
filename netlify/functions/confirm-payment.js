@@ -126,10 +126,10 @@ exports.handler = async (event, context) => {
       confirmed_by: adminUserId
     }
 
-    if (depositDate) updateData.deposit_date = depositDate
-    if (depositAmount) updateData.deposit_amount = depositAmount
+    // 입금자명 업데이트 (테이블에 있는 컴럼)
     if (depositorName) updateData.depositor_name = depositorName
-    if (memo) updateData.admin_memo = memo
+    // 메모는 credit_notes 컴럼 사용
+    if (memo) updateData.credit_notes = memo
 
     const { error: updateError } = await supabaseAdmin
       .from('points_charge_requests')
