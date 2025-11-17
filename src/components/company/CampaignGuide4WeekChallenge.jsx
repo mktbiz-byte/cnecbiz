@@ -8,6 +8,7 @@ import { Input } from '../ui/input'
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Lightbulb, X } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 import { missionExamples } from './missionExamples'
+import WeeklyGuideViewer from './WeeklyGuideViewer'
 
 export default function CampaignGuide4WeekChallenge() {
   const [searchParams] = useSearchParams()
@@ -513,12 +514,12 @@ ${weekData.required_scenes}
                       />
                     </div>
 
-                    {/* 생성된 가이드 미리보기 */}
+                    {/* 생성된 가이드 미리보기 - 탭 형식 */}
                     {weekData.generated_guide && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <p className="text-sm font-semibold text-green-800 mb-2">✓ 생성된 가이드</p>
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap">{weekData.generated_guide}</pre>
-                      </div>
+                      <WeeklyGuideViewer 
+                        guide={weekData.generated_guide} 
+                        referenceUrl={weekData.reference}
+                      />
                     )}
 
                     {/* 주차별 가이드 생성 버튼 */}
