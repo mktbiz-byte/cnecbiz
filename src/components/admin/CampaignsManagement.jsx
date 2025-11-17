@@ -450,11 +450,17 @@ export default function CampaignsManagement() {
                         <p className="text-sm text-gray-600 mb-3">
                           {campaign.description || '설명 없음'}
                         </p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                           <div className="bg-white p-3 rounded-lg">
                             <div className="text-gray-500 text-xs mb-1">예산</div>
                             <div className="font-semibold text-gray-900">{campaign.currency || '₩'}{campaign.budget?.toLocaleString()}</div>
                           </div>
+                          {campaign.region === 'korea' && (
+                            <div className="bg-purple-50 p-3 rounded-lg">
+                              <div className="text-purple-600 text-xs mb-1">크리에이터 P</div>
+                              <div className="font-semibold text-purple-900">₩{Math.round((campaign.reward_points || 0) * 0.6).toLocaleString()}</div>
+                            </div>
+                          )}
                           <div className="bg-white p-3 rounded-lg">
                             <div className="text-gray-500 text-xs mb-1">모집 인원</div>
                             <div className="font-semibold text-gray-900">{campaign.max_participants || 0}명</div>
