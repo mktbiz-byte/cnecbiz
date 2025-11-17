@@ -30,7 +30,7 @@ export default function AdminCampaignEdit() {
   useEffect(() => {
     // 한국 캠페인은 CreateCampaignKorea로 리다이렉트
     if (region === 'korea') {
-      navigate(`/company/campaigns/create/korea?edit=${id}`)
+      navigate(`/company/campaigns/create/korea?edit=${id}&admin=true`)
       return
     }
     

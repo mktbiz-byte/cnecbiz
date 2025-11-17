@@ -14,6 +14,7 @@ const CampaignCreationKorea = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const editId = searchParams.get('edit')
+  const isAdminMode = searchParams.get('admin') === 'true'
   const thumbnailInputRef = useRef(null)
   const detailImageInputRef = useRef(null)
 
@@ -501,7 +502,7 @@ const CampaignCreationKorea = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
+          <Button variant="ghost" onClick={() => navigate(isAdminMode ? '/admin/campaigns' : '/company/campaigns')}>
             ← 캠페인 목록으로
           </Button>
         </div>
@@ -1317,7 +1318,7 @@ const CampaignCreationKorea = () => {
                 >
                   {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
+                <Button type="button" variant="outline" onClick={() => navigate(isAdminMode ? '/admin/campaigns' : '/company/campaigns')}>
                   취소
                 </Button>
               </div>
