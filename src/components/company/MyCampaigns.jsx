@@ -202,13 +202,13 @@ export default function MyCampaigns() {
 
       // 포인트 부족 체크
       if (companyData.points_balance < totalCost) {
-        alert(`포인트가 모자랍니다.\n\n필요 포인트: ${totalCost.toLocaleString()}원\n현재 포인트: ${companyData.points_balance.toLocaleString()}원\n부족 포인트: ${(totalCost - companyData.points_balance).toLocaleString()}원`)
+        alert(`포인트가 모자랍니다.\n\n필요 포인트: ${totalCost.toLocaleString()}P\n현재 포인트: ${companyData.points_balance.toLocaleString()}P\n부족 포인트: ${(totalCost - companyData.points_balance).toLocaleString()}P`)
         return
       }
 
       // 확인 메시지
       const confirmed = window.confirm(
-        `포인트를 차감하고 관리자 승인을 요청하시겠습니까?\n\n차감 포인트: ${totalCost.toLocaleString()}원\n잔여 포인트: ${(companyData.points_balance - totalCost).toLocaleString()}원`
+        `포인트를 차감하고 관리자 승인을 요청하시겠습니까?\n\n현재 포인트: ${companyData.points_balance.toLocaleString()}P\n차감 포인트: ${totalCost.toLocaleString()}P\n차감 후 잔여 포인트: ${(companyData.points_balance - totalCost).toLocaleString()}P`
       )
 
       if (!confirmed) return
