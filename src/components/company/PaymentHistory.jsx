@@ -194,7 +194,7 @@ export default function PaymentHistory() {
     .reduce((sum, r) => sum + Math.round((r.amount || 0) / 1.1), 0)
   
   const totalUsed = pointUsages
-    .reduce((sum, c) => sum + (c.total_price || 0), 0)
+    .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
   
   const currentPoints = totalCharged - totalUsed
 
