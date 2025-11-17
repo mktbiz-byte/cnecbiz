@@ -44,7 +44,7 @@ export default function PaymentHistory() {
       fetchPayments(companyData.id)
       fetchTaxInvoices(companyData.id)
       fetchChargeRequests(user.id)
-      fetchPointUsages(companyData.id)
+      fetchPointUsages(user.id)
     }
   }
 
@@ -100,14 +100,14 @@ export default function PaymentHistory() {
     }
   }
 
-  const fetchPointUsages = async (companyId) => {
+  const fetchPointUsages = async (userId) => {
     try {
       const { data, error } = await supabaseBiz
-        .from('campaigns')
-        .select('id, brand_name, package_type, total_price, status, approved_at, created_at')
-        .eq('company_id', companyId)
-        .in('status', ['approved', 'active', 'completed'])
-        .order('approved_at', { ascending: false })
+        .from('points_transactions')
+        .select('*')
+        .eq('company_id', userId)
+        .eq('type', 'spend')
+        .order('created_at', { ascending: false })
 
       if (!error && data) {
         console.log('[PaymentHistory] 포인트 사용 내역:', data)
