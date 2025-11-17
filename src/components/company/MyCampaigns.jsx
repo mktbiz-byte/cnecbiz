@@ -154,7 +154,7 @@ export default function MyCampaigns() {
     try {
       // 캠페인 금액 계산
       const packagePrice = getPackagePrice(campaign.package_type)
-      const recruitmentCount = campaign.recruitment_count || 10
+      const recruitmentCount = campaign.total_slots || campaign.recruitment_count || 1
       const totalCost = packagePrice * recruitmentCount
 
       // 회사 포인트 잔액 확인
