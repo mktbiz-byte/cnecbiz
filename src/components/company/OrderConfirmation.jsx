@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -54,10 +54,10 @@ const OrderConfirmation = () => {
       if (!campaignData) throw new Error('캠페인을 찾을 수 없습니다.')
       setCampaign(campaignData)
 
-      // 2. 포인트 잔액 로드
+      // 2. 포인트 잔액 로드 - CNEC Korea DB에서 조회
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (user) {
-        const { data: companyData } = await supabaseBiz
+        const { data: companyData } = await supabaseKorea
           .from('companies')
           .select('points_balance')
           .eq('user_id', user.id)
@@ -104,8 +104,8 @@ const OrderConfirmation = () => {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다')
 
-      // 1. 회사 정보 가져오기
-      const { data: companyData, error: companyError } = await supabaseBiz
+      // 1. 회사 정보 가져오기 (CNEC Korea DB에서 조회)
+      const { data: companyData, error: companyError } = await supabaseKorea
         .from('companies')
         .select('*')
         .eq('user_id', user.id)
@@ -116,17 +116,17 @@ const OrderConfirmation = () => {
       if (companyError) throw new Error(`회사 정보 조회 실패: ${companyError.message}`)
       if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다. 회사 프로필을 먼저 설정해주세요.')
 
-      // 2. 포인트 차감 (부가세 제외 금액)
+      // 2. 포인트 차감 (부가세 제외 금액) - CNEC Korea DB
       const newBalance = companyData.points_balance - afterDiscount
-      const { error: updateError } = await supabaseBiz
+      const { error: updateError } = await supabaseKorea
         .from('companies')
         .update({ points_balance: newBalance })
         .eq('id', companyData.id)
 
       if (updateError) throw updateError
 
-      // 3. 포인트 거래 기록
-      const { error: transactionError } = await supabaseBiz
+      // 3. 포인트 거래 기록 - CNEC Korea DB
+      const { error: transactionError } = await supabaseKorea
         .from('points_transactions')
         .insert([{
           company_id: companyData.id,
