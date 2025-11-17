@@ -54,14 +54,24 @@ const OrderConfirmation = () => {
       if (!campaignData) throw new Error('캠페인을 찾을 수 없습니다.')
       setCampaign(campaignData)
 
-      // 2. 포인트 잔액 로드 - CNEC Korea DB에서 조회
+      // 2. 포인트 잔액 로드 - CNEC Korea DB 먼저, 없으면 Biz DB에서 조회
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (user) {
-        const { data: companyData } = await supabaseKorea
+        let { data: companyData } = await supabaseKorea
           .from('companies')
           .select('points_balance')
           .eq('user_id', user.id)
           .maybeSingle()
+
+        // Korea DB에 없으면 Biz DB에서 조회 (fallback)
+        if (!companyData) {
+          const result = await supabaseBiz
+            .from('companies')
+            .select('points_balance')
+            .eq('user_id', user.id)
+            .maybeSingle()
+          companyData = result.data
+        }
 
         if (companyData) {
           setPointsBalance(companyData.points_balance || 0)
@@ -104,29 +114,50 @@ const OrderConfirmation = () => {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다')
 
-      // 1. 회사 정보 가져오기 (CNEC Korea DB에서 조회)
-      const { data: companyData, error: companyError } = await supabaseKorea
+      // 1. 회사 정보 가져오기 - Korea DB 먼저, 없으면 Biz DB
+      let { data: companyData, error: companyError } = await supabaseKorea
         .from('companies')
         .select('*')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
+
+      // Korea DB에 없으면 Biz DB에서 조회 (fallback)
+      if (!companyData && !companyError) {
+        const result = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        companyData = result.data
+        companyError = result.error
+      }
 
       console.log('[OrderConfirmation] Company query result:', { companyData, companyError, userId: user.id })
 
       if (companyError) throw new Error(`회사 정보 조회 실패: ${companyError.message}`)
       if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다. 회사 프로필을 먼저 설정해주세요.')
 
-      // 2. 포인트 차감 (부가세 제외 금액) - CNEC Korea DB
+      // 2. 포인트 차감 (부가세 제외 금액) - 회사가 있는 DB에 저장
       const newBalance = companyData.points_balance - afterDiscount
-      const { error: updateError } = await supabaseKorea
+      
+      // 회사가 Korea DB에 있는지 Biz DB에 있는지 확인
+      const isInKoreaDB = await supabaseKorea
+        .from('companies')
+        .select('id')
+        .eq('id', companyData.id)
+        .maybeSingle()
+      
+      const companyDB = isInKoreaDB.data ? supabaseKorea : supabaseBiz
+      
+      const { error: updateError } = await companyDB
         .from('companies')
         .update({ points_balance: newBalance })
         .eq('id', companyData.id)
 
       if (updateError) throw updateError
 
-      // 3. 포인트 거래 기록 - CNEC Korea DB
-      const { error: transactionError } = await supabaseKorea
+      // 3. 포인트 거래 기록
+      const { error: transactionError } = await companyDB
         .from('points_transactions')
         .insert([{
           company_id: companyData.id,
@@ -155,7 +186,7 @@ const OrderConfirmation = () => {
 
       // Biz DB에 없으면 Korea DB 시도
       if (!campaignUpdated) {
-        const { error: koreaCampaignError } = await supabase
+        const { error: koreaCampaignError } = await supabaseKorea
           .from('campaigns')
           .update({ 
             approval_status: 'pending',
