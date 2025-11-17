@@ -887,12 +887,12 @@ JSON 형식으로만 응답해주세요.`
                   {saving ? '저장 중...' : '최종 가이드 저장'}
                 </Button>
                 <Button
-                  onClick={() => navigate('/company/campaigns')}
+                  onClick={() => navigate(`/company/campaigns/${id}/invoice`)}
                   size="lg"
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <CheckCircle className="w-5 h-5 mr-2" />
-                  확인 완료
+                  견적서 보기
                 </Button>
               </div>
             </div>
