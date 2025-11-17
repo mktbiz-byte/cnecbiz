@@ -568,7 +568,11 @@ JSON 형식으로 응답:
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{aiAnalysis.improvement_plan}</p>
+                  <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {typeof aiAnalysis.improvement_plan === 'string' 
+                      ? aiAnalysis.improvement_plan 
+                      : JSON.stringify(aiAnalysis.improvement_plan, null, 2)}
+                  </div>
                 </CardContent>
               </Card>
 
