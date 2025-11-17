@@ -304,8 +304,8 @@ export default function MyCampaigns() {
   const getCampaignTypeBadge = (campaignType) => {
     const badges = {
       '4week_challenge': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-800' },
-      'olive_young_sale': { label: '올영세일', color: 'bg-pink-100 text-pink-800' },
-      'planning': { label: '기획형', color: 'bg-indigo-100 text-indigo-800' }
+      'oliveyoung': { label: '올영세일', color: 'bg-pink-100 text-pink-800' },
+      'regular': { label: '기획형', color: 'bg-indigo-100 text-indigo-800' }
     }
     const badge = badges[campaignType]
     if (!badge) return null
