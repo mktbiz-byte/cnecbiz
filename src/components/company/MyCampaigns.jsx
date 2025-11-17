@@ -301,6 +301,21 @@ export default function MyCampaigns() {
     return prices[packageType?.toLowerCase()] || 200000
   }
 
+  const getCampaignTypeBadge = (campaignType) => {
+    const badges = {
+      '4week_challenge': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-800' },
+      'olive_young_sale': { label: '올영세일', color: 'bg-pink-100 text-pink-800' },
+      'planning': { label: '기획형', color: 'bg-indigo-100 text-indigo-800' }
+    }
+    const badge = badges[campaignType]
+    if (!badge) return null
+    return (
+      <Badge className={badge.color}>
+        {badge.label}
+      </Badge>
+    )
+  }
+
   const getPaymentStatusBadge = (status, isCancelled) => {
     // 취소된 캠페인은 "취소됨" 표시
     if (isCancelled) {
@@ -554,6 +569,7 @@ export default function MyCampaigns() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             {getRegionBadge(campaign.region)}
+                            {getCampaignTypeBadge(campaign.campaign_type)}
                             {getPaymentStatusBadge(campaign.payment_status, campaign.is_cancelled)}
                             {getProgressStatusBadge(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)}
                           </div>
