@@ -382,6 +382,27 @@ export default function CampaignsManagement() {
     )
   }
 
+  const getCampaignTypeBadge = (campaignType) => {
+    const badges = {
+      planned: 'bg-purple-100 text-purple-700',
+      oliveyoung: 'bg-pink-100 text-pink-700',
+      '4week_challenge': 'bg-orange-100 text-orange-700'
+    }
+    const labels = {
+      planned: '기획형',
+      oliveyoung: '올영세일',
+      '4week_challenge': '4주 챌린지'
+    }
+    
+    if (!campaignType || !badges[campaignType]) return null
+    
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badges[campaignType]}`}>
+        {labels[campaignType]}
+      </span>
+    )
+  }
+
   const getRegionBadge = (region) => {
     const badges = {
       korea: 'bg-blue-100 text-blue-700',
@@ -514,6 +535,7 @@ export default function CampaignsManagement() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-bold">{campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}</h3>
+                          {getCampaignTypeBadge(campaign.campaign_type)}
                           {getRegionBadge(campaign.region)}
                           {getStatusBadge(campaign.approval_status || campaign.status)}
                         </div>
