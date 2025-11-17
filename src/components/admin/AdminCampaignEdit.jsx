@@ -179,9 +179,9 @@ export default function AdminCampaignEdit() {
         updated_at: new Date().toISOString()
       }
 
-      // 슈퍼 관리자만 reward_amount 수정 가능
+      // 슈퍼 관리자만 reward_points 수정 가능
       if (isSuperAdmin) {
-        updateData.reward_amount = campaign.reward_amount
+        updateData.reward_points = campaign.reward_points
       }
 
       const { error } = await client
@@ -526,12 +526,12 @@ export default function AdminCampaignEdit() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="reward_amount">크리에이터당 지급 포인트 ({currencySymbols[region]})</Label>
+                    <Label htmlFor="reward_points">캠페인 총 금액 ({currencySymbols[region]})</Label>
                     <Input
-                      id="reward_amount"
+                      id="reward_points"
                       type="number"
-                      value={campaign.reward_amount || ''}
-                      onChange={(e) => setCampaign({ ...campaign, reward_amount: parseInt(e.target.value) || 0 })}
+                      value={campaign.reward_points || ''}
+                      onChange={(e) => setCampaign({ ...campaign, reward_points: parseInt(e.target.value) || 0 })}
                       placeholder="0"
                     />
                     <p className="text-xs text-purple-600 mt-1">
@@ -542,10 +542,10 @@ export default function AdminCampaignEdit() {
                   <div className="bg-white p-4 rounded-lg border border-purple-200">
                     <div className="text-sm text-gray-600 mb-1">총 크리에이터 비용</div>
                     <div className="text-2xl font-bold text-purple-900">
-                      {currencySymbols[region]}{((campaign.reward_amount || 0) * (campaign.max_participants || 0)).toLocaleString()}
+                      {currencySymbols[region]}{((campaign.reward_points * 0.6 || 0) * (campaign.max_participants || 0)).toLocaleString()}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      {campaign.reward_amount?.toLocaleString() || 0} × {campaign.max_participants || 0}명
+                      {(campaign.reward_points * 0.6)?.toLocaleString() || 0} × {campaign.max_participants || 0}명
                     </p>
                   </div>
                 </CardContent>
