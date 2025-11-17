@@ -531,7 +531,13 @@ export default function MyCampaigns() {
                     return matchesRegion && matchesStatus
                   })
                   .map((campaign) => {
-                  const packagePrice = getPackagePrice(campaign.package_type)
+                  // 4주 챌린지는 60만원 고정, 나머지는 패키지 가격 사용
+                  let packagePrice
+                  if (campaign.campaign_type === '4week_challenge' || campaign.campaign_type === '4week') {
+                    packagePrice = 600000
+                  } else {
+                    packagePrice = getPackagePrice(campaign.package_type)
+                  }
                   const totalCost = packagePrice * (campaign.total_slots || 0)
                   const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
                   const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
