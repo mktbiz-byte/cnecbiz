@@ -239,7 +239,16 @@ const OrderConfirmation = () => {
       <div className="container mx-auto p-6 max-w-4xl">
       <Button
         variant="ghost"
-        onClick={() => navigate(`/company/campaigns/${id}/review`)}
+        onClick={() => {
+          // 캠페인 타입에 따라 다른 페이지로 이동
+          if (campaign?.campaign_type === 'oliveyoung') {
+            navigate(`/company/campaigns/${id}/guide/oliveyoung/preview`)
+          } else if (campaign?.campaign_type === '4week') {
+            navigate(`/company/campaigns/guide/4week?id=${id}`)
+          } else {
+            navigate(`/company/campaigns/${id}/review`)
+          }
+        }}
         className="mb-4"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
