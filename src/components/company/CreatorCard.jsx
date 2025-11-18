@@ -14,9 +14,25 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
     virtual_selected,
     main_channel: savedMainChannel,
     skin_type,
-    answers,
+    answer_1,
+    answer_2,
+    answer_3,
+    answer_4,
     additional_info
   } = application
+
+  // 피부타입 한글 변환
+  const skinTypeMap = {
+    'dry': '건성',
+    'oily': '지성',
+    'combination': '복합성',
+    'sensitive': '민감성',
+    'normal': '중성'
+  }
+  const skinTypeKorean = skinTypeMap[skin_type?.toLowerCase()] || skin_type
+
+  // 질문 답변 배열
+  const answers = [answer_1, answer_2, answer_3, answer_4].filter(a => a && a.trim())
 
   // 로컬 상태로 메인 채널 관리
   const [selectedChannel, setSelectedChannel] = useState(savedMainChannel || '')
@@ -149,34 +165,23 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
             <label className="block text-sm font-semibold mb-1 text-gray-700">
               피부타입
             </label>
-            <p className="text-sm text-gray-800">{skin_type}</p>
+            <p className="text-sm text-gray-800">{skinTypeKorean}</p>
           </div>
         )}
 
         {/* 질문 답변 */}
-        {answers && (
+        {answers.length > 0 && (
           <div className="mb-4 p-3 bg-green-50 rounded-lg">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
               캐페인 질문 답변
             </label>
-            <div className="space-y-2">
-              {typeof answers === 'string' ? (
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{answers}</p>
-              ) : Array.isArray(answers) ? (
-                answers.map((answer, index) => (
-                  <div key={index} className="text-sm">
-                    <span className="font-medium text-gray-700">Q{index + 1}:</span>
-                    <p className="text-gray-800 mt-1">{answer}</p>
-                  </div>
-                ))
-              ) : (
-                Object.entries(answers).map(([key, value], index) => (
-                  <div key={key} className="text-sm">
-                    <span className="font-medium text-gray-700">Q{index + 1}:</span>
-                    <p className="text-gray-800 mt-1">{value}</p>
-                  </div>
-                ))
-              )}
+            <div className="space-y-3">
+              {answers.map((answer, index) => (
+                <div key={index} className="text-sm">
+                  <span className="font-medium text-gray-700">Q{index + 1}:</span>
+                  <p className="text-gray-800 mt-1 whitespace-pre-wrap">{answer}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
