@@ -50,9 +50,15 @@ export default function CampaignDetail() {
     fetchCampaignDetail()
     fetchParticipants()
     fetchApplications()
-    fetchAIRecommendations()
-    fetchCnecPlusRecommendations()
   }, [id])
+  
+  // AI 추천은 campaign이 로드된 후에 실행
+  useEffect(() => {
+    if (campaign) {
+      fetchAIRecommendations()
+      fetchCnecPlusRecommendations()
+    }
+  }, [campaign])
 
   const checkIfAdmin = async () => {
     try {
@@ -289,11 +295,12 @@ export default function CampaignDetail() {
           console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
           if (app.user_id) {
             try {
-              const { data: profile, error: profileError } = await supabase
+              const { data: profiles, error: profileError } = await supabase
                 .from('user_profiles')
                 .select('profile_photo_url, profile_image_url, avatar_url, instagram_followers, youtube_subscribers, tiktok_followers')
                 .eq('id', app.user_id)
-                .maybeSingle()
+              
+              const profile = profiles && profiles.length > 0 ? profiles[0] : null
               
               console.log('Profile data for', app.applicant_name, ':', profile)
               if (profileError) console.error('Profile fetch error:', profileError)
