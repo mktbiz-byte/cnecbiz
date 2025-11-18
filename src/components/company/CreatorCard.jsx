@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -65,137 +65,97 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-      <CardContent className="p-4">
-        {/* 프로필 이미지 */}
-        <div className="relative mb-4">
-          <div className="aspect-[3/2] bg-gray-200 rounded-lg overflow-hidden">
-            {application.profile_photo_url ? (
-              <img
-                src={application.profile_photo_url}
-                alt={applicant_name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <User className="w-16 h-16 text-gray-400" />
-              </div>
-            )}
-          </div>
-          
-          {/* 크넥 추천 배지 */}
-          {isRecommended && (
-            <Badge className="absolute top-2 left-2 bg-red-500 text-white">
-              크넥 추천
-            </Badge>
-          )}
-          
-          {/* 작은 프로필 사진 */}
-          <div className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-white border-2 border-white overflow-hidden">
-            {application.profile_photo_url ? (
-              <img
-                src={application.profile_photo_url}
-                alt={applicant_name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                <User className="w-6 h-6 text-gray-400" />
-              </div>
-            )}
-          </div>
-        </div>
+      <CardContent className="p-3">
+        {/* 크넥 추천 배지 */}
+        {isRecommended && (
+          <Badge className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5">
+            크넥 추천
+          </Badge>
+        )}
 
-        {/* 이름 및 나이 */}
-        <h3 className="text-lg font-bold mb-1">
-          {applicant_name} ({age}세)
-        </h3>
-
-        {/* 지원한 채널 및 팔로워 */}
-        <div className="space-y-2 mb-4">
-          {appliedChannels.map(channel => (
-            <div key={channel.name} className="flex items-center justify-between text-sm">
-              <span className="font-medium">{channel.label}</span>
-              <span className="text-gray-600">{channel.followers.toLocaleString()}명</span>
-            </div>
-          ))}
-        </div>
-
-        {/* 메인 채널 선택 */}
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <label className="block text-sm font-semibold mb-2 text-gray-700">
-            메인 채널 선택 (1개만)
-          </label>
-          <div className="space-y-2">
-            {appliedChannels.map(channel => (
-              <label key={channel.name} className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name={`main-channel-${application.id}`}
-                  value={channel.name}
-                  checked={selectedChannel === channel.name}
-                  onChange={(e) => setSelectedChannel(e.target.value)}
-                  className="w-4 h-4 text-purple-600"
+        {/* 프로필 정보 - 컴팩트 레이아웃 */}
+        <div className="flex gap-3 mb-3">
+          {/* 프로필 이미지 - 작게 */}
+          <div className="relative flex-shrink-0">
+            <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden">
+              {application.profile_photo_url ? (
+                <img
+                  src={application.profile_photo_url}
+                  alt={applicant_name}
+                  className="w-full h-full object-cover"
                 />
-                <span className="text-sm">
-                  {channel.label} ({channel.followers.toLocaleString()}명)
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 기본 정보 */}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-bold text-gray-900 truncate">{applicant_name} ({age}세)</h3>
+            <div className="flex items-center gap-1 text-xs text-gray-600 mt-0.5">
+              {appliedChannels.map(channel => (
+                <span key={channel.name} className="truncate">
+                  {channel.label} {channel.followers.toLocaleString()}명
                 </span>
-              </label>
-            ))}
+              )).reduce((prev, curr) => [prev, ' • ', curr])}
+            </div>
+            {skinTypeKorean && (
+              <div className="text-xs text-gray-600 mt-0.5">피부: {skinTypeKorean}</div>
+            )}
           </div>
         </div>
 
-        {/* 지원한 채널 링크 버튼 */}
-        <div className="space-y-2 mb-4">
-          {appliedChannels.map(channel => (
-            <Button
-              key={channel.name}
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => window.open(channel.url, '_blank')}
-            >
-              {channel.label}
-            </Button>
-          ))}
-        </div>
-
-        {/* 피부타입 */}
-        {skin_type && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-            <label className="block text-sm font-semibold mb-1 text-gray-700">
-              피부타입
+        {/* 메인 채널 선택 - 컴팩트 */}
+        {appliedChannels.length > 0 && (
+          <div className="mb-2">
+            <label className="block text-xs font-semibold mb-1 text-gray-700">
+              메인 채널 선택 (1개)
             </label>
-            <p className="text-sm text-gray-800">{skinTypeKorean}</p>
+            <div className="space-y-1">
+              {appliedChannels.map(channel => (
+                <label key={channel.name} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
+                  <input
+                    type="radio"
+                    name={`channel-${application.id}`}
+                    value={channel.name}
+                    checked={selectedChannel === channel.name}
+                    onChange={(e) => setSelectedChannel(e.target.value)}
+                    className="w-3 h-3"
+                  />
+                  <span className="flex-1 truncate">
+                    {channel.label} ({channel.followers.toLocaleString()}명)
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* 질문 답변 */}
+        {/* 질문 답변 - 팝업 모달 */}
         {answers.length > 0 && (
-          <div className="mb-4 p-3 bg-green-50 rounded-lg relative cursor-pointer group">
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
-              캐페인 질문 답변
+          <div className="mb-2 p-2 bg-green-50 rounded relative cursor-pointer group">
+            <label className="block text-xs font-semibold mb-1 text-gray-700">
+              캠페인 질문 답변
             </label>
-            <div className="space-y-2 max-h-16 overflow-hidden">
-              {answers.map((answer, index) => (
-                <div key={index} className="text-sm">
-                  <span className="font-medium text-gray-700">Q{index + 1}:</span>
-                  <p className="text-gray-800 mt-1 whitespace-pre-wrap line-clamp-2">{answer}</p>
-                </div>
-              ))}
+            <div className="text-xs text-gray-800 line-clamp-1">
+              {answers[0].substring(0, 30)}...
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-[10px] text-gray-500 mt-0.5">
               마우스를 올려 전체 보기
             </div>
             {/* 팝업 모달 */}
-            <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-md p-4 bg-white border-2 border-green-500 rounded-lg shadow-2xl">
-              <label className="block text-sm font-semibold mb-3 text-gray-700">
-                캐페인 질문 답변
+            <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-md p-3 bg-white border-2 border-green-500 rounded-lg shadow-2xl">
+              <label className="block text-xs font-semibold mb-2 text-gray-700">
+                캠페인 질문 답변
               </label>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-96 overflow-y-auto">
                 {answers.map((answer, index) => (
-                  <div key={index} className="text-sm pb-3 border-b border-gray-200 last:border-0">
+                  <div key={index} className="text-xs pb-2 border-b border-gray-200 last:border-0">
                     <span className="font-medium text-gray-700">Q{index + 1}:</span>
-                    <p className="text-gray-800 mt-1 whitespace-pre-wrap">{answer}</p>
+                    <p className="text-gray-800 mt-0.5 whitespace-pre-wrap">{answer}</p>
                   </div>
                 ))}
               </div>
@@ -203,63 +163,59 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
           </div>
         )}
 
-        {/* 지원자 한마디 */}
+        {/* 지원자 한마디 - 팝업 모달 */}
         {additional_info && (
-          <div className="mb-4 p-3 bg-yellow-50 rounded-lg relative cursor-pointer group">
-            <label className="block text-sm font-semibold mb-1 text-gray-700">
+          <div className="mb-2 p-2 bg-yellow-50 rounded relative cursor-pointer group">
+            <label className="block text-xs font-semibold mb-1 text-gray-700">
               지원자 한마디
             </label>
-            <p className="text-sm text-gray-800 whitespace-pre-wrap max-h-12 overflow-hidden line-clamp-2">
-              {additional_info}
+            <p className="text-xs text-gray-800 line-clamp-1">
+              {additional_info.substring(0, 30)}...
             </p>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-[10px] text-gray-500 mt-0.5">
               마우스를 올려 전체 보기
             </div>
             {/* 팝업 모달 */}
-            <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-md p-4 bg-white border-2 border-yellow-500 rounded-lg shadow-2xl">
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
+            <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-md p-3 bg-white border-2 border-yellow-500 rounded-lg shadow-2xl">
+              <label className="block text-xs font-semibold mb-2 text-gray-700">
                 지원자 한마디
               </label>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap max-h-96 overflow-y-auto">
+              <p className="text-xs text-gray-800 whitespace-pre-wrap max-h-96 overflow-y-auto">
                 {additional_info}
               </p>
             </div>
           </div>
         )}
 
-        {/* 액션 버튼 */}
-        <div className="space-y-2">
+        {/* 액션 버튼 - 컴팩트 */}
+        <div className="space-y-1.5">
           {!virtual_selected && (
             <Button
-              variant="default"
-              size="sm"
-              className="w-full bg-black hover:bg-gray-800 text-white font-bold"
               onClick={handleVirtualSelect}
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-7"
             >
-              가상선정 하기
+              가상선정 취소
             </Button>
           )}
-          
           {virtual_selected && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full border-red-500 text-red-500 hover:bg-red-50"
-                onClick={() => onVirtualSelect(application.id, false, null)}
-              >
-                가상선정 취소
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                onClick={handleConfirm}
-              >
-                크리에이터 확정
-              </Button>
-            </>
+            <Button
+              onClick={handleVirtualSelect}
+              variant="outline"
+              size="sm"
+              className="w-full border-red-300 text-red-600 hover:bg-red-50 text-xs h-7"
+            >
+              가상선정 취소
+            </Button>
           )}
+          <Button
+            onClick={handleConfirm}
+            size="sm"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
+          >
+            크리에이터 확정
+          </Button>
         </div>
       </CardContent>
     </Card>
