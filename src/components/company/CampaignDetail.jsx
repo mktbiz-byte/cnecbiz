@@ -17,6 +17,7 @@ import {
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
 import { sendCampaignSelectedNotification } from '../../services/notifications/creatorNotifications'
+import { getAIRecommendations } from '../../services/aiRecommendation'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -24,9 +25,10 @@ export default function CampaignDetail() {
   const [searchParams] = useSearchParams()
   const region = searchParams.get('region') || 'korea'
   const supabase = region === 'japan' ? getSupabaseClient('japan') : supabaseKorea
-  const [campaign, setCampaign] = useState(null)
-  const [participants, setParticipants] = useState([])
   const [applications, setApplications] = useState([])
+  const [participants, setParticipants] = useState([])
+  const [aiRecommendations, setAiRecommendations] = useState([])
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
   const [selectedParticipants, setSelectedParticipants] = useState([])
@@ -94,6 +96,39 @@ export default function CampaignDetail() {
       setParticipants(data || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
+    }
+  }
+
+  // AI 추천 로드
+  const loadAIRecommendations = async () => {
+    if (!campaign) return
+    
+    setLoadingRecommendations(true)
+    try {
+      // 지원자 목록을 추천 후보로 사용
+      const availableCreators = applications.map(app => ({
+        id: app.user_id,
+        user_id: app.user_id,
+        name: app.applicant_name,
+        applicant_name: app.applicant_name,
+        age: app.age,
+        gender: app.gender,
+        instagram_followers: app.instagram_followers || 0,
+        youtube_subscribers: app.youtube_subscribers || 0,
+        tiktok_followers: app.tiktok_followers || 0,
+        main_channel: app.main_channel,
+        skin_type: app.skin_type,
+        past_campaigns: 0,
+        average_rating: 0
+      }))
+
+      const recommendations = await getAIRecommendations(campaign, availableCreators)
+      setAiRecommendations(recommendations)
+    } catch (error) {
+      console.error('AI 추천 오류:', error)
+      alert('AI 추천 중 오류가 발생했습니다.')
+    } finally {
+      setLoadingRecommendations(false)
     }
   }
 
@@ -1048,10 +1083,66 @@ export default function CampaignDetail() {
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12 text-gray-500">
-                  <p>AI 추천 기능은 공사 중입니다.</p>
-                  <p className="text-sm mt-2">캠페인 정보와 크리에이터 프로필을 분석하여 추천합니다.</p>
-                </div>
+                {loadingRecommendations ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">AI가 최적의 크리에이터를 분석 중입니다...</p>
+                  </div>
+                ) : aiRecommendations.length > 0 ? (
+                  <div className="space-y-4">
+                    {aiRecommendations.map((rec, index) => (
+                      <div key={rec.id || index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-2xl font-bold text-blue-600">#{index + 1}</span>
+                              <div>
+                                <h3 className="font-semibold text-lg">{rec.name || rec.applicant_name}</h3>
+                                <p className="text-sm text-gray-600">{rec.main_channel || '플랫폼 정보 없음'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                              {rec.instagram_followers > 0 && (
+                                <span>📷 Instagram: {rec.instagram_followers.toLocaleString()}</span>
+                              )}
+                              {rec.youtube_subscribers > 0 && (
+                                <span>🎥 YouTube: {rec.youtube_subscribers.toLocaleString()}</span>
+                              )}
+                              {rec.tiktok_followers > 0 && (
+                                <span>🎵 TikTok: {rec.tiktok_followers.toLocaleString()}</span>
+                              )}
+                            </div>
+                            <div className="bg-blue-50 rounded p-3">
+                              <p className="text-sm text-blue-900">
+                                <span className="font-semibold">추천 이유:</span> {rec.recommendation_reason}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="ml-4 text-center">
+                            <div className="bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center">
+                              <div>
+                                <div className="text-2xl font-bold">{rec.recommendation_score}</div>
+                                <div className="text-xs">점</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Button 
+                      onClick={loadAIRecommendations}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      AI 추천 시작하기
+                    </Button>
+                    <p className="text-sm text-gray-600 mt-4">
+                      캠페인 특성을 분석하여 최적의 크리에이터 10명을 추천합니다.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
