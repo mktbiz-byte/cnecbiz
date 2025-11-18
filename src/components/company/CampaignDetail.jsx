@@ -118,7 +118,7 @@ export default function CampaignDetail() {
                 .from('user_profiles')
                 .select('profile_photo_url, profile_image_url, instagram_followers, youtube_subscribers, tiktok_followers')
                 .eq('id', app.user_id)
-                .single()
+                .maybeSingle()
               
               console.log('Profile data for', app.applicant_name, ':', profile)
               if (profileError) console.error('Profile fetch error:', profileError)
@@ -1087,7 +1087,7 @@ export default function CampaignDetail() {
                               .from('user_profiles')
                               .select('email, phone')
                               .eq('id', app.user_id)
-                              .single()
+                              .maybeSingle()
 
                             if (profile) {
                               // 카카오 알림톡
@@ -1196,7 +1196,7 @@ export default function CampaignDetail() {
                               .from('user_profiles')
                               .select('email, phone')
                               .eq('id', app.user_id)
-                              .single()
+                              .maybeSingle()
 
                             if (profile) {
                               // 카카오 알림톡
