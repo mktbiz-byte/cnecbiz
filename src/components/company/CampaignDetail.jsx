@@ -17,7 +17,7 @@ import {
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
 import { sendCampaignSelectedNotification } from '../../services/notifications/creatorNotifications'
-import { getAIRecommendations } from '../../services/aiRecommendation'
+import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -43,6 +43,7 @@ export default function CampaignDetail() {
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const [revisionComment, setRevisionComment] = useState('')
+  const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
 
   useEffect(() => {
     checkIfAdmin()
@@ -129,6 +130,76 @@ export default function CampaignDetail() {
         .limit(10)
 
       if (error) throw error
+      
+      // AI 추천이 없고, 생성 중이 아니며, 캠페인 정보가 있으면 자동 생성
+      if ((!recommendations || recommendations.length === 0) && !isGeneratingRecommendations && campaign) {
+        console.log('[CampaignDetail] No AI recommendations found, auto-generating...')
+        setIsGeneratingRecommendations(true)
+        try {
+          await generateAIRecommendations(id, campaign, region)
+          console.log('[CampaignDetail] AI recommendations generated, reloading...')
+          // 생성 후 다시 로드
+          const { data: newRecommendations } = await supabase
+            .from('campaign_recommendations')
+            .select(`
+              *,
+              user_profiles (
+                id,
+                name,
+                profile_photo_url,
+                instagram_followers,
+                youtube_subscribers,
+                tiktok_followers,
+                instagram_url,
+                youtube_url,
+                tiktok_url
+              )
+            `)
+            .eq('campaign_id', id)
+            .order('recommendation_score', { ascending: false })
+            .limit(10)
+          
+          if (newRecommendations && newRecommendations.length > 0) {
+            const enrichedRecommendations = newRecommendations.map(rec => {
+              const instagramFollowers = rec.user_profiles?.instagram_followers || 0
+              const youtubeSubscribers = rec.user_profiles?.youtube_subscribers || 0
+              const tiktokFollowers = rec.user_profiles?.tiktok_followers || 0
+              
+              let mainChannel = '플랫폼 정보 없음'
+              const maxFollowers = Math.max(instagramFollowers, youtubeSubscribers, tiktokFollowers)
+              
+              if (maxFollowers > 0) {
+                if (maxFollowers === instagramFollowers) mainChannel = `인스타그램 ${instagramFollowers.toLocaleString()}`
+                else if (maxFollowers === youtubeSubscribers) mainChannel = `유튜브 ${youtubeSubscribers.toLocaleString()}`
+                else if (maxFollowers === tiktokFollowers) mainChannel = `틱톡 ${tiktokFollowers.toLocaleString()}`
+              }
+              
+              return {
+                ...rec,
+                name: rec.user_profiles?.name || '이름 없음',
+                profile_photo_url: rec.user_profiles?.profile_photo_url || 
+                                  rec.user_profiles?.profile_image_url || 
+                                  rec.user_profiles?.avatar_url,
+                instagram_followers: instagramFollowers,
+                youtube_subscribers: youtubeSubscribers,
+                tiktok_followers: tiktokFollowers,
+                instagram_url: rec.user_profiles?.instagram_url,
+                youtube_url: rec.user_profiles?.youtube_url,
+                tiktok_url: rec.user_profiles?.tiktok_url,
+                main_channel: mainChannel
+              }
+            })
+            setAiRecommendations(enrichedRecommendations)
+            console.log('[CampaignDetail] Loaded newly generated AI recommendations:', enrichedRecommendations.length)
+            setLoadingRecommendations(false)
+            return
+          }
+        } catch (genError) {
+          console.error('[CampaignDetail] Error auto-generating recommendations:', genError)
+        } finally {
+          setIsGeneratingRecommendations(false)
+        }
+      }
       
       // 프로필 정보와 추천 정보 병합
       const enrichedRecommendations = (recommendations || []).map(rec => {
