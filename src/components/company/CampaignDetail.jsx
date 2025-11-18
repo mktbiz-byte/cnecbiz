@@ -100,12 +100,33 @@ export default function CampaignDetail() {
     try {
       const { data, error } = await supabase
         .from('applications')
-        .select('*')
+        .select(`
+          *,
+          user_profiles (
+            profile_photo_url,
+            profile_image_url,
+            instagram_followers,
+            youtube_subscribers,
+            tiktok_followers,
+            rating
+          )
+        `)
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setApplications(data || [])
+      
+      // user_profiles 데이터를 application 객체에 병합
+      const mergedData = data?.map(app => ({
+        ...app,
+        profile_photo_url: app.user_profiles?.profile_photo_url || app.user_profiles?.profile_image_url,
+        instagram_followers: app.user_profiles?.instagram_followers || app.instagram_followers || 0,
+        youtube_subscribers: app.user_profiles?.youtube_subscribers || app.youtube_subscribers || 0,
+        tiktok_followers: app.user_profiles?.tiktok_followers || app.tiktok_followers || 0,
+        rating: app.user_profiles?.rating || 0
+      })) || []
+      
+      setApplications(mergedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
     }

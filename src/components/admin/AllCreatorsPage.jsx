@@ -130,6 +130,24 @@ export default function AllCreatorsPage() {
     )
   }
 
+  const handleRatingChange = async (creatorId, newRating) => {
+    try {
+      const { error } = await supabaseBiz
+        .from('user_profiles')
+        .update({ rating: newRating })
+        .eq('id', creatorId)
+
+      if (error) throw error
+      
+      // 데이터 새로고침
+      await fetchAllCreators()
+      alert('별점이 업데이트되었습니다.')
+    } catch (error) {
+      console.error('별점 업데이트 오류:', error)
+      alert('별점 업데이트에 실패했습니다.')
+    }
+  }
+
   const CreatorTable = ({ creators, region }) => {
     const filtered = filterCreators(creators)
 
@@ -143,6 +161,7 @@ export default function AllCreatorsPage() {
               <th className="text-left p-4">채널명</th>
               <th className="text-left p-4">구독자</th>
               <th className="text-left p-4">상태</th>
+              {region === 'korea' && <th className="text-left p-4">별점</th>}
               {region === 'all' && <th className="text-left p-4">지역</th>}
               <th className="text-left p-4">가입일</th>
             </tr>
@@ -157,6 +176,26 @@ export default function AllCreatorsPage() {
                   {creator.followers ? Number(creator.followers).toLocaleString() : '-'}
                 </td>
                 <td className="p-4">{getStatusBadge(creator.approval_status)}</td>
+                {region === 'korea' && (
+                  <td className="p-4">
+                    <select
+                      value={creator.rating || 0}
+                      onChange={(e) => handleRatingChange(creator.id, parseFloat(e.target.value))}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="0">0.0</option>
+                      <option value="1.0">1.0</option>
+                      <option value="1.5">1.5</option>
+                      <option value="2.0">2.0</option>
+                      <option value="2.5">2.5</option>
+                      <option value="3.0">3.0</option>
+                      <option value="3.5">3.5</option>
+                      <option value="4.0">4.0</option>
+                      <option value="4.5">4.5</option>
+                      <option value="5.0">5.0</option>
+                    </select>
+                  </td>
+                )}
                 {region === 'all' && (
                   <td className="p-4">
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">

@@ -24,8 +24,8 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
   if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: youtube_url, followers: application.youtube_subscribers || 0 })
   if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: tiktok_url, followers: application.tiktok_followers || 0 })
 
-  // 평균 별점 (임시로 4.5 고정, 나중에 실제 데이터 연동)
-  const averageRating = 4.5
+  // 평균 별점 (user_profiles에서 가져온 rating 사용)
+  const averageRating = application.rating || 0
   const isRecommended = averageRating >= 4.5
 
   const handleVirtualSelect = () => {
@@ -63,10 +63,10 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
             )}
           </div>
           
-          {/* 클로즈업 추천 배지 */}
+          {/* 크넥 추천 배지 */}
           {isRecommended && (
             <Badge className="absolute top-2 left-2 bg-red-500 text-white">
-              클로즈업 추천
+              크넥 추천
             </Badge>
           )}
           
