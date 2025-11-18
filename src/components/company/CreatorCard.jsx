@@ -171,11 +171,11 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
 
         {/* 질문 답변 */}
         {answers.length > 0 && (
-          <div className="mb-4 p-3 bg-green-50 rounded-lg">
+          <div className="mb-4 p-3 bg-green-50 rounded-lg group relative cursor-pointer hover:shadow-md transition-all">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
               캐페인 질문 답변
             </label>
-            <div className="space-y-3">
+            <div className="space-y-2 max-h-20 overflow-hidden group-hover:max-h-none group-hover:overflow-visible transition-all duration-300">
               {answers.map((answer, index) => (
                 <div key={index} className="text-sm">
                   <span className="font-medium text-gray-700">Q{index + 1}:</span>
@@ -183,16 +183,24 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
                 </div>
               ))}
             </div>
+            <div className="text-xs text-gray-500 mt-1 group-hover:hidden">
+              마우스를 올려 전체 보기
+            </div>
           </div>
         )}
 
-        {/* 추가 정보 */}
+        {/* 지원자 한마디 */}
         {additional_info && (
-          <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+          <div className="mb-4 p-3 bg-yellow-50 rounded-lg group relative cursor-pointer hover:shadow-md transition-all">
             <label className="block text-sm font-semibold mb-1 text-gray-700">
-              추가 정보/특이사항
+              지원자 한마디
             </label>
-            <p className="text-sm text-gray-800 whitespace-pre-wrap">{additional_info}</p>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap max-h-12 overflow-hidden group-hover:max-h-none group-hover:overflow-visible transition-all duration-300">
+              {additional_info}
+            </p>
+            <div className="text-xs text-gray-500 mt-1 group-hover:hidden">
+              마우스를 올려 전체 보기
+            </div>
           </div>
         )}
 

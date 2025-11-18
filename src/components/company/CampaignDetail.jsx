@@ -109,16 +109,20 @@ export default function CampaignDetail() {
       // user_id가 있는 경우 user_profiles에서 추가 정보 가져오기
       const enrichedData = await Promise.all(
         (data || []).map(async (app) => {
+          console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
           if (app.user_id) {
             try {
-              const { data: profile } = await supabase
+              const { data: profile, error: profileError } = await supabase
                 .from('user_profiles')
                 .select('profile_photo_url, profile_image_url, instagram_followers, youtube_subscribers, tiktok_followers, rating')
                 .eq('id', app.user_id)
                 .single()
               
+              console.log('Profile data for', app.applicant_name, ':', profile)
+              if (profileError) console.error('Profile fetch error:', profileError)
+              
               if (profile) {
-                return {
+                const enriched = {
                   ...app,
                   profile_photo_url: profile.profile_photo_url || profile.profile_image_url,
                   instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
@@ -126,11 +130,14 @@ export default function CampaignDetail() {
                   tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0,
                   rating: profile.rating || 0
                 }
+                console.log('Enriched data:', enriched.applicant_name, 'YT:', enriched.youtube_subscribers, 'IG:', enriched.instagram_followers)
+                return enriched
               }
             } catch (err) {
               console.error('Error fetching profile for user:', app.user_id, err)
             }
           }
+          console.log('Returning original app data for:', app.applicant_name)
           return app
         })
       )
