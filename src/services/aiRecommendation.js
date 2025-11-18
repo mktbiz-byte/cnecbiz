@@ -293,6 +293,78 @@ function generateBasicReason(creator, score) {
 }
 
 /**
+ * 캠페인 생성 시 자동으로 AI 추천 생성
+ * @param {string} campaignId - 캠페인 ID
+ * @param {Object} campaignData - 캠페인 데이터
+ * @param {string} dbType - 'korea' 또는 'japan'
+ */
+export async function generateAIRecommendations(campaignId, campaignData, dbType = 'korea') {
+  try {
+    console.log(`[AI Recommendation] Generating recommendations for campaign ${campaignId}...`)
+    
+    // 사용할 Supabase 클라이언트 선택
+    const supabase = dbType === 'korea' ? supabaseKorea : supabaseBiz
+    
+    // 1. 모든 크리에이터 프로필 가져오기 (추천 후보)
+    const { data: allCreators, error: creatorsError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100) // 최대 100명의 크리에이터 중에서 추천
+    
+    if (creatorsError) {
+      console.error('[AI Recommendation] Error fetching creators:', creatorsError)
+      throw creatorsError
+    }
+    
+    if (!allCreators || allCreators.length === 0) {
+      console.warn('[AI Recommendation] No creators found in database')
+      return
+    }
+    
+    console.log(`[AI Recommendation] Found ${allCreators.length} creators for recommendation`)
+    
+    // 2. Gemini API로 추천 생성
+    const recommendations = await generateRecommendationsWithGemini(
+      { ...campaignData, id: campaignId },
+      allCreators
+    )
+    
+    if (!recommendations || recommendations.length === 0) {
+      console.warn('[AI Recommendation] No recommendations generated')
+      return
+    }
+    
+    console.log(`[AI Recommendation] Generated ${recommendations.length} recommendations`)
+    
+    // 3. campaign_recommendations 테이블에 저장
+    const recommendationsToSave = recommendations.map(rec => ({
+      campaign_id: campaignId,
+      user_id: rec.id || rec.user_id,
+      recommendation_score: rec.recommendation_score || 0,
+      recommendation_reason: rec.recommendation_reason || '캠페인 적합도 우수',
+      created_at: new Date().toISOString()
+    }))
+    
+    const { error: insertError } = await supabase
+      .from('campaign_recommendations')
+      .insert(recommendationsToSave)
+    
+    if (insertError) {
+      console.error('[AI Recommendation] Error saving recommendations:', insertError)
+      throw insertError
+    }
+    
+    console.log(`[AI Recommendation] Successfully saved ${recommendationsToSave.length} recommendations`)
+    return recommendations
+    
+  } catch (error) {
+    console.error('[AI Recommendation] Error in generateAIRecommendations:', error)
+    throw error
+  }
+}
+
+/**
  * 추천 결과 새로고침 (수동)
  */
 export async function refreshRecommendations(campaignId) {

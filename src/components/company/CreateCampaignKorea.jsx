@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import { generateAIRecommendations } from '../../services/aiRecommendation'
 
 const supabaseKorea = getSupabaseClient('korea')
 import { Button } from '../ui/button'
@@ -495,6 +496,16 @@ const CampaignCreationKorea = () => {
 
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
+
+        // AI 추천 크리에이터 자동 생성
+        try {
+          console.log('[CreateCampaign] Generating AI recommendations...')
+          await generateAIRecommendations(campaignId, insertData, 'korea')
+          console.log('[CreateCampaign] AI recommendations generated successfully')
+        } catch (aiError) {
+          console.warn('[CreateCampaign] Failed to generate AI recommendations:', aiError)
+          // AI 추천 실패해도 캠페인 생성은 계속 진행
+        }
 
         // supabaseBiz에도 동일한 데이터 저장 (reward_amount 필드로)
         try {

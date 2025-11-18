@@ -29,7 +29,9 @@ export default function CampaignDetail() {
   const [applications, setApplications] = useState([])
   const [participants, setParticipants] = useState([])
   const [aiRecommendations, setAiRecommendations] = useState([])
+  const [cnecPlusRecommendations, setCnecPlusRecommendations] = useState([])
   const [loadingRecommendations, setLoadingRecommendations] = useState(false)
+  const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
   const [selectedParticipants, setSelectedParticipants] = useState([])
@@ -47,6 +49,8 @@ export default function CampaignDetail() {
     fetchCampaignDetail()
     fetchParticipants()
     fetchApplications()
+    fetchAIRecommendations()
+    fetchCnecPlusRecommendations()
   }, [id])
 
   const checkIfAdmin = async () => {
@@ -100,36 +104,84 @@ export default function CampaignDetail() {
     }
   }
 
-  // AI 추천 로드
-  const loadAIRecommendations = async () => {
-    if (!campaign) return
-    
+  // AI 추천 크리에이터 로드 (DB에서)
+  const fetchAIRecommendations = async () => {
     setLoadingRecommendations(true)
     try {
-      // 지원자 목록을 추천 후보로 사용
-      const availableCreators = applications.map(app => ({
-        id: app.user_id,
-        user_id: app.user_id,
-        name: app.applicant_name,
-        applicant_name: app.applicant_name,
-        age: app.age,
-        gender: app.gender,
-        instagram_followers: app.instagram_followers || 0,
-        youtube_subscribers: app.youtube_subscribers || 0,
-        tiktok_followers: app.tiktok_followers || 0,
-        main_channel: app.main_channel,
-        skin_type: app.skin_type,
-        past_campaigns: 0,
-        average_rating: 0
-      }))
+      const { data: recommendations, error } = await supabase
+        .from('campaign_recommendations')
+        .select(`
+          *,
+          user_profiles (
+            id,
+            name,
+            profile_photo_url,
+            instagram_followers,
+            youtube_subscribers,
+            tiktok_followers,
+            instagram_url,
+            youtube_url,
+            tiktok_url,
+            main_channel
+          )
+        `)
+        .eq('campaign_id', id)
+        .order('recommendation_score', { ascending: false })
+        .limit(10)
 
-      const recommendations = await getAIRecommendations(campaign, availableCreators)
-      setAiRecommendations(recommendations)
+      if (error) throw error
+      
+      // 프로필 정보와 추천 정보 병합
+      const enrichedRecommendations = (recommendations || []).map(rec => ({
+        ...rec,
+        name: rec.user_profiles?.name || '이름 없음',
+        profile_photo_url: rec.user_profiles?.profile_photo_url,
+        instagram_followers: rec.user_profiles?.instagram_followers || 0,
+        youtube_subscribers: rec.user_profiles?.youtube_subscribers || 0,
+        tiktok_followers: rec.user_profiles?.tiktok_followers || 0,
+        instagram_url: rec.user_profiles?.instagram_url,
+        youtube_url: rec.user_profiles?.youtube_url,
+        tiktok_url: rec.user_profiles?.tiktok_url,
+        main_channel: rec.user_profiles?.main_channel
+      }))
+      
+      setAiRecommendations(enrichedRecommendations)
+      console.log('[CampaignDetail] Loaded AI recommendations:', enrichedRecommendations.length)
     } catch (error) {
-      console.error('AI 추천 오류:', error)
-      alert('AI 추천 중 오류가 발생했습니다.')
+      console.error('AI 추천 로드 오류:', error)
+      setAiRecommendations([])
     } finally {
       setLoadingRecommendations(false)
+    }
+  }
+
+  // 크넥 플러스 AI 추천 크리에이터 로드 (추가금 필요)
+  const fetchCnecPlusRecommendations = async () => {
+    setLoadingCnecPlus(true)
+    try {
+      // featured_creators 테이블에서 활성화된 크리에이터 가져오기
+      const { data: creators, error } = await supabase
+        .from('featured_creators')
+        .select('*')
+        .eq('is_active', true)
+        .order('rating', { ascending: false })
+        .limit(5)
+      
+      if (error) throw error
+      
+      if (!creators || creators.length === 0) {
+        console.log('[CampaignDetail] No CNEC Plus creators available')
+        setCnecPlusRecommendations([])
+        return
+      }
+      
+      setCnecPlusRecommendations(creators)
+      console.log('[CampaignDetail] Loaded CNEC Plus recommendations:', creators.length)
+    } catch (error) {
+      console.error('크넥 플러스 추천 로드 오류:', error)
+      setCnecPlusRecommendations([])
+    } finally {
+      setLoadingCnecPlus(false)
     }
   }
 
@@ -1048,13 +1100,9 @@ export default function CampaignDetail() {
         {/* Tabs */}
         <Tabs defaultValue="applications" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="recommended" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              AI 추천 크리에이터
-            </TabsTrigger>
             <TabsTrigger value="applications" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              지원한 크리에이터 ({applications.length})
+              크리에이터 관리 ({applications.length})
             </TabsTrigger>
             <TabsTrigger value="virtual" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
@@ -1074,86 +1122,99 @@ export default function CampaignDetail() {
             </TabsTrigger>
           </TabsList>
 
-          {/* AI 추천 크리에이터 탭 */}
-          <TabsContent value="recommended">
-            <Card>
-              <CardHeader>
-                <CardTitle>AI 추천 크리에이터</CardTitle>
-                <p className="text-sm text-gray-600">
-                  캠페인 특성을 분석하여 AI가 추천하는 최적의 크리에이터 10명
-                </p>
-              </CardHeader>
-              <CardContent>
-                {loadingRecommendations ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">AI가 최적의 크리에이터를 분석 중입니다...</p>
+          {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
+          <TabsContent value="applications">
+            {/* AI 추천 크리에이터 섹션 */}
+            {aiRecommendations.length > 0 && (
+              <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <span className="text-blue-600">✨</span>
+                        AI 추천 크리에이터
+                        <Badge className="bg-blue-600 text-white">{aiRecommendations.length}명</Badge>
+                      </CardTitle>
+                      <p className="text-sm text-gray-600 mt-1">
+                        캠페인 특성을 분석하여 AI가 추천하는 최적의 크리에이터
+                      </p>
+                    </div>
                   </div>
-                ) : aiRecommendations.length > 0 ? (
-                  <div className="space-y-4">
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {aiRecommendations.map((rec, index) => (
-                      <div key={rec.id || index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <span className="text-2xl font-bold text-blue-600">#{index + 1}</span>
-                              <div>
-                                <h3 className="font-semibold text-lg">{rec.name || rec.applicant_name}</h3>
-                                <p className="text-sm text-gray-600">{rec.main_channel || '플랫폼 정보 없음'}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                              {rec.instagram_followers > 0 && (
-                                <span>📷 Instagram: {rec.instagram_followers.toLocaleString()}</span>
-                              )}
-                              {rec.youtube_subscribers > 0 && (
-                                <span>🎥 YouTube: {rec.youtube_subscribers.toLocaleString()}</span>
-                              )}
-                              {rec.tiktok_followers > 0 && (
-                                <span>🎵 TikTok: {rec.tiktok_followers.toLocaleString()}</span>
-                              )}
-                            </div>
-                            <div className="bg-blue-50 rounded p-3">
-                              <p className="text-sm text-blue-900">
-                                <span className="font-semibold">추천 이유:</span> {rec.recommendation_reason}
-                              </p>
+                      <div key={rec.id || index} className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow border border-blue-200">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="relative mb-2">
+                            <img 
+                              src={rec.profile_photo_url || '/default-avatar.png'} 
+                              alt={rec.name}
+                              className="w-16 h-16 rounded-full object-cover"
+                            />
+                            <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+                              {rec.recommendation_score}
                             </div>
                           </div>
-                          <div className="ml-4 text-center">
-                            <div className="bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center">
-                              <div>
-                                <div className="text-2xl font-bold">{rec.recommendation_score}</div>
-                                <div className="text-xs">점</div>
-                              </div>
-                            </div>
+                          <h4 className="font-semibold text-sm mb-1 truncate w-full">{rec.name}</h4>
+                          <p className="text-xs text-gray-500 mb-2">{rec.main_channel || '플랫폼 정보 없음'}</p>
+                          <div className="flex flex-col gap-1 w-full">
+                            <Button 
+                              size="sm" 
+                              className="w-full text-xs bg-blue-600 hover:bg-blue-700"
+                              onClick={() => {
+                                // TODO: 캠페인 지원 요청 기능
+                                alert('캠페인 지원 요청 기능은 공사중입니다.')
+                              }}
+                            >
+                              캠페인 지원 요청하기
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="w-full text-xs"
+                              onClick={() => {
+                                // SNS 채널 보기
+                                const urls = []
+                                if (rec.instagram_url) urls.push(rec.instagram_url)
+                                if (rec.youtube_url) urls.push(rec.youtube_url)
+                                if (rec.tiktok_url) urls.push(rec.tiktok_url)
+                                
+                                if (urls.length > 0) {
+                                  window.open(urls[0], '_blank')
+                                } else {
+                                  alert('SNS 채널 정보가 없습니다.')
+                                }
+                              }}
+                            >
+                              SNS 보기
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="w-full text-xs"
+                              onClick={() => {
+                                // 모달로 상세 프로필 보기
+                                setSelectedParticipant(rec)
+                                setShowVideoModal(true)
+                              }}
+                            >
+                              상세보기
+                            </Button>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Button 
-                      onClick={loadAIRecommendations}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      AI 추천 시작하기
-                    </Button>
-                    <p className="text-sm text-gray-600 mt-4">
-                      캠페인 특성을 분석하여 최적의 크리에이터 10명을 추천합니다.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* 지원한 크리에이터 탭 */}
-          <TabsContent value="applications">
+            {/* 지원한 크리에이터 섹션 */}
             <Card>
               <CardHeader>
                 <CardTitle>지원한 크리에이터 ({applications.length}명)</CardTitle>
-                <p className="text-sm text-gray-600">캠페인에 지원한 신청자들입니다.</p>
+                <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -1235,6 +1296,100 @@ export default function CampaignDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* 크넥 플러스 AI 추천 크리에이터 섹션 */}
+            {cnecPlusRecommendations.length > 0 && (
+              <Card className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <span className="text-purple-600">🌟</span>
+                        크넥 플러스 AI 추천
+                        <Badge className="bg-purple-600 text-white">{cnecPlusRecommendations.length}명</Badge>
+                        <Badge className="bg-orange-500 text-white">추가금 필요</Badge>
+                      </CardTitle>
+                      <p className="text-sm text-gray-600 mt-1">
+                        캠페인에 최적화된 프리미엄 크리에이터 (추가 비용이 발생합니다)
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {cnecPlusRecommendations.map((rec, index) => (
+                      <div key={rec.id || index} className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow border-2 border-purple-200">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="relative mb-2">
+                            <img 
+                              src={rec.profile_photo_url || '/default-avatar.png'} 
+                              alt={rec.name}
+                              className="w-16 h-16 rounded-full object-cover"
+                            />
+                            <div className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+                              ⭐
+                            </div>
+                          </div>
+                          <h4 className="font-semibold text-sm mb-1 truncate w-full">{rec.name}</h4>
+                          <div className="text-xs text-gray-500 mb-2">
+                            {rec.instagram_followers > 0 && (
+                              <div>📷 {rec.instagram_followers.toLocaleString()}</div>
+                            )}
+                            {rec.youtube_subscribers > 0 && (
+                              <div>🎥 {rec.youtube_subscribers.toLocaleString()}</div>
+                            )}
+                            {rec.tiktok_followers > 0 && (
+                              <div>🎵 {rec.tiktok_followers.toLocaleString()}</div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1 w-full">
+                            <Button 
+                              size="sm" 
+                              className="w-full text-xs bg-purple-600 hover:bg-purple-700"
+                              onClick={() => {
+                                alert('크넥 플러스 크리에이터 캠페인 지원 요청 기능은 공사중입니다.')
+                              }}
+                            >
+                              캠페인 지원 요청하기
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              className="w-full text-xs"
+                              onClick={() => {
+                                const urls = []
+                                if (rec.instagram_url) urls.push(rec.instagram_url)
+                                if (rec.youtube_url) urls.push(rec.youtube_url)
+                                if (rec.tiktok_url) urls.push(rec.tiktok_url)
+                                
+                                if (urls.length > 0) {
+                                  window.open(urls[0], '_blank')
+                                } else {
+                                  alert('SNS 채널 정보가 없습니다.')
+                                }
+                              }}
+                            >
+                              SNS 보기
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="w-full text-xs"
+                              onClick={() => {
+                                setSelectedParticipant(rec)
+                                setShowVideoModal(true)
+                              }}
+                            >
+                              상세보기
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* 가상 선정 탭 */}
