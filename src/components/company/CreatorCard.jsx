@@ -43,9 +43,9 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
   if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: youtube_url, followers: application.youtube_subscribers || 0 })
   if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: tiktok_url, followers: application.tiktok_followers || 0 })
 
-  // 평균 별점 (user_profiles에서 가져온 rating 사용)
-  const averageRating = application.rating || 0
-  const isRecommended = averageRating >= 4.5
+  // 평균 별점 (임시로 비활성화 - rating 필드 없음)
+  const averageRating = 0
+  const isRecommended = false
 
   const handleVirtualSelect = () => {
     if (!selectedChannel && !virtual_selected) {

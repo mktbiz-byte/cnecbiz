@@ -68,6 +68,7 @@ import RevenueManagementWithCharts from './components/admin/RevenueManagementWit
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
+import FeaturedCreatorsSimple from './components/admin/FeaturedCreatorsSimple'
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
 import OurChannelReport from './components/admin/OurChannelReport'
 import CreatorReport from './components/admin/CreatorReport'
@@ -151,7 +152,7 @@ function App() {
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
-        <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
+        <Route path="/admin/featured-creators" element={<FeaturedCreatorsSimple />} />
 
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />

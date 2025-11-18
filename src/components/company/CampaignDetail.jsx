@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
+import { sendCampaignSelectionNotification } from '../../services/kakaoAlimtalk'
+import { sendCampaignSelectionEmail } from '../../services/emailService'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -114,7 +116,7 @@ export default function CampaignDetail() {
             try {
               const { data: profile, error: profileError } = await supabase
                 .from('user_profiles')
-                .select('profile_photo_url, profile_image_url, instagram_followers, youtube_subscribers, tiktok_followers, rating')
+                .select('profile_photo_url, profile_image_url, instagram_followers, youtube_subscribers, tiktok_followers')
                 .eq('id', app.user_id)
                 .single()
               
@@ -127,8 +129,7 @@ export default function CampaignDetail() {
                   profile_photo_url: profile.profile_photo_url || profile.profile_image_url,
                   instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
                   youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
-                  tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0,
-                  rating: profile.rating || 0
+                  tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0
                 }
                 console.log('Enriched data:', enriched.applicant_name, 'YT:', enriched.youtube_subscribers, 'IG:', enriched.instagram_followers)
                 return enriched
@@ -265,7 +266,10 @@ export default function CampaignDetail() {
         )
       )
 
-      alert(selected ? '가상 선정되었습니다.' : '가상 선정이 취소되었습니다.')
+      // UI 업데이트 후 alert 표시
+      setTimeout(() => {
+        alert(selected ? '가상 선정되었습니다.' : '가상 선정이 취소되었습니다.')
+      }, 100)
     } catch (error) {
       console.error('Error updating virtual selection:', error)
       alert('가상 선정 처리에 실패했습니다.')
@@ -1077,7 +1081,41 @@ export default function CampaignDetail() {
                           await fetchApplications()
                           await fetchParticipants()
 
-                          alert('확정되었습니다.')
+                          // 알림톡 및 이메일 발송
+                          try {
+                            const { data: profile } = await supabase
+                              .from('user_profiles')
+                              .select('email, phone')
+                              .eq('id', app.user_id)
+                              .single()
+
+                            if (profile) {
+                              // 카카오 알림톡
+                              if (profile.phone) {
+                                const alimtalkResult = await sendCampaignSelectionNotification({
+                                  creatorName: app.applicant_name,
+                                  phoneNumber: profile.phone,
+                                  campaignName: campaign?.title || '캐페인',
+                                  cid: `campaign_${id}_user_${app.user_id}`
+                                })
+                                console.log('Alimtalk:', alimtalkResult)
+                              }
+
+                              // 이메일
+                              if (profile.email) {
+                                const emailResult = await sendCampaignSelectionEmail({
+                                  creatorName: app.applicant_name,
+                                  creatorEmail: profile.email,
+                                  campaignName: campaign?.title || '캐페인'
+                                })
+                                console.log('Email:', emailResult)
+                              }
+                            }
+                          } catch (notificationError) {
+                            console.error('Notification error:', notificationError)
+                          }
+
+                          alert('확정되었습니다. 알림톡과 이메일이 발송되었습니다.')
                         } catch (error) {
                           console.error('Error confirming:', error)
                           alert('확정 처리에 실패했습니다.')
@@ -1152,7 +1190,41 @@ export default function CampaignDetail() {
                           await fetchApplications()
                           await fetchParticipants()
 
-                          alert('확정되었습니다.')
+                          // 알림톡 및 이메일 발송
+                          try {
+                            const { data: profile } = await supabase
+                              .from('user_profiles')
+                              .select('email, phone')
+                              .eq('id', app.user_id)
+                              .single()
+
+                            if (profile) {
+                              // 카카오 알림톡
+                              if (profile.phone) {
+                                const alimtalkResult = await sendCampaignSelectionNotification({
+                                  creatorName: app.applicant_name,
+                                  phoneNumber: profile.phone,
+                                  campaignName: campaign?.title || '캐페인',
+                                  cid: `campaign_${id}_user_${app.user_id}`
+                                })
+                                console.log('Alimtalk:', alimtalkResult)
+                              }
+
+                              // 이메일
+                              if (profile.email) {
+                                const emailResult = await sendCampaignSelectionEmail({
+                                  creatorName: app.applicant_name,
+                                  creatorEmail: profile.email,
+                                  campaignName: campaign?.title || '캐페인'
+                                })
+                                console.log('Email:', emailResult)
+                              }
+                            }
+                          } catch (notificationError) {
+                            console.error('Notification error:', notificationError)
+                          }
+
+                          alert('확정되었습니다. 알림톡과 이메일이 발송되었습니다.')
                         } catch (error) {
                           console.error('Error confirming:', error)
                           alert('확정 처리에 실패했습니다.')
@@ -1175,7 +1247,8 @@ export default function CampaignDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>참여 크리에이터 리스트</CardTitle>
-                
+              </CardHeader>
+              <CardContent>
                 {/* 플랫폼별 필터 탭 */}
                 <Tabs defaultValue="all" className="mt-4">
                   <TabsList>
@@ -1247,8 +1320,6 @@ export default function CampaignDetail() {
                     {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('tiktok')))}
                   </TabsContent>
                 </Tabs>
-              </CardHeader>
-              <CardContent>
               </CardContent>
             </Card>
           </TabsContent>
