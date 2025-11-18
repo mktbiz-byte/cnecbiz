@@ -121,8 +121,7 @@ export default function CampaignDetail() {
             tiktok_followers,
             instagram_url,
             youtube_url,
-            tiktok_url,
-            main_channel
+            tiktok_url
           )
         `)
         .eq('campaign_id', id)
@@ -132,18 +131,37 @@ export default function CampaignDetail() {
       if (error) throw error
       
       // 프로필 정보와 추천 정보 병합
-      const enrichedRecommendations = (recommendations || []).map(rec => ({
-        ...rec,
-        name: rec.user_profiles?.name || '이름 없음',
-        profile_photo_url: rec.user_profiles?.profile_photo_url,
-        instagram_followers: rec.user_profiles?.instagram_followers || 0,
-        youtube_subscribers: rec.user_profiles?.youtube_subscribers || 0,
-        tiktok_followers: rec.user_profiles?.tiktok_followers || 0,
-        instagram_url: rec.user_profiles?.instagram_url,
-        youtube_url: rec.user_profiles?.youtube_url,
-        tiktok_url: rec.user_profiles?.tiktok_url,
-        main_channel: rec.user_profiles?.main_channel
-      }))
+      const enrichedRecommendations = (recommendations || []).map(rec => {
+        // 주요 채널 자동 판단
+        const instagramFollowers = rec.user_profiles?.instagram_followers || 0
+        const youtubeSubscribers = rec.user_profiles?.youtube_subscribers || 0
+        const tiktokFollowers = rec.user_profiles?.tiktok_followers || 0
+        
+        let mainChannel = '플랫폼 정보 없음'
+        const maxFollowers = Math.max(instagramFollowers, youtubeSubscribers, tiktokFollowers)
+        
+        if (maxFollowers > 0) {
+          if (maxFollowers === instagramFollowers) mainChannel = `인스타그램 ${instagramFollowers.toLocaleString()}`
+          else if (maxFollowers === youtubeSubscribers) mainChannel = `유튜브 ${youtubeSubscribers.toLocaleString()}`
+          else if (maxFollowers === tiktokFollowers) mainChannel = `틱톡 ${tiktokFollowers.toLocaleString()}`
+        }
+        
+        return {
+          ...rec,
+          name: rec.user_profiles?.name || '이름 없음',
+          profile_photo_url: rec.user_profiles?.profile_photo_url || 
+                            rec.user_profiles?.profile_image_url || 
+                            rec.user_profiles?.avatar_url || 
+                            rec.user_profiles?.image_url,
+          instagram_followers: instagramFollowers,
+          youtube_subscribers: youtubeSubscribers,
+          tiktok_followers: tiktokFollowers,
+          instagram_url: rec.user_profiles?.instagram_url,
+          youtube_url: rec.user_profiles?.youtube_url,
+          tiktok_url: rec.user_profiles?.tiktok_url,
+          main_channel: mainChannel
+        }
+      })
       
       setAiRecommendations(enrichedRecommendations)
       console.log('[CampaignDetail] Loaded AI recommendations:', enrichedRecommendations.length)
@@ -1150,7 +1168,7 @@ export default function CampaignDetail() {
                             <img 
                               src={rec.profile_photo_url || '/default-avatar.png'} 
                               alt={rec.name}
-                              className="w-16 h-16 rounded-full object-cover"
+                              className="w-20 h-20 rounded-full object-cover"
                             />
                             <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
                               {rec.recommendation_score}
@@ -1324,7 +1342,7 @@ export default function CampaignDetail() {
                             <img 
                               src={rec.profile_photo_url || '/default-avatar.png'} 
                               alt={rec.name}
-                              className="w-16 h-16 rounded-full object-cover"
+                              className="w-20 h-20 rounded-full object-cover"
                             />
                             <div className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
                               ⭐
