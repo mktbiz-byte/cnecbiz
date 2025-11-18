@@ -112,27 +112,48 @@ export default function AdminCampaignDetail() {
 
   const fetchApplications = async () => {
     try {
+      console.log('[DEBUG] fetchApplications 시작:', { region, campaignId: id })
       const client = getSupabaseClient(region)
-      if (!client) return
+      console.log('[DEBUG] Supabase client:', client ? 'OK' : 'NULL')
+      if (!client) {
+        console.error('[DEBUG] Supabase client가 없습니다!')
+        return
+      }
 
+      console.log('[DEBUG] applications 테이블 쿼리 시작...')
       const { data: appsData, error } = await client
         .from('applications')
         .select('*')
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
 
+      console.log('[DEBUG] applications 쿼리 결과:', { 
+        dataLength: appsData?.length, 
+        error: error?.message,
+        data: appsData 
+      })
+      
       if (error) throw error
       
       // 사용자 프로필 정보 병합
       if (appsData && appsData.length > 0) {
+        console.log('[DEBUG] 지원서 데이터 발견:', appsData.length, '개')
         const userIds = [...new Set(appsData.map(app => app.user_id).filter(Boolean))]
+        console.log('[DEBUG] user_ids:', userIds)
         let userProfiles = []
         
         if (userIds.length > 0) {
+          console.log('[DEBUG] user_profiles 쿼리 시작...')
           const { data: profiles, error: profilesError } = await client
             .from('user_profiles')
             .select('*')
             .in('id', userIds)
+          
+          console.log('[DEBUG] user_profiles 결과:', { 
+            profilesLength: profiles?.length,
+            error: profilesError?.message,
+            profiles 
+          })
           
           if (!profilesError && profiles) {
             userProfiles = profiles
@@ -155,12 +176,18 @@ export default function AdminCampaignDetail() {
           }
         })
         
+        console.log('[DEBUG] enrichedData 생성 완료:', enrichedData.length, '개')
+        console.log('[DEBUG] setApplications 호출')
         setApplications(enrichedData)
       } else {
+        console.log('[DEBUG] 지원서 데이터 없음, 빈 배열 설정')
         setApplications([])
       }
     } catch (error) {
+      console.error('[DEBUG] fetchApplications 오류:', error)
       console.error('Error fetching applications:', error)
+    } finally {
+      console.log('[DEBUG] fetchApplications 종료')
     }
   }
 
