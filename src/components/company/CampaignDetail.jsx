@@ -1066,7 +1066,7 @@ export default function CampaignDetail() {
                 <Button 
                   onClick={handleBulkConfirm}
                   disabled={applications.filter(app => app.virtual_selected).length === 0}
-                  className="bg-black hover:bg-gray-800"
+                  className="bg-black hover:bg-gray-800 text-white"
                 >
                   가상 선정한 크리에이터 한번에 선정하기
                 </Button>

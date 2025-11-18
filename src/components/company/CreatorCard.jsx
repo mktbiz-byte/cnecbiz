@@ -149,14 +149,24 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
           )}
           
           {virtual_selected && (
-            <Button
-              variant="default"
-              size="sm"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
-              onClick={() => onConfirm(application)}
-            >
-              크리에이터 확정
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-red-500 text-red-500 hover:bg-red-50"
+                onClick={() => onVirtualSelect(application.id, false)}
+              >
+                가상선정 취소
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                onClick={() => onConfirm(application)}
+              >
+                크리에이터 확정
+              </Button>
+            </>
           )}
         </div>
       </CardContent>
