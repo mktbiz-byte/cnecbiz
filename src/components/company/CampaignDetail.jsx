@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
+import CreatorCard from './CreatorCard'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -24,6 +25,7 @@ export default function CampaignDetail() {
   const supabase = region === 'japan' ? getSupabaseClient('japan') : supabaseKorea
   const [campaign, setCampaign] = useState(null)
   const [participants, setParticipants] = useState([])
+  const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
   const [selectedParticipants, setSelectedParticipants] = useState([])
@@ -40,6 +42,7 @@ export default function CampaignDetail() {
     checkIfAdmin()
     fetchCampaignDetail()
     fetchParticipants()
+    fetchApplications()
   }, [id])
 
   const checkIfAdmin = async () => {
@@ -90,6 +93,21 @@ export default function CampaignDetail() {
       setParticipants(data || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
+    }
+  }
+
+  const fetchApplications = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setApplications(data || [])
+    } catch (error) {
+      console.error('Error fetching applications:', error)
     }
   }
 
@@ -183,6 +201,85 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error updating tracking number:', error)
       alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
+  // 가상 선정 토글
+  const handleVirtualSelect = async (applicationId, selected) => {
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({ virtual_selected: selected })
+        .eq('id', applicationId)
+
+      if (error) throw error
+
+      // 지원자 목록 업데이트
+      setApplications(prev => 
+        prev.map(app => 
+          app.id === applicationId 
+            ? { ...app, virtual_selected: selected }
+            : app
+        )
+      )
+
+      alert(selected ? '가상 선정되었습니다.' : '가상 선정이 취소되었습니다.')
+    } catch (error) {
+      console.error('Error updating virtual selection:', error)
+      alert('가상 선정 처리에 실패했습니다.')
+    }
+  }
+
+  // 가상 선정된 크리에이터 한번에 확정
+  const handleBulkConfirm = async () => {
+    try {
+      const virtualSelected = applications.filter(app => app.virtual_selected)
+      
+      if (virtualSelected.length === 0) {
+        alert('가상 선정된 크리에이터가 없습니다.')
+        return
+      }
+
+      if (!confirm(`${virtualSelected.length}명의 크리에이터를 확정하시겠습니까?`)) {
+        return
+      }
+
+      // campaign_participants에 추가
+      const participantsToAdd = virtualSelected.map(app => ({
+        campaign_id: id,
+        user_id: app.user_id,
+        creator_name: app.applicant_name,
+        creator_email: '', // 이메일 정보가 있다면 추가
+        creator_platform: '', // 플랫폼 정보 추가
+        creator_status: 'guide_confirmation',
+        created_at: new Date().toISOString()
+      }))
+
+      const { error: insertError } = await supabase
+        .from('campaign_participants')
+        .insert(participantsToAdd)
+
+      if (insertError) throw insertError
+
+      // applications의 status를 'selected'로 업데이트
+      const { error: updateError } = await supabase
+        .from('applications')
+        .update({ 
+          status: 'selected',
+          virtual_selected: false 
+        })
+        .in('id', virtualSelected.map(app => app.id))
+
+      if (updateError) throw updateError
+
+      // 목록 새로고침
+      await fetchApplications()
+      await fetchParticipants()
+
+      alert(`${virtualSelected.length}명의 크리에이터가 확정되었습니다.`)
+    } catch (error) {
+      console.error('Error bulk confirming:', error)
+      alert('확정 처리에 실패했습니다: ' + error.message)
     }
   }
 
@@ -868,24 +965,94 @@ export default function CampaignDetail() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="participants" className="space-y-6">
+        <Tabs defaultValue="applications" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="participants" className="flex items-center gap-2">
+            <TabsTrigger value="applications" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              참여 크리에이터 ({participants.length})
+              지원한 인플루언서 ({applications.length})
             </TabsTrigger>
-            <TabsTrigger value="selected" className="flex items-center gap-2">
+            <TabsTrigger value="virtual" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
-              확정 크리에이터 + 가이드
+              가상 선정 ({applications.filter(app => app.virtual_selected).length})
             </TabsTrigger>
-            <TabsTrigger value="views" className="flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              뷰수 보고서
+            <TabsTrigger value="posting" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              포스팅 ({participants.length})
             </TabsTrigger>
           </TabsList>
 
-          {/* 참여 크리에이터 탭 */}
-          <TabsContent value="participants">
+          {/* 지원한 인플루언서 탭 */}
+          <TabsContent value="applications">
+            <Card>
+              <CardHeader>
+                <CardTitle>평한 인플루언서 ({applications.length}명)</CardTitle>
+                <p className="text-sm text-gray-600">평소에 30만 원대다 높은 원고로를 받은 캠페인에 지원한 신청자들입니다.</p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {applications.map(app => (
+                    <CreatorCard
+                      key={app.id}
+                      application={app}
+                      onVirtualSelect={handleVirtualSelect}
+                      onEvaluate={(app) => {
+                        // TODO: 평가 모달 열기
+                        alert('평가 기능은 추후 추가됩니다.')
+                      }}
+                    />
+                  ))}
+                </div>
+                {applications.length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    아직 지원자가 없습니다.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 가상 선정 탭 */}
+          <TabsContent value="virtual">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>가상 선정한 크리에이터</CardTitle>
+                  <p className="text-sm text-gray-600 mt-1">
+                    현재 다른 캠페인의 기한 조과 이슈로 인해 신규 캠페인에 지원한 인플루언서들입니다.
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleBulkConfirm}
+                  disabled={applications.filter(app => app.virtual_selected).length === 0}
+                  className="bg-black hover:bg-gray-800"
+                >
+                  가상 선정한 크리에이터 한번에 선정하기
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {applications.filter(app => app.virtual_selected).map(app => (
+                    <CreatorCard
+                      key={app.id}
+                      application={app}
+                      onVirtualSelect={handleVirtualSelect}
+                      onEvaluate={(app) => {
+                        alert('평가 기능은 추후 추가됩니다.')
+                      }}
+                    />
+                  ))}
+                </div>
+                {applications.filter(app => app.virtual_selected).length === 0 && (
+                  <div className="text-center py-12 text-gray-500">
+                    아직 가상 선정한 크리에이터가 없습니다.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 포스팅 탭 (기존 참여 크리에이터) */}
+          <TabsContent value="posting">
             <Card>
               <CardHeader>
                 <CardTitle>참여 크리에이터 리스트</CardTitle>
