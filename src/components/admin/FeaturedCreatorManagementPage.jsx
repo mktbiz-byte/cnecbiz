@@ -45,24 +45,29 @@ export default function FeaturedCreatorManagementPage() {
   const [evaluation, setEvaluation] = useState(null)
   const [regionFilter, setRegionFilter] = useState('all')
   
-  const [featuredCreators, setFeaturedCreators] = useState([
-    // Mock data
-    {
-      id: 1,
-      channel_name: '뷰티유튜버김지수',
-      platform: 'youtube',
-      followers: 150000,
-      avg_views: 50000,
-      category: '뷰티',
-      regions: ['japan', 'korea'],
-      evaluation_score: 95,
-      basic_price: 500000,
-      standard_price: 700000,
-      premium_price: 1000000,
-      monthly_price: 3000000,
-      created_at: '2025-10-15'
+  const [featuredCreators, setFeaturedCreators] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  // Load featured creators from DB
+  useEffect(() => {
+    loadFeaturedCreators()
+  }, [])
+
+  const loadFeaturedCreators = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('featured_creators')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setFeaturedCreators(data || [])
+    } catch (err) {
+      console.error('Error loading featured creators:', err)
+    } finally {
+      setLoading(false)
     }
-  ])
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -135,7 +140,7 @@ export default function FeaturedCreatorManagementPage() {
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!evaluation) {
       alert('먼저 AI 분석을 진행해주세요.')
       return
@@ -153,43 +158,58 @@ export default function FeaturedCreatorManagementPage() {
       return
     }
 
-    const newCreator = {
-      id: Date.now(),
-      ...formData,
-      followers: parseInt(formData.followers.replace(/,/g, '')),
-      avg_views: parseInt(formData.avg_views.replace(/,/g, '')),
-      basic_price: parseInt(formData.basic_price.replace(/,/g, '')),
-      standard_price: parseInt(formData.standard_price.replace(/,/g, '')),
-      premium_price: parseInt(formData.premium_price.replace(/,/g, '')),
-      monthly_price: parseInt(formData.monthly_price.replace(/,/g, '')),
-      regions: formData.regions,  // Include regions
-      evaluation_score: evaluation.total_score,
-      evaluation_data: evaluation,
-      created_at: new Date().toISOString().split('T')[0]
-    }
+    try {
+      const newCreator = {
+        ...formData,
+        followers: parseInt(formData.followers.replace(/,/g, '')),
+        avg_views: parseInt(formData.avg_views.replace(/,/g, '')),
+        avg_likes: parseInt(formData.avg_likes.replace(/,/g, '') || '0'),
+        avg_comments: parseInt(formData.avg_comments.replace(/,/g, '') || '0'),
+        basic_price: parseInt(formData.basic_price.replace(/,/g, '')),
+        standard_price: parseInt(formData.standard_price.replace(/,/g, '')),
+        premium_price: parseInt(formData.premium_price.replace(/,/g, '')),
+        monthly_price: parseInt(formData.monthly_price.replace(/,/g, '')),
+        regions: formData.regions,
+        evaluation_score: evaluation.total_score,
+        evaluation_data: evaluation,
+        featured_type: 'ai_recommended',  // Default type
+        is_active: true
+      }
 
-    setFeaturedCreators([...featuredCreators, newCreator])
-    setShowForm(false)
-    setFormData({
-      platform: 'youtube',
-      channel_name: '',
-      channel_url: '',
-      profile_image: '',
-      followers: '',
-      avg_views: '',
-      avg_likes: '',
-      avg_comments: '',
-      category: '',
-      target_audience: '',
-      content_style: '',
-      sample_videos: '',
-      regions: [],  // Reset regions
-      basic_price: '',
-      standard_price: '',
-      premium_price: '',
-      monthly_price: ''
-    })
-    setEvaluation(null)
+      const { data, error } = await supabaseBiz
+        .from('featured_creators')
+        .insert([newCreator])
+        .select()
+
+      if (error) throw error
+
+      alert('크리에이터가 저장되었습니다!')
+      await loadFeaturedCreators()  // Reload data
+      setShowForm(false)
+      setFormData({
+        platform: 'youtube',
+        channel_name: '',
+        channel_url: '',
+        profile_image: '',
+        followers: '',
+        avg_views: '',
+        avg_likes: '',
+        avg_comments: '',
+        category: '',
+        target_audience: '',
+        content_style: '',
+        sample_videos: '',
+        regions: [],
+        basic_price: '',
+        standard_price: '',
+        premium_price: '',
+        monthly_price: ''
+      })
+      setEvaluation(null)
+    } catch (err) {
+      console.error('Error saving creator:', err)
+      alert('저장 중 오류가 발생했습니다.')
+    }
   }
 
   const handleDelete = async (id) => {

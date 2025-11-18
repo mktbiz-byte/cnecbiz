@@ -112,136 +112,49 @@ export default function CampaignDetail() {
     }
   }
 
-  // AI 추천 크리에이터 로드 (DB에서)
+  // AI 추천 크리에이터 로드 (featured_creators에서)
   const fetchAIRecommendations = async () => {
     setLoadingRecommendations(true)
     try {
-      const { data: recommendations, error } = await supabase
-        .from('campaign_recommendations')
-        .select(`
-          *,
-          user_profiles (
-            id,
-            name,
-            profile_photo_url,
-            instagram_followers,
-            youtube_subscribers,
-            tiktok_followers,
-            instagram_url,
-            youtube_url,
-            tiktok_url
-          )
-        `)
-        .eq('campaign_id', id)
-        .order('recommendation_score', { ascending: false })
+      const { data: recommendations, error } = await supabaseBiz
+        .from('featured_creators')
+        .select('*')
+        .eq('featured_type', 'ai_recommended')
+        .eq('is_active', true)
+        .order('evaluation_score', { ascending: false })
         .limit(10)
 
       if (error) throw error
       
-      // AI 추천이 없고, 생성 중이 아니며, 캠페인 정보가 있으면 자동 생성
-      if ((!recommendations || recommendations.length === 0) && !isGeneratingRecommendations && campaign) {
-        console.log('[CampaignDetail] No AI recommendations found, auto-generating...')
-        setIsGeneratingRecommendations(true)
-        try {
-          await generateAIRecommendations(id, campaign, region)
-          console.log('[CampaignDetail] AI recommendations generated, reloading...')
-          // 생성 후 다시 로드
-          const { data: newRecommendations } = await supabase
-            .from('campaign_recommendations')
-            .select(`
-              *,
-              user_profiles (
-                id,
-                name,
-                profile_photo_url,
-                instagram_followers,
-                youtube_subscribers,
-                tiktok_followers,
-                instagram_url,
-                youtube_url,
-                tiktok_url
-              )
-            `)
-            .eq('campaign_id', id)
-            .order('recommendation_score', { ascending: false })
-            .limit(10)
-          
-          if (newRecommendations && newRecommendations.length > 0) {
-            const enrichedRecommendations = newRecommendations.map(rec => {
-              const instagramFollowers = rec.user_profiles?.instagram_followers || 0
-              const youtubeSubscribers = rec.user_profiles?.youtube_subscribers || 0
-              const tiktokFollowers = rec.user_profiles?.tiktok_followers || 0
-              
-              let mainChannel = '플랫폼 정보 없음'
-              const maxFollowers = Math.max(instagramFollowers, youtubeSubscribers, tiktokFollowers)
-              
-              if (maxFollowers > 0) {
-                if (maxFollowers === instagramFollowers) mainChannel = `인스타그램 ${instagramFollowers.toLocaleString()}`
-                else if (maxFollowers === youtubeSubscribers) mainChannel = `유튜브 ${youtubeSubscribers.toLocaleString()}`
-                else if (maxFollowers === tiktokFollowers) mainChannel = `틱톡 ${tiktokFollowers.toLocaleString()}`
-              }
-              
-              return {
-                ...rec,
-                name: rec.user_profiles?.name || '이름 없음',
-                profile_photo_url: rec.user_profiles?.profile_photo_url || 
-                                  rec.user_profiles?.profile_image_url || 
-                                  rec.user_profiles?.avatar_url,
-                instagram_followers: instagramFollowers,
-                youtube_subscribers: youtubeSubscribers,
-                tiktok_followers: tiktokFollowers,
-                instagram_url: rec.user_profiles?.instagram_url,
-                youtube_url: rec.user_profiles?.youtube_url,
-                tiktok_url: rec.user_profiles?.tiktok_url,
-                main_channel: mainChannel
-              }
-            })
-            setAiRecommendations(enrichedRecommendations)
-            console.log('[CampaignDetail] Loaded newly generated AI recommendations:', enrichedRecommendations.length)
-            setLoadingRecommendations(false)
-            return
-          }
-        } catch (genError) {
-          console.error('[CampaignDetail] Error auto-generating recommendations:', genError)
-        } finally {
-          setIsGeneratingRecommendations(false)
-        }
-      }
-      
-      // 프로필 정보와 추천 정보 병합
-      const enrichedRecommendations = (recommendations || []).map(rec => {
-        // 주요 채널 자동 판단
-        const instagramFollowers = rec.user_profiles?.instagram_followers || 0
-        const youtubeSubscribers = rec.user_profiles?.youtube_subscribers || 0
-        const tiktokFollowers = rec.user_profiles?.tiktok_followers || 0
-        
+      // Transform to match expected format
+      const transformed = recommendations?.map(creator => {
+        const followers = creator.followers || 0
         let mainChannel = '플랫폼 정보 없음'
-        const maxFollowers = Math.max(instagramFollowers, youtubeSubscribers, tiktokFollowers)
         
-        if (maxFollowers > 0) {
-          if (maxFollowers === instagramFollowers) mainChannel = `인스타그램 ${instagramFollowers.toLocaleString()}`
-          else if (maxFollowers === youtubeSubscribers) mainChannel = `유튜브 ${youtubeSubscribers.toLocaleString()}`
-          else if (maxFollowers === tiktokFollowers) mainChannel = `틱톡 ${tiktokFollowers.toLocaleString()}`
-        }
+        if (creator.platform === 'youtube') mainChannel = `유튜브 ${followers.toLocaleString()}`
+        else if (creator.platform === 'instagram') mainChannel = `인스타그램 ${followers.toLocaleString()}`
+        else if (creator.platform === 'tiktok') mainChannel = `틱톡 ${followers.toLocaleString()}`
         
         return {
-          ...rec,
-          name: rec.user_profiles?.name || '이름 없음',
-          profile_photo_url: rec.user_profiles?.profile_photo_url || 
-                            rec.user_profiles?.profile_image_url || 
-                            rec.user_profiles?.avatar_url,
-          instagram_followers: instagramFollowers,
-          youtube_subscribers: youtubeSubscribers,
-          tiktok_followers: tiktokFollowers,
-          instagram_url: rec.user_profiles?.instagram_url,
-          youtube_url: rec.user_profiles?.youtube_url,
-          tiktok_url: rec.user_profiles?.tiktok_url,
-          main_channel: mainChannel
+          id: creator.id,
+          name: creator.channel_name,
+          profile_photo_url: creator.profile_image,
+          youtube_subscribers: creator.platform === 'youtube' ? followers : 0,
+          instagram_followers: creator.platform === 'instagram' ? followers : 0,
+          tiktok_followers: creator.platform === 'tiktok' ? followers : 0,
+          youtube_url: creator.platform === 'youtube' ? creator.channel_url : null,
+          instagram_url: creator.platform === 'instagram' ? creator.channel_url : null,
+          tiktok_url: creator.platform === 'tiktok' ? creator.channel_url : null,
+          bio: creator.target_audience,
+          age: null,
+          score: creator.evaluation_score || 0,
+          main_channel: mainChannel,
+          user_id: creator.user_id  // For matching
         }
-      })
+      }) || []
       
-      setAiRecommendations(enrichedRecommendations)
-      console.log('[CampaignDetail] Loaded AI recommendations:', enrichedRecommendations.length)
+      setAiRecommendations(transformed)
+      console.log('[CampaignDetail] Loaded AI recommendations:', transformed.length)
     } catch (error) {
       console.error('AI 추천 로드 오류:', error)
       setAiRecommendations([])
@@ -254,12 +167,12 @@ export default function CampaignDetail() {
   const fetchCnecPlusRecommendations = async () => {
     setLoadingCnecPlus(true)
     try {
-      // featured_creators 테이블에서 활성화된 크리에이터 가져오기
-      const { data: creators, error } = await supabase
+      const { data: creators, error } = await supabaseBiz
         .from('featured_creators')
         .select('*')
+        .eq('featured_type', 'cnec_plus')
         .eq('is_active', true)
-        .order('rating', { ascending: false })
+        .order('evaluation_score', { ascending: false })
         .limit(5)
       
       if (error) throw error
@@ -270,8 +183,36 @@ export default function CampaignDetail() {
         return
       }
       
-      setCnecPlusRecommendations(creators)
-      console.log('[CampaignDetail] Loaded CNEC Plus recommendations:', creators.length)
+      // Transform to match expected format
+      const transformed = creators.map(creator => {
+        const followers = creator.followers || 0
+        let mainChannel = '플랫폼 정보 없음'
+        
+        if (creator.platform === 'youtube') mainChannel = `유튜브 ${followers.toLocaleString()}`
+        else if (creator.platform === 'instagram') mainChannel = `인스타그램 ${followers.toLocaleString()}`
+        else if (creator.platform === 'tiktok') mainChannel = `틱톡 ${followers.toLocaleString()}`
+        
+        return {
+          id: creator.id,
+          name: creator.channel_name,
+          profile_photo_url: creator.profile_image,
+          youtube_subscribers: creator.platform === 'youtube' ? followers : 0,
+          instagram_followers: creator.platform === 'instagram' ? followers : 0,
+          tiktok_followers: creator.platform === 'tiktok' ? followers : 0,
+          youtube_url: creator.platform === 'youtube' ? creator.channel_url : null,
+          instagram_url: creator.platform === 'instagram' ? creator.channel_url : null,
+          tiktok_url: creator.platform === 'tiktok' ? creator.channel_url : null,
+          bio: creator.target_audience,
+          age: null,
+          score: creator.evaluation_score || 0,
+          main_channel: mainChannel,
+          user_id: creator.user_id,
+          upgrade_price: creator.upgrade_price || 0  // 추가금
+        }
+      })
+      
+      setCnecPlusRecommendations(transformed)
+      console.log('[CampaignDetail] Loaded CNEC Plus recommendations:', transformed.length)
     } catch (error) {
       console.error('크넥 플러스 추천 로드 오류:', error)
       setCnecPlusRecommendations([])
@@ -1258,9 +1199,39 @@ export default function CampaignDetail() {
                             <Button 
                               size="sm" 
                               className="w-full text-[10px] h-7 bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => {
-                                // TODO: 캠페인 지원 요청 기능
-                                alert('캠페인 지원 요청 기능은 공사중입니다.')
+                              onClick={async () => {
+                                try {
+                                  const { data: { user } } = await supabaseBiz.auth.getUser()
+                                  if (!user) {
+                                    alert('로그인이 필요합니다.')
+                                    return
+                                  }
+
+                                  if (!confirm(`${rec.name}님에게 캠페인 지원 요청을 보내시겠습니까?`)) {
+                                    return
+                                  }
+
+                                  const response = await fetch('/.netlify/functions/send-campaign-invitation', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      campaignId: id,
+                                      creatorId: rec.id,
+                                      invitedBy: user.id
+                                    })
+                                  })
+
+                                  const result = await response.json()
+                                  
+                                  if (result.success) {
+                                    alert('캠페인 지원 요청을 성공적으로 보냈습니다!')
+                                  } else {
+                                    alert(result.error || '지원 요청에 실패했습니다.')
+                                  }
+                                } catch (error) {
+                                  console.error('Error sending invitation:', error)
+                                  alert('지원 요청 중 오류가 발생했습니다.')
+                                }
                               }}
                             >
                               지원 요청
@@ -1442,8 +1413,39 @@ export default function CampaignDetail() {
                             <Button 
                               size="sm" 
                               className="w-full text-xs bg-purple-600 hover:bg-purple-700"
-                              onClick={() => {
-                                alert('크넥 플러스 크리에이터 캠페인 지원 요청 기능은 공사중입니다.')
+                              onClick={async () => {
+                                try {
+                                  const { data: { user } } = await supabaseBiz.auth.getUser()
+                                  if (!user) {
+                                    alert('로그인이 필요합니다.')
+                                    return
+                                  }
+
+                                  if (!confirm(`${rec.name}님에게 캠페인 지원 요청을 보내시겠습니까? (크넥 플러스 크리에이터는 추가 비용이 발생할 수 있습니다)`)) {
+                                    return
+                                  }
+
+                                  const response = await fetch('/.netlify/functions/send-campaign-invitation', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      campaignId: id,
+                                      creatorId: rec.id,
+                                      invitedBy: user.id
+                                    })
+                                  })
+
+                                  const result = await response.json()
+                                  
+                                  if (result.success) {
+                                    alert('캠페인 지원 요청을 성공적으로 보냈습니다!')
+                                  } else {
+                                    alert(result.error || '지원 요청에 실패했습니다.')
+                                  }
+                                } catch (error) {
+                                  console.error('Error sending invitation:', error)
+                                  alert('지원 요청 중 오류가 발생했습니다.')
+                                }
                               }}
                             >
                               캠페인 지원 요청하기
