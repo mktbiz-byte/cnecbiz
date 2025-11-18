@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Users, Search, Globe, TrendingUp } from 'lucide-react'
-import { supabaseBiz, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function AllCreatorsPage() {
@@ -57,7 +57,7 @@ export default function AllCreatorsPage() {
     setLoading(true)
     try {
       // 한국 크리에이터
-      const { data: koreaData } = await supabaseBiz
+      const { data: koreaData } = await supabaseKorea
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false })
@@ -130,9 +130,21 @@ export default function AllCreatorsPage() {
     )
   }
 
-  const handleRatingChange = async (creatorId, newRating) => {
+  const handleRatingChange = async (creatorId, newRating, region) => {
     try {
-      const { error } = await supabaseBiz
+      // 지역에 따라 올바른 Supabase 클라이언트 사용
+      let supabaseClient
+      if (region === 'korea') {
+        supabaseClient = supabaseKorea
+      } else if (region === 'japan') {
+        supabaseClient = supabaseJapan
+      } else if (region === 'us') {
+        supabaseClient = supabaseUS
+      } else {
+        supabaseClient = supabaseBiz
+      }
+
+      const { error } = await supabaseClient
         .from('user_profiles')
         .update({ rating: newRating })
         .eq('id', creatorId)
@@ -180,7 +192,7 @@ export default function AllCreatorsPage() {
                   <td className="p-4">
                     <select
                       value={creator.rating || 0}
-                      onChange={(e) => handleRatingChange(creator.id, parseFloat(e.target.value))}
+                      onChange={(e) => handleRatingChange(creator.id, parseFloat(e.target.value), region)}
                       className="border rounded px-2 py-1 text-sm"
                     >
                       <option value="0">0.0</option>
