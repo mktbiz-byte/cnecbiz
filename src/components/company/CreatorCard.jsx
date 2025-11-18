@@ -171,35 +171,58 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
 
         {/* 질문 답변 */}
         {answers.length > 0 && (
-          <div className="mb-4 p-3 bg-green-50 rounded-lg group relative cursor-pointer hover:shadow-md transition-all">
+          <div className="mb-4 p-3 bg-green-50 rounded-lg relative cursor-pointer group">
             <label className="block text-sm font-semibold mb-2 text-gray-700">
               캐페인 질문 답변
             </label>
-            <div className="space-y-2 max-h-20 overflow-hidden group-hover:max-h-none group-hover:overflow-visible transition-all duration-300">
+            <div className="space-y-2 max-h-16 overflow-hidden">
               {answers.map((answer, index) => (
                 <div key={index} className="text-sm">
                   <span className="font-medium text-gray-700">Q{index + 1}:</span>
-                  <p className="text-gray-800 mt-1 whitespace-pre-wrap">{answer}</p>
+                  <p className="text-gray-800 mt-1 whitespace-pre-wrap line-clamp-2">{answer}</p>
                 </div>
               ))}
             </div>
-            <div className="text-xs text-gray-500 mt-1 group-hover:hidden">
+            <div className="text-xs text-gray-500 mt-1">
               마우스를 올려 전체 보기
+            </div>
+            {/* 팝업 모달 */}
+            <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-md p-4 bg-white border-2 border-green-500 rounded-lg shadow-2xl">
+              <label className="block text-sm font-semibold mb-3 text-gray-700">
+                캐페인 질문 답변
+              </label>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {answers.map((answer, index) => (
+                  <div key={index} className="text-sm pb-3 border-b border-gray-200 last:border-0">
+                    <span className="font-medium text-gray-700">Q{index + 1}:</span>
+                    <p className="text-gray-800 mt-1 whitespace-pre-wrap">{answer}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {/* 지원자 한마디 */}
         {additional_info && (
-          <div className="mb-4 p-3 bg-yellow-50 rounded-lg group relative cursor-pointer hover:shadow-md transition-all">
+          <div className="mb-4 p-3 bg-yellow-50 rounded-lg relative cursor-pointer group">
             <label className="block text-sm font-semibold mb-1 text-gray-700">
               지원자 한마디
             </label>
-            <p className="text-sm text-gray-800 whitespace-pre-wrap max-h-12 overflow-hidden group-hover:max-h-none group-hover:overflow-visible transition-all duration-300">
+            <p className="text-sm text-gray-800 whitespace-pre-wrap max-h-12 overflow-hidden line-clamp-2">
               {additional_info}
             </p>
-            <div className="text-xs text-gray-500 mt-1 group-hover:hidden">
+            <div className="text-xs text-gray-500 mt-1">
               마우스를 올려 전체 보기
+            </div>
+            {/* 팝업 모달 */}
+            <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-md p-4 bg-white border-2 border-yellow-500 rounded-lg shadow-2xl">
+              <label className="block text-sm font-semibold mb-2 text-gray-700">
+                지원자 한마디
+              </label>
+              <p className="text-sm text-gray-800 whitespace-pre-wrap max-h-96 overflow-y-auto">
+                {additional_info}
+              </p>
             </div>
           </div>
         )}
