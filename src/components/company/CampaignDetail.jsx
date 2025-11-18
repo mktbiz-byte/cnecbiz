@@ -205,11 +205,16 @@ export default function CampaignDetail() {
   }
 
   // 가상 선정 토글
-  const handleVirtualSelect = async (applicationId, selected) => {
+  const handleVirtualSelect = async (applicationId, selected, mainChannel = null) => {
     try {
+      const updateData = { virtual_selected: selected }
+      if (selected && mainChannel) {
+        updateData.main_channel = mainChannel
+      }
+
       const { error } = await supabase
         .from('applications')
-        .update({ virtual_selected: selected })
+        .update(updateData)
         .eq('id', applicationId)
 
       if (error) throw error
@@ -218,7 +223,7 @@ export default function CampaignDetail() {
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
-            ? { ...app, virtual_selected: selected }
+            ? { ...app, ...updateData }
             : app
         )
       )
@@ -1003,7 +1008,7 @@ export default function CampaignDetail() {
                       key={app.id}
                       application={app}
                       onVirtualSelect={handleVirtualSelect}
-                      onConfirm={async (app) => {
+                      onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
@@ -1015,7 +1020,7 @@ export default function CampaignDetail() {
                               user_id: app.user_id,
                               creator_name: app.applicant_name,
                               creator_email: '',
-                              creator_platform: '',
+                              creator_platform: mainChannel || app.main_channel || '',
                               creator_status: 'guide_confirmation',
                               created_at: new Date().toISOString()
                             }])
@@ -1078,7 +1083,7 @@ export default function CampaignDetail() {
                       key={app.id}
                       application={app}
                       onVirtualSelect={handleVirtualSelect}
-                      onConfirm={async (app) => {
+                      onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
@@ -1090,7 +1095,7 @@ export default function CampaignDetail() {
                               user_id: app.user_id,
                               creator_name: app.applicant_name,
                               creator_email: '',
-                              creator_platform: '',
+                              creator_platform: mainChannel || app.main_channel || '',
                               creator_status: 'guide_confirmation',
                               created_at: new Date().toISOString()
                             }])

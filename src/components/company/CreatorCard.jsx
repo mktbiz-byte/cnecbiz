@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Instagram, Youtube, Music } from 'lucide-react'
+import { User, Star } from 'lucide-react'
 
 export default function CreatorCard({ application, onVirtualSelect, onConfirm }) {
   const { 
@@ -12,127 +12,132 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
     youtube_url, 
     tiktok_url,
     virtual_selected,
-    profile_image_url 
+    main_channel: savedMainChannel
   } = application
 
-  // 지원한 채널 확인
-  const hasInstagram = instagram_url && instagram_url.trim()
-  const hasYoutube = youtube_url && youtube_url.trim()
-  const hasTiktok = tiktok_url && tiktok_url.trim()
+  // 로컬 상태로 메인 채널 관리
+  const [selectedChannel, setSelectedChannel] = useState(savedMainChannel || '')
 
-  // 팔로워 수 (나중에 실제 API 연동)
-  const instagramFollowers = 0
-  const youtubeFollowers = 0
-  const tiktokFollowers = 0
+  // 지원한 채널 목록
+  const appliedChannels = []
+  if (instagram_url) appliedChannels.push({ name: 'instagram', label: 'Instagram', url: instagram_url, followers: application.instagram_followers || 0 })
+  if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: youtube_url, followers: application.youtube_subscribers || 0 })
+  if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: tiktok_url, followers: application.tiktok_followers || 0 })
+
+  // 평균 별점 (임시로 4.5 고정, 나중에 실제 데이터 연동)
+  const averageRating = 4.5
+  const isRecommended = averageRating >= 4.5
+
+  const handleVirtualSelect = () => {
+    if (!selectedChannel && !virtual_selected) {
+      alert('메인 채널을 선택해주세요')
+      return
+    }
+    onVirtualSelect(application.id, !virtual_selected, selectedChannel)
+  }
+
+  const handleConfirm = () => {
+    if (!selectedChannel) {
+      alert('메인 채널을 선택해주세요')
+      return
+    }
+    onConfirm(application, selectedChannel)
+  }
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="relative">
-        {/* 프로필 이미지 - 3/2 비율로 축소 */}
-        <div className="aspect-[3/2] bg-gray-200 relative">
-          {profile_image_url ? (
-            <img 
-              src={profile_image_url} 
-              alt={applicant_name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              <span className="text-4xl">👤</span>
-            </div>
-          )}
-
-          {/* 작은 프로필 사진 (오른쪽 하단) */}
-          <div className="absolute bottom-2 right-2 w-10 h-10 rounded-full border-2 border-white overflow-hidden bg-white">
-            {profile_image_url ? (
-              <img 
-                src={profile_image_url} 
+      <CardContent className="p-4">
+        {/* 프로필 이미지 */}
+        <div className="relative mb-4">
+          <div className="aspect-[3/2] bg-gray-200 rounded-lg overflow-hidden">
+            {application.profile_photo_url ? (
+              <img
+                src={application.profile_photo_url}
                 alt={applicant_name}
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                <span className="text-xl">👤</span>
+              <div className="w-full h-full flex items-center justify-center">
+                <User className="w-16 h-16 text-gray-400" />
+              </div>
+            )}
+          </div>
+          
+          {/* 클로즈업 추천 배지 */}
+          {isRecommended && (
+            <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+              클로즈업 추천
+            </Badge>
+          )}
+          
+          {/* 작은 프로필 사진 */}
+          <div className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-white border-2 border-white overflow-hidden">
+            {application.profile_photo_url ? (
+              <img
+                src={application.profile_photo_url}
+                alt={applicant_name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                <User className="w-6 h-6 text-gray-400" />
               </div>
             )}
           </div>
         </div>
-      </div>
 
-      <CardContent className="p-4 space-y-3">
-        {/* 이름 (나이) */}
-        <div>
-          <h3 className="font-bold text-lg">
-            {applicant_name} {age && `(${age}세)`}
-          </h3>
+        {/* 이름 및 나이 */}
+        <h3 className="text-lg font-bold mb-1">
+          {applicant_name} ({age}세)
+        </h3>
+
+        {/* 지원한 채널 및 팔로워 */}
+        <div className="space-y-2 mb-4">
+          {appliedChannels.map(channel => (
+            <div key={channel.name} className="flex items-center justify-between text-sm">
+              <span className="font-medium">{channel.label}</span>
+              <span className="text-gray-600">{channel.followers.toLocaleString()}명</span>
+            </div>
+          ))}
         </div>
 
-        {/* 지원한 채널별 팔로워 수 */}
-        <div className="space-y-1 text-sm">
-          {hasYoutube && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600 flex items-center gap-1">
-                <Youtube className="w-4 h-4" />
-                유튜브
-              </span>
-              <span className="font-semibold">{youtubeFollowers.toLocaleString()}</span>
-            </div>
-          )}
-          {hasInstagram && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600 flex items-center gap-1">
-                <Instagram className="w-4 h-4" />
-                인스타
-              </span>
-              <span className="font-semibold">{instagramFollowers.toLocaleString()}</span>
-            </div>
-          )}
-          {hasTiktok && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600 flex items-center gap-1">
-                <Music className="w-4 h-4" />
-                틱톡
-              </span>
-              <span className="font-semibold">{tiktokFollowers.toLocaleString()}</span>
-            </div>
-          )}
+        {/* 메인 채널 선택 */}
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <label className="block text-sm font-semibold mb-2 text-gray-700">
+            메인 채널 선택 (1개만)
+          </label>
+          <div className="space-y-2">
+            {appliedChannels.map(channel => (
+              <label key={channel.name} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`main-channel-${application.id}`}
+                  value={channel.name}
+                  checked={selectedChannel === channel.name}
+                  onChange={(e) => setSelectedChannel(e.target.value)}
+                  className="w-4 h-4 text-purple-600"
+                />
+                <span className="text-sm">
+                  {channel.label} ({channel.followers.toLocaleString()}명)
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
 
         {/* 지원한 채널 링크 버튼 */}
-        <div className="space-y-2">
-          {hasYoutube && (
+        <div className="space-y-2 mb-4">
+          {appliedChannels.map(channel => (
             <Button
+              key={channel.name}
               variant="outline"
               size="sm"
-              className="w-full flex items-center gap-2"
-              onClick={() => window.open(youtube_url, '_blank')}
+              className="w-full"
+              onClick={() => window.open(channel.url, '_blank')}
             >
-              <Youtube className="w-4 h-4" />
-              유튜브
+              {channel.label}
             </Button>
-          )}
-          {hasInstagram && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full flex items-center gap-2"
-              onClick={() => window.open(instagram_url, '_blank')}
-            >
-              <Instagram className="w-4 h-4" />
-              인스타
-            </Button>
-          )}
-          {hasTiktok && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full flex items-center gap-2"
-              onClick={() => window.open(tiktok_url, '_blank')}
-            >
-              <Music className="w-4 h-4" />
-              틱톡
-            </Button>
-          )}
+          ))}
         </div>
 
         {/* 액션 버튼 */}
@@ -142,7 +147,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
               variant="default"
               size="sm"
               className="w-full bg-black hover:bg-gray-800 text-white font-bold"
-              onClick={() => onVirtualSelect(application.id, true)}
+              onClick={handleVirtualSelect}
             >
               가상선정 하기
             </Button>
@@ -154,7 +159,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
                 variant="outline"
                 size="sm"
                 className="w-full border-red-500 text-red-500 hover:bg-red-50"
-                onClick={() => onVirtualSelect(application.id, false)}
+                onClick={() => onVirtualSelect(application.id, false, null)}
               >
                 가상선정 취소
               </Button>
@@ -162,7 +167,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
                 variant="default"
                 size="sm"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                onClick={() => onConfirm(application)}
+                onClick={handleConfirm}
               >
                 크리에이터 확정
               </Button>
