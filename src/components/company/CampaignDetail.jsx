@@ -100,33 +100,42 @@ export default function CampaignDetail() {
     try {
       const { data, error } = await supabase
         .from('applications')
-        .select(`
-          *,
-          user_profiles (
-            profile_photo_url,
-            profile_image_url,
-            instagram_followers,
-            youtube_subscribers,
-            tiktok_followers,
-            rating
-          )
-        `)
+        .select('*')
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
       
-      // user_profiles 데이터를 application 객체에 병합
-      const mergedData = data?.map(app => ({
-        ...app,
-        profile_photo_url: app.user_profiles?.profile_photo_url || app.user_profiles?.profile_image_url,
-        instagram_followers: app.user_profiles?.instagram_followers || app.instagram_followers || 0,
-        youtube_subscribers: app.user_profiles?.youtube_subscribers || app.youtube_subscribers || 0,
-        tiktok_followers: app.user_profiles?.tiktok_followers || app.tiktok_followers || 0,
-        rating: app.user_profiles?.rating || 0
-      })) || []
+      // user_id가 있는 경우 user_profiles에서 추가 정보 가져오기
+      const enrichedData = await Promise.all(
+        (data || []).map(async (app) => {
+          if (app.user_id) {
+            try {
+              const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('profile_photo_url, profile_image_url, instagram_followers, youtube_subscribers, tiktok_followers, rating')
+                .eq('id', app.user_id)
+                .single()
+              
+              if (profile) {
+                return {
+                  ...app,
+                  profile_photo_url: profile.profile_photo_url || profile.profile_image_url,
+                  instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
+                  youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
+                  tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0,
+                  rating: profile.rating || 0
+                }
+              }
+            } catch (err) {
+              console.error('Error fetching profile for user:', app.user_id, err)
+            }
+          }
+          return app
+        })
+      )
       
-      setApplications(mergedData)
+      setApplications(enrichedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
     }

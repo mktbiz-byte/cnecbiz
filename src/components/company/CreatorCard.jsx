@@ -12,7 +12,10 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
     youtube_url, 
     tiktok_url,
     virtual_selected,
-    main_channel: savedMainChannel
+    main_channel: savedMainChannel,
+    skin_type,
+    answers,
+    additional_info
   } = application
 
   // 로컬 상태로 메인 채널 관리
@@ -139,6 +142,54 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
             </Button>
           ))}
         </div>
+
+        {/* 피부타입 */}
+        {skin_type && (
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+            <label className="block text-sm font-semibold mb-1 text-gray-700">
+              피부타입
+            </label>
+            <p className="text-sm text-gray-800">{skin_type}</p>
+          </div>
+        )}
+
+        {/* 질문 답변 */}
+        {answers && (
+          <div className="mb-4 p-3 bg-green-50 rounded-lg">
+            <label className="block text-sm font-semibold mb-2 text-gray-700">
+              캐페인 질문 답변
+            </label>
+            <div className="space-y-2">
+              {typeof answers === 'string' ? (
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{answers}</p>
+              ) : Array.isArray(answers) ? (
+                answers.map((answer, index) => (
+                  <div key={index} className="text-sm">
+                    <span className="font-medium text-gray-700">Q{index + 1}:</span>
+                    <p className="text-gray-800 mt-1">{answer}</p>
+                  </div>
+                ))
+              ) : (
+                Object.entries(answers).map(([key, value], index) => (
+                  <div key={key} className="text-sm">
+                    <span className="font-medium text-gray-700">Q{index + 1}:</span>
+                    <p className="text-gray-800 mt-1">{value}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 추가 정보 */}
+        {additional_info && (
+          <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+            <label className="block text-sm font-semibold mb-1 text-gray-700">
+              추가 정보/특이사항
+            </label>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">{additional_info}</p>
+          </div>
+        )}
 
         {/* 액션 버튼 */}
         <div className="space-y-2">
