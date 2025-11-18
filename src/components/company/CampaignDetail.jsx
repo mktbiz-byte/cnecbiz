@@ -151,8 +151,7 @@ export default function CampaignDetail() {
           name: rec.user_profiles?.name || '이름 없음',
           profile_photo_url: rec.user_profiles?.profile_photo_url || 
                             rec.user_profiles?.profile_image_url || 
-                            rec.user_profiles?.avatar_url || 
-                            rec.user_profiles?.image_url,
+                            rec.user_profiles?.avatar_url,
           instagram_followers: instagramFollowers,
           youtube_subscribers: youtubeSubscribers,
           tiktok_followers: tiktokFollowers,
@@ -221,7 +220,7 @@ export default function CampaignDetail() {
             try {
               const { data: profile, error: profileError } = await supabase
                 .from('user_profiles')
-                .select('profile_photo_url, profile_image_url, instagram_followers, youtube_subscribers, tiktok_followers')
+                .select('profile_photo_url, profile_image_url, avatar_url, instagram_followers, youtube_subscribers, tiktok_followers')
                 .eq('id', app.user_id)
                 .maybeSingle()
               
@@ -231,12 +230,12 @@ export default function CampaignDetail() {
               if (profile) {
                 const enriched = {
                   ...app,
-                  profile_photo_url: profile.profile_photo_url || profile.profile_image_url,
+                  profile_photo_url: profile.profile_photo_url || profile.profile_image_url || profile.avatar_url,
                   instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
                   youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
                   tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0
                 }
-                console.log('Enriched data:', enriched.applicant_name, 'YT:', enriched.youtube_subscribers, 'IG:', enriched.instagram_followers)
+                console.log('Enriched data:', enriched.applicant_name, 'YT:', enriched.youtube_subscribers, 'IG:', enriched.instagram_followers, 'Photo:', enriched.profile_photo_url)
                 return enriched
               }
             } catch (err) {
