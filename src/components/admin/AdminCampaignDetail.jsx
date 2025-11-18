@@ -115,14 +115,50 @@ export default function AdminCampaignDetail() {
       const client = getSupabaseClient(region)
       if (!client) return
 
-      const { data, error } = await client
+      const { data: appsData, error } = await client
         .from('applications')
         .select('*')
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setApplications(data || [])
+      
+      // 사용자 프로필 정보 병합
+      if (appsData && appsData.length > 0) {
+        const userIds = [...new Set(appsData.map(app => app.user_id).filter(Boolean))]
+        let userProfiles = []
+        
+        if (userIds.length > 0) {
+          const { data: profiles, error: profilesError } = await client
+            .from('user_profiles')
+            .select('*')
+            .in('id', userIds)
+          
+          if (!profilesError && profiles) {
+            userProfiles = profiles
+          }
+        }
+        
+        // 데이터 병합
+        const enrichedData = appsData.map(application => {
+          const userProfile = userProfiles.find(up => up.id === application.user_id)
+          
+          return {
+            ...application,
+            applicant_name: userProfile?.name || application.applicant_name || '-',
+            age: userProfile?.age || application.age || '-',
+            skin_type: userProfile?.skin_type || application.skin_type || '-',
+            instagram_url: userProfile?.instagram_url || application.instagram_url || '',
+            tiktok_url: userProfile?.tiktok_url || application.tiktok_url || '',
+            youtube_url: userProfile?.youtube_url || application.youtube_url || '',
+            user_profiles: userProfile
+          }
+        })
+        
+        setApplications(enrichedData)
+      } else {
+        setApplications([])
+      }
     } catch (error) {
       console.error('Error fetching applications:', error)
     }
