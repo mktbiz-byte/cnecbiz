@@ -16,8 +16,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
-import { sendCampaignSelectionNotification } from '../../services/kakaoAlimtalk'
-import { sendCampaignSelectionEmail } from '../../services/emailService'
+import { sendCampaignSelectedNotification } from '../../services/notifications/creatorNotifications'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -1013,6 +1012,10 @@ export default function CampaignDetail() {
         {/* Tabs */}
         <Tabs defaultValue="applications" className="space-y-6">
           <TabsList>
+            <TabsTrigger value="recommended" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              AI 추천 크리에이터
+            </TabsTrigger>
             <TabsTrigger value="applications" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               지원한 크리에이터 ({applications.length})
@@ -1034,6 +1037,24 @@ export default function CampaignDetail() {
               완료
             </TabsTrigger>
           </TabsList>
+
+          {/* AI 추천 크리에이터 탭 */}
+          <TabsContent value="recommended">
+            <Card>
+              <CardHeader>
+                <CardTitle>AI 추천 크리에이터</CardTitle>
+                <p className="text-sm text-gray-600">
+                  캠페인 특성을 분석하여 AI가 추천하는 최적의 크리에이터 10명
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 text-gray-500">
+                  <p>AI 추천 기능은 공사 중입니다.</p>
+                  <p className="text-sm mt-2">캠페인 정보와 크리에이터 프로필을 분석하여 추천합니다.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* 지원한 크리에이터 탭 */}
           <TabsContent value="applications">
@@ -1092,23 +1113,14 @@ export default function CampaignDetail() {
                             if (profile) {
                               // 카카오 알림톡
                               if (profile.phone) {
-                                const alimtalkResult = await sendCampaignSelectionNotification({
-                                  creatorName: app.applicant_name,
-                                  phoneNumber: profile.phone,
-                                  campaignName: campaign?.title || '캐페인',
-                                  cid: `campaign_${id}_user_${app.user_id}`
-                                })
-                                console.log('Alimtalk:', alimtalkResult)
-                              }
-
-                              // 이메일
-                              if (profile.email) {
-                                const emailResult = await sendCampaignSelectionEmail({
-                                  creatorName: app.applicant_name,
-                                  creatorEmail: profile.email,
-                                  campaignName: campaign?.title || '캐페인'
-                                })
-                                console.log('Email:', emailResult)
+                                await sendCampaignSelectedNotification(
+                                  profile.phone,
+                                  app.applicant_name,
+                                  {
+                                    campaignName: campaign?.title || '캠페인'
+                                  }
+                                )
+                                console.log('Alimtalk sent successfully')
                               }
                             }
                           } catch (notificationError) {
@@ -1201,23 +1213,14 @@ export default function CampaignDetail() {
                             if (profile) {
                               // 카카오 알림톡
                               if (profile.phone) {
-                                const alimtalkResult = await sendCampaignSelectionNotification({
-                                  creatorName: app.applicant_name,
-                                  phoneNumber: profile.phone,
-                                  campaignName: campaign?.title || '캐페인',
-                                  cid: `campaign_${id}_user_${app.user_id}`
-                                })
-                                console.log('Alimtalk:', alimtalkResult)
-                              }
-
-                              // 이메일
-                              if (profile.email) {
-                                const emailResult = await sendCampaignSelectionEmail({
-                                  creatorName: app.applicant_name,
-                                  creatorEmail: profile.email,
-                                  campaignName: campaign?.title || '캐페인'
-                                })
-                                console.log('Email:', emailResult)
+                                await sendCampaignSelectedNotification(
+                                  profile.phone,
+                                  app.applicant_name,
+                                  {
+                                    campaignName: campaign?.title || '캠페인'
+                                  }
+                                )
+                                console.log('Alimtalk sent successfully')
                               }
                             }
                           } catch (notificationError) {
