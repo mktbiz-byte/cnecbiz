@@ -969,24 +969,32 @@ export default function CampaignDetail() {
           <TabsList>
             <TabsTrigger value="applications" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              지원한 인플루언서 ({applications.length})
+              지원한 크리에이터 ({applications.length})
             </TabsTrigger>
             <TabsTrigger value="virtual" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
-              가상 선정 ({applications.filter(app => app.virtual_selected).length})
+              가상 선정 ({applications.filter(app => app.virtual_selected).length}명)
             </TabsTrigger>
-            <TabsTrigger value="posting" className="flex items-center gap-2">
+            <TabsTrigger value="confirmed" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              확정 크리에이터 + 가이드 확인
+            </TabsTrigger>
+            <TabsTrigger value="editing" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              포스팅 ({participants.length})
+              영상 수정
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              완료
             </TabsTrigger>
           </TabsList>
 
-          {/* 지원한 인플루언서 탭 */}
+          {/* 지원한 크리에이터 탭 */}
           <TabsContent value="applications">
             <Card>
               <CardHeader>
-                <CardTitle>평한 인플루언서 ({applications.length}명)</CardTitle>
-                <p className="text-sm text-gray-600">평소에 30만 원대다 높은 원고로를 받은 캠페인에 지원한 신청자들입니다.</p>
+                <CardTitle>지원한 크리에이터 ({applications.length}명)</CardTitle>
+                <p className="text-sm text-gray-600">캠페인에 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -995,9 +1003,43 @@ export default function CampaignDetail() {
                       key={app.id}
                       application={app}
                       onVirtualSelect={handleVirtualSelect}
-                      onEvaluate={(app) => {
-                        // TODO: 평가 모달 열기
-                        alert('평가 기능은 추후 추가됩니다.')
+                      onConfirm={async (app) => {
+                        // 개별 확정
+                        if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
+                        
+                        try {
+                          const { error: insertError } = await supabase
+                            .from('campaign_participants')
+                            .insert([{
+                              campaign_id: id,
+                              user_id: app.user_id,
+                              creator_name: app.applicant_name,
+                              creator_email: '',
+                              creator_platform: '',
+                              creator_status: 'guide_confirmation',
+                              created_at: new Date().toISOString()
+                            }])
+
+                          if (insertError) throw insertError
+
+                          const { error: updateError } = await supabase
+                            .from('applications')
+                            .update({ 
+                              status: 'selected',
+                              virtual_selected: false 
+                            })
+                            .eq('id', app.id)
+
+                          if (updateError) throw updateError
+
+                          await fetchApplications()
+                          await fetchParticipants()
+
+                          alert('확정되었습니다.')
+                        } catch (error) {
+                          console.error('Error confirming:', error)
+                          alert('확정 처리에 실패했습니다.')
+                        }
                       }}
                     />
                   ))}
@@ -1036,8 +1078,43 @@ export default function CampaignDetail() {
                       key={app.id}
                       application={app}
                       onVirtualSelect={handleVirtualSelect}
-                      onEvaluate={(app) => {
-                        alert('평가 기능은 추후 추가됩니다.')
+                      onConfirm={async (app) => {
+                        // 개별 확정
+                        if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
+                        
+                        try {
+                          const { error: insertError } = await supabase
+                            .from('campaign_participants')
+                            .insert([{
+                              campaign_id: id,
+                              user_id: app.user_id,
+                              creator_name: app.applicant_name,
+                              creator_email: '',
+                              creator_platform: '',
+                              creator_status: 'guide_confirmation',
+                              created_at: new Date().toISOString()
+                            }])
+
+                          if (insertError) throw insertError
+
+                          const { error: updateError } = await supabase
+                            .from('applications')
+                            .update({ 
+                              status: 'selected',
+                              virtual_selected: false 
+                            })
+                            .eq('id', app.id)
+
+                          if (updateError) throw updateError
+
+                          await fetchApplications()
+                          await fetchParticipants()
+
+                          alert('확정되었습니다.')
+                        } catch (error) {
+                          console.error('Error confirming:', error)
+                          alert('확정 처리에 실패했습니다.')
+                        }
                       }}
                     />
                   ))}
@@ -1051,8 +1128,8 @@ export default function CampaignDetail() {
             </Card>
           </TabsContent>
 
-          {/* 포스팅 탭 (기존 참여 크리에이터) */}
-          <TabsContent value="posting">
+          {/* 확정 크리에이터 + 가이드 확인 탭 */}
+          <TabsContent value="confirmed">
             <Card>
               <CardHeader>
                 <CardTitle>참여 크리에이터 리스트</CardTitle>
@@ -1266,6 +1343,76 @@ export default function CampaignDetail() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 영상 수정 탭 */}
+          <TabsContent value="editing">
+            <Card>
+              <CardHeader>
+                <CardTitle>영상 수정 중인 크리에이터</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {participants.filter(p => p.creator_status === 'editing').length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    영상 수정 중인 크리에이터가 없습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {participants.filter(p => p.creator_status === 'editing').map(participant => (
+                      <div key={participant.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-semibold">{participant.creator_name}</h4>
+                            <p className="text-sm text-gray-600">{participant.creator_platform}</p>
+                          </div>
+                          <Badge className="bg-pink-100 text-pink-700">수정중</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 완료 탭 */}
+          <TabsContent value="completed">
+            <Card>
+              <CardHeader>
+                <CardTitle>완료된 크리에이터</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {participants.filter(p => p.creator_status === 'completed').length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    아직 완료된 크리에이터가 없습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {participants.filter(p => p.creator_status === 'completed').map(participant => (
+                      <div key={participant.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-semibold">{participant.creator_name}</h4>
+                            <p className="text-sm text-gray-600">{participant.creator_platform}</p>
+                            {participant.content_url && (
+                              <a 
+                                href={participant.content_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:underline"
+                              >
+                                콘텐츠 보기
+                              </a>
+                            )}
+                          </div>
+                          <Badge className="bg-green-100 text-green-700">완료</Badge>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
