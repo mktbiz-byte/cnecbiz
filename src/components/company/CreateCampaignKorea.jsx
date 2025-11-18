@@ -451,6 +451,23 @@ const CampaignCreationKorea = () => {
 
         if (updateError) throw updateError
 
+        // supabaseBiz도 동기화
+        try {
+          const bizCampaignData = {
+            ...campaignData,
+            reward_amount: campaignData.reward_points
+          }
+          delete bizCampaignData.reward_points
+
+          await supabaseBiz
+            .from('campaigns')
+            .upsert([{ ...bizCampaignData, id: editId }])
+          
+          console.log('[CreateCampaign] Campaign also updated in Biz DB')
+        } catch (bizError) {
+          console.warn('[CreateCampaign] Failed to update Biz DB:', bizError)
+        }
+
         setSuccess('캐페인이 수정되었습니다!')
         
         // 수정 모드일 경우 가이드 페이지로 이동
@@ -478,6 +495,26 @@ const CampaignCreationKorea = () => {
 
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
+
+        // supabaseBiz에도 동일한 데이터 저장 (reward_amount 필드로)
+        try {
+          const bizCampaignData = {
+            ...campaignData,
+            id: campaignId, // 동일한 ID 사용
+            reward_amount: campaignData.reward_points, // reward_points를 reward_amount로 복사
+            status: 'draft'
+          }
+          delete bizCampaignData.reward_points // Biz DB에는 reward_points 필드 없음
+
+          await supabaseBiz
+            .from('campaigns')
+            .insert([bizCampaignData])
+          
+          console.log('[CreateCampaign] Campaign also saved to Biz DB')
+        } catch (bizError) {
+          console.warn('[CreateCampaign] Failed to save to Biz DB:', bizError)
+          // Biz DB 저장 실패해도 계속 진행
+        }
 
         setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
         
