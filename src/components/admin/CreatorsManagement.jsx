@@ -10,7 +10,7 @@ import {
   Users, Plus, Trash2, Loader2, Sparkles, 
   Instagram, Youtube, Video, Edit, CheckCircle, XCircle, Eye, X
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 import { scrapeAllPlatforms } from '../../lib/youtubeScraperService'
 import { collectCreatorMedia } from '../../lib/creatorMediaService'
 import AdminNavigation from './AdminNavigation'
@@ -115,21 +115,31 @@ export default function CreatorsManagement() {
   }
 
   const fetchRegisteredCreators = async (country = 'korea') => {
-    if (!supabaseBiz) return
-
     try {
-      const { data, error } = await supabaseBiz
+      // Get the appropriate Supabase client for the selected region
+      const client = getSupabaseClient(country)
+      if (!client) {
+        console.error(`No Supabase client available for ${country}`)
+        setRegisteredCreators([])
+        return
+      }
+
+      const { data, error } = await client
         .from('user_profiles')
         .select('*')
-        .eq('approval_status', 'approved')
-        .eq('country', country)
+        .eq('role', 'creator')
         .order('created_at', { ascending: false })
+        .limit(100)
 
-      if (!error && data) {
-        setRegisteredCreators(data)
+      if (error) {
+        console.error('Error fetching registered creators:', error)
+        setRegisteredCreators([])
+      } else {
+        setRegisteredCreators(data || [])
       }
     } catch (error) {
       console.error('Error fetching registered creators:', error)
+      setRegisteredCreators([])
     }
   }
 
