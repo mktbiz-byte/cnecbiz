@@ -38,7 +38,8 @@ export default function CampaignGuide4WeekChallenge() {
       required_dialogue: '',
       required_scenes: '',
       generated_guide: '',
-      guide_file: ''
+      guide_file: '',
+      deadline: ''
     },
     week2: {
       mission: '',
@@ -46,7 +47,8 @@ export default function CampaignGuide4WeekChallenge() {
       required_dialogue: '',
       required_scenes: '',
       generated_guide: '',
-      guide_file: ''
+      guide_file: '',
+      deadline: ''
     },
     week3: {
       mission: '',
@@ -54,7 +56,8 @@ export default function CampaignGuide4WeekChallenge() {
       required_dialogue: '',
       required_scenes: '',
       generated_guide: '',
-      guide_file: ''
+      guide_file: '',
+      deadline: ''
     },
     week4: {
       mission: '',
@@ -62,7 +65,8 @@ export default function CampaignGuide4WeekChallenge() {
       required_dialogue: '',
       required_scenes: '',
       generated_guide: '',
-      guide_file: ''
+      guide_file: '',
+      deadline: ''
     }
   })
 
@@ -150,29 +154,48 @@ export default function CampaignGuide4WeekChallenge() {
 핵심 포인트: ${productData.product_key_points}
 
 [기본 가이드]
-${baseGuide}
+${baseGuide || '없음'}
 
 [Week ${weekNumber} 미션]
 ${weekData.mission}
 
-[참고 레퍼런스]
-${weekData.reference || '없음'}
-
 [필수 대사]
 ${weekData.required_dialogue}
 
-[필수 장면]
+[필수 촬영 장면]
 ${weekData.required_scenes}
 
 위 정보를 바탕으로 크리에이터가 실제로 촬영할 수 있는 상세한 콘텐츠 가이드를 작성해주세요.
-다음 항목을 포함해야 합니다:
-1. 콘텐츠 개요 (이번 주차의 목표와 메시지)
-2. 촬영 가이드 (구체적인 장면 구성과 순서)
-3. 필수 요소 체크리스트 (반드시 포함해야 할 대사와 장면)
-4. 편집 팁 (영상 분위기, 음악, 자막 등)
-5. 주의사항
 
-전문적이고 실용적인 가이드를 작성해주세요.`
+‼️ 반드시 다음 항목만 포함해주세요:
+
+1. 제품 특징 및 소구포인트
+   - 제품의 핵심 특징과 차별점
+   - 소비자에게 어필하는 이유
+   - 이번 주차에 강조할 포인트
+
+2. 필수 대사
+   - 위에 제공된 필수 대사를 기반으로 상세화
+   - 자연스럽게 연결되는 흐름 제시
+   - 감정을 담은 표현 방법
+
+3. 필수 촬영 장면
+   - 위에 제공된 필수 장면을 기반으로 구체화
+   - 각 장면의 촬영 방법과 순서
+   - 조명, 앱글, 구도 팁
+
+4. 파트너십 광고코드 발급 방법 (인스타그램 전용)
+   - 인스타그램 프로필 설정 → 크리에이터 도구 → 파트너십 광고 순서로 설명
+   - 광고코드 생성 및 게시물에 태그하는 방법
+   - "⚠️ 인스타그램에서만 사용 가능한 기능입니다" 문구 포함
+
+❌ 포함하지 말아야 할 항목:
+- 목표 (삭제)
+- 오프닝 (삭제)
+- 클로징 (삭제)
+- 기타 불필요한 섹션
+
+간결하고 실용적인 가이드를 작성해주세요.`
 
       const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + import.meta.env.VITE_GEMINI_API_KEY, {
         method: 'POST',
@@ -474,9 +497,16 @@ ${weekData.required_scenes}
                   {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </div>
 
-                <p className="text-sm text-gray-600 mt-2">
-                  마감일: <span className="font-semibold">{deadline || '미설정'}</span>
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <label className="text-sm text-gray-600">마감일:</label>
+                  <Input
+                    type="date"
+                    value={weekData.deadline || campaign[`week${weekNum}_deadline`] || ''}
+                    onChange={(e) => updateWeeklyGuide(weekKey, 'deadline', e.target.value)}
+                    className="w-48 h-8 text-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
 
                 {isExpanded && (
                   <div className="mt-4 space-y-4">
@@ -602,11 +632,13 @@ ${weekData.required_scenes}
                       )}
                     </div>
 
-                    {/* 생성된 가이드 미리보기 - 탭 형식 */}
+                    {/* 생성된 가이드 미리보기 - PPT 스타일 */}
                     {weekData.generated_guide && (
                       <WeeklyGuideViewer 
                         guide={weekData.generated_guide} 
                         referenceUrl={weekData.reference}
+                        deadline={weekData.deadline || campaign[`week${weekNum}_deadline`] || '미설정'}
+                        weekNumber={weekNum}
                       />
                     )}
 
