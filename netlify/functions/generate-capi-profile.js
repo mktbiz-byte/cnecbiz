@@ -2,7 +2,32 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import fetch from 'node-fetch';
 
 const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY);
-const YOUTUBE_API_KEY = process.env.VITE_YOUTUBE_API_KEY || process.env.YOUTUBE_API_KEY;
+
+// YouTube API keys with rotation support
+const YOUTUBE_API_KEYS = [
+  process.env.YOUTUBE_API_KEY,
+  process.env.YOUTUBE_API_KEY_1,
+  process.env.YOUTUBE_API_KEY_2,
+  process.env.YOUTUBE_API_KEY_3
+].filter(Boolean); // Remove undefined keys
+
+let currentKeyIndex = 0;
+
+function getYouTubeAPIKey() {
+  if (YOUTUBE_API_KEYS.length === 0) {
+    throw new Error('No YouTube API keys configured');
+  }
+  return YOUTUBE_API_KEYS[currentKeyIndex % YOUTUBE_API_KEYS.length];
+}
+
+function rotateYouTubeAPIKey() {
+  currentKeyIndex++;
+  if (currentKeyIndex >= YOUTUBE_API_KEYS.length) {
+    return null; // All keys exhausted
+  }
+  console.log(`Rotating to YouTube API key ${currentKeyIndex + 1}/${YOUTUBE_API_KEYS.length}`);
+  return getYouTubeAPIKey();
+}
 
 export const handler = async (event) => {
   // CORS headers
@@ -162,11 +187,40 @@ export const handler = async (event) => {
 
   } catch (error) {
     console.error('Error generating CAPI profile:', error);
+    
+    // Check if it's an API key exhaustion error
+    if (error.message.includes('All YouTube API keys exhausted')) {
+      return {
+        statusCode: 429,
+        headers,
+        body: JSON.stringify({ 
+          error: 'YouTube API 키 할당량 초과',
+          message: '모든 YouTube API 키의 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.',
+          details: error.message
+        })
+      };
+    }
+    
+    // Check if it's a configuration error
+    if (error.message.includes('No YouTube API keys configured')) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'YouTube API 키 미설정',
+          message: 'YouTube API 키가 설정되지 않았습니다. 관리자에게 문의하세요.',
+          details: error.message
+        })
+      };
+    }
+    
+    // Generic error
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: 'Failed to generate CAPI profile',
+        error: 'CAPI 분석 실패',
+        message: 'CAPI 프로필 생성 중 오류가 발생했습니다.',
         details: error.message 
       })
     };
@@ -191,101 +245,145 @@ function extractYouTubeChannelId(url) {
   return null;
 }
 
-async function getYouTubeChannelData(channelId) {
-  if (!YOUTUBE_API_KEY) {
-    throw new Error('YouTube API key not configured');
-  }
+async function getYouTubeChannelData(channelId, retryCount = 0) {
+  const apiKey = getYouTubeAPIKey();
 
-  // Try to get channel by ID first
-  let url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${YOUTUBE_API_KEY}`;
-  let response = await fetch(url);
-  let data = await response.json();
-  
-  // If not found, try as username
-  if (!data.items || data.items.length === 0) {
-    url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&forUsername=${channelId}&key=${YOUTUBE_API_KEY}`;
-    response = await fetch(url);
-    data = await response.json();
-  }
-  
-  // If still not found, try searching
-  if (!data.items || data.items.length === 0) {
-    url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${channelId}&type=channel&key=${YOUTUBE_API_KEY}`;
-    response = await fetch(url);
-    data = await response.json();
+  try {
+    // Try to get channel by ID first
+    let url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`;
+    let response = await fetch(url);
+    let data = await response.json();
     
-    if (data.items && data.items.length > 0) {
-      const actualChannelId = data.items[0].snippet.channelId;
-      return getYouTubeChannelData(actualChannelId);
+    // Check for quota exceeded or auth error
+    if (data.error && (data.error.code === 403 || data.error.code === 429)) {
+      const nextKey = rotateYouTubeAPIKey();
+      if (nextKey && retryCount < YOUTUBE_API_KEYS.length) {
+        console.log(`API key failed (${data.error.message}), trying next key...`);
+        return getYouTubeChannelData(channelId, retryCount + 1);
+      }
+      throw new Error(`All YouTube API keys exhausted. Last error: ${data.error.message}`);
     }
+    
+    // If not found, try as username
+    if (!data.items || data.items.length === 0) {
+      url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&forUsername=${channelId}&key=${apiKey}`;
+      response = await fetch(url);
+      data = await response.json();
+    }
+    
+    // If still not found, try searching
+    if (!data.items || data.items.length === 0) {
+      url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${channelId}&type=channel&key=${apiKey}`;
+      response = await fetch(url);
+      data = await response.json();
+      
+      if (data.items && data.items.length > 0) {
+        const actualChannelId = data.items[0].snippet.channelId;
+        return getYouTubeChannelData(actualChannelId, retryCount);
+      }
+    }
+    
+    if (!data.items || data.items.length === 0) {
+      throw new Error('Channel not found');
+    }
+    
+    const channel = data.items[0];
+    return {
+      id: channel.id,
+      subscribers: parseInt(channel.statistics.subscriberCount) || 0,
+      total_views: parseInt(channel.statistics.viewCount) || 0,
+      video_count: parseInt(channel.statistics.videoCount) || 0,
+      profile_image: channel.snippet.thumbnails.high?.url || channel.snippet.thumbnails.default?.url
+    };
+  } catch (error) {
+    // If it's already an "all keys exhausted" error, rethrow it
+    if (error.message.includes('All YouTube API keys exhausted')) {
+      throw error;
+    }
+    // Otherwise, try next key
+    const nextKey = rotateYouTubeAPIKey();
+    if (nextKey && retryCount < YOUTUBE_API_KEYS.length) {
+      console.log(`Error occurred (${error.message}), trying next key...`);
+      return getYouTubeChannelData(channelId, retryCount + 1);
+    }
+    throw new Error(`All YouTube API keys exhausted. Last error: ${error.message}`);
   }
-  
-  if (!data.items || data.items.length === 0) {
-    throw new Error('Channel not found');
-  }
-  
-  const channel = data.items[0];
-  return {
-    id: channel.id,
-    subscribers: parseInt(channel.statistics.subscriberCount) || 0,
-    total_views: parseInt(channel.statistics.viewCount) || 0,
-    video_count: parseInt(channel.statistics.videoCount) || 0,
-    profile_image: channel.snippet.thumbnails.high?.url || channel.snippet.thumbnails.default?.url
-  };
 }
 
-async function getYouTubeTopVideos(channelId, count = 10) {
-  if (!YOUTUBE_API_KEY) {
-    throw new Error('YouTube API key not configured');
-  }
+async function getYouTubeTopVideos(channelId, count = 10, retryCount = 0) {
+  const apiKey = getYouTubeAPIKey();
 
-  // Get channel's uploads playlist
-  const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${YOUTUBE_API_KEY}`;
-  const channelResponse = await fetch(channelUrl);
-  const channelData = await channelResponse.json();
-  
-  if (!channelData.items || channelData.items.length === 0) {
-    throw new Error('Channel not found');
+  try {
+    // Get channel's uploads playlist
+    const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`;
+    const channelResponse = await fetch(channelUrl);
+    const channelData = await channelResponse.json();
+    
+    // Check for quota exceeded or auth error
+    if (channelData.error && (channelData.error.code === 403 || channelData.error.code === 429)) {
+      const nextKey = rotateYouTubeAPIKey();
+      if (nextKey && retryCount < YOUTUBE_API_KEYS.length) {
+        console.log(`API key failed (${channelData.error.message}), trying next key...`);
+        return getYouTubeTopVideos(channelId, count, retryCount + 1);
+      }
+      throw new Error(`All YouTube API keys exhausted. Last error: ${channelData.error.message}`);
+    }
+    
+    if (!channelData.items || channelData.items.length === 0) {
+      throw new Error('Channel not found');
+    }
+    
+    const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
+    
+    // Get recent videos (last 50)
+    const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50&key=${apiKey}`;
+    const playlistResponse = await fetch(playlistUrl);
+    const playlistData = await playlistResponse.json();
+    
+    if (!playlistData.items || playlistData.items.length === 0) {
+      return [];
+    }
+    
+    // Get video statistics
+    const videoIds = playlistData.items.map(item => item.snippet.resourceId.videoId).join(',');
+    const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoIds}&key=${apiKey}`;
+    const statsResponse = await fetch(statsUrl);
+    const statsData = await statsResponse.json();
+    
+    // Filter videos from last 3 months and sort by views
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    
+    const videos = statsData.items
+      .filter(video => {
+        const publishedAt = new Date(video.snippet.publishedAt);
+        return publishedAt >= threeMonthsAgo;
+      })
+      .map(video => ({
+        url: `https://www.youtube.com/watch?v=${video.id}`,
+        title: video.snippet.title,
+        views: parseInt(video.statistics.viewCount) || 0,
+        likes: parseInt(video.statistics.likeCount) || 0,
+        comments: parseInt(video.statistics.commentCount) || 0,
+        published_at: video.snippet.publishedAt
+      }))
+      .sort((a, b) => b.views - a.views)
+      .slice(0, count);
+    
+    return videos;
+  } catch (error) {
+    // If it's already an "all keys exhausted" error, rethrow it
+    if (error.message.includes('All YouTube API keys exhausted')) {
+      throw error;
+    }
+    // Otherwise, try next key
+    const nextKey = rotateYouTubeAPIKey();
+    if (nextKey && retryCount < YOUTUBE_API_KEYS.length) {
+      console.log(`Error occurred (${error.message}), trying next key...`);
+      return getYouTubeTopVideos(channelId, count, retryCount + 1);
+    }
+    throw new Error(`All YouTube API keys exhausted. Last error: ${error.message}`);
   }
-  
-  const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
-  
-  // Get recent videos (last 50)
-  const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50&key=${YOUTUBE_API_KEY}`;
-  const playlistResponse = await fetch(playlistUrl);
-  const playlistData = await playlistResponse.json();
-  
-  if (!playlistData.items || playlistData.items.length === 0) {
-    return [];
-  }
-  
-  // Get video statistics
-  const videoIds = playlistData.items.map(item => item.snippet.resourceId.videoId).join(',');
-  const statsUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoIds}&key=${YOUTUBE_API_KEY}`;
-  const statsResponse = await fetch(statsUrl);
-  const statsData = await statsResponse.json();
-  
-  // Filter videos from last 3 months and sort by views
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-  
-  const videos = statsData.items
-    .filter(video => {
-      const publishedAt = new Date(video.snippet.publishedAt);
-      return publishedAt >= threeMonthsAgo;
-    })
-    .map(video => ({
-      url: `https://www.youtube.com/watch?v=${video.id}`,
-      title: video.snippet.title,
-      views: parseInt(video.statistics.viewCount) || 0,
-      likes: parseInt(video.statistics.likeCount) || 0,
-      comments: parseInt(video.statistics.commentCount) || 0,
-      published_at: video.snippet.publishedAt
-    }))
-    .sort((a, b) => b.views - a.views)
-    .slice(0, count);
-  
-  return videos;
 }
 
 async function scrapeYouTubeChannel(channelUrl) {
