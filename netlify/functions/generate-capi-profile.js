@@ -641,10 +641,24 @@ function calculateAverageScores(videoAnalyses) {
   const avgScores = {};
   
   for (const category of categories) {
-    const scores = videoAnalyses.map(v => v.scores[category]);
-    const avgScore = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
-    const reasons = scores.map(s => s.reason);
-    const mostCommonReason = reasons[0];
+    // Filter out videos that don't have valid scores for this category
+    const validScores = videoAnalyses
+      .filter(v => v.scores && v.scores[category] && typeof v.scores[category].score === 'number' && !isNaN(v.scores[category].score))
+      .map(v => v.scores[category]);
+    
+    if (validScores.length === 0) {
+      // No valid scores, use default
+      avgScores[category] = {
+        score: Math.round(maxScores[category] * 0.7), // 70% as default
+        max: maxScores[category],
+        reason: "분석 데이터 부족 - 기본값 적용"
+      };
+      continue;
+    }
+    
+    const avgScore = validScores.reduce((sum, s) => sum + s.score, 0) / validScores.length;
+    const reasons = validScores.map(s => s.reason).filter(r => r && r.length > 0);
+    const mostCommonReason = reasons[0] || "분석 완료";
     
     avgScores[category] = {
       score: Math.round(avgScore),
