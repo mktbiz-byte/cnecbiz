@@ -53,8 +53,17 @@ export default function FeaturedCreatorManagementPageNew() {
   const [activeTab, setActiveTab] = useState('featured')
   const [cnecPlusCreators, setCnecPlusCreators] = useState([])
   const [showCnecPlusForm, setShowCnecPlusForm] = useState(false)
+  const [showCnecPlusCreatorModal, setShowCnecPlusCreatorModal] = useState(false)
+  const [selectedCnecPlusRegion, setSelectedCnecPlusRegion] = useState('korea')
+  const [cnecPlusSearchQuery, setCnecPlusSearchQuery] = useState('')
+  const [cnecPlusRegisteredCreators, setCnecPlusRegisteredCreators] = useState([])
+  const [loadingCnecPlusCreators, setLoadingCnecPlusCreators] = useState(false)
   const [cnecPlusFormData, setCnecPlusFormData] = useState({
-    creator_id: '',
+    creator_name: '',
+    creator_region: '',
+    channel_url: '',
+    profile_image: '',
+    platform: '',
     price_per_video: '',
     display_order: 0
   })
@@ -428,7 +437,8 @@ export default function FeaturedCreatorManagementPageNew() {
       channel_name: creator.channel_name || creator.name,
       channel_url: creator.youtube_url || creator.instagram_url || creator.tiktok_url || '',
       profile_image: creator.profile_image_url || '',
-      platform: creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok'
+      platform: creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok',
+      regions: [selectedRegionForSearch] // 자동으로 선택한 지역 설정
     }))
     setShowCreatorSelectModal(false)
     alert(`${creator.name} 크리에이터가 선택되었습니다. 영상 URL을 입력하고 CAPI 분석을 시작하세요.`)
@@ -440,9 +450,58 @@ export default function FeaturedCreatorManagementPageNew() {
     }
   }, [selectedRegionForSearch, showCreatorSelectModal])
 
+  // CNEC Plus creator search
+  const searchCnecPlusCreators = async () => {
+    setLoadingCnecPlusCreators(true)
+    try {
+      const client = getSupabaseClient(selectedCnecPlusRegion)
+      if (!client) {
+        alert(`${selectedCnecPlusRegion} 데이터베이스에 연결할 수 없습니다.`)
+        return
+      }
+
+      let query = client
+        .from('user_profiles')
+        .select('*')
+
+      if (cnecPlusSearchQuery.trim()) {
+        query = query.or(`name.ilike.%${cnecPlusSearchQuery}%,email.ilike.%${cnecPlusSearchQuery}%,channel_name.ilike.%${cnecPlusSearchQuery}%`)
+      }
+
+      const { data, error } = await query.limit(50)
+
+      if (error) throw error
+      setCnecPlusRegisteredCreators(data || [])
+    } catch (err) {
+      console.error('Error searching CNEC Plus creators:', err)
+      alert('크리에이터 검색 중 오류가 발생했습니다.')
+    } finally {
+      setLoadingCnecPlusCreators(false)
+    }
+  }
+
+  const handleSelectCnecPlusCreator = (creator) => {
+    setCnecPlusFormData(prev => ({
+      ...prev,
+      creator_name: creator.channel_name || creator.name,
+      creator_region: selectedCnecPlusRegion,
+      channel_url: creator.youtube_url || creator.instagram_url || creator.tiktok_url || '',
+      profile_image: creator.profile_image_url || '',
+      platform: creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok'
+    }))
+    setShowCnecPlusCreatorModal(false)
+    alert(`${creator.name} 크리에이터가 선택되었습니다. 숯폼 1건당 가격을 입력하세요.`)
+  }
+
+  useEffect(() => {
+    if (showCnecPlusCreatorModal) {
+      searchCnecPlusCreators()
+    }
+  }, [selectedCnecPlusRegion, showCnecPlusCreatorModal])
+
   // CNEC Plus handlers
   const handleAddCnecPlus = async () => {
-    if (!cnecPlusFormData.creator_id) {
+    if (!cnecPlusFormData.creator_name) {
       alert('크리에이터를 선택해주세요.')
       return
     }
@@ -452,29 +511,59 @@ export default function FeaturedCreatorManagementPageNew() {
     }
 
     try {
-      const { data, error } = await supabaseBiz
+      // 1. featured_creators에 먼저 저장
+      const newCreator = {
+        platform: cnecPlusFormData.platform,
+        channel_name: cnecPlusFormData.creator_name,
+        channel_url: cnecPlusFormData.channel_url,
+        profile_image: cnecPlusFormData.profile_image,
+        regions: [cnecPlusFormData.creator_region],
+        supported_campaigns: [], // CNEC Plus는 모든 캠페인 지원
+        featured_type: 'cnec_plus',
+        is_active: true,
+        followers: 0,
+        avg_views: 0,
+        avg_likes: 0,
+        avg_comments: 0
+      }
+
+      const { data: creatorData, error: creatorError } = await supabaseBiz
+        .from('featured_creators')
+        .insert([newCreator])
+        .select()
+        .single()
+
+      if (creatorError) throw creatorError
+
+      // 2. cnec_plus_pricing에 가격 정보 저장
+      const { data: pricingData, error: pricingError } = await supabaseBiz
         .from('cnec_plus_pricing')
         .insert([{
-          creator_id: cnecPlusFormData.creator_id,
+          creator_id: creatorData.id,
           price_per_video: parseInt(cnecPlusFormData.price_per_video.replace(/,/g, '')),
           display_order: cnecPlusFormData.display_order || cnecPlusCreators.length,
           is_active: true
         }])
         .select()
 
-      if (error) throw error
+      if (pricingError) throw pricingError
 
       alert('CNEC Plus에 추가되었습니다!')
       await loadCnecPlusCreators()
+      await loadFeaturedCreators()
       setShowCnecPlusForm(false)
       setCnecPlusFormData({
-        creator_id: '',
+        creator_name: '',
+        creator_region: '',
+        channel_url: '',
+        profile_image: '',
+        platform: '',
         price_per_video: '',
         display_order: 0
       })
     } catch (err) {
       console.error('Error adding CNEC Plus:', err)
-      alert('CNEC Plus 추가 중 오류가 발생했습니다.')
+      alert('CNEC Plus 추가 중 오류가 발생했습니다: ' + err.message)
     }
   }
 
@@ -605,19 +694,16 @@ export default function FeaturedCreatorManagementPageNew() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>활동 지역 (다중 선택) *</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {['korea', 'japan', 'us', 'taiwan'].map(region => (
-                          <Button
-                            key={region}
-                            type="button"
-                            variant={formData.regions.includes(region) ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleRegionToggle(region)}
-                          >
+                      <Label>활동 지역</Label>
+                      <div className="flex gap-2">
+                        {formData.regions.map(region => (
+                          <Badge key={region} variant="default">
                             {getRegionFlag(region)} {getRegionName(region)}
-                          </Button>
+                          </Badge>
                         ))}
+                        {formData.regions.length === 0 && (
+                          <span className="text-sm text-gray-500">가입 크리에이터 선택 시 자동 설정됩니다</span>
+                        )}
                       </div>
                     </div>
 
@@ -631,7 +717,9 @@ export default function FeaturedCreatorManagementPageNew() {
                             variant={formData.supported_campaigns.includes(campaign) ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => handleCampaignToggle(campaign)}
+                            className={formData.supported_campaigns.includes(campaign) ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
                           >
+                            {formData.supported_campaigns.includes(campaign) && '✓ '}
                             {getCampaignName(campaign)}
                           </Button>
                         ))}
@@ -641,47 +729,7 @@ export default function FeaturedCreatorManagementPageNew() {
                       </p>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>가격 설정</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">기본 패키지</Label>
-                          <Input
-                            name="basic_price"
-                            value={formData.basic_price}
-                            onChange={handleInputChange}
-                            placeholder="2,000,000"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">스탠다드 패키지</Label>
-                          <Input
-                            name="standard_price"
-                            value={formData.standard_price}
-                            onChange={handleInputChange}
-                            placeholder="3,000,000"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">프리미엄 패키지</Label>
-                          <Input
-                            name="premium_price"
-                            value={formData.premium_price}
-                            onChange={handleInputChange}
-                            placeholder="5,000,000"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">월간 패키지</Label>
-                          <Input
-                            name="monthly_price"
-                            value={formData.monthly_price}
-                            onChange={handleInputChange}
-                            placeholder="10,000,000"
-                          />
-                        </div>
-                      </div>
-                    </div>
+
 
                     <div className="flex gap-2 pt-4">
                       <Button
@@ -915,26 +963,25 @@ export default function FeaturedCreatorManagementPageNew() {
                 {showCnecPlusForm && (
                   <Card className="mb-6">
                     <CardHeader>
-                      <CardTitle>크리에이터 추가</CardTitle>
+                      <CardTitle>CNEC Plus 크리에이터 추가</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-2">
-                        <Label>크리에이터 선택 *</Label>
-                        <Select 
-                          value={cnecPlusFormData.creator_id} 
-                          onValueChange={(value) => setCnecPlusFormData(prev => ({...prev, creator_id: value}))}
+                        <Label>가입 크리에이터에서 선택 *</Label>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start"
+                          onClick={() => setShowCnecPlusCreatorModal(true)}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="크리에이터를 선택하세요" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {featuredCreators.map(creator => (
-                              <SelectItem key={creator.id} value={creator.id}>
-                                {creator.channel_name} ({creator.platform})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <Users className="mr-2 h-4 w-4" />
+                          {cnecPlusFormData.creator_name || '가입 크리에이터에서 선택'}
+                        </Button>
+                        {cnecPlusFormData.creator_name && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Badge variant="outline">{cnecPlusFormData.platform}</Badge>
+                            <span>{getRegionFlag(cnecPlusFormData.creator_region)} {getRegionName(cnecPlusFormData.creator_region)}</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-2">
@@ -1156,6 +1203,75 @@ export default function FeaturedCreatorManagementPageNew() {
                           {creator.instagram_url && <Badge variant="outline">Instagram</Badge>}
                           {creator.tiktok_url && <Badge variant="outline">TikTok</Badge>}
                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CNEC Plus Creator Selection Modal */}
+      <Dialog open={showCnecPlusCreatorModal} onOpenChange={setShowCnecPlusCreatorModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>CNEC Plus 크리에이터 선택</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Select value={selectedCnecPlusRegion} onValueChange={setSelectedCnecPlusRegion}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="korea">{getRegionFlag('korea')} 한국</SelectItem>
+                  <SelectItem value="japan">{getRegionFlag('japan')} 일본</SelectItem>
+                  <SelectItem value="us">{getRegionFlag('us')} 미국</SelectItem>
+                  <SelectItem value="taiwan">{getRegionFlag('taiwan')} 대만</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="이름, 이메일, 채널명 검색"
+                value={cnecPlusSearchQuery}
+                onChange={(e) => setCnecPlusSearchQuery(e.target.value)}
+                className="flex-1"
+              />
+              <Button onClick={searchCnecPlusCreators}>
+                검색
+              </Button>
+            </div>
+
+            {loadingCnecPlusCreators ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+              </div>
+            ) : cnecPlusRegisteredCreators.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                검색 결과가 없습니다
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {cnecPlusRegisteredCreators.map(creator => (
+                  <Card key={creator.id} className="cursor-pointer hover:border-purple-500 transition-colors" onClick={() => handleSelectCnecPlusCreator(creator)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        {creator.profile_image_url && (
+                          <img src={creator.profile_image_url} alt={creator.name} className="w-12 h-12 rounded-full object-cover" />
+                        )}
+                        <div className="flex-1">
+                          <div className="font-semibold">{creator.name}</div>
+                          <div className="text-sm text-gray-500">{creator.email}</div>
+                          {creator.channel_name && (
+                            <div className="text-sm text-gray-600 mt-1">채널: {creator.channel_name}</div>
+                          )}
+                        </div>
+                        {(creator.youtube_url || creator.instagram_url || creator.tiktok_url) && (
+                          <Badge variant="outline">
+                            {creator.youtube_url ? 'YouTube' : creator.instagram_url ? 'Instagram' : 'TikTok'}
+                          </Badge>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
