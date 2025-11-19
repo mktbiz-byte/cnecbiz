@@ -515,11 +515,6 @@ export default function FeaturedCreatorManagementPageNew() {
                   AI 기반 CAPI 분석으로 크리에이터를 평가하고 관리합니다
                 </p>
               </div>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => navigate('/admin')}>
-                  관리자 대시보드
-                </Button>
-              </div>
             </div>
           </div>
         </header>
