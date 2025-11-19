@@ -9,7 +9,7 @@ import {
   Star, Loader2, Users, Award, Search, Sparkles, CheckCircle2
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
-import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function FeaturedCreatorManagementPageNew() {
   const navigate = useNavigate()
@@ -55,14 +55,14 @@ export default function FeaturedCreatorManagementPageNew() {
     setLoading(true)
     try {
       // 가입한 크리에이터 (승인된 사용자만)
-      const { data: creators } = await supabaseKorea
+      const { data: creators } = await supabaseBiz
         .from('user_profiles')
         .select('*')
         .eq('approval_status', 'approved')
         .order('created_at', { ascending: false })
 
       // 추천 크리에이터
-      const { data: featured } = await supabaseKorea
+      const { data: featured } = await supabaseBiz
         .from('featured_creators')
         .select('*')
         .order('created_at', { ascending: false })
@@ -142,7 +142,7 @@ export default function FeaturedCreatorManagementPageNew() {
         const aiData = JSON.parse(aiText.replace(/```json\n?|\n?```/g, ''))
 
         // featured_creators에 저장
-        const { error } = await supabaseKorea
+        const { error } = await supabaseBiz
           .from('featured_creators')
           .insert({
             user_profile_id: creator.id,
@@ -183,7 +183,7 @@ export default function FeaturedCreatorManagementPageNew() {
     if (!confirm('이 추천 크리에이터를 삭제하시겠습니까?')) return
 
     try {
-      const { error } = await supabaseKorea
+      const { error } = await supabaseBiz
         .from('featured_creators')
         .delete()
         .eq('id', id)
