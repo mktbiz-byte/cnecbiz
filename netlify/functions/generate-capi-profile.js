@@ -239,7 +239,14 @@ function extractYouTubeChannelId(url) {
   
   for (const pattern of patterns) {
     const match = url.match(pattern);
-    if (match) return match[1];
+    if (match) {
+      // Remove @ symbol if present
+      let extracted = match[1];
+      if (extracted.startsWith('@')) {
+        extracted = extracted.substring(1);
+      }
+      return extracted;
+    }
   }
   
   return null;
@@ -247,40 +254,56 @@ function extractYouTubeChannelId(url) {
 
 async function getYouTubeChannelData(channelId, retryCount = 0) {
   const apiKey = getYouTubeAPIKey();
+  console.log(`Attempting to get channel data for: ${channelId} (retry: ${retryCount})`);
 
   try {
-    // Try to get channel by ID first
-    let url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`;
-    let response = await fetch(url);
-    let data = await response.json();
+    let url, response, data;
     
-    // Check for quota exceeded or auth error
-    if (data.error && (data.error.code === 403 || data.error.code === 429)) {
-      const nextKey = rotateYouTubeAPIKey();
-      if (nextKey && retryCount < YOUTUBE_API_KEYS.length) {
-        console.log(`API key failed (${data.error.message}), trying next key...`);
-        return getYouTubeChannelData(channelId, retryCount + 1);
-      }
-      throw new Error(`All YouTube API keys exhausted. Last error: ${data.error.message}`);
-    }
-    
-    // If not found, try as username
-    if (!data.items || data.items.length === 0) {
-      url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&forUsername=${channelId}&key=${apiKey}`;
-      response = await fetch(url);
-      data = await response.json();
-    }
-    
-    // If still not found, try searching
-    if (!data.items || data.items.length === 0) {
-      url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${channelId}&type=channel&key=${apiKey}`;
+    // Check if channelId starts with UC (actual channel ID)
+    if (channelId.startsWith('UC')) {
+      // Try to get channel by ID
+      url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`;
       response = await fetch(url);
       data = await response.json();
       
+      // Check for quota exceeded or auth error
+      if (data.error && (data.error.code === 403 || data.error.code === 429)) {
+        const nextKey = rotateYouTubeAPIKey();
+        if (nextKey && retryCount < YOUTUBE_API_KEYS.length) {
+          console.log(`API key failed (${data.error.message}), trying next key...`);
+          return getYouTubeChannelData(channelId, retryCount + 1);
+        }
+        throw new Error(`All YouTube API keys exhausted. Last error: ${data.error.message}`);
+      }
+    } else {
+      // It's a username, use search API first
+      console.log(`Searching for channel with username: ${channelId}`);
+      url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${channelId}&type=channel&maxResults=1&key=${apiKey}`;
+      response = await fetch(url);
+      data = await response.json();
+      
+      // Check for API errors
+      if (data.error && (data.error.code === 403 || data.error.code === 429)) {
+        const nextKey = rotateYouTubeAPIKey();
+        if (nextKey && retryCount < YOUTUBE_API_KEYS.length) {
+          console.log(`API key failed (${data.error.message}), trying next key...`);
+          return getYouTubeChannelData(channelId, retryCount + 1);
+        }
+        throw new Error(`All YouTube API keys exhausted. Last error: ${data.error.message}`);
+      }
+      
       if (data.items && data.items.length > 0) {
-        const actualChannelId = data.items[0].snippet.channelId;
+        const actualChannelId = data.items[0].id.channelId || data.items[0].snippet.channelId;
+        console.log(`Found channel ID: ${actualChannelId}`);
+        // Recursively call with actual channel ID
         return getYouTubeChannelData(actualChannelId, retryCount);
       }
+      
+      // If search fails, try forUsername as fallback
+      console.log(`Search failed, trying forUsername...`);
+      url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&forUsername=${channelId}&key=${apiKey}`;
+      response = await fetch(url);
+      data = await response.json();
     }
     
     if (!data.items || data.items.length === 0) {
@@ -288,6 +311,7 @@ async function getYouTubeChannelData(channelId, retryCount = 0) {
     }
     
     const channel = data.items[0];
+    console.log(`Successfully retrieved channel data for: ${channel.snippet.title}`);
     return {
       id: channel.id,
       subscribers: parseInt(channel.statistics.subscriberCount) || 0,
