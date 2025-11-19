@@ -767,14 +767,52 @@ export default function FeaturedCreatorManagementPageNew() {
                             {calculateCapiGrade(capiResult.total_content_score + 30)}급
                           </div>
                         </div>
-                        <div className="mt-4 pt-4 border-t border-purple-200">
-                          <div className="flex justify-between text-sm">
-                            <span>콘텐츠 제작 역량</span>
-                            <span className="font-bold">{capiResult.total_content_score}/70점</span>
+                        <div className="mt-4 pt-4 border-t border-purple-200 space-y-3">
+                          <div>
+                            <div className="flex justify-between text-sm mb-2">
+                              <span className="font-semibold">콘텐츠 제작 역량</span>
+                              <span className="font-bold text-purple-600">{capiResult.total_content_score}/70점</span>
+                            </div>
+                            {capiResult.content_scores && (
+                              <div className="space-y-1 pl-4 text-xs">
+                                <div className="flex justify-between">
+                                  <span>오프닝 후킹력</span>
+                                  <span className="font-medium">{capiResult.content_scores.opening_hook?.score || 0}/14점</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>신뢰도 구축</span>
+                                  <span className="font-medium">{capiResult.content_scores.credibility?.score || 0}/13점</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>제품 시연 효과성</span>
+                                  <span className="font-medium">{capiResult.content_scores.product_demo?.score || 0}/11점</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>오디오 품질</span>
+                                  <span className="font-medium">{capiResult.content_scores.audio_quality?.score || 0}/8점</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>편집 완성도</span>
+                                  <span className="font-medium">{capiResult.content_scores.editing?.score || 0}/8점</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>스토리텔링 구조</span>
+                                  <span className="font-medium">{capiResult.content_scores.storytelling?.score || 0}/7점</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>CTA 명확성</span>
+                                  <span className="font-medium">{capiResult.content_scores.cta_clarity?.score || 0}/6점</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>비주얼 품질</span>
+                                  <span className="font-medium">{capiResult.content_scores.visual_quality?.score || 0}/3점</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex justify-between text-sm mt-2">
-                            <span>계정 활성도</span>
-                            <span className="font-bold">30/30점</span>
+                          <div className="flex justify-between text-sm pt-2 border-t border-purple-100">
+                            <span className="font-semibold">계정 활성도</span>
+                            <span className="font-bold text-purple-600">30/30점</span>
                           </div>
                         </div>
                       </div>
@@ -783,21 +821,113 @@ export default function FeaturedCreatorManagementPageNew() {
                         <h4 className="font-semibold text-sm mb-2">💪 강점</h4>
                         {capiResult.strengths?.slice(0, 3).map((strength, i) => (
                           <div key={i} className="bg-green-50 border border-green-200 rounded p-3 mb-2">
-                            <div className="font-medium text-sm">{strength.title}</div>
-                            <div className="text-xs text-gray-600 mt-1">{strength.description}</div>
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-medium text-sm">{strength.title}</div>
+                              <div className="text-xs font-bold text-green-700">{strength.score}점</div>
+                            </div>
+                            <div className="text-xs text-gray-600">{strength.description}</div>
+                            {capiResult.content_scores && capiResult.content_scores[Object.keys(capiResult.content_scores).find(key => 
+                              capiResult.content_scores[key]?.score === strength.score
+                            )]?.reason && (
+                              <div className="text-xs text-gray-500 mt-1 italic">
+                                • {capiResult.content_scores[Object.keys(capiResult.content_scores).find(key => 
+                                  capiResult.content_scores[key]?.score === strength.score
+                                )]?.reason}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
 
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">🎯 개선 포인트</h4>
+                        <h4 className="font-semibold text-sm mb-2">🚀 성장 가능성</h4>
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3 text-xs text-blue-800">
+                          <div className="font-medium mb-1">✨ 가이드 최적화 팁</div>
+                          <div>아래 개선 포인트를 캠페인 가이드에 반영하면 더 높은 점수를 받을 수 있습니다.</div>
+                        </div>
                         {capiResult.weaknesses?.slice(0, 2).map((weakness, i) => (
                           <div key={i} className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-2">
-                            <div className="font-medium text-sm">{weakness.title}</div>
-                            <div className="text-xs text-gray-600 mt-1">{weakness.current}</div>
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-medium text-sm">{weakness.title}</div>
+                              <div className="text-xs font-bold text-yellow-700">{weakness.score}점</div>
+                            </div>
+                            <div className="text-xs text-gray-600 mb-2">현재: {weakness.current}</div>
+                            {weakness.improvements && weakness.improvements.length > 0 && (
+                              <div className="text-xs text-gray-700 mb-2">
+                                <div className="font-medium text-green-700 mb-1">개선 방안:</div>
+                                <ul className="list-disc list-inside space-y-0.5 pl-2">
+                                  {weakness.improvements.map((imp, idx) => (
+                                    <li key={idx}>{imp}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {weakness.expected_impact && (
+                              <div className="text-xs font-medium text-purple-700 bg-purple-50 rounded px-2 py-1">
+                                🎯 {weakness.expected_impact}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
+
+                      {/* 분석된 영상 목록 */}
+                      {capiResult.analyzed_videos && capiResult.analyzed_videos.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2">🎥 분석된 영상 ({capiResult.analyzed_videos.length}개)</h4>
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            {capiResult.analyzed_videos.map((video, i) => (
+                              <div key={i} className="bg-gray-50 border border-gray-200 rounded p-3">
+                                <div className="flex justify-between items-start mb-1">
+                                  <a 
+                                    href={video.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm font-medium text-blue-600 hover:underline flex-1 mr-2"
+                                  >
+                                    {video.title}
+                                  </a>
+                                  <div className="text-xs font-bold text-purple-600">{video.content_score}점</div>
+                                </div>
+                                <div className="flex gap-3 text-xs text-gray-600">
+                                  <span>👁 {video.views.toLocaleString()}</span>
+                                  <span>👍 {video.likes.toLocaleString()}</span>
+                                  <span>💬 {video.comments.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 계정 활성도 상세 */}
+                      {capiResult.activity_scores && (
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2">📊 계정 활성도 상세</h4>
+                          <div className="space-y-2">
+                            {Object.entries(capiResult.activity_scores).map(([key, data]) => (
+                              <div key={key} className="bg-blue-50 border border-blue-200 rounded p-2">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-xs font-medium">
+                                    {key === 'followers' ? '구독자 수' :
+                                     key === 'avg_views' ? '평균 조회수' :
+                                     key === 'engagement' ? '참여율' :
+                                     '업로드 빈도'}
+                                  </span>
+                                  <span className="text-xs font-bold text-blue-700">{data.score}/{data.max}점</span>
+                                </div>
+                                <div className="text-xs text-gray-600">{data.reason}</div>
+                                {data.value && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {typeof data.value === 'number' ? data.value.toLocaleString() : data.value}
+                                    {data.rate && ` (${data.rate})`}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <Button onClick={handleSave} className="w-full" size="lg">
                         저장하기
