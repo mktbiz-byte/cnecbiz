@@ -26,8 +26,6 @@ export default function FeaturedCreatorManagementPageNew() {
     platform: 'youtube',
     channel_name: '',
     channel_url: '',
-    profile_image: '',
-    video_urls: '', // 최근 영상 10개 URL (줄바꿈으로 구분)
     regions: [],
     supported_campaigns: [], // 지원 가능한 캠페인 유형
     basic_price: '',
@@ -191,24 +189,17 @@ export default function FeaturedCreatorManagementPageNew() {
       return
     }
 
-    if (!formData.video_urls.trim()) {
-      alert('분석할 영상 URL을 최소 1개 이상 입력해주세요.')
-      return
-    }
-
     setAnalyzing(true)
 
     try {
-      const videoUrls = formData.video_urls.split('\n').filter(url => url.trim())
-
-      // Call CAPI generation API
+      // Call CAPI generation API (video URLs will be auto-selected)
       const response = await fetch('/.netlify/functions/generate-capi-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           channelUrl: formData.channel_url,
-          platform: formData.platform,
-          videoUrls: videoUrls
+          platform: formData.platform
+          // videoUrls will be auto-selected by the API
         })
       })
 
@@ -268,14 +259,14 @@ export default function FeaturedCreatorManagementPageNew() {
         platform: formData.platform,
         channel_name: formData.channel_name,
         channel_url: formData.channel_url,
-        profile_image: formData.profile_image,
-        followers: 0, // Should be scraped
-        avg_views: 0, // Should be scraped
-        avg_likes: 0,
-        avg_comments: 0,
-        category: '',
-        target_audience: '',
-        content_style: '',
+        profile_image: capiResult.profile_image || '', // Get from CAPI analysis
+        followers: capiResult.followers || 0,
+        avg_views: capiResult.avg_views || 0,
+        avg_likes: capiResult.avg_likes || 0,
+        avg_comments: capiResult.avg_comments || 0,
+        category: capiResult.category || '',
+        target_audience: capiResult.target_audience || '',
+        content_style: capiResult.content_style || '',
         regions: formData.regions,
         supported_campaigns: formData.supported_campaigns,
         basic_price: parseInt(formData.basic_price.replace(/,/g, '')),
@@ -306,8 +297,6 @@ export default function FeaturedCreatorManagementPageNew() {
         platform: 'youtube',
         channel_name: '',
         channel_url: '',
-        profile_image: '',
-        video_urls: '',
         regions: [],
         supported_campaigns: [],
         basic_price: '',
@@ -436,12 +425,11 @@ export default function FeaturedCreatorManagementPageNew() {
       ...prev,
       channel_name: creator.channel_name || creator.name,
       channel_url: creator.youtube_url || creator.instagram_url || creator.tiktok_url || '',
-      profile_image: creator.profile_image_url || '',
       platform: creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok',
       regions: [selectedRegionForSearch] // 자동으로 선택한 지역 설정
     }))
     setShowCreatorSelectModal(false)
-    alert(`${creator.name} 크리에이터가 선택되었습니다. 영상 URL을 입력하고 CAPI 분석을 시작하세요.`)
+    alert(`${creator.name} 크리에이터가 선택되었습니다. CAPI 분석 버튼을 클릭하여 분석을 시작하세요.`)
   }
 
   useEffect(() => {
@@ -668,29 +656,16 @@ export default function FeaturedCreatorManagementPageNew() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>프로필 이미지 URL</Label>
-                      <Input
-                        name="profile_image"
-                        value={formData.profile_image}
-                        onChange={handleInputChange}
-                        placeholder="https://..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>분석할 영상 URL (최근 10개 권장) *</Label>
-                      <Textarea
-                        name="video_urls"
-                        value={formData.video_urls}
-                        onChange={handleInputChange}
-                        placeholder="https://youtube.com/watch?v=..."
-                        rows={6}
-                        className="font-mono text-sm"
-                      />
-                      <p className="text-xs text-gray-500">
-                        각 URL을 줄바꿈으로 구분하여 입력하세요
-                      </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">자동 분석 기능</p>
+                          <p className="text-xs text-blue-700 mt-1">
+                            채널 URL을 입력하면 최근 3개월 내 인기 영상 10개를 자동으로 선택하여 분석합니다.
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
