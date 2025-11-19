@@ -28,11 +28,7 @@ export default function CreatorsManagement() {
   const [registeredCreators, setRegisteredCreators] = useState([])
   const [showRegisteredModal, setShowRegisteredModal] = useState(false)
   const [selectedCreatorIds, setSelectedCreatorIds] = useState([])
-  const [campaignTypes, setCampaignTypes] = useState({
-    can_join_planned: false,
-    can_join_4week: false,
-    can_join_oliveyoung: false
-  })
+  const [selectedCountry, setSelectedCountry] = useState('korea')
   
   const [formData, setFormData] = useState({
     creator_name: '',
@@ -95,15 +91,20 @@ export default function CreatorsManagement() {
     }
   }
 
-  const fetchCreators = async () => {
+  const fetchCreators = async (country = null) => {
     if (!supabaseBiz) return
 
     try {
-      const { data, error } = await supabaseBiz
+      let query = supabaseBiz
         .from('featured_creator_applications')
         .select('*')
         .eq('status', 'approved')
-        .order('created_at', { ascending: false })
+      
+      if (country) {
+        query = query.eq('country', country)
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false })
 
       if (!error && data) {
         setCreators(data)
@@ -113,7 +114,7 @@ export default function CreatorsManagement() {
     }
   }
 
-  const fetchRegisteredCreators = async () => {
+  const fetchRegisteredCreators = async (country = 'korea') => {
     if (!supabaseBiz) return
 
     try {
@@ -121,6 +122,7 @@ export default function CreatorsManagement() {
         .from('user_profiles')
         .select('*')
         .eq('approval_status', 'approved')
+        .eq('country', country)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
@@ -533,11 +535,8 @@ ${realDataInfo}
             final_target_audience: aiData.target_audience,
             final_content_style: aiData.content_style,
             total_followers: creator.followers || 0,
-            country: 'korea',
-            status: 'approved',
-            can_join_planned: campaignTypes.can_join_planned,
-            can_join_4week: campaignTypes.can_join_4week,
-            can_join_oliveyoung: campaignTypes.can_join_oliveyoung
+            country: selectedCountry,
+            status: 'approved'
           })
 
         if (error) throw error
@@ -546,11 +545,6 @@ ${realDataInfo}
       alert(`${selectedCreatorIds.length}명의 AI 프로필이 생성되었습니다!`)
       setShowRegisteredModal(false)
       setSelectedCreatorIds([])
-      setCampaignTypes({
-        can_join_planned: false,
-        can_join_4week: false,
-        can_join_oliveyoung: false
-      })
       await fetchCreators()
     } catch (error) {
       console.error('Error generating profiles:', error)
@@ -625,6 +619,18 @@ ${realDataInfo}
             </TabsList>
 
             <TabsContent value="featured" className="mt-0">
+              {/* 국가별 탭 */}
+              <Tabs value={selectedCountry} onValueChange={(value) => {
+                setSelectedCountry(value)
+                fetchCreators(value)
+              }} className="w-full mb-6">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="korea">한국</TabsTrigger>
+                  <TabsTrigger value="japan">일본</TabsTrigger>
+                  <TabsTrigger value="usa">미국</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
@@ -1114,38 +1120,22 @@ ${realDataInfo}
               선택한 크리에이터의 프로필을 AI가 자동으로 생성하여 추천 크리에이터로 등록합니다.
             </p>
 
-            {/* 캐페인 참여 가능 여부 */}
-            <div className="bg-blue-50 p-4 rounded-lg space-y-3">
-              <label className="font-semibold text-sm">캐페인 참여 가능 여부</label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={campaignTypes.can_join_planned}
-                    onCheckedChange={(checked) => 
-                      setCampaignTypes(prev => ({ ...prev, can_join_planned: checked }))
-                    }
-                  />
-                  <label className="text-sm">기획형 캐페인</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={campaignTypes.can_join_4week}
-                    onCheckedChange={(checked) => 
-                      setCampaignTypes(prev => ({ ...prev, can_join_4week: checked }))
-                    }
-                  />
-                  <label className="text-sm">4주 챌린지</label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={campaignTypes.can_join_oliveyoung}
-                    onCheckedChange={(checked) => 
-                      setCampaignTypes(prev => ({ ...prev, can_join_oliveyoung: checked }))
-                    }
-                  />
-                  <label className="text-sm">올영세일</label>
-                </div>
-              </div>
+            {/* 국가 선택 */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <label className="font-semibold text-sm block mb-2">국가 선택</label>
+              <select
+                value={selectedCountry}
+                onChange={(e) => {
+                  setSelectedCountry(e.target.value)
+                  fetchRegisteredCreators(e.target.value)
+                  setSelectedCreatorIds([])
+                }}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="korea">한국</option>
+                <option value="japan">일본</option>
+                <option value="usa">미국</option>
+              </select>
             </div>
 
             {/* 크리에이터 목록 */}
