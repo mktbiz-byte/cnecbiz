@@ -211,15 +211,17 @@ ${weekData.required_scenes}
       return
     }
 
-    if (!baseGuide) {
-      alert('기본 가이드를 입력해주세요.')
-      return
-    }
-
     // 1주차 가이드 필수 체크 (나머지는 선택사항)
     const week1Data = weeklyGuides.week1
     if (!week1Data.mission || !week1Data.required_dialogue || !week1Data.required_scenes || !week1Data.generated_guide) {
       alert('1주차 가이드는 필수입니다. 1주차 가이드를 먼저 생성해주세요.')
+      return
+    }
+
+    // 기본 가이드는 선택사항 (AI 생성 가이드가 있으면 필수 아님)
+    // 단, 기본 가이드가 없고 AI 생성 가이드도 없으면 경고
+    if (!baseGuide && !week1Data.generated_guide) {
+      alert('기본 가이드를 입력하거나 1주차 AI 가이드를 생성해주세요.')
       return
     }
 
@@ -425,16 +427,18 @@ ${weekData.required_scenes}
 
           {/* 기본 가이드 */}
           <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-xl font-semibold mb-4">⚠️ 캠페인 진행시 주의사항</h3>
+            <h3 className="text-xl font-semibold mb-4">
+              ⚠️ 캠페인 진행시 주의사항
+              <span className="ml-2 text-sm font-normal text-gray-500">(선택사항)</span>
+            </h3>
             <p className="text-sm text-gray-600 mb-3">
-              크리에이터가 반드시 지켜야 할 주의사항을 작성해주세요.
+              크리에이터가 반드시 지켜야 할 주의사항을 작성해주세요. (1주차 AI 가이드를 생성하면 선택사항입니다)
             </p>
             <textarea
               value={baseGuide}
               onChange={(e) => setBaseGuide(e.target.value)}
               placeholder="예:&#10;[사용 불가 멘트]&#10;- 제품 효과를 과대 포장하는 표현 금지&#10;- 타 브랜드 제품과 비교하는 표현 금지&#10;- '기적', '최고', '완벽' 등 절대적 표현 자제&#10;&#10;[영상 품질 기준]&#10;- 최소 1080p (Full HD) 해상도 유지&#10;- 적절한 조명 확보 (어두운 영상 금지)&#10;- 선명한 음질 필수 (잡음 최소화)&#10;&#10;[필터 및 보정 금지]&#10;- 과도한 미백 필터 사용 금지&#10;- 제품 색상을 왜곡하는 보정 금지&#10;- 얼굴 필터는 가벼게만 사용&#10;&#10;[기타 주의사항]&#10;- 브랜드명 및 제품명 정확히 언급&#10;- 제품 사용 방법 정확히 안내&#10;- 솔직한 후기 작성 권장"
               className="w-full h-48 p-3 border rounded-lg resize-none"
-              required
             />
           </div>
 
