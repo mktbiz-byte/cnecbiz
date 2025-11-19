@@ -27,15 +27,18 @@ export const handler = async (event) => {
   }
 
   try {
-    const { channelUrl, platform } = JSON.parse(event.body);
+    const { channelUrl, platform: rawPlatform } = JSON.parse(event.body);
 
-    if (!channelUrl || !platform) {
+    if (!channelUrl || !rawPlatform) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({ error: 'channelUrl and platform are required' })
       };
     }
+
+    // Normalize platform to lowercase
+    const platform = rawPlatform.toLowerCase();
 
     console.log(`Starting CAPI analysis for ${platform}:`, channelUrl);
 
@@ -490,37 +493,29 @@ function calculateAverageScores(videoAnalyses) {
 function calculateActivityScore(channelData, topVideos, platform) {
   const breakdown = {};
   let total = 0;
-  
-  // 1. Subscribers/Followers (10 points)
   const subs = channelData.subscribers;
-  if (subs >= 100000) breakdown.followers = { score: 10, max: 10, value: subs, reason: "10만+ 구독자" };
-  else if (subs >= 50000) breakdown.followers = { score: 8, max: 10, value: subs, reason: "5만~10만 구독자" };
-  else if (subs >= 10000) breakdown.followers = { score: 6, max: 10, value: subs, reason: "1만~5만 구독자" };
-  else if (subs >= 5000) breakdown.followers = { score: 4, max: 10, value: subs, reason: "5천~1만 구독자" };
-  else breakdown.followers = { score: 2, max: 10, value: subs, reason: "5천 미만 구독자" };
-  total += breakdown.followers.score;
   
-  // 2. Average views (10 points)
+  // 1. Average view rate (15 points) - 구독자 대비 조회율
   const avgViews = topVideos.reduce((sum, v) => sum + v.views, 0) / topVideos.length;
   const viewRate = subs > 0 ? (avgViews / subs) * 100 : 0;
-  if (viewRate >= 10) breakdown.avg_views = { score: 10, max: 10, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 10% 이상" };
-  else if (viewRate >= 5) breakdown.avg_views = { score: 8, max: 10, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 5~10%" };
-  else if (viewRate >= 3) breakdown.avg_views = { score: 6, max: 10, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 3~5%" };
-  else if (viewRate >= 1) breakdown.avg_views = { score: 4, max: 10, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 1~3%" };
-  else breakdown.avg_views = { score: 2, max: 10, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 1% 미만" };
+  if (viewRate >= 10) breakdown.avg_views = { score: 15, max: 15, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 10% 이상" };
+  else if (viewRate >= 5) breakdown.avg_views = { score: 12, max: 15, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 5~10%" };
+  else if (viewRate >= 3) breakdown.avg_views = { score: 9, max: 15, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 3~5%" };
+  else if (viewRate >= 1) breakdown.avg_views = { score: 6, max: 15, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 1~3%" };
+  else breakdown.avg_views = { score: 3, max: 15, value: Math.round(avgViews), rate: `${viewRate.toFixed(1)}%`, reason: "구독자 대비 조회율 1% 미만" };
   total += breakdown.avg_views.score;
   
-  // 3. Engagement rate (5 points)
+  // 2. Engagement rate (10 points) - 좋아요+댓글/조회수
   const avgEngagement = topVideos.reduce((sum, v) => sum + v.likes + v.comments, 0) / topVideos.length;
   const engagementRate = avgViews > 0 ? (avgEngagement / avgViews) * 100 : 0;
-  if (engagementRate >= 5) breakdown.engagement = { score: 5, max: 5, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 5% 이상" };
-  else if (engagementRate >= 3) breakdown.engagement = { score: 4, max: 5, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 3~5%" };
-  else if (engagementRate >= 1) breakdown.engagement = { score: 3, max: 5, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 1~3%" };
-  else if (engagementRate >= 0.5) breakdown.engagement = { score: 2, max: 5, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 0.5~1%" };
-  else breakdown.engagement = { score: 1, max: 5, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 0.5% 미만" };
+  if (engagementRate >= 5) breakdown.engagement = { score: 10, max: 10, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 5% 이상" };
+  else if (engagementRate >= 3) breakdown.engagement = { score: 8, max: 10, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 3~5%" };
+  else if (engagementRate >= 1) breakdown.engagement = { score: 6, max: 10, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 1~3%" };
+  else if (engagementRate >= 0.5) breakdown.engagement = { score: 4, max: 10, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 0.5~1%" };
+  else breakdown.engagement = { score: 2, max: 10, value: `${engagementRate.toFixed(1)}%`, reason: "참여율 0.5% 미만" };
   total += breakdown.engagement.score;
   
-  // 4. Upload frequency (5 points)
+  // 3. Upload frequency (5 points)
   const uploadFreq = topVideos.length;
   if (uploadFreq >= 36) breakdown.upload_frequency = { score: 5, max: 5, value: "주 3회 이상", reason: "활발한 업로드 빈도" };
   else if (uploadFreq >= 24) breakdown.upload_frequency = { score: 4, max: 5, value: "주 2회", reason: "양호한 업로드 빈도" };

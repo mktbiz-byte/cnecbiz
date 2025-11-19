@@ -507,6 +507,32 @@ const CampaignCreationKorea = () => {
           // AI 추천 실패해도 캠페인 생성은 계속 진행
         }
 
+        // AI 캠페인 가이드 자동 생성
+        try {
+          console.log('[CreateCampaign] Generating AI campaign guide...')
+          const guideResponse = await fetch('/.netlify/functions/generate-campaign-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ campaignData: insertData })
+          })
+          
+          if (guideResponse.ok) {
+            const guideResult = await guideResponse.json()
+            if (guideResult.success && guideResult.guide) {
+              // Update campaign with AI guide
+              await supabaseKorea
+                .from('campaigns')
+                .update({ ai_generated_guide: guideResult.guide })
+                .eq('id', campaignId)
+              
+              console.log('[CreateCampaign] AI campaign guide generated and saved successfully')
+            }
+          }
+        } catch (guideError) {
+          console.warn('[CreateCampaign] Failed to generate AI campaign guide:', guideError)
+          // AI 가이드 실패해도 캠페인 생성은 계속 진행
+        }
+
         // supabaseBiz에도 동일한 데이터 저장 (reward_amount 필드로)
         try {
           const bizCampaignData = {
