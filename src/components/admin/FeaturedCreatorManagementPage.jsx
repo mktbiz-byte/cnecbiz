@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from '../ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog'
 import { analyzeCreator, formatEvaluation } from '../../lib/geminiService'
+import { scrapeYouTubeChannel } from '../../lib/youtubeScraperService'
 import { 
   Star, Plus, Edit, Trash2, Eye, Loader2, 
   TrendingUp, Users, Award, DollarSign, Search, UserPlus 
@@ -177,15 +178,36 @@ export default function FeaturedCreatorManagementPage() {
   }
 
   const handleAnalyze = async () => {
+    if (!formData.channel_url) {
+      alert('채널 URL을 먼저 입력해주세요.')
+      return
+    }
+
     setAnalyzing(true)
 
     try {
+      // 1. 채널 URL에서 데이터 스크래핑
+      let scrapedData = null
+      if (formData.platform === 'youtube' && formData.channel_url.includes('youtube.com')) {
+        scrapedData = await scrapeYouTubeChannel(formData.channel_url)
+        
+        // formData 업데이트
+        setFormData(prev => ({
+          ...prev,
+          followers: scrapedData.subscribers.toLocaleString(),
+          avg_views: scrapedData.avgViews.toLocaleString(),
+          avg_likes: Math.round(scrapedData.avgViews * 0.03).toLocaleString(), // 예상 좋아요 (3%)
+          avg_comments: Math.round(scrapedData.avgViews * 0.005).toLocaleString() // 예상 댓글 (0.5%)
+        }))
+      }
+
+      // 2. AI 분석
       const creatorData = {
         ...formData,
-        followers: parseInt(formData.followers.replace(/,/g, '')),
-        avg_views: parseInt(formData.avg_views.replace(/,/g, '')),
-        avg_likes: parseInt(formData.avg_likes.replace(/,/g, '') || '0'),
-        avg_comments: parseInt(formData.avg_comments.replace(/,/g, '') || '0'),
+        followers: scrapedData ? scrapedData.subscribers : parseInt((formData.followers || '0').replace(/,/g, '')),
+        avg_views: scrapedData ? scrapedData.avgViews : parseInt((formData.avg_views || '0').replace(/,/g, '')),
+        avg_likes: scrapedData ? Math.round(scrapedData.avgViews * 0.03) : parseInt((formData.avg_likes || '0').replace(/,/g, '')),
+        avg_comments: scrapedData ? Math.round(scrapedData.avgViews * 0.005) : parseInt((formData.avg_comments || '0').replace(/,/g, '')),
         sample_videos: formData.sample_videos.split('\n').filter(url => url.trim())
       }
 
@@ -201,9 +223,13 @@ export default function FeaturedCreatorManagementPage() {
       const formatted = formatEvaluation(result)
       
       setEvaluation(formatted)
+      
+      if (scrapedData) {
+        alert(`채널 정보를 가져왔습니다!\n구독자: ${scrapedData.subscribers.toLocaleString()}명\n평균 조회수: ${scrapedData.avgViews.toLocaleString()}회`)
+      }
     } catch (err) {
       console.error('Error analyzing creator:', err)
-      alert('크리에이터 분석 중 오류가 발생했습니다.')
+      alert('크리에이터 분석 중 오류가 발생했습니다: ' + err.message)
     } finally {
       setAnalyzing(false)
     }
@@ -808,8 +834,10 @@ export default function FeaturedCreatorManagementPage() {
                             onClick={() => handleDelete(creator.id)}
                             size="sm"
                             variant="destructive"
+                            className="flex items-center gap-2"
                           >
                             <Trash2 className="w-4 h-4" />
+                            <span>삭제</span>
                           </Button>
                         </div>
                       </CardContent>
