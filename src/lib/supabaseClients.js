@@ -41,8 +41,8 @@ const getSupabaseKorea = () => {
 const getSupabaseJapan = () => {
   if (_supabaseJapan) return _supabaseJapan
   
-  const url = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
-  const key = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || ''
+  const url = import.meta.env.VITE_SUPABASE_JAPAN_URL || 'https://psfwmzlnaboattocyupu.supabase.co'
+  const key = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzZndtemxuYWJvYXR0b2N5dXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MTU2NzgsImV4cCI6MjA3NDE5MTY3OH0.59A4QPRwv8YjfasHu_NTTv0fH6YhG8L_mBkOZypfgwg'
   
   if (url && key && url.startsWith('http')) {
     _supabaseJapan = createClient(url, key, {
@@ -61,8 +61,8 @@ const getSupabaseJapan = () => {
 const getSupabaseUS = () => {
   if (_supabaseUS) return _supabaseUS
   
-  const url = import.meta.env.VITE_SUPABASE_US_URL || ''
-  const key = import.meta.env.VITE_SUPABASE_US_ANON_KEY || ''
+  const url = import.meta.env.VITE_SUPABASE_US_URL || 'https://ybsibqlaipsbvbyqlcny.supabase.co'
+  const key = import.meta.env.VITE_SUPABASE_US_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlic2licWxhaXBzYnZieXFsY255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MTM5OTYsImV4cCI6MjA3NjA4OTk5Nn0.PT3bcPuEvnuS2E_QTGa9wKEN43Qzx5t81POBZ29p9l0'
   
   if (url && key && url.startsWith('http')) {
     _supabaseUS = createClient(url, key, {
