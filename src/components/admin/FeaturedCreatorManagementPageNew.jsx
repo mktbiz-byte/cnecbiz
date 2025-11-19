@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from '../ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/dialog'
 import { Badge } from '../ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { 
   Star, Plus, Edit, Trash2, Loader2, Mail, Send,
   TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2
@@ -28,6 +29,7 @@ export default function FeaturedCreatorManagementPageNew() {
     profile_image: '',
     video_urls: '', // 최근 영상 10개 URL (줄바꿈으로 구분)
     regions: [],
+    supported_campaigns: [], // 지원 가능한 캠페인 유형
     basic_price: '',
     standard_price: '',
     premium_price: '',
@@ -47,8 +49,19 @@ export default function FeaturedCreatorManagementPageNew() {
   const [customMessage, setCustomMessage] = useState('')
   const [sendingReport, setSendingReport] = useState(false)
 
+  // CNEC Plus state
+  const [activeTab, setActiveTab] = useState('featured')
+  const [cnecPlusCreators, setCnecPlusCreators] = useState([])
+  const [showCnecPlusForm, setShowCnecPlusForm] = useState(false)
+  const [cnecPlusFormData, setCnecPlusFormData] = useState({
+    creator_id: '',
+    price_per_video: '',
+    display_order: 0
+  })
+
   useEffect(() => {
     loadFeaturedCreators()
+    loadCnecPlusCreators()
   }, [])
 
   const loadFeaturedCreators = async () => {
@@ -64,6 +77,31 @@ export default function FeaturedCreatorManagementPageNew() {
       console.error('Error loading featured creators:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCnecPlusCreators = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('cnec_plus_pricing')
+        .select(`
+          *,
+          featured_creators (
+            id,
+            channel_name,
+            platform,
+            profile_image,
+            capi_score,
+            capi_grade,
+            regions
+          )
+        `)
+        .order('display_order', { ascending: true })
+
+      if (error) throw error
+      setCnecPlusCreators(data || [])
+    } catch (err) {
+      console.error('Error loading CNEC Plus creators:', err)
     }
   }
 
@@ -93,6 +131,24 @@ export default function FeaturedCreatorManagementPageNew() {
   const getRegionFlag = (code) => {
     const flags = { japan: '🇯🇵', us: '🇺🇸', taiwan: '🇹🇼', korea: '🇰🇷' }
     return flags[code]
+  }
+
+  const handleCampaignToggle = (campaign) => {
+    setFormData(prev => {
+      const campaigns = prev.supported_campaigns.includes(campaign)
+        ? prev.supported_campaigns.filter(c => c !== campaign)
+        : [...prev.supported_campaigns, campaign]
+      return { ...prev, supported_campaigns: campaigns }
+    })
+  }
+
+  const getCampaignName = (code) => {
+    const names = {
+      'package': '패키지 기획형',
+      'oliveyoung': '올리브영',
+      '4week': '4주 챌린지'
+    }
+    return names[code]
   }
 
   const getGradeColor = (grade) => {
@@ -199,6 +255,7 @@ export default function FeaturedCreatorManagementPageNew() {
         target_audience: '',
         content_style: '',
         regions: formData.regions,
+        supported_campaigns: formData.supported_campaigns,
         basic_price: parseInt(formData.basic_price.replace(/,/g, '')),
         standard_price: parseInt(formData.standard_price.replace(/,/g, '')),
         premium_price: parseInt(formData.premium_price.replace(/,/g, '')),
@@ -230,6 +287,7 @@ export default function FeaturedCreatorManagementPageNew() {
         profile_image: '',
         video_urls: '',
         regions: [],
+        supported_campaigns: [],
         basic_price: '',
         standard_price: '',
         premium_price: '',
@@ -320,6 +378,65 @@ export default function FeaturedCreatorManagementPageNew() {
   const filteredCreators = regionFilter === 'all' 
     ? featuredCreators 
     : featuredCreators.filter(c => c.regions?.includes(regionFilter))
+
+  // CNEC Plus handlers
+  const handleAddCnecPlus = async () => {
+    if (!cnecPlusFormData.creator_id) {
+      alert('크리에이터를 선택해주세요.')
+      return
+    }
+    if (!cnecPlusFormData.price_per_video) {
+      alert('숯폼 1건당 가격을 입력해주세요.')
+      return
+    }
+
+    try {
+      const { data, error } = await supabaseBiz
+        .from('cnec_plus_pricing')
+        .insert([{
+          creator_id: cnecPlusFormData.creator_id,
+          price_per_video: parseInt(cnecPlusFormData.price_per_video.replace(/,/g, '')),
+          display_order: cnecPlusFormData.display_order || cnecPlusCreators.length,
+          is_active: true
+        }])
+        .select()
+
+      if (error) throw error
+
+      alert('CNEC Plus에 추가되었습니다!')
+      await loadCnecPlusCreators()
+      setShowCnecPlusForm(false)
+      setCnecPlusFormData({
+        creator_id: '',
+        price_per_video: '',
+        display_order: 0
+      })
+    } catch (err) {
+      console.error('Error adding CNEC Plus:', err)
+      alert('CNEC Plus 추가 중 오류가 발생했습니다.')
+    }
+  }
+
+  const handleDeleteCnecPlus = async (id) => {
+    if (!confirm('CNEC Plus에서 삭제하시겠습니까?')) {
+      return
+    }
+
+    try {
+      const { error } = await supabaseBiz
+        .from('cnec_plus_pricing')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert('삭제되었습니다.')
+      await loadCnecPlusCreators()
+    } catch (err) {
+      console.error('Error deleting CNEC Plus:', err)
+      alert('삭제 중 오류가 발생했습니다.')
+    }
+  }
 
   return (
     <>
@@ -442,6 +559,26 @@ export default function FeaturedCreatorManagementPageNew() {
                           </Button>
                         ))}
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>지원 가능한 캠페인 유형 (다중 선택) *</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {['package', 'oliveyoung', '4week'].map(campaign => (
+                          <Button
+                            key={campaign}
+                            type="button"
+                            variant={formData.supported_campaigns.includes(campaign) ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleCampaignToggle(campaign)}
+                          >
+                            {getCampaignName(campaign)}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        선택한 캠페인 유형에서만 이 크리에이터가 표시됩니다
+                      </p>
                     </div>
 
                     <div className="space-y-2">

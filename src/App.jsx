@@ -155,8 +155,7 @@ function App() {
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
-        <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
-        <Route path="/admin/featured-creators-capi" element={<FeaturedCreatorManagementPageNew />} />
+        <Route path="/admin/featured-creators" element={<FeaturedCreatorManagementPageNew />} />
 
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
