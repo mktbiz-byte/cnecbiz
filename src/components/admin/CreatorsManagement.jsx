@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Users, Plus, Trash2, Loader2, Sparkles, 
   Instagram, Youtube, Video, Edit, CheckCircle, XCircle, Eye, X
@@ -21,6 +23,16 @@ export default function CreatorsManagement() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [editingCreator, setEditingCreator] = useState(null)
+  
+  // 가입 크리에이터 관리
+  const [registeredCreators, setRegisteredCreators] = useState([])
+  const [showRegisteredModal, setShowRegisteredModal] = useState(false)
+  const [selectedCreatorIds, setSelectedCreatorIds] = useState([])
+  const [campaignTypes, setCampaignTypes] = useState({
+    can_join_planned: false,
+    can_join_4week: false,
+    can_join_oliveyoung: false
+  })
   
   const [formData, setFormData] = useState({
     creator_name: '',
@@ -57,6 +69,7 @@ export default function CreatorsManagement() {
   useEffect(() => {
     checkAuth()
     fetchCreators()
+    fetchRegisteredCreators()
   }, [])
 
   const checkAuth = async () => {
@@ -97,6 +110,24 @@ export default function CreatorsManagement() {
       }
     } catch (error) {
       console.error('Error fetching creators:', error)
+    }
+  }
+
+  const fetchRegisteredCreators = async () => {
+    if (!supabaseBiz) return
+
+    try {
+      const { data, error } = await supabaseBiz
+        .from('user_profiles')
+        .select('*')
+        .eq('approval_status', 'approved')
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        setRegisteredCreators(data)
+      }
+    } catch (error) {
+      console.error('Error fetching registered creators:', error)
     }
   }
 
@@ -427,6 +458,108 @@ ${realDataInfo}
     }
   }
 
+  const handleCreatorSelect = (creatorId) => {
+    setSelectedCreatorIds(prev => 
+      prev.includes(creatorId)
+        ? prev.filter(id => id !== creatorId)
+        : [...prev, creatorId]
+    )
+  }
+
+  const generateAIFromRegistered = async () => {
+    if (selectedCreatorIds.length === 0) {
+      alert('크리에이터를 선택해주세요.')
+      return
+    }
+
+    setIsGenerating(true)
+    try {
+      const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
+      
+      for (const creatorId of selectedCreatorIds) {
+        const creator = registeredCreators.find(c => c.id === creatorId)
+        if (!creator) continue
+
+        // AI 프로필 생성
+        const prompt = `
+다음 크리에이터의 정보를 분석하여 추천 크리에이터 프로필을 생성해주세요:
+
+이름: ${creator.name || '미상'}
+이메일: ${creator.email}
+채널명: ${creator.channel_name || '미상'}
+팔로워: ${creator.followers || 0}
+소개: ${creator.bio || '없음'}
+
+다음 형식으로 JSON만 반환해주세요:
+{
+  "bio": "크리에이터 소개",
+  "strengths": ["강점 1", "강점 2", "강점 3"],
+  "categories": ["카테고리 1", "카테고리 2"],
+  "target_audience": "타겟 청중 설명",
+  "content_style": "콘텐츠 스타일 설명"
+}
+`
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          }
+        )
+
+        if (!response.ok) throw new Error('AI 생성 실패')
+        
+        const data = await response.json()
+        const aiText = data.candidates[0].content.parts[0].text
+        const aiData = JSON.parse(aiText.replace(/```json\n?|\n?```/g, ''))
+
+        // featured_creator_applications에 저장
+        const { error } = await supabaseBiz
+          .from('featured_creator_applications')
+          .insert({
+            creator_name: creator.name,
+            email: creator.email,
+            phone: creator.phone || '',
+            instagram_url: creator.instagram_url || '',
+            youtube_url: creator.youtube_url || '',
+            tiktok_url: creator.tiktok_url || '',
+            final_bio: aiData.bio,
+            final_strengths: aiData.strengths,
+            final_categories: aiData.categories,
+            final_target_audience: aiData.target_audience,
+            final_content_style: aiData.content_style,
+            total_followers: creator.followers || 0,
+            country: 'korea',
+            status: 'approved',
+            can_join_planned: campaignTypes.can_join_planned,
+            can_join_4week: campaignTypes.can_join_4week,
+            can_join_oliveyoung: campaignTypes.can_join_oliveyoung
+          })
+
+        if (error) throw error
+      }
+
+      alert(`${selectedCreatorIds.length}명의 AI 프로필이 생성되었습니다!`)
+      setShowRegisteredModal(false)
+      setSelectedCreatorIds([])
+      setCampaignTypes({
+        can_join_planned: false,
+        can_join_4week: false,
+        can_join_oliveyoung: false
+      })
+      await fetchCreators()
+    } catch (error) {
+      console.error('Error generating profiles:', error)
+      alert('AI 프로필 생성 실패: ' + error.message)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   const addStrength = () => {
     setFormData(prev => ({
       ...prev,
@@ -499,25 +632,34 @@ ${realDataInfo}
                   </h2>
                   <p className="text-gray-600 mt-1">AI 프로필 생성으로 빠르게 크리에이터를 등록하세요</p>
                 </div>
-                <Button
-                  onClick={() => {
-                    setShowAddForm(!showAddForm)
-                    if (!showAddForm) resetForm()
-                  }}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                >
-                  {showAddForm ? (
-                    <>
-                      <X className="w-5 h-5 mr-2" />
-                      취소
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-5 h-5 mr-2" />
-                      크리에이터 추가
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => setShowRegisteredModal(true)}
+                    className="bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700"
+                  >
+                    <Users className="w-5 h-5 mr-2" />
+                    가입 크리에이터에서 선택 ({registeredCreators.length}명)
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowAddForm(!showAddForm)
+                      if (!showAddForm) resetForm()
+                    }}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    {showAddForm ? (
+                      <>
+                        <X className="w-5 h-5 mr-2" />
+                        취소
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-5 h-5 mr-2" />
+                        직접 추가
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
         {/* Add/Edit Form */}
@@ -959,6 +1101,118 @@ ${realDataInfo}
           </Tabs>
         </div>
       </div>
+
+      {/* 가입 크리에이터 선택 모달 */}
+      <Dialog open={showRegisteredModal} onOpenChange={setShowRegisteredModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>가입 크리에이터에서 선택</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              선택한 크리에이터의 프로필을 AI가 자동으로 생성하여 추천 크리에이터로 등록합니다.
+            </p>
+
+            {/* 캐페인 참여 가능 여부 */}
+            <div className="bg-blue-50 p-4 rounded-lg space-y-3">
+              <label className="font-semibold text-sm">캐페인 참여 가능 여부</label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={campaignTypes.can_join_planned}
+                    onCheckedChange={(checked) => 
+                      setCampaignTypes(prev => ({ ...prev, can_join_planned: checked }))
+                    }
+                  />
+                  <label className="text-sm">기획형 캐페인</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={campaignTypes.can_join_4week}
+                    onCheckedChange={(checked) => 
+                      setCampaignTypes(prev => ({ ...prev, can_join_4week: checked }))
+                    }
+                  />
+                  <label className="text-sm">4주 챌린지</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={campaignTypes.can_join_oliveyoung}
+                    onCheckedChange={(checked) => 
+                      setCampaignTypes(prev => ({ ...prev, can_join_oliveyoung: checked }))
+                    }
+                  />
+                  <label className="text-sm">올영세일</label>
+                </div>
+              </div>
+            </div>
+
+            {/* 크리에이터 목록 */}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="p-3 text-left text-sm font-medium">선택</th>
+                    <th className="p-3 text-left text-sm font-medium">이름</th>
+                    <th className="p-3 text-left text-sm font-medium">이메일</th>
+                    <th className="p-3 text-left text-sm font-medium">채널명</th>
+                    <th className="p-3 text-left text-sm font-medium">팔로워</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registeredCreators.map(creator => (
+                    <tr key={creator.id} className="border-t hover:bg-gray-50">
+                      <td className="p-3">
+                        <Checkbox
+                          checked={selectedCreatorIds.includes(creator.id)}
+                          onCheckedChange={() => handleCreatorSelect(creator.id)}
+                        />
+                      </td>
+                      <td className="p-3 text-sm">{creator.name || '-'}</td>
+                      <td className="p-3 text-sm">{creator.email}</td>
+                      <td className="p-3 text-sm">{creator.channel_name || '-'}</td>
+                      <td className="p-3 text-sm">
+                        {creator.followers ? Number(creator.followers).toLocaleString() : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>선택됨: {selectedCreatorIds.length}명</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowRegisteredModal(false)
+              setSelectedCreatorIds([])
+            }}>
+              취소
+            </Button>
+            <Button 
+              onClick={generateAIFromRegistered}
+              disabled={isGenerating || selectedCreatorIds.length === 0}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  생성 중...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  AI 프로필 생성 ({selectedCreatorIds.length}명)
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
