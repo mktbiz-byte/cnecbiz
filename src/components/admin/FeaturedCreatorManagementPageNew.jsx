@@ -15,7 +15,7 @@ import {
   TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
 
 export default function FeaturedCreatorManagementPageNew() {
   const navigate = useNavigate()
@@ -58,6 +58,13 @@ export default function FeaturedCreatorManagementPageNew() {
     price_per_video: '',
     display_order: 0
   })
+
+  // Registered creator selection
+  const [showCreatorSelectModal, setShowCreatorSelectModal] = useState(false)
+  const [selectedRegionForSearch, setSelectedRegionForSearch] = useState('korea')
+  const [creatorSearchQuery, setCreatorSearchQuery] = useState('')
+  const [registeredCreators, setRegisteredCreators] = useState([])
+  const [loadingCreators, setLoadingCreators] = useState(false)
 
   useEffect(() => {
     loadFeaturedCreators()
@@ -379,6 +386,55 @@ export default function FeaturedCreatorManagementPageNew() {
     ? featuredCreators 
     : featuredCreators.filter(c => c.regions?.includes(regionFilter))
 
+  // Registered creator handlers
+  const searchRegisteredCreators = async () => {
+    setLoadingCreators(true)
+    try {
+      const client = getSupabaseClient(selectedRegionForSearch)
+      if (!client) {
+        alert(`${selectedRegionForSearch} 데이터베이스에 연결할 수 없습니다.`)
+        return
+      }
+
+      let query = client
+        .from('user_profiles')
+        .select('*')
+        .eq('role', 'creator')
+
+      if (creatorSearchQuery.trim()) {
+        query = query.or(`name.ilike.%${creatorSearchQuery}%,email.ilike.%${creatorSearchQuery}%,channel_name.ilike.%${creatorSearchQuery}%`)
+      }
+
+      const { data, error } = await query.limit(50)
+
+      if (error) throw error
+      setRegisteredCreators(data || [])
+    } catch (err) {
+      console.error('Error searching creators:', err)
+      alert('크리에이터 검색 중 오류가 발생했습니다.')
+    } finally {
+      setLoadingCreators(false)
+    }
+  }
+
+  const handleSelectRegisteredCreator = (creator) => {
+    setFormData(prev => ({
+      ...prev,
+      channel_name: creator.channel_name || creator.name,
+      channel_url: creator.youtube_url || creator.instagram_url || creator.tiktok_url || '',
+      profile_image: creator.profile_image_url || '',
+      platform: creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok'
+    }))
+    setShowCreatorSelectModal(false)
+    alert(`${creator.name} 크리에이터가 선택되었습니다. 영상 URL을 입력하고 CAPI 분석을 시작하세요.`)
+  }
+
+  useEffect(() => {
+    if (showCreatorSelectModal) {
+      searchRegisteredCreators()
+    }
+  }, [selectedRegionForSearch, showCreatorSelectModal])
+
   // CNEC Plus handlers
   const handleAddCnecPlus = async () => {
     if (!cnecPlusFormData.creator_id) {
@@ -476,12 +532,22 @@ export default function FeaturedCreatorManagementPageNew() {
               <div>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-purple-500" />
-                      CAPI 프로필 생성
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-500" />
+                        CAPI 프로필 생성
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowCreatorSelectModal(true)}
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        가입 크리에이터에서 선택
+                      </Button>
                     </CardTitle>
                     <CardDescription>
-                      채널 정보와 영상 URL을 입력하여 AI 분석을 시작하세요
+                      가입한 크리에이터를 선택하거나 직접 입력하세요
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -723,27 +789,39 @@ export default function FeaturedCreatorManagementPageNew() {
               </div>
             </div>
           ) : (
-            <>
-              {/* Filter */}
-              <div className="mb-6 flex gap-2">
-                <Button
-                  variant={regionFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setRegionFilter('all')}
-                >
-                  전체
-                </Button>
-                {['korea', 'japan', 'us', 'taiwan'].map(region => (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="mb-6">
+                <TabsTrigger value="featured">
+                  <Star className="w-4 h-4 mr-2" />
+                  추천 크리에이터
+                </TabsTrigger>
+                <TabsTrigger value="cnecplus">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  CNEC Plus
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="featured">
+                {/* Filter */}
+                <div className="mb-6 flex gap-2">
                   <Button
-                    key={region}
-                    variant={regionFilter === region ? 'default' : 'outline'}
+                    variant={regionFilter === 'all' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setRegionFilter(region)}
+                    onClick={() => setRegionFilter('all')}
                   >
-                    {getRegionFlag(region)} {getRegionName(region)}
+                    전체
                   </Button>
-                ))}
-              </div>
+                  {['korea', 'japan', 'us', 'taiwan'].map(region => (
+                    <Button
+                      key={region}
+                      variant={regionFilter === region ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setRegionFilter(region)}
+                    >
+                      {getRegionFlag(region)} {getRegionName(region)}
+                    </Button>
+                  ))}
+                </div>
 
               {/* Creators List */}
               {loading ? (
@@ -818,7 +896,129 @@ export default function FeaturedCreatorManagementPageNew() {
                   ))}
                 </div>
               )}
-            </>
+              </TabsContent>
+
+              <TabsContent value="cnecplus">
+                <div className="mb-6 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-semibold">CNEC Plus 크리에이터</h3>
+                    <p className="text-sm text-gray-500">숯폼 1건당 가격으로 제공되는 크리에이터</p>
+                  </div>
+                  <Button onClick={() => setShowCnecPlusForm(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    CNEC Plus 추가
+                  </Button>
+                </div>
+
+                {showCnecPlusForm && (
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>크리에이터 추가</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>크리에이터 선택 *</Label>
+                        <Select 
+                          value={cnecPlusFormData.creator_id} 
+                          onValueChange={(value) => setCnecPlusFormData(prev => ({...prev, creator_id: value}))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="크리에이터를 선택하세요" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {featuredCreators.map(creator => (
+                              <SelectItem key={creator.id} value={creator.id}>
+                                {creator.channel_name} ({creator.platform})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>숯폼 1건당 가격 *</Label>
+                        <Input
+                          value={cnecPlusFormData.price_per_video}
+                          onChange={(e) => setCnecPlusFormData(prev => ({...prev, price_per_video: e.target.value}))}
+                          placeholder="500,000"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>노출 순서</Label>
+                        <Input
+                          type="number"
+                          value={cnecPlusFormData.display_order}
+                          onChange={(e) => setCnecPlusFormData(prev => ({...prev, display_order: parseInt(e.target.value)}))}
+                          placeholder="0"
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button onClick={handleAddCnecPlus}>
+                          추가
+                        </Button>
+                        <Button variant="outline" onClick={() => setShowCnecPlusForm(false)}>
+                          취소
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {cnecPlusCreators.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center text-gray-500">
+                      CNEC Plus에 등록된 크리에이터가 없습니다
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {cnecPlusCreators.map(item => (
+                      <Card key={item.id}>
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-lg font-bold">{item.featured_creators?.channel_name}</h3>
+                                {item.featured_creators?.capi_grade && (
+                                  <Badge className={getGradeColor(item.featured_creators.capi_grade)}>
+                                    {item.featured_creators.capi_grade}급 {item.featured_creators.capi_score}점
+                                  </Badge>
+                                )}
+                                <Badge variant="outline">{item.featured_creators?.platform}</Badge>
+                              </div>
+                              <div className="flex gap-2 mb-3">
+                                {item.featured_creators?.regions?.map(region => (
+                                  <span key={region} className="text-sm">
+                                    {getRegionFlag(region)} {getRegionName(region)}
+                                  </span>
+                                ))}
+                              </div>
+                              <div className="text-lg font-bold text-purple-600">
+                                숯폼 1건당: {item.price_per_video?.toLocaleString()}원
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">
+                                노출 순서: {item.display_order}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDeleteCnecPlus(item.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </div>
@@ -885,6 +1085,82 @@ export default function FeaturedCreatorManagementPageNew() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Creator Selection Modal */}
+      <Dialog open={showCreatorSelectModal} onOpenChange={setShowCreatorSelectModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>가입 크리에이터 선택</DialogTitle>
+            <DialogDescription>
+              가입한 크리에이터를 선택하여 CAPI 프로필을 생성하세요
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex gap-3">
+              <Select value={selectedRegionForSearch} onValueChange={setSelectedRegionForSearch}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="korea">한국</SelectItem>
+                  <SelectItem value="japan">일본</SelectItem>
+                  <SelectItem value="us">미국</SelectItem>
+                  <SelectItem value="taiwan">대만</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="flex-1 flex gap-2">
+                <Input
+                  placeholder="이름, 이메일, 채널명 검색..."
+                  value={creatorSearchQuery}
+                  onChange={(e) => setCreatorSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && searchRegisteredCreators()}
+                />
+                <Button onClick={searchRegisteredCreators}>
+                  검색
+                </Button>
+              </div>
+            </div>
+
+            {loadingCreators ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+              </div>
+            ) : registeredCreators.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                검색 결과가 없습니다
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {registeredCreators.map(creator => (
+                  <Card key={creator.id} className="cursor-pointer hover:border-purple-500 transition-colors" onClick={() => handleSelectRegisteredCreator(creator)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        {creator.profile_image_url && (
+                          <img src={creator.profile_image_url} alt={creator.name} className="w-12 h-12 rounded-full object-cover" />
+                        )}
+                        <div className="flex-1">
+                          <div className="font-semibold">{creator.name}</div>
+                          <div className="text-sm text-gray-500">{creator.email}</div>
+                          {creator.channel_name && (
+                            <div className="text-sm text-gray-600 mt-1">채널: {creator.channel_name}</div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {creator.youtube_url && <Badge variant="outline">YouTube</Badge>}
+                          {creator.instagram_url && <Badge variant="outline">Instagram</Badge>}
+                          {creator.tiktok_url && <Badge variant="outline">TikTok</Badge>}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
