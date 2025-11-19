@@ -89,24 +89,30 @@ export default function FeaturedCreatorManagementPageNew() {
 
   const loadCnecPlusCreators = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data: pricingData, error: pricingError } = await supabaseBiz
         .from('cnec_plus_pricing')
-        .select(`
-          *,
-          featured_creators (
-            id,
-            channel_name,
-            platform,
-            profile_image,
-            capi_score,
-            capi_grade,
-            regions
-          )
-        `)
+        .select('*')
         .order('display_order', { ascending: true })
 
-      if (error) throw error
-      setCnecPlusCreators(data || [])
+      if (pricingError) throw pricingError
+
+      // Manually fetch creator data for each pricing entry
+      const creatorsWithPricing = await Promise.all(
+        (pricingData || []).map(async (pricing) => {
+          const { data: creator, error: creatorError } = await supabaseBiz
+            .from('featured_creators')
+            .select('id, channel_name, platform, profile_image, capi_score, capi_grade, regions')
+            .eq('id', pricing.creator_id)
+            .single()
+
+          return {
+            ...pricing,
+            featured_creators: creator
+          }
+        })
+      )
+
+      setCnecPlusCreators(creatorsWithPricing)
     } catch (err) {
       console.error('Error loading CNEC Plus creators:', err)
     }
@@ -399,7 +405,6 @@ export default function FeaturedCreatorManagementPageNew() {
       let query = client
         .from('user_profiles')
         .select('*')
-        .eq('role', 'creator')
 
       if (creatorSearchQuery.trim()) {
         query = query.or(`name.ilike.%${creatorSearchQuery}%,email.ilike.%${creatorSearchQuery}%,channel_name.ilike.%${creatorSearchQuery}%`)
