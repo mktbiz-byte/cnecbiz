@@ -75,7 +75,9 @@ export const handler = async (event) => {
       try {
         const channelId = extractYouTubeChannelId(channelUrl);
         channelData = await getYouTubeChannelData(channelId);
-        topVideos = await getYouTubeTopVideos(channelId, 10);
+        // Use actual channel ID from channelData (in case username was converted)
+        const actualChannelId = channelData.id;
+        topVideos = await getYouTubeTopVideos(actualChannelId, 10);
       } catch (apiError) {
         console.log('YouTube API failed, falling back to scraping:', apiError.message);
         const scraped = await scrapeYouTubeChannel(channelUrl);
