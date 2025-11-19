@@ -525,7 +525,7 @@ export default function AllCreatorsPage() {
                   value={reviewData.review}
                   onChange={(e) => setReviewData({ ...reviewData, review: e.target.value })}
                   placeholder="크리에이터와의 협업 경험, 콘텐츠 품질, 소통 태도 등을 자유롭게 작성해주세요..."
-                  className="min-h-[200px]"
+                  className="min-h-[200px] bg-white border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 />
               </div>
 
