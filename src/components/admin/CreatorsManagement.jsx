@@ -26,6 +26,8 @@ export default function CreatorsManagement() {
   
   // 가입 크리에이터 관리
   const [registeredCreators, setRegisteredCreators] = useState([])
+  const [filteredCreators, setFilteredCreators] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [showRegisteredModal, setShowRegisteredModal] = useState(false)
   const [selectedCreatorIds, setSelectedCreatorIds] = useState([])
   const [selectedCountry, setSelectedCountry] = useState('korea')
@@ -67,6 +69,25 @@ export default function CreatorsManagement() {
     fetchCreators()
     fetchRegisteredCreators()
   }, [])
+
+  // 검색어로 필터링
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredCreators(registeredCreators)
+      return
+    }
+
+    const query = searchQuery.toLowerCase()
+    const filtered = registeredCreators.filter(creator => {
+      const name = (creator.full_name || creator.name || '').toLowerCase()
+      const email = (creator.email || '').toLowerCase()
+      const channel = (creator.channel_name || creator.youtube_channel_name || creator.instagram_handle || '').toLowerCase()
+      
+      return name.includes(query) || email.includes(query) || channel.includes(query)
+    })
+    
+    setFilteredCreators(filtered)
+  }, [searchQuery, registeredCreators])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -127,15 +148,16 @@ export default function CreatorsManagement() {
       const { data, error } = await client
         .from('user_profiles')
         .select('*')
-        .eq('role', 'creator')
         .order('created_at', { ascending: false })
         .limit(100)
 
       if (error) {
         console.error('Error fetching registered creators:', error)
         setRegisteredCreators([])
+        setFilteredCreators([])
       } else {
         setRegisteredCreators(data || [])
+        setFilteredCreators(data || [])
       }
     } catch (error) {
       console.error('Error fetching registered creators:', error)
@@ -1139,6 +1161,7 @@ ${realDataInfo}
                   setSelectedCountry(e.target.value)
                   fetchRegisteredCreators(e.target.value)
                   setSelectedCreatorIds([])
+                  setSearchQuery('')
                 }}
                 className="w-full px-3 py-2 border rounded-md"
               >
@@ -1146,6 +1169,22 @@ ${realDataInfo}
                 <option value="japan">일본</option>
                 <option value="usa">미국</option>
               </select>
+            </div>
+
+            {/* 검색 */}
+            <div>
+              <Input
+                type="text"
+                placeholder="이름, 이메일, 채널명으로 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full"
+              />
+              {searchQuery && (
+                <p className="text-sm text-gray-500 mt-1">
+                  {filteredCreators.length}개 결과 찾음
+                </p>
+              )}
             </div>
 
             {/* 크리에이터 목록 */}
@@ -1161,7 +1200,14 @@ ${realDataInfo}
                   </tr>
                 </thead>
                 <tbody>
-                  {registeredCreators.map(creator => (
+                  {filteredCreators.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="p-8 text-center text-gray-500">
+                        {searchQuery ? '검색 결과가 없습니다.' : '크리에이터가 없습니다.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredCreators.map(creator => (
                     <tr key={creator.id} className="border-t hover:bg-gray-50">
                       <td className="p-3">
                         <Checkbox
@@ -1176,7 +1222,8 @@ ${realDataInfo}
                         {creator.followers ? Number(creator.followers).toLocaleString() : '-'}
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
