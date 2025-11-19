@@ -4,9 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
-import { Users, Search, Globe, TrendingUp, Star, MessageSquare, X } from 'lucide-react'
+import { Users, Search, Globe, TrendingUp } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -14,9 +12,6 @@ export default function AllCreatorsPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [showReviewModal, setShowReviewModal] = useState(false)
-  const [selectedCreator, setSelectedCreator] = useState(null)
-  const [reviewData, setReviewData] = useState({ rating: 0, review: '' })
   
   const [creators, setCreators] = useState({
     korea: [],
@@ -34,7 +29,6 @@ export default function AllCreatorsPage() {
   })
 
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -120,10 +114,10 @@ export default function AllCreatorsPage() {
 
   const getAllCreators = () => {
     return [
-      ...creators.korea.map(c => ({ ...c, region: '한국', dbRegion: 'korea' })),
-      ...creators.japan.map(c => ({ ...c, region: '일본', dbRegion: 'japan' })),
-      ...creators.us.map(c => ({ ...c, region: '미국', dbRegion: 'us' })),
-      ...creators.taiwan.map(c => ({ ...c, region: '대만', dbRegion: 'taiwan' }))
+      ...creators.korea.map(c => ({ ...c, region: '한국' })),
+      ...creators.japan.map(c => ({ ...c, region: '일본' })),
+      ...creators.us.map(c => ({ ...c, region: '미국' })),
+      ...creators.taiwan.map(c => ({ ...c, region: '대만' }))
     ]
   }
 
@@ -152,10 +146,7 @@ export default function AllCreatorsPage() {
 
       const { error } = await supabaseClient
         .from('user_profiles')
-        .update({ 
-          rating: newRating,
-          review_updated_at: new Date().toISOString()
-        })
+        .update({ rating: newRating })
         .eq('id', creatorId)
 
       if (error) throw error
@@ -165,54 +156,7 @@ export default function AllCreatorsPage() {
       alert('별점이 업데이트되었습니다.')
     } catch (error) {
       console.error('별점 업데이트 오류:', error)
-      alert('별점 업데이트에 실패했습니다: ' + error.message)
-    }
-  }
-
-  const openReviewModal = (creator, region) => {
-    setSelectedCreator({ ...creator, dbRegion: region })
-    setReviewData({
-      rating: creator.rating || 0,
-      review: creator.company_review || ''
-    })
-    setShowReviewModal(true)
-  }
-
-  const handleSaveReview = async () => {
-    if (!selectedCreator) return
-
-    setSaving(true)
-    try {
-      let supabaseClient
-      if (selectedCreator.dbRegion === 'korea') {
-        supabaseClient = supabaseKorea
-      } else if (selectedCreator.dbRegion === 'japan') {
-        supabaseClient = supabaseJapan
-      } else if (selectedCreator.dbRegion === 'us') {
-        supabaseClient = supabaseUS
-      } else {
-        supabaseClient = supabaseBiz
-      }
-
-      const { error } = await supabaseClient
-        .from('user_profiles')
-        .update({
-          rating: reviewData.rating,
-          company_review: reviewData.review,
-          review_updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedCreator.id)
-
-      if (error) throw error
-
-      alert('별점 및 후기가 저장되었습니다.')
-      setShowReviewModal(false)
-      await fetchAllCreators()
-    } catch (error) {
-      console.error('저장 오류:', error)
-      alert('저장에 실패했습니다: ' + error.message)
-    } finally {
-      setSaving(false)
+      alert('별점 업데이트에 실패했습니다.')
     }
   }
 
@@ -246,33 +190,22 @@ export default function AllCreatorsPage() {
                 <td className="p-4">{getStatusBadge(creator.approval_status)}</td>
                 {region === 'korea' && (
                   <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={creator.rating || 0}
-                        onChange={(e) => handleRatingChange(creator.id, parseFloat(e.target.value), region)}
-                        className="border rounded px-2 py-1 text-sm"
-                      >
-                        <option value="0">0.0</option>
-                        <option value="1.0">1.0</option>
-                        <option value="1.5">1.5</option>
-                        <option value="2.0">2.0</option>
-                        <option value="2.5">2.5</option>
-                        <option value="3.0">3.0</option>
-                        <option value="3.5">3.5</option>
-                        <option value="4.0">4.0</option>
-                        <option value="4.5">4.5</option>
-                        <option value="5.0">5.0</option>
-                      </select>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openReviewModal(creator, region)}
-                        className="h-8 px-2"
-                        title="후기 작성"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <select
+                      value={creator.rating || 0}
+                      onChange={(e) => handleRatingChange(creator.id, parseFloat(e.target.value), region)}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="0">0.0</option>
+                      <option value="1.0">1.0</option>
+                      <option value="1.5">1.5</option>
+                      <option value="2.0">2.0</option>
+                      <option value="2.5">2.5</option>
+                      <option value="3.0">3.0</option>
+                      <option value="3.5">3.5</option>
+                      <option value="4.0">4.0</option>
+                      <option value="4.5">4.5</option>
+                      <option value="5.0">5.0</option>
+                    </select>
                   </td>
                 )}
                 {region === 'all' && (
@@ -321,7 +254,7 @@ export default function AllCreatorsPage() {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               전체 크리에이터 현황
             </h1>
-            <p className="text-gray-600 mt-1">국가별 크리에이터 가입 현황 (별점 및 후기는 기업 전용 내부 평가)</p>
+            <p className="text-gray-600 mt-1">국가별 크리에이터 가입 현황</p>
           </div>
 
           {/* 통계 카드 */}
@@ -396,26 +329,29 @@ export default function AllCreatorsPage() {
           {/* 검색 */}
           <Card className="mb-6">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Search className="w-5 h-5 text-gray-400" />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <Input
                   placeholder="이름, 이메일, 채널명으로 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1"
+                  className="pl-10 h-12"
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* 탭 */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5 mb-6">
-              <TabsTrigger value="all">전체 ({stats.total})</TabsTrigger>
-              <TabsTrigger value="korea">한국 ({stats.korea})</TabsTrigger>
-              <TabsTrigger value="japan">일본 ({stats.japan})</TabsTrigger>
-              <TabsTrigger value="us">미국 ({stats.us})</TabsTrigger>
-              <TabsTrigger value="taiwan">대만 ({stats.taiwan})</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="all">
+                <Globe className="w-4 h-4 mr-2" />
+                전체
+              </TabsTrigger>
+              <TabsTrigger value="korea">🇰🇷 한국</TabsTrigger>
+              <TabsTrigger value="japan">🇯🇵 일본</TabsTrigger>
+              <TabsTrigger value="us">🇺🇸 미국</TabsTrigger>
+              <TabsTrigger value="taiwan">🇹🇼 대만</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all">
@@ -475,86 +411,7 @@ export default function AllCreatorsPage() {
           </Tabs>
         </div>
       </div>
-
-      {/* 후기 작성 모달 */}
-      <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-yellow-500" />
-              크리에이터 평가 및 후기
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedCreator && (
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="font-semibold">이름:</span> {selectedCreator.name || '-'}</div>
-                  <div><span className="font-semibold">이메일:</span> {selectedCreator.email || '-'}</div>
-                  <div><span className="font-semibold">채널명:</span> {selectedCreator.channel_name || '-'}</div>
-                  <div><span className="font-semibold">구독자:</span> {selectedCreator.followers?.toLocaleString() || '-'}</div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">별점</label>
-                <select
-                  value={reviewData.rating}
-                  onChange={(e) => setReviewData({ ...reviewData, rating: parseFloat(e.target.value) })}
-                  className="w-full border rounded px-3 py-2"
-                >
-                  <option value="0">0.0 - 평가 안 함</option>
-                  <option value="1.0">1.0 - 매우 불만족</option>
-                  <option value="1.5">1.5</option>
-                  <option value="2.0">2.0 - 불만족</option>
-                  <option value="2.5">2.5</option>
-                  <option value="3.0">3.0 - 보통</option>
-                  <option value="3.5">3.5</option>
-                  <option value="4.0">4.0 - 만족</option>
-                  <option value="4.5">4.5</option>
-                  <option value="5.0">5.0 - 매우 만족</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  후기 (기업 내부용, 크리에이터에게 보이지 않음)
-                </label>
-                <Textarea
-                  value={reviewData.review}
-                  onChange={(e) => setReviewData({ ...reviewData, review: e.target.value })}
-                  placeholder="크리에이터와의 협업 경험, 콘텐츠 품질, 소통 태도 등을 자유롭게 작성해주세요..."
-                  className="min-h-[200px]"
-                />
-              </div>
-
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ 이 평가와 후기는 기업 내부 관리용이며, 크리에이터에게는 절대 공개되지 않습니다.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowReviewModal(false)}
-              disabled={saving}
-            >
-              취소
-            </Button>
-            <Button
-              onClick={handleSaveReview}
-              disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {saving ? '저장 중...' : '저장'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }
+
