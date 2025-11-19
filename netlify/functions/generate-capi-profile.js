@@ -464,100 +464,144 @@ async function scrapeTikTokProfile(profileUrl) {
 // ==================== Gemini AI Analysis ====================
 
 async function analyzeVideoWithGemini(videoUrl, platform) {
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.0-flash-exp'
-  });
-
-  const prompt = `
-당신은 인플루언서 마케팅 전문가입니다. 다음 ${platform} 영상을 실제로 시청하고 분석하여 CAPI 점수를 산출해주세요.
-
-영상 URL: ${videoUrl}
-
-**중요: 이 URL의 실제 영상을 분석해주세요. 영상의 비주얼, 오디오, 자막, 편집 등 모든 요소를 확인하세요.**
-
-다음 8개 항목을 평가해주세요:
-
-1. **오프닝 후킹력** (14점 만점)
-   - 첫 3초에 명확한 문제 제시 또는 호기심 유발
-   - 구체적 수치나 증명 자료 제시
-   - 시청자의 즉각적 관심 유도
-
-2. **신뢰도 구축** (13점 만점)
-   - 구체적 수치 제시 (예: "7일 만에 90% 개선")
-   - 입상 테스트 그래픽 활용
-   - 실시간 비교 시연
-
-3. **제품 시연 효과성** (11점 만점)
-   - 손+얼굴 이중 시연
-   - Before/After 분할 화면
-   - 차별점 명확히 증명
-
-4. **오디오 품질** (8점 만점)
-   - 배경음악 (120-130 BPM)
-   - 음성 톤과 명료도
-   - 믹싱 밸런스
-
-5. **편집 완성도** (8점 만점)
-   - 컷 리듬 (2-3초/컷)
-   - 영상 길이 (30-60초)
-   - 텍스트 오버레이
-
-6. **스토리텔링 구조** (7점 만점)
-   - 문제→해결→CTA 유발
-   - 감정 여정
-
-7. **CTA 명확성** (6점 만점)
-   - 가격/혜택 명시
-   - 구매처 안내
-
-8. **비주얼 품질** (3점 만점)
-   - 조명/해상도
-   - 구도/색감
-
-응답은 다음 JSON 형식으로 작성해주세요:
-
-{
-  "scores": {
-    "opening_hook": { "score": 0-14, "reason": "실제 영상 분석 결과" },
-    "credibility": { "score": 0-13, "reason": "실제 영상 분석 결과" },
-    "product_demo": { "score": 0-11, "reason": "실제 영상 분석 결과" },
-    "audio_quality": { "score": 0-8, "reason": "실제 영상 분석 결과" },
-    "editing": { "score": 0-8, "reason": "실제 영상 분석 결과" },
-    "storytelling": { "score": 0-7, "reason": "실제 영상 분석 결과" },
-    "cta_clarity": { "score": 0-6, "reason": "실제 영상 분석 결과" },
-    "visual_quality": { "score": 0-3, "reason": "실제 영상 분석 결과" }
-  },
-  "total_score": 0-70
-}
-`;
-
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    console.log('Gemini response:', text.substring(0, 200));
-    
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    } else {
-      throw new Error('Failed to parse AI response');
+  console.log(`Starting multi-agent analysis for: ${videoUrl}`);
+  
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  
+  // 4개 에이전트 프롬프트 정의 (뷰티 크리에이터 특화)
+  const agents = [
+    // 영상 분석 에이전트 1: 시각적 구성과 제품 표현력
+    {
+      name: 'video_agent_1',
+      prompt: `당신은 뷰티 콘텐츠 전문 비디오 분석가입니다. 다음 YouTube 영상을 시청하고 **시각적 구성과 제품 표현력**을 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **오프닝 후킹력** (14점 만점)\n   - 첫 3초 내 제품 발색/텍스처가 명확하게 보이는가?\n   - 뷰티 문제 제시 또는 결과물 미리보기로 호기심 유발\n   - 조명과 클로즈업으로 디테일 강조\n\n2. **제품 시연 효과성** (11점 만점)\n   - 손+얼굴 동시 시연으로 발색 비교\n   - Before/After 분할 화면 활용\n   - 여러 각도에서 제품 효과 확인 가능\n\n3. **비주얼 품질** (3점 만점)\n   - 자연광/링라이트 조명으로 색감 정확도\n   - 4K 이상 해상도, 피부 텍스처 선명도\n   - 구도와 색보정 (피부톤 왜곡 없음)\n\nJSON 형식으로 응답:\n{\n  "opening_hook": { "score": 0-14, "reason": "구체적 분석" },\n  "product_demo": { "score": 0-11, "reason": "구체적 분석" },\n  "visual_quality": { "score": 0-3, "reason": "구체적 분석" }\n}`
+    },
+    // 영상 분석 에이전트 2: 스토리텔링과 신뢰도 구축
+    {
+      name: 'video_agent_2',
+      prompt: `당신은 뷰티 콘텐츠 전문 비디오 분석가입니다. 다음 YouTube 영상을 시청하고 **스토리텔링과 신뢰도 구축**을 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **신뢰도 구축** (13점 만점)\n   - 사용 전후 비교 (예: "7일 사용 후 90% 개선")\n   - 피부 고민별 실제 테스트 장면\n   - 다른 제품과의 비교 시연\n\n2. **스토리텔링 구조** (7점 만점)\n   - 문제(피부 고민) → 해결(제품 사용) → 결과(변화) 구조\n   - 감정 여정 (공감 → 기대 → 만족)\n   - 일상 속 사용 장면 연출\n\n3. **편집 완성도** (8점 만점)\n   - 컷 리듬 (2-3초/컷, 뷰티 숏폼 최적)\n   - 영상 길이 (30-90초, 제품 설명 충분)\n   - 텍스트 오버레이 (제품명, 가격, 특징)\n\nJSON 형식으로 응답:\n{\n  "credibility": { "score": 0-13, "reason": "구체적 분석" },\n  "storytelling": { "score": 0-7, "reason": "구체적 분석" },\n  "editing": { "score": 0-8, "reason": "구체적 분석" }\n}`
+    },
+    // 영상 분석 에이전트 3: 제품 정보 전달과 구매 유도
+    {
+      name: 'video_agent_3',
+      prompt: `당신은 뷰티 콘텐츠 전문 비디오 분석가입니다. 다음 YouTube 영상을 시청하고 **제품 정보 전달과 구매 유도**를 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **CTA 명확성** (6점 만점)\n   - 가격/할인 정보 명시 (예: "29,000원 → 19,900원")\n   - 구매처 안내 (올리브영, 무신사 등)\n   - 링크/쿠폰 코드 제공\n\n2. **오프닝 후킹력** (추가 평가)\n   - 제품 결과물 미리보기 (완성된 메이크업)\n   - 구체적 수치 제시 (예: "24시간 지속")\n   - 타겟 고객 명확화 (예: "지성 피부용")\n\nJSON 형식으로 응답:\n{\n  "cta_clarity": { "score": 0-6, "reason": "구체적 분석" },\n  "opening_hook_2": { "score": 0-14, "reason": "구체적 분석" }\n}`
+    },
+    // 음성 분석 에이전트 1: 음성 품질과 제품 정보 전달
+    {
+      name: 'audio_agent_1',
+      prompt: `당신은 뷰티 콘텐츠 전문 오디오 분석가입니다. 다음 YouTube 영상을 시청하고 **음성 품질과 제품 정보 전달**을 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **오디오 품질** (8점 만점)\n   - 배경음악 (120-130 BPM, 뷰티 콘텐츠 적합)\n   - 음성 톤 (밝고 친근함, 명료한 발음)\n   - 믹싱 밸런스 (음성 > 배경음악)\n\n2. **신뢰도 구축** (추가 평가)\n   - 제품명, 브랜드명 명확한 발음\n   - 가격, 용량, 구매처 언급\n   - 사용법 구체적 설명\n\nJSON 형식으로 응답:\n{\n  "audio_quality": { "score": 0-8, "reason": "구체적 분석" },\n  "credibility_2": { "score": 0-13, "reason": "구체적 분석" }\n}`
     }
+  ];
+  
+  try {
+    // 4개 에이전트 병렬 실행
+    const results = await Promise.all(
+      agents.map(async (agent) => {
+        try {
+          const result = await model.generateContent(agent.prompt);
+          const text = result.response.text();
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          return jsonMatch ? { name: agent.name, data: JSON.parse(jsonMatch[0]) } : null;
+        } catch (error) {
+          console.error(`Agent ${agent.name} failed:`, error.message);
+          return null;
+        }
+      })
+    );
+    
+    // 결과 통합 및 평균화
+    const scores = {
+      opening_hook: { score: 0, max: 14, reason: '' },
+      credibility: { score: 0, max: 13, reason: '' },
+      product_demo: { score: 0, max: 11, reason: '' },
+      audio_quality: { score: 0, max: 8, reason: '' },
+      editing: { score: 0, max: 8, reason: '' },
+      storytelling: { score: 0, max: 7, reason: '' },
+      cta_clarity: { score: 0, max: 6, reason: '' },
+      visual_quality: { score: 0, max: 3, reason: '' }
+    };
+    
+    // 각 에이전트 결과 수집
+    const video1 = results.find(r => r?.name === 'video_agent_1')?.data;
+    const video2 = results.find(r => r?.name === 'video_agent_2')?.data;
+    const video3 = results.find(r => r?.name === 'video_agent_3')?.data;
+    const audio1 = results.find(r => r?.name === 'audio_agent_1')?.data;
+    
+    // 오프닝 후킹력: video1 + video3 평균
+    if (video1?.opening_hook && video3?.opening_hook_2) {
+      scores.opening_hook.score = Math.round((video1.opening_hook.score + video3.opening_hook_2.score) / 2);
+      scores.opening_hook.reason = video1.opening_hook.reason;
+    } else if (video1?.opening_hook) {
+      scores.opening_hook.score = video1.opening_hook.score;
+      scores.opening_hook.reason = video1.opening_hook.reason;
+    }
+    
+    // 신뢰도: video2 + audio1 평균
+    if (video2?.credibility && audio1?.credibility_2) {
+      scores.credibility.score = Math.round((video2.credibility.score + audio1.credibility_2.score) / 2);
+      scores.credibility.reason = video2.credibility.reason;
+    } else if (video2?.credibility) {
+      scores.credibility.score = video2.credibility.score;
+      scores.credibility.reason = video2.credibility.reason;
+    }
+    
+    // 제품 시연: video1만 사용
+    if (video1?.product_demo) {
+      scores.product_demo.score = video1.product_demo.score;
+      scores.product_demo.reason = video1.product_demo.reason;
+    }
+    
+    // 오디오 품질: audio1만 사용
+    if (audio1?.audio_quality) {
+      scores.audio_quality.score = audio1.audio_quality.score;
+      scores.audio_quality.reason = audio1.audio_quality.reason;
+    }
+    
+    // 편집 완성도: video2만 사용
+    if (video2?.editing) {
+      scores.editing.score = video2.editing.score;
+      scores.editing.reason = video2.editing.reason;
+    }
+    
+    // 스토리텔링: video2만 사용
+    if (video2?.storytelling) {
+      scores.storytelling.score = video2.storytelling.score;
+      scores.storytelling.reason = video2.storytelling.reason;
+    }
+    
+    // CTA 명확성: video3만 사용
+    if (video3?.cta_clarity) {
+      scores.cta_clarity.score = video3.cta_clarity.score;
+      scores.cta_clarity.reason = video3.cta_clarity.reason;
+    }
+    
+    // 비주얼 품질: video1만 사용
+    if (video1?.visual_quality) {
+      scores.visual_quality.score = video1.visual_quality.score;
+      scores.visual_quality.reason = video1.visual_quality.reason;
+    }
+    
+    const total_score = Object.values(scores).reduce((sum, item) => sum + item.score, 0);
+    
+    console.log(`Multi-agent analysis complete. Total score: ${total_score}`);
+    
+    return {
+      scores,
+      total_score
+    };
+    
   } catch (error) {
-    console.error('Gemini analysis error:', error);
-    // Return default scores
+    console.error('Multi-agent analysis error:', error);
+    // Return default scores on error
     return {
       scores: {
-        opening_hook: { score: 10, reason: "분석 실패 - 기본값" },
-        credibility: { score: 9, reason: "분석 실패 - 기본값" },
-        product_demo: { score: 8, reason: "분석 실패 - 기본값" },
-        audio_quality: { score: 6, reason: "분석 실패 - 기본값" },
-        editing: { score: 6, reason: "분석 실패 - 기본값" },
-        storytelling: { score: 5, reason: "분석 실패 - 기본값" },
-        cta_clarity: { score: 4, reason: "분석 실패 - 기본값" },
-        visual_quality: { score: 2, reason: "분석 실패 - 기본값" }
+        opening_hook: { score: 10, max: 14, reason: "분석 실패 - 기본값" },
+        credibility: { score: 9, max: 13, reason: "분석 실패 - 기본값" },
+        product_demo: { score: 8, max: 11, reason: "분석 실패 - 기본값" },
+        audio_quality: { score: 6, max: 8, reason: "분석 실패 - 기본값" },
+        editing: { score: 6, max: 8, reason: "분석 실패 - 기본값" },
+        storytelling: { score: 5, max: 7, reason: "분석 실패 - 기본값" },
+        cta_clarity: { score: 4, max: 6, reason: "분석 실패 - 기본값" },
+        visual_quality: { score: 2, max: 3, reason: "분석 실패 - 기본값" }
       },
       total_score: 50
     };
