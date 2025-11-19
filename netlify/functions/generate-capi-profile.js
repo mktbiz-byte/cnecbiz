@@ -35,6 +35,56 @@ export const handler = async (event) => {
       };
     }
 
+    // If videoUrls not provided, return mock data for now
+    // TODO: Implement automatic video selection from channel
+    if (!videoUrls || videoUrls.length === 0) {
+      const mockAnalysis = {
+        content_scores: {
+          opening_hook: { score: 12, reason: "강력한 첫 3초 후킹" },
+          credibility: { score: 11, reason: "구체적 수치 제시" },
+          product_demo: { score: 10, reason: "명확한 Before/After" },
+          audio_quality: { score: 7, reason: "좋은 음질" },
+          editing: { score: 6, reason: "적절한 편집 리듬" },
+          storytelling: { score: 6, reason: "명확한 스토리 구조" },
+          cta_clarity: { score: 4, reason: "CTA 개선 필요" },
+          visual_quality: { score: 3, reason: "좋은 비주얼" }
+        },
+        total_content_score: 59,
+        strengths: [
+          { title: "강력한 오프닝 후킹력", description: "첫 3초에 시청자의 주의를 효과적으로 끌어당김", score: 12 },
+          { title: "명확한 Before/After 구조", description: "제품 효과를 시각적으로 명확히 전달", score: 10 }
+        ],
+        weaknesses: [
+          { 
+            title: "CTA 명확성", 
+            current: "가격 정보와 구매처 안내가 부족함",
+            improvements: ["영상 마지막 5초에 가격과 할인 정보 명시", "자막으로 구매 링크 강조"],
+            expected_impact: "CTA 점수 4점 → 6점 (+50%)",
+            score: 4
+          }
+        ],
+        overall_assessment: "전반적으로 우수한 콘텐츠 제작 능력을 보유하고 있으나, CTA 명확성 개선이 필요함",
+        profile_image: "",
+        followers: 0,
+        avg_views: 0,
+        avg_likes: 0,
+        avg_comments: 0,
+        category: "",
+        target_audience: "",
+        content_style: ""
+      };
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          analysis: mockAnalysis,
+          note: "Mock data returned. Video analysis will be implemented soon."
+        })
+      };
+    }
+
     // Initialize Gemini model
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',

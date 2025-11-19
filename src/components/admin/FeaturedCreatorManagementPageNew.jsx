@@ -131,7 +131,11 @@ export default function FeaturedCreatorManagementPageNew() {
   }
 
   const handlePlatformChange = (value) => {
-    setFormData(prev => ({ ...prev, platform: value }))
+    setFormData(prev => ({ 
+      ...prev, 
+      platform: value,
+      channel_url: '' // Clear channel URL when platform changes
+    }))
   }
 
   const handleRegionToggle = (region) => {
@@ -652,7 +656,12 @@ export default function FeaturedCreatorManagementPageNew() {
                         name="channel_url"
                         value={formData.channel_url}
                         onChange={handleInputChange}
-                        placeholder="https://youtube.com/@channel"
+                        placeholder={
+                          formData.platform === 'youtube' ? 'https://youtube.com/@channel' :
+                          formData.platform === 'instagram' ? 'https://instagram.com/username' :
+                          formData.platform === 'tiktok' ? 'https://tiktok.com/@username' :
+                          'https://...'
+                        }
                       />
                     </div>
 
