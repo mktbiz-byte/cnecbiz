@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
@@ -7,14 +7,13 @@ import { Textarea } from '../ui/textarea'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Alert, AlertDescription } from '../ui/alert'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog'
 import { analyzeCreator, formatEvaluation } from '../../lib/geminiService'
 import { 
   Star, Plus, Edit, Trash2, Eye, Loader2, 
-  TrendingUp, Users, Award, DollarSign, Search, UserPlus 
+  TrendingUp, Users, Award, DollarSign 
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
-import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS, supabaseTaiwan, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function FeaturedCreatorManagementPage() {
   const navigate = useNavigate()
@@ -49,13 +48,6 @@ export default function FeaturedCreatorManagementPage() {
   const [featuredCreators, setFeaturedCreators] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // 가입 크리에이터 선택 모달
-  const [showCreatorModal, setShowCreatorModal] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedRegion, setSelectedRegion] = useState('korea')
-  const [registeredCreators, setRegisteredCreators] = useState([])
-  const [loadingCreators, setLoadingCreators] = useState(false)
-
   // Load featured creators from DB
   useEffect(() => {
     loadFeaturedCreators()
@@ -75,67 +67,6 @@ export default function FeaturedCreatorManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // 가입 크리에이터 검색
-  const searchRegisteredCreators = async () => {
-    setLoadingCreators(true)
-    try {
-      const client = getSupabaseClient(selectedRegion)
-      if (!client) {
-        alert(`${selectedRegion} 데이터베이스에 연결할 수 없습니다.`)
-        return
-      }
-
-      let query = client
-        .from('user_profiles')
-        .select('*')
-        .eq('role', 'creator')
-
-      // 검색어가 있으면 필터링
-      if (searchQuery.trim()) {
-        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,channel_name.ilike.%${searchQuery}%`)
-      }
-
-      const { data, error } = await query.limit(50)
-
-      if (error) throw error
-      setRegisteredCreators(data || [])
-    } catch (err) {
-      console.error('Error searching creators:', err)
-      alert('크리에이터 검색 중 오류가 발생했습니다.')
-    } finally {
-      setLoadingCreators(false)
-    }
-  }
-
-  // 모달 열릴 때 자동 검색
-  useEffect(() => {
-    if (showCreatorModal) {
-      searchRegisteredCreators()
-    }
-  }, [showCreatorModal, selectedRegion])
-
-  // 가입 크리에이터 선택
-  const handleSelectCreator = (creator) => {
-    setFormData({
-      ...formData,
-      channel_name: creator.channel_name || creator.name || '',
-      channel_url: creator.youtube_url || creator.instagram_url || creator.tiktok_url || '',
-      profile_image: creator.profile_image || '',
-      followers: creator.followers?.toString() || '',
-      avg_views: creator.avg_views?.toString() || '',
-      avg_likes: '',
-      avg_comments: '',
-      category: creator.category || '',
-      target_audience: creator.target_audience || '',
-      content_style: '',
-      sample_videos: '',
-      platform: creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok',
-      regions: [selectedRegion] // 선택한 지역 자동 추가
-    })
-    setShowCreatorModal(false)
-    alert(`${creator.name || creator.channel_name} 크리에이터의 정보가 입력되었습니다.`)
   }
 
   const handleInputChange = (e) => {
@@ -347,17 +278,7 @@ export default function FeaturedCreatorManagementPage() {
             <div>
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-xl flex items-center justify-between">
-                    크리에이터 정보
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setShowCreatorModal(true)}
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      가입 크리에이터에서 선택 ({registeredCreators.length}명)
-                    </Button>
-                  </CardTitle>
+                  <CardTitle className="text-xl">크리에이터 정보</CardTitle>
                   <CardDescription>
                     크리에이터의 채널 정보를 입력하세요
                   </CardDescription>
@@ -458,7 +379,7 @@ export default function FeaturedCreatorManagementPage() {
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      placeholder="뷰티, 패션, 라이프스타일 등"
+                      placeholder="뷰티, 패션, 라이프스타일"
                     />
                   </div>
 
@@ -476,209 +397,207 @@ export default function FeaturedCreatorManagementPage() {
                   {/* Content Style */}
                   <div className="space-y-2">
                     <Label>콘텐츠 스타일</Label>
-                    <Textarea
+                    <Input
                       name="content_style"
                       value={formData.content_style}
                       onChange={handleInputChange}
-                      placeholder="밝고 경쾌한 톤, 제품 리뷰 중심..."
-                      rows={3}
+                      placeholder="자연스러운 일상 브이로그"
                     />
                   </div>
 
                   {/* Sample Videos */}
                   <div className="space-y-2">
-                    <Label>샘플 영상 URL (한 줄에 하나씩)</Label>
+                    <Label>대표 영상 URL (한 줄에 하나씩)</Label>
                     <Textarea
                       name="sample_videos"
                       value={formData.sample_videos}
                       onChange={handleInputChange}
+                      rows={3}
                       placeholder="https://youtube.com/watch?v=..."
-                      rows={4}
                     />
                   </div>
 
                   {/* Regions */}
-                  <div className="space-y-2">
-                    <Label>활동 지역 * (복수 선택 가능)</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {['korea', 'japan', 'us', 'taiwan'].map(region => (
-                        <Button
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">활동 지역 * (다중 선택 가능)</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['japan', 'us', 'taiwan', 'korea'].map(region => (
+                        <button
                           key={region}
                           type="button"
-                          variant={formData.regions.includes(region) ? 'default' : 'outline'}
                           onClick={() => handleRegionToggle(region)}
-                          className="w-full"
+                          className={`p-3 rounded-lg border-2 transition-all ${
+                            formData.regions.includes(region)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
                         >
-                          {getRegionFlag(region)} {getRegionName(region)}
-                        </Button>
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">{getRegionFlag(region)}</span>
+                            <span className="font-semibold">{getRegionName(region)}</span>
+                            {formData.regions.includes(region) && (
+                              <span className="ml-auto text-blue-500">✓</span>
+                            )}
+                          </div>
+                        </button>
                       ))}
                     </div>
+                    <p className="text-sm text-gray-500">
+                      선택된 지역: {formData.regions.length > 0 
+                        ? formData.regions.map(r => getRegionName(r)).join(', ')
+                        : '없음'}
+                    </p>
                   </div>
 
-                  {/* Pricing */}
-                  <div className="space-y-3 pt-4 border-t">
-                    <Label className="text-lg font-semibold">패키지 가격 설정 *</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>기본형 (숏폼 1개)</Label>
-                        <Input
-                          name="basic_price"
-                          value={formData.basic_price}
-                          onChange={handleInputChange}
-                          placeholder="500000"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>스탠다드 (숏폼 3개)</Label>
-                        <Input
-                          name="standard_price"
-                          value={formData.standard_price}
-                          onChange={handleInputChange}
-                          placeholder="1200000"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>프리미엄 (숏폼 5개)</Label>
-                        <Input
-                          name="premium_price"
-                          value={formData.premium_price}
-                          onChange={handleInputChange}
-                          placeholder="1800000"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>4주 연속 (주 1개)</Label>
-                        <Input
-                          name="monthly_price"
-                          value={formData.monthly_price}
-                          onChange={handleInputChange}
-                          placeholder="2000000"
-                        />
-                      </div>
+                  <Button 
+                    onClick={handleAnalyze} 
+                    disabled={analyzing}
+                    className="w-full"
+                  >
+                    {analyzing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        AI 분석 중...
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp className="mr-2 h-4 w-4" />
+                        AI 분석 시작
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Pricing */}
+              {evaluation && (
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <DollarSign className="w-5 h-5" />
+                      패키지별 가격 설정
+                    </CardTitle>
+                    <CardDescription>
+                      이 크리에이터의 패키지별 가격을 설정하세요
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>20만원 기본형 → 추천 크리에이터 가격</Label>
+                      <Input
+                        name="basic_price"
+                        value={formData.basic_price}
+                        onChange={handleInputChange}
+                        placeholder="500000"
+                      />
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      onClick={handleAnalyze}
-                      disabled={analyzing || !formData.channel_name || !formData.followers}
-                      className="flex-1"
-                    >
-                      {analyzing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          AI 분석 중...
-                        </>
-                      ) : (
-                        <>
-                          <TrendingUp className="mr-2 h-4 w-4" />
-                          AI 분석 시작
-                        </>
+                    <div className="space-y-2">
+                      <Label>30만원 스탠다드 → 추천 크리에이터 가격</Label>
+                      <Input
+                        name="standard_price"
+                        value={formData.standard_price}
+                        onChange={handleInputChange}
+                        placeholder="700000"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>40만원 프리미엄 → 추천 크리에이터 가격</Label>
+                      <Input
+                        name="premium_price"
+                        value={formData.premium_price}
+                        onChange={handleInputChange}
+                        placeholder="1000000"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>60만원 4주 연속 → 추천 크리에이터 가격</Label>
+                      <Input
+                        name="monthly_price"
+                        value={formData.monthly_price}
+                        onChange={handleInputChange}
+                        placeholder="3000000"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Right: Evaluation Result */}
+            <div>
+              {evaluation ? (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-xl">AI 평가 결과</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="text-center py-6 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg">
+                        <div className="text-6xl font-bold text-yellow-600 mb-2">
+                          {evaluation.total_score}
+                        </div>
+                        <div className="text-lg text-gray-600">/ 100점</div>
+                        <div className={`mt-4 inline-block px-4 py-2 rounded-lg border-2 ${evaluation.badge.color}`}>
+                          <span className="text-2xl mr-2">{evaluation.badge.emoji}</span>
+                          <span className="font-bold">{evaluation.badge.level}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <h4 className="font-semibold">✅ 강점</h4>
+                        <ul className="space-y-2">
+                          {evaluation.strengths.map((s, i) => (
+                            <li key={i} className="text-sm text-gray-700">• {s}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {evaluation.concerns && evaluation.concerns.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="font-semibold">⚠️ 주의사항</h4>
+                          <ul className="space-y-2">
+                            {evaluation.concerns.map((c, i) => (
+                              <li key={i} className="text-sm text-gray-700">• {c}</li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex gap-4">
+                    <Button onClick={handleSave} className="flex-1">
+                      <Award className="mr-2 h-4 w-4" />
+                      추천 크리에이터 등록
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowForm(false)
-                        setFormData({
-                          platform: 'youtube',
-                          channel_name: '',
-                          channel_url: '',
-                          profile_image: '',
-                          followers: '',
-                          avg_views: '',
-                          avg_likes: '',
-                          avg_comments: '',
-                          category: '',
-                          target_audience: '',
-                          content_style: '',
-                          sample_videos: '',
-                          regions: [],
-                          basic_price: '',
-                          standard_price: '',
-                          premium_price: '',
-                          monthly_price: ''
-                        })
-                        setEvaluation(null)
-                      }}
-                    >
+                    <Button variant="outline" onClick={() => {
+                      setShowForm(false)
+                      setEvaluation(null)
+                    }}>
                       취소
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right: AI Evaluation Result */}
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">AI 평가 결과</CardTitle>
-                  <CardDescription>
-                    {evaluation 
-                      ? '분석이 완료되었습니다. 결과를 확인하고 저장하세요.'
-                      : '좌측 폼을 작성하고 AI 분석을 시작하세요.'
-                    }
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {evaluation ? (
-                    <div className="space-y-6">
-                      {/* Total Score */}
-                      <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 p-6 rounded-lg border-2 border-yellow-300">
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-2">종합 점수</p>
-                          <p className="text-5xl font-bold text-yellow-600">{evaluation.total_score}</p>
-                          <p className="text-sm text-gray-600 mt-2">/ 100점</p>
-                        </div>
-                      </div>
-
-                      {/* Detailed Scores */}
-                      <div className="space-y-3">
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                          <Award className="w-5 h-5 text-blue-500" />
-                          세부 평가
-                        </h3>
-                        {Object.entries(evaluation.scores || {}).map(([key, value]) => (
-                          <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                            <span className="text-sm font-medium">{key}</span>
-                            <span className="text-lg font-bold text-blue-600">{value}점</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Summary */}
-                      {evaluation.summary && (
-                        <div className="space-y-2">
-                          <h3 className="font-semibold text-lg">종합 평가</h3>
-                          <p className="text-sm text-gray-700 leading-relaxed">{evaluation.summary}</p>
-                        </div>
-                      )}
-
-                      {/* Save Button */}
-                      <Button 
-                        onClick={handleSave}
-                        className="w-full"
-                        size="lg"
-                      >
-                        <Star className="mr-2 h-5 w-5" />
-                        추천 크리에이터로 등록
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-400">
-                      <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p>AI 분석 결과가 여기에 표시됩니다</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+              ) : (
+                <Card className="h-full flex items-center justify-center">
+                  <CardContent className="text-center py-12">
+                    <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">
+                      크리에이터 정보를 입력하고<br />
+                      AI 분석을 시작해주세요
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         ) : (
           /* Creator List */
           <div className="space-y-6">
+            {/* Region Filter */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">지역 필터</CardTitle>
@@ -795,23 +714,14 @@ export default function FeaturedCreatorManagementPage() {
                           </div>
                         </div>
 
-                        <div className="flex gap-2">
-                          <Button 
-                            onClick={() => handleViewProfile(creator)}
-                            size="sm"
-                            className="flex-1"
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            프로필 보기
-                          </Button>
-                          <Button 
-                            onClick={() => handleDelete(creator.id)}
-                            size="sm"
-                            variant="destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <Button 
+                          onClick={() => handleViewProfile(creator)}
+                          size="sm"
+                          className="w-full"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          프로필 보기
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}
@@ -822,97 +732,7 @@ export default function FeaturedCreatorManagementPage() {
         )}
       </div>
       </div>
-
-      {/* 가입 크리에이터 선택 모달 */}
-      <Dialog open={showCreatorModal} onOpenChange={setShowCreatorModal}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5" />
-              가입 크리에이터에서 선택
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Region Selection */}
-            <div className="flex gap-2">
-              {['korea', 'japan', 'us', 'taiwan'].map(region => (
-                <Button
-                  key={region}
-                  variant={selectedRegion === region ? 'default' : 'outline'}
-                  onClick={() => setSelectedRegion(region)}
-                  size="sm"
-                >
-                  {getRegionFlag(region)} {getRegionName(region)}
-                </Button>
-              ))}
-            </div>
-
-            {/* Search */}
-            <div className="flex gap-2">
-              <Input
-                placeholder="이름, 이메일, 채널명으로 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && searchRegisteredCreators()}
-              />
-              <Button onClick={searchRegisteredCreators} disabled={loadingCreators}>
-                {loadingCreators ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-
-            {/* Creator List */}
-            <div className="space-y-2">
-              {loadingCreators ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
-                  <p className="text-sm text-gray-500 mt-2">크리에이터 검색 중...</p>
-                </div>
-              ) : registeredCreators.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>검색 결과가 없습니다</p>
-                </div>
-              ) : (
-                registeredCreators.map(creator => (
-                  <Card key={creator.id} className="p-4 hover:bg-gray-50 cursor-pointer" onClick={() => handleSelectCreator(creator)}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {creator.profile_image ? (
-                          <img src={creator.profile_image} alt={creator.name} className="w-12 h-12 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                            <Users className="w-6 h-6 text-gray-400" />
-                          </div>
-                        )}
-                        <div>
-                          <h4 className="font-semibold">{creator.name || creator.channel_name || '이름 없음'}</h4>
-                          <p className="text-sm text-gray-600">{creator.email}</p>
-                          {creator.channel_name && <p className="text-xs text-gray-500">채널: {creator.channel_name}</p>}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">구독자: {creator.followers?.toLocaleString() || 'N/A'}</p>
-                        <p className="text-xs text-gray-500">{creator.category || '카테고리 없음'}</p>
-                      </div>
-                    </div>
-                  </Card>
-                ))
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreatorModal(false)}>
-              닫기
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }
+
