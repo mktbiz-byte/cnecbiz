@@ -519,12 +519,6 @@ export default function FeaturedCreatorManagementPageNew() {
                 <Button variant="outline" onClick={() => navigate('/admin')}>
                   관리자 대시보드
                 </Button>
-                {!showForm && (
-                  <Button onClick={() => setShowForm(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    CAPI 프로필 생성
-                  </Button>
-                )}
               </div>
             </div>
           </div>
@@ -807,8 +801,9 @@ export default function FeaturedCreatorManagementPageNew() {
               </TabsList>
 
               <TabsContent value="featured">
-                {/* Filter */}
-                <div className="mb-6 flex gap-2">
+                {/* Action Button and Filter */}
+                <div className="mb-6 flex justify-between items-center">
+                  <div className="flex gap-2">
                   <Button
                     variant={regionFilter === 'all' ? 'default' : 'outline'}
                     size="sm"
@@ -826,6 +821,13 @@ export default function FeaturedCreatorManagementPageNew() {
                       {getRegionFlag(region)} {getRegionName(region)}
                     </Button>
                   ))}
+                  </div>
+                  {!showForm && (
+                    <Button onClick={() => setShowForm(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      CAPI 프로필 생성
+                    </Button>
+                  )}
                 </div>
 
               {/* Creators List */}
