@@ -47,6 +47,7 @@ import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
 import CreatorsManagement from './components/admin/CreatorsManagement'
+import FeaturedCreatorManagementPageNew from './components/admin/FeaturedCreatorManagementPageNew'
 import CreatorMyPage from './components/creator/CreatorMyPage'
 import CampaignVideoFeedback from './components/company/CampaignVideoFeedback'
 
@@ -155,6 +156,7 @@ function App() {
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<CreatorsManagement />} />
+        <Route path="/admin/featured-creators-capi" element={<FeaturedCreatorManagementPageNew />} />
 
         <Route path="/admin/manage-faqs" element={<FAQManagement />} />
         <Route path="/admin/videos" element={<VideoManagement />} />
