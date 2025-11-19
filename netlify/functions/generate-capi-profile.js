@@ -150,6 +150,7 @@ export const handler = async (event) => {
       total_score: totalScore,
       grade: calculateGrade(totalScore),
       content_score: Math.round(totalContentScore),
+      total_content_score: Math.round(totalContentScore), // For frontend compatibility
       activity_score: activityScore.total,
       
       content_scores: avgContentScores,
