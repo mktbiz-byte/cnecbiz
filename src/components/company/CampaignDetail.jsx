@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
-import { sendCampaignSelectedNotification, sendCampaignCancelledNotification } from '../../services/notifications/creatorNotifications'
+import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, sendGuideDeliveredNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
 
 export default function CampaignDetail() {
@@ -451,7 +451,7 @@ export default function CampaignDetail() {
       await fetchApplications()
       await fetchParticipants()
       
-      // 알림톡 발송
+      // 알림톡 발송 및 이메일/플랫폼 업데이트
       let successCount = 0
       for (const app of virtualSelected) {
         try {
@@ -460,6 +460,18 @@ export default function CampaignDetail() {
             .select('email, phone')
             .eq('id', app.user_id)
             .maybeSingle()
+          
+          // campaign_participants 테이블에 이메일과 플랫폼 정보 업데이트
+          if (profile) {
+            await supabase
+              .from('campaign_participants')
+              .update({
+                creator_email: profile.email || '',
+                creator_platform: app.main_channel || ''
+              })
+              .eq('campaign_id', id)
+              .eq('creator_name', app.applicant_name)
+          }
           
           if (profile?.phone) {
             await sendCampaignSelectedNotification(
@@ -1432,6 +1444,15 @@ export default function CampaignDetail() {
                               .maybeSingle()
 
                             if (profile) {
+                              // campaign_participants 테이블에 이메일 업데이트
+                              await supabase
+                                .from('campaign_participants')
+                                .update({
+                                  creator_email: profile.email || ''
+                                })
+                                .eq('campaign_id', id)
+                                .eq('creator_name', app.applicant_name)
+                              
                               // 카카오 알림톡
                               if (profile.phone) {
                                 await sendCampaignSelectedNotification(
@@ -1661,6 +1682,15 @@ export default function CampaignDetail() {
                               .maybeSingle()
 
                             if (profile) {
+                              // campaign_participants 테이블에 이메일 업데이트
+                              await supabase
+                                .from('campaign_participants')
+                                .update({
+                                  creator_email: profile.email || ''
+                                })
+                                .eq('campaign_id', id)
+                                .eq('creator_name', app.applicant_name)
+                              
                               // 카카오 알림톡
                               if (profile.phone) {
                                 await sendCampaignSelectedNotification(
@@ -1783,11 +1813,11 @@ export default function CampaignDetail() {
               <CardHeader>
                 <CardTitle>확정 크리에이터 및 택배 송장번호</CardTitle>
                 <p className="text-sm text-gray-600 mt-2">
-                  선택된 크리에이터: {participants.filter(p => p.selection_status === 'selected').length}명
+                  선택된 크리에이터: {participants.length}명
                 </p>
               </CardHeader>
               <CardContent>
-                {participants.filter(p => p.selection_status === 'selected').length === 0 ? (
+                {participants.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 확정된 크리에이터가 없습니다.
                   </div>
@@ -1798,6 +1828,7 @@ export default function CampaignDetail() {
                         <tr>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">크리에이터</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배 송장번호</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 확인</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
@@ -1808,10 +1839,11 @@ export default function CampaignDetail() {
                         </tr>
                       </thead>
                       <tbody className="divide-y">
-                        {participants.filter(p => p.selection_status === 'selected').map((participant) => (
+                        {participants.map((participant) => (
                           <tr key={participant.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3">{participant.creator_name}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_platform || '-'}</td>
                             <td className="px-4 py-3">
                               <input
                                 type="text"
@@ -1825,7 +1857,62 @@ export default function CampaignDetail() {
                               {participant.guide_confirmed ? (
                                 <Badge className="bg-green-100 text-green-800">확인완료</Badge>
                               ) : (
-                                <Badge className="bg-gray-100 text-gray-800">미확인</Badge>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={async () => {
+                                    if (!confirm(`${participant.creator_name}님의 가이드를 확인하고 최종 확정하시겠습니까?`)) return
+                                    
+                                    try {
+                                      // 가이드 확인 상태 업데이트
+                                      await supabase
+                                        .from('campaign_participants')
+                                        .update({ guide_confirmed: true })
+                                        .eq('id', participant.id)
+                                      
+                                      // 크리에이터에게 가이드 전달 알림톡 발송
+                                      try {
+                                        // user_id 찾기
+                                        const { data: app } = await supabase
+                                          .from('applications')
+                                          .select('user_id, applicant_name')
+                                          .eq('campaign_id', id)
+                                          .eq('applicant_name', participant.creator_name)
+                                          .maybeSingle()
+                                        
+                                        if (app?.user_id) {
+                                          const { data: profile } = await supabase
+                                            .from('user_profiles')
+                                            .select('phone')
+                                            .eq('id', app.user_id)
+                                            .maybeSingle()
+                                          
+                                          if (profile?.phone) {
+                                            await sendGuideDeliveredNotification(
+                                              profile.phone,
+                                              participant.creator_name,
+                                              {
+                                                campaignName: campaign?.title || '캠페인',
+                                                deadline: campaign?.submission_deadline || '미정'
+                                              }
+                                            )
+                                          }
+                                        }
+                                      } catch (notificationError) {
+                                        console.error('Notification error:', notificationError)
+                                      }
+                                      
+                                      await fetchParticipants()
+                                      alert('가이드 확인이 완료되고 크리에이터에게 알림톡이 발송되었습니다.')
+                                    } catch (error) {
+                                      console.error('Error confirming guide:', error)
+                                      alert('가이드 확인에 실패했습니다.')
+                                    }
+                                  }}
+                                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                >
+                                  가이드 확인
+                                </Button>
                               )}
                             </td>
                             <td className="px-4 py-3">
