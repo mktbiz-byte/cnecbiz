@@ -34,6 +34,10 @@ export default function AdminCampaignDetail() {
   const [loading, setLoading] = useState(true)
   const [selectedApplication, setSelectedApplication] = useState(null)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [selectedGuide, setSelectedGuide] = useState(null)
+  const [showGuideModal, setShowGuideModal] = useState(false)
+  const [editingGuide, setEditingGuide] = useState(false)
+  const [editedGuideContent, setEditedGuideContent] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -754,6 +758,108 @@ export default function AdminCampaignDetail() {
           getStatusBadge={getStatusBadge}
         />
       )}
+
+      {/* 가이드 보기/수정 모달 */}
+      {showGuideModal && selectedGuide && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {selectedGuide.applicant_name || selectedGuide.creator_name}님의 맞춤 가이드
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {campaign?.title || campaign?.campaign_name || '캠페인'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowGuideModal(false)
+                  setSelectedGuide(null)
+                  setEditingGuide(false)
+                  setEditedGuideContent('')
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {editingGuide ? (
+                <textarea
+                  value={editedGuideContent}
+                  onChange={(e) => setEditedGuideContent(e.target.value)}
+                  className="w-full h-full min-h-[500px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                />
+              ) : (
+                <div className="prose max-w-none">
+                  <pre className="whitespace-pre-wrap font-sans">{selectedGuide.personalized_guide}</pre>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+              {editingGuide ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingGuide(false)
+                      setEditedGuideContent('')
+                    }}
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const client = getSupabaseClient(region)
+                        await client
+                          .from('applications')
+                          .update({ personalized_guide: editedGuideContent })
+                          .eq('id', selectedGuide.id)
+
+                        alert('가이드가 저장되었습니다.')
+                        setEditingGuide(false)
+                        setShowGuideModal(false)
+                        fetchApplications()
+                      } catch (error) {
+                        console.error('Error saving guide:', error)
+                        alert('저장에 실패했습니다.')
+                      }
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    저장
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingGuide(true)
+                      setEditedGuideContent(selectedGuide.personalized_guide || '')
+                    }}
+                    className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    수정
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedGuide.personalized_guide)
+                      alert('가이드가 클립보드에 복사되었습니다!')
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    복사
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -782,15 +888,33 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
                 {getStatusBadge(app.status)}
                 
                 {/* 기획형 캠페인일 경우 개별 AI 가이드 생성 버튼 */}
-                {campaign?.campaign_type === 'planned' && onGenerateGuide && (
-                  <Button
-                    size="sm"
-                    onClick={() => onGenerateGuide(app)}
-                    className="ml-2 bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    <FileText className="w-3 h-3 mr-1" />
-                    AI 가이드 생성
-                  </Button>
+                {campaign?.campaign_type === 'planned' && (
+                  <div className="flex gap-2 ml-2">
+                    {onGenerateGuide && (
+                      <Button
+                        size="sm"
+                        onClick={() => onGenerateGuide(app)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        AI 가이드 생성
+                      </Button>
+                    )}
+                    {app.personalized_guide && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedGuide(app)
+                          setShowGuideModal(true)
+                        }}
+                        className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        가이드 보기
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
@@ -830,6 +954,8 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
       ))}
     </div>
   )
+}
+
 }
 
 // 지원서 상세보기 모달
