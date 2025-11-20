@@ -422,14 +422,28 @@ export default function CampaignDetail() {
       }
 
       // campaign_participants에 추가
-      const participantsToAdd = virtualSelected.map(app => ({
-        campaign_id: id,
-        creator_name: app.applicant_name,
-        creator_email: '', // 이메일 정보가 있다면 추가
-        creator_platform: '', // 플랫폼 정보 추가
-        creator_status: 'guide_confirmation',
-        created_at: new Date().toISOString()
-      }))
+      const participantsToAdd = virtualSelected.map(app => {
+        // 메인 채널에서 플랫폼 추출
+        let platform = '-'
+        if (app.main_channel) {
+          if (app.main_channel.includes('YouTube') || app.main_channel.includes('유튜브')) {
+            platform = 'YouTube'
+          } else if (app.main_channel.includes('Instagram') || app.main_channel.includes('인스타그램')) {
+            platform = 'Instagram'
+          } else if (app.main_channel.includes('TikTok') || app.main_channel.includes('틱톡')) {
+            platform = 'TikTok'
+          }
+        }
+        
+        return {
+          campaign_id: id,
+          creator_name: app.applicant_name,
+          creator_email: app.applicant_email || app.email || '',
+          creator_platform: platform,
+          creator_status: 'guide_confirmation',
+          created_at: new Date().toISOString()
+        }
+      })
 
       const { error: insertError } = await supabase
         .from('campaign_participants')
@@ -1413,13 +1427,24 @@ export default function CampaignDetail() {
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
                         try {
+                          // 플랫폼 추출
+                          let platform = '-'
+                          const channelToCheck = mainChannel || app.main_channel || ''
+                          if (channelToCheck.includes('YouTube') || channelToCheck.includes('유튜브')) {
+                            platform = 'YouTube'
+                          } else if (channelToCheck.includes('Instagram') || channelToCheck.includes('인스타그램')) {
+                            platform = 'Instagram'
+                          } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
+                            platform = 'TikTok'
+                          }
+                          
                           const { error: insertError } = await supabase
                             .from('campaign_participants')
                             .insert([{
                               campaign_id: id,
                               creator_name: app.applicant_name,
-                              creator_email: '',
-                              creator_platform: mainChannel || app.main_channel || '',
+                              creator_email: app.applicant_email || app.email || '',
+                              creator_platform: platform,
                               creator_status: 'guide_confirmation',
                               created_at: new Date().toISOString()
                             }])
@@ -1651,13 +1676,24 @@ export default function CampaignDetail() {
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
                         try {
+                          // 플랫폼 추출
+                          let platform = '-'
+                          const channelToCheck = mainChannel || app.main_channel || ''
+                          if (channelToCheck.includes('YouTube') || channelToCheck.includes('유튜브')) {
+                            platform = 'YouTube'
+                          } else if (channelToCheck.includes('Instagram') || channelToCheck.includes('인스타그램')) {
+                            platform = 'Instagram'
+                          } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
+                            platform = 'TikTok'
+                          }
+                          
                           const { error: insertError } = await supabase
                             .from('campaign_participants')
                             .insert([{
                               campaign_id: id,
                               creator_name: app.applicant_name,
-                              creator_email: '',
-                              creator_platform: mainChannel || app.main_channel || '',
+                              creator_email: app.applicant_email || app.email || '',
+                              creator_platform: platform,
                               creator_status: 'guide_confirmation',
                               created_at: new Date().toISOString()
                             }])
