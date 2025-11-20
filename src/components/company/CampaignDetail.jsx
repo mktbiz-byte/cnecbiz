@@ -1187,7 +1187,7 @@ export default function CampaignDetail() {
                     />
                   </td>
                   <td className="px-4 py-3">{participant.creator_name || participant.applicant_name}</td>
-                  <td className="px-4 py-3">{participant.creator_platform || participant.platform}</td>
+                  <td className="px-4 py-3">{participant.creator_platform || participant.main_channel || participant.platform || '-'}</td>
                   <td className="px-4 py-3">
                     <Button
                       size="sm"
@@ -2243,13 +2243,22 @@ export default function CampaignDetail() {
                       전체 ({participants.length})
                     </TabsTrigger>
                     <TabsTrigger value="youtube">
-                      유튜브 ({participants.filter(p => p.creator_platform?.toLowerCase().includes('youtube')).length})
+                      유튜브 ({participants.filter(p => {
+                        const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
+                        return platform.includes('youtube') || platform.includes('유튜브')
+                      }).length})
                     </TabsTrigger>
                     <TabsTrigger value="instagram">
-                      인스타 ({participants.filter(p => p.creator_platform?.toLowerCase().includes('instagram')).length})
+                      인스타 ({participants.filter(p => {
+                        const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
+                        return platform.includes('instagram') || platform.includes('인스타그램')
+                      }).length})
                     </TabsTrigger>
                     <TabsTrigger value="tiktok">
-                      틱톡 ({participants.filter(p => p.creator_platform?.toLowerCase().includes('tiktok')).length})
+                      틱톡 ({participants.filter(p => {
+                        const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
+                        return platform.includes('tiktok') || platform.includes('틱톡')
+                      }).length})
                     </TabsTrigger>
                   </TabsList>
                   
@@ -2260,17 +2269,26 @@ export default function CampaignDetail() {
                   
                   {/* 유튜브 */}
                   <TabsContent value="youtube">
-                    {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('youtube')))}
+                    {renderParticipantsTable(participants.filter(p => {
+                      const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
+                      return platform.includes('youtube') || platform.includes('유튜브')
+                    }))}
                   </TabsContent>
                   
                   {/* 인스타 */}
                   <TabsContent value="instagram">
-                    {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('instagram')))}
+                    {renderParticipantsTable(participants.filter(p => {
+                      const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
+                      return platform.includes('instagram') || platform.includes('인스타그램')
+                    }))}
                   </TabsContent>
                   
                   {/* 틱톡 */}
                   <TabsContent value="tiktok">
-                    {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('tiktok')))}
+                    {renderParticipantsTable(participants.filter(p => {
+                      const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
+                      return platform.includes('tiktok') || platform.includes('틱톡')
+                    }))}
                   </TabsContent>
                 </Tabs>
               </CardContent>
