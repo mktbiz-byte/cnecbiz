@@ -46,6 +46,7 @@ import CompaniesManagement from './components/admin/CompaniesManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
+import GuidePDFManager from './components/admin/GuidePDFManager'
 import CreatorsManagement from './components/admin/CreatorsManagement'
 import FeaturedCreatorManagementPageNew from './components/admin/FeaturedCreatorManagementPageNew'
 import CreatorMyPage from './components/creator/CreatorMyPage'
@@ -171,6 +172,7 @@ function App() {
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
+        <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
