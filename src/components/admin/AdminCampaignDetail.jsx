@@ -677,7 +677,8 @@ export default function AdminCampaignDetail() {
 
                 <TabsContent value="selected" className="mt-6">
                   {/* 기획형 캠페인일 경우 AI 가이드 생성 버튼 표시 */}
-                  {campaign?.campaign_type === 'regular' && selectedApplications.length > 0 && (
+                  {console.log('Campaign data:', campaign)}
+                  {selectedApplications.length > 0 && (campaign?.campaign_type === 'regular' || campaign?.type === '기획형' || campaign?.campaign_type === '기획형') && (
                     <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div>

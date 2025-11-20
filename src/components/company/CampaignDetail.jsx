@@ -2469,6 +2469,7 @@ export default function CampaignDetail() {
                     </Button>
                   </>
                 )}
+              </div>
             </div>
           </div>
         </div>
