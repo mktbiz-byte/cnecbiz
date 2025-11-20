@@ -668,10 +668,13 @@ export default function CampaignDetail() {
             continue
           }
 
-          // 가이드 승인 상태 업데이트
+          // 가이드 승인 상태 업데이트 및 촬영중으로 변경
           await supabase
             .from('campaign_participants')
-            .update({ guide_confirmed: true })
+            .update({ 
+              guide_confirmed: true,
+              creator_status: 'filming'
+            })
             .eq('id', participantId)
 
           // user_id와 phone 정보 가져오기
@@ -1035,7 +1038,7 @@ export default function CampaignDetail() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">참여일</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">마감일</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -1116,22 +1119,22 @@ export default function CampaignDetail() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <select
-                      value={participant.creator_status || 'guide_confirmation'}
-                      onChange={(e) => handleUpdateCreatorStatus(participant.id, e.target.value)}
-                      className="text-sm border rounded px-2 py-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <option value="guide_confirmation">가이드 확인중</option>
-                      <option value="filming">촬영중</option>
-                      <option value="editing">수정중</option>
-                      <option value="submitted">제출완료</option>
-                      <option value="approved">승인완료</option>
-                      <option value="rejected">거부</option>
-                    </select>
+                    {(() => {
+                      const status = participant.creator_status || 'guide_confirmation'
+                      const statusConfig = {
+                        guide_confirmation: { label: '가이드 확인중', className: 'bg-purple-100 text-purple-700' },
+                        filming: { label: '촬영중', className: 'bg-yellow-100 text-yellow-700' },
+                        editing: { label: '수정중', className: 'bg-pink-100 text-pink-700' },
+                        submitted: { label: '제출완료', className: 'bg-blue-100 text-blue-700' },
+                        approved: { label: '승인완료', className: 'bg-green-100 text-green-700' },
+                        rejected: { label: '거부', className: 'bg-red-100 text-red-700' }
+                      }
+                      const config = statusConfig[status] || statusConfig.guide_confirmation
+                      return <Badge className={config.className}>{config.label}</Badge>
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {new Date(participant.created_at).toLocaleDateString()}
+                    {campaign.content_submission_deadline || '미정'}
                   </td>
                 </tr>
               ))}
@@ -1173,12 +1176,6 @@ export default function CampaignDetail() {
                   추가 입금 요청 ({selectedParticipants.length - campaign.total_slots}명)
                 </Button>
               )}
-              <Button
-                onClick={handleConfirmSelection}
-                disabled={selectedParticipants.length === 0}
-              >
-                선택 확정
-              </Button>
             </div>
           </div>
         )}
@@ -2052,40 +2049,6 @@ export default function CampaignDetail() {
                   
                   {/* 전체 */}
                   <TabsContent value="all">
-                {participants.length > 0 && (
-                  <div className="flex gap-4 mt-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">가이드 확인중:</span>
-                      <Badge className="bg-purple-100 text-purple-700">
-                        {participants.filter(p => p.creator_status === 'guide_confirmation').length}명
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">촬영중:</span>
-                      <Badge className="bg-yellow-100 text-yellow-700">
-                        {participants.filter(p => p.creator_status === 'filming').length}명
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">수정중:</span>
-                      <Badge className="bg-pink-100 text-pink-700">
-                        {participants.filter(p => p.creator_status === 'editing').length}명
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">제출완료:</span>
-                      <Badge className="bg-blue-100 text-blue-700">
-                        {participants.filter(p => p.creator_status === 'submitted').length}명
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">승인완료:</span>
-                      <Badge className="bg-green-100 text-green-700">
-                        {participants.filter(p => p.creator_status === 'approved').length}명
-                      </Badge>
-                    </div>
-                  </div>
-                )}
                     {renderParticipantsTable(participants)}
                   </TabsContent>
                   
@@ -2112,23 +2075,49 @@ export default function CampaignDetail() {
           <TabsContent value="editing">
             <Card>
               <CardHeader>
-                <CardTitle>영상 수정 중인 크리에이터</CardTitle>
+                <CardTitle>영상 제출 및 수정 중인 크리에이터</CardTitle>
               </CardHeader>
               <CardContent>
-                {participants.filter(p => p.creator_status === 'editing').length === 0 ? (
+                {participants.filter(p => ['submitted', 'editing'].includes(p.creator_status)).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    영상 수정 중인 크리에이터가 없습니다.
+                    제출된 영상이 없습니다.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {participants.filter(p => p.creator_status === 'editing').map(participant => (
+                    {participants.filter(p => ['submitted', 'editing'].includes(p.creator_status)).map(participant => (
                       <div key={participant.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
                             <h4 className="font-semibold">{participant.creator_name}</h4>
                             <p className="text-sm text-gray-600">{participant.creator_platform}</p>
+                            {participant.content_url && (
+                              <a 
+                                href={participant.content_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:underline mt-2 inline-block"
+                              >
+                                영상 보기
+                              </a>
+                            )}
                           </div>
-                          <Badge className="bg-pink-100 text-pink-700">수정중</Badge>
+                          <div className="flex items-center gap-2">
+                            {participant.creator_status === 'submitted' ? (
+                              <Badge className="bg-blue-100 text-blue-700">제출완료</Badge>
+                            ) : (
+                              <Badge className="bg-pink-100 text-pink-700">수정중</Badge>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedParticipant(participant)
+                                setShowVideoModal(true)
+                              }}
+                            >
+                              수정 요청
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
