@@ -187,11 +187,10 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
           {isConfirmed ? (
             <Button
               onClick={() => onCancel && onCancel(application)}
-              size="sm"
-              variant="destructive"
-              className="w-full text-sm h-8"
+              size="md"
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold h-10"
             >
-              확정 취소
+              선정 취소
             </Button>
           ) : (
             <>
