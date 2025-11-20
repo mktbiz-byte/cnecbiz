@@ -18,6 +18,7 @@ import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabas
 import CreatorCard from './CreatorCard'
 import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, sendGuideDeliveredNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
+import * as XLSX from 'xlsx'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -38,6 +39,8 @@ export default function CampaignDetail() {
   const [cancellingApp, setCancellingApp] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [selectedParticipants, setSelectedParticipants] = useState([])
+  const [trackingChanges, setTrackingChanges] = useState({}) // {participantId: {tracking_number, shipping_company}}
+  const [bulkCourierCompany, setBulkCourierCompany] = useState('')
   const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [selectedGuide, setSelectedGuide] = useState(null)
@@ -350,22 +353,30 @@ export default function CampaignDetail() {
     }
   }
 
-  const handleTrackingNumberChange = async (participantId, trackingNumber, shippingCompany = null) => {
-    try {
-      // campaign_participants에서 creator_name 가져오기
-      const { data: participant, error: fetchError } = await supabase
-        .from('campaign_participants')
-        .select('creator_name, campaign_id')
-        .eq('id', participantId)
-        .single()
-
-      if (fetchError) throw fetchError
-
-      // campaign_participants 업데이트 데이터 준비
-      const updateData = { tracking_number: trackingNumber }
-      if (shippingCompany !== null) {
-        updateData.shipping_company = shippingCompany
+  const handleTrackingNumberChange = (participantId, field, value) => {
+    setTrackingChanges(prev => ({
+      ...prev,
+      [participantId]: {
+        ...prev[participantId],
+        [field]: value
       }
+    }))
+  }
+
+  const saveTrackingNumber = async (participantId) => {
+    const changes = trackingChanges[participantId]
+    if (!changes) {
+      alert('변경사항이 없습니다.')
+      return
+    }
+
+    try {
+      const participant = participants.find(p => p.id === participantId)
+      if (!participant) throw new Error('참여자를 찾을 수 없습니다.')
+
+      const updateData = {}
+      if (changes.tracking_number !== undefined) updateData.tracking_number = changes.tracking_number
+      if (changes.shipping_company !== undefined) updateData.shipping_company = changes.shipping_company
 
       // campaign_participants 업데이트
       const { error } = await supabase
@@ -375,35 +386,151 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
-      // applications 테이블도 업데이트 (크리에이터 마이페이지에서 사용)
-      const appUpdateData = { tracking_number: trackingNumber }
-      if (shippingCompany !== null) {
-        appUpdateData.shipping_company = shippingCompany
-      }
-
+      // applications 테이블도 업데이트
       const { error: appError } = await supabase
         .from('applications')
-        .update(appUpdateData)
+        .update(updateData)
         .eq('campaign_id', participant.campaign_id)
         .eq('applicant_name', participant.creator_name)
         .eq('status', 'selected')
 
       if (appError) {
         console.error('Error updating applications table:', appError)
-        // applications 업데이트 실패해도 계속 진행 (campaign_participants는 이미 업데이트됨)
       }
 
-      // 참여자 목록 업데이트
-      setParticipants(prev => 
-        prev.map(p => 
-          p.id === participantId 
-            ? { ...p, ...updateData }
-            : p
-        )
-      )
+      // 저장된 변경사항 제거
+      setTrackingChanges(prev => {
+        const newChanges = { ...prev }
+        delete newChanges[participantId]
+        return newChanges
+      })
+
+      await fetchParticipants()
+      alert('송장번호가 저장되었습니다.')
     } catch (error) {
       console.error('Error updating tracking number:', error)
       alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
+  // 배송 정보 엑셀 다운로드
+  const exportShippingInfo = () => {
+    const data = participants.map(p => ({
+      '크리에이터명': p.creator_name,
+      '연락처': p.creator_phone || '',
+      '우편번호': p.postal_code || '',
+      '주소': p.address || '',
+      '상세주소': p.address_detail || '',
+      '배송시 요청사항': p.delivery_request || ''
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '배송정보')
+    XLSX.writeFile(wb, `${campaign.title}_배송정보.xlsx`)
+  }
+
+  // 송장번호 템플릿 다운로드
+  const downloadTrackingTemplate = () => {
+    const data = participants.map(p => ({
+      '크리에이터명': p.creator_name,
+      '송장번호': ''
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '송장번호')
+    XLSX.writeFile(wb, `${campaign.title}_송장번호_템플릿.xlsx`)
+  }
+
+  // 송장번호 엑셀 업로드
+  const uploadTrackingNumbers = async (file) => {
+    try {
+      const data = await file.arrayBuffer()
+      const workbook = XLSX.read(data)
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+      const jsonData = XLSX.utils.sheet_to_json(worksheet)
+
+      let successCount = 0
+      let failCount = 0
+
+      for (const row of jsonData) {
+        const creatorName = row['크리에이터명']
+        const trackingNumber = row['송장번호']
+
+        if (!creatorName || !trackingNumber) continue
+
+        const participant = participants.find(p => p.creator_name === creatorName)
+        if (!participant) {
+          failCount++
+          continue
+        }
+
+        try {
+          await supabase
+            .from('campaign_participants')
+            .update({ tracking_number: trackingNumber })
+            .eq('id', participant.id)
+
+          await supabase
+            .from('applications')
+            .update({ tracking_number: trackingNumber })
+            .eq('campaign_id', participant.campaign_id)
+            .eq('applicant_name', participant.creator_name)
+            .eq('status', 'selected')
+
+          successCount++
+        } catch (error) {
+          console.error(`Error updating ${creatorName}:`, error)
+          failCount++
+        }
+      }
+
+      await fetchParticipants()
+      alert(`송장번호 업로드 완료!\n성공: ${successCount}건\n실패: ${failCount}건`)
+    } catch (error) {
+      console.error('Error uploading tracking numbers:', error)
+      alert('송장번호 업로드에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 택배사 일괄 수정
+  const bulkUpdateCourier = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!bulkCourierCompany) {
+      alert('택배사를 선택해주세요.')
+      return
+    }
+
+    try {
+      for (const participantId of selectedParticipants) {
+        const participant = participants.find(p => p.id === participantId)
+        if (!participant) continue
+
+        await supabase
+          .from('campaign_participants')
+          .update({ shipping_company: bulkCourierCompany })
+          .eq('id', participantId)
+
+        await supabase
+          .from('applications')
+          .update({ shipping_company: bulkCourierCompany })
+          .eq('campaign_id', participant.campaign_id)
+          .eq('applicant_name', participant.creator_name)
+          .eq('status', 'selected')
+      }
+
+      await fetchParticipants()
+      alert(`${selectedParticipants.length}명의 택배사가 변경되었습니다.`)
+      setSelectedParticipants([])
+      setBulkCourierCompany('')
+    } catch (error) {
+      console.error('Error bulk updating courier:', error)
+      alert('택배사 일괄 수정에 실패했습니다: ' + error.message)
     }
   }
 
@@ -1031,7 +1158,11 @@ export default function CampaignDetail() {
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">연락처</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">우편번호</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">주소</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">상세주소</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배송 요청사항</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">송장번호</th>
@@ -1059,12 +1190,16 @@ export default function CampaignDetail() {
                     />
                   </td>
                   <td className="px-4 py-3">{participant.creator_name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_phone || '-'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{participant.postal_code || '-'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{participant.address || '-'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{participant.address_detail || '-'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{participant.delivery_request || '-'}</td>
                   <td className="px-4 py-3">{participant.creator_platform}</td>
                   <td className="px-4 py-3">
                     <select
-                      value={participant.shipping_company || ''}
-                      onChange={(e) => handleTrackingNumberChange(participant.id, participant.tracking_number || '', e.target.value)}
+                      value={trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''}
+                      onChange={(e) => handleTrackingNumberChange(participant.id, 'shipping_company', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">택배사 선택</option>
@@ -1076,13 +1211,24 @@ export default function CampaignDetail() {
                     </select>
                   </td>
                   <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={participant.tracking_number || ''}
-                      onChange={(e) => handleTrackingNumberChange(participant.id, e.target.value, participant.shipping_company || '')}
-                      placeholder="송장번호 입력"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={trackingChanges[participant.id]?.tracking_number ?? participant.tracking_number ?? ''}
+                        onChange={(e) => handleTrackingNumberChange(participant.id, 'tracking_number', e.target.value)}
+                        placeholder="송장번호 입력"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {trackingChanges[participant.id] && (
+                        <Button
+                          onClick={() => saveTrackingNumber(participant.id)}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          저장
+                        </Button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     {participant.personalized_guide ? (
@@ -1151,7 +1297,62 @@ export default function CampaignDetail() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                variant="outline"
+                onClick={exportShippingInfo}
+                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                배송 정보 다운로드
+              </Button>
+              <Button
+                variant="outline"
+                onClick={downloadTrackingTemplate}
+                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                송장번호 템플릿 다운로드
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById('tracking-upload').click()}
+                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                송장번호 업로드
+              </Button>
+              <input
+                id="tracking-upload"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    uploadTrackingNumbers(e.target.files[0])
+                    e.target.value = ''
+                  }
+                }}
+                className="hidden"
+              />
+              <div className="flex items-center gap-2">
+                <select
+                  value={bulkCourierCompany}
+                  onChange={(e) => setBulkCourierCompany(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">택배사 선택</option>
+                  <option value="우체국">우체국</option>
+                  <option value="CJ대한통운">CJ대한통운</option>
+                  <option value="로젠택배">로젠택배</option>
+                  <option value="한진택배">한진택배</option>
+                  <option value="GS포스트박스">GS포스트박스</option>
+                </select>
+                <Button
+                  variant="outline"
+                  onClick={bulkUpdateCourier}
+                  disabled={selectedParticipants.length === 0 || !bulkCourierCompany}
+                  className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                >
+                  택배사 일괄 수정 ({selectedParticipants.length}명)
+                </Button>
+              </div>
               <Button
                 variant="outline"
                 onClick={() => handleGuideApproval(selectedParticipants)}
