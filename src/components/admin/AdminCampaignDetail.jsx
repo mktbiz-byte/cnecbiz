@@ -956,8 +956,6 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
   )
 }
 
-}
-
 // 지원서 상세보기 모달
 function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
   const searchParams = new URLSearchParams(window.location.search)
