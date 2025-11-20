@@ -120,7 +120,7 @@ ${creatorAnalysis.platform === 'youtube' ? '- 유튜브 알고리즘 최적화\n
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        personalizedGuide,
+        guide: personalizedGuide,
         creatorInfo: {
           platform: creatorAnalysis.platform,
           followers: creatorAnalysis.followers,
