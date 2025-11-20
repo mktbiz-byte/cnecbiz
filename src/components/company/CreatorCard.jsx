@@ -184,35 +184,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
 
         {/* 액션 버튼 - 컴팩트 */}
         <div className="space-y-1.5">
-          {!virtual_selected && (
-            <Button
-              onClick={handleVirtualSelect}
-              variant="outline"
-              size="sm"
-              className="w-full text-sm h-8"
-            >
-              가상선택
-            </Button>
-          )}
-          {virtual_selected && (
-            <Button
-              onClick={handleVirtualSelect}
-              variant="outline"
-              size="sm"
-              className="w-full border-red-300 text-red-600 hover:bg-red-50 text-sm h-8"
-            >
-              가상선택 취소
-            </Button>
-          )}
-          {!isConfirmed ? (
-            <Button
-              onClick={handleConfirm}
-              size="sm"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm h-8"
-            >
-              크리에이터 확정
-            </Button>
-          ) : (
+          {isConfirmed ? (
             <Button
               onClick={() => onCancel && onCancel(application)}
               size="sm"
@@ -221,6 +193,36 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
             >
               확정 취소
             </Button>
+          ) : (
+            <>
+              {!virtual_selected && (
+                <Button
+                  onClick={handleVirtualSelect}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-sm h-8"
+                >
+                  가상선택
+                </Button>
+              )}
+              {virtual_selected && (
+                <Button
+                  onClick={handleVirtualSelect}
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-red-300 text-red-600 hover:bg-red-50 text-sm h-8"
+                >
+                  가상선택 취소
+                </Button>
+              )}
+              <Button
+                onClick={handleConfirm}
+                size="sm"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm h-8"
+              >
+                크리에이터 확정
+              </Button>
+            </>
           )}
         </div>
       </CardContent>
