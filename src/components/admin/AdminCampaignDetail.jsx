@@ -328,7 +328,27 @@ export default function AdminCampaignDetail() {
           const { guide } = await response.json()
 
           // 생성된 가이드를 applications 테이블에 저장
-          console.log(`[DEBUG] Saving guide for app.id: ${app.id}, guide length: ${guide?.length}`)
+          console.log(`[DEBUG] Saving guide for app:`, {
+            id: app.id,
+            applicant_name: app.applicant_name,
+            guide_length: guide?.length,
+            guide_preview: guide?.substring(0, 100)
+          })
+          
+          // 먼저 현재 row가 존재하는지 확인
+          const { data: existingData, error: checkError } = await client
+            .from('applications')
+            .select('id, applicant_name, personalized_guide')
+            .eq('id', app.id)
+            .single()
+          
+          console.log(`[DEBUG] Existing row check:`, { existingData, checkError })
+          
+          if (checkError || !existingData) {
+            console.error(`[DEBUG] Row not found for id: ${app.id}`)
+            throw new Error(`Application row not found for id: ${app.id}`)
+          }
+          
           const { data: updateData, error: updateError } = await client
             .from('applications')
             .update({ 
@@ -341,8 +361,11 @@ export default function AdminCampaignDetail() {
             console.error(`[DEBUG] Update error for ${app.applicant_name}:`, updateError)
             throw updateError
           }
-          
-          console.log(`[DEBUG] Update successful for ${app.applicant_name}:`, updateData)
+
+          console.log(`[DEBUG] Update successful for ${app.applicant_name}:`, {
+            updateData,
+            guide_saved: updateData?.[0]?.personalized_guide?.length
+          })
           successCount++
         } catch (error) {
           console.error(`Error generating guide for ${app.applicant_name}:`, error)
