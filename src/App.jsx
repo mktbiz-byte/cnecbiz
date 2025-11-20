@@ -81,6 +81,7 @@ import Guidebook from './pages/Guidebook'
 import GuidebookManagement from './components/admin/GuidebookManagement'
 import TestKakaoNotification from './components/admin/TestKakaoNotification'
 import TestNaverWorks from './pages/TestNaverWorks'
+import ConsultationBanner from './components/ConsultationBanner'
 
 import AuthCallback from './components/AuthCallback'
 import RegularCampaignIntro from './pages/RegularCampaignIntro'
@@ -90,7 +91,8 @@ import FourWeekChallengeCampaignIntro from './pages/FourWeekChallengeCampaignInt
 function App() {
   return (
     <Router>
-        <Routes>
+      <ConsultationBanner />
+      <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/guidebook" element={<Guidebook />} />
