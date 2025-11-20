@@ -406,10 +406,13 @@ export default function CampaignDetail() {
   // 가상 선정된 크리에이터 한번에 확정
   const handleBulkConfirm = async () => {
     try {
-      const virtualSelected = applications.filter(app => app.virtual_selected)
+      // 가상선택되었고 아직 확정되지 않은 크리에이터만 필터링
+      const virtualSelected = applications.filter(app => 
+        app.virtual_selected && app.status !== 'selected'
+      )
       
       if (virtualSelected.length === 0) {
-        alert('가상 선정된 크리에이터가 없습니다.')
+        alert('확정할 크리에이터가 없습니다. (이미 확정되었거나 가상 선정되지 않음)')
         return
       }
 
@@ -1843,7 +1846,8 @@ export default function CampaignDetail() {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              {participant.video_status === 'pending' && <Badge className="bg-gray-100 text-gray-800">대기중</Badge>}
+                              {participant.creator_status === 'guide_confirmation' && <Badge className="bg-purple-100 text-purple-800">가이드 확인중</Badge>}
+                              {participant.video_status === 'pending' && participant.creator_status !== 'guide_confirmation' && <Badge className="bg-gray-100 text-gray-800">대기중</Badge>}
                               {participant.video_status === 'uploaded' && <Badge className="bg-blue-100 text-blue-800">업로드 완료</Badge>}
                               {participant.video_status === 'approved' && <Badge className="bg-green-100 text-green-800">승인됨</Badge>}
                               {participant.video_status === 'revision_requested' && <Badge className="bg-yellow-100 text-yellow-800">수정 요청</Badge>}
