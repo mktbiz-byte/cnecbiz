@@ -181,6 +181,11 @@ export default function AdminCampaignDetail() {
         })
         
         console.log('[DEBUG] enrichedData 생성 완료:', enrichedData.length, '개')
+        console.log('[DEBUG] personalized_guide 확인:', enrichedData.map(app => ({
+          name: app.applicant_name,
+          hasGuide: !!app.personalized_guide,
+          guideLength: app.personalized_guide?.length
+        })))
         console.log('[DEBUG] setApplications 호출')
         setApplications(enrichedData)
       } else {
