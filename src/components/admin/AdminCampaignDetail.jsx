@@ -773,6 +773,8 @@ export default function AdminCampaignDetail() {
                     campaign={campaign}
                     onGenerateGuide={(app) => handleGeneratePersonalizedGuides([app])}
                     generatingGuides={generatingGuides}
+                    setSelectedGuide={setSelectedGuide}
+                    setShowGuideModal={setShowGuideModal}
                   />
                 </TabsContent>
 
@@ -912,7 +914,7 @@ export default function AdminCampaignDetail() {
 }
 
 // 크리에이터 목록 컴포넌트
-function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, onGenerateGuide, generatingGuides }) {
+function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, onGenerateGuide, generatingGuides, setSelectedGuide, setShowGuideModal }) {
   if (applications.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
