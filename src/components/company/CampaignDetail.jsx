@@ -109,11 +109,12 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // 모든 지역에서 applications 테이블 사용
+      // 모든 지역에서 applications 테이블 사용, 선정된 크리에이터만 표시
       const { data, error } = await supabase
         .from('applications')
         .select('*')
         .eq('campaign_id', id)
+        .in('status', ['selected', 'approved', 'virtual_selected'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
