@@ -48,6 +48,7 @@ export default function CampaignDetail() {
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const [revisionComment, setRevisionComment] = useState('')
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
+  const [selectedConfirmedParticipants, setSelectedConfirmedParticipants] = useState([])
 
   useEffect(() => {
     checkIfAdmin()
@@ -633,6 +634,123 @@ export default function CampaignDetail() {
       alert('취소 처리에 실패했습니다: ' + error.message)
     }
   }
+
+  // 가이드 승인 및 알림 발송 함수
+  const handleGuideApproval = async (participantIds) => {
+    if (!participantIds || participantIds.length === 0) {
+      alert('승인할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${participantIds.length}명의 크리에이터에게 가이드를 승인하고 전송하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const participantId of participantIds) {
+        try {
+          // 참여자 정보 가져오기
+          const participant = participants.find(p => p.id === participantId)
+          if (!participant) {
+            console.error(`Participant ${participantId} not found`)
+            errorCount++
+            continue
+          }
+
+          // 이미 승인된 경우 건너뛰기
+          if (participant.guide_confirmed) {
+            console.log(`Participant ${participant.creator_name} already approved`)
+            continue
+          }
+
+          // 가이드 승인 상태 업데이트
+          await supabase
+            .from('campaign_participants')
+            .update({ guide_confirmed: true })
+            .eq('id', participantId)
+
+          // user_id와 phone 정보 가져오기
+          const { data: app } = await supabase
+            .from('applications')
+            .select('user_id, applicant_name')
+            .eq('campaign_id', id)
+            .eq('applicant_name', participant.creator_name)
+            .maybeSingle()
+
+          if (app?.user_id) {
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', app.user_id)
+              .maybeSingle()
+
+            // 알림톡 발송
+            if (profile?.phone) {
+              try {
+                await fetch('/.netlify/functions/send-naver-works-message', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    phone: profile.phone,
+                    templateCode: '025100001012',
+                    variables: {
+                      크리에이터명: participant.creator_name,
+                      캠페인명: campaign.title,
+                      제출기한: campaign.content_submission_deadline || '미정'
+                    }
+                  })
+                })
+              } catch (alimtalkError) {
+                console.error('Alimtalk error:', alimtalkError)
+              }
+            }
+
+            // 이메일 발송
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: participant.creator_email,
+                  subject: '[CNEC] 선정되신 캠페인 가이드 전달',
+                  html: `
+                    <h2>${participant.creator_name}님, 선정되신 캠페인의 촬영 가이드가 전달되었습니다.</h2>
+                    <p><strong>캠페인:</strong> ${campaign.title}</p>
+                    <p><strong>영상 제출 기한:</strong> ${campaign.content_submission_deadline || '미정'}</p>
+                    <p>크리에이터 대시보드에서 가이드를 확인하시고, 가이드에 따라 촬영을 진행해 주세요.</p>
+                    <p>기한 내 미제출 시 패널티가 부과될 수 있습니다.</p>
+                    <p>문의: 1833-6025</p>
+                  `
+                })
+              })
+            } catch (emailError) {
+              console.error('Email error:', emailError)
+            }
+          }
+
+          successCount++
+        } catch (error) {
+          console.error(`Error approving guide for participant ${participantId}:`, error)
+          errorCount++
+        }
+      }
+
+      // 참여자 목록 새로고침
+      await fetchParticipants()
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 크리에이터에게 가이드 승인이 완료되고 알림이 발송되었습니다.`)
+      } else {
+        alert(`${successCount}명 승인 완료, ${errorCount}명 실패했습니다.`)
+      }
+    } catch (error) {
+      console.error('Error in bulk guide approval:', error)
+      alert('가이드 승인에 실패했습니다.')
+    }
+  }
   
   // 크리에이터별 맞춤 가이드 생성성
   const generatePersonalizedGuides = async (participantIds) => {
@@ -910,7 +1028,10 @@ export default function CampaignDetail() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">선택 상태</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">송장번호</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">참여일</th>
               </tr>
@@ -936,10 +1057,60 @@ export default function CampaignDetail() {
                   <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email}</td>
                   <td className="px-4 py-3">{participant.creator_platform}</td>
                   <td className="px-4 py-3">
-                    {participant.selection_status === 'selected' ? (
-                      <Badge className="bg-green-100 text-green-800">확정</Badge>
+                    <select
+                      value={participant.shipping_company || ''}
+                      onChange={(e) => handleTrackingNumberChange(participant.id, participant.tracking_number || '', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">택배사 선택</option>
+                      <option value="우체국">우체국</option>
+                      <option value="CJ대한통운">CJ대한통운</option>
+                      <option value="로젠택배">로젠택배</option>
+                      <option value="한진택배">한진택배</option>
+                      <option value="GS포스트박스">GS포스트박스</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      type="text"
+                      value={participant.tracking_number || ''}
+                      onChange={(e) => handleTrackingNumberChange(participant.id, e.target.value, participant.shipping_company || '')}
+                      placeholder="송장번호 입력"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    {participant.personalized_guide ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedGuide(participant)
+                          setShowGuideModal(true)
+                        }}
+                        className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                      >
+                        가이드 보기
+                      </Button>
                     ) : (
-                      <Badge className="bg-gray-100 text-gray-800">대기</Badge>
+                      <span className="text-gray-400 text-sm">생성 중...</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {!participant.guide_confirmed ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          if (!confirm(`${participant.creator_name}님의 가이드를 승인하고 전송하시겠습니까?`)) return
+                          await handleGuideApproval([participant.id])
+                        }}
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                      >
+                        가이드 승인
+                      </Button>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-800">승인완료</Badge>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -976,6 +1147,14 @@ export default function CampaignDetail() {
               )}
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => handleGuideApproval(selectedParticipants)}
+                disabled={selectedParticipants.length === 0}
+                className="text-green-600 border-green-600 hover:bg-green-50"
+              >
+                선택한 크리에이터 가이드 승인 ({selectedParticipants.length}명)
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleSendDeadlineReminder}
@@ -1328,10 +1507,6 @@ export default function CampaignDetail() {
             </TabsTrigger>
             <TabsTrigger value="confirmed" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
-              확정 크리에이터 + 가이드 확인
-            </TabsTrigger>
-            <TabsTrigger value="participants" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
               참여 크리에이터 ({participants.length})
             </TabsTrigger>
             <TabsTrigger value="editing" className="flex items-center gap-2">
@@ -1875,6 +2050,40 @@ export default function CampaignDetail() {
                   
                   {/* 전체 */}
                   <TabsContent value="all">
+                {participants.length > 0 && (
+                  <div className="flex gap-4 mt-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">가이드 확인중:</span>
+                      <Badge className="bg-purple-100 text-purple-700">
+                        {participants.filter(p => p.creator_status === 'guide_confirmation').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">촬영중:</span>
+                      <Badge className="bg-yellow-100 text-yellow-700">
+                        {participants.filter(p => p.creator_status === 'filming').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">수정중:</span>
+                      <Badge className="bg-pink-100 text-pink-700">
+                        {participants.filter(p => p.creator_status === 'editing').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">제출완료:</span>
+                      <Badge className="bg-blue-100 text-blue-700">
+                        {participants.filter(p => p.creator_status === 'submitted').length}명
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600">승인완료:</span>
+                      <Badge className="bg-green-100 text-green-700">
+                        {participants.filter(p => p.creator_status === 'approved').length}명
+                      </Badge>
+                    </div>
+                  </div>
+                )}
                     {renderParticipantsTable(participants)}
                   </TabsContent>
                   
@@ -1893,217 +2102,6 @@ export default function CampaignDetail() {
                     {renderParticipantsTable(participants.filter(p => p.creator_platform?.toLowerCase().includes('tiktok')))}
                   </TabsContent>
                 </Tabs>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* 참여 크리에이터 리스트 */}
-          <TabsContent value="participants">
-            <Card>
-              <CardHeader>
-                <CardTitle>확정 크리에이터 및 택배 송장번호</CardTitle>
-                <p className="text-sm text-gray-600 mt-2">
-                  선택된 크리에이터: {participants.length}명
-                </p>
-              </CardHeader>
-              <CardContent>
-                {participants.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    아직 확정된 크리에이터가 없습니다.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">크리에이터</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">송장번호</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 확인</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">영상 상태</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">영상 관리</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">스케줄 연장</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">콘텐츠 URL</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {participants.map((participant) => (
-                          <tr key={participant.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">{participant.creator_name}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email || '-'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_platform || '-'}</td>
-                            <td className="px-4 py-3">
-                              <select
-                                value={participant.shipping_company || ''}
-                                onChange={(e) => handleTrackingNumberChange(participant.id, participant.tracking_number || '', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="">택배사 선택</option>
-                                <option value="우체국">우체국</option>
-                                <option value="CJ대한통운">CJ대한통운</option>
-                                <option value="로젠택배">로젠택배</option>
-                                <option value="한진택배">한진택배</option>
-                                <option value="GS포스트박스">GS포스트박스</option>
-                              </select>
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="text"
-                                value={participant.tracking_number || ''}
-                                onChange={(e) => handleTrackingNumberChange(participant.id, e.target.value, participant.shipping_company || '')}
-                                placeholder="송장번호 입력"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              {participant.guide_confirmed ? (
-                                <Badge className="bg-green-100 text-green-800">확인완료</Badge>
-                              ) : (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={async () => {
-                                    if (!confirm(`${participant.creator_name}님의 가이드를 확인하고 최종 확정하시겠습니까?`)) return
-                                    
-                                    try {
-                                      // 가이드 확인 상태 업데이트
-                                      await supabase
-                                        .from('campaign_participants')
-                                        .update({ guide_confirmed: true })
-                                        .eq('id', participant.id)
-                                      
-                                      // 크리에이터에게 가이드 전달 알림톡 발송
-                                      try {
-                                        // user_id 찾기
-                                        const { data: app } = await supabase
-                                          .from('applications')
-                                          .select('user_id, applicant_name')
-                                          .eq('campaign_id', id)
-                                          .eq('applicant_name', participant.creator_name)
-                                          .maybeSingle()
-                                        
-                                        if (app?.user_id) {
-                                          const { data: profile } = await supabase
-                                            .from('user_profiles')
-                                            .select('phone')
-                                            .eq('id', app.user_id)
-                                            .maybeSingle()
-                                          
-                                          if (profile?.phone) {
-                                            await sendGuideDeliveredNotification(
-                                              profile.phone,
-                                              participant.creator_name,
-                                              {
-                                                campaignName: campaign?.title || '캠페인',
-                                                deadline: campaign?.submission_deadline || '미정'
-                                              }
-                                            )
-                                          }
-                                        }
-                                      } catch (notificationError) {
-                                        console.error('Notification error:', notificationError)
-                                      }
-                                      
-                                      await fetchParticipants()
-                                      alert('가이드 확인이 완료되고 크리에이터에게 알림톡이 발송되었습니다.')
-                                    } catch (error) {
-                                      console.error('Error confirming guide:', error)
-                                      alert('가이드 확인에 실패했습니다.')
-                                    }
-                                  }}
-                                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                                >
-                                  가이드 확인
-                                </Button>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {participant.personalized_guide ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedGuide(participant)
-                                    setShowGuideModal(true)
-                                  }}
-                                  className="text-purple-600 border-purple-600 hover:bg-purple-50"
-                                >
-                                  가이드 보기
-                                </Button>
-                              ) : (
-                                <span className="text-gray-400 text-sm">생성 중...</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {participant.creator_status === 'guide_confirmation' && <Badge className="bg-purple-100 text-purple-800">가이드 확인중</Badge>}
-                              {participant.video_status === 'pending' && participant.creator_status !== 'guide_confirmation' && <Badge className="bg-gray-100 text-gray-800">대기중</Badge>}
-                              {participant.video_status === 'uploaded' && <Badge className="bg-blue-100 text-blue-800">업로드 완료</Badge>}
-                              {participant.video_status === 'approved' && <Badge className="bg-green-100 text-green-800">승인됨</Badge>}
-                              {participant.video_status === 'revision_requested' && <Badge className="bg-yellow-100 text-yellow-800">수정 요청</Badge>}
-                            </td>
-                            <td className="px-4 py-3">
-                              {participant.video_files && participant.video_files.length > 0 ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    navigate(`/company/video-feedback?participantId=${participant.id}`)
-                                  }}
-                                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                                >
-                                  영상 피드백
-                                </Button>
-                              ) : (
-                                <span className="text-gray-400 text-sm">미업로드</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {participant.extension_requested ? (
-                                <div className="flex flex-col gap-1">
-                                  <Badge className={participant.extension_status === 'approved' ? 'bg-green-100 text-green-800' : participant.extension_status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}>
-                                    {participant.extension_status === 'approved' ? '승인됨' : participant.extension_status === 'rejected' ? '거부됨' : '대기중'}
-                                  </Badge>
-                                  {participant.extension_status === 'pending' && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedParticipant(participant)
-                                        setShowExtensionModal(true)
-                                      }}
-                                      className="text-xs"
-                                    >
-                                      처리
-                                    </Button>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400 text-sm">-</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {participant.content_url ? (
-                                <a 
-                                  href={participant.content_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline"
-                                >
-                                  링크 보기
-                                </a>
-                              ) : (
-                                <span className="text-gray-400">미등록</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
