@@ -109,10 +109,9 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // Japan 캠페인은 campaign_applications, Korea 캠페인은 campaign_participants 사용
-      const tableName = region === 'japan' ? 'campaign_applications' : 'campaign_participants'
+      // 모든 지역에서 applications 테이블 사용
       const { data, error } = await supabase
-        .from(tableName)
+        .from('applications')
         .select('*')
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
@@ -419,12 +418,11 @@ export default function CampaignDetail() {
   // 배송 정보 엑셀 다운로드
   const exportShippingInfo = () => {
     const data = participants.map(p => ({
-      '크리에이터명': p.creator_name,
-      '연락처': p.creator_phone || '',
+      '크리에이터명': p.creator_name || p.applicant_name,
+      '연락처': p.phone_number || p.creator_phone || '',
       '우편번호': p.postal_code || '',
       '주소': p.address || '',
-      '상세주소': p.address_detail || '',
-      '배송시 요청사항': p.delivery_request || ''
+      '배송시 요청사항': p.delivery_notes || p.delivery_request || ''
     }))
 
     const ws = XLSX.utils.json_to_sheet(data)
@@ -1187,8 +1185,8 @@ export default function CampaignDetail() {
                       className="w-4 h-4"
                     />
                   </td>
-                  <td className="px-4 py-3">{participant.creator_name}</td>
-                  <td className="px-4 py-3">{participant.creator_platform}</td>
+                  <td className="px-4 py-3">{participant.creator_name || participant.applicant_name}</td>
+                  <td className="px-4 py-3">{participant.creator_platform || participant.platform}</td>
                   <td className="px-4 py-3">
                     <Button
                       size="sm"
@@ -2781,13 +2779,13 @@ export default function CampaignDetail() {
             <div className="px-6 py-4 border-b">
               <h2 className="text-xl font-bold text-gray-900">배송 정보</h2>
               <p className="text-sm text-gray-600 mt-1">
-                {selectedParticipant.creator_name}님
+                {selectedParticipant.creator_name || selectedParticipant.applicant_name}님
               </p>
             </div>
             <div className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
-                <div className="text-gray-900">{selectedParticipant.creator_phone || '미등록'}</div>
+                <div className="text-gray-900">{selectedParticipant.phone_number || selectedParticipant.creator_phone || '미등록'}</div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
@@ -2798,12 +2796,8 @@ export default function CampaignDetail() {
                 <div className="text-gray-900">{selectedParticipant.address || '미등록'}</div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">상세주소</label>
-                <div className="text-gray-900">{selectedParticipant.address_detail || '미등록'}</div>
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">배송 요청사항</label>
-                <div className="text-gray-900">{selectedParticipant.delivery_request || '없음'}</div>
+                <div className="text-gray-900">{selectedParticipant.delivery_notes || selectedParticipant.delivery_request || '없음'}</div>
               </div>
             </div>
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
