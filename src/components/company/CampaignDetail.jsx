@@ -56,6 +56,7 @@ export default function CampaignDetail() {
   const [editedGuideContent, setEditedGuideContent] = useState('')
   const [showRevisionRequestModal, setShowRevisionRequestModal] = useState(false)
   const [revisionRequestText, setRevisionRequestText] = useState('')
+  const [showShippingModal, setShowShippingModal] = useState(false)
 
   useEffect(() => {
     checkIfAdmin()
@@ -1160,14 +1161,9 @@ export default function CampaignDetail() {
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">연락처</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">우편번호</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">주소</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">상세주소</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배송 요청사항</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">송장번호</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배송정보</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사 / 송장번호</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
@@ -1192,44 +1188,52 @@ export default function CampaignDetail() {
                     />
                   </td>
                   <td className="px-4 py-3">{participant.creator_name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_phone || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{participant.postal_code || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{participant.address || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{participant.address_detail || '-'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600">{participant.delivery_request || '-'}</td>
                   <td className="px-4 py-3">{participant.creator_platform}</td>
                   <td className="px-4 py-3">
-                    <select
-                      value={trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''}
-                      onChange={(e) => handleTrackingNumberChange(participant.id, 'shipping_company', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedParticipant(participant)
+                        setShowShippingModal(true)
+                      }}
+                      className="text-blue-600 border-blue-600 hover:bg-blue-50"
                     >
-                      <option value="">택배사 선택</option>
-                      <option value="우체국">우체국</option>
-                      <option value="CJ대한통운">CJ대한통운</option>
-                      <option value="로젠택배">로젠택배</option>
-                      <option value="한진택배">한진택배</option>
-                      <option value="GS포스트박스">GS포스트박스</option>
-                    </select>
+                      보기
+                    </Button>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={trackingChanges[participant.id]?.tracking_number ?? participant.tracking_number ?? ''}
-                        onChange={(e) => handleTrackingNumberChange(participant.id, 'tracking_number', e.target.value)}
-                        placeholder="송장번호 입력"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {trackingChanges[participant.id] && (
-                        <Button
-                          onClick={() => saveTrackingNumber(participant.id)}
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          저장
-                        </Button>
-                      )}
+                    <div className="space-y-2">
+                      <select
+                        value={trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''}
+                        onChange={(e) => handleTrackingNumberChange(participant.id, 'shipping_company', e.target.value)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="">택배사 선택</option>
+                        <option value="우체국">우체국</option>
+                        <option value="CJ대한통운">CJ대한통운</option>
+                        <option value="로젠택배">로젠택배</option>
+                        <option value="한진택배">한진택배</option>
+                        <option value="GS포스트박스">GS포스트박스</option>
+                      </select>
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          value={trackingChanges[participant.id]?.tracking_number ?? participant.tracking_number ?? ''}
+                          onChange={(e) => handleTrackingNumberChange(participant.id, 'tracking_number', e.target.value)}
+                          placeholder="송장번호"
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        {trackingChanges[participant.id] && (
+                          <Button
+                            onClick={() => saveTrackingNumber(participant.id)}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1"
+                          >
+                            저장
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -2764,6 +2768,52 @@ export default function CampaignDetail() {
                 className="bg-orange-600 hover:bg-orange-700 text-white"
               >
                 전송
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 배송 정보 모달 */}
+      {showShippingModal && selectedParticipant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full">
+            <div className="px-6 py-4 border-b">
+              <h2 className="text-xl font-bold text-gray-900">배송 정보</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedParticipant.creator_name}님
+              </p>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">연락처</label>
+                <div className="text-gray-900">{selectedParticipant.creator_phone || '미등록'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
+                <div className="text-gray-900">{selectedParticipant.postal_code || '미등록'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
+                <div className="text-gray-900">{selectedParticipant.address || '미등록'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">상세주소</label>
+                <div className="text-gray-900">{selectedParticipant.address_detail || '미등록'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">배송 요청사항</label>
+                <div className="text-gray-900">{selectedParticipant.delivery_request || '없음'}</div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
+              <Button
+                onClick={() => {
+                  setShowShippingModal(false)
+                  setSelectedParticipant(null)
+                }}
+              >
+                닫기
               </Button>
             </div>
           </div>
