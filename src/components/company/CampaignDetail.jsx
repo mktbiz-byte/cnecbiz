@@ -270,6 +270,7 @@ export default function CampaignDetail() {
         })
       )
       
+      console.log('Fetched applications with status:', enrichedData.map(app => ({ name: app.applicant_name, status: app.status, virtual_selected: app.virtual_selected })))
       setApplications(enrichedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -437,14 +438,17 @@ export default function CampaignDetail() {
       if (insertError) throw insertError
 
       // applications의 status를 'selected'로 업데이트
-      const { error: updateError } = await supabase
+      console.log('Updating applications status to selected for IDs:', virtualSelected.map(app => app.id))
+      const { error: updateError, data: updateData } = await supabase
         .from('applications')
         .update({ 
           status: 'selected',
           virtual_selected: false 
         })
         .in('id', virtualSelected.map(app => app.id))
+        .select()
 
+      console.log('Update result:', updateData, 'Error:', updateError)
       if (updateError) throw updateError
 
       // 목록 새로고침
