@@ -281,16 +281,28 @@ export default function AdminCampaignDetail() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              campaign: campaign,
-              creator: {
-                name: app.applicant_name || app.creator_name,
-                email: app.email,
+              creatorAnalysis: {
                 platform: app.main_channel || 'instagram',
-                followers: profile?.followers_count || 0,
-                engagement_rate: profile?.engagement_rate || 0,
-                content_style: profile?.content_style || '',
-                bio: profile?.bio || ''
-              }
+                followers: profile?.instagram_followers || profile?.followers_count || 0,
+                contentAnalysis: {
+                  engagementRate: profile?.engagement_rate || 5,
+                  topHashtags: [],
+                  contentType: 'mixed',
+                  videoRatio: 50
+                },
+                style: {
+                  tone: profile?.content_style || '친근하고 자연스러운',
+                  topics: [profile?.bio || '라이프스타일', '뷰티'],
+                  videoStyle: 'natural'
+                }
+              },
+              productInfo: {
+                brand: campaign.brand || '',
+                product_name: campaign.title || '',
+                product_features: campaign.product_features || campaign.description || '',
+                product_key_points: campaign.product_key_points || campaign.key_message || ''
+              },
+              baseGuide: campaign.guide_content || ''
             })
           })
 
@@ -681,7 +693,7 @@ export default function AdminCampaignDetail() {
                     <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="text-lg font-semibold text-purple-900 mb-1">개별 맞춤 가이드 생성</h3>
+                          <h3 className="text-lg font-semibold text-purple-900 mb-1">전체 AI 가이드 생성</h3>
                           <p className="text-sm text-purple-700">크리에이터 프로필과 캠페인 정보를 기반으로 AI가 개별 가이드를 생성합니다.</p>
                         </div>
                         <div className="flex gap-3">
@@ -708,6 +720,8 @@ export default function AdminCampaignDetail() {
                     applications={selectedApplications} 
                     getStatusBadge={getStatusBadge}
                     onViewDetails={setSelectedApplication}
+                    campaign={campaign}
+                    onGenerateGuide={(app) => handleGeneratePersonalizedGuides([app])}
                   />
                 </TabsContent>
 
@@ -745,7 +759,7 @@ export default function AdminCampaignDetail() {
 }
 
 // 크리에이터 목록 컴포넌트
-function ApplicationList({ applications, getStatusBadge, onViewDetails }) {
+function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, onGenerateGuide }) {
   if (applications.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -766,14 +780,20 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails }) {
                   {app.applicant_name || app.creator_name || app.user_name || '크리에이터'}
                 </h4>
                 {getStatusBadge(app.status)}
+                
+                {/* 기획형 캠페인일 경우 개별 AI 가이드 생성 버튼 */}
+                {campaign?.campaign_type === 'planned' && onGenerateGuide && (
+                  <Button
+                    size="sm"
+                    onClick={() => onGenerateGuide(app)}
+                    className="ml-2 bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <FileText className="w-3 h-3 mr-1" />
+                    AI 가이드 생성
+                  </Button>
+                )}
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
-                <div>
-                  <span className="font-medium">전화번호:</span> {app.phone_number || app.phone || '-'}
-                </div>
-                <div>
-                  <span className="font-medium">나이:</span> {app.age || '-'}
-                </div>
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                 <div>
                   <span className="font-medium">지원일:</span>{' '}
                   {app.created_at 
