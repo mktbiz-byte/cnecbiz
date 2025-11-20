@@ -322,14 +322,22 @@ export default function AdminCampaignDetail() {
           const { guide } = await response.json()
 
           // 생성된 가이드를 applications 테이블에 저장
-          await client
+          console.log(`[DEBUG] Saving guide for app.id: ${app.id}, guide length: ${guide?.length}`)
+          const { data: updateData, error: updateError } = await client
             .from('applications')
             .update({ 
               personalized_guide: guide,
               guide_generated_at: new Date().toISOString()
             })
             .eq('id', app.id)
+            .select()
 
+          if (updateError) {
+            console.error(`[DEBUG] Update error for ${app.applicant_name}:`, updateError)
+            throw updateError
+          }
+          
+          console.log(`[DEBUG] Update successful for ${app.applicant_name}:`, updateData)
           successCount++
         } catch (error) {
           console.error(`Error generating guide for ${app.applicant_name}:`, error)
