@@ -18,6 +18,7 @@ export default function CampaignGuideReview() {
   const [editValue, setEditValue] = useState('')
   const [selectedConcepts, setSelectedConcepts] = useState([])
   const [additionalConcepts, setAdditionalConcepts] = useState('')
+  const [activeTab, setActiveTab] = useState('product_intro')
 
   useEffect(() => {
     loadCampaignData()
@@ -591,7 +592,54 @@ JSON 형식으로만 응답해주세요.`
               </Button>
             </div>
 
+            {/* 탭 네비게이션 */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-6">
+              <div className="flex overflow-x-auto">
+                <button 
+                  onClick={() => setActiveTab('product_intro')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'product_intro' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  📝 제품 소개
+                </button>
+                <button 
+                  onClick={() => setActiveTab('video_concepts')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'video_concepts' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  🎬 영상 컨셉
+                </button>
+                <button 
+                  onClick={() => setActiveTab('must_include')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'must_include' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  ✨ 필수 포함
+                </button>
+                <button 
+                  onClick={() => setActiveTab('filming_tips')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'filming_tips' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  📸 촬영 팁
+                </button>
+                <button 
+                  onClick={() => setActiveTab('cautions')}
+                  className={`flex-1 min-w-[120px] px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'cautions' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  ⚠️ 주의사항
+                </button>
+              </div>
+            </div>
+
             {/* 제품 소개 */}
+            {activeTab === 'product_intro' && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">제품 소개</CardTitle>
@@ -629,8 +677,10 @@ JSON 형식으로만 응답해주세요.`
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* 영상 컨셉 제안 */}
+            {activeTab === 'video_concepts' && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">영상 컨셉 제안</CardTitle>
@@ -708,8 +758,10 @@ JSON 형식으로만 응답해주세요.`
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* 필수 포함 내용 */}
+            {activeTab === 'must_include' && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">필수 포함 내용</CardTitle>
@@ -755,8 +807,10 @@ JSON 형식으로만 응답해주세요.`
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* 추천 촬영 팁 */}
+            {activeTab === 'filming_tips' && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">추천 촬영 팁</CardTitle>
@@ -802,8 +856,10 @@ JSON 형식으로만 응답해주세요.`
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* 주의사항 */}
+            {activeTab === 'cautions' && (
             <Card className="border-orange-200 bg-orange-50">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg text-orange-800">주의사항</CardTitle>
@@ -849,6 +905,7 @@ JSON 형식으로만 응답해주세요.`
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* 크리에이터 자율성 안내 */}
             {campaign.creator_autonomy && (
