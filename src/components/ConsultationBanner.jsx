@@ -5,11 +5,9 @@ export default function ConsultationBanner() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
-    birthYear: '',
-    birthMonth: '',
-    birthDay: '',
+    phone: '',
     email: '',
-    channelUrl: '',
+    brandName: '',
     services: [],
     otherService: ''
   })
@@ -33,7 +31,7 @@ export default function ConsultationBanner() {
     e.preventDefault()
     
     // 필수 입력 검증
-    if (!formData.name || !formData.email || !formData.birthYear || !formData.birthMonth || !formData.birthDay) {
+    if (!formData.name || !formData.email || !formData.phone) {
       alert('필수 항목을 모두 입력해주세요.')
       return
     }
@@ -46,7 +44,6 @@ export default function ConsultationBanner() {
     setIsSubmitting(true)
 
     try {
-      const birthDate = `${formData.birthYear}-${formData.birthMonth.padStart(2, '0')}-${formData.birthDay.padStart(2, '0')}`
       const servicesList = formData.services.map(s => {
         if (s === '기타' && formData.otherService) {
           return `기타: ${formData.otherService}`
@@ -62,9 +59,9 @@ export default function ConsultationBanner() {
           isAdminNotification: true,
           message: `🔔 새로운 상담 신청이 접수되었습니다!\n\n` +
                    `👤 상호명: ${formData.name}\n` +
-                   `📅 연락처: ${birthDate}\n` +
+                   `📞 연락처: ${formData.phone}\n` +
                    `📧 메일주소: ${formData.email}\n` +
-                   `🔗 채널 URL: ${formData.channelUrl || '미입력'}\n` +
+                   `🏪 브랜드명: ${formData.brandName || '미입력'}\n` +
                    `📋 신청 서비스: ${servicesList}\n\n` +
                    `📌 상담 신청서를 확인해주세요.`
         })
@@ -86,15 +83,15 @@ export default function ConsultationBanner() {
               </tr>
               <tr>
                 <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">연락처</td>
-                <td style="padding: 12px; border: 1px solid #dee2e6;">${birthDate}</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">${formData.phone}</td>
               </tr>
               <tr style="background-color: #f8f9fa;">
                 <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">메일주소</td>
                 <td style="padding: 12px; border: 1px solid #dee2e6;">${formData.email}</td>
               </tr>
               <tr>
-                <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">채널 URL</td>
-                <td style="padding: 12px; border: 1px solid #dee2e6;">${formData.channelUrl || '미입력'}</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">브랜드명</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">${formData.brandName || '미입력'}</td>
               </tr>
               <tr style="background-color: #f8f9fa;">
                 <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">신청 서비스</td>
@@ -184,45 +181,20 @@ export default function ConsultationBanner() {
                 />
               </div>
 
-              {/* 연락처 (생년월일 형식) */}
+              {/* 연락처 */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   연락처 <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    name="birthYear"
-                    value={formData.birthYear}
-                    onChange={handleInputChange}
-                    required
-                    maxLength="4"
-                    placeholder="YYYY"
-                    className="w-1/3 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  />
-                  <span className="flex items-center text-gray-500">-</span>
-                  <input
-                    type="text"
-                    name="birthMonth"
-                    value={formData.birthMonth}
-                    onChange={handleInputChange}
-                    required
-                    maxLength="2"
-                    placeholder="MM"
-                    className="w-1/3 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  />
-                  <span className="flex items-center text-gray-500">-</span>
-                  <input
-                    type="text"
-                    name="birthDay"
-                    value={formData.birthDay}
-                    onChange={handleInputChange}
-                    required
-                    maxLength="2"
-                    placeholder="DD"
-                    className="w-1/3 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  />
-                </div>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  placeholder="010-1234-5678"
+                />
               </div>
 
               {/* 메일주소 */}
@@ -241,19 +213,19 @@ export default function ConsultationBanner() {
                 />
               </div>
 
-              {/* 채널 URL */}
+              {/* 브랜드명 */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  채널 URL <span className="text-red-500">*</span>
+                  브랜드명 <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="url"
-                  name="channelUrl"
-                  value={formData.channelUrl}
+                  type="text"
+                  name="brandName"
+                  value={formData.brandName}
                   onChange={handleInputChange}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  placeholder="https://youtube.com/@channel"
+                  placeholder="브랜드명을 입력하세요"
                 />
               </div>
 
