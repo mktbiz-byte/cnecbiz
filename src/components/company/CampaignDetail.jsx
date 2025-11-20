@@ -492,7 +492,7 @@ export default function CampaignDetail() {
         }
       }
       
-      alert(`${virtualSelected.length}명의 크리에이터가 확정되었습니다.${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`))
+      alert(`${virtualSelected.length}명의 크리에이터가 확정되었습니다.${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`)
     } catch (error) {
       console.error('Error bulk confirming:', error)
       alert('확정 처리에 실패했습니다: ' + error.message)
