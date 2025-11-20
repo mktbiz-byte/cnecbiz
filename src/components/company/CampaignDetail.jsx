@@ -54,6 +54,8 @@ export default function CampaignDetail() {
   const [selectedConfirmedParticipants, setSelectedConfirmedParticipants] = useState([])
   const [editingGuide, setEditingGuide] = useState(false)
   const [editedGuideContent, setEditedGuideContent] = useState('')
+  const [showRevisionRequestModal, setShowRevisionRequestModal] = useState(false)
+  const [revisionRequestText, setRevisionRequestText] = useState('')
 
   useEffect(() => {
     checkIfAdmin()
@@ -1231,7 +1233,7 @@ export default function CampaignDetail() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {participant.personalized_guide ? (
+                    {participant.personalized_guide && participant.guide_shared_to_company ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -1244,7 +1246,7 @@ export default function CampaignDetail() {
                         가이드 보기
                       </Button>
                     ) : (
-                      <span className="text-gray-400 text-sm">생성 중...</span>
+                      <span className="text-gray-500 text-sm bg-gray-100 px-3 py-1 rounded">기획중</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -2660,6 +2662,15 @@ export default function CampaignDetail() {
                       가이드 수정
                     </Button>
                     <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowRevisionRequestModal(true)
+                      }}
+                      className="border-orange-600 text-orange-600 hover:bg-orange-50"
+                    >
+                      수정요청
+                    </Button>
+                    <Button
                       onClick={() => {
                         navigator.clipboard.writeText(selectedGuide.personalized_guide)
                         alert('가이드가 클립보드에 복사되었습니다!')
@@ -2671,6 +2682,89 @@ export default function CampaignDetail() {
                   </>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 가이드 수정요청 모달 */}
+      {showRevisionRequestModal && selectedGuide && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full">
+            <div className="px-6 py-4 border-b">
+              <h2 className="text-xl font-bold text-gray-900">가이드 수정요청</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedGuide.creator_name}님의 가이드 수정을 요청합니다
+              </p>
+            </div>
+            <div className="px-6 py-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                수정요청 내용
+              </label>
+              <textarea
+                value={revisionRequestText}
+                onChange={(e) => setRevisionRequestText(e.target.value)}
+                className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="수정이 필요한 부분과 원하시는 내용을 상세히 작성해주세요."
+              />
+            </div>
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRevisionRequestModal(false)
+                  setRevisionRequestText('')
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!revisionRequestText.trim()) {
+                    alert('수정요청 내용을 입력해주세요.')
+                    return
+                  }
+
+                  try {
+                    // 데이터베이스에 수정요청 저장
+                    await supabase
+                      .from('campaign_participants')
+                      .update({
+                        guide_revision_request: revisionRequestText,
+                        guide_revision_requested_at: new Date().toISOString(),
+                        guide_status: 'revision_requested'
+                      })
+                      .eq('id', selectedGuide.id)
+
+                    // 네이버 웍스로 알림 전송
+                    const response = await fetch('/.netlify/functions/send-guide-revision-request', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        campaignTitle: campaign.title,
+                        creatorName: selectedGuide.creator_name,
+                        companyName: campaign.company_name,
+                        revisionRequest: revisionRequestText
+                      })
+                    })
+
+                    if (!response.ok) {
+                      throw new Error('알림 전송에 실패했습니다.')
+                    }
+
+                    alert('수정요청이 관리자에게 전달되었습니다.')
+                    setShowRevisionRequestModal(false)
+                    setRevisionRequestText('')
+                    await fetchParticipants()
+                  } catch (error) {
+                    console.error('Error sending revision request:', error)
+                    alert('수정요청 전송에 실패했습니다.')
+                  }
+                }}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                전송
+              </Button>
             </div>
           </div>
         </div>
