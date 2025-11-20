@@ -327,7 +327,7 @@ export default function AdminCampaignDetail() {
 
           const { guide } = await response.json()
 
-          // 생성된 가이드를 applications 테이블에 저장 (Netlify Function 사용)
+          // 생성된 가이드를 applications 테이블에 저장 (직접 Supabase 업데이트)
           console.log(`[DEBUG] Saving guide for app:`, {
             id: app.id,
             applicant_name: app.applicant_name,
@@ -335,26 +335,19 @@ export default function AdminCampaignDetail() {
             guide_preview: guide?.substring(0, 100)
           })
           
-          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              region: region,
-              applicationId: app.id,
-              guide: guide
-            })
-          })
+          const { data: updateData, error: updateError } = await client
+            .from('applications')
+            .update({ personalized_guide: guide })
+            .eq('id', app.id)
+            .select()
 
-          if (!saveResponse.ok) {
-            const errorData = await saveResponse.json()
-            console.error(`[DEBUG] Save error for ${app.applicant_name}:`, errorData)
-            throw new Error(errorData.error || 'Failed to save guide')
+          if (updateError) {
+            console.error(`[DEBUG] Save error for ${app.applicant_name}:`, updateError)
+            throw new Error(updateError.message || 'Failed to save guide')
           }
 
-          const saveResult = await saveResponse.json()
           console.log(`[DEBUG] Save successful for ${app.applicant_name}:`, {
-            success: saveResult.success,
-            guide_saved: saveResult.data?.personalized_guide?.length
+            guide_saved: updateData?.[0]?.personalized_guide?.length
           })
           successCount++
         } catch (error) {
