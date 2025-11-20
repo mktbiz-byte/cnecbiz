@@ -421,8 +421,28 @@ export default function CampaignDetail() {
         return
       }
 
+      // 이미 campaign_participants에 존재하는지 확인
+      const { data: existingParticipants } = await supabase
+        .from('campaign_participants')
+        .select('creator_name')
+        .eq('campaign_id', id)
+        .in('creator_name', virtualSelected.map(app => app.applicant_name))
+      
+      const existingNames = new Set(existingParticipants?.map(p => p.creator_name) || [])
+      const toAdd = virtualSelected.filter(app => !existingNames.has(app.applicant_name))
+      
+      if (toAdd.length === 0) {
+        alert('모든 크리에이터가 이미 확정되었습니다.')
+        return
+      }
+      
+      if (toAdd.length < virtualSelected.length) {
+        const skipped = virtualSelected.filter(app => existingNames.has(app.applicant_name))
+        alert(`${skipped.map(a => a.applicant_name).join(', ')}는 이미 확정되어 제외됩니다.`)
+      }
+      
       // campaign_participants에 추가
-      const participantsToAdd = virtualSelected.map(app => {
+      const participantsToAdd = toAdd.map(app => {
         // 메인 채널에서 플랫폼 추출
         let platform = '-'
         if (app.main_channel) {
@@ -452,14 +472,14 @@ export default function CampaignDetail() {
       if (insertError) throw insertError
 
       // applications의 status를 'selected'로 업데이트
-      console.log('Updating applications status to selected for IDs:', virtualSelected.map(app => app.id))
+      console.log('Updating applications status to selected for IDs:', toAdd.map(app => app.id))
       const { error: updateError, data: updateData } = await supabase
         .from('applications')
         .update({ 
           status: 'selected',
           virtual_selected: false 
         })
-        .in('id', virtualSelected.map(app => app.id))
+        .in('id', toAdd.map(app => app.id))
         .select()
 
       console.log('Update result:', updateData, 'Error:', updateError)
@@ -469,9 +489,9 @@ export default function CampaignDetail() {
       await fetchApplications()
       await fetchParticipants()
       
-      // 알림톡 발송 및 이메일/플랫폼 업데이트
+         // 선정 완료 알림톡 발송
       let successCount = 0
-      for (const app of virtualSelected) {
+      for (const app of toAdd) {
         try {
           const { data: profile } = await supabase
             .from('user_profiles')
@@ -506,7 +526,7 @@ export default function CampaignDetail() {
         }
       }
       
-      alert(`${virtualSelected.length}명의 크리에이터가 확정되었습니다.${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`)
+      alert(`${toAdd.length}명의 크리에이터가 확정되었습니다.${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`)
     } catch (error) {
       console.error('Error bulk confirming:', error)
       alert('확정 처리에 실패했습니다: ' + error.message)
@@ -1427,6 +1447,19 @@ export default function CampaignDetail() {
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
                         try {
+                          // 중복 확인
+                          const { data: existing } = await supabase
+                            .from('campaign_participants')
+                            .select('id')
+                            .eq('campaign_id', id)
+                            .eq('creator_name', app.applicant_name)
+                            .maybeSingle()
+                          
+                          if (existing) {
+                            alert(`${app.applicant_name}님은 이미 확정되었습니다.`)
+                            return
+                          }
+                          
                           // 플랫폼 추출
                           let platform = '-'
                           const channelToCheck = mainChannel || app.main_channel || ''
@@ -1676,6 +1709,19 @@ export default function CampaignDetail() {
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
                         try {
+                          // 중복 확인
+                          const { data: existing } = await supabase
+                            .from('campaign_participants')
+                            .select('id')
+                            .eq('campaign_id', id)
+                            .eq('creator_name', app.applicant_name)
+                            .maybeSingle()
+                          
+                          if (existing) {
+                            alert(`${app.applicant_name}님은 이미 확정되었습니다.`)
+                            return
+                          }
+                          
                           // 플랫폼 추출
                           let platform = '-'
                           const channelToCheck = mainChannel || app.main_channel || ''
