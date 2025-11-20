@@ -90,8 +90,8 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
 
         {/* 기본 정보 - 사진 아래 */}
         <div className="mb-3">
-          <h3 className="text-base font-bold text-gray-900 mb-1">{applicant_name} ({age}세)</h3>
-          <div className="text-sm text-gray-600 space-y-0.5">
+          <h3 className="text-lg font-bold text-gray-900 mb-1">{applicant_name} ({age}세)</h3>
+          <div className="text-base text-gray-600 space-y-0.5">
             {appliedChannels.map(channel => (
               <div key={channel.name}>
                 {channel.label} {channel.followers.toLocaleString()}명
@@ -106,12 +106,12 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
         {/* 메인 채널 선택 - 컴팩트 */}
         {appliedChannels.length > 0 && (
           <div className="mb-2">
-            <label className="block text-xs font-semibold mb-1 text-gray-700">
+            <label className="block text-sm font-semibold mb-1 text-gray-700">
               메인 채널 선택 (1개)
             </label>
             <div className="space-y-1">
               {appliedChannels.map(channel => (
-                <label key={channel.name} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
+                <label key={channel.name} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
                   <input
                     type="radio"
                     name={`channel-${application.id}`}
@@ -189,7 +189,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
               onClick={handleVirtualSelect}
               variant="outline"
               size="sm"
-              className="w-full text-xs h-7"
+              className="w-full text-sm h-8"
             >
               가상선택
             </Button>
@@ -199,7 +199,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
               onClick={handleVirtualSelect}
               variant="outline"
               size="sm"
-              className="w-full border-red-300 text-red-600 hover:bg-red-50 text-xs h-7"
+              className="w-full border-red-300 text-red-600 hover:bg-red-50 text-sm h-8"
             >
               가상선택 취소
             </Button>
@@ -207,7 +207,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
           <Button
             onClick={handleConfirm}
             size="sm"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm h-8"
           >
             크리에이터 확정
           </Button>
