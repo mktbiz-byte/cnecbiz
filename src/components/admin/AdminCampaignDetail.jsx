@@ -4,22 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  ArrowLeft, 
-  Users, 
-  FileText, 
-  Calendar,
-  DollarSign,
-  CheckCircle,
-  Clock,
-  AlertCircle,
-  XCircle,
-  Eye,
-  X,
-  Edit,
-  Trash2,
-  PlayCircle
-} from 'lucide-react'
+import { FileText, Download, Upload, Trash2, AlertCircle, CheckCircle, Clock, XCircle, ChevronDown, ChevronUp, Send, Edit, PlayCircle, Eye, X } from 'lucide-react'
 import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -32,7 +17,13 @@ export default function AdminCampaignDetail() {
   const [campaign, setCampaign] = useState(null)
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedApplication, setSelectedApplication] = useState(null)
+  const [expandedRows, setExpandedRows] = useState(new Set())
+  
+  // 가이드 보기 모달
+  const [showGuideModal, setShowGuideModal] = useState(false)
+  const [selectedGuide, setSelectedGuide] = useState(null)
+  const [editingGuide, setEditingGuide] = useState(false)
+  const [editedGuideContent, setEditedGuideContent] = useState('')
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
   useEffect(() => {
@@ -754,6 +745,122 @@ export default function AdminCampaignDetail() {
           getStatusBadge={getStatusBadge}
         />
       )}
+
+      {/* 가이드 보기 모달 */}
+      {showGuideModal && selectedGuide && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* 모달 헤더 */}
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {selectedGuide.applicant_name || '크리에이터'}님의 맞춤 가이드
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {campaign?.title || campaign?.campaign_name || '캠페인'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowGuideModal(false)
+                  setSelectedGuide(null)
+                  setEditingGuide(false)
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 모달 컨텐츠 */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {editingGuide ? (
+                <textarea
+                  value={editedGuideContent}
+                  onChange={(e) => setEditedGuideContent(e.target.value)}
+                  className="w-full h-[500px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                  placeholder="가이드 내용을 입력하세요..."
+                />
+              ) : (
+                <div className="prose max-w-none">
+                  <pre className="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg text-sm">
+                    {editedGuideContent || '가이드가 아직 생성되지 않았습니다.'}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="px-6 py-4 border-t flex items-center justify-between bg-gray-50">
+              <div className="text-sm text-gray-600">
+                {selectedGuide.guide_generated_at && (
+                  <span>
+                    생성일: {new Date(selectedGuide.guide_generated_at).toLocaleString('ko-KR')}
+                  </span>
+                )}
+                {selectedGuide.guide_updated_at && (
+                  <span className="ml-4">
+                    수정일: {new Date(selectedGuide.guide_updated_at).toLocaleString('ko-KR')}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {editingGuide ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingGuide(false)
+                        setEditedGuideContent(selectedGuide.personalized_guide)
+                      }}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const client = getSupabaseClient(region)
+                          if (!client) throw new Error('Supabase client not found')
+
+                          const { error } = await client
+                            .from('applications')
+                            .update({ 
+                              personalized_guide: editedGuideContent,
+                              guide_updated_at: new Date().toISOString()
+                            })
+                            .eq('id', selectedGuide.id)
+
+                          if (error) throw error
+
+                          alert('가이드가 저장되었습니다.')
+                          setEditingGuide(false)
+                          // 지원서 목록 새로고침
+                          await fetchApplications()
+                          setShowGuideModal(false)
+                        } catch (error) {
+                          console.error('Error saving guide:', error)
+                          alert('저장에 실패했습니다.')
+                        }
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      저장
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    onClick={() => setEditingGuide(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    수정
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -781,16 +888,48 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
                 </h4>
                 {getStatusBadge(app.status)}
                 
+                {/* 가이드 생성 상태 배지 */}
+                {app.personalized_guide && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    <FileText className="w-3 h-3" />
+                    가이드 생성완료
+                  </span>
+                )}
+                {app.guide_shared_to_company && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                    <Send className="w-3 h-3" />
+                    기업 전달완료
+                  </span>
+                )}
+                
                 {/* 기획형 캠페인일 경우 개별 AI 가이드 생성 버튼 */}
                 {campaign?.campaign_type === 'planned' && onGenerateGuide && (
-                  <Button
-                    size="sm"
-                    onClick={() => onGenerateGuide(app)}
-                    className="ml-2 bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    <FileText className="w-3 h-3 mr-1" />
-                    AI 가이드 생성
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => onGenerateGuide(app)}
+                      className="ml-2 bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      <FileText className="w-3 h-3 mr-1" />
+                      {app.personalized_guide ? '가이드 재생성' : 'AI 가이드 생성'}
+                    </Button>
+                    {app.personalized_guide && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setSelectedGuide(app)
+                          setEditedGuideContent(app.personalized_guide)
+                          setShowGuideModal(true)
+                          setEditingGuide(false)
+                        }}
+                        variant="outline"
+                        className="ml-2 border-purple-600 text-purple-600 hover:bg-purple-50"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        가이드 보기
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
@@ -1126,118 +1265,121 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   ) : (
-                    <div className="px-3 py-2 bg-gray-50 rounded-md">
-                      {application.guide_url ? (
-                        <a
-                          href={application.guide_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {application.guide_url}
-                        </a>
-                      ) : '-'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+{/* 가이드 보기 모달 */}
+{showGuideModal && selectedGuide && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      {/* 모달 헤더 */}
+      <div className="px-6 py-4 border-b flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">
+            {selectedGuide.applicant_name || '크리에이터'}님의 맞춤 가이드
+          </h2>
+          <p className="text-sm text-gray-600 mt-1">
+            {campaign?.title || campaign?.campaign_name || '캠페인'}
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setShowGuideModal(false)
+            setSelectedGuide(null)
+            setEditingGuide(false)
+          }}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-          {/* 업로드된 영상 */}
-          {application.video_links && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">업로드된 영상</h3>
-                {(typeof application.video_links === 'string' && (application.video_links.includes('youtube.com') || application.video_links.includes('youtu.be'))) ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      setFetchingStats(true)
-                      try {
-                        const response = await fetch('/.netlify/functions/fetch-youtube-stats', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            application_id: application.id,
-                            region: region,
-                            video_url: application.video_links
-                          })
-                        })
-                        
-                        const data = await response.json()
-                        
-                        if (response.ok) {
-                          alert('통계가 업데이트되었습니다')
-                          window.location.reload()
-                        } else {
-                          alert('오류: ' + (data.error || 'Unknown error'))
-                        }
-                      } catch (error) {
-                        console.error('Error fetching stats:', error)
-                        alert('통계 업데이트 실패: ' + error.message)
-                      } finally {
-                        setFetchingStats(false)
-                      }
-                    }}
-                    disabled={fetchingStats}
-                  >
-                    {fetchingStats ? '업데이트 중...' : '통계 업데이트'}
-                  </Button>
-                ) : null}
-              </div>
-              
-              <div className="p-4 bg-blue-50 rounded-lg mb-4">
-                <a
-                  href={application.video_links}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  {application.video_links}
-                </a>
-              </div>
-              
-              {/* YouTube 통계 */}
-              {application.youtube_stats && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 bg-white rounded-lg border border-gray-200">
-                    <div className="text-sm text-gray-500 mb-1">조회수</div>
-                    <div className="text-2xl font-bold text-gray-900">
-                      {application.youtube_stats.viewCount?.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border border-gray-200">
-                    <div className="text-sm text-gray-500 mb-1">좋아요</div>
-                    <div className="text-2xl font-bold text-gray-900">
-                      {application.youtube_stats.likeCount?.toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white rounded-lg border border-gray-200">
-                    <div className="text-sm text-gray-500 mb-1">댓글</div>
-                    <div className="text-2xl font-bold text-gray-900">
-                      {application.youtube_stats.commentCount?.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {application.stats_updated_at && (
-                <div className="mt-2 text-xs text-gray-500">
-                  마지막 업데이트: {new Date(application.stats_updated_at).toLocaleString('ko-KR')}
-                </div>
-              )}
-            </div>
+      {/* 모달 컨텐츠 */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        {editingGuide ? (
+          <textarea
+            value={editedGuideContent}
+            onChange={(e) => setEditedGuideContent(e.target.value)}
+            className="w-full h-[500px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+            placeholder="가이드 내용을 입력하세요..."
+          />
+        ) : (
+          <div className="prose max-w-none">
+            <pre className="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg text-sm">
+              {editedGuideContent || '가이드가 아직 생성되지 않았습니다.'}
+            </pre>
+          </div>
+        )}
+      </div>
+
+      {/* 모달 푸터 */}
+      <div className="px-6 py-4 border-t flex items-center justify-between bg-gray-50">
+        <div className="text-sm text-gray-600">
+          {selectedGuide.guide_generated_at && (
+            <span>
+              생성일: {new Date(selectedGuide.guide_generated_at).toLocaleString('ko-KR')}
+            </span>
+          )}
+          {selectedGuide.guide_updated_at && (
+            <span className="ml-4">
+              수정일: {new Date(selectedGuide.guide_updated_at).toLocaleString('ko-KR')}
+            </span>
           )}
         </div>
+        <div className="flex gap-2">
+          {editingGuide ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingGuide(false)
+                  setEditedGuideContent(selectedGuide.personalized_guide)
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const client = getSupabaseClient(region)
+                    if (!client) throw new Error('Supabase client not found')
 
-        <div className="sticky bottom-0 bg-white border-t px-6 py-4">
-          <Button onClick={onClose} className="w-full">
-            닫기
-          </Button>
+                    const { error } = await client
+                      .from('applications')
+                      .update({ 
+                        personalized_guide: editedGuideContent,
+                        guide_updated_at: new Date().toISOString()
+                      })
+                      .eq('id', selectedGuide.id)
+
+                    if (error) throw error
+
+                    alert('가이드가 저장되었습니다.')
+                    setEditingGuide(false)
+                    // 지원서 목록 새로고침
+                    await fetchApplications()
+                    setShowGuideModal(false)
+                  } catch (error) {
+                    console.error('Error saving guide:', error)
+                    alert('저장에 실패했습니다.')
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                저장
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={() => setEditingGuide(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              수정
+            </Button>
+          )}
         </div>
       </div>
     </div>
+  </div>
+)}
+    </>
   )
 }
