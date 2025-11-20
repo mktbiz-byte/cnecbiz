@@ -347,20 +347,54 @@ export default function CampaignDetail() {
     }
   }
 
-  const handleTrackingNumberChange = async (participantId, trackingNumber) => {
+  const handleTrackingNumberChange = async (participantId, trackingNumber, shippingCompany = null) => {
     try {
+      // campaign_participants에서 creator_name 가져오기
+      const { data: participant, error: fetchError } = await supabase
+        .from('campaign_participants')
+        .select('creator_name, campaign_id')
+        .eq('id', participantId)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // campaign_participants 업데이트 데이터 준비
+      const updateData = { tracking_number: trackingNumber }
+      if (shippingCompany !== null) {
+        updateData.shipping_company = shippingCompany
+      }
+
+      // campaign_participants 업데이트
       const { error } = await supabase
         .from('campaign_participants')
-        .update({ tracking_number: trackingNumber })
+        .update(updateData)
         .eq('id', participantId)
 
       if (error) throw error
+
+      // applications 테이블도 업데이트 (크리에이터 마이페이지에서 사용)
+      const appUpdateData = { tracking_number: trackingNumber }
+      if (shippingCompany !== null) {
+        appUpdateData.shipping_company = shippingCompany
+      }
+
+      const { error: appError } = await supabase
+        .from('applications')
+        .update(appUpdateData)
+        .eq('campaign_id', participant.campaign_id)
+        .eq('applicant_name', participant.creator_name)
+        .eq('status', 'selected')
+
+      if (appError) {
+        console.error('Error updating applications table:', appError)
+        // applications 업데이트 실패해도 계속 진행 (campaign_participants는 이미 업데이트됨)
+      }
 
       // 참여자 목록 업데이트
       setParticipants(prev => 
         prev.map(p => 
           p.id === participantId 
-            ? { ...p, tracking_number: trackingNumber }
+            ? { ...p, ...updateData }
             : p
         )
       )
@@ -1915,7 +1949,8 @@ export default function CampaignDetail() {
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">크리에이터</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이메일</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배 송장번호</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">송장번호</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 확인</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">영상 상태</th>
@@ -1931,10 +1966,24 @@ export default function CampaignDetail() {
                             <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_email || '-'}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{participant.creator_platform || '-'}</td>
                             <td className="px-4 py-3">
+                              <select
+                                value={participant.shipping_company || ''}
+                                onChange={(e) => handleTrackingNumberChange(participant.id, participant.tracking_number || '', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">택배사 선택</option>
+                                <option value="우체국">우체국</option>
+                                <option value="CJ대한통운">CJ대한통운</option>
+                                <option value="로젠택배">로젠택배</option>
+                                <option value="한진택배">한진택배</option>
+                                <option value="GS포스트박스">GS포스트박스</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
                               <input
                                 type="text"
                                 value={participant.tracking_number || ''}
-                                onChange={(e) => handleTrackingNumberChange(participant.id, e.target.value)}
+                                onChange={(e) => handleTrackingNumberChange(participant.id, e.target.value, participant.shipping_company || '')}
                                 placeholder="송장번호 입력"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
