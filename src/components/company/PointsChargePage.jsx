@@ -13,30 +13,14 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 // 패키지 정의
 const PACKAGES = [
-  { 
-    type: 'influencer',
-    label: '📍 인플루언서 매칭',
-    options: [
-      { value: 200000, label: '베이직', desc: '1명' },
-      { value: 400000, label: '스탠다드', desc: '2명' },
-      { value: 600000, label: '프리미엄', desc: '3명' }
-    ]
-  },
-  { 
-    type: '4week',
-    label: '📅 4주 챌린지',
-    options: [
-      { value: 600000, label: '1명', desc: '600,000원' },
-      { value: 1200000, label: '2명', desc: '1,200,000원' },
-      { value: 1800000, label: '3명', desc: '1,800,000원' }
-    ]
-  }
+  { value: 200000, label: '20만원', desc: '인플루언서 매칭' },
+  { value: 400000, label: '40만원', desc: '인플루언서 매칭' },
+  { value: 600000, label: '60만원', desc: '4주 챌린지' }
 ]
 
 function ChargeForm({ onSuccess }) {
   const stripe = useStripe()
   const elements = useElements()
-  const [packageType, setPackageType] = useState('influencer')
   const [selectedPackage, setSelectedPackage] = useState(200000)
   const [quantity, setQuantity] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer')
@@ -102,7 +86,7 @@ function ChargeForm({ onSuccess }) {
   }, [])
 
   // 금액 계산
-  const baseAmount = selectedPackage
+  const baseAmount = selectedPackage * quantity
   const vat = Math.floor(baseAmount * 0.1) // 부가세 10%
   const discount = baseAmount >= 10000000 ? Math.floor(baseAmount * 0.05) : 0
   const finalAmount = baseAmount + vat - discount
@@ -113,6 +97,11 @@ function ChargeForm({ onSuccess }) {
     
     if (!selectedPackage) {
       setError('패키지를 선택해주세요')
+      return
+    }
+
+    if (quantity < 1) {
+      setError('인원 수를 1명 이상 입력해주세요')
       return
     }
 
@@ -208,60 +197,62 @@ function ChargeForm({ onSuccess }) {
         </div>
       )}
 
-      {/* 패키지 타입 선택 */}
+      {/* 패키지 선택 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
-          캐페인 패키지 선택
+          패키지 선택
         </label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-3">
           {PACKAGES.map((pkg) => (
             <button
-              key={pkg.type}
+              key={pkg.value}
               type="button"
-              onClick={() => {
-                setPackageType(pkg.type)
-                setSelectedPackage(pkg.options[0].value)
-              }}
-              className={`p-6 border-2 rounded-xl font-medium transition-all text-left ${
-                packageType === pkg.type
-                  ? 'border-blue-600 bg-blue-50'
+              onClick={() => setSelectedPackage(pkg.value)}
+              className={`p-4 border-2 rounded-xl font-medium transition-all ${
+                selectedPackage === pkg.value
+                  ? 'border-blue-600 bg-blue-50 text-blue-600'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="text-lg font-bold mb-2">{pkg.label}</div>
-              <div className="text-sm text-gray-600">
-                {pkg.options.map(opt => `${opt.label} (${opt.desc})`).join(', ')}
-              </div>
+              <div className="text-lg font-bold">{pkg.label}</div>
+              <div className="text-sm text-gray-600 mt-1">{pkg.desc}</div>
             </button>
           ))}
         </div>
       </div>
 
-      {/* 인원 수 선택 */}
+      {/* 인원 수 입력 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-3">
-          인원 수 선택
+          인원 수
         </label>
-        <div className="grid grid-cols-3 gap-3">
-          {PACKAGES.find(p => p.type === packageType)?.options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSelectedPackage(option.value)}
-              className={`p-4 border-2 rounded-xl font-medium transition-all ${
-                selectedPackage === option.value
-                  ? 'border-blue-600 bg-blue-50 text-blue-600'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="text-lg font-bold">{option.label}</div>
-              <div className="text-sm text-gray-600 mt-1">{option.desc}</div>
-              <div className="text-xs text-gray-500 mt-2">
-                {option.value.toLocaleString()}원
-              </div>
-            </button>
-          ))}
-        </div>
+        <input
+          type="number"
+          min="1"
+          value={quantity}
+          onChange={(e) => {
+            const val = e.target.value
+            if (val === '') {
+              setQuantity('')
+            } else {
+              const num = parseInt(val)
+              if (!isNaN(num) && num >= 1) {
+                setQuantity(num)
+              }
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.value === '' || parseInt(e.target.value) < 1) {
+              setQuantity(1)
+            }
+          }}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-medium"
+          placeholder="인원 수 입력"
+          required
+        />
+        <p className="text-xs text-gray-500 mt-2">
+          {selectedPackage.toLocaleString()}원 × {quantity}명 = {baseAmount.toLocaleString()}원
+        </p>
       </div>
 
       {/* 입금자명 */}
@@ -569,10 +560,8 @@ function ChargeForm({ onSuccess }) {
         <h4 className="font-medium text-gray-900 mb-2">안내 사항</h4>
         <ul className="text-xs text-gray-600 space-y-1">
           <li>• 패키지 금액에는 부가세(VAT 10%)가 포함됩니다</li>
-          <li>• 서비스 유효기간: 구매일로부터 5년</li>
           <li>• 1천만원 이상 구매 시 5% 자동 할인</li>
           <li>• 계좌이체: 영업일 기준 1시간 내 확인</li>
-          <li>• 환불 시 수수료 10% 차감</li>
         </ul>
       </div>
     </form>
