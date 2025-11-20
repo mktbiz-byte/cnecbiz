@@ -254,6 +254,82 @@ export default function AdminCampaignDetail() {
     }
   }
 
+  // AI 개별 맞춤 가이드 생성
+  const handleGeneratePersonalizedGuides = async (applications) => {
+    if (!confirm(`${applications.length}명의 크리에이터에 대한 개별 맞춤 가이드를 생성하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      const client = getSupabaseClient(region)
+      if (!client) throw new Error('Supabase client not found')
+
+      let successCount = 0
+      let errorCount = 0
+
+      for (const app of applications) {
+        try {
+          // 크리에이터 프로필 정보 가져오기
+          const { data: profile } = await client
+            .from('user_profiles')
+            .select('*')
+            .eq('id', app.user_id)
+            .maybeSingle()
+
+          // AI 가이드 생성 요청
+          const response = await fetch('/.netlify/functions/generate-personalized-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaign: campaign,
+              creator: {
+                name: app.applicant_name || app.creator_name,
+                email: app.email,
+                platform: app.main_channel || 'instagram',
+                followers: profile?.followers_count || 0,
+                engagement_rate: profile?.engagement_rate || 0,
+                content_style: profile?.content_style || '',
+                bio: profile?.bio || ''
+              }
+            })
+          })
+
+          if (!response.ok) {
+            throw new Error('AI 가이드 생성 실패')
+          }
+
+          const { guide } = await response.json()
+
+          // 생성된 가이드를 applications 테이블에 저장
+          await client
+            .from('applications')
+            .update({ 
+              personalized_guide: guide,
+              guide_generated_at: new Date().toISOString()
+            })
+            .eq('id', app.id)
+
+          successCount++
+        } catch (error) {
+          console.error(`Error generating guide for ${app.applicant_name}:`, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 개별 가이드가 성공적으로 생성되었습니다!`)
+      } else {
+        alert(`${successCount}명 성공, ${errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchApplications()
+    } catch (error) {
+      console.error('Error in handleGeneratePersonalizedGuides:', error)
+      alert('가이드 생성에 실패했습니다: ' + error.message)
+    }
+  }
+
   const getStatusBadge = (status) => {
     const badges = {
       pending: { label: '대기중', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -600,6 +676,34 @@ export default function AdminCampaignDetail() {
                 </TabsContent>
 
                 <TabsContent value="selected" className="mt-6">
+                  {/* 기획형 캠페인일 경우 AI 가이드 생성 버튼 표시 */}
+                  {campaign?.campaign_type === 'regular' && selectedApplications.length > 0 && (
+                    <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-purple-900 mb-1">개별 맞춤 가이드 생성</h3>
+                          <p className="text-sm text-purple-700">크리에이터 프로필과 캠페인 정보를 기반으로 AI가 개별 가이드를 생성합니다.</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button
+                            onClick={() => handleGeneratePersonalizedGuides(selectedApplications)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            AI 가이드 생성
+                          </Button>
+                          <Button
+                            onClick={() => navigate(`/admin/campaigns/${id}/guides?region=${region}`)}
+                            variant="outline"
+                            className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            가이드 확인
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <ApplicationList 
                     applications={selectedApplications} 
                     getStatusBadge={getStatusBadge}

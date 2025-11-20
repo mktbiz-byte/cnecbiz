@@ -49,6 +49,8 @@ export default function CampaignDetail() {
   const [revisionComment, setRevisionComment] = useState('')
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
   const [selectedConfirmedParticipants, setSelectedConfirmedParticipants] = useState([])
+  const [editingGuide, setEditingGuide] = useState(false)
+  const [editedGuideContent, setEditedGuideContent] = useState('')
 
   useEffect(() => {
     checkIfAdmin()
@@ -2382,33 +2384,102 @@ export default function CampaignDetail() {
 
               {/* 맞춤 가이드 컨텐츠 */}
               <div className="prose max-w-none">
-                <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
-                  {selectedGuide.personalized_guide}
-                </div>
+                {editingGuide ? (
+                  <textarea
+                    value={editedGuideContent}
+                    onChange={(e) => setEditedGuideContent(e.target.value)}
+                    className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="가이드 내용을 입력하세요..."
+                  />
+                ) : (
+                  <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
+                    {selectedGuide.personalized_guide}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* 모달 푸터 */}
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowGuideModal(false)
-                  setSelectedGuide(null)
-                }}
-              >
-                닫기
-              </Button>
-              <Button
-                onClick={() => {
-                  // 가이드 복사
-                  navigator.clipboard.writeText(selectedGuide.personalized_guide)
-                  alert('가이드가 클립보드에 복사되었습니다!')
-                }}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                가이드 복사
-              </Button>
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-between">
+              <div>
+                {selectedGuide.guide_shared_to_company && (
+                  <span className="text-sm text-green-600 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    관리자가 전달한 가이드입니다
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowGuideModal(false)
+                    setSelectedGuide(null)
+                    setEditingGuide(false)
+                  }}
+                >
+                  닫기
+                </Button>
+                {editingGuide ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingGuide(false)
+                        setEditedGuideContent('')
+                      }}
+                    >
+                      취소
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await supabase
+                            .from('campaign_participants')
+                            .update({ 
+                              personalized_guide: editedGuideContent,
+                              guide_updated_at: new Date().toISOString()
+                            })
+                            .eq('id', selectedGuide.id)
+                          
+                          alert('가이드가 저장되었습니다.')
+                          setEditingGuide(false)
+                          await fetchParticipants()
+                          setShowGuideModal(false)
+                          setSelectedGuide(null)
+                        } catch (error) {
+                          console.error('Error saving guide:', error)
+                          alert('저장에 실패했습니다.')
+                        }
+                      }}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      저장
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditingGuide(true)
+                        setEditedGuideContent(selectedGuide.personalized_guide || '')
+                      }}
+                      className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                    >
+                      가이드 수정
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedGuide.personalized_guide)
+                        alert('가이드가 클립보드에 복사되었습니다!')
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      가이드 복사
+                    </Button>
+                  </>
+                )}
             </div>
           </div>
         </div>
