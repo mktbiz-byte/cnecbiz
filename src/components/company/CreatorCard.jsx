@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { User, Star } from 'lucide-react'
 
-export default function CreatorCard({ application, onVirtualSelect, onConfirm }) {
+export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed }) {
   const { 
     applicant_name, 
     age, 
@@ -204,13 +204,24 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
               가상선택 취소
             </Button>
           )}
-          <Button
-            onClick={handleConfirm}
-            size="sm"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm h-8"
-          >
-            크리에이터 확정
-          </Button>
+          {!isConfirmed ? (
+            <Button
+              onClick={handleConfirm}
+              size="sm"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm h-8"
+            >
+              크리에이터 확정
+            </Button>
+          ) : (
+            <Button
+              onClick={() => onCancel && onCancel(application)}
+              size="sm"
+              variant="destructive"
+              className="w-full text-sm h-8"
+            >
+              확정 취소
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

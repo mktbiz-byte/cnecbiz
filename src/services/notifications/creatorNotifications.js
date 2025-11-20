@@ -226,9 +226,29 @@ export async function sendSubmissionDelayWarningNotification(receiverNum, receiv
   );
 }
 
+/**
+ * 캠페인 선정 취소 알림
+ * @param {string} receiverNum - 수신번호
+ * @param {string} receiverName - 수신자 이름
+ * @param {Object} cancelData - 취소 데이터
+ */
+export async function sendCampaignCancelledNotification(receiverNum, receiverName, cancelData) {
+  return await sendKakaoNotification(
+    receiverNum,
+    receiverName,
+    POPBILL_TEMPLATES.CREATOR.CAMPAIGN_CANCELLED.code,
+    {
+      '크리에이터명': receiverName,
+      '캠페인명': cancelData.campaignName,
+      '사유': cancelData.reason
+    }
+  );
+}
+
 export default {
   sendCreatorSignupNotification,
   sendCampaignSelectedNotification,
+  sendCampaignCancelledNotification,
   sendGuideDeliveredNotification,
   sendVideoSubmitReminder3Days,
   sendVideoSubmitReminder2Days,

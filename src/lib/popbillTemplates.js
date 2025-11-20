@@ -89,6 +89,13 @@ export const POPBILL_TEMPLATES = {
       params: ['크리에이터명', '캠페인명']
     },
     
+    CAMPAIGN_CANCELLED: {
+      code: '025110000796',
+      name: '선정 취소',
+      description: '캠페인 선정 취소 안내',
+      params: ['크리에이터명', '캠페인명', '사유']
+    },
+    
     GUIDE_DELIVERED: {
       code: '025100001012',
       name: '촬영 가이드 전달 알림',

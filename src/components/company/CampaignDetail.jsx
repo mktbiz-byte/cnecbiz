@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
-import { sendCampaignSelectedNotification } from '../../services/notifications/creatorNotifications'
+import { sendCampaignSelectedNotification, sendCampaignCancelledNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
 
 export default function CampaignDetail() {
@@ -34,6 +34,9 @@ export default function CampaignDetail() {
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [cancellingApp, setCancellingApp] = useState(null)
+  const [cancelReason, setCancelReason] = useState('')
   const [selectedParticipants, setSelectedParticipants] = useState([])
   const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -444,15 +447,107 @@ export default function CampaignDetail() {
       // 목록 새로고침
       await fetchApplications()
       await fetchParticipants()
-
-      alert(`${virtualSelected.length}명의 크리에이터가 확정되었습니다.`)
+      
+      // 알림톡 발송
+      let successCount = 0
+      for (const app of virtualSelected) {
+        try {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('email, phone')
+            .eq('id', app.user_id)
+            .maybeSingle()
+          
+          if (profile?.phone) {
+            await sendCampaignSelectedNotification(
+              profile.phone,
+              app.applicant_name,
+              {
+                campaignName: campaign?.title || '캠페인'
+              }
+            )
+            successCount++
+          }
+        } catch (notificationError) {
+          console.error('Notification error for', app.applicant_name, notificationError)
+        }
+      }
+      
+      alert(`${virtualSelected.length}명의 크리에이터가 확정되었습니다.${successCount > 0 ? ` (알림톡 ${successCount}건 발송)` : ''}`))
     } catch (error) {
       console.error('Error bulk confirming:', error)
       alert('확정 처리에 실패했습니다: ' + error.message)
     }
   }
-
-  // 크리에이터별 맞춤 가이드 생성
+  
+  // 확정 취소 처리
+  const handleCancelConfirmation = async () => {
+    if (!cancellingApp || !cancelReason.trim()) {
+      alert('취소 사유를 입력해주세요.')
+      return
+    }
+    
+    try {
+      // campaign_participants에서 삭제
+      const { error: deleteError } = await supabase
+        .from('campaign_participants')
+        .delete()
+        .eq('campaign_id', id)
+        .eq('creator_name', cancellingApp.applicant_name)
+      
+      if (deleteError) throw deleteError
+      
+      // applications 상태를 pending으로 변경
+      const { error: updateError } = await supabase
+        .from('applications')
+        .update({ 
+          status: 'pending',
+          virtual_selected: false 
+        })
+        .eq('id', cancellingApp.id)
+      
+      if (updateError) throw updateError
+      
+      // 알림톡 발송
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('email, phone')
+          .eq('id', cancellingApp.user_id)
+          .maybeSingle()
+        
+        if (profile?.phone) {
+          await sendCampaignCancelledNotification(
+            profile.phone,
+            cancellingApp.applicant_name,
+            {
+              campaignName: campaign?.title || '캠페인',
+              reason: cancelReason
+            }
+          )
+          console.log('Cancellation alimtalk sent successfully')
+        }
+      } catch (notificationError) {
+        console.error('Notification error:', notificationError)
+      }
+      
+      // 목록 새로고침
+      await fetchApplications()
+      await fetchParticipants()
+      
+      // 모달 닫기
+      setCancelModalOpen(false)
+      setCancellingApp(null)
+      setCancelReason('')
+      
+      alert('확정이 취소되었습니다. 알림톡이 발송되었습니다.')
+    } catch (error) {
+      console.error('Error cancelling confirmation:', error)
+      alert('취소 처리에 실패했습니다: ' + error.message)
+    }
+  }
+  
+  // 크리에이터별 맞춤 가이드 생성성
   const generatePersonalizedGuides = async (participantIds) => {
     try {
       for (const participantId of participantIds) {
@@ -1289,6 +1384,11 @@ export default function CampaignDetail() {
                       key={app.id}
                       application={app}
                       onVirtualSelect={handleVirtualSelect}
+                      isConfirmed={app.status === 'selected'}
+                      onCancel={(app) => {
+                        setCancellingApp(app)
+                        setCancelModalOpen(true)
+                      }}
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
@@ -1513,6 +1613,11 @@ export default function CampaignDetail() {
                       key={app.id}
                       application={app}
                       onVirtualSelect={handleVirtualSelect}
+                      isConfirmed={app.status === 'selected'}
+                      onCancel={(app) => {
+                        setCancellingApp(app)
+                        setCancelModalOpen(true)
+                      }}
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
@@ -2496,6 +2601,48 @@ export default function CampaignDetail() {
                 className="bg-green-600 hover:bg-green-700"
               >
                 승인
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 확정 취소 모달 */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">확정 취소</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {cancellingApp?.applicant_name}님의 확정을 취소하시겠습니까?
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                취소 사유 *
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="취소 사유를 입력해주세요. (크리에이터에게 전달됩니다)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={4}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCancelModalOpen(false)
+                  setCancellingApp(null)
+                  setCancelReason('')
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancelConfirmation}
+              >
+                확정 취소
               </Button>
             </div>
           </div>
