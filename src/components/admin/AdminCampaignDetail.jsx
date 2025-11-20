@@ -327,7 +327,7 @@ export default function AdminCampaignDetail() {
 
           const { guide } = await response.json()
 
-          // 생성된 가이드를 applications 테이블에 저장
+          // 생성된 가이드를 applications 테이블에 저장 (Netlify Function 사용)
           console.log(`[DEBUG] Saving guide for app:`, {
             id: app.id,
             applicant_name: app.applicant_name,
@@ -335,36 +335,26 @@ export default function AdminCampaignDetail() {
             guide_preview: guide?.substring(0, 100)
           })
           
-          // 먼저 현재 row가 존재하는지 확인
-          const { data: existingData, error: checkError } = await client
-            .from('applications')
-            .select('id, applicant_name, personalized_guide')
-            .eq('id', app.id)
-            .single()
-          
-          console.log(`[DEBUG] Existing row check:`, { existingData, checkError })
-          
-          if (checkError || !existingData) {
-            console.error(`[DEBUG] Row not found for id: ${app.id}`)
-            throw new Error(`Application row not found for id: ${app.id}`)
-          }
-          
-          const { data: updateData, error: updateError } = await client
-            .from('applications')
-            .update({ 
-              personalized_guide: guide
+          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              region: region,
+              applicationId: app.id,
+              guide: guide
             })
-            .eq('id', app.id)
-            .select()
+          })
 
-          if (updateError) {
-            console.error(`[DEBUG] Update error for ${app.applicant_name}:`, updateError)
-            throw updateError
+          if (!saveResponse.ok) {
+            const errorData = await saveResponse.json()
+            console.error(`[DEBUG] Save error for ${app.applicant_name}:`, errorData)
+            throw new Error(errorData.error || 'Failed to save guide')
           }
 
-          console.log(`[DEBUG] Update successful for ${app.applicant_name}:`, {
-            updateData,
-            guide_saved: updateData?.[0]?.personalized_guide?.length
+          const saveResult = await saveResponse.json()
+          console.log(`[DEBUG] Save successful for ${app.applicant_name}:`, {
+            success: saveResult.success,
+            guide_saved: saveResult.data?.personalized_guide?.length
           })
           successCount++
         } catch (error) {
