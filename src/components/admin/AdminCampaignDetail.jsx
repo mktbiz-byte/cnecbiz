@@ -38,6 +38,7 @@ export default function AdminCampaignDetail() {
   const [showGuideModal, setShowGuideModal] = useState(false)
   const [editingGuide, setEditingGuide] = useState(false)
   const [editedGuideContent, setEditedGuideContent] = useState('')
+  const [generatingGuides, setGeneratingGuides] = useState(new Set())
 
   useEffect(() => {
     checkAuth()
@@ -269,6 +270,11 @@ export default function AdminCampaignDetail() {
       return
     }
 
+    // 생성 중 상태 추가
+    const newGeneratingSet = new Set(generatingGuides)
+    applications.forEach(app => newGeneratingSet.add(app.id))
+    setGeneratingGuides(newGeneratingSet)
+
     try {
       const client = getSupabaseClient(region)
       if (!client) throw new Error('Supabase client not found')
@@ -326,8 +332,7 @@ export default function AdminCampaignDetail() {
           const { data: updateData, error: updateError } = await client
             .from('applications')
             .update({ 
-              personalized_guide: guide,
-              guide_generated_at: new Date().toISOString()
+              personalized_guide: guide
             })
             .eq('id', app.id)
             .select()
@@ -356,6 +361,11 @@ export default function AdminCampaignDetail() {
     } catch (error) {
       console.error('Error in handleGeneratePersonalizedGuides:', error)
       alert('가이드 생성에 실패했습니다: ' + error.message)
+    } finally {
+      // 생성 중 상태 제거
+      const newGeneratingSet = new Set(generatingGuides)
+      applications.forEach(app => newGeneratingSet.delete(app.id))
+      setGeneratingGuides(newGeneratingSet)
     }
   }
 
@@ -739,6 +749,7 @@ export default function AdminCampaignDetail() {
                     onViewDetails={setSelectedApplication}
                     campaign={campaign}
                     onGenerateGuide={(app) => handleGeneratePersonalizedGuides([app])}
+                    generatingGuides={generatingGuides}
                   />
                 </TabsContent>
 
@@ -878,7 +889,7 @@ export default function AdminCampaignDetail() {
 }
 
 // 크리에이터 목록 컴포넌트
-function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, onGenerateGuide }) {
+function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, onGenerateGuide, generatingGuides }) {
   if (applications.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -907,10 +918,23 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
                       <Button
                         size="sm"
                         onClick={() => onGenerateGuide(app)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                        disabled={generatingGuides?.has(app.id)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <FileText className="w-3 h-3 mr-1" />
-                        AI 가이드 생성
+                        {generatingGuides?.has(app.id) ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            생성 중...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-3 h-3 mr-1" />
+                            AI 가이드 생성
+                          </>
+                        )}
                       </Button>
                     )}
                     {app.personalized_guide && (
