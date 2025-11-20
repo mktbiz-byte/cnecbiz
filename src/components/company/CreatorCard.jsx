@@ -73,37 +73,32 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
           </Badge>
         )}
 
-        {/* 프로필 정보 - 컴팩트 레이아웃 */}
-        <div className="flex gap-3 mb-3">
-          {/* 프로필 이미지 - 작게 */}
-          <div className="relative flex-shrink-0">
-            <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden">
-              {application.profile_photo_url ? (
-                <img
-                  src={application.profile_photo_url}
-                  alt={applicant_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className="w-8 h-8 text-gray-400" />
-                </div>
-              )}
+        {/* 프로필 사진 - 최상단에 크게 */}
+        <div className="relative w-full aspect-square bg-gray-200 rounded-t-lg overflow-hidden mb-3">
+          {application.profile_photo_url ? (
+            <img
+              src={application.profile_photo_url}
+              alt={applicant_name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <User className="w-16 h-16 text-gray-400" />
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* 기본 정보 */}
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-bold text-gray-900 truncate">{applicant_name} ({age}세)</h3>
-            <div className="flex items-center gap-1 text-xs text-gray-600 mt-0.5">
-              {appliedChannels.map(channel => (
-                <span key={channel.name} className="truncate">
-                  {channel.label} {channel.followers.toLocaleString()}명
-                </span>
-              )).reduce((prev, curr) => [prev, ' • ', curr])}
-            </div>
+        {/* 기본 정보 - 사진 아래 */}
+        <div className="mb-3">
+          <h3 className="text-base font-bold text-gray-900 mb-1">{applicant_name} ({age}세)</h3>
+          <div className="text-sm text-gray-600 space-y-0.5">
+            {appliedChannels.map(channel => (
+              <div key={channel.name}>
+                {channel.label} {channel.followers.toLocaleString()}명
+              </div>
+            ))}
             {skinTypeKorean && (
-              <div className="text-xs text-gray-600 mt-0.5">피부: {skinTypeKorean}</div>
+              <div>피부타입: {skinTypeKorean}</div>
             )}
           </div>
         </div>
@@ -196,7 +191,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
               size="sm"
               className="w-full text-xs h-7"
             >
-              가상선정 취소
+              가상선택
             </Button>
           )}
           {virtual_selected && (
@@ -206,7 +201,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm })
               size="sm"
               className="w-full border-red-300 text-red-600 hover:bg-red-50 text-xs h-7"
             >
-              가상선정 취소
+              가상선택 취소
             </Button>
           )}
           <Button
