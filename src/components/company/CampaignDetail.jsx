@@ -417,7 +417,6 @@ export default function CampaignDetail() {
       // campaign_participants에 추가
       const participantsToAdd = virtualSelected.map(app => ({
         campaign_id: id,
-        user_id: app.user_id,
         creator_name: app.applicant_name,
         creator_email: '', // 이메일 정보가 있다면 추가
         creator_platform: '', // 플랫폼 정보 추가
@@ -1299,7 +1298,6 @@ export default function CampaignDetail() {
                             .from('campaign_participants')
                             .insert([{
                               campaign_id: id,
-                              user_id: app.user_id,
                               creator_name: app.applicant_name,
                               creator_email: '',
                               creator_platform: mainChannel || app.main_channel || '',
@@ -1524,7 +1522,6 @@ export default function CampaignDetail() {
                             .from('campaign_participants')
                             .insert([{
                               campaign_id: id,
-                              user_id: app.user_id,
                               creator_name: app.applicant_name,
                               creator_email: '',
                               creator_platform: mainChannel || app.main_channel || '',
