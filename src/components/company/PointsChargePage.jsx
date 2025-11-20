@@ -14,6 +14,7 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 // 패키지 정의
 const PACKAGES = [
   { value: 200000, label: '20만원', desc: '인플루언서 매칭' },
+  { value: 300000, label: '30만원', desc: '인플루언서 매칭' },
   { value: 400000, label: '40만원', desc: '인플루언서 매칭' },
   { value: 600000, label: '60만원', desc: '4주 챌린지' }
 ]
@@ -87,9 +88,10 @@ function ChargeForm({ onSuccess }) {
 
   // 금액 계산
   const baseAmount = selectedPackage * quantity
-  const vat = Math.floor(baseAmount * 0.1) // 부가세 10%
   const discount = baseAmount >= 10000000 ? Math.floor(baseAmount * 0.05) : 0
-  const finalAmount = baseAmount + vat - discount
+  const discountedAmount = baseAmount - discount // 할인된 금액
+  const vat = Math.floor(discountedAmount * 0.1) // 할인된 금액에 대한 부가세 10%
+  const finalAmount = discountedAmount + vat
   const discountRate = discount > 0 ? 5 : 0
 
   const handleSubmit = async (e) => {
@@ -663,8 +665,8 @@ export default function PointsChargePage() {
         <div className="max-w-4xl mx-auto px-6 py-12">
           {/* 헤더 */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">캐페인 패키지 신청</h1>
-            <p className="text-gray-600 mt-2">패키지를 선택하고 입금하여 캐페인을 시작하세요</p>
+            <h1 className="text-3xl font-bold text-gray-900">캠페인 패키지 신청</h1>
+            <p className="text-gray-600 mt-2">패키지를 선택하고 입금하여 캠페인을 시작하세요</p>
           </div>
 
           {/* 패키지 신청 폼 */}

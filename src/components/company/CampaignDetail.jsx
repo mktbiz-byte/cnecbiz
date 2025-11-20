@@ -1330,6 +1330,10 @@ export default function CampaignDetail() {
               <CheckCircle className="w-4 h-4" />
               확정 크리에이터 + 가이드 확인
             </TabsTrigger>
+            <TabsTrigger value="participants" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              참여 크리에이터 ({participants.length})
+            </TabsTrigger>
             <TabsTrigger value="editing" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               영상 수정
@@ -1893,8 +1897,8 @@ export default function CampaignDetail() {
             </Card>
           </TabsContent>
 
-          {/* 확정 크리에이터 + 가이드 탭 */}
-          <TabsContent value="selected">
+          {/* 참여 크리에이터 리스트 */}
+          <TabsContent value="participants">
             <Card>
               <CardHeader>
                 <CardTitle>확정 크리에이터 및 택배 송장번호</CardTitle>
