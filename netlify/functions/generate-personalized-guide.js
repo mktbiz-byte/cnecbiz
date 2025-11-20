@@ -76,7 +76,7 @@ ${creatorAnalysis.platform === 'youtube' ? '- 유튜브 알고리즘 최적화\n
 크리에이터의 기존 콘텐츠 스타일을 존중하면서도 제품의 핵심 메시지를 효과적으로 전달할 수 있도록 해주세요.`
 
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + process.env.VITE_GEMINI_API_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + process.env.GEMINI_API_KEY,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
