@@ -107,14 +107,14 @@ export default function CompanyDashboard() {
       // 각 캠페인의 참여자 정보 가져오기
       const participantsData = {}
       for (const campaign of campaignsData || []) {
-         const { data } = await supabase
+         const { data } = await supabaseClient
           .from('applications')
           .select('*')
           .eq('campaign_id', campaign.id)
         
         participantsData[campaign.id] = {
           total: data?.length || 0,
-          selected: data?.filter(p => p.selection_status === 'selected').length || 0,
+          selected: data?.filter(p => ['selected', 'approved', 'virtual_selected'].includes(p.status)).length || 0,
           guideConfirmed: data?.filter(p => p.guide_confirmed).length || 0
         }
       }
