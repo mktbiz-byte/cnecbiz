@@ -2013,10 +2013,7 @@ export default function CampaignDetail() {
               <CheckCircle className="w-4 h-4" />
               완료
             </TabsTrigger>
-            <TabsTrigger value="ai-guide" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              AI 가이드
-            </TabsTrigger>
+
           </TabsList>
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
@@ -2763,30 +2760,7 @@ export default function CampaignDetail() {
             </Card>
           </TabsContent>
 
-          {/* AI 가이드 탭 */}
-          <TabsContent value="ai-guide">
-            {campaign?.ai_generated_guide ? (
-              <CampaignGuideViewer 
-                guide={campaign.ai_generated_guide} 
-                campaignId={campaign.id}
-                onUpdate={(updatedGuide) => {
-                  setCampaign({ ...campaign, ai_generated_guide: updatedGuide })
-                }}
-              />
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-xl font-bold text-gray-700 mb-2">
-                    AI 가이드가 아직 생성되지 않았습니다
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    캠페인 생성 시 AI가 자동으로 가이드를 생성합니다.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+
         </Tabs>
 
         {/* Campaign Details */}
