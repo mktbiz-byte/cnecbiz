@@ -3138,19 +3138,29 @@ export default function CampaignDetail() {
                     })()}
                   </div>
                 )}
+
+                {/* 추가 메시지 입력 공간 */}
+                {!editingGuide && (
+                  <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      크리에이터에게 전달할 추가 메시지 (선택사항)
+                    </label>
+                    <textarea
+                      value={selectedGuide.additional_message || ''}
+                      onChange={(e) => {
+                        setSelectedGuide({ ...selectedGuide, additional_message: e.target.value })
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      rows={3}
+                      placeholder="예: 촬영 시 제품을 먼저 클로즈업해주세요. 배경은 밝게 유지해주시면 감사하겠습니다."
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
             {/* 모달 푸터 */}
-            <div className="px-6 py-4 border-t bg-gray-50 flex justify-between">
-              <div>
-                {selectedGuide.personalized_guide && (
-                  <span className="text-sm text-green-600 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    관리자가 전달한 가이드입니다
-                  </span>
-                )}
-              </div>
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
               <div className="flex gap-3">
                 <Button
                   variant="outline"
@@ -3212,22 +3222,28 @@ export default function CampaignDetail() {
                       가이드 수정
                     </Button>
                     <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowRevisionRequestModal(true)
-                      }}
-                      className="border-orange-600 text-orange-600 hover:bg-orange-50"
-                    >
-                      수정요청
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        navigator.clipboard.writeText(selectedGuide.personalized_guide)
-                        alert('가이드가 클립보드에 복사되었습니다!')
+                      onClick={async () => {
+                        try {
+                          // 추가 메시지 저장
+                          const { error } = await supabase
+                            .from('applications')
+                            .update({ 
+                              additional_message: selectedGuide.additional_message || null
+                            })
+                            .eq('id', selectedGuide.id)
+
+                          if (error) throw error
+
+                          alert('추가 메시지가 저장되었습니다!')
+                          await fetchParticipants()
+                        } catch (error) {
+                          console.error('Error saving additional message:', error)
+                          alert('저장에 실패했습니다.')
+                        }
                       }}
                       className="bg-purple-600 hover:bg-purple-700"
                     >
-                      가이드 복사
+                      메시지 저장
                     </Button>
                   </>
                 )}
