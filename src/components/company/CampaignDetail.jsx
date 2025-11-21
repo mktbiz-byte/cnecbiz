@@ -1642,16 +1642,18 @@ export default function CampaignDetail() {
                   )}
                   <td className="px-4 py-3">
                     {(() => {
-                      const status = participant.status || 'guide_confirmation'
+                      const status = participant.status || 'selected'
                       const statusConfig = {
+                        selected: { label: '가이드 확인중', className: 'bg-purple-100 text-purple-700' },
                         guide_confirmation: { label: '가이드 확인중', className: 'bg-purple-100 text-purple-700' },
                         filming: { label: '촬영중', className: 'bg-yellow-100 text-yellow-700' },
-                        editing: { label: '수정중', className: 'bg-pink-100 text-pink-700' },
-                        submitted: { label: '제출완료', className: 'bg-blue-100 text-blue-700' },
+                        revision_requested: { label: '수정중', className: 'bg-pink-100 text-pink-700' },
+                        video_submitted: { label: '제출완료', className: 'bg-blue-100 text-blue-700' },
                         approved: { label: '승인완료', className: 'bg-green-100 text-green-700' },
+                        completed: { label: '승인완료', className: 'bg-green-100 text-green-700' },
                         rejected: { label: '거부', className: 'bg-red-100 text-red-700' }
                       }
-                      const config = statusConfig[status] || statusConfig.guide_confirmation
+                      const config = statusConfig[status] || statusConfig.selected
                       return <Badge className={config.className}>{config.label}</Badge>
                     })()}
                   </td>
@@ -2087,22 +2089,39 @@ export default function CampaignDetail() {
             )}
             {!campaign.is_cancelled && (
               <div>
-                {(isAdmin || (campaign.payment_status !== 'confirmed' && campaign.approval_status !== 'approved')) ? (
-                  <Button 
-                    variant="outline"
-                    className="text-red-600 border-red-600 hover:bg-red-50"
-                    onClick={handleCancelCampaign}
-                  >
-                    캠페인 취소하기
-                  </Button>
-                ) : (
-                  <Badge className="bg-gray-100 text-gray-600">
-                    {campaign.approval_status === 'approved' 
-                      ? '승인 완료된 캠페인은 취소할 수 없습니다'
-                      : '입금 완료 후 취소는 관리자에게 문의하세요'
-                    }
-                  </Badge>
-                )}
+                {(() => {
+                  // 승인 완료된 참여자가 있는지 확인
+                  const hasApprovedParticipants = participants.some(p => ['approved', 'completed'].includes(p.status))
+                  
+                  if (hasApprovedParticipants) {
+                    return (
+                      <Badge className="bg-gray-100 text-gray-600">
+                        승인 완료된 크리에이터가 있어 취소할 수 없습니다
+                      </Badge>
+                    )
+                  }
+                  
+                  if (isAdmin || (campaign.payment_status !== 'confirmed' && campaign.approval_status !== 'approved')) {
+                    return (
+                      <Button 
+                        variant="outline"
+                        className="text-red-600 border-red-600 hover:bg-red-50"
+                        onClick={handleCancelCampaign}
+                      >
+                        캐페인 취소하기
+                      </Button>
+                    )
+                  }
+                  
+                  return (
+                    <Badge className="bg-gray-100 text-gray-600">
+                      {campaign.approval_status === 'approved' 
+                        ? '승인 완료된 캐페인은 취소할 수 없습니다'
+                        : '입금 완료 후 취소는 관리자에게 문의하세요'
+                      }
+                    </Badge>
+                  )
+                })()}
               </div>
             )}
             {campaign.is_cancelled && (
