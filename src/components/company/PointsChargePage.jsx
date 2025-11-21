@@ -558,12 +558,35 @@ function ChargeForm({ onSuccess }) {
       </button>
 
       {/* 안내 사항 */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 rounded-lg p-4 mb-4">
         <h4 className="font-medium text-gray-900 mb-2">안내 사항</h4>
         <ul className="text-xs text-gray-600 space-y-1">
           <li>• 패키지 금액에는 부가세(VAT 10%)가 포함됩니다</li>
           <li>• 1천만원 이상 구매 시 5% 자동 할인</li>
           <li>• 계좌이체: 영업일 기준 1시간 내 확인</li>
+        </ul>
+      </div>
+
+      {/* 환불 규정 */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          환불 규정
+        </h4>
+        <ul className="text-xs text-blue-800 space-y-1.5">
+          <li className="flex items-start gap-2">
+            <span className="font-semibold min-w-[90px]">캠페인 진행 전:</span>
+            <span>100% 환불 가능</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-semibold min-w-[90px]">캠페인 진행 후:</span>
+            <span>50% 환불 가능</span>
+          </li>
+          <li className="text-[11px] text-blue-700 mt-2 pl-2 border-l-2 border-blue-300">
+            * 캠페인 진행 기준: 크리에이터 선정 완료 시점
+          </li>
         </ul>
       </div>
     </form>
