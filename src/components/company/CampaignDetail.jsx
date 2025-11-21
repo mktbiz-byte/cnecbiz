@@ -1531,46 +1531,59 @@ export default function CampaignDetail() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {editingDeadline === participant.id ? (
-                      <input
-                        type="date"
-                        defaultValue={campaign.content_submission_deadline || ''}
-                        onBlur={async (e) => {
-                          const newDeadline = e.target.value
-                          if (newDeadline) {
-                            try {
-                              const { error } = await supabase
-                                .from('applications')
-                                .update({ submission_deadline: newDeadline })
-                                .eq('id', participant.id)
-                              
-                              if (error) throw error
-                              
-                              await fetchParticipants()
-                              alert('마감일이 업데이트되었습니다.')
-                            } catch (error) {
-                              console.error('Error updating deadline:', error)
-                              alert('마감일 업데이트에 실패했습니다.')
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          id={`deadline-${participant.id}`}
+                          defaultValue={participant.submission_deadline || campaign.content_submission_deadline || ''}
+                          className="px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                        <button
+                          onClick={async () => {
+                            const input = document.getElementById(`deadline-${participant.id}`)
+                            const newDeadline = input.value
+                            if (newDeadline) {
+                              try {
+                                const { error } = await supabase
+                                  .from('applications')
+                                  .update({ submission_deadline: newDeadline })
+                                  .eq('id', participant.id)
+                                
+                                if (error) throw error
+                                
+                                await fetchParticipants()
+                                alert('마감일이 업데이트되었습니다.')
+                              } catch (error) {
+                                console.error('Error updating deadline:', error)
+                                alert('마감일 업데이트에 실패했습니다.')
+                              }
                             }
-                          }
-                          setEditingDeadline(null)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.target.blur()
-                          } else if (e.key === 'Escape') {
                             setEditingDeadline(null)
-                          }
-                        }}
-                        className="px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        autoFocus
-                      />
+                          }}
+                          className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs"
+                        >
+                          저장
+                        </button>
+                        <button
+                          onClick={() => setEditingDeadline(null)}
+                          className="px-2 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-xs"
+                        >
+                          취소
+                        </button>
+                      </div>
                     ) : (
-                      <span
-                        onClick={() => setEditingDeadline(participant.id)}
-                        className="cursor-pointer hover:text-blue-600 hover:underline"
-                      >
-                        {participant.submission_deadline || campaign.content_submission_deadline || '미정'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700">
+                          {participant.submission_deadline || campaign.content_submission_deadline || '미정'}
+                        </span>
+                        <button
+                          onClick={() => setEditingDeadline(participant.id)}
+                          className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-xs"
+                        >
+                          수정
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
