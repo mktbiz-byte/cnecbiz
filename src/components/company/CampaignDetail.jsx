@@ -1628,7 +1628,7 @@ export default function CampaignDetail() {
                                 if (!confirm(`${(participant.creator_name || participant.applicant_name || '크리에이터')}님에게 가이드를 전달하시겠습니까?`)) return
                                 await handleGuideApproval([participant.id])
                               }}
-                              disabled={participant.status === 'filming'}
+                              disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
                               className="text-green-600 border-green-600 hover:bg-green-50"
                             >
                               가이드 전달
