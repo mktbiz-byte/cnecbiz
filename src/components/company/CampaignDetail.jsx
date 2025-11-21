@@ -767,6 +767,100 @@ export default function CampaignDetail() {
     }
   }
 
+  // AI 맞춤 가이드 생성 함수
+  const handleGeneratePersonalizedGuides = async (selectedParticipantsList) => {
+    if (!selectedParticipantsList || selectedParticipantsList.length === 0) {
+      alert('가이드를 생성할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedParticipantsList.length}명의 크리에이터에 대한 개별 맞춤 가이드를 생성하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const participant of selectedParticipantsList) {
+        try {
+          // 크리에이터 프로필 정보 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', participant.user_id)
+            .maybeSingle()
+
+          // AI 가이드 생성 요청
+          const response = await fetch('/.netlify/functions/generate-personalized-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              creatorAnalysis: {
+                platform: participant.main_channel || participant.platform || 'instagram',
+                followers: profile?.instagram_followers || profile?.followers_count || 0,
+                contentAnalysis: {
+                  engagementRate: profile?.engagement_rate || 5,
+                  topHashtags: [],
+                  contentType: 'mixed',
+                  videoRatio: 50
+                },
+                style: {
+                  tone: profile?.content_style || '친근하고 자연스러운',
+                  topics: [profile?.bio || '라이프스타일', '뷰티'],
+                  videoStyle: 'natural'
+                }
+              },
+              productInfo: {
+                brand: campaign.brand || '',
+                product_name: campaign.title || '',
+                product_features: campaign.product_features || campaign.description || '',
+                product_key_points: campaign.product_key_points || campaign.key_message || ''
+              },
+              baseGuide: campaign.guide_content || campaign.ai_generated_guide || ''
+            })
+          })
+
+          if (!response.ok) {
+            throw new Error('AI 가이드 생성 실패')
+          }
+
+          const { guide } = await response.json()
+
+          // 생성된 가이드를 campaign_participants 테이블에 저장
+          const { error: updateError } = await supabase
+            .from('campaign_participants')
+            .update({ 
+              personalized_guide: guide,
+              guide_shared_to_company: true // 기업이 생성했으므로 바로 공유 상태로 설정
+            })
+            .eq('id', participant.id)
+
+          if (updateError) {
+            throw new Error(updateError.message || 'Failed to save guide')
+          }
+
+          successCount++
+        } catch (error) {
+          console.error(`Error generating guide for ${participant.creator_name}:`, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 개별 가이드가 성공적으로 생성되었습니다!`)
+      } else {
+        alert(`${successCount}명 성공, ${errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleGeneratePersonalizedGuides:', error)
+      alert('가이드 생성에 실패했습니다: ' + error.message)
+    }
+  }
+
   // 가이드 승인 및 알림 발송 함수
   const handleGuideApproval = async (participantIds) => {
     if (!participantIds || participantIds.length === 0) {
@@ -1164,8 +1258,12 @@ export default function CampaignDetail() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배송정보</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사 / 송장번호</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
+                {campaign.campaign_type === 'planning' && (
+                  <>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
+                  </>
+                )}
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">마감일</th>
               </tr>
@@ -1236,40 +1334,44 @@ export default function CampaignDetail() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    {participant.personalized_guide && participant.guide_shared_to_company ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedGuide(participant)
-                          setShowGuideModal(true)
-                        }}
-                        className="text-purple-600 border-purple-600 hover:bg-purple-50"
-                      >
-                        가이드 보기
-                      </Button>
-                    ) : (
-                      <span className="text-gray-500 text-sm bg-gray-100 px-3 py-1 rounded">기획중</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {!participant.guide_confirmed ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          if (!confirm(`${participant.creator_name}님의 가이드를 승인하고 전송하시겠습니까?`)) return
-                          await handleGuideApproval([participant.id])
-                        }}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
-                      >
+                  {campaign.campaign_type === 'planning' && (
+                    <>
+                      <td className="px-4 py-3">
+                        {participant.personalized_guide && participant.guide_shared_to_company ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedGuide(participant)
+                              setShowGuideModal(true)
+                            }}
+                            className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                          >
+                            가이드 보기
+                          </Button>
+                        ) : (
+                          <span className="text-gray-500 text-sm bg-gray-100 px-3 py-1 rounded">기획중</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!participant.guide_confirmed ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              if (!confirm(`${participant.creator_name}님의 가이드를 승인하고 전송하시겠습니까?`)) return
+                              await handleGuideApproval([participant.id])
+                            }}
+                            className="text-green-600 border-green-600 hover:bg-green-50"
+                          >
                         가이드 승인
                       </Button>
                     ) : (
                       <Badge className="bg-green-100 text-green-800">승인완료</Badge>
                     )}
-                  </td>
+                      </td>
+                    </>
+                  )}
                   <td className="px-4 py-3">
                     {(() => {
                       const status = participant.creator_status || 'guide_confirmation'
@@ -1359,6 +1461,16 @@ export default function CampaignDetail() {
                   택배사 일괄 수정 ({selectedParticipants.length}명)
                 </Button>
               </div>
+              {campaign.campaign_type === 'planning' && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleGeneratePersonalizedGuides(filteredParticipants.filter(p => selectedParticipants.includes(p.id)))}
+                  disabled={selectedParticipants.length === 0}
+                  className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                >
+                  맞춤 가이드 생성 ({selectedParticipants.length}명)
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() => handleGuideApproval(selectedParticipants)}
