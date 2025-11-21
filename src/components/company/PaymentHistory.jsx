@@ -12,7 +12,7 @@ export default function PaymentHistory() {
   const [payments, setPayments] = useState([])
   const [chargeRequests, setChargeRequests] = useState([])  // 포인트 충전 신청
   const [taxInvoices, setTaxInvoices] = useState([])
-  const [pointUsages, setPointUsages] = useState([])  // 포인트 사용 내역
+  const [pointUsages, setPointUsages] = useState([])  // 캠페인 진행 내역
   const [selectedTab, setSelectedTab] = useState('payments')
   const [loading, setLoading] = useState(false)
   const [selectedTaxInfo, setSelectedTaxInfo] = useState(null)
@@ -110,7 +110,7 @@ export default function PaymentHistory() {
         .order('created_at', { ascending: false })
 
       if (!error && data) {
-        console.log('[PaymentHistory] 포인트 사용 내역:', data)
+        console.log('[PaymentHistory] 캠페인 진행 내역:', data)
         setPointUsages(data)
       }
     } catch (error) {
@@ -248,7 +248,7 @@ export default function PaymentHistory() {
             variant={selectedTab === 'usages' ? 'default' : 'outline'}
             onClick={() => setSelectedTab('usages')}
           >
-            포인트 사용 내역
+            캠페인 진행 내역
           </Button>
           <Button
             variant={selectedTab === 'invoices' ? 'default' : 'outline'}
@@ -324,12 +324,12 @@ export default function PaymentHistory() {
         {selectedTab === 'usages' && (
           <Card>
             <CardHeader>
-              <CardTitle>포인트 사용 내역 ({pointUsages.length}건)</CardTitle>
+              <CardTitle>캠페인 진행 내역 ({pointUsages.length}건)</CardTitle>
             </CardHeader>
             <CardContent>
               {pointUsages.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  포인트 사용 내역이 없습니다
+                  캠페인 진행 내역이 없습니다
                 </div>
               ) : (
                 <div className="overflow-x-auto">

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function PaymentHistoryPage() {
-  const [chargeRequests, setChargeRequests] = useState([])  // 포인트 충전 신청
+  const [chargeRequests, setChargeRequests] = useState([])  // 포인트 결제 신청
   const [totalSpent, setTotalSpent] = useState(0)
   const [loading, setLoading] = useState(true)
 
@@ -15,7 +15,7 @@ export default function PaymentHistoryPage() {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) return
 
-      // 포인트 충전 신청 내역 조회
+      // 포인트 결제 신청 내역 조회
       const { data: requests } = await supabaseBiz
         .from('points_charge_requests')
         .select('*')
@@ -117,7 +117,7 @@ export default function PaymentHistoryPage() {
           </div>
         </div>
 
-        {/* 포인트 충전 신청 내역 (결제내역으로 통합) */}
+        {/* 포인트 결제 내역 */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">결제 내역 ({chargeRequests.length}건)</h2>
@@ -128,7 +128,7 @@ export default function PaymentHistoryPage() {
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <p className="mt-4 text-gray-500">충전 신청 내역이 없습니다</p>
+              <p className="mt-4 text-gray-500">결제 내역이 없습니다</p>
             </div>
           ) : (
             <div className="overflow-x-auto">

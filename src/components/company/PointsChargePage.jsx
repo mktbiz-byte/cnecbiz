@@ -179,7 +179,7 @@ function ChargeForm({ onSuccess }) {
       const result = await response.json()
 
       if (!result.success) {
-        throw new Error(result.error || '충전 신청에 실패했습니다.')
+        throw new Error(result.error || '결제 신청에 실패했습니다.')
       }
 
       alert('패키지 신청이 완료되었습니다. 입금 확인 후 서비스가 활성화됩니다.')
@@ -337,7 +337,7 @@ function ChargeForm({ onSuccess }) {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            💡 1천만원 이상 충전 시 5% 할인 혜택!
+            💡 1천만원 이상 결제 시 5% 할인 혜택!
           </p>
         </div>
       )}
@@ -359,7 +359,7 @@ function ChargeForm({ onSuccess }) {
             />
             <div className="flex-1">
               <div className="font-medium">계좌이체 (권장)</div>
-              <div className="text-xs text-gray-500 mt-1">입금 확인 후 충전 (영업일 기준 1시간 이내)</div>
+              <div className="text-xs text-gray-500 mt-1">입금 확인 후 포인트 지급 (영업일 기준 1시간 이내)</div>
             </div>
             {paymentMethod === 'bank_transfer' && (
               <Check className="w-5 h-5 text-blue-600" />
@@ -604,7 +604,7 @@ export default function PointsChargePage() {
     loadChargeRequests()
   }
 
-  // 충전 신청 내역 로드
+  // 결제 신청 내역 로드
   const loadChargeRequests = async () => {
     try {
       setLoading(true)
@@ -622,17 +622,17 @@ export default function PointsChargePage() {
       if (error) throw error
       setChargeRequests(data || [])
     } catch (err) {
-      console.error('충전 내역 로드 실패:', err)
+      console.error('결제 내역 로드 실패:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // 충전 신청 취소
+  // 결제 신청 취소
   const handleCancelRequest = async (requestId) => {
     console.log('[DEBUG] Cancel button clicked for request:', requestId)
     
-    if (!window.confirm('충전 신청을 취소하시겠습니까?\n\n⚠️ 이미 입금하신 경우, 환불 처리에 시간이 걸릴 수 있습니다.')) {
+    if (!window.confirm('결제 신청을 취소하시겠습니까?\n\n⚠️ 이미 입금하신 경우, 환불 처리에 시간이 걸릴 수 있습니다.') {
       console.log('[DEBUG] User cancelled the confirmation')
       return
     }
@@ -667,7 +667,7 @@ export default function PointsChargePage() {
       }
 
       console.log('[SUCCESS] Request cancelled successfully')
-      window.alert('충전 신청이 취소되었습니다.')
+      window.alert('결제 신청이 취소되었습니다.')
       await loadChargeRequests()
     } catch (err) {
       console.error('[ERROR] Cancel failed:', err)
@@ -701,12 +701,12 @@ export default function PointsChargePage() {
 
           {/* 충전 신청 내역 */}
           <div className="bg-white rounded-2xl shadow-xl p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">충전 신청 내역 ({chargeRequests.length}건)</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">결제 내역 ({chargeRequests.length}건)</h2>
             
             {loading ? (
               <div className="text-center py-12 text-gray-500">로딩 중...</div>
             ) : chargeRequests.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">충전 신청 내역이 없습니다.</div>
+              <div className="text-center py-12 text-gray-500">결제 내역이 없습니다.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -788,9 +788,9 @@ export default function PointsChargePage() {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Check className="w-8 h-8 text-green-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">충전 신청 완료!</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">결제 신청 완료!</h3>
                 <p className="text-gray-600 mb-6">
-                  충전 신청이 성공적으로 접수되었습니다.<br />
+                  결제 신청이 성공적으로 접수되었습니다.<br />
                   <span className="text-sm text-gray-500">
                     입금 확인은 <strong>1~5분 정도</strong> 소요됩니다.
                   </span>
