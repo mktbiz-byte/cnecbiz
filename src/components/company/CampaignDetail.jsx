@@ -106,14 +106,6 @@ export default function CampaignDetail() {
         .single()
 
       if (error) throw error
-      
-      // Check if current user owns this campaign
-      if (data.company_id !== user?.id && !isAdmin) {
-        alert('이 캠페인에 접근할 권한이 없습니다.')
-        navigate('/company/campaigns')
-        return
-      }
-      
       setCampaign(data)
     } catch (error) {
       console.error('Error fetching campaign:', error)
