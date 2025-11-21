@@ -82,7 +82,14 @@ export default function CampaignDetail() {
   
   // Check authorization after user, isAdmin, and campaign are loaded
   useEffect(() => {
-    if (campaign && user !== null) {
+    if (campaign) {
+      // Block if not logged in
+      if (!user) {
+        alert('로그인이 필요합니다.')
+        navigate('/login')
+        return
+      }
+      
       // Check permission: must be campaign owner or admin
       if (campaign.company_id !== user.id && !isAdmin) {
         alert('이 캠페인에 접근할 권한이 없습니다.')
