@@ -922,6 +922,7 @@ export default function CampaignDetail() {
               creatorAnalysis: {
                 platform: participant.main_channel || participant.platform || 'instagram',
                 followers: profile?.instagram_followers || profile?.followers_count || 0,
+                skinType: profile?.skin_type || null,
                 contentAnalysis: {
                   engagementRate: profile?.engagement_rate || 5,
                   topHashtags: [],
