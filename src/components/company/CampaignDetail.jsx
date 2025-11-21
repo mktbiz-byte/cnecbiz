@@ -62,12 +62,14 @@ export default function CampaignDetail() {
   const [regenerateRequest, setRegenerateRequest] = useState('')
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
+  const [videoSubmissions, setVideoSubmissions] = useState([])
 
   useEffect(() => {
     checkIfAdmin()
     fetchCampaignDetail()
     fetchParticipants()
     fetchApplications()
+    fetchVideoSubmissions()
   }, [id])
   
   // AI 추천은 campaign이 로드된 후에 실행
@@ -290,6 +292,32 @@ export default function CampaignDetail() {
       setApplications(enrichedData)
     } catch (error) {
       console.error('Error fetching applications:', error)
+    }
+  }
+
+  const fetchVideoSubmissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('video_submissions')
+        .select(`
+          *,
+          applications!inner(
+            id,
+            applicant_name,
+            creator_name,
+            creator_platform,
+            creator_email,
+            user_id
+          )
+        `)
+        .eq('campaign_id', id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setVideoSubmissions(data || [])
+      console.log('Fetched video submissions:', data)
+    } catch (error) {
+      console.error('Error fetching video submissions:', error)
     }
   }
 
@@ -1108,6 +1136,74 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error in bulk guide approval:', error)
       alert('가이드 전달에 실패했습니다.')
+    }
+  }
+  
+  // 영상 검수 완료 및 포인트 지급
+  const handleVideoApproval = async (submission) => {
+    try {
+      // 1. video_submissions 상태 업데이트
+      const { error: videoError } = await supabase
+        .from('video_submissions')
+        .update({
+          status: 'approved',
+          approved_at: new Date().toISOString(),
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', submission.id)
+
+      if (videoError) throw videoError
+
+      // 2. applications 상태 업데이트
+      const { error: appError } = await supabase
+        .from('applications')
+        .update({
+          creator_status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', submission.application_id)
+
+      if (appError) throw appError
+
+      // 3. 포인트 지급
+      const pointAmount = campaign.point || 0
+      if (pointAmount > 0 && submission.applications?.user_id) {
+        // user_profiles의 point 업데이트
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('point')
+          .eq('id', submission.applications.user_id)
+          .single()
+
+        if (!profileError && profile) {
+          const newPoint = (profile.point || 0) + pointAmount
+          await supabase
+            .from('user_profiles')
+            .update({ point: newPoint })
+            .eq('id', submission.applications.user_id)
+
+          // point_history 기록
+          await supabase
+            .from('point_history')
+            .insert([{
+              user_id: submission.applications.user_id,
+              campaign_id: campaign.id,
+              amount: pointAmount,
+              type: 'earn',
+              description: `캠페인 영상 승인: ${campaign.title}`,
+              created_at: new Date().toISOString()
+            }])
+        }
+      }
+
+      // 4. 데이터 새로고침
+      await fetchVideoSubmissions()
+      await fetchParticipants()
+
+      alert(`영상이 승인되었습니다. ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : ''}`)
+    } catch (error) {
+      console.error('Error approving video:', error)
+      alert('영상 승인에 실패했습니다: ' + error.message)
     }
   }
   
@@ -2049,7 +2145,7 @@ export default function CampaignDetail() {
             </TabsTrigger>
             <TabsTrigger value="editing" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              영상 수정
+              영상 확인
             </TabsTrigger>
             <TabsTrigger value="completed" className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4" />
@@ -2629,52 +2725,115 @@ export default function CampaignDetail() {
             </Card>
           </TabsContent>
 
-          {/* 영상 수정 탭 */}
+          {/* 영상 확인 탭 */}
           <TabsContent value="editing">
             <Card>
               <CardHeader>
-                <CardTitle>영상 제출 및 수정 중인 크리에이터</CardTitle>
+                <CardTitle>영상 제출 및 검토</CardTitle>
               </CardHeader>
               <CardContent>
-                {participants.filter(p => ['submitted', 'editing'].includes(p.creator_status)).length === 0 ? (
+                {videoSubmissions.filter(v => ['submitted', 'revision_requested'].includes(v.status)).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     제출된 영상이 없습니다.
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {participants.filter(p => ['submitted', 'editing'].includes(p.creator_status)).map(participant => (
-                      <div key={participant.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
+                  <div className="space-y-6">
+                    {videoSubmissions.filter(v => ['submitted', 'revision_requested'].includes(v.status)).map(submission => (
+                      <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          {/* 왼쪽: 영상 플레이어 */}
                           <div>
-                            <h4 className="font-semibold">{(participant.creator_name || participant.applicant_name || '크리에이터')}</h4>
-                            <p className="text-sm text-gray-600">{participant.creator_platform}</p>
-                            {participant.content_url && (
-                              <a 
-                                href={participant.content_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-sm text-blue-600 hover:underline mt-2 inline-block"
-                              >
-                                영상 보기
-                              </a>
+                            <h4 className="font-semibold text-lg mb-2">{submission.applications?.creator_name || submission.applications?.applicant_name || '크리에이터'}</h4>
+                            <p className="text-sm text-gray-600 mb-4">{submission.applications?.creator_platform}</p>
+                            
+                            {submission.video_file_url && (
+                              <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                                <video 
+                                  controls 
+                                  className="w-full h-full"
+                                  src={submission.video_file_url}
+                                >
+                                  브라우저가 비디오를 지원하지 않습니다.
+                                </video>
+                              </div>
                             )}
+                            
+                            <div className="mt-4 space-y-2">
+                              {submission.sns_title && (
+                                <div>
+                                  <p className="text-xs text-gray-500">SNS 업로드 제목</p>
+                                  <p className="text-sm font-medium">{submission.sns_title}</p>
+                                </div>
+                              )}
+                              {submission.sns_content && (
+                                <div>
+                                  <p className="text-xs text-gray-500">SNS 업로드 내용</p>
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{submission.sns_content}</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {participant.creator_status === 'submitted' ? (
-                              <Badge className="bg-blue-100 text-blue-700">제출완료</Badge>
-                            ) : (
-                              <Badge className="bg-pink-100 text-pink-700">수정중</Badge>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedParticipant(participant)
-                                setShowVideoModal(true)
-                              }}
-                            >
-                              수정 요청
-                            </Button>
+                          
+                          {/* 오른쪽: 정보 및 버튼 */}
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              {submission.status === 'submitted' ? (
+                                <Badge className="bg-blue-100 text-blue-700">검토 대기</Badge>
+                              ) : (
+                                <Badge className="bg-yellow-100 text-yellow-700">수정 요청됨</Badge>
+                              )}
+                            </div>
+                            
+                            <div className="space-y-3 text-sm">
+                              <div>
+                                <p className="text-gray-500">제출일</p>
+                                <p className="font-medium">{new Date(submission.submitted_at).toLocaleString('ko-KR')}</p>
+                              </div>
+                              
+                              {submission.sns_upload_url && (
+                                <div>
+                                  <p className="text-gray-500">SNS 업로드 URL</p>
+                                  <a 
+                                    href={submission.sns_upload_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline break-all"
+                                  >
+                                    {submission.sns_upload_url}
+                                  </a>
+                                </div>
+                              )}
+                              
+                              {submission.partnership_code && (
+                                <div>
+                                  <p className="text-gray-500">파트너십 광고 코드</p>
+                                  <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{submission.partnership_code}</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-col gap-2 pt-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => {
+                                  navigate(`/video-review/${submission.id}`)
+                                }}
+                              >
+                                영상 수정 요청하기
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                onClick={async () => {
+                                  if (!confirm('이 영상을 검수 완료하시겠습니까? 포인트가 지급됩니다.')) return
+                                  await handleVideoApproval(submission)
+                                }}
+                              >
+                                검수 완료
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
