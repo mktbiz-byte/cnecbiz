@@ -853,8 +853,7 @@ export default function CampaignDetail() {
             .from('applications')
             .update({ 
               personalized_guide: JSON.stringify(campaign.ai_generated_guide),
-              guide_confirmed: true,
-              guide_shared_to_company: true
+              guide_confirmed: true
             })
             .eq('id', participant.id)
 
@@ -955,8 +954,7 @@ export default function CampaignDetail() {
           const { error: updateError } = await supabase
             .from('applications')
             .update({ 
-              personalized_guide: guide,
-              guide_shared_to_company: true // 기업이 생성했으므로 바로 공유 상태로 설정
+              personalized_guide: guide
             })
             .eq('id', participant.id)
 
@@ -1461,7 +1459,7 @@ export default function CampaignDetail() {
                   {campaign.campaign_type === 'planned' && (
                     <>
                       <td className="px-4 py-3">
-                        {participant.personalized_guide && participant.guide_shared_to_company ? (
+                        {participant.personalized_guide ? (
                           <Button
                             size="sm"
                             onClick={() => {
@@ -1486,7 +1484,7 @@ export default function CampaignDetail() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {participant.personalized_guide && participant.guide_shared_to_company ? (
+                        {participant.personalized_guide ? (
                           !participant.guide_confirmed ? (
                             <Button
                               size="sm"
@@ -3055,7 +3053,7 @@ export default function CampaignDetail() {
             {/* 모달 푸터 */}
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-between">
               <div>
-                {selectedGuide.guide_shared_to_company && (
+                {selectedGuide.personalized_guide && (
                   <span className="text-sm text-green-600 flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
                     관리자가 전달한 가이드입니다
