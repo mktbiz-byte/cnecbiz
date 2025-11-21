@@ -1642,13 +1642,6 @@ export default function CampaignDetail() {
               >
                 선택한 크리에이터 가이드 승인 ({selectedParticipants.length}명)
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleSendDeadlineReminder}
-                className="text-blue-600 border-blue-600 hover:bg-blue-50"
-              >
-                마감 독촉 메일 보내기
-              </Button>
               {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
                 <Button
                   variant="outline"
