@@ -2732,6 +2732,23 @@ export default function CampaignDetail() {
                 <CardTitle>영상 제출 및 검토</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* 6개월 보관 정책 안내 */}
+                <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-yellow-800 text-lg mb-2">⚠️ 영상 보관 정책 안내</h4>
+                      <div className="text-yellow-700 space-y-1">
+                        <p className="font-semibold">• 제출된 영상은 <span className="text-red-600 font-bold">검수 완료 후 6개월간 보관</span>됩니다.</p>
+                        <p className="font-semibold">• 6개월 후 자동으로 삭제되며, <span className="text-red-600 font-bold">복구가 불가능</span>합니다.</p>
+                        <p className="font-semibold">• 필요한 경우 <span className="text-blue-600 font-bold">삭제 전에 반드시 다운로드</span>해주세요.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {videoSubmissions.filter(v => ['submitted', 'revision_requested'].includes(v.status)).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     제출된 영상이 없습니다.
@@ -2790,6 +2807,16 @@ export default function CampaignDetail() {
                                 <p className="font-medium">{new Date(submission.submitted_at).toLocaleString('ko-KR')}</p>
                               </div>
                               
+                              {submission.approved_at && (
+                                <div className="bg-red-50 border border-red-200 rounded p-3">
+                                  <p className="text-red-600 font-semibold text-xs mb-1">⚠️ 삭제 예정일</p>
+                                  <p className="text-red-700 font-bold">
+                                    {new Date(new Date(submission.approved_at).getTime() + 180 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')}
+                                  </p>
+                                  <p className="text-xs text-red-600 mt-1">검수 완료 후 6개월 후 자동 삭제</p>
+                                </div>
+                              )}
+                              
                               {submission.sns_upload_url && (
                                 <div>
                                   <p className="text-gray-500">SNS 업로드 URL</p>
@@ -2813,6 +2840,25 @@ export default function CampaignDetail() {
                             </div>
                             
                             <div className="flex flex-col gap-2 pt-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                                onClick={() => {
+                                  const link = document.createElement('a')
+                                  link.href = submission.video_file_url
+                                  link.download = `${submission.applications?.creator_name || 'video'}_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                  link.target = '_blank'
+                                  document.body.appendChild(link)
+                                  link.click()
+                                  document.body.removeChild(link)
+                                }}
+                              >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                영상 다운로드
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
