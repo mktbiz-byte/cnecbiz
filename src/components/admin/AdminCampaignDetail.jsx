@@ -41,10 +41,40 @@ export default function AdminCampaignDetail() {
   const [generatingGuides, setGeneratingGuides] = useState(new Set())
 
   useEffect(() => {
-    checkAuth()
-    fetchCampaignDetail()
-    fetchApplications()
+    const initPage = async () => {
+      await checkAuth()
+      await fetchCampaignDetail()
+      fetchApplications()
+    }
+    initPage()
   }, [id, region])
+  
+  // Check authorization after user loads
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!supabaseBiz) return
+      
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) {
+        alert('로그인이 필요합니다.')
+        navigate('/login')
+        return
+      }
+      
+      // Check if user is admin
+      const { data: adminData } = await supabaseBiz
+        .from('admin_users')
+        .select('*')
+        .eq('email', user.email)
+        .single()
+      
+      if (!adminData) {
+        alert('관리자 권한이 필요합니다.')
+        navigate('/')
+      }
+    }
+    checkAccess()
+  }, [])
 
   const checkAuth = async () => {
     try {
