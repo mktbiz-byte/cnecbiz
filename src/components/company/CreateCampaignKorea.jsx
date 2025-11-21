@@ -16,7 +16,7 @@ const CampaignCreationKorea = () => {
   const detailImageInputRef = useRef(null)
 
   const [campaignForm, setCampaignForm] = useState({
-    campaign_type: 'regular',  // 'regular', 'oliveyoung', '4week_challenge'
+    campaign_type: 'planned',  // 'planned', 'oliveyoung', '4week_challenge'
     package_type: 'intermediate',  // 기본값: 스탠다드 패키지
     brand: '',
     product_name: '',
@@ -603,14 +603,14 @@ const CampaignCreationKorea = () => {
                 <h3 className="text-lg font-semibold mb-4">🎯 캠페인 타입 선택 *</h3>
                 <div className="space-y-3">
                   {/* 기획형 캠페인 */}
-                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'regular', is_oliveyoung_sale: false }))}>
+                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}>
                     <input
                       type="radio"
                       id="campaign_type_regular"
                       name="campaign_type"
-                      value="regular"
-                      checked={campaignForm.campaign_type === 'regular'}
-                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'regular', is_oliveyoung_sale: false }))}
+                      value="planned"
+                      checked={campaignForm.campaign_type === 'planned'}
+                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}
                       className="w-5 h-5 mt-1 text-blue-600"
                     />
                     <div className="flex-1">
@@ -898,7 +898,7 @@ const CampaignCreationKorea = () => {
                 </div>
 
                 {/* 기획형 캠페인 스케줄 */}
-                {campaignForm.campaign_type === 'regular' && (
+                {campaignForm.campaign_type === 'planned' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="start_date">촬영 마감일 *</Label>
