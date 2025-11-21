@@ -61,6 +61,7 @@ export default function CampaignDetail() {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false)
   const [regenerateRequest, setRegenerateRequest] = useState('')
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const [editingDeadline, setEditingDeadline] = useState(null)
 
   useEffect(() => {
     checkIfAdmin()
@@ -1529,7 +1530,48 @@ export default function CampaignDetail() {
                     })()}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {campaign.content_submission_deadline || '미정'}
+                    {editingDeadline === participant.id ? (
+                      <input
+                        type="date"
+                        defaultValue={campaign.content_submission_deadline || ''}
+                        onBlur={async (e) => {
+                          const newDeadline = e.target.value
+                          if (newDeadline) {
+                            try {
+                              const { error } = await supabase
+                                .from('applications')
+                                .update({ submission_deadline: newDeadline })
+                                .eq('id', participant.id)
+                              
+                              if (error) throw error
+                              
+                              await fetchParticipants()
+                              alert('마감일이 업데이트되었습니다.')
+                            } catch (error) {
+                              console.error('Error updating deadline:', error)
+                              alert('마감일 업데이트에 실패했습니다.')
+                            }
+                          }
+                          setEditingDeadline(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.target.blur()
+                          } else if (e.key === 'Escape') {
+                            setEditingDeadline(null)
+                          }
+                        }}
+                        className="px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        onClick={() => setEditingDeadline(participant.id)}
+                        className="cursor-pointer hover:text-blue-600 hover:underline"
+                      >
+                        {participant.submission_deadline || campaign.content_submission_deadline || '미정'}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1940,9 +1982,9 @@ export default function CampaignDetail() {
                 <div>
                   <p className="text-sm text-gray-600">패키지</p>
                   <p className="text-2xl font-bold mt-2">
-                    {campaign.package_type === 'junior' && 'Junior'}
-                    {campaign.package_type === 'intermediate' && 'Intermediate'}
-                    {campaign.package_type === 'senior' && 'Senior'}
+                    {campaign.package_type === 'junior' && '초급'}
+                    {campaign.package_type === 'intermediate' && '스탠다드'}
+                    {campaign.package_type === 'senior' && '프리미엄'}
                     {campaign.package_type === 'oliveyoung' && '올영 패키지'}
                     {campaign.package_type === 'premium' && '프리미엄 패키지'}
                     {campaign.package_type === '4week_challenge' && '4주 챌린지'}
