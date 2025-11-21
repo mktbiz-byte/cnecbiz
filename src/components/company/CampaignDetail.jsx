@@ -661,7 +661,7 @@ export default function CampaignDetail() {
           creator_name: app.applicant_name,
           creator_email: app.applicant_email || app.email || '',
           creator_platform: platform,
-          creator_status: 'guide_confirmation',
+          status: 'guide_confirmation',
           created_at: new Date().toISOString()
         }
       })
@@ -1054,7 +1054,7 @@ export default function CampaignDetail() {
               guide_confirmed: true,
               guide_sent: true,
               guide_sent_at: new Date().toISOString(),
-              creator_status: 'filming'
+              status: 'filming'
             })
             .eq('id', participantId)
 
@@ -1158,7 +1158,7 @@ export default function CampaignDetail() {
       const { error: appError } = await supabase
         .from('applications')
         .update({
-          creator_status: 'completed',
+          status: 'completed',
           completed_at: new Date().toISOString()
         })
         .eq('id', submission.application_id)
@@ -1433,31 +1433,31 @@ export default function CampaignDetail() {
             <div className="flex items-center gap-2">
               <span className="text-gray-600">가이드 확인중:</span>
               <Badge className="bg-purple-100 text-purple-700">
-                {filteredParticipants.filter(p => p.creator_status === 'guide_confirmation').length}명
+                {filteredParticipants.filter(p => p.status === 'guide_confirmation').length}명
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-gray-600">촬영중:</span>
               <Badge className="bg-yellow-100 text-yellow-700">
-                {filteredParticipants.filter(p => p.creator_status === 'filming').length}명
+                {filteredParticipants.filter(p => p.status === 'filming').length}명
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-gray-600">수정중:</span>
               <Badge className="bg-pink-100 text-pink-700">
-                {filteredParticipants.filter(p => p.creator_status === 'editing').length}명
+                {filteredParticipants.filter(p => p.status === 'editing').length}명
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-gray-600">제출완료:</span>
               <Badge className="bg-blue-100 text-blue-700">
-                {filteredParticipants.filter(p => p.creator_status === 'submitted').length}명
+                {filteredParticipants.filter(p => p.status === 'submitted').length}명
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-gray-600">승인완료:</span>
               <Badge className="bg-green-100 text-green-700">
-                {filteredParticipants.filter(p => p.creator_status === 'approved').length}명
+                {filteredParticipants.filter(p => p.status === 'approved').length}명
               </Badge>
             </div>
           </div>
@@ -1612,7 +1612,7 @@ export default function CampaignDetail() {
                   )}
                   <td className="px-4 py-3">
                     {(() => {
-                      const status = participant.creator_status || 'guide_confirmation'
+                      const status = participant.status || 'guide_confirmation'
                       const statusConfig = {
                         guide_confirmation: { label: '가이드 확인중', className: 'bg-purple-100 text-purple-700' },
                         filming: { label: '촬영중', className: 'bg-yellow-100 text-yellow-700' },
@@ -1819,7 +1819,7 @@ export default function CampaignDetail() {
     try {
       const { error } = await supabase
         .from('applications')
-        .update({ creator_status: newStatus })
+        .update({ status: newStatus })
         .eq('id', participantId)
 
       if (error) throw error
@@ -2326,7 +2326,7 @@ export default function CampaignDetail() {
                               creator_name: app.applicant_name,
                               creator_email: app.applicant_email || app.email || '',
                               creator_platform: platform,
-                              creator_status: 'guide_confirmation',
+                              status: 'guide_confirmation',
                               created_at: new Date().toISOString()
                             }])
 
@@ -2588,7 +2588,7 @@ export default function CampaignDetail() {
                               creator_name: app.applicant_name,
                               creator_email: app.applicant_email || app.email || '',
                               creator_platform: platform,
-                              creator_status: 'guide_confirmation',
+                              status: 'guide_confirmation',
                               created_at: new Date().toISOString()
                             }])
 
@@ -2897,13 +2897,13 @@ export default function CampaignDetail() {
                 <CardTitle>완료된 크리에이터</CardTitle>
               </CardHeader>
               <CardContent>
-                {participants.filter(p => p.creator_status === 'completed').length === 0 ? (
+                    {participants.filter(p => p.status === 'completed').length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 완료된 크리에이터가 없습니다.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {participants.filter(p => p.creator_status === 'completed').map(participant => (
+                    {participants.filter(p => p.status === 'completed').map(participant => (
                       <div key={participant.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
