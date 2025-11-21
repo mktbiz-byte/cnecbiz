@@ -984,14 +984,14 @@ export default function CampaignDetail() {
     }
   }
 
-  // 가이드 승인 및 알림 발송 함수
+  // 가이드 전달 및 알림 발송 함수
   const handleGuideApproval = async (participantIds) => {
     if (!participantIds || participantIds.length === 0) {
       alert('승인할 크리에이터를 선택해주세요.')
       return
     }
 
-    if (!confirm(`${participantIds.length}명의 크리에이터에게 가이드를 승인하고 전송하시겠습니까?`)) {
+    if (!confirm(`${participantIds.length}명의 크리에이터에게 가이드를 전달하시겠습니까?`)) {
       return
     }
 
@@ -1015,11 +1015,13 @@ export default function CampaignDetail() {
             continue
           }
 
-          // 가이드 승인 상태 업데이트 및 촬영중으로 변경
+          // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           await supabase
             .from('applications')
             .update({ 
               guide_confirmed: true,
+              guide_sent: true,
+              guide_sent_at: new Date().toISOString(),
               creator_status: 'filming'
             })
             .eq('id', participantId)
@@ -1039,19 +1041,20 @@ export default function CampaignDetail() {
               .eq('id', app.user_id)
               .maybeSingle()
 
-            // 알림톡 발송
+            // 팝빌 알림톡 발송
             if (profile?.phone) {
               try {
-                await fetch('/.netlify/functions/send-naver-works-message', {
+                await fetch('/.netlify/functions/send-kakao-notification', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    phone: profile.phone,
+                    receiverNum: profile.phone,
+                    receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
                     templateCode: '025100001012',
                     variables: {
-                      크리에이터명: (participant.creator_name || participant.applicant_name || '크리에이터'),
-                      캠페인명: campaign.title,
-                      제출기한: campaign.content_submission_deadline || '미정'
+                      '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                      '캠페인명': campaign.title,
+                      '제출기한': campaign.content_submission_deadline || '미정'
                     }
                   })
                 })
@@ -1094,13 +1097,13 @@ export default function CampaignDetail() {
       await fetchParticipants()
 
       if (errorCount === 0) {
-        alert(`${successCount}명의 크리에이터에게 가이드 승인이 완료되고 알림이 발송되었습니다.`)
+        alert(`${successCount}명의 크리에이터에게 가이드가 전달되었습니다.`)
       } else {
         alert(`${successCount}명 승인 완료, ${errorCount}명 실패했습니다.`)
       }
     } catch (error) {
       console.error('Error in bulk guide approval:', error)
-      alert('가이드 승인에 실패했습니다.')
+      alert('가이드 전달에 실패했습니다.')
     }
   }
   
@@ -1384,7 +1387,7 @@ export default function CampaignDetail() {
                 {campaign.campaign_type === 'planned' && (
                   <>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 전달</th>
                   </>
                 )}
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
@@ -1491,15 +1494,15 @@ export default function CampaignDetail() {
                               size="sm"
                               variant="outline"
                               onClick={async () => {
-                                if (!confirm(`${(participant.creator_name || participant.applicant_name || '크리에이터')}님의 가이드를 승인하고 전송하시겠습니까?`)) return
+                                if (!confirm(`${(participant.creator_name || participant.applicant_name || '크리에이터')}님에게 가이드를 전달하시겠습니까?`)) return
                                 await handleGuideApproval([participant.id])
                               }}
                               className="text-green-600 border-green-600 hover:bg-green-50"
                             >
-                              가이드 승인
+                              가이드 전달
                             </Button>
                           ) : (
-                            <Badge className="bg-green-100 text-green-800">승인완료</Badge>
+                            <Badge className="bg-green-100 text-green-800">전달완료</Badge>
                           )
                         ) : (
                           <span className="text-sm text-gray-400">가이드 생성 후 사용 가능</span>
@@ -1640,7 +1643,7 @@ export default function CampaignDetail() {
                 disabled={selectedParticipants.length === 0}
                 className="text-green-600 border-green-600 hover:bg-green-50"
               >
-                선택한 크리에이터 가이드 승인 ({selectedParticipants.length}명)
+                선택한 크리에이터 가이드 전달 ({selectedParticipants.length}명)
               </Button>
               {campaign.total_slots && selectedParticipants.length > campaign.total_slots && (
                 <Button
