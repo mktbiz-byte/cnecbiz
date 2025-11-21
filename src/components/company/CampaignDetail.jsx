@@ -100,6 +100,7 @@ export default function CampaignDetail() {
         .single()
 
       if (error) throw error
+      console.log('🔍 Campaign Type:', data?.campaign_type, 'Full data:', data)
       setCampaign(data)
     } catch (error) {
       console.error('Error fetching campaign:', error)
