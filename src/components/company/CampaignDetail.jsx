@@ -299,14 +299,7 @@ export default function CampaignDetail() {
     try {
       const { data, error } = await supabase
         .from('video_submissions')
-        .select(`
-          *,
-          applications!inner(
-            id,
-            applicant_name,
-            user_id
-          )
-        `)
+        .select('*')
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
 
@@ -2844,7 +2837,7 @@ export default function CampaignDetail() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
-                            <h4 className="font-semibold text-lg mb-2">{submission.applications?.applicant_name || '크리에이터'}</h4>
+                            <h4 className="font-semibold text-lg mb-2">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
                             
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
