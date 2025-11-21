@@ -397,7 +397,7 @@ export default function CampaignDetail() {
         .from('applications')
         .update(updateData)
         .eq('campaign_id', participant.campaign_id)
-        .eq('applicant_name', participant.creator_name)
+        .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
         .eq('status', 'selected')
 
       if (appError) {
@@ -481,7 +481,7 @@ export default function CampaignDetail() {
             .from('applications')
             .update({ tracking_number: trackingNumber })
             .eq('campaign_id', participant.campaign_id)
-            .eq('applicant_name', participant.creator_name)
+            .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
             .eq('status', 'selected')
 
           successCount++
@@ -525,7 +525,7 @@ export default function CampaignDetail() {
           .from('applications')
           .update({ shipping_company: bulkCourierCompany })
           .eq('campaign_id', participant.campaign_id)
-          .eq('applicant_name', participant.creator_name)
+          .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
           .eq('status', 'selected')
       }
 
@@ -872,7 +872,7 @@ export default function CampaignDetail() {
 
           successCount++
         } catch (error) {
-          console.error(`Error delivering guide to ${participant.creator_name}:`, error)
+          console.error(`Error delivering guide to ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
           errorCount++
         }
       }
@@ -966,7 +966,7 @@ export default function CampaignDetail() {
 
           successCount++
         } catch (error) {
-          console.error(`Error generating guide for ${participant.creator_name}:`, error)
+          console.error(`Error generating guide for ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
           errorCount++
         }
       }
@@ -1012,7 +1012,7 @@ export default function CampaignDetail() {
 
           // 이미 승인된 경우 건너뛰기
           if (participant.guide_confirmed) {
-            console.log(`Participant ${participant.creator_name} already approved`)
+            console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already approved`)
             continue
           }
 
@@ -1030,7 +1030,7 @@ export default function CampaignDetail() {
             .from('applications')
             .select('user_id, applicant_name')
             .eq('campaign_id', id)
-            .eq('applicant_name', participant.creator_name)
+            .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
             .maybeSingle()
 
           if (app?.user_id) {
@@ -1050,7 +1050,7 @@ export default function CampaignDetail() {
                     phone: profile.phone,
                     templateCode: '025100001012',
                     variables: {
-                      크리에이터명: participant.creator_name,
+                      크리에이터명: (participant.creator_name || participant.applicant_name || '크리에이터'),
                       캠페인명: campaign.title,
                       제출기한: campaign.content_submission_deadline || '미정'
                     }
@@ -1070,7 +1070,7 @@ export default function CampaignDetail() {
                   to: participant.creator_email,
                   subject: '[CNEC] 선정되신 캠페인 가이드 전달',
                   html: `
-                    <h2>${participant.creator_name}님, 선정되신 캠페인의 촬영 가이드가 전달되었습니다.</h2>
+                    <h2>${(participant.creator_name || participant.applicant_name || '크리에이터')}님, 선정되신 캠페인의 촬영 가이드가 전달되었습니다.</h2>
                     <p><strong>캠페인:</strong> ${campaign.title}</p>
                     <p><strong>영상 제출 기한:</strong> ${campaign.content_submission_deadline || '미정'}</p>
                     <p>크리에이터 대시보드에서 가이드를 확인하시고, 가이드에 따라 촬영을 진행해 주세요.</p>
@@ -1409,7 +1409,7 @@ export default function CampaignDetail() {
                       className="w-4 h-4"
                     />
                   </td>
-                  <td className="px-4 py-3">{participant.creator_name || participant.applicant_name}</td>
+                  <td className="px-4 py-3">{participant.creator_name || participant.applicant_name || '크리에이터'}</td>
                   <td className="px-4 py-3">{participant.creator_platform || participant.main_channel || participant.platform || '-'}</td>
                   <td className="px-4 py-3">
                     <Button
@@ -1476,7 +1476,7 @@ export default function CampaignDetail() {
                           <Button
                             size="sm"
                             onClick={async () => {
-                              if (!confirm(`${participant.creator_name}님의 맞춤 가이드를 생성하시겠습니까?`)) return
+                              if (!confirm(`${(participant.creator_name || participant.applicant_name || '크리에이터')}님의 맞춤 가이드를 생성하시겠습니까?`)) return
                               await handleGeneratePersonalizedGuides([participant])
                             }}
                             className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -1492,7 +1492,7 @@ export default function CampaignDetail() {
                               size="sm"
                               variant="outline"
                               onClick={async () => {
-                                if (!confirm(`${participant.creator_name}님의 가이드를 승인하고 전송하시겠습니까?`)) return
+                                if (!confirm(`${(participant.creator_name || participant.applicant_name || '크리에이터')}님의 가이드를 승인하고 전송하시겠습니까?`)) return
                                 await handleGuideApproval([participant.id])
                               }}
                               className="text-green-600 border-green-600 hover:bg-green-50"
@@ -2590,7 +2590,7 @@ export default function CampaignDetail() {
                       <div key={participant.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-semibold">{participant.creator_name}</h4>
+                            <h4 className="font-semibold">{(participant.creator_name || participant.applicant_name || '크리에이터')}</h4>
                             <p className="text-sm text-gray-600">{participant.creator_platform}</p>
                             {participant.content_url && (
                               <a 
@@ -2646,7 +2646,7 @@ export default function CampaignDetail() {
                       <div key={participant.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-semibold">{participant.creator_name}</h4>
+                            <h4 className="font-semibold">{(participant.creator_name || participant.applicant_name || '크리에이터')}</h4>
                             <p className="text-sm text-gray-600">{participant.creator_platform}</p>
                             {participant.content_url && (
                               <a 
@@ -2702,7 +2702,7 @@ export default function CampaignDetail() {
                       <tbody className="divide-y">
                         {participants.map((participant) => (
                           <tr key={participant.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">{participant.creator_name}</td>
+                            <td className="px-4 py-3">{(participant.creator_name || participant.applicant_name || '크리에이터')}</td>
                             <td className="px-4 py-3">{participant.creator_platform}</td>
                             <td className="px-4 py-3">
                               <span className="text-lg font-semibold text-blue-600">
