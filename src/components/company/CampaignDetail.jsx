@@ -3022,24 +3022,114 @@ export default function CampaignDetail() {
                           : selectedGuide.personalized_guide;
                         
                         return (
-                          <div className="space-y-4">
-                            <div><strong>캠페인:</strong> {guideData.campaign_title}</div>
-                            <div><strong>플랫폼:</strong> {guideData.target_platform}</div>
-                            <div><strong>영상 길이:</strong> {guideData.video_duration}</div>
-                            <div className="mt-4">
-                              <strong>촬영 씬 ({guideData.shooting_scenes?.length || 0}개):</strong>
-                              <div className="mt-2 space-y-3">
+                          <div className="space-y-6">
+                            {/* 기본 정보 */}
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                              <h3 className="font-bold text-lg mb-2">{selectedGuide.creator_name || selectedGuide.applicant_name || '크리에이터'}님의 맞춤 가이드</h3>
+                              <div className="space-y-1 text-sm">
+                                <div><strong>캠페인:</strong> {guideData.campaign_title}</div>
+                                <div><strong>플랫폼:</strong> {guideData.target_platform}</div>
+                                <div><strong>영상 길이:</strong> {guideData.video_duration}</div>
+                              </div>
+                            </div>
+
+                            {/* 필수 해시태그 */}
+                            {guideData.required_hashtags && (
+                              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                <h4 className="font-semibold mb-3">필수 해시태그</h4>
+                                <div className="space-y-2">
+                                  {guideData.required_hashtags.real && (
+                                    <div>
+                                      <span className="text-sm font-medium text-gray-700">리얼 후기:</span>
+                                      <div className="flex flex-wrap gap-2 mt-1">
+                                        {guideData.required_hashtags.real.map((tag, i) => (
+                                          <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">#{tag}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {guideData.required_hashtags.product && (
+                                    <div>
+                                      <span className="text-sm font-medium text-gray-700">제품 관련:</span>
+                                      <div className="flex flex-wrap gap-2 mt-1">
+                                        {guideData.required_hashtags.product.map((tag, i) => (
+                                          <span key={i} className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">#{tag}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {guideData.required_hashtags.common && (
+                                    <div>
+                                      <span className="text-sm font-medium text-gray-700">공통:</span>
+                                      <div className="flex flex-wrap gap-2 mt-1">
+                                        {guideData.required_hashtags.common.map((tag, i) => (
+                                          <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">#{tag}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 촬영 요구사항 */}
+                            {guideData.shooting_requirements && (
+                              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                <h4 className="font-semibold mb-3">촬영 요구사항</h4>
+                                <div className="space-y-2">
+                                  {guideData.shooting_requirements.must_include && (
+                                    <div>
+                                      <span className="text-sm font-medium text-gray-700">필수 포함 장면:</span>
+                                      <ul className="list-disc list-inside mt-1 space-y-1">
+                                        {guideData.shooting_requirements.must_include.map((item, i) => (
+                                          <li key={i} className="text-sm text-gray-700">{item}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  {guideData.shooting_requirements.video_style && (
+                                    <div className="mt-2">
+                                      <span className="text-sm font-medium text-gray-700">영상 스타일:</span>
+                                      <div className="text-sm text-gray-700 mt-1">
+                                        <div>템포: {guideData.shooting_requirements.video_style.tempo}</div>
+                                        <div>톤: {guideData.shooting_requirements.video_style.tone}</div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 촬영 씬 */}
+                            <div>
+                              <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
+                              <div className="space-y-3">
                                 {(guideData.shooting_scenes || []).map((scene, idx) => (
-                                  <div key={idx} className="bg-gray-50 p-3 rounded">
-                                    <div className="font-semibold">씬 {scene.order}: {scene.scene_type}</div>
-                                    <div className="text-sm mt-1">{scene.scene_description}</div>
+                                  <div key={idx} className="bg-gray-50 p-3 rounded border border-gray-200">
+                                    <div className="font-semibold text-purple-700">씬 {scene.order}: {scene.scene_type}</div>
+                                    <div className="text-sm mt-1 text-gray-700">{scene.scene_description}</div>
                                     {scene.dialogue && (
-                                      <div className="text-sm mt-1 italic">""{scene.dialogue}""</div>
+                                      <div className="text-sm mt-1 italic text-gray-600">""{scene.dialogue}""</div>
+                                    )}
+                                    {scene.shooting_tip && (
+                                      <div className="text-xs mt-1 text-gray-500">팁: {scene.shooting_tip}</div>
                                     )}
                                   </div>
                                 ))}
                               </div>
                             </div>
+
+                            {/* 크리에이터 팁 */}
+                            {guideData.creator_tips && guideData.creator_tips.length > 0 && (
+                              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <h4 className="font-semibold mb-3">크리에이터 팁</h4>
+                                <ul className="list-decimal list-inside space-y-1">
+                                  {guideData.creator_tips.filter(tip => tip).map((tip, i) => (
+                                    <li key={i} className="text-sm text-gray-700">{tip}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         );
                       } catch (error) {
