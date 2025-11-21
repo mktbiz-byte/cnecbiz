@@ -632,8 +632,8 @@ export default function PointsChargePage() {
   const handleCancelRequest = async (requestId) => {
     console.log('[DEBUG] Cancel button clicked for request:', requestId)
     
-    if (!window.confirm('결제 신청을 취소하시겠습니까?\n\n⚠️ 이미 입금하신 경우, 환불 처리에 시간이 걸릴 수 있습니다.') {
-      console.log('[DEBUG] User cancelled the confirmation')
+    if (!window.confirm('결제 신청을 취소하시겠습니까?\n\n⚠️ 이미 입금하신 경우, 환불 처리에 시간이 걸릴 수 있습니다.')) {
+      console.log('[DEBUG] User cancelled the confirmation'))
       return
     }
 
