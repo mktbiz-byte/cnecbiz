@@ -2476,7 +2476,13 @@ export default function CampaignDetail() {
           {/* AI 가이드 탭 */}
           <TabsContent value="ai-guide">
             {campaign?.ai_generated_guide ? (
-              <CampaignGuideViewer guide={campaign.ai_generated_guide} />
+              <CampaignGuideViewer 
+                guide={campaign.ai_generated_guide} 
+                campaignId={campaign.id}
+                onUpdate={(updatedGuide) => {
+                  setCampaign({ ...campaign, ai_generated_guide: updatedGuide })
+                }}
+              />
             ) : (
               <Card>
                 <CardContent className="p-12 text-center">

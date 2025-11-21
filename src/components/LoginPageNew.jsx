@@ -60,7 +60,14 @@ export default function LoginPageNew() {
         setError('등록되지 않은 사용자입니다. 회원가입을 먼저 진행해주세요.')
       }
     } catch (error) {
-      setError(error.message || '로그인에 실패했습니다.')
+      // Supabase 오류 메시지 한글화
+      let errorMessage = '로그인에 실패했습니다.'
+      if (error.message === 'Invalid login credentials') {
+        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.'
+      } else if (error.message.includes('Email not confirmed')) {
+        errorMessage = '이메일 인증이 필요합니다. 이메일을 확인해주세요.'
+      }
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }

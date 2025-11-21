@@ -75,7 +75,14 @@ const LoginPage = () => {
       navigate('/dashboard')
     } catch (error) {
       console.error('Login error:', error)
-      alert(error.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.')
+      // Supabase 오류 메시지 한글화
+      let errorMessage = '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.'
+      if (error.message === 'Invalid login credentials') {
+        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.'
+      } else if (error.message.includes('Email not confirmed')) {
+        errorMessage = '이메일 인증이 필요합니다. 이메일을 확인해주세요.'
+      }
+      alert(errorMessage)
     } finally {
       setLoading(false)
     }
