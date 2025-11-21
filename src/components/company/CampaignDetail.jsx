@@ -1380,7 +1380,7 @@ export default function CampaignDetail() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배송정보</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사 / 송장번호</th>
-                {campaign.campaign_type === 'planning' && (
+                {campaign.campaign_type === 'regular' && (
                   <>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
@@ -1456,23 +1456,31 @@ export default function CampaignDetail() {
                       </div>
                     </div>
                   </td>
-                  {campaign.campaign_type === 'planning' && (
+                  {campaign.campaign_type === 'regular' && (
                     <>
                       <td className="px-4 py-3">
                         {participant.personalized_guide && participant.guide_shared_to_company ? (
                           <Button
                             size="sm"
-                            variant="outline"
                             onClick={() => {
                               setSelectedGuide(participant)
                               setShowGuideModal(true)
                             }}
-                            className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                            className="bg-pink-500 hover:bg-pink-600 text-white"
                           >
-                            가이드 보기
+                            👁️ 가이드 보기
                           </Button>
                         ) : (
-                          <span className="text-gray-500 text-sm bg-gray-100 px-3 py-1 rounded">기획중</span>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (!confirm(`${participant.creator_name}님의 맞춤 가이드를 생성하시겠습니까?`)) return
+                              await handleGeneratePersonalizedGuides([participant])
+                            }}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                          >
+                            📝 AI 가이드 생성
+                          </Button>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -1486,8 +1494,8 @@ export default function CampaignDetail() {
                             }}
                             className="text-green-600 border-green-600 hover:bg-green-50"
                           >
-                        가이드 승인
-                      </Button>
+                            가이드 승인
+                          </Button>
                     ) : (
                       <Badge className="bg-green-100 text-green-800">승인완료</Badge>
                     )}
@@ -1583,15 +1591,23 @@ export default function CampaignDetail() {
                   택배사 일괄 수정 ({selectedParticipants.length}명)
                 </Button>
               </div>
-              {campaign.campaign_type === 'planning' && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleGeneratePersonalizedGuides(filteredParticipants.filter(p => selectedParticipants.includes(p.id)))}
-                  disabled={selectedParticipants.length === 0}
-                  className="text-purple-600 border-purple-600 hover:bg-purple-50"
-                >
-                  맞춤 가이드 생성 ({selectedParticipants.length}명)
-                </Button>
+              {campaign.campaign_type === 'regular' && (
+                <>
+                  <Button
+                    onClick={() => handleGeneratePersonalizedGuides(filteredParticipants)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    🚀 전체 AI 가이드 생성 ({filteredParticipants.length}명)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleGeneratePersonalizedGuides(filteredParticipants.filter(p => selectedParticipants.includes(p.id)))}
+                    disabled={selectedParticipants.length === 0}
+                    className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                  >
+                    선택한 크리에이터 가이드 생성 ({selectedParticipants.length}명)
+                  </Button>
+                </>
               )}
               {campaign.campaign_type === 'oliveyoung_sale' && (
                 <>
