@@ -1073,6 +1073,7 @@ export default function CampaignDetail() {
               status: 'filming'
             })
             .eq('id', participantId)
+            .select()
           
           if (updateError) {
             console.error('[ERROR] Failed to update application status:', updateError)
@@ -2302,16 +2303,23 @@ export default function CampaignDetail() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {applications.map(app => (
-                    <CreatorCard
-                      key={app.id}
-                      application={app}
-                      onVirtualSelect={handleVirtualSelect}
-                      isConfirmed={app.status === 'selected'}
-                      onCancel={(app) => {
-                        setCancellingApp(app)
-                        setCancelModalOpen(true)
-                      }}
+                  {applications.map(app => {
+                    // 이미 participants에 있는지 확인
+                    const isAlreadyParticipant = participants.some(p => 
+                      (p.creator_name || p.applicant_name) === app.applicant_name
+                    )
+                    
+                    return (
+                      <CreatorCard
+                        key={app.id}
+                        application={app}
+                        onVirtualSelect={handleVirtualSelect}
+                        isConfirmed={app.status === 'selected'}
+                        isAlreadyParticipant={isAlreadyParticipant}
+                        onCancel={(app) => {
+                          setCancellingApp(app)
+                          setCancelModalOpen(true)
+                        }}
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
@@ -2418,7 +2426,8 @@ export default function CampaignDetail() {
                         }
                       }}
                     />
-                  ))}
+                    )
+                  })}
                 </div>
                 {applications.length === 0 && (
                   <div className="text-center py-12 text-gray-500">
@@ -2574,16 +2583,23 @@ export default function CampaignDetail() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {applications.filter(app => app.virtual_selected).map(app => (
-                    <CreatorCard
-                      key={app.id}
-                      application={app}
-                      onVirtualSelect={handleVirtualSelect}
-                      isConfirmed={app.status === 'selected'}
-                      onCancel={(app) => {
-                        setCancellingApp(app)
-                        setCancelModalOpen(true)
-                      }}
+                  {applications.filter(app => app.virtual_selected).map(app => {
+                    // 이미 participants에 있는지 확인
+                    const isAlreadyParticipant = participants.some(p => 
+                      (p.creator_name || p.applicant_name) === app.applicant_name
+                    )
+                    
+                    return (
+                      <CreatorCard
+                        key={app.id}
+                        application={app}
+                        onVirtualSelect={handleVirtualSelect}
+                        isConfirmed={app.status === 'selected'}
+                        isAlreadyParticipant={isAlreadyParticipant}
+                        onCancel={(app) => {
+                          setCancellingApp(app)
+                          setCancelModalOpen(true)
+                        }}
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
@@ -2690,7 +2706,8 @@ export default function CampaignDetail() {
                         }
                       }}
                     />
-                  ))}
+                    )
+                  })}
                 </div>
                 {applications.filter(app => app.virtual_selected).length === 0 && (
                   <div className="text-center py-12 text-gray-500">
