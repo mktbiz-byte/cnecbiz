@@ -1469,7 +1469,7 @@ export default function CampaignDetail() {
                             }}
                             className="bg-pink-500 hover:bg-pink-600 text-white"
                           >
-                            👁️ 가이드 보기
+                            가이드 보기
                           </Button>
                         ) : (
                           <Button
@@ -3018,7 +3018,6 @@ export default function CampaignDetail() {
                           <div className="space-y-6">
                             {/* 기본 정보 */}
                             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                              <h3 className="font-bold text-lg mb-2">{selectedGuide.creator_name || selectedGuide.applicant_name || '크리에이터'}님의 맞춤 가이드</h3>
                               <div className="space-y-1 text-sm">
                                 <div><strong>캠페인:</strong> {guideData.campaign_title}</div>
                                 <div><strong>플랫폼:</strong> {guideData.target_platform}</div>
@@ -3225,16 +3224,19 @@ export default function CampaignDetail() {
                             })
                             .eq('id', selectedGuide.id)
 
-                          if (error) throw error
+                          if (error) {
+                            console.error('Supabase error:', error)
+                            throw new Error(error.message || JSON.stringify(error))
+                          }
 
                           alert('추가 메시지가 저장되었습니다!')
                           await fetchParticipants()
                         } catch (error) {
                           console.error('Error saving additional message:', error)
-                          alert('저장에 실패했습니다.')
+                          alert('저장에 실패했습니다: ' + (error.message || error))
                         }
                       }}
-                      className="bg-purple-600 hover:bg-purple-700"
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
                     >
                       메시지 저장
                     </Button>
