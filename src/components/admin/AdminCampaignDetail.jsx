@@ -61,15 +61,15 @@ export default function AdminCampaignDetail() {
         return
       }
       
-      // Check if user is admin
+      // Check if user is super admin
       const { data: adminData } = await supabaseBiz
         .from('admin_users')
         .select('*')
         .eq('email', user.email)
         .single()
       
-      if (!adminData) {
-        alert('관리자 권한이 필요합니다.')
+      if (!adminData || adminData.role !== 'super_admin') {
+        alert('슈퍼 관리자 권한이 필요합니다.')
         navigate('/')
       }
     }
