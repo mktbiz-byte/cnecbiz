@@ -336,7 +336,7 @@ export default function CampaignDetail() {
       })
 
       const { error: updateError } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .update({
           views,
           last_view_check: new Date().toISOString(),
@@ -382,9 +382,9 @@ export default function CampaignDetail() {
       if (changes.tracking_number !== undefined) updateData.tracking_number = changes.tracking_number
       if (changes.shipping_company !== undefined) updateData.shipping_company = changes.shipping_company
 
-      // campaign_participants 업데이트
+      // applications 업데이트
       const { error } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .update(updateData)
         .eq('id', participantId)
 
@@ -471,7 +471,7 @@ export default function CampaignDetail() {
 
         try {
           await supabase
-            .from('campaign_participants')
+            .from('applications')
             .update({ tracking_number: trackingNumber })
             .eq('id', participant.id)
 
@@ -515,7 +515,7 @@ export default function CampaignDetail() {
         if (!participant) continue
 
         await supabase
-          .from('campaign_participants')
+          .from('applications')
           .update({ shipping_company: bulkCourierCompany })
           .eq('id', participantId)
 
@@ -588,9 +588,9 @@ export default function CampaignDetail() {
         return
       }
 
-      // 이미 campaign_participants에 존재하는지 확인
+      // 이미 applications에 존재하는지 확인
       const { data: existingParticipants } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .select('creator_name')
         .eq('campaign_id', id)
         .in('creator_name', virtualSelected.map(app => app.applicant_name))
@@ -608,7 +608,7 @@ export default function CampaignDetail() {
         alert(`${skipped.map(a => a.applicant_name).join(', ')}는 이미 확정되어 제외됩니다.`)
       }
       
-      // campaign_participants에 추가
+      // applications에 추가
       const participantsToAdd = toAdd.map(app => {
         // 메인 채널에서 플랫폼 추출
         let platform = '-'
@@ -633,7 +633,7 @@ export default function CampaignDetail() {
       })
 
       const { error: insertError } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .insert(participantsToAdd)
 
       if (insertError) throw insertError
@@ -666,10 +666,10 @@ export default function CampaignDetail() {
             .eq('id', app.user_id)
             .maybeSingle()
           
-          // campaign_participants 테이블에 이메일과 플랫폼 정보 업데이트
+          // applications 테이블에 이메일과 플랫폼 정보 업데이트
           if (profile) {
             await supabase
-              .from('campaign_participants')
+              .from('applications')
               .update({
                 creator_email: profile.email || '',
                 creator_platform: app.main_channel || ''
@@ -708,9 +708,9 @@ export default function CampaignDetail() {
     }
     
     try {
-      // campaign_participants에서 삭제
+      // applications에서 삭제
       const { error: deleteError } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .delete()
         .eq('campaign_id', id)
         .eq('creator_name', cancellingApp.applicant_name)
@@ -848,7 +848,7 @@ export default function CampaignDetail() {
         try {
           // 가이드 승인 및 전달
           const { error: updateError } = await supabase
-            .from('campaign_participants')
+            .from('applications')
             .update({ 
               personalized_guide: JSON.stringify(campaign.ai_generated_guide),
               guide_confirmed: true,
@@ -949,9 +949,9 @@ export default function CampaignDetail() {
 
           const { guide } = await response.json()
 
-          // 생성된 가이드를 campaign_participants 테이블에 저장
+          // 생성된 가이드를 applications 테이블에 저장
           const { error: updateError } = await supabase
-            .from('campaign_participants')
+            .from('applications')
             .update({ 
               personalized_guide: guide,
               guide_shared_to_company: true // 기업이 생성했으므로 바로 공유 상태로 설정
@@ -1016,7 +1016,7 @@ export default function CampaignDetail() {
 
           // 가이드 승인 상태 업데이트 및 촬영중으로 변경
           await supabase
-            .from('campaign_participants')
+            .from('applications')
             .update({ 
               guide_confirmed: true,
               creator_status: 'filming'
@@ -1193,7 +1193,7 @@ export default function CampaignDetail() {
 
         // 데이터베이스에 저장
         await supabase
-          .from('campaign_participants')
+          .from('applications')
           .update({
             personalized_guide: personalizedGuide,
             creator_analysis: creatorAnalysis
@@ -1220,7 +1220,7 @@ export default function CampaignDetail() {
       // 선택된 크리에이터들의 상태를 'selected'로 변경
       for (const participantId of selectedParticipants) {
         await supabase
-          .from('campaign_participants')
+          .from('applications')
           .update({
             selection_status: 'selected',
             selected_at: new Date().toISOString()
@@ -1663,7 +1663,7 @@ export default function CampaignDetail() {
   const handleUpdateCreatorStatus = async (participantId, newStatus) => {
     try {
       const { error } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .update({ creator_status: newStatus })
         .eq('id', participantId)
 
@@ -1671,7 +1671,7 @@ export default function CampaignDetail() {
 
       // 참여자 목록 재로드
       const { data, error: fetchError } = await supabase
-        .from('campaign_participants')
+        .from('applications')
         .select('*')
         .eq('campaign_id', id)
 
@@ -2142,7 +2142,7 @@ export default function CampaignDetail() {
                         try {
                           // 중복 확인
                           const { data: existing } = await supabase
-                            .from('campaign_participants')
+                            .from('applications')
                             .select('id')
                             .eq('campaign_id', id)
                             .eq('creator_name', app.applicant_name)
@@ -2165,7 +2165,7 @@ export default function CampaignDetail() {
                           }
                           
                           const { error: insertError } = await supabase
-                            .from('campaign_participants')
+                            .from('applications')
                             .insert([{
                               campaign_id: id,
                               creator_name: app.applicant_name,
@@ -2199,9 +2199,9 @@ export default function CampaignDetail() {
                               .maybeSingle()
 
                             if (profile) {
-                              // campaign_participants 테이블에 이메일 업데이트
+                              // applications 테이블에 이메일 업데이트
                               await supabase
-                                .from('campaign_participants')
+                                .from('applications')
                                 .update({
                                   creator_email: profile.email || ''
                                 })
@@ -2404,7 +2404,7 @@ export default function CampaignDetail() {
                         try {
                           // 중복 확인
                           const { data: existing } = await supabase
-                            .from('campaign_participants')
+                            .from('applications')
                             .select('id')
                             .eq('campaign_id', id)
                             .eq('creator_name', app.applicant_name)
@@ -2427,7 +2427,7 @@ export default function CampaignDetail() {
                           }
                           
                           const { error: insertError } = await supabase
-                            .from('campaign_participants')
+                            .from('applications')
                             .insert([{
                               campaign_id: id,
                               creator_name: app.applicant_name,
@@ -2461,9 +2461,9 @@ export default function CampaignDetail() {
                               .maybeSingle()
 
                             if (profile) {
-                              // campaign_participants 테이블에 이메일 업데이트
+                              // applications 테이블에 이메일 업데이트
                               await supabase
-                                .from('campaign_participants')
+                                .from('applications')
                                 .update({
                                   creator_email: profile.email || ''
                                 })
@@ -3108,7 +3108,7 @@ export default function CampaignDetail() {
                       onClick={async () => {
                         try {
                           await supabase
-                            .from('campaign_participants')
+                            .from('applications')
                             .update({ 
                               personalized_guide: editedGuideContent,
                               guide_updated_at: new Date().toISOString()
@@ -3209,7 +3209,7 @@ export default function CampaignDetail() {
                   try {
                     // 데이터베이스에 수정요청 저장
                     await supabase
-                      .from('campaign_participants')
+                      .from('applications')
                       .update({
                         guide_revision_request: revisionRequestText,
                         guide_revision_requested_at: new Date().toISOString(),
@@ -3380,7 +3380,7 @@ export default function CampaignDetail() {
                 onClick={async () => {
                   try {
                     const { error } = await supabase
-                      .from('campaign_participants')
+                      .from('applications')
                       .update({
                         video_status: 'approved'
                       })
@@ -3416,7 +3416,7 @@ export default function CampaignDetail() {
                     }
 
                     const { error } = await supabase
-                      .from('campaign_participants')
+                      .from('applications')
                       .update({
                         video_status: 'revision_requested',
                         revision_requests: [...existingRequests, newRequest]
@@ -3622,7 +3622,7 @@ export default function CampaignDetail() {
 
                   try {
                     const { error } = await supabase
-                      .from('campaign_participants')
+                      .from('applications')
                       .update({
                         extension_status: 'rejected',
                         extension_decided_at: new Date().toISOString()
@@ -3653,7 +3653,7 @@ export default function CampaignDetail() {
                 onClick={async () => {
                   try {
                     const { error } = await supabase
-                      .from('campaign_participants')
+                      .from('applications')
                       .update({
                         extension_status: 'approved',
                         extension_decided_at: new Date().toISOString()
