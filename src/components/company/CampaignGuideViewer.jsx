@@ -21,6 +21,7 @@ import {
   Zap
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
+import AIGuideEditor from './AIGuideEditor'
 
 /**
  * PPT 스타일의 AI 가이드 뷰어 컴포넌트 (편집 기능 포함)
@@ -29,6 +30,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpdate }) {
   const [currentScene, setCurrentScene] = useState(0)
   const [isEditing, setIsEditing] = useState(false)
+  const [showEditor, setShowEditor] = useState(false)
   const [editedGuide, setEditedGuide] = useState(guide)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -81,16 +83,17 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
   }
 
   const handleEdit = () => {
-    setIsEditing(true)
+    setShowEditor(true)
     setEditedGuide(JSON.parse(JSON.stringify(guide))) // Deep copy
   }
 
   const handleCancel = () => {
+    setShowEditor(false)
     setIsEditing(false)
     setEditedGuide(guide)
   }
 
-  const handleSave = async () => {
+  const handleSave = async (updatedGuide) => {
     if (!campaignId) {
       alert('캠페인 ID가 없습니다.')
       return
@@ -98,18 +101,22 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
 
     setIsSaving(true)
     try {
+      const guideToSave = updatedGuide || editedGuide
       const { error } = await supabaseBiz
         .from('campaigns')
-        .update({ ai_generated_guide: editedGuide })
+        .update({ ai_generated_guide: guideToSave })
         .eq('id', campaignId)
 
       if (error) throw error
 
       alert('가이드가 저장되었습니다.')
+      setShowEditor(false)
       setIsEditing(false)
       if (onUpdate) {
-        onUpdate(editedGuide)
+        onUpdate(guideToSave)
       }
+      // 저장 후 editedGuide 업데이트
+      setEditedGuide(guideToSave)
     } catch (error) {
       console.error('저장 오류:', error)
       alert('저장 중 오류가 발생했습니다.')
@@ -155,7 +162,17 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-8">
+    <>
+      {/* AI 가이드 편집 모달 */}
+      {showEditor && (
+        <AIGuideEditor
+          guide={editedGuide}
+          onSave={handleSave}
+          onCancel={handleCancel}
+        />
+      )}
+      
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* 헤더: 캠페인 타이틀 */}
         <div className="mb-6 text-center">
@@ -604,6 +621,7 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
         </div>
       </div>
     </div>
+    </>
   )
 }
 
