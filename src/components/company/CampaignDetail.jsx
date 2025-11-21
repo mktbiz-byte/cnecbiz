@@ -2625,18 +2625,178 @@ export default function CampaignDetail() {
                 </div>
               )}
 
-              {/* 맞춤 가이드 컨텐츠 */}
+              {/* 맞춤 가이드 컸텐츠 */}
               <div className="prose max-w-none">
                 {editingGuide ? (
-                  <textarea
-                    value={editedGuideContent}
-                    onChange={(e) => setEditedGuideContent(e.target.value)}
-                    className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="가이드 내용을 입력하세요..."
-                  />
+                  <div className="space-y-4">
+                    {/* JSON을 파싱하여 구조화된 폼으로 표시 */}
+                    {(() => {
+                      try {
+                        const guideData = typeof editedGuideContent === 'string' 
+                          ? JSON.parse(editedGuideContent) 
+                          : editedGuideContent;
+                        
+                        return (
+                          <div className="space-y-6">
+                            {/* 기본 정보 */}
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <h4 className="font-semibold mb-3">기본 정보</h4>
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">캠페인 타이틀</label>
+                                  <input
+                                    type="text"
+                                    value={guideData.campaign_title || ''}
+                                    onChange={(e) => {
+                                      const updated = { ...guideData, campaign_title: e.target.value };
+                                      setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                    }}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">플랫폼</label>
+                                    <select
+                                      value={guideData.target_platform || 'youtube'}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData, target_platform: e.target.value };
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    >
+                                      <option value="youtube">YouTube</option>
+                                      <option value="instagram">Instagram</option>
+                                      <option value="tiktok">TikTok</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">영상 길이</label>
+                                    <input
+                                      type="text"
+                                      value={guideData.video_duration || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData, video_duration: e.target.value };
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                      placeholder="예: 50-60초"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 촬영 씬 */}
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
+                              <div className="space-y-4 max-h-96 overflow-y-auto">
+                                {(guideData.shooting_scenes || []).map((scene, idx) => (
+                                  <div key={idx} className="bg-white p-3 rounded border">
+                                    <div className="font-medium text-sm mb-2">씬 {scene.order}</div>
+                                    <div className="space-y-2 text-sm">
+                                      <div>
+                                        <span className="text-gray-600">타입:</span>
+                                        <input
+                                          type="text"
+                                          value={scene.scene_type || ''}
+                                          onChange={(e) => {
+                                            const updated = { ...guideData };
+                                            updated.shooting_scenes[idx].scene_type = e.target.value;
+                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                          }}
+                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
+                                        />
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-600">장면 설명:</span>
+                                        <textarea
+                                          value={scene.scene_description || ''}
+                                          onChange={(e) => {
+                                            const updated = { ...guideData };
+                                            updated.shooting_scenes[idx].scene_description = e.target.value;
+                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                          }}
+                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
+                                          rows={2}
+                                        />
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-600">대사:</span>
+                                        <textarea
+                                          value={scene.dialogue || ''}
+                                          onChange={(e) => {
+                                            const updated = { ...guideData };
+                                            updated.shooting_scenes[idx].dialogue = e.target.value;
+                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                          }}
+                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
+                                          rows={2}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* JSON 보기 (선택적) */}
+                            <details className="bg-gray-100 p-3 rounded">
+                              <summary className="cursor-pointer text-sm font-medium text-gray-700">고급: JSON 직접 편집</summary>
+                              <textarea
+                                value={editedGuideContent}
+                                onChange={(e) => setEditedGuideContent(e.target.value)}
+                                className="w-full h-64 p-3 mt-2 border border-gray-300 rounded-lg font-mono text-xs"
+                              />
+                            </details>
+                          </div>
+                        );
+                      } catch (error) {
+                        // JSON 파싱 실패 시 기본 textarea
+                        return (
+                          <textarea
+                            value={editedGuideContent}
+                            onChange={(e) => setEditedGuideContent(e.target.value)}
+                            className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
+                            placeholder="가이드 내용을 입력하세요..."
+                          />
+                        );
+                      }
+                    })()}
+                  </div>
                 ) : (
                   <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
-                    {selectedGuide.personalized_guide}
+                    {(() => {
+                      try {
+                        const guideData = typeof selectedGuide.personalized_guide === 'string'
+                          ? JSON.parse(selectedGuide.personalized_guide)
+                          : selectedGuide.personalized_guide;
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div><strong>캠페인:</strong> {guideData.campaign_title}</div>
+                            <div><strong>플랫폼:</strong> {guideData.target_platform}</div>
+                            <div><strong>영상 길이:</strong> {guideData.video_duration}</div>
+                            <div className="mt-4">
+                              <strong>촬영 씬 ({guideData.shooting_scenes?.length || 0}개):</strong>
+                              <div className="mt-2 space-y-3">
+                                {(guideData.shooting_scenes || []).map((scene, idx) => (
+                                  <div key={idx} className="bg-gray-50 p-3 rounded">
+                                    <div className="font-semibold">씬 {scene.order}: {scene.scene_type}</div>
+                                    <div className="text-sm mt-1">{scene.scene_description}</div>
+                                    {scene.dialogue && (
+                                      <div className="text-sm mt-1 italic">""{scene.dialogue}""</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      } catch (error) {
+                        return selectedGuide.personalized_guide;
+                      }
+                    })()}
                   </div>
                 )}
               </div>
