@@ -1900,7 +1900,7 @@ export default function CampaignDetail() {
             )}
             {!campaign.is_cancelled && (
               <div>
-                {(isAdmin || campaign.payment_status !== 'confirmed') ? (
+                {(isAdmin || (campaign.payment_status !== 'confirmed' && campaign.approval_status !== 'approved')) ? (
                   <Button 
                     variant="outline"
                     className="text-red-600 border-red-600 hover:bg-red-50"
@@ -1910,7 +1910,10 @@ export default function CampaignDetail() {
                   </Button>
                 ) : (
                   <Badge className="bg-gray-100 text-gray-600">
-                    입금 완료 후 취소는 관리자에게 문의하세요
+                    {campaign.approval_status === 'approved' 
+                      ? '승인 완료된 캠페인은 취소할 수 없습니다'
+                      : '입금 완료 후 취소는 관리자에게 문의하세요'
+                    }
                   </Badge>
                 )}
               </div>
