@@ -2929,6 +2929,108 @@ export default function CampaignDetail() {
                               </div>
                             </div>
 
+                            {/* 필수 해시태그 */}
+                            {guideData.required_hashtags && (
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <h4 className="font-semibold mb-3">필수 해시태그</h4>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">리얼 후기</label>
+                                    <input
+                                      type="text"
+                                      value={guideData.required_hashtags.real_review?.join(', ') || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData };
+                                        updated.required_hashtags.real_review = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                      placeholder="쉼표로 구분"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">제품 관련</label>
+                                    <input
+                                      type="text"
+                                      value={guideData.required_hashtags.product_related?.join(', ') || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData };
+                                        updated.required_hashtags.product_related = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                      placeholder="쉼표로 구분"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">공통</label>
+                                    <input
+                                      type="text"
+                                      value={guideData.required_hashtags.common?.join(', ') || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData };
+                                        updated.required_hashtags.common = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                      placeholder="쉼표로 구분"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 촬영 요구사항 */}
+                            {guideData.shooting_requirements && (
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <h4 className="font-semibold mb-3">촬영 요구사항</h4>
+                                <div className="space-y-3">
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">필수 포함 장면</label>
+                                    <textarea
+                                      value={guideData.shooting_requirements.must_include?.join('\n') || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData };
+                                        updated.shooting_requirements.must_include = e.target.value.split('\n').filter(t => t.trim());
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                      rows={3}
+                                      placeholder="한 줄에 하나씩"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">영상 스타일 - 템포</label>
+                                    <input
+                                      type="text"
+                                      value={guideData.shooting_requirements.video_style?.tempo || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData };
+                                        if (!updated.shooting_requirements.video_style) updated.shooting_requirements.video_style = {};
+                                        updated.shooting_requirements.video_style.tempo = e.target.value;
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">영상 스타일 - 톤</label>
+                                    <input
+                                      type="text"
+                                      value={guideData.shooting_requirements.video_style?.tone || ''}
+                                      onChange={(e) => {
+                                        const updated = { ...guideData };
+                                        if (!updated.shooting_requirements.video_style) updated.shooting_requirements.video_style = {};
+                                        updated.shooting_requirements.video_style.tone = e.target.value;
+                                        setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                      }}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
                             {/* 촬영 씬 */}
                             <div className="bg-gray-50 p-4 rounded-lg">
                               <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
@@ -2981,6 +3083,24 @@ export default function CampaignDetail() {
                                 ))}
                               </div>
                             </div>
+
+                            {/* 크리에이터 팁 */}
+                            {guideData.creator_tips && (
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <h4 className="font-semibold mb-3">크리에이터 팁</h4>
+                                <textarea
+                                  value={guideData.creator_tips?.join('\n') || ''}
+                                  onChange={(e) => {
+                                    const updated = { ...guideData };
+                                    updated.creator_tips = e.target.value.split('\n').filter(t => t.trim());
+                                    setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                  rows={5}
+                                  placeholder="한 줄에 하나씩"
+                                />
+                              </div>
+                            )}
 
                             {/* JSON 보기 (선택적) */}
                             <details className="bg-gray-100 p-3 rounded">
@@ -3094,7 +3214,10 @@ export default function CampaignDetail() {
 
                             {/* 촬영 씬 */}
                             <div>
-                              <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-semibold">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
+                                <span className="text-sm text-red-600 font-medium">본 대사와 촬영 장면은 크리에이터의 스타일에 맞게 변경하여 촬영해 주세요.</span>
+                              </div>
                               <div className="space-y-3">
                                 {(guideData.shooting_scenes || []).map((scene, idx) => (
                                   <div key={idx} className="bg-gray-50 p-3 rounded border border-gray-200">
