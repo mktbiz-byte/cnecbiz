@@ -121,7 +121,7 @@ export default function CampaignDetail() {
         .from('applications')
         .select('*')
         .eq('campaign_id', id)
-        .in('status', ['selected', 'approved', 'virtual_selected'])
+        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
