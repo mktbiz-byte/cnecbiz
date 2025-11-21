@@ -1048,7 +1048,8 @@ export default function CampaignDetail() {
           }
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
-          await supabase
+          console.log('[DEBUG] Updating application status to filming:', participantId)
+          const { data: updateData, error: updateError } = await supabase
             .from('applications')
             .update({ 
               guide_confirmed: true,
@@ -1057,6 +1058,12 @@ export default function CampaignDetail() {
               status: 'filming'
             })
             .eq('id', participantId)
+          
+          if (updateError) {
+            console.error('[ERROR] Failed to update application status:', updateError)
+            throw updateError
+          }
+          console.log('[DEBUG] Successfully updated application status:', updateData)
 
           // user_id와 phone 정보 가져오기
           const { data: app } = await supabase
