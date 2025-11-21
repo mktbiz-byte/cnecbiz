@@ -390,6 +390,10 @@ const CampaignCreationKorea = () => {
         }
       }
 
+      // Get user ID for company_id
+      const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
+      if (!currentUser) throw new Error('로그인이 필요합니다')
+      
       const campaignData = {
         ...restForm,
         title: autoTitle,
@@ -398,6 +402,7 @@ const CampaignCreationKorea = () => {
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
         target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
+        company_id: currentUser.id,  // 기업 ID 저장
         company_email: userEmail,  // 회사 이메일 저장
         // 빈 문자열인 날짜 필드를 null로 변환
         application_deadline: campaignForm.application_deadline || null,
