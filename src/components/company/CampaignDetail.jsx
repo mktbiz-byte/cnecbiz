@@ -44,6 +44,7 @@ export default function CampaignDetail() {
   const [bulkCourierCompany, setBulkCourierCompany] = useState('')
   const [showAdditionalPayment, setShowAdditionalPayment] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [user, setUser] = useState(null)
   const [selectedGuide, setSelectedGuide] = useState(null)
   const [showGuideModal, setShowGuideModal] = useState(false)
   const [selectedParticipant, setSelectedParticipant] = useState(null)
@@ -65,11 +66,18 @@ export default function CampaignDetail() {
   const [videoSubmissions, setVideoSubmissions] = useState([])
 
   useEffect(() => {
-    checkIfAdmin()
-    fetchCampaignDetail()
-    fetchParticipants()
-    fetchApplications()
-    fetchVideoSubmissions()
+    const initPage = async () => {
+      // Get current user
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      setUser(currentUser)
+      
+      await checkIfAdmin()
+      await fetchCampaignDetail()
+      fetchParticipants()
+      fetchApplications()
+      fetchVideoSubmissions()
+    }
+    initPage()
   }, [id])
   
   // AI 추천은 campaign이 로드된 후에 실행
@@ -106,6 +114,14 @@ export default function CampaignDetail() {
         .single()
 
       if (error) throw error
+      
+      // Check permission: must be campaign owner or admin
+      if (user && data.company_id !== user.id && !isAdmin) {
+        alert('이 캠페인에 접근할 권한이 없습니다.')
+        navigate('/company/campaigns')
+        return
+      }
+      
       setCampaign(data)
     } catch (error) {
       console.error('Error fetching campaign:', error)
