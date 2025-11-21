@@ -1062,6 +1062,13 @@ export default function CampaignDetail() {
             continue
           }
 
+          // 이미 영상 제출 이후 단계인 경우 건너뛰기
+          if (['video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)) {
+            console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already in ${participant.status} status, skipping guide delivery`)
+            errorCount++
+            continue
+          }
+
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           console.log('[DEBUG] Updating application status to filming:', participantId)
           const { data: updateData, error: updateError } = await supabase
@@ -1456,7 +1463,7 @@ export default function CampaignDetail() {
             <div className="flex items-center gap-2">
               <span className="text-gray-600">가이드 확인중:</span>
               <Badge className="bg-purple-100 text-purple-700">
-                {filteredParticipants.filter(p => p.status === 'guide_confirmation').length}명
+                {filteredParticipants.filter(p => ['selected', 'guide_confirmation'].includes(p.status)).length}명
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -1468,19 +1475,19 @@ export default function CampaignDetail() {
             <div className="flex items-center gap-2">
               <span className="text-gray-600">수정중:</span>
               <Badge className="bg-pink-100 text-pink-700">
-                {filteredParticipants.filter(p => p.status === 'editing').length}명
+                {filteredParticipants.filter(p => p.status === 'revision_requested').length}명
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-gray-600">제출완료:</span>
               <Badge className="bg-blue-100 text-blue-700">
-                {filteredParticipants.filter(p => p.status === 'submitted').length}명
+                {filteredParticipants.filter(p => p.status === 'video_submitted').length}명
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-gray-600">승인완료:</span>
               <Badge className="bg-green-100 text-green-700">
-                {filteredParticipants.filter(p => p.status === 'approved').length}명
+                {filteredParticipants.filter(p => ['approved', 'completed'].includes(p.status)).length}명
               </Badge>
             </div>
           </div>
@@ -2808,13 +2815,13 @@ export default function CampaignDetail() {
                   </div>
                 </div>
 
-                {videoSubmissions.filter(v => ['submitted', 'revision_requested'].includes(v.status)).length === 0 ? (
+                {videoSubmissions.filter(v => ['video_submitted', 'revision_requested'].includes(v.status)).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     제출된 영상이 없습니다.
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {videoSubmissions.filter(v => ['submitted', 'revision_requested'].includes(v.status)).map(submission => (
+                    {videoSubmissions.filter(v => ['video_submitted', 'revision_requested'].includes(v.status)).map(submission => (
                       <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
@@ -2956,13 +2963,13 @@ export default function CampaignDetail() {
                 <CardTitle>완료된 크리에이터</CardTitle>
               </CardHeader>
               <CardContent>
-                    {participants.filter(p => p.status === 'completed').length === 0 ? (
+                    {participants.filter(p => ['approved', 'completed'].includes(p.status)).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 완료된 크리에이터가 없습니다.
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {participants.filter(p => p.status === 'completed').map(participant => (
+                    {participants.filter(p => ['approved', 'completed'].includes(p.status)).map(participant => (
                       <div key={participant.id} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div>
