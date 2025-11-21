@@ -3131,26 +3131,26 @@ export default function CampaignDetail() {
                     })()}
                   </div>
                 )}
-
-                {/* 추가 메시지 입력 공간 */}
-                {!editingGuide && (
-                  <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      크리에이터에게 전달할 추가 메시지 (선택사항)
-                    </label>
-                    <textarea
-                      value={selectedGuide.additional_message || ''}
-                      onChange={(e) => {
-                        setSelectedGuide({ ...selectedGuide, additional_message: e.target.value })
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      rows={3}
-                      placeholder="예: 촬영 시 제품을 먼저 클로즈업해주세요. 배경은 밝게 유지해주시면 감사하겠습니다."
-                    />
-                  </div>
-                )}
               </div>
             </div>
+
+            {/* 추가 메시지 입력 공간 (하단 고정) */}
+            {!editingGuide && (
+              <div className="px-6 py-3 border-t bg-yellow-50">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  크리에이터에게 전달할 추가 메시지 (선택사항)
+                </label>
+                <textarea
+                  value={selectedGuide.additional_message || ''}
+                  onChange={(e) => {
+                    setSelectedGuide({ ...selectedGuide, additional_message: e.target.value })
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  rows={2}
+                  placeholder="예: 촬영 시 제품을 먼저 클로즈업해주세요. 배경은 밝게 유지해주시면 감사하겠습니다."
+                />
+              </div>
+            )}
 
             {/* 모달 푸터 */}
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end">
