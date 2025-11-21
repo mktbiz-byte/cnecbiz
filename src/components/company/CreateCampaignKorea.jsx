@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
-import { generateAIRecommendations } from '../../services/aiRecommendation'
-
-const supabaseKorea = getSupabaseClient('korea')
+import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -14,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 const CampaignCreationKorea = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const editId = searchParams.get('edit')
-  const isAdminMode = searchParams.get('admin') === 'true'
+  const editId = searchParams.get('id')
   const thumbnailInputRef = useRef(null)
   const detailImageInputRef = useRef(null)
 
@@ -77,21 +73,21 @@ const CampaignCreationKorea = () => {
       label: '초급 패키지', 
       price: 200000, 
       description: '인스타그램 기준: 1만~3만명',
-      expectedApplicants: { instagram: 30 }
+      expectedApplicants: { instagram: '10~15', youtube: '5~8', tiktok: '5~8' }
     },
     { 
       value: 'intermediate', 
       label: '스탠다드 패키지', 
       price: 300000, 
       description: '인스타그램 기준: 3만~10만명',
-      expectedApplicants: { instagram: 25 }
+      expectedApplicants: { instagram: '15~20', youtube: '8~12', tiktok: '8~12' }
     },
     { 
       value: 'advanced', 
       label: '프리미엄 패키지', 
       price: 400000, 
       description: '인스타그램 기준: 10만~30만명',
-      expectedApplicants: { instagram: 15 }
+      expectedApplicants: { instagram: '20~40', youtube: '10~20', tiktok: '10~20' }
     }
   ]
 
@@ -173,14 +169,6 @@ const CampaignCreationKorea = () => {
           categoryArray = data.category.split(',').map(c => c.trim()).filter(Boolean)
         }
 
-        // 날짜 필드를 YYYY-MM-DD 형식으로 변환
-        const formatDateForInput = (dateValue) => {
-          if (!dateValue) return ''
-          const date = new Date(dateValue)
-          if (isNaN(date.getTime())) return ''
-          return date.toISOString().split('T')[0]
-        }
-
         setCampaignForm({
           ...data,
           target_platforms: Array.isArray(data.target_platforms) ? data.target_platforms : [],
@@ -188,18 +176,7 @@ const CampaignCreationKorea = () => {
           question2,
           question3,
           question4,
-          category: categoryArray,
-          // 날짜 필드 형식 변환
-          application_deadline: formatDateForInput(data.application_deadline),
-          start_date: formatDateForInput(data.start_date),
-          end_date: formatDateForInput(data.end_date),
-          week1_deadline: formatDateForInput(data.week1_deadline),
-          week2_deadline: formatDateForInput(data.week2_deadline),
-          week3_deadline: formatDateForInput(data.week3_deadline),
-          week4_deadline: formatDateForInput(data.week4_deadline),
-          step1_deadline: formatDateForInput(data.step1_deadline),
-          step2_deadline: formatDateForInput(data.step2_deadline),
-          step3_deadline: formatDateForInput(data.step3_deadline)
+          category: categoryArray
         })
       }
     } catch (err) {
@@ -354,7 +331,6 @@ const CampaignCreationKorea = () => {
         .from('campaign-images')
         .getPublicUrl(filePath)
 
-      console.log('[DEBUG] Product detail image uploaded:', publicUrl)
       setCampaignForm(prev => ({ ...prev, product_detail_file_url: publicUrl }))
       setSuccess('상품 상세 이미지가 업로드되었습니다!')
     } catch (err) {
@@ -381,7 +357,7 @@ const CampaignCreationKorea = () => {
         campaignForm.question4
       ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
 
-      const { question1, question2, question3, question4, target_platforms, additional_details_ja, ...restForm } = campaignForm
+      const { question1, question2, question3, question4, target_platforms, ...restForm } = campaignForm
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
       const categoryNames = campaignForm.category
@@ -394,7 +370,7 @@ const CampaignCreationKorea = () => {
       // 제목 자동 생성
       const autoTitle = `${campaignForm.brand} ${campaignForm.product_name} ${categoryNames}`.trim()
 
-      // 로그인한 사용자 정보 가져오기
+      // 로그인한 사용자 정보 가져오기 (supabaseBiz에서)
       let userEmail = null
       try {
         const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -405,16 +381,14 @@ const CampaignCreationKorea = () => {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
       }
 
-      // 올영세일 캠페인 경우 모집 채널 필수 (category에서 확인)
+      // 올리브영 캠페인 검증
       if (campaignForm.campaign_type === 'oliveyoung') {
-        if (!campaignForm.category || campaignForm.category.length === 0) {
-          setError('모집 채널을 1개 이상 선택해주세요.')
+        if (campaignForm.target_platforms.length === 0) {
+          setError('타겟 채널을 1개 이상 선택해주세요.')
           setProcessing(false)
           return
         }
       }
-      // 날짜 필드를 null로 변환 (빈 문자열은 PostgreSQL date 타입에서 오류 발생)
-      const convertEmptyToNull = (value) => value === '' ? null : value
 
       const campaignData = {
         ...restForm,
@@ -423,24 +397,19 @@ const CampaignCreationKorea = () => {
         total_slots: parseInt(campaignForm.total_slots) || 0,
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
-        // 올영세일의 경우 category를 target_platforms에도 저장
-        target_platforms: campaignForm.campaign_type === 'oliveyoung' 
-          ? (campaignForm.category && campaignForm.category.length > 0 ? campaignForm.category : null)
-          : (typeof campaignForm.target_platforms === 'object' && !Array.isArray(campaignForm.target_platforms)
-              ? Object.keys(campaignForm.target_platforms).filter(k => campaignForm.target_platforms[k])
-              : (Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null)),
+        target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
         company_email: userEmail,  // 회사 이메일 저장
-        // 날짜 필드 변환
-        application_deadline: convertEmptyToNull(campaignForm.application_deadline),
-        start_date: convertEmptyToNull(campaignForm.start_date),
-        end_date: convertEmptyToNull(campaignForm.end_date),
-        week1_deadline: convertEmptyToNull(campaignForm.week1_deadline),
-        week2_deadline: convertEmptyToNull(campaignForm.week2_deadline),
-        week3_deadline: convertEmptyToNull(campaignForm.week3_deadline),
-        week4_deadline: convertEmptyToNull(campaignForm.week4_deadline),
-        step1_deadline: convertEmptyToNull(campaignForm.step1_deadline),
-        step2_deadline: convertEmptyToNull(campaignForm.step2_deadline),
-        step3_deadline: convertEmptyToNull(campaignForm.step3_deadline)
+        // 빈 문자열인 날짜 필드를 null로 변환
+        application_deadline: campaignForm.application_deadline || null,
+        start_date: campaignForm.start_date || null,
+        end_date: campaignForm.end_date || null,
+        step1_deadline: campaignForm.step1_deadline || null,
+        step2_deadline: campaignForm.step2_deadline || null,
+        step3_deadline: campaignForm.step3_deadline || null,
+        week1_deadline: campaignForm.week1_deadline || null,
+        week2_deadline: campaignForm.week2_deadline || null,
+        week3_deadline: campaignForm.week3_deadline || null,
+        week4_deadline: campaignForm.week4_deadline || null
       }
 
       if (editId) {
@@ -452,37 +421,9 @@ const CampaignCreationKorea = () => {
 
         if (updateError) throw updateError
 
-        // supabaseBiz도 동기화
-        try {
-          const bizCampaignData = {
-            ...campaignData,
-            reward_amount: campaignData.reward_points
-          }
-          delete bizCampaignData.reward_points
-
-          await supabaseBiz
-            .from('campaigns')
-            .upsert([{ ...bizCampaignData, id: editId }])
-          
-          console.log('[CreateCampaign] Campaign also updated in Biz DB')
-        } catch (bizError) {
-          console.warn('[CreateCampaign] Failed to update Biz DB:', bizError)
-        }
-
-        setSuccess('캐페인이 수정되었습니다!')
-        
-        // 수정 모드일 경우 가이드 페이지로 이동
-        setTimeout(() => {
-          if (campaignForm.campaign_type === 'oliveyoung') {
-            navigate(`/company/campaigns/guide/oliveyoung?id=${editId}`)
-          } else if (campaignForm.campaign_type === '4week_challenge') {
-            navigate(`/company/campaigns/guide/4week?id=${editId}`)
-          } else {
-            navigate(`/company/campaigns/guide?id=${editId}`)
-          }
-        }, 1500)
+        setSuccess('캠페인이 수정되었습니다!')
       } else {
-        // 신규 생성 모드 - supabaseKorea에 저장
+        // 신규 생성 모드
         const { data: insertData, error: insertError } = await supabaseKorea
           .from('campaigns')
           .insert([{
@@ -497,75 +438,79 @@ const CampaignCreationKorea = () => {
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
-        // AI 추천 크리에이터 자동 생성
-        try {
-          console.log('[CreateCampaign] Generating AI recommendations...')
-          await generateAIRecommendations(campaignId, insertData, 'korea')
-          console.log('[CreateCampaign] AI recommendations generated successfully')
-        } catch (aiError) {
-          console.warn('[CreateCampaign] Failed to generate AI recommendations:', aiError)
-          // AI 추천 실패해도 캠페인 생성은 계속 진행
+        // 포인트 차감 로직 (supabaseBiz에서 사용자 확인)
+        const { data: { user } } = await supabaseBiz.auth.getUser()
+        if (!user) throw new Error('로그인이 필요합니다')
+
+        const finalCost = campaignForm.estimated_cost
+
+        // 현재 포인트 조회 (supabaseBiz에서)
+        const { data: companyData, error: companyError } = await supabaseBiz
+          .from('companies')
+          .select('points_balance')
+          .eq('user_id', user.id)
+          .single()
+
+        if (companyError) {
+          console.error('[CreateCampaign] Company fetch error:', companyError)
+          throw companyError
         }
 
-        // AI 캠페인 가이드 자동 생성
-        try {
-          console.log('[CreateCampaign] Generating AI campaign guide...')
-          const guideResponse = await fetch('/.netlify/functions/generate-campaign-guide', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ campaignData: insertData })
-          })
+        const currentPoints = companyData?.points_balance || 0
+        const neededPoints = finalCost
+
+        console.log('[CreateCampaign] Points check:', { currentPoints, neededPoints })
+
+        // 포인트 부족 시 charge request 생성
+        if (currentPoints < neededPoints) {
+          console.log('[CreateCampaign] Insufficient points, creating charge request')
           
-          if (guideResponse.ok) {
-            const guideResult = await guideResponse.json()
-            if (guideResult.success && guideResult.guide) {
-              // Update campaign with AI guide
-              await supabaseKorea
-                .from('campaigns')
-                .update({ ai_generated_guide: guideResult.guide })
-                .eq('id', campaignId)
-              
-              console.log('[CreateCampaign] AI campaign guide generated and saved successfully')
+          const { data: quoteData, error: quoteError } = await supabaseBiz
+            .from('points_charge_requests')
+            .insert({
+              company_id: user.id,
+              amount: finalCost,
+              original_amount: finalCost,
+              discount_rate: 0,
+              payment_method: 'bank_transfer',
+              status: 'pending',
+              bank_transfer_info: {
+                campaign_id: campaignId,
+                campaign_title: autoTitle,
+                campaign_cost: finalCost,
+                current_points: currentPoints,
+                needed_points: neededPoints,
+                reason: 'campaign_creation'
+              }
+            })
+            .select()
+            .single()
+
+          if (quoteError) {
+            console.error('[CreateCampaign] Charge request error:', quoteError)
+            throw quoteError
+          }
+
+          setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
+          
+          // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
+          setTimeout(() => {
+            if (campaignForm.campaign_type === 'oliveyoung') {
+              navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
+            } else if (campaignForm.campaign_type === '4week_challenge') {
+              navigate(`/company/campaigns/guide/4week?id=${campaignId}`)
+            } else {
+              navigate(`/company/campaigns/guide?id=${campaignId}`)
             }
-          }
-        } catch (guideError) {
-          console.warn('[CreateCampaign] Failed to generate AI campaign guide:', guideError)
-          // AI 가이드 실패해도 캠페인 생성은 계속 진행
+          }, 1500)
+          return
         }
-
-        // supabaseBiz에도 동일한 데이터 저장 (reward_amount 필드로)
-        try {
-          const bizCampaignData = {
-            ...campaignData,
-            id: campaignId, // 동일한 ID 사용
-            reward_amount: campaignData.reward_points, // reward_points를 reward_amount로 복사
-            status: 'draft'
-          }
-          delete bizCampaignData.reward_points // Biz DB에는 reward_points 필드 없음
-
-          await supabaseBiz
-            .from('campaigns')
-            .insert([bizCampaignData])
-          
-          console.log('[CreateCampaign] Campaign also saved to Biz DB')
-        } catch (bizError) {
-          console.warn('[CreateCampaign] Failed to save to Biz DB:', bizError)
-          // Biz DB 저장 실패해도 계속 진행
-        }
-
-        setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
-        
-        // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
-        setTimeout(() => {
-          if (campaignForm.campaign_type === 'oliveyoung') {
-            navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
-          } else if (campaignForm.campaign_type === '4week_challenge') {
-            navigate(`/company/campaigns/guide/4week?id=${campaignId}`)
-          } else {
-            navigate(`/company/campaigns/guide?id=${campaignId}`)
-          }
-        }, 1500)
       }
+
+      // 수정 모드일 경우만 여기로 도달
+      setTimeout(() => {
+        navigate('/company/campaigns')
+      }, 1500)
     } catch (err) {
       console.error('캠페인 저장 실패:', err)
       setError('캠페인 저장에 실패했습니다: ' + err.message)
@@ -578,7 +523,7 @@ const CampaignCreationKorea = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate(isAdminMode ? '/admin/campaigns' : '/company/campaigns')}>
+          <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
             ← 캠페인 목록으로
           </Button>
         </div>
@@ -604,6 +549,7 @@ const CampaignCreationKorea = () => {
                 자세히 보기 →
               </div>
             </div>
+
             {/* 올영세일 캠페인 */}
             <div 
               className="bg-white p-4 rounded-lg border-2 border-pink-200 hover:border-pink-400 hover:shadow-lg transition-all cursor-pointer"
@@ -621,6 +567,7 @@ const CampaignCreationKorea = () => {
                 자세히 보기 →
               </div>
             </div>
+
             {/* 4주 챌린지 */}
             <div 
               className="bg-white p-4 rounded-lg border-2 border-purple-200 hover:border-purple-400 hover:shadow-lg transition-all cursor-pointer"
@@ -792,10 +739,22 @@ const CampaignCreationKorea = () => {
                       <p className="text-sm font-semibold text-blue-900 mb-2">
                         예상 지원 크리에이터 (플랫폼별)
                       </p>
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="text-pink-600">📸</span>
-                        <span className="text-gray-700">인스타:</span>
-                        <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-pink-600">📸</span>
+                          <span className="text-gray-700">인스타:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram}명</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-red-600">🎥</span>
+                          <span className="text-gray-700">유튜브:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.youtube}명</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-purple-600">🎵</span>
+                          <span className="text-gray-700">틱톡:</span>
+                          <span className="font-semibold">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.tiktok}명</span>
+                        </div>
                       </div>
                       <p className="text-xs text-gray-600 mt-2">
                         * 금액대에 따라 지원율이 다소 차이가 납니다. 위 수치는 평균 예상치입니다.
@@ -1277,11 +1236,6 @@ const CampaignCreationKorea = () => {
                           alt="상품 상세" 
                           className="max-w-full h-auto rounded border"
                           style={{ maxHeight: '500px' }}
-                          onError={(e) => {
-                            console.error('[ERROR] Image load failed:', campaignForm.product_detail_file_url)
-                            e.target.style.display = 'none'
-                          }}
-                          onLoad={() => console.log('[DEBUG] Image loaded successfully')}
                         />
                       </div>
                     )}
@@ -1394,7 +1348,7 @@ const CampaignCreationKorea = () => {
                 >
                   {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate(isAdminMode ? '/admin/campaigns' : '/company/campaigns')}>
+                <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
                   취소
                 </Button>
               </div>

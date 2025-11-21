@@ -101,6 +101,90 @@ const HomePage = () => {
         </Button>
       </section>
 
+      {/* 캐페인 소개 배너 */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl mb-16">
+        <h3 className="text-3xl font-bold text-center mb-8">한국 캐페인 타입</h3>
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* 기획형 캐페인 */}
+          <Card className="hover:shadow-xl transition-shadow cursor-pointer" onClick={() => window.open('/campaigns/intro/regular', '_blank')}>
+            <CardHeader>
+              <div className="text-4xl mb-2">📝</div>
+              <CardTitle>기획형 캐페인</CardTitle>
+              <CardDescription>초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600" />
+                  대사 + 촬영장면 개별 제공
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600" />
+                  SNS URL 1개 제출
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-green-600" />
+                  인스타그램 기준 1만~30만명
+                </li>
+              </ul>
+              <Button className="w-full mt-4" variant="outline">자세히 보기</Button>
+            </CardContent>
+          </Card>
+
+          {/* 올영세일 캐페인 */}
+          <Card className="hover:shadow-xl transition-shadow cursor-pointer border-pink-200" onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}>
+            <CardHeader>
+              <div className="text-4xl mb-2">🌸</div>
+              <CardTitle>올영세일 캐페인</CardTitle>
+              <CardDescription>스탠다드 30만원 / 프리미엄 40만원 (2단계만)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-pink-600" />
+                  3단계 콘텐츠 (릴스 2건 + 스토리 1건)
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-pink-600" />
+                  URL 3개 + 영상 폴더 2개 제출
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-pink-600" />
+                  통합 가이드 제공
+                </li>
+              </ul>
+              <Button className="w-full mt-4" variant="outline">자세히 보기</Button>
+            </CardContent>
+          </Card>
+
+          {/* 4주 챌린지 */}
+          <Card className="hover:shadow-xl transition-shadow cursor-pointer border-purple-200" onClick={() => window.open('/campaigns/intro/4week', '_blank')}>
+            <CardHeader>
+              <div className="text-4xl mb-2">🏆</div>
+              <CardTitle>4주 챌린지</CardTitle>
+              <CardDescription>60만원 (고정)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-purple-600" />
+                  주차별 통합 가이드 4개
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-purple-600" />
+                  4주 연속 콘텐츠
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-purple-600" />
+                  URL 4개 + 영상 4개 제출
+                </li>
+              </ul>
+              <Button className="w-full mt-4" variant="outline">자세히 보기</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <h3 className="text-3xl font-bold text-center mb-12">왜 CNEC BIZ인가요?</h3>

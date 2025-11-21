@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
-
-const supabaseKorea = getSupabaseClient('korea')
-
+import { supabaseKorea } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Loader2, AlertCircle, Sparkles } from 'lucide-react'

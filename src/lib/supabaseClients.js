@@ -15,14 +15,8 @@ let _supabaseBiz = null
 const getSupabaseKorea = () => {
   if (_supabaseKorea) return _supabaseKorea
   
-  console.log('[DEBUG] VITE_SUPABASE_KOREA_URL:', import.meta.env.VITE_SUPABASE_KOREA_URL)
-  console.log('[DEBUG] VITE_SUPABASE_KOREA_ANON_KEY:', import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY ? 'exists' : 'missing')
-  
-  const url = import.meta.env.VITE_SUPABASE_KOREA_URL || 'https://vluqhvuhykncicgvkosd.supabase.co'
-  const key = import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsdXFodnVoeWtuY2ljZ3Zrb3NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyNjg2MzAsImV4cCI6MjA3Njg0NDYzMH0.ikEqdx6Le54YJUP-NROKg6EmeHJ4TbKkQ76pw29OQG8'
-  
-  console.log('[DEBUG] Using URL:', url)
-  console.log('[DEBUG] Using KEY:', key ? key.substring(0, 20) + '...' : 'missing')
+  const url = import.meta.env.VITE_SUPABASE_KOREA_URL
+  const key = import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY
   
   if (url && key && url.startsWith('http')) {
     _supabaseKorea = createClient(url, key, {
@@ -41,8 +35,8 @@ const getSupabaseKorea = () => {
 const getSupabaseJapan = () => {
   if (_supabaseJapan) return _supabaseJapan
   
-  const url = import.meta.env.VITE_SUPABASE_JAPAN_URL || 'https://psfwmzlnaboattocyupu.supabase.co'
-  const key = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzZndtemxuYWJvYXR0b2N5dXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MTU2NzgsImV4cCI6MjA3NDE5MTY3OH0.59A4QPRwv8YjfasHu_NTTv0fH6YhG8L_mBkOZypfgwg'
+  const url = import.meta.env.VITE_SUPABASE_JAPAN_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_JAPAN_ANON_KEY || ''
   
   if (url && key && url.startsWith('http')) {
     _supabaseJapan = createClient(url, key, {
@@ -61,8 +55,8 @@ const getSupabaseJapan = () => {
 const getSupabaseUS = () => {
   if (_supabaseUS) return _supabaseUS
   
-  const url = import.meta.env.VITE_SUPABASE_US_URL || 'https://ybsibqlaipsbvbyqlcny.supabase.co'
-  const key = import.meta.env.VITE_SUPABASE_US_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlic2licWxhaXBzYnZieXFsY255Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1MTM5OTYsImV4cCI6MjA3NjA4OTk5Nn0.PT3bcPuEvnuS2E_QTGa9wKEN43Qzx5t81POBZ29p9l0'
+  const url = import.meta.env.VITE_SUPABASE_US_URL || ''
+  const key = import.meta.env.VITE_SUPABASE_US_ANON_KEY || ''
   
   if (url && key && url.startsWith('http')) {
     _supabaseUS = createClient(url, key, {
@@ -102,8 +96,8 @@ const getSupabaseBiz = () => {
   if (_supabaseBiz) return _supabaseBiz
   
   // BIZ project (cnectotal) for centralized financial and payment data
-  const url = import.meta.env.VITE_SUPABASE_BIZ_URL || 'https://hbymozdhjseqebpomjsp.supabase.co'
-  const key = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhieW1vemRoanNlcWVicG9tanNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwNjA5NTgsImV4cCI6MjA3NjYzNjk1OH0.T7Dn0oYWTqoJTDDgWLGMEJzwFpMXNXtGgvQVB6aWCkI'
+  const url = import.meta.env.VITE_SUPABASE_BIZ_URL
+  const key = import.meta.env.VITE_SUPABASE_BIZ_ANON_KEY
   
   if (url && key && url.startsWith('http')) {
     _supabaseBiz = createClient(url, key, {
