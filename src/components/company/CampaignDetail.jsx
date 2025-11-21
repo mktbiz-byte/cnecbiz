@@ -304,7 +304,6 @@ export default function CampaignDetail() {
           applications!inner(
             id,
             applicant_name,
-            creator_name,
             creator_platform,
             creator_email,
             user_id
@@ -2847,7 +2846,7 @@ export default function CampaignDetail() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
-                            <h4 className="font-semibold text-lg mb-2">{submission.applications?.creator_name || submission.applications?.applicant_name || '크리에이터'}</h4>
+                            <h4 className="font-semibold text-lg mb-2">{submission.applications?.applicant_name || '크리에이터'}</h4>
                             <p className="text-sm text-gray-600 mb-4">{submission.applications?.creator_platform}</p>
                             
                             {submission.video_file_url && (
