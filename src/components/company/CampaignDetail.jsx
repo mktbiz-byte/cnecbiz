@@ -305,15 +305,19 @@ export default function CampaignDetail() {
 
   const fetchVideoSubmissions = async () => {
     try {
+      console.log('Fetching video submissions for campaign_id:', id)
       const { data, error } = await supabase
         .from('video_submissions')
         .select('*')
         .eq('campaign_id', id)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setVideoSubmissions(data || [])
+      if (error) {
+        console.error('Video submissions query error:', error)
+        throw error
+      }
       console.log('Fetched video submissions:', data)
+      setVideoSubmissions(data || [])
     } catch (error) {
       console.error('Error fetching video submissions:', error)
     }
