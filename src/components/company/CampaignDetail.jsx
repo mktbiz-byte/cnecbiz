@@ -673,6 +673,7 @@ export default function CampaignDetail() {
         
         return {
           campaign_id: id,
+          user_id: app.user_id,
           creator_name: app.applicant_name,
           creator_email: app.applicant_email || app.email || '',
           creator_platform: platform,
