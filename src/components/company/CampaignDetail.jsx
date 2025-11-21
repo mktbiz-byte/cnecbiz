@@ -1628,6 +1628,7 @@ export default function CampaignDetail() {
                                 if (!confirm(`${(participant.creator_name || participant.applicant_name || '크리에이터')}님에게 가이드를 전달하시겠습니까?`)) return
                                 await handleGuideApproval([participant.id])
                               }}
+                              disabled={participant.status === 'filming'}
                               className="text-green-600 border-green-600 hover:bg-green-50"
                             >
                               가이드 전달
@@ -2109,7 +2110,7 @@ export default function CampaignDetail() {
                         className="text-red-600 border-red-600 hover:bg-red-50"
                         onClick={handleCancelCampaign}
                       >
-                        캐페인 취소하기
+                        캠페인 취소하기
                       </Button>
                     )
                   }
@@ -2117,7 +2118,7 @@ export default function CampaignDetail() {
                   return (
                     <Badge className="bg-gray-100 text-gray-600">
                       {campaign.approval_status === 'approved' 
-                        ? '승인 완료된 캐페인은 취소할 수 없습니다'
+                        ? '승인 완료된 캠페인은 취소할 수 없습니다'
                         : '입금 완료 후 취소는 관리자에게 문의하세요'
                       }
                     </Badge>
