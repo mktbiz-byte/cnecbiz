@@ -100,7 +100,6 @@ export default function CampaignDetail() {
         .single()
 
       if (error) throw error
-      console.log('🔍 Campaign Type:', data?.campaign_type, 'Full data:', data)
       setCampaign(data)
     } catch (error) {
       console.error('Error fetching campaign:', error)
@@ -1240,7 +1239,7 @@ export default function CampaignDetail() {
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
       
       // 기획형 캠페인인 경우 맞춤 가이드 생성
-      if (campaign.campaign_type === 'regular') {
+      if (campaign.campaign_type === 'planned') {
         alert('크리에이터별 맞춤 가이드를 생성하고 있습니다. 잠시만 기다려주세요...')
         await generatePersonalizedGuides(selectedParticipants)
       }
@@ -1381,7 +1380,7 @@ export default function CampaignDetail() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배송정보</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사 / 송장번호</th>
-                {campaign.campaign_type === 'regular' && (
+                {campaign.campaign_type === 'planned' && (
                   <>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 승인</th>
@@ -1457,7 +1456,7 @@ export default function CampaignDetail() {
                       </div>
                     </div>
                   </td>
-                  {campaign.campaign_type === 'regular' && (
+                  {campaign.campaign_type === 'planned' && (
                     <>
                       <td className="px-4 py-3">
                         {participant.personalized_guide && participant.guide_shared_to_company ? (
@@ -1592,7 +1591,7 @@ export default function CampaignDetail() {
                   택배사 일괄 수정 ({selectedParticipants.length}명)
                 </Button>
               </div>
-              {campaign.campaign_type === 'regular' && (
+                  {campaign.campaign_type === 'planned' && (
                 <>
                   <Button
                     onClick={() => handleGeneratePersonalizedGuides(filteredParticipants)}
