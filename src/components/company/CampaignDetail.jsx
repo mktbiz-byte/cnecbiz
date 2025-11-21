@@ -67,8 +67,8 @@ export default function CampaignDetail() {
 
   useEffect(() => {
     const initPage = async () => {
-      // Get current user
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      // Get current user from supabaseBiz (where login happens)
+      const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
       setUser(currentUser)
       
       await checkIfAdmin()
