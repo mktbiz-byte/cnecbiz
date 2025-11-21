@@ -767,6 +767,128 @@ export default function CampaignDetail() {
     }
   }
 
+  // 올영 세일 통합 가이드 생성 함수
+  const handleGenerateOliveYoungGuide = async () => {
+    if (!confirm('올리브영 세일 통합 가이드를 생성하시겠습니까?')) {
+      return
+    }
+
+    try {
+      // AI 가이드 생성 요청
+      const response = await fetch('/.netlify/functions/generate-oliveyoung-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignData: {
+            brand: campaign.brand || '',
+            product_name: campaign.title || '',
+            product_url: campaign.product_url || '',
+            category: campaign.category || [],
+            reward_points: campaign.reward_points || 0,
+            total_slots: campaign.total_slots || 0,
+            start_date: campaign.start_date || '',
+            end_date: campaign.end_date || '',
+            product_description: campaign.description || '',
+            additional_details: campaign.additional_details || '',
+            must_include: campaign.must_include || '',
+            exclusions: campaign.exclusions || '',
+            additional_shooting_requests: campaign.additional_shooting_requests || ''
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('AI 가이드 생성 실패')
+      }
+
+      const { guide } = await response.json()
+
+      // 생성된 가이드를 campaigns 테이블에 저장
+      const { error: updateError } = await supabase
+        .from('campaigns')
+        .update({ ai_generated_guide: guide })
+        .eq('id', campaign.id)
+
+      if (updateError) {
+        throw new Error(updateError.message || 'Failed to save guide')
+      }
+
+      alert('올리브영 세일 통합 가이드가 성공적으로 생성되었습니다!')
+      
+      // 캐페인 데이터 새로고침
+      await fetchCampaignDetail()
+    } catch (error) {
+      console.error('Error in handleGenerateOliveYoungGuide:', error)
+      alert('가이드 생성에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 올영 세일 가이드 전체 전달 함수
+  const handleDeliverGuideToAll = async () => {
+    if (!campaign.ai_generated_guide) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    const participantCount = participants.length
+    if (participantCount === 0) {
+      alert('참여 크리에이터가 없습니다.')
+      return
+    }
+
+    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 가이드를 전달하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const participant of participants) {
+        try {
+          // 가이드 승인 및 전달
+          const { error: updateError } = await supabase
+            .from('campaign_participants')
+            .update({ 
+              personalized_guide: JSON.stringify(campaign.ai_generated_guide),
+              guide_confirmed: true,
+              guide_shared_to_company: true
+            })
+            .eq('id', participant.id)
+
+          if (updateError) {
+            throw new Error(updateError.message)
+          }
+
+          // 크리에이터에게 알림 발송
+          await sendGuideDeliveredNotification(
+            participant.user_id,
+            campaign.id,
+            campaign.title,
+            region
+          )
+
+          successCount++
+        } catch (error) {
+          console.error(`Error delivering guide to ${participant.creator_name}:`, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 크리에이터에게 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${successCount}명 성공, ${errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliverGuideToAll:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
+
   // AI 맞춤 가이드 생성 함수
   const handleGeneratePersonalizedGuides = async (selectedParticipantsList) => {
     if (!selectedParticipantsList || selectedParticipantsList.length === 0) {
@@ -1470,6 +1592,26 @@ export default function CampaignDetail() {
                 >
                   맞춤 가이드 생성 ({selectedParticipants.length}명)
                 </Button>
+              )}
+              {campaign.campaign_type === 'oliveyoung_sale' && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerateOliveYoungGuide}
+                    className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                  >
+                    올영 세일 통합 가이드 생성
+                  </Button>
+                  {campaign.ai_generated_guide && (
+                    <Button
+                      variant="outline"
+                      onClick={handleDeliverGuideToAll}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      전체 전달하기 ({filteredParticipants.length}명)
+                    </Button>
+                  )}
+                </>
               )}
               <Button
                 variant="outline"
