@@ -618,6 +618,21 @@ export default function CampaignDetail() {
         return
       }
 
+      // 모집인원 제한 체크
+      const currentParticipantsCount = participants.length
+      const totalSlots = campaign.total_slots || 0
+      const availableSlots = totalSlots - currentParticipantsCount
+      
+      if (availableSlots <= 0) {
+        alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
+        return
+      }
+      
+      if (virtualSelected.length > availableSlots) {
+        alert(`모집인원을 초과할 수 없습니다.\n\n모집인원: ${totalSlots}명\n현재 참여: ${currentParticipantsCount}명\n남은 자리: ${availableSlots}명\n선택한 인원: ${virtualSelected.length}명\n\n${availableSlots}명만 선택해주세요.`)
+        return
+      }
+
       if (!confirm(`${virtualSelected.length}명의 크리에이터를 확정하시겠습니까?`)) {
         return
       }
@@ -2302,6 +2317,16 @@ export default function CampaignDetail() {
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
                         try {
+                          // 모집인원 제한 체크
+                          const currentParticipantsCount = participants.length
+                          const totalSlots = campaign.total_slots || 0
+                          const availableSlots = totalSlots - currentParticipantsCount
+                          
+                          if (availableSlots <= 0) {
+                            alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
+                            return
+                          }
+                          
                           // 중복 확인
                           const { data: existing } = await supabase
                             .from('applications')
@@ -2564,6 +2589,16 @@ export default function CampaignDetail() {
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
                         
                         try {
+                          // 모집인원 제한 체크
+                          const currentParticipantsCount = participants.length
+                          const totalSlots = campaign.total_slots || 0
+                          const availableSlots = totalSlots - currentParticipantsCount
+                          
+                          if (availableSlots <= 0) {
+                            alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
+                            return
+                          }
+                          
                           // 중복 확인
                           const { data: existing } = await supabase
                             .from('applications')
