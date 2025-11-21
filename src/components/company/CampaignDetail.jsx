@@ -90,6 +90,13 @@ export default function CampaignDetail() {
         return
       }
       
+      // Block if campaign has no owner (data error)
+      if (!campaign.company_id) {
+        alert('잘못된 캠페인 데이터입니다.')
+        navigate('/company/campaigns')
+        return
+      }
+      
       // Check permission: must be campaign owner or admin
       if (campaign.company_id !== user.id && !isAdmin) {
         alert('이 캠페인에 접근할 권한이 없습니다.')
