@@ -58,6 +58,9 @@ export default function CampaignDetail() {
   const [showRevisionRequestModal, setShowRevisionRequestModal] = useState(false)
   const [revisionRequestText, setRevisionRequestText] = useState('')
   const [showShippingModal, setShowShippingModal] = useState(false)
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false)
+  const [regenerateRequest, setRegenerateRequest] = useState('')
+  const [isRegenerating, setIsRegenerating] = useState(false)
 
   useEffect(() => {
     checkIfAdmin()
@@ -1609,11 +1612,11 @@ export default function CampaignDetail() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleGeneratePersonalizedGuides(filteredParticipants.filter(p => selectedParticipants.includes(p.id)))}
+                    onClick={() => setShowRegenerateModal(true)}
                     disabled={selectedParticipants.length === 0}
-                    className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                    className="text-blue-600 border-blue-600 hover:bg-blue-50"
                   >
-                    선택한 크리에이터 가이드 생성 ({selectedParticipants.length}명)
+                    🔄 AI에게 가이드 재생성 요청 ({selectedParticipants.length}명)
                   </Button>
                 </>
               )}
@@ -2811,7 +2814,7 @@ export default function CampaignDetail() {
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-purple-900">
-                  {selectedGuide.creator_name}님의 맞춤 가이드
+                  맞춤 촬영 가이드
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
                   {selectedGuide.creator_platform} · {selectedGuide.creator_email}
@@ -3040,7 +3043,7 @@ export default function CampaignDetail() {
                             {/* 촬영 씬 */}
                             <div className="bg-gray-50 p-4 rounded-lg">
                               <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
-                              <div className="space-y-4 max-h-96 overflow-y-auto">
+                              <div className="space-y-4">
                                 {(guideData.shooting_scenes || []).map((scene, idx) => (
                                   <div key={idx} className="bg-white p-3 rounded border">
                                     <div className="font-medium text-sm mb-2">씬 {scene.order}</div>
@@ -3108,15 +3111,7 @@ export default function CampaignDetail() {
                               </div>
                             )}
 
-                            {/* JSON 보기 (선택적) */}
-                            <details className="bg-gray-100 p-3 rounded">
-                              <summary className="cursor-pointer text-sm font-medium text-gray-700">고급: JSON 직접 편집</summary>
-                              <textarea
-                                value={editedGuideContent}
-                                onChange={(e) => setEditedGuideContent(e.target.value)}
-                                className="w-full h-64 p-3 mt-2 border border-gray-300 rounded-lg font-mono text-xs"
-                              />
-                            </details>
+
                           </div>
                         );
                       } catch (error) {
@@ -3930,7 +3925,162 @@ export default function CampaignDetail() {
           </div>
         </div>
       )}
+
+      {/* AI 가이드 재생성 요청 모달 */}
+      {showRegenerateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">AI에게 가이드 재생성 요청</h3>
+              <button
+                onClick={() => {
+                  setShowRegenerateModal(false)
+                  setRegenerateRequest('')
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                선택된 <strong className="text-purple-600">{selectedParticipants.length}명</strong>의 크리에이터 가이드를 재생성합니다.
+              </p>
+              <p className="text-sm text-gray-500">
+                예: "더 친근한 톤으로 변경해주세요", "제품의 보습 효과를 강조해주세요"
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                재생성 요청사항 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={regenerateRequest}
+                onChange={(e) => setRegenerateRequest(e.target.value)}
+                placeholder="AI에게 어떻게 가이드를 수정해달라고 요청하시겠습니까?"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                rows={5}
+                disabled={isRegenerating}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRegenerateModal(false)
+                  setRegenerateRequest('')
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={isRegenerating}
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  if (!regenerateRequest.trim()) {
+                    alert('재생성 요청사항을 입력해주세요.')
+                    return
+                  }
+
+                  if (!confirm(`${selectedParticipants.length}명의 크리에이터 가이드를 재생성하시겠습니까?`)) {
+                    return
+                  }
+
+                  setIsRegenerating(true)
+
+                  try {
+                    let successCount = 0
+                    let errorCount = 0
+
+                    for (const participantId of selectedParticipants) {
+                      try {
+                        const participant = participants.find(p => p.id === participantId)
+                        if (!participant || !participant.personalized_guide) {
+                          console.log(`Skipping participant ${participantId}: no existing guide`)
+                          errorCount++
+                          continue
+                        }
+
+                        // 기존 가이드 + 요청사항으로 재생성
+                        const regenerateResponse = await fetch('/.netlify/functions/regenerate-personalized-guide', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            existingGuide: participant.personalized_guide,
+                            regenerateRequest: regenerateRequest,
+                            creatorAnalysis: participant.creator_analysis,
+                            productInfo: {
+                              brand: campaign.brand,
+                              product_name: campaign.product_name,
+                              product_features: campaign.product_features,
+                              product_key_points: campaign.product_key_points
+                            }
+                          })
+                        })
+
+                        if (!regenerateResponse.ok) {
+                          console.error(`Failed to regenerate guide for participant ${participantId}`)
+                          errorCount++
+                          continue
+                        }
+
+                        const { regeneratedGuide } = await regenerateResponse.json()
+
+                        // 데이터베이스에 업데이트
+                        await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: regeneratedGuide
+                          })
+                          .eq('id', participantId)
+
+                        successCount++
+                      } catch (error) {
+                        console.error(`Error regenerating guide for participant ${participantId}:`, error)
+                        errorCount++
+                      }
+                    }
+
+                    await fetchParticipants()
+
+                    if (errorCount === 0) {
+                      alert(`${successCount}명의 크리에이터 가이드가 재생성되었습니다!`)
+                    } else {
+                      alert(`${successCount}명 재생성 완료, ${errorCount}명 실패했습니다.`)
+                    }
+
+                    setShowRegenerateModal(false)
+                    setRegenerateRequest('')
+                  } catch (error) {
+                    console.error('Error in guide regeneration:', error)
+                    alert('가이드 재생성 중 오류가 발생했습니다.')
+                  } finally {
+                    setIsRegenerating(false)
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                disabled={isRegenerating || !regenerateRequest.trim()}
+              >
+                {isRegenerating ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    재생성 중...
+                  </span>
+                ) : (
+                  '🔄 가이드 재생성'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
