@@ -80,6 +80,17 @@ export default function CampaignDetail() {
     initPage()
   }, [id])
   
+  // Check authorization after user, isAdmin, and campaign are loaded
+  useEffect(() => {
+    if (campaign && user !== null) {
+      // Check permission: must be campaign owner or admin
+      if (campaign.company_id !== user.id && !isAdmin) {
+        alert('이 캠페인에 접근할 권한이 없습니다.')
+        navigate('/company/campaigns')
+      }
+    }
+  }, [campaign, user, isAdmin])
+  
   // AI 추천은 campaign이 로드된 후에 실행
   useEffect(() => {
     if (campaign) {
@@ -114,13 +125,6 @@ export default function CampaignDetail() {
         .single()
 
       if (error) throw error
-      
-      // Check permission: must be campaign owner or admin
-      if (user && data.company_id !== user.id && !isAdmin) {
-        alert('이 캠페인에 접근할 권한이 없습니다.')
-        navigate('/company/campaigns')
-        return
-      }
       
       setCampaign(data)
     } catch (error) {
