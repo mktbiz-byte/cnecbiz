@@ -2947,10 +2947,10 @@ export default function CampaignDetail() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">리얼 후기</label>
                                     <input
                                       type="text"
-                                      value={guideData.required_hashtags.real_review?.join(', ') || ''}
+                                      value={guideData.required_hashtags.real?.join(', ') || ''}
                                       onChange={(e) => {
                                         const updated = { ...guideData };
-                                        updated.required_hashtags.real_review = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                                        updated.required_hashtags.real = e.target.value.split(',').map(t => t.trim()).filter(t => t);
                                         setEditedGuideContent(JSON.stringify(updated, null, 2));
                                       }}
                                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
@@ -2961,10 +2961,10 @@ export default function CampaignDetail() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">제품 관련</label>
                                     <input
                                       type="text"
-                                      value={guideData.required_hashtags.product_related?.join(', ') || ''}
+                                      value={guideData.required_hashtags.product?.join(', ') || ''}
                                       onChange={(e) => {
                                         const updated = { ...guideData };
-                                        updated.required_hashtags.product_related = e.target.value.split(',').map(t => t.trim()).filter(t => t);
+                                        updated.required_hashtags.product = e.target.value.split(',').map(t => t.trim()).filter(t => t);
                                         setEditedGuideContent(JSON.stringify(updated, null, 2));
                                       }}
                                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
