@@ -824,9 +824,7 @@ export default function AdminCampaignDetail() {
                   className="w-full h-full min-h-[500px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
                 />
               ) : (
-                <div className="prose max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans">{selectedGuide.personalized_guide}</pre>
-                </div>
+                <GuideDisplay guide={selectedGuide.personalized_guide} />
               )}
             </div>
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
@@ -878,13 +876,20 @@ export default function AdminCampaignDetail() {
                     수정
                   </Button>
                   <Button
-                    onClick={() => {
-                      navigator.clipboard.writeText(selectedGuide.personalized_guide)
-                      alert('가이드가 클립보드에 복사되었습니다!')
+                    onClick={async () => {
+                      try {
+                        // TODO: Implement send to company functionality
+                        // For now, just copy to clipboard
+                        navigator.clipboard.writeText(selectedGuide.personalized_guide)
+                        alert('가이드가 기업에게 전달되었습니다!')
+                      } catch (error) {
+                        console.error('Error sending guide:', error)
+                        alert('전달에 실패했습니다.')
+                      }
                     }}
                     className="bg-purple-600 hover:bg-purple-700"
                   >
-                    복사
+                    기업에게 전달하기
                   </Button>
                 </>
               )}
@@ -1407,6 +1412,181 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
           </Button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Guide Display Component with Card Layout
+function GuideDisplay({ guide }) {
+  if (!guide) {
+    return <div className="text-gray-500">가이드가 없습니다.</div>
+  }
+
+  let guideData
+  try {
+    guideData = typeof guide === 'string' ? JSON.parse(guide) : guide
+  } catch (e) {
+    // If not JSON, display as text
+    return (
+      <div className="prose max-w-none">
+        <pre className="whitespace-pre-wrap font-sans text-sm">{guide}</pre>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Campaign Title */}
+      {guideData.campaign_title && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4">
+          <h3 className="text-lg font-bold text-purple-900">{guideData.campaign_title}</h3>
+          <div className="flex gap-4 mt-2 text-sm text-gray-700">
+            {guideData.target_platform && (
+              <span className="bg-white px-3 py-1 rounded-full">플랫폼: {guideData.target_platform}</span>
+            )}
+            {guideData.video_duration && (
+              <span className="bg-white px-3 py-1 rounded-full">영상 길이: {guideData.video_duration}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Shooting Scenes */}
+      {guideData.shooting_scenes && guideData.shooting_scenes.length > 0 && (
+        <div>
+          <h4 className="text-base font-bold text-gray-900 mb-3">촬영 장면 구성 ({guideData.shooting_scenes.length}개)</h4>
+          <div className="grid grid-cols-1 gap-3">
+            {guideData.shooting_scenes.map((scene, index) => (
+              <div 
+                key={index}
+                className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      {scene.order}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold rounded">
+                        {scene.scene_type}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium mb-1">촬영 장면</p>
+                        <p className="text-sm text-gray-900">{scene.scene_description}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium mb-1">대사 및 자막</p>
+                        <p className="text-sm text-gray-900 italic">"{scene.dialogue}"</p>
+                      </div>
+                      {scene.shooting_tip && (
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium mb-1">촬영 팁</p>
+                          <p className="text-xs text-gray-600">{scene.shooting_tip}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Required Hashtags */}
+      {guideData.required_hashtags && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+          <h4 className="text-base font-bold text-blue-900 mb-3">필수 해시태그</h4>
+          <div className="space-y-2">
+            {guideData.required_hashtags.real && (
+              <div>
+                <p className="text-xs text-blue-700 font-medium mb-1">리얼 후기</p>
+                <div className="flex flex-wrap gap-2">
+                  {guideData.required_hashtags.real.map((tag, i) => (
+                    <span key={i} className="bg-white px-3 py-1 rounded-full text-sm text-blue-800">#{tag}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {guideData.required_hashtags.product && (
+              <div>
+                <p className="text-xs text-blue-700 font-medium mb-1">제품 관련</p>
+                <div className="flex flex-wrap gap-2">
+                  {guideData.required_hashtags.product.map((tag, i) => (
+                    <span key={i} className="bg-white px-3 py-1 rounded-full text-sm text-blue-800">#{tag}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {guideData.required_hashtags.common && (
+              <div>
+                <p className="text-xs text-blue-700 font-medium mb-1">공통</p>
+                <div className="flex flex-wrap gap-2">
+                  {guideData.required_hashtags.common.map((tag, i) => (
+                    <span key={i} className="bg-white px-3 py-1 rounded-full text-sm text-blue-800">#{tag}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Shooting Requirements */}
+      {guideData.shooting_requirements && (
+        <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+          <h4 className="text-base font-bold text-yellow-900 mb-3">촬영 요구사항</h4>
+          {guideData.shooting_requirements.must_include && (
+            <div className="mb-3">
+              <p className="text-xs text-yellow-700 font-medium mb-2">필수 포함 장면</p>
+              <ul className="space-y-1">
+                {guideData.shooting_requirements.must_include.map((item, i) => (
+                  <li key={i} className="text-sm text-gray-900 flex items-start">
+                    <span className="text-yellow-600 mr-2">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {guideData.shooting_requirements.video_style && (
+            <div>
+              <p className="text-xs text-yellow-700 font-medium mb-2">영상 스타일</p>
+              <div className="grid grid-cols-2 gap-2">
+                {guideData.shooting_requirements.video_style.tempo && (
+                  <div className="bg-white px-3 py-2 rounded text-sm">
+                    <span className="text-gray-500">템포:</span> {guideData.shooting_requirements.video_style.tempo}
+                  </div>
+                )}
+                {guideData.shooting_requirements.video_style.tone && (
+                  <div className="bg-white px-3 py-2 rounded text-sm">
+                    <span className="text-gray-500">톤:</span> {guideData.shooting_requirements.video_style.tone}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Creator Tips */}
+      {guideData.creator_tips && guideData.creator_tips.length > 0 && (
+        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+          <h4 className="text-base font-bold text-green-900 mb-3">크리에이터 팁</h4>
+          <ul className="space-y-2">
+            {guideData.creator_tips.filter(tip => tip).map((tip, i) => (
+              <li key={i} className="text-sm text-gray-900 flex items-start">
+                <span className="text-green-600 mr-2 font-bold">{i + 1}.</span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
