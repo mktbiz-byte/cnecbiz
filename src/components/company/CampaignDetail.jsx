@@ -113,13 +113,29 @@ export default function CampaignDetail() {
       // 모든 지역에서 applications 테이블 사용, 선정된 크리에이터만 표시
       const { data, error } = await supabase
         .from('applications')
-        .select('*')
+        .select(`
+          *,
+          creator:user_id (
+            name,
+            email,
+            profile_photo_url
+          )
+        `)
         .eq('campaign_id', id)
         .in('status', ['selected', 'approved', 'virtual_selected'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setParticipants(data || [])
+      
+      // creator_name 필드 추가
+      const enrichedData = data?.map(participant => ({
+        ...participant,
+        creator_name: participant.applicant_name || participant.creator?.name || '이름 없음',
+        creator_email: participant.creator?.email || '',
+        profile_photo_url: participant.creator?.profile_photo_url || ''
+      })) || []
+      
+      setParticipants(enrichedData)
     } catch (error) {
       console.error('Error fetching participants:', error)
     }
