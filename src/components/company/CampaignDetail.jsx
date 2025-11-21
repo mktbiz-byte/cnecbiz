@@ -1484,21 +1484,25 @@ export default function CampaignDetail() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {!participant.guide_confirmed ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={async () => {
-                              if (!confirm(`${participant.creator_name}님의 가이드를 승인하고 전송하시겠습니까?`)) return
-                              await handleGuideApproval([participant.id])
-                            }}
-                            className="text-green-600 border-green-600 hover:bg-green-50"
-                          >
-                            가이드 승인
-                          </Button>
-                    ) : (
-                      <Badge className="bg-green-100 text-green-800">승인완료</Badge>
-                    )}
+                        {participant.personalized_guide && participant.guide_shared_to_company ? (
+                          !participant.guide_confirmed ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                if (!confirm(`${participant.creator_name}님의 가이드를 승인하고 전송하시겠습니까?`)) return
+                                await handleGuideApproval([participant.id])
+                              }}
+                              className="text-green-600 border-green-600 hover:bg-green-50"
+                            >
+                              가이드 승인
+                            </Button>
+                          ) : (
+                            <Badge className="bg-green-100 text-green-800">승인완료</Badge>
+                          )
+                        ) : (
+                          <span className="text-sm text-gray-400">가이드 생성 후 사용 가능</span>
+                        )}
                       </td>
                     </>
                   )}
