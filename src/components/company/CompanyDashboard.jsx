@@ -107,8 +107,8 @@ export default function CompanyDashboard() {
       // 각 캠페인의 참여자 정보 가져오기
       const participantsData = {}
       for (const campaign of campaignsData || []) {
-        const { data } = await supabaseClient
-          .from('campaign_participants')
+         const { data } = await supabase
+          .from('applications')
           .select('*')
           .eq('campaign_id', campaign.id)
         
