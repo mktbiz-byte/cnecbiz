@@ -2103,7 +2103,7 @@ export default function CampaignDetail() {
                     )
                   }
                   
-                  if (isAdmin || (campaign.payment_status !== 'confirmed' && campaign.approval_status !== 'approved')) {
+                  if (isAdmin) {
                     return (
                       <Button 
                         variant="outline"
@@ -2836,13 +2836,13 @@ export default function CampaignDetail() {
                   </div>
                 </div>
 
-                {videoSubmissions.filter(v => ['video_submitted', 'revision_requested'].includes(v.status)).length === 0 ? (
+                {videoSubmissions.filter(v => ['submitted', 'video_submitted', 'revision_requested'].includes(v.status)).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     제출된 영상이 없습니다.
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {videoSubmissions.filter(v => ['video_submitted', 'revision_requested'].includes(v.status)).map(submission => (
+                    {videoSubmissions.filter(v => ['submitted', 'video_submitted', 'revision_requested'].includes(v.status)).map(submission => (
                       <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
