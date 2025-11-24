@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Camera, Send, MessageSquare, X } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, X } from 'lucide-react'
 import { supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
@@ -20,8 +20,7 @@ export default function VideoReview() {
   const [capturedFrame, setCapturedFrame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [signedVideoUrl, setSignedVideoUrl] = useState(null)
-  const [showCommentForm, setShowCommentForm] = useState(false)
-  const [clickPosition, setClickPosition] = useState(null)
+  const [activeMarker, setActiveMarker] = useState(null) // { x, y, timestamp }
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -47,32 +46,8 @@ export default function VideoReview() {
       if (error) throw error
       setSubmission(data)
       
-      // Generate signed URL for video (5 hours validity)
-      if (data && data.video_file_url) {
-        try {
-          const url = new URL(data.video_file_url)
-          const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
-          if (pathMatch) {
-            const filePath = pathMatch[1]
-            const { data: signedData, error: signedError } = await supabaseKorea.storage
-              .from('campaign-videos')
-              .createSignedUrl(filePath, 18000) // 5 hours = 18000 seconds
-            
-            if (signedError) {
-              console.error('Error creating signed URL:', signedError)
-              setSignedVideoUrl(data.video_file_url)
-            } else {
-              setSignedVideoUrl(signedData.signedUrl)
-              console.log('Generated signed URL for video')
-            }
-          } else {
-            setSignedVideoUrl(data.video_file_url)
-          }
-        } catch (err) {
-          console.error('Error parsing video URL:', err)
-          setSignedVideoUrl(data.video_file_url)
-        }
-      }
+      // Use public URL directly since bucket is now public
+      setSignedVideoUrl(data.video_file_url)
     } catch (error) {
       console.error('Error loading submission:', error)
       alert('영상을 불러올 수 없습니다.')
@@ -118,13 +93,18 @@ export default function VideoReview() {
   const handleVideoClick = (e) => {
     if (!videoRef.current || !videoContainerRef.current) return
     
+    // Pause video when clicking
+    videoRef.current.pause()
+    
     const rect = videoContainerRef.current.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
     
-    setClickPosition({ x, y })
+    const timestamp = videoRef.current.currentTime
+    
+    setActiveMarker({ x, y, timestamp })
     captureFrame()
-    setShowCommentForm(true)
+    setCurrentComment('')
   }
 
   const captureFrame = () => {
@@ -144,8 +124,8 @@ export default function VideoReview() {
   }
 
   const addComment = async () => {
-    if (!currentComment.trim() || !capturedFrame) {
-      alert('코멘트를 작성해주세요.')
+    if (!currentComment.trim() || !capturedFrame || !activeMarker) {
+      alert('수정 요청 사항을 작성해주세요.')
       return
     }
 
@@ -154,7 +134,7 @@ export default function VideoReview() {
         .from('video_review_comments')
         .insert({
           submission_id: submissionId,
-          timestamp: currentTimestamp,
+          timestamp: activeMarker.timestamp,
           comment: currentComment,
           frame_capture: capturedFrame
         })
@@ -166,8 +146,7 @@ export default function VideoReview() {
       setComments([...comments, data])
       setCurrentComment('')
       setCapturedFrame(null)
-      setShowCommentForm(false)
-      setClickPosition(null)
+      setActiveMarker(null)
       alert('피드백이 추가되었습니다.')
     } catch (error) {
       console.error('Error adding comment:', error)
@@ -220,11 +199,10 @@ export default function VideoReview() {
     }
   }
 
-  const cancelCommentForm = () => {
-    setShowCommentForm(false)
+  const cancelMarker = () => {
+    setActiveMarker(null)
     setCurrentComment('')
     setCapturedFrame(null)
-    setClickPosition(null)
   }
 
   if (loading) {
@@ -263,7 +241,7 @@ export default function VideoReview() {
             <Card className="p-6">
               <div 
                 ref={videoContainerRef}
-                className="aspect-video bg-black rounded-lg overflow-hidden mb-4 relative cursor-pointer"
+                className="aspect-video bg-black rounded-lg overflow-hidden mb-4 relative cursor-crosshair"
                 onClick={handleVideoClick}
               >
                 <video
@@ -275,51 +253,80 @@ export default function VideoReview() {
                   브라우저가 비디오를 지원하지 않습니다.
                 </video>
                 
-                {/* Click markers on video */}
-                {comments.map((comment, index) => (
+                {/* Active marker (being created) */}
+                {activeMarker && (
                   <div
-                    key={comment.id}
-                    className="absolute w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center font-bold text-sm cursor-pointer hover:bg-red-600 transition-colors"
+                    className="absolute border-4 border-red-500 bg-red-500 bg-opacity-20 pointer-events-none"
                     style={{
-                      left: `${Math.random() * 80 + 10}%`,
-                      top: `${Math.random() * 80 + 10}%`,
+                      left: `${activeMarker.x}%`,
+                      top: `${activeMarker.y}%`,
+                      width: '80px',
+                      height: '80px',
                       transform: 'translate(-50%, -50%)'
                     }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      seekToTimestamp(comment.timestamp)
-                    }}
                   >
-                    {index + 1}
+                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                      {formatTime(activeMarker.timestamp)}
+                    </div>
                   </div>
-                ))}
+                )}
+                
+                {/* Existing comment markers */}
+                {comments.map((comment, index) => {
+                  // Generate consistent position based on comment ID
+                  const hash = comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+                  const x = 20 + (hash % 60)
+                  const y = 20 + ((hash * 7) % 60)
+                  
+                  return (
+                    <div
+                      key={comment.id}
+                      className="absolute border-4 border-blue-500 bg-blue-500 bg-opacity-20 cursor-pointer hover:bg-opacity-40 transition-all"
+                      style={{
+                        left: `${x}%`,
+                        top: `${y}%`,
+                        width: '80px',
+                        height: '80px',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        seekToTimestamp(comment.timestamp)
+                      }}
+                    >
+                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                        #{index + 1} {formatTime(comment.timestamp)}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* 피드백 작성 폼 */}
-              {showCommentForm && capturedFrame && (
-                <div className="mt-4 p-4 border-2 border-blue-500 rounded-lg bg-blue-50">
+              {activeMarker && (
+                <div className="mt-4 p-4 border-2 border-red-500 rounded-lg bg-red-50">
                   <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium">피드백 작성 ({formatTime(currentTimestamp)})</p>
+                    <p className="text-sm font-medium">수정 요청 작성 ({formatTime(activeMarker.timestamp)})</p>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={cancelCommentForm}
+                      onClick={cancelMarker}
                     >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
-                  <img src={capturedFrame} alt="Captured frame" className="w-full rounded-lg border mb-3" />
                   
                   <textarea
                     value={currentComment}
                     onChange={(e) => setCurrentComment(e.target.value)}
-                    placeholder="이 시점에 대한 수정 요청 사항을 작성하세요..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    rows={3}
+                    placeholder="이 위치에 대한 수정 요청 사항을 작성하세요..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md mb-2"
+                    rows={4}
+                    autoFocus
                   />
                   <Button
                     onClick={addComment}
-                    className="w-full mt-2 bg-green-600 hover:bg-green-700"
+                    className="w-full bg-red-600 hover:bg-red-700"
                   >
                     <Send className="w-4 h-4 mr-2" />
                     피드백 추가
@@ -356,7 +363,7 @@ export default function VideoReview() {
                       >
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                            <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs">
                               {index + 1}
                             </span>
                             <span className="text-sm font-semibold text-blue-600">
@@ -376,7 +383,7 @@ export default function VideoReview() {
                           />
                         )}
                         
-                        <p className="text-sm text-gray-700 mb-3">{comment.comment}</p>
+                        <p className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{comment.comment}</p>
                       </div>
 
                       {/* 댓글 섹션 */}
