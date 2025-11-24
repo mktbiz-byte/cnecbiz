@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail } from 'lucide-react'
-import { supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
   const { submissionId } = useParams()
@@ -56,7 +56,7 @@ export default function VideoReview() {
 
   const loadSubmission = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const { data, error } = await supabaseBiz
         .from('video_submissions')
         .select(`
           *,
@@ -82,7 +82,7 @@ export default function VideoReview() {
 
   const loadComments = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const { data, error } = await supabaseBiz
         .from('video_review_comments')
         .select('*')
         .eq('submission_id', submissionId)
@@ -94,7 +94,7 @@ export default function VideoReview() {
       // Load replies for all comments
       if (data && data.length > 0) {
         const commentIds = data.map(c => c.id)
-        const { data: repliesData, error: repliesError } = await supabaseKorea
+        const { data: repliesData, error: repliesError } = await supabaseBiz
           .from('video_review_comment_replies')
           .select('*')
           .in('comment_id', commentIds)
@@ -146,13 +146,13 @@ export default function VideoReview() {
         const fileExt = attachmentFile.name.split('.').pop()
         const fileName = `video-review/${submissionId}/${Date.now()}.${fileExt}`
         
-        const { error: uploadError } = await supabaseKorea.storage
+        const { error: uploadError } = await supabaseBiz.storage
           .from('campaign-images')
           .upload(fileName, attachmentFile)
 
         if (uploadError) throw uploadError
 
-        const { data: { publicUrl } } = supabaseKorea.storage
+        const { data: { publicUrl } } = supabaseBiz.storage
           .from('campaign-images')
           .getPublicUrl(fileName)
 
@@ -160,7 +160,7 @@ export default function VideoReview() {
         attachmentName = attachmentFile.name
       }
 
-      const { data, error } = await supabaseKorea
+      const { data, error } = await supabaseBiz
         .from('video_review_comments')
         .insert({
           submission_id: submissionId,
@@ -195,7 +195,7 @@ export default function VideoReview() {
     if (!confirm('이 피드백을 삭제하시겠습니까?')) return
 
     try {
-      const { error } = await supabaseKorea
+      const { error } = await supabaseBiz
         .from('video_review_comments')
         .delete()
         .eq('id', commentId)
@@ -217,7 +217,7 @@ export default function VideoReview() {
     }
 
     try {
-      const { data, error } = await supabaseKorea
+      const { data, error } = await supabaseBiz
         .from('video_review_comment_replies')
         .insert({
           comment_id: commentId,
