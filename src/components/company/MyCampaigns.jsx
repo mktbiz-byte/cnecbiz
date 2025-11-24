@@ -139,7 +139,7 @@ export default function MyCampaigns() {
         
         participantsData[campaign.id] = {
           total: data?.length || 0,
-          selected: data?.filter(p => ['selected', 'approved', 'virtual_selected'].includes(p.status)).length || 0,
+          selected: data?.filter(p => ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'].includes(p.status)).length || 0,
           guideConfirmed: data?.filter(p => p.guide_confirmed).length || 0
         }
       }

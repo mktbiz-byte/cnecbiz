@@ -161,6 +161,8 @@ export default function CampaignDetail() {
       if (error) throw error
       
       console.log('Fetched participants:', data)
+      console.log('Participants count:', data?.length || 0)
+      console.log('Participants statuses:', data?.map(p => ({ name: p.applicant_name, status: p.status })))
       setParticipants(data || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
