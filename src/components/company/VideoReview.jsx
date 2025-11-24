@@ -2,26 +2,22 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Send, MessageSquare, X } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, X, Trash2 } from 'lucide-react'
 import { supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
   const { submissionId } = useParams()
   const navigate = useNavigate()
   const videoRef = useRef(null)
-  const canvasRef = useRef(null)
   const videoContainerRef = useRef(null)
   
   const [submission, setSubmission] = useState(null)
   const [comments, setComments] = useState([])
   const [replies, setReplies] = useState({}) // { commentId: [replies] }
   const [currentComment, setCurrentComment] = useState('')
-  const [currentTimestamp, setCurrentTimestamp] = useState(0)
-  const [capturedFrame, setCapturedFrame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [signedVideoUrl, setSignedVideoUrl] = useState(null)
   const [activeMarker, setActiveMarker] = useState(null) // { x, y, timestamp, width, height }
-  const [isResizing, setIsResizing] = useState(false)
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -104,28 +100,11 @@ export default function VideoReview() {
     const timestamp = videoRef.current.currentTime
     
     setActiveMarker({ x, y, timestamp, width: 120, height: 120 })
-    captureFrame()
     setCurrentComment('')
   }
 
-  const captureFrame = () => {
-    if (!videoRef.current || !canvasRef.current) return
-
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
-    setCapturedFrame(dataUrl)
-    setCurrentTimestamp(video.currentTime)
-  }
-
   const addComment = async () => {
-    if (!currentComment.trim() || !capturedFrame || !activeMarker) {
+    if (!currentComment.trim() || !activeMarker) {
       alert('수정 요청 사항을 작성해주세요.')
       return
     }
@@ -137,7 +116,10 @@ export default function VideoReview() {
           submission_id: submissionId,
           timestamp: activeMarker.timestamp,
           comment: currentComment,
-          frame_capture: capturedFrame
+          box_x: activeMarker.x,
+          box_y: activeMarker.y,
+          box_width: activeMarker.width,
+          box_height: activeMarker.height
         })
         .select()
         .single()
@@ -146,12 +128,30 @@ export default function VideoReview() {
 
       setComments([...comments, data])
       setCurrentComment('')
-      setCapturedFrame(null)
       setActiveMarker(null)
       alert('피드백이 추가되었습니다.')
     } catch (error) {
       console.error('Error adding comment:', error)
       alert('피드백 추가 실패')
+    }
+  }
+
+  const deleteComment = async (commentId) => {
+    if (!confirm('이 피드백을 삭제하시겠습니까?')) return
+
+    try {
+      const { error } = await supabaseKorea
+        .from('video_review_comments')
+        .delete()
+        .eq('id', commentId)
+
+      if (error) throw error
+
+      setComments(comments.filter(c => c.id !== commentId))
+      alert('피드백이 삭제되었습니다.')
+    } catch (error) {
+      console.error('Error deleting comment:', error)
+      alert('피드백 삭제 실패')
     }
   }
 
@@ -203,7 +203,6 @@ export default function VideoReview() {
   const cancelMarker = () => {
     setActiveMarker(null)
     setCurrentComment('')
-    setCapturedFrame(null)
   }
 
   if (loading) {
@@ -316,7 +315,6 @@ export default function VideoReview() {
                       style={{ pointerEvents: 'auto' }}
                       onMouseDown={(e) => {
                         e.stopPropagation()
-                        setIsResizing(true)
                         const startX = e.clientX
                         const startY = e.clientY
                         const startWidth = activeMarker.width
@@ -332,7 +330,6 @@ export default function VideoReview() {
                         }
                         
                         const handleMouseUp = () => {
-                          setIsResizing(false)
                           document.removeEventListener('mousemove', handleMouseMove)
                           document.removeEventListener('mouseup', handleMouseUp)
                         }
@@ -346,10 +343,10 @@ export default function VideoReview() {
                 
                 {/* Existing comment markers */}
                 {comments.map((comment, index) => {
-                  // Generate consistent position based on comment ID
-                  const hash = comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-                  const x = 20 + (hash % 60)
-                  const y = 20 + ((hash * 7) % 60)
+                  const x = comment.box_x || (20 + (comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 60))
+                  const y = comment.box_y || (20 + ((comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 7) % 60))
+                  const width = comment.box_width || 120
+                  const height = comment.box_height || 120
                   
                   return (
                     <div
@@ -358,9 +355,10 @@ export default function VideoReview() {
                       style={{
                         left: `${x}%`,
                         top: `${y}%`,
-                        width: '120px',
-                        height: '120px',
-                        transform: 'translate(-50%, -50%)'
+                        width: `${width}px`,
+                        height: `${height}px`,
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 10
                       }}
                       onClick={(e) => {
                         e.stopPropagation()
@@ -432,8 +430,6 @@ export default function VideoReview() {
                   </Button>
                 </div>
               )}
-
-              <canvas ref={canvasRef} className="hidden" />
             </Card>
           </div>
 
@@ -469,18 +465,23 @@ export default function VideoReview() {
                               {formatTime(comment.timestamp)}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-500">
-                            {new Date(comment.created_at).toLocaleDateString('ko-KR')}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.created_at).toLocaleDateString('ko-KR')}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteComment(comment.id)
+                              }}
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
-                        
-                        {comment.frame_capture && (
-                          <img
-                            src={comment.frame_capture}
-                            alt="Frame"
-                            className="w-full rounded mb-2"
-                          />
-                        )}
                         
                         <p className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{comment.comment}</p>
                       </div>
