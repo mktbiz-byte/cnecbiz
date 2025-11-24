@@ -50,7 +50,7 @@ export default function VideoReview() {
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
     }
-  }, [])
+  }, [signedVideoUrl])
 
   const loadSubmission = async () => {
     try {
