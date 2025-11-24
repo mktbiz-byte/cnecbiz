@@ -33,8 +33,9 @@ async function sendNotification({
   // 1. 카카오톡 알림톡 발송
   if (receiverNum && templateCode) {
     try {
+      const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
       const kakaoResponse = await axios.post(
-        `${process.env.URL}/.netlify/functions/send-kakao-notification`,
+        `${baseUrl}/.netlify/functions/send-kakao-notification`,
         {
           receiverNum,
           receiverName,
@@ -53,8 +54,9 @@ async function sendNotification({
   // 2. 이메일 발송
   if (receiverEmail && emailSubject && emailHtml) {
     try {
+      const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
       const emailResponse = await axios.post(
-        `${process.env.URL}/.netlify/functions/send-email`,
+        `${baseUrl}/.netlify/functions/send-email`,
         {
           to: receiverEmail,
           subject: emailSubject,
