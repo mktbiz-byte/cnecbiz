@@ -61,7 +61,11 @@ export default function VideoReview() {
         .select(`
           *,
           applications (
-            applicant_name
+            applicant_name,
+            applicant_phone,
+            campaigns (
+              title
+            )
           )
         `)
         .eq('id', submissionId)
@@ -276,7 +280,9 @@ export default function VideoReview() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          submissionId,
+          creatorName: submission?.applications?.applicant_name || '크리에이터',
+          creatorPhone: submission?.applications?.applicant_phone,
+          campaignTitle: submission?.applications?.campaigns?.title || '쾐페인',
           feedbackCount: comments.length
         })
       })
