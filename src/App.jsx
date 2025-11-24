@@ -25,6 +25,7 @@ import InvoicePage from './components/company/InvoicePage'
 import MyCampaigns from './components/company/MyCampaigns'
 import CampaignDetail from './components/company/CampaignDetail'
 import VideoReview from './components/company/VideoReview'
+import VideoReviewView from './components/creator/VideoReviewView'
 import CampaignApprovals from './components/admin/CampaignApprovals'
 import CampaignReview from './components/admin/CampaignReview'
 import TeamManagement from './components/company/TeamManagement'
@@ -131,6 +132,7 @@ function App() {
         <Route path="/company/campaigns/:id/edit" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/video-review/:submissionId" element={<VideoReview />} />
+        <Route path="/creator/video-review/:submissionId" element={<VideoReviewView />} />
         <Route path="/company/translator" element={<Translator />} />
         <Route path="/company/contracts" element={<ContractManagement />} />
         <Route path="/company/teams" element={<TeamManagement />} />

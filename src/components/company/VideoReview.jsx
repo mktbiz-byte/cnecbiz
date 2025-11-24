@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Send, MessageSquare, X, Trash2 } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail } from 'lucide-react'
 import { supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
@@ -21,6 +21,7 @@ export default function VideoReview() {
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [authorName, setAuthorName] = useState('')
+  const [isSending, setIsSending] = useState(false)
 
   useEffect(() => {
     loadSubmission()
@@ -205,6 +206,42 @@ export default function VideoReview() {
     setCurrentComment('')
   }
 
+  const sendReviewNotification = async () => {
+    if (comments.length === 0) {
+      alert('피드백을 먼저 추가해주세요.')
+      return
+    }
+
+    if (!confirm(`${comments.length}개의 피드백을 크리에이터에게 전달하시겠습니까?`)) {
+      return
+    }
+
+    setIsSending(true)
+    try {
+      const response = await fetch('/.netlify/functions/send-video-review-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submissionId,
+          feedbackCount: comments.length
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || '알림 전송 실패')
+      }
+
+      alert('수정 요청이 크리에이터에게 전달되었습니다. (알림톡 + 이메일)')
+    } catch (error) {
+      console.error('Error sending notification:', error)
+      alert('알림 전송 실패: ' + error.message)
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen">로딩 중...</div>
   }
@@ -218,14 +255,23 @@ export default function VideoReview() {
       <div className="max-w-7xl mx-auto">
         {/* 헤더 */}
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            뒤로 가기
-          </Button>
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              뒤로 가기
+            </Button>
+            <Button
+              onClick={sendReviewNotification}
+              disabled={isSending || comments.length === 0}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              {isSending ? '전송 중...' : `수정 요청 전달하기 (${comments.length})`}
+            </Button>
+          </div>
           <h1 className="text-3xl font-bold">영상 수정 요청</h1>
           <p className="text-gray-600 mt-2">
             {submission.applications?.applicant_name || '크리에이터'}
