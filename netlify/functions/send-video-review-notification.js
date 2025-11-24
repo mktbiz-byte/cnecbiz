@@ -164,26 +164,23 @@ ${feedbackSummary || '수정 요청 사항을 확인해주세요.'}
       </div>
     `
 
-    let notificationResult
-    try {
-      notificationResult = await sendNotification({
-        receiverNum: creatorPhone,
-        receiverEmail: creatorEmail,
-        receiverName: creatorName,
-        templateCode,
-        variables,
-        emailSubject,
-        emailHtml
-      })
-      console.log('[SUCCESS] Notification sent:', notificationResult)
-    } catch (notifError) {
-      console.error('[ERROR] Notification failed:', notifError)
-      // Continue even if notification fails
-      notificationResult = { 
-        kakao: { success: false, error: notifError.message },
-        email: { success: false, error: notifError.message }
-      }
-    }
+    // 알림 발송을 비동기로 처리 (타임아웃 방지)
+    // 즉시 200 응답을 반환하고, 백그라운드에서 알림 발송
+    sendNotification({
+      receiverNum: creatorPhone,
+      receiverEmail: creatorEmail,
+      receiverName: creatorName,
+      templateCode,
+      variables,
+      emailSubject,
+      emailHtml
+    }).then(result => {
+      console.log('[SUCCESS] Notification sent:', result)
+    }).catch(error => {
+      console.error('[ERROR] Notification failed:', error)
+    })
+    
+    const notificationResult = { status: 'sending' }
 
     // 4. 알림 발송 기록 저장 (선택사항)
     const { error: updateError } = await supabaseAdmin
