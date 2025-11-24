@@ -335,7 +335,7 @@ export default function VideoReview() {
                 </video>
                 
                 {/* Active marker (being created) */}
-                {activeMarker && (
+                {activeMarker && isPaused && (
                   <div
                     className="absolute border-4 border-yellow-500 cursor-move"
                     style={{
