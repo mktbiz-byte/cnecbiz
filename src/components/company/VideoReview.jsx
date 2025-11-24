@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
   const { submissionId } = useParams()
@@ -56,7 +56,7 @@ export default function VideoReview() {
 
   const loadSubmission = async () => {
     try {
-      // Get current user
+      // Get current user from supabaseBiz (authentication)
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) {
         alert('로그인이 필요합니다.')
@@ -64,7 +64,7 @@ export default function VideoReview() {
         return
       }
 
-      // Get company ID
+      // Get company ID from supabaseBiz
       const { data: companyData } = await supabaseBiz
         .from('companies')
         .select('id')
@@ -77,7 +77,8 @@ export default function VideoReview() {
         return
       }
 
-      const { data, error } = await supabaseBiz
+      // Get submission data from supabaseKorea
+      const { data, error } = await supabaseKorea
         .from('video_submissions')
         .select(`
           *,
