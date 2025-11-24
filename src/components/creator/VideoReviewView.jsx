@@ -244,8 +244,9 @@ export default function VideoReviewView() {
                   const height = comment.box_height || 120
                   const isSelected = selectedComment === comment.id
                   
-                  // Only show marker when video is paused
-                  const isVisible = isPaused
+                  // Only show marker when video is paused AND within ±2 seconds of current time
+                  const timeDiff = Math.abs(currentTime - comment.timestamp)
+                  const isVisible = isPaused && timeDiff <= 2
                   
                   if (!isVisible) return null
                   
@@ -286,21 +287,21 @@ export default function VideoReviewView() {
               </div>
 
               {/* Timeline with feedback markers */}
-              <div className="relative h-2 bg-gray-300 rounded-full mb-4">
+              <div className="relative h-3 bg-gray-300 rounded-full mb-4">
                 {comments.map((comment, index) => {
                   const position = videoRef.current ? (comment.timestamp / videoRef.current.duration) * 100 : 0
                   const isSelected = selectedComment === comment.id
                   return (
                     <div
                       key={comment.id}
-                      className={`absolute top-0 w-1 h-full cursor-pointer transition-colors ${
+                      className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full cursor-pointer hover:scale-125 transition-all shadow-md ${
                         isSelected ? 'bg-yellow-500' : 'bg-blue-500 hover:bg-blue-700'
                       }`}
-                      style={{ left: `${position}%` }}
+                      style={{ left: `${position}%`, transform: 'translate(-50%, -50%)' }}
                       onClick={() => seekToTimestamp(comment.timestamp, comment.id)}
                       title={`#${index + 1} - ${formatTime(comment.timestamp)}`}
                     >
-                       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                       <div className="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
                         #{index + 1} {formatTime(comment.timestamp)}
                       </div>
                     </div>

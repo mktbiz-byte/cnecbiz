@@ -418,8 +418,9 @@ export default function VideoReview() {
                   const width = comment.box_width || 120
                   const height = comment.box_height || 120
                   
-                  // Only show marker when video is paused
-                  const isVisible = isPaused
+                  // Only show marker when video is paused AND within ±2 seconds of current time
+                  const timeDiff = Math.abs(currentTime - comment.timestamp)
+                  const isVisible = isPaused && timeDiff <= 2
                   
                   if (!isVisible) return null
                   
@@ -457,27 +458,27 @@ export default function VideoReview() {
               </div>
 
               {/* Timeline with feedback markers */}
-              <div className="relative h-2 bg-gray-300 rounded-full mb-4">
+              <div className="relative h-3 bg-gray-300 rounded-full mb-4">
                 {comments.map((comment, index) => {
                   const position = videoRef.current ? (comment.timestamp / videoRef.current.duration) * 100 : 0
                   return (
                     <div
                       key={comment.id}
-                      className="absolute top-0 w-1 h-full bg-blue-500 cursor-pointer hover:bg-blue-700 transition-colors"
-                      style={{ left: `${position}%` }}
+                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-700 hover:scale-125 transition-all shadow-md"
+                      style={{ left: `${position}%`, transform: 'translate(-50%, -50%)' }}
                       onClick={() => seekToTimestamp(comment.timestamp)}
                       title={`#${index + 1} - ${formatTime(comment.timestamp)}`}
                     >
-                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-1 rounded text-[10px] font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
-                        #{index + 1}
+                      <div className="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
+                        #{index + 1} {formatTime(comment.timestamp)}
                       </div>
                     </div>
                   )
                 })}
                 {activeMarker && videoRef.current && (
                   <div
-                    className="absolute top-0 w-1 h-full bg-yellow-500"
-                    style={{ left: `${(activeMarker.timestamp / videoRef.current.duration) * 100}%` }}
+                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-yellow-500 rounded-full shadow-md"
+                    style={{ left: `${(activeMarker.timestamp / videoRef.current.duration) * 100}%`, transform: 'translate(-50%, -50%)' }}
                   />
                 )}
               </div>
