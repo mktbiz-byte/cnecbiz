@@ -357,22 +357,7 @@ export default function CompanyProfileEdit() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">기업 구분</h3>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="isAgency"
-                        checked={formData.isAgency}
-                        onChange={handleChange}
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-gray-700">광고대행사입니다</span>
-                    </label>
-                    <p className="text-sm text-gray-500">
-                      광고대행사는 여러 브랜드의 캠페인을 관리할 수 있습니다.
-                    </p>
-                  </div>
+
                 </div>
 
               {/* 알림 설정 */}
@@ -536,10 +521,7 @@ export default function CompanyProfileEdit() {
                             ({formData.companyPostalCode}) {formData.companyAddress} {formData.companyAddressDetail}
                           </span>
                         </div>
-                        <div className="col-span-2">
-                          <span className="text-gray-600">기업 구분:</span>
-                          <span className="ml-2 font-medium">{formData.isAgency ? '광고대행사' : '일반 기업'}</span>
-                        </div>
+
                       </div>
                     </div>
 
