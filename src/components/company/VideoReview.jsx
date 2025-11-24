@@ -30,8 +30,7 @@ export default function VideoReview() {
         .select(`
           *,
           applications (
-            applicant_name,
-            creator_name
+            applicant_name
           )
         `)
         .eq('id', submissionId)
@@ -143,7 +142,7 @@ export default function VideoReview() {
           </Button>
           <h1 className="text-3xl font-bold">영상 수정 요청</h1>
           <p className="text-gray-600 mt-2">
-            {submission.applications?.applicant_name || submission.applications?.creator_name || '크리에이터'}
+            {submission.applications?.applicant_name || '크리에이터'}
           </p>
         </div>
 

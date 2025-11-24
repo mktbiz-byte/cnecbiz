@@ -2925,8 +2925,9 @@ export default function CampaignDetail() {
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                                 <video 
-                                  key={submission.id}
+                                  key={`${userId}-${selectedVersion}-${submission.id}`}
                                   controls 
+                                  preload="metadata"
                                   className="w-full h-full"
                                   src={submission.video_file_url}
                                 >
