@@ -24,6 +24,8 @@ export default function VideoReview() {
   const [isSending, setIsSending] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [isPaused, setIsPaused] = useState(true)
+  const [attachmentFile, setAttachmentFile] = useState(null)
+  const [uploadingFile, setUploadingFile] = useState(false)
 
   useEffect(() => {
     loadSubmission()
@@ -135,6 +137,32 @@ export default function VideoReview() {
     }
 
     try {
+      setUploadingFile(true)
+      let attachmentUrl = null
+      let attachmentName = null
+
+      // Upload file if attached
+      if (attachmentFile) {
+        const fileExt = attachmentFile.name.split('.').pop()
+        const fileName = `${submissionId}/${Date.now()}.${fileExt}`
+        
+        const { data: uploadData, error: uploadError } = await supabaseKorea.storage
+          .from('campaign-videos')
+          .upload(fileName, attachmentFile, {
+            cacheControl: '3600',
+            upsert: false
+          })
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabaseKorea.storage
+          .from('campaign-videos')
+          .getPublicUrl(fileName)
+
+        attachmentUrl = publicUrl
+        attachmentName = attachmentFile.name
+      }
+
       const { data, error } = await supabaseKorea
         .from('video_review_comments')
         .insert({
@@ -144,7 +172,9 @@ export default function VideoReview() {
           box_x: activeMarker.x,
           box_y: activeMarker.y,
           box_width: activeMarker.width,
-          box_height: activeMarker.height
+          box_height: activeMarker.height,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName
         })
         .select()
         .single()
@@ -154,10 +184,13 @@ export default function VideoReview() {
       setComments([...comments, data])
       setCurrentComment('')
       setActiveMarker(null)
+      setAttachmentFile(null)
       alert('피드백이 추가되었습니다.')
     } catch (error) {
       console.error('Error adding comment:', error)
-      alert('피드백 추가 실패')
+      alert('피드백 추가 실패: ' + error.message)
+    } finally {
+      setUploadingFile(false)
     }
   }
 
@@ -279,7 +312,7 @@ export default function VideoReview() {
       <div className="max-w-7xl mx-auto">
         {/* 헤더 */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex justify-between items-center mb-6">
             <Button
               variant="ghost"
               onClick={() => navigate(-1)}
@@ -290,9 +323,9 @@ export default function VideoReview() {
             <Button
               onClick={sendReviewNotification}
               disabled={isSending || comments.length === 0}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold px-6 py-3 text-base shadow-lg hover:shadow-xl transition-all"
             >
-              <Mail className="w-4 h-4 mr-2" />
+              <Mail className="w-5 h-5 mr-2" />
               {isSending ? '전송 중...' : `수정 요청 전달하기 (${comments.length})`}
             </Button>
           </div>
@@ -510,12 +543,35 @@ export default function VideoReview() {
                     rows={4}
                     autoFocus
                   />
+                  
+                  {/* 파일 첨부 */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      📎 참고 파일 첨부 (선택사항)
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      크리에이터에게 별도 참고할 이미지나 파일이 있으시면 첨부해 주세요.
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.ppt,.pptx,.doc,.docx"
+                      onChange={(e) => setAttachmentFile(e.target.files[0])}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {attachmentFile && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ {attachmentFile.name} ({(attachmentFile.size / 1024).toFixed(1)} KB)
+                      </p>
+                    )}
+                  </div>
+                  
                   <Button
                     onClick={addComment}
+                    disabled={uploadingFile}
                     className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
                   >
                     <Send className="w-4 h-4 mr-2" />
-                    피드백 추가
+                    {uploadingFile ? '업로드 중...' : '피드백 추가'}
                   </Button>
                 </div>
               )}
@@ -573,6 +629,35 @@ export default function VideoReview() {
                         </div>
                         
                         <p className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{comment.comment}</p>
+                        
+                        {/* 첨부 파일 */}
+                        {comment.attachment_url && (
+                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                </svg>
+                                <span className="text-xs font-medium text-blue-700">
+                                  {comment.attachment_name || '첨부파일'}
+                                </span>
+                              </div>
+                              <a
+                                href={comment.attachment_url}
+                                download={comment.attachment_name}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                다운로드
+                              </a>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* 댓글 섹션 */}

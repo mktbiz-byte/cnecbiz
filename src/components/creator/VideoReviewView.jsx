@@ -381,6 +381,35 @@ export default function VideoReviewView() {
                           <p className="text-sm text-gray-700 mb-3 whitespace-pre-wrap font-medium">
                             {comment.comment}
                           </p>
+                          
+                          {/* 첨부 파일 */}
+                          {comment.attachment_url && (
+                            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                  </svg>
+                                  <span className="text-xs font-medium text-blue-700">
+                                    {comment.attachment_name || '첨부파일'}
+                                  </span>
+                                </div>
+                                <a
+                                  href={comment.attachment_url}
+                                  download={comment.attachment_name}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                  다운로드
+                                </a>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* 댓글 섹션 */}
