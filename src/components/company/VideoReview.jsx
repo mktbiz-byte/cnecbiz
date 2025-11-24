@@ -261,14 +261,14 @@ export default function VideoReview() {
   }
 
   const sendReviewNotification = async () => {
-    alert('Function called! Comments: ' + comments.length);
-    console.log('=== sendReviewNotification called ===', { commentsLength: comments.length });
+    console.log('=== sendReviewNotification START ===', { commentsLength: comments.length });
     if (comments.length === 0) {
       alert('피드백을 먼저 추가해주세요.')
       return
     }
 
-    if (!confirm(`${comments.length}개의 피드백을 크리에이터에게 전달하시겠습니까?`)) {
+    console.log('=== About to show confirm dialog ===');
+    if (!confirm(`${comments.length}개의 피드백을 크리에이터에게 전달하시게습니까?`)) {
       return
     }
 
