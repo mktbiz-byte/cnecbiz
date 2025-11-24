@@ -64,6 +64,7 @@ export default function CampaignDetail() {
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
+  const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id: version_index}
 
   useEffect(() => {
     const initPage = async () => {
@@ -2866,22 +2867,65 @@ export default function CampaignDetail() {
                   </div>
                 </div>
 
-                {videoSubmissions.filter(v => ['submitted', 'video_submitted', 'revision_requested'].includes(v.status)).length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    제출된 영상이 없습니다.
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {videoSubmissions.filter(v => ['submitted', 'video_submitted', 'revision_requested'].includes(v.status)).map(submission => (
+                {(() => {
+                  // Group video submissions by user_id
+                  const filteredSubmissions = videoSubmissions.filter(v => ['submitted', 'video_submitted', 'revision_requested'].includes(v.status))
+                  const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
+                    if (!acc[submission.user_id]) {
+                      acc[submission.user_id] = []
+                    }
+                    acc[submission.user_id].push(submission)
+                    return acc
+                  }, {})
+                  
+                  // Sort each group by submitted_at (oldest first)
+                  Object.keys(groupedByUser).forEach(userId => {
+                    groupedByUser[userId].sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
+                  })
+                  
+                  if (Object.keys(groupedByUser).length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        제출된 영상이 없습니다.
+                      </div>
+                    )
+                  }
+                  
+                  return (
+                    <div className="space-y-6">
+                      {Object.entries(groupedByUser).map(([userId, submissions]) => {
+                        const selectedVersion = selectedVideoVersions[userId] || 0
+                        const submission = submissions[selectedVersion]
+                        return (
                       <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
-                            <h4 className="font-semibold text-lg mb-2">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
+                              {submissions.length > 1 && (
+                                <div className="flex gap-2">
+                                  {submissions.map((_, index) => (
+                                    <button
+                                      key={index}
+                                      onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [userId]: index }))}
+                                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                        selectedVersion === index
+                                          ? 'bg-blue-600 text-white'
+                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                      }`}
+                                    >
+                                      v{index + 1}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                             
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                                 <video 
+                                  key={submission.id}
                                   controls 
                                   className="w-full h-full"
                                   src={submission.video_file_url}
@@ -2999,9 +3043,11 @@ export default function CampaignDetail() {
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
