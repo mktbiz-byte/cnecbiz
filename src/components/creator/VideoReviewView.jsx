@@ -273,11 +273,13 @@ export default function VideoReviewView() {
                         #{index + 1} {formatTime(comment.timestamp)}
                       </div>
                       {/* Comment text next to marker */}
-                      <div className="absolute top-0 left-full ml-3 bg-white border-2 border-blue-500 rounded-lg p-3 shadow-lg max-w-xs z-30">
-                        <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">
-                          {comment.comment_text}
+                      {comment.comment && (
+                        <div className="absolute top-0 left-full ml-3 bg-white border-2 border-blue-500 rounded-lg p-3 shadow-lg max-w-xs z-30">
+                          <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+                            {comment.comment}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )
                 })}
