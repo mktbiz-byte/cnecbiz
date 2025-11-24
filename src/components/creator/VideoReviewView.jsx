@@ -233,8 +233,8 @@ export default function VideoReviewView() {
                   const height = comment.box_height || 120
                   const isSelected = selectedComment === comment.id
                   
-                  // Only show marker when video is paused or within 0.2 seconds of the timestamp
-                  const isVisible = videoRef.current?.paused || Math.abs(currentTime - comment.timestamp) < 0.2
+                  // Only show marker when video is paused
+                  const isVisible = videoRef.current?.paused
                   
                   if (!isVisible) return null
                   
@@ -261,6 +261,12 @@ export default function VideoReviewView() {
                       }`}>
                         #{index + 1} {formatTime(comment.timestamp)}
                       </div>
+                      {/* Comment text next to marker */}
+                      <div className="absolute top-0 left-full ml-3 bg-white border-2 border-blue-500 rounded-lg p-3 shadow-lg max-w-xs z-30">
+                        <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+                          {comment.comment_text}
+                        </div>
+                      </div>
                     </div>
                   )
                 })}
@@ -281,8 +287,8 @@ export default function VideoReviewView() {
                       onClick={() => seekToTimestamp(comment.timestamp, comment.id)}
                       title={`#${index + 1} - ${formatTime(comment.timestamp)}`}
                     >
-                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-1 rounded text-[10px] font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
-                        #{index + 1}
+                       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                        #{index + 1} {formatTime(comment.timestamp)}
                       </div>
                     </div>
                   )

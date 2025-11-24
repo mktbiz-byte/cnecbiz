@@ -407,8 +407,8 @@ export default function VideoReview() {
                   const width = comment.box_width || 120
                   const height = comment.box_height || 120
                   
-                  // Only show marker when video is paused or within 0.2 seconds of the timestamp
-                  const isVisible = videoRef.current?.paused || Math.abs(currentTime - comment.timestamp) < 0.2
+                  // Only show marker when video is paused
+                  const isVisible = videoRef.current?.paused
                   
                   if (!isVisible) return null
                   
@@ -431,6 +431,12 @@ export default function VideoReview() {
                     >
                       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
                         #{index + 1} {formatTime(comment.timestamp)}
+                      </div>
+                      {/* Comment text next to marker */}
+                      <div className="absolute top-0 left-full ml-3 bg-white border-2 border-blue-500 rounded-lg p-3 shadow-lg max-w-xs z-30">
+                        <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">
+                          {comment.comment_text}
+                        </div>
                       </div>
                     </div>
                   )
