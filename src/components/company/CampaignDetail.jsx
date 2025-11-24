@@ -65,6 +65,7 @@ export default function CampaignDetail() {
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
   const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id: version_index}
+  const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
 
   useEffect(() => {
     const initPage = async () => {
@@ -347,6 +348,42 @@ export default function CampaignDetail() {
       }
       console.log('Fetched video submissions:', data)
       setVideoSubmissions(data || [])
+      
+      // Generate signed URLs for all video submissions (5 hours validity)
+      if (data && data.length > 0) {
+        const urlPromises = data.map(async (submission) => {
+          if (submission.video_file_url) {
+            try {
+              // Extract path from full URL
+              const url = new URL(submission.video_file_url)
+              const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
+              if (pathMatch) {
+                const filePath = pathMatch[1]
+                const { data: signedData, error: signedError } = await supabase.storage
+                  .from('campaign-videos')
+                  .createSignedUrl(filePath, 18000) // 5 hours = 18000 seconds
+                
+                if (signedError) {
+                  console.error('Error creating signed URL:', signedError)
+                  return { id: submission.id, url: submission.video_file_url }
+                }
+                return { id: submission.id, url: signedData.signedUrl }
+              }
+            } catch (err) {
+              console.error('Error parsing video URL:', err)
+            }
+          }
+          return { id: submission.id, url: submission.video_file_url }
+        })
+        
+        const urls = await Promise.all(urlPromises)
+        const urlMap = urls.reduce((acc, { id, url }) => {
+          acc[id] = url
+          return acc
+        }, {})
+        setSignedVideoUrls(urlMap)
+        console.log('Generated signed URLs for', urls.length, 'videos')
+      }
     } catch (error) {
       console.error('Error fetching video submissions:', error)
     }
@@ -2929,7 +2966,7 @@ export default function CampaignDetail() {
                                   controls 
                                   preload="metadata"
                                   className="w-full h-full"
-                                  src={submission.video_file_url}
+                                  src={signedVideoUrls[submission.id] || submission.video_file_url}
                                 >
                                   브라우저가 비디오를 지원하지 않습니다.
                                 </video>

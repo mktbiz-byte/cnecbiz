@@ -17,6 +17,7 @@ export default function VideoReview() {
   const [currentTimestamp, setCurrentTimestamp] = useState(0)
   const [capturedFrame, setCapturedFrame] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [signedVideoUrl, setSignedVideoUrl] = useState(null)
 
   useEffect(() => {
     loadSubmission()
@@ -38,6 +39,33 @@ export default function VideoReview() {
 
       if (error) throw error
       setSubmission(data)
+      
+      // Generate signed URL for video (5 hours validity)
+      if (data && data.video_file_url) {
+        try {
+          const url = new URL(data.video_file_url)
+          const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
+          if (pathMatch) {
+            const filePath = pathMatch[1]
+            const { data: signedData, error: signedError } = await supabaseKorea.storage
+              .from('campaign-videos')
+              .createSignedUrl(filePath, 18000) // 5 hours = 18000 seconds
+            
+            if (signedError) {
+              console.error('Error creating signed URL:', signedError)
+              setSignedVideoUrl(data.video_file_url)
+            } else {
+              setSignedVideoUrl(signedData.signedUrl)
+              console.log('Generated signed URL for video')
+            }
+          } else {
+            setSignedVideoUrl(data.video_file_url)
+          }
+        } catch (err) {
+          console.error('Error parsing video URL:', err)
+          setSignedVideoUrl(data.video_file_url)
+        }
+      }
     } catch (error) {
       console.error('Error loading submission:', error)
       alert('영상을 불러올 수 없습니다.')
@@ -155,7 +183,7 @@ export default function VideoReview() {
                   ref={videoRef}
                   controls
                   className="w-full h-full"
-                  src={submission.video_file_url}
+                  src={signedVideoUrl || submission.video_file_url}
                 >
                   브라우저가 비디오를 지원하지 않습니다.
                 </video>
