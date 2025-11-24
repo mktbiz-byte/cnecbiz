@@ -22,11 +22,24 @@ export default function VideoReview() {
   const [replyText, setReplyText] = useState('')
   const [authorName, setAuthorName] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
 
   useEffect(() => {
     loadSubmission()
     loadComments()
   }, [submissionId])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime)
+    }
+
+    video.addEventListener('timeupdate', handleTimeUpdate)
+    return () => video.removeEventListener('timeupdate', handleTimeUpdate)
+  }, [])
 
   const loadSubmission = async () => {
     try {
@@ -387,12 +400,17 @@ export default function VideoReview() {
                   </div>
                 )}
                 
-                {/* Existing comment markers */}
+                {/* Existing comment markers - only show when video is at that timestamp */}
                 {comments.map((comment, index) => {
                   const x = comment.box_x || (20 + (comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 60))
                   const y = comment.box_y || (20 + ((comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 7) % 60))
                   const width = comment.box_width || 120
                   const height = comment.box_height || 120
+                  
+                  // Only show marker when video is paused or within 0.5 seconds of the timestamp
+                  const isVisible = videoRef.current?.paused || Math.abs(currentTime - comment.timestamp) < 0.5
+                  
+                  if (!isVisible) return null
                   
                   return (
                     <div
