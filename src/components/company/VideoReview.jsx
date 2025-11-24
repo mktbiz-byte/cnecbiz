@@ -244,10 +244,14 @@ export default function VideoReview() {
                 ref={videoContainerRef}
                 className="aspect-video bg-black rounded-lg overflow-hidden mb-4 relative"
               >
-                {/* Transparent overlay for click detection */}
+                {/* Transparent overlay for click detection - exclude bottom 60px for controls */}
                 <div 
-                  className="absolute inset-0 z-10 cursor-crosshair"
-                  style={{ pointerEvents: activeMarker ? 'none' : 'auto' }}
+                  className="absolute top-0 left-0 right-0 cursor-crosshair"
+                  style={{ 
+                    bottom: '60px',
+                    pointerEvents: activeMarker ? 'none' : 'auto',
+                    zIndex: 5
+                  }}
                   onClick={handleVideoClick}
                 />
                 <video
