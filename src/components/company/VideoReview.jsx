@@ -257,7 +257,7 @@ export default function VideoReview() {
                 {/* Active marker (being created) */}
                 {activeMarker && (
                   <div
-                    className="absolute border-4 border-red-500"
+                    className="absolute border-4 border-yellow-500"
                     style={{
                       left: `${activeMarker.x}%`,
                       top: `${activeMarker.y}%`,
@@ -267,12 +267,12 @@ export default function VideoReview() {
                       pointerEvents: 'none'
                     }}
                   >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
                       {formatTime(activeMarker.timestamp)}
                     </div>
                     {/* Resize handles */}
                     <div 
-                      className="absolute -bottom-2 -right-2 w-4 h-4 bg-red-500 rounded-full cursor-se-resize"
+                      className="absolute -bottom-2 -right-2 w-4 h-4 bg-yellow-500 rounded-full cursor-se-resize"
                       style={{ pointerEvents: 'auto' }}
                       onMouseDown={(e) => {
                         e.stopPropagation()
@@ -337,7 +337,7 @@ export default function VideoReview() {
 
               {/* 피드백 작성 폼 */}
               {activeMarker && (
-                <div className="mt-4 p-4 border-2 border-red-500 rounded-lg bg-red-50">
+                <div className="mt-4 p-4 border-2 border-yellow-500 rounded-lg bg-yellow-50">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-sm font-medium">수정 요청 작성 ({formatTime(activeMarker.timestamp)})</p>
                     <Button
@@ -359,7 +359,7 @@ export default function VideoReview() {
                   />
                   <Button
                     onClick={addComment}
-                    className="w-full bg-red-600 hover:bg-red-700"
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
                   >
                     <Send className="w-4 h-4 mr-2" />
                     피드백 추가
