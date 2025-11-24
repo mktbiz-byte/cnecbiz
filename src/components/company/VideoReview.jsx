@@ -144,19 +144,16 @@ export default function VideoReview() {
       // Upload file if attached
       if (attachmentFile) {
         const fileExt = attachmentFile.name.split('.').pop()
-        const fileName = `${submissionId}/${Date.now()}.${fileExt}`
+        const fileName = `video-review/${submissionId}/${Date.now()}.${fileExt}`
         
-        const { data: uploadData, error: uploadError } = await supabaseKorea.storage
-          .from('campaign-videos')
-          .upload(fileName, attachmentFile, {
-            cacheControl: '3600',
-            upsert: false
-          })
+        const { error: uploadError } = await supabaseKorea.storage
+          .from('campaign-images')
+          .upload(fileName, attachmentFile)
 
         if (uploadError) throw uploadError
 
         const { data: { publicUrl } } = supabaseKorea.storage
-          .from('campaign-videos')
+          .from('campaign-images')
           .getPublicUrl(fileName)
 
         attachmentUrl = publicUrl
