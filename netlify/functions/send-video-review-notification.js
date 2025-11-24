@@ -109,6 +109,8 @@ exports.handler = async (event) => {
       '피드백개수': feedbackCount || feedbackList.length
     }
 
+    console.log('[INFO] Notification params:', { creatorPhone, creatorEmail, templateCode })
+
     // 이메일 HTML 생성
     const emailSubject = `[CNEC] ${campaignTitle} - 영상 수정 요청이 도착했습니다`
     const emailHtml = `
@@ -152,17 +154,26 @@ ${feedbackSummary || '수정 요청 사항을 확인해주세요.'}
       </div>
     `
 
-    const notificationResult = await sendNotification({
-      receiverNum: creatorPhone,
-      receiverEmail: creatorEmail,
-      receiverName: creatorName,
-      templateCode,
-      variables,
-      emailSubject,
-      emailHtml
-    })
-
-    console.log('[SUCCESS] Notification sent:', notificationResult)
+    let notificationResult
+    try {
+      notificationResult = await sendNotification({
+        receiverNum: creatorPhone,
+        receiverEmail: creatorEmail,
+        receiverName: creatorName,
+        templateCode,
+        variables,
+        emailSubject,
+        emailHtml
+      })
+      console.log('[SUCCESS] Notification sent:', notificationResult)
+    } catch (notifError) {
+      console.error('[ERROR] Notification failed:', notifError)
+      // Continue even if notification fails
+      notificationResult = { 
+        kakao: { success: false, error: notifError.message },
+        email: { success: false, error: notifError.message }
+      }
+    }
 
     // 4. 알림 발송 기록 저장 (선택사항)
     const { error: updateError } = await supabaseAdmin

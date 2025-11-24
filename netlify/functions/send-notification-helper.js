@@ -34,6 +34,7 @@ async function sendNotification({
   if (receiverNum && templateCode) {
     try {
       const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+      console.log('[INFO] Sending Kakao notification to:', receiverNum)
       const kakaoResponse = await axios.post(
         `${baseUrl}/.netlify/functions/send-kakao-notification`,
         {
@@ -41,34 +42,43 @@ async function sendNotification({
           receiverName,
           templateCode,
           variables
-        }
+        },
+        { timeout: 8000 } // 8초 타임아웃
       )
       results.kakao = { success: true, data: kakaoResponse.data }
       console.log('✓ 카카오톡 알림톡 발송 성공')
     } catch (kakaoError) {
       console.error('✗ 카카오톡 알림톡 발송 실패:', kakaoError.message)
       results.kakao = { success: false, error: kakaoError.message }
+      // 카카오톡 실패해도 계속 진행
     }
+  } else {
+    console.log('[SKIP] Kakao notification skipped - missing receiverNum or templateCode')
   }
 
   // 2. 이메일 발송
   if (receiverEmail && emailSubject && emailHtml) {
     try {
       const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+      console.log('[INFO] Sending email to:', receiverEmail)
       const emailResponse = await axios.post(
         `${baseUrl}/.netlify/functions/send-email`,
         {
           to: receiverEmail,
           subject: emailSubject,
           html: emailHtml
-        }
+        },
+        { timeout: 8000 } // 8초 타임아웃
       )
       results.email = { success: true, data: emailResponse.data }
       console.log('✓ 이메일 발송 성공')
     } catch (emailError) {
       console.error('✗ 이메일 발송 실패:', emailError.message)
       results.email = { success: false, error: emailError.message }
+      // 이메일 실패해도 계속 진행
     }
+  } else {
+    console.log('[SKIP] Email notification skipped - missing receiverEmail, subject, or html')
   }
 
   return results
