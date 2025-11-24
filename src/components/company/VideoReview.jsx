@@ -261,6 +261,7 @@ export default function VideoReview() {
   }
 
   const sendReviewNotification = async () => {
+    alert('Function called! Comments: ' + comments.length);
     console.log('=== sendReviewNotification called ===', { commentsLength: comments.length });
     if (comments.length === 0) {
       alert('피드백을 먼저 추가해주세요.')
@@ -324,7 +325,7 @@ export default function VideoReview() {
               className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold px-6 py-3 text-base shadow-lg hover:shadow-xl transition-all"
             >
               <Mail className="w-5 h-5 mr-2" />
-              {isSending ? '전송 중...' : `수정 요청 전달하기 (${comments.length})`}
+              {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
             </Button>
           </div>
           <h1 className="text-3xl font-bold">영상 수정 요청</h1>
