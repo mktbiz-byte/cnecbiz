@@ -196,7 +196,7 @@ export default function VideoReview() {
   const seekToTimestamp = (timestamp) => {
     if (videoRef.current) {
       videoRef.current.currentTime = timestamp
-      videoRef.current.play()
+      videoRef.current.pause()
     }
   }
 
