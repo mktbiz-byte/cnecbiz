@@ -38,8 +38,8 @@ export default function BankTransactionsTab() {
 
       if (data.success) {
         console.log('✅ [DEBUG] 조회 성공:', data.transactions.length, '건')
-        setTransactions(data.transactions)
-        setStats(data.stats)
+        setTransactions([...data.transactions]) // Force new array
+        setStats({...data.stats}) // Force new object
       } else {
         console.error('❌ [DEBUG] 조회 실패:', data)
         alert(`거래 내역 조회 실패\n\n오류: ${data.error}\n상세: ${data.details || ''}\n시간: ${data.timestamp || ''}`)
