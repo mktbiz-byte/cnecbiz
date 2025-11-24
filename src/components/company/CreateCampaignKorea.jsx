@@ -17,7 +17,7 @@ const CampaignCreationKorea = () => {
 
   const [campaignForm, setCampaignForm] = useState({
     campaign_type: 'planned',  // 'planned', 'oliveyoung', '4week_challenge'
-    package_type: 'intermediate',  // 기본값: 스탠다드 패키지
+    package_type: 'standard',  // 기본값: 스탠다드
     brand: '',
     product_name: '',
     product_description: '',
@@ -67,27 +67,56 @@ const CampaignCreationKorea = () => {
     { value: 'tiktok', label: '🎵 틱톡' }
   ]
 
+  // 4주 챌린지 패키지
+  const fourWeekPackageOptions = [
+    { value: 'standard', label: '스탠다드', price: 600000, description: '4주 기본 프로그램' },
+    { value: 'premium', label: '프리미엄', price: 700000, description: '4주 고급 프로그램' },
+    { value: 'professional', label: '프로페셔널', price: 800000, description: '4주 전문가 프로그램' },
+    { value: 'enterprise', label: '엔터프라이즈', price: 1000000, description: '4주 프리미엄 프로그램' }
+  ]
+
+  // 올리브영 패키지
+  const oliveyoungPackageOptions = [
+    { value: 'standard', label: '스탠다드', price: 400000, description: '올리브영 기본' },
+    { value: 'premium', label: '프리미엄', price: 500000, description: '올리브영 고급' },
+    { value: 'professional', label: '프로페셔널', price: 600000, description: '올리브영 전문가' }
+  ]
+
   const packageOptions = [
     { 
-      value: 'beginner', 
-      label: '초급 패키지', 
+      value: 'basic', 
+      label: '베이직', 
       price: 200000, 
       description: '인스타그램 기준: 1만~3만명',
       expectedApplicants: { instagram: '10~15', youtube: '5~8', tiktok: '5~8' }
     },
     { 
-      value: 'intermediate', 
-      label: '스탠다드 패키지', 
+      value: 'standard', 
+      label: '스탠다드', 
       price: 300000, 
       description: '인스타그램 기준: 3만~10만명',
       expectedApplicants: { instagram: '15~20', youtube: '8~12', tiktok: '8~12' }
     },
     { 
-      value: 'advanced', 
-      label: '프리미엄 패키지', 
+      value: 'premium', 
+      label: '프리미엄', 
       price: 400000, 
       description: '인스타그램 기준: 10만~30만명',
       expectedApplicants: { instagram: '20~40', youtube: '10~20', tiktok: '10~20' }
+    },
+    { 
+      value: 'professional', 
+      label: '프로페셔널', 
+      price: 600000, 
+      description: '인스타그램 기준: 30만~50만명',
+      expectedApplicants: { instagram: '40~60', youtube: '20~30', tiktok: '20~30' }
+    },
+    { 
+      value: 'enterprise', 
+      label: '엔터프라이즈', 
+      price: 1000000, 
+      description: '인스타그램 기준: 50만명 이상',
+      expectedApplicants: { instagram: '60~100', youtube: '30~50', tiktok: '30~50' }
     }
   ]
 
@@ -126,15 +155,24 @@ const CampaignCreationKorea = () => {
   // 캠페인 타입 변경 시 금액 재계산
   useEffect(() => {
     if (campaignForm.campaign_type === '4week_challenge') {
-      // 4주 챌린지: 1명당 600,000원 × 인원수 (할인 없음)
-      const finalCost = calculateFinalCost(600000, campaignForm.total_slots, false)
-      setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost }))
+      // 4주 챌린지: 패키지 × 인원수
+      const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
+      const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots, false)
+      const rewardPoints = Math.floor(finalCost * 0.6)
+      setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
+    } else if (campaignForm.campaign_type === 'oliveyoung') {
+      // 올리브영: 패키지 × 인원수
+      const pkg = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type) || oliveyoungPackageOptions[0]
+      const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots)
+      const rewardPoints = Math.floor(finalCost * 0.6)
+      setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
     } else {
-      // 일반/올영세일: 패키지 × 인원수
+      // 일반: 패키지 × 인원수
       const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
       if (pkg) {
         const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots)
-        setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost }))
+        const rewardPoints = Math.floor(finalCost * 0.6)
+        setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
       }
     }
   }, [campaignForm.campaign_type])
@@ -209,13 +247,27 @@ const CampaignCreationKorea = () => {
 
   // 패키지 변경 핸들러 (결제 금액 자동 계산)
   const handlePackageChange = (value) => {
-    const selectedPackage = packageOptions.find(p => p.value === value)
+    let selectedPackage
+    let finalCost = 0
+    
+    if (campaignForm.campaign_type === '4week_challenge') {
+      selectedPackage = fourWeekPackageOptions.find(p => p.value === value)
+      finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, campaignForm.total_slots, false) : 0
+    } else if (campaignForm.campaign_type === 'oliveyoung') {
+      selectedPackage = oliveyoungPackageOptions.find(p => p.value === value)
+      finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, campaignForm.total_slots) : 0
+    } else {
+      selectedPackage = packageOptions.find(p => p.value === value)
+      finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, campaignForm.total_slots) : 0
+    }
+    
     if (selectedPackage) {
-      const finalCost = calculateFinalCost(selectedPackage.price, campaignForm.total_slots)
+      const rewardPoints = Math.floor(finalCost * 0.6)
       setCampaignForm(prev => ({
         ...prev,
         package_type: value,
-        estimated_cost: finalCost
+        estimated_cost: finalCost,
+        reward_points: rewardPoints
       }))
     }
   }
@@ -226,19 +278,26 @@ const CampaignCreationKorea = () => {
     let finalCost = 0
     
     if (campaignForm.campaign_type === '4week_challenge') {
-      // 4주 챌린지: 1명당 600,000원 (할인 없음)
-      finalCost = calculateFinalCost(600000, slots, false)
+      // 4주 챌린지: 패키지 가격
+      const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
+      finalCost = calculateFinalCost(pkg.price, slots, false)
+    } else if (campaignForm.campaign_type === 'oliveyoung') {
+      // 올리브영: 패키지 가격
+      const selectedPackage = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type)
+      finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
     } else {
-      // 일반/올영세일: 패키지 가격
+      // 일반: 패키지 가격
       const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
       finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
     }
     
+    const rewardPoints = Math.floor(finalCost * 0.6)
     setCampaignForm(prev => ({
       ...prev,
       total_slots: slots,
       remaining_slots: slots,
-      estimated_cost: finalCost
+      estimated_cost: finalCost,
+      reward_points: rewardPoints
     }))
   }
 
@@ -706,15 +765,37 @@ const CampaignCreationKorea = () => {
               <div className="border-t pt-6 mt-6">
                 <Label htmlFor="package_type">패키지 선택 *</Label>
                 {campaignForm.campaign_type === '4week_challenge' ? (
-                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200 mt-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-purple-900">4주 챌린지 프로그램 - ₩600,000 <span className="text-sm text-gray-500">(VAT 별도)</span></p>
-                        <p className="text-sm text-gray-600 mt-1">4주간 지속적인 콘텐츠 제작</p>
-                      </div>
-                      <span className="text-purple-600 font-semibold">고정 금액</span>
-                    </div>
-                  </div>
+                  <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
+                    <SelectTrigger className="bg-white mt-2">
+                      <SelectValue placeholder="패키지 선택" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {fourWeekPackageOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value} className="hover:bg-gray-100">
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()}</span>
+                            <span className="text-xs text-gray-500">{opt.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : campaignForm.campaign_type === 'oliveyoung' ? (
+                  <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
+                    <SelectTrigger className="bg-white mt-2">
+                      <SelectValue placeholder="패키지 선택" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {oliveyoungPackageOptions.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value} className="hover:bg-gray-100">
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()}</span>
+                            <span className="text-xs text-gray-500">{opt.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <>
                     <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
@@ -724,10 +805,7 @@ const CampaignCreationKorea = () => {
                       <SelectContent className="bg-white">
                         {packageOptions
                           .filter(opt => {
-                            // 올영세일 캠페인일 경우 초급 패키지 제외
-                            if (campaignForm.campaign_type === 'oliveyoung') {
-                              return opt.value !== 'beginner'
-                            }
+                            // 모든 패키지 표시
                             return true
                           })
                           .map(opt => (
