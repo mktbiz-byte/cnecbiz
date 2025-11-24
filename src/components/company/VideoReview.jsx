@@ -444,11 +444,16 @@ export default function VideoReview() {
                       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
                         #{index + 1} {formatTime(comment.timestamp)}
                       </div>
-                      {/* Comment text next to marker */}
+                      {/* Comment text bubble */}
                       {comment.comment && (
-                        <div className="absolute top-0 left-full ml-3 bg-white border-2 border-blue-500 rounded-lg p-3 shadow-lg max-w-xs z-30">
-                          <div className="text-sm text-gray-800 whitespace-pre-wrap break-words">
-                            {comment.comment}
+                        <div className="absolute -bottom-2 left-1/2 transform translate-y-full -translate-x-1/2 z-30">
+                          <div className="bg-white border-2 border-blue-500 rounded-lg p-2 shadow-lg min-w-[120px] max-w-[200px]">
+                            <div className="text-xs text-gray-800 whitespace-normal break-words text-center">
+                              {comment.comment}
+                            </div>
+                            {/* Arrow pointing up to the box */}
+                            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-blue-500"></div>
+                            <div className="absolute -top-1.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-white"></div>
                           </div>
                         </div>
                       )}
