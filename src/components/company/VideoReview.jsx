@@ -261,6 +261,7 @@ export default function VideoReview() {
   }
 
   const sendReviewNotification = async () => {
+    console.log('=== sendReviewNotification called ===', { commentsLength: comments.length });
     if (comments.length === 0) {
       alert('피드백을 먼저 추가해주세요.')
       return
