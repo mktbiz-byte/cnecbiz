@@ -233,8 +233,8 @@ export default function VideoReviewView() {
                   const height = comment.box_height || 120
                   const isSelected = selectedComment === comment.id
                   
-                  // Only show marker when video is paused or within 0.5 seconds of the timestamp
-                  const isVisible = videoRef.current?.paused || Math.abs(currentTime - comment.timestamp) < 0.5
+                  // Only show marker when video is paused or within 0.2 seconds of the timestamp
+                  const isVisible = videoRef.current?.paused || Math.abs(currentTime - comment.timestamp) < 0.2
                   
                   if (!isVisible) return null
                   
