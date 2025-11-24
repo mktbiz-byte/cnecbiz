@@ -9,8 +9,8 @@ const nodemailer = require('nodemailer')
 
 // Supabase Admin 클라이언트 초기화
 const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.VITE_SUPABASE_KOREA_URL || process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
 // Popbill 설정
