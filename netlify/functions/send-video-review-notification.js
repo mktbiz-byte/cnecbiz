@@ -166,21 +166,23 @@ ${feedbackSummary || '수정 요청 사항을 확인해주세요.'}
 
     // 알림 발송을 비동기로 처리 (타임아웃 방지)
     // 즉시 200 응답을 반환하고, 백그라운드에서 알림 발송
-    sendNotification({
-      receiverNum: creatorPhone,
-      receiverEmail: creatorEmail,
-      receiverName: creatorName,
-      templateCode,
-      variables,
-      emailSubject,
-      emailHtml
-    }).then(result => {
-      console.log('[SUCCESS] Notification sent:', result)
-    }).catch(error => {
-      console.error('[ERROR] Notification failed:', error)
-    })
+    setTimeout(() => {
+      sendNotification({
+        receiverNum: creatorPhone,
+        receiverEmail: creatorEmail,
+        receiverName: creatorName,
+        templateCode,
+        variables,
+        emailSubject,
+        emailHtml
+      }).then(result => {
+        console.log('[SUCCESS] Notification sent:', result)
+      }).catch(error => {
+        console.error('[ERROR] Notification failed:', error)
+      })
+    }, 100) // 100ms 후 실행 (응답 반환 후)
     
-    const notificationResult = { status: 'sending' }
+    const notificationResult = { status: 'queued' }
 
     // 4. 알림 발송 기록 저장 (선택사항)
     const { error: updateError } = await supabaseAdmin
