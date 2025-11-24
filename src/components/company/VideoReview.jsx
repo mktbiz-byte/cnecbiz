@@ -84,7 +84,7 @@ export default function VideoReview() {
           *,
           applications (
             applicant_name,
-            applicant_phone,
+            phone_number,
             campaigns (
               title,
               company_id
@@ -312,7 +312,7 @@ export default function VideoReview() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           creatorName: submission?.applications?.applicant_name || '크리에이터',
-          creatorPhone: submission?.applications?.applicant_phone,
+          creatorPhone: submission?.applications?.phone_number,
           campaignTitle: submission?.applications?.campaigns?.title || '쾐페인',
           feedbackCount: comments.length
         })
