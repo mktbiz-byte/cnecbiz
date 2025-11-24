@@ -242,14 +242,21 @@ export default function VideoReview() {
             <Card className="p-6">
               <div 
                 ref={videoContainerRef}
-                className="aspect-video bg-black rounded-lg overflow-hidden mb-4 relative cursor-crosshair"
-                onClick={handleVideoClick}
+                className="aspect-video bg-black rounded-lg overflow-hidden mb-4 relative"
               >
+                {/* Transparent overlay for click detection */}
+                <div 
+                  className="absolute inset-0 z-10 cursor-crosshair"
+                  style={{ pointerEvents: activeMarker ? 'none' : 'auto' }}
+                  onClick={handleVideoClick}
+                />
                 <video
                   ref={videoRef}
                   controls
+                  crossOrigin="anonymous"
                   className="w-full h-full"
                   src={signedVideoUrl || submission.video_file_url}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   브라우저가 비디오를 지원하지 않습니다.
                 </video>
@@ -333,6 +340,32 @@ export default function VideoReview() {
                     </div>
                   )
                 })}
+              </div>
+
+              {/* Timeline with feedback markers */}
+              <div className="relative h-2 bg-gray-300 rounded-full mb-4">
+                {comments.map((comment, index) => {
+                  const position = videoRef.current ? (comment.timestamp / videoRef.current.duration) * 100 : 0
+                  return (
+                    <div
+                      key={comment.id}
+                      className="absolute top-0 w-1 h-full bg-blue-500 cursor-pointer hover:bg-blue-700 transition-colors"
+                      style={{ left: `${position}%` }}
+                      onClick={() => seekToTimestamp(comment.timestamp)}
+                      title={`#${index + 1} - ${formatTime(comment.timestamp)}`}
+                    >
+                      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-1 rounded text-[10px] font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
+                        #{index + 1}
+                      </div>
+                    </div>
+                  )
+                })}
+                {activeMarker && videoRef.current && (
+                  <div
+                    className="absolute top-0 w-1 h-full bg-yellow-500"
+                    style={{ left: `${(activeMarker.timestamp / videoRef.current.duration) * 100}%` }}
+                  />
+                )}
               </div>
 
               {/* 피드백 작성 폼 */}
