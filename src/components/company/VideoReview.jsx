@@ -117,7 +117,7 @@ export default function VideoReview() {
 
   const loadComments = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('video_review_comments')
         .select('*')
         .eq('submission_id', submissionId)
@@ -129,7 +129,7 @@ export default function VideoReview() {
       // Load replies for all comments
       if (data && data.length > 0) {
         const commentIds = data.map(c => c.id)
-        const { data: repliesData, error: repliesError } = await supabaseBiz
+        const { data: repliesData, error: repliesError } = await supabaseKorea
           .from('video_review_comment_replies')
           .select('*')
           .in('comment_id', commentIds)
