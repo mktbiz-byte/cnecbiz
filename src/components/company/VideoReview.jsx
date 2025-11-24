@@ -56,6 +56,27 @@ export default function VideoReview() {
 
   const loadSubmission = async () => {
     try {
+      // Get current user
+      const { data: { user } } = await supabaseKorea.auth.getUser()
+      if (!user) {
+        alert('로그인이 필요합니다.')
+        navigate('/company/login')
+        return
+      }
+
+      // Get company ID
+      const { data: companyData } = await supabaseKorea
+        .from('companies')
+        .select('id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (!companyData) {
+        alert('기업 정보를 찾을 수 없습니다.')
+        navigate('/company/dashboard')
+        return
+      }
+
       const { data, error } = await supabaseKorea
         .from('video_submissions')
         .select(`
@@ -64,7 +85,8 @@ export default function VideoReview() {
             applicant_name,
             applicant_phone,
             campaigns (
-              title
+              title,
+              company_id
             )
           )
         `)
@@ -72,6 +94,14 @@ export default function VideoReview() {
         .single()
 
       if (error) throw error
+
+      // Check if this company owns the campaign
+      if (data.applications?.campaigns?.company_id !== companyData.id) {
+        alert('접근 권한이 없습니다.')
+        navigate('/company/dashboard')
+        return
+      }
+
       setSubmission(data)
       
       // Use public URL directly since bucket is now public
