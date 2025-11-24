@@ -249,7 +249,7 @@ export default function VideoReview() {
                   className="absolute top-0 left-0 right-0 cursor-crosshair"
                   style={{ 
                     bottom: '60px',
-                    pointerEvents: activeMarker ? 'none' : 'auto',
+                    pointerEvents: 'auto',
                     zIndex: 5
                   }}
                   onClick={handleVideoClick}
@@ -268,14 +268,43 @@ export default function VideoReview() {
                 {/* Active marker (being created) */}
                 {activeMarker && (
                   <div
-                    className="absolute border-4 border-yellow-500"
+                    className="absolute border-4 border-yellow-500 cursor-move"
                     style={{
                       left: `${activeMarker.x}%`,
                       top: `${activeMarker.y}%`,
                       width: `${activeMarker.width}px`,
                       height: `${activeMarker.height}px`,
                       transform: 'translate(-50%, -50%)',
-                      pointerEvents: 'none'
+                      pointerEvents: 'auto',
+                      zIndex: 20
+                    }}
+                    onMouseDown={(e) => {
+                      // Check if clicking on resize handle
+                      if (e.target.closest('.resize-handle')) return
+                      e.stopPropagation()
+                      e.preventDefault()
+                      const startX = e.clientX
+                      const startY = e.clientY
+                      const startMarkerX = activeMarker.x
+                      const startMarkerY = activeMarker.y
+                      
+                      const handleMouseMove = (moveEvent) => {
+                        moveEvent.preventDefault()
+                        const rect = videoContainerRef.current.getBoundingClientRect()
+                        const deltaX = ((moveEvent.clientX - startX) / rect.width) * 100
+                        const deltaY = ((moveEvent.clientY - startY) / rect.height) * 100
+                        const newX = Math.max(10, Math.min(90, startMarkerX + deltaX))
+                        const newY = Math.max(10, Math.min(90, startMarkerY + deltaY))
+                        setActiveMarker({ ...activeMarker, x: newX, y: newY })
+                      }
+                      
+                      const handleMouseUp = () => {
+                        document.removeEventListener('mousemove', handleMouseMove)
+                        document.removeEventListener('mouseup', handleMouseUp)
+                      }
+                      
+                      document.addEventListener('mousemove', handleMouseMove)
+                      document.addEventListener('mouseup', handleMouseUp)
                     }}
                   >
                     <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
@@ -283,7 +312,7 @@ export default function VideoReview() {
                     </div>
                     {/* Resize handles */}
                     <div 
-                      className="absolute -bottom-2 -right-2 w-4 h-4 bg-yellow-500 rounded-full cursor-se-resize"
+                      className="resize-handle absolute -bottom-2 -right-2 w-4 h-4 bg-yellow-500 rounded-full cursor-se-resize"
                       style={{ pointerEvents: 'auto' }}
                       onMouseDown={(e) => {
                         e.stopPropagation()
