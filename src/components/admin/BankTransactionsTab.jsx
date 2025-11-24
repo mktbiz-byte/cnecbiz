@@ -158,6 +158,30 @@ export default function BankTransactionsTab() {
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               조회
             </Button>
+            <Button 
+              onClick={async () => {
+                if (!confirm('은행 API에서 최신 거래 내역을 수집하시겠습니까?')) return
+                setLoading(true)
+                try {
+                  const response = await fetch('/.netlify/functions/scheduled-collect-transactions')
+                  const data = await response.json()
+                  if (data.success) {
+                    alert('수집 완료! 조회 버튼을 눌러 최신 데이터를 확인하세요.')
+                  } else {
+                    alert('수집 실패: ' + (data.error || '알 수 없는 오류'))
+                  }
+                } catch (error) {
+                  alert('수집 실패: ' + error.message)
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              disabled={loading}
+              variant="outline"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              수동 수집
+            </Button>
             <div className="flex-1" />
             <div className="flex gap-2">
               <Button
