@@ -102,14 +102,24 @@ exports.handler = async (event) => {
       .join('\n')
 
     // 3. 알림톡 + 이메일 발송
-    const templateCode = '025100001016' // 영상 수정 요청 템플릿 (새로 등록 필요)
+    const templateCode = '025100001016' // 영상 수정 요청 템플릿
+    
+    // 요청일과 재제출기한 계산
+    const now = new Date()
+    const requestDate = now.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace('.', '')
+    
+    // 재제출기한: 3일 후
+    const resubmitDeadline = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+    const resubmitDate = resubmitDeadline.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace('.', '')
+    
     const variables = {
       '크리에이터명': creatorName,
       '캠페인명': campaignTitle,
-      '피드백개수': feedbackCount || feedbackList.length
+      '요청일': requestDate,
+      '재제출기한': resubmitDate
     }
 
-    console.log('[INFO] Notification params:', { creatorPhone, creatorEmail, templateCode })
+    console.log('[INFO] Notification params:', { creatorPhone, creatorEmail, templateCode, variables })
 
     // 이메일 HTML 생성
     const emailSubject = `[CNEC] ${campaignTitle} - 영상 수정 요청이 도착했습니다`
