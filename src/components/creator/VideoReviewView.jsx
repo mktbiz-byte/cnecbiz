@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Send, MessageSquare, Upload } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, Upload, CheckCircle } from 'lucide-react'
 import { supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReviewView() {
@@ -10,10 +10,11 @@ export default function VideoReviewView() {
   const navigate = useNavigate()
   const videoRef = useRef(null)
   const videoContainerRef = useRef(null)
+  const fileInputRef = useRef(null)
   
   const [submission, setSubmission] = useState(null)
   const [comments, setComments] = useState([])
-  const [replies, setReplies] = useState({}) // { commentId: [replies] }
+  const [replies, setReplies] = useState({})
   const [loading, setLoading] = useState(true)
   const [signedVideoUrl, setSignedVideoUrl] = useState(null)
   const [replyingTo, setReplyingTo] = useState(null)
@@ -22,6 +23,8 @@ export default function VideoReviewView() {
   const [selectedComment, setSelectedComment] = useState(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [isPaused, setIsPaused] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     loadSubmission()
@@ -30,7 +33,7 @@ export default function VideoReviewView() {
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video) return
+    if (!video || !signedVideoUrl) return
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime)
@@ -60,7 +63,8 @@ export default function VideoReviewView() {
             applicant_name,
             campaigns (
               title,
-              company_name
+              company_name,
+              company_id
             )
           )
         `)
@@ -69,8 +73,6 @@ export default function VideoReviewView() {
 
       if (error) throw error
       setSubmission(data)
-      
-      // Use public URL directly since bucket is now public
       setSignedVideoUrl(data.video_file_url)
     } catch (error) {
       console.error('Error loading submission:', error)
@@ -91,7 +93,6 @@ export default function VideoReviewView() {
       if (error) throw error
       setComments(data || [])
       
-      // Load replies for all comments
       if (data && data.length > 0) {
         const commentIds = data.map(c => c.id)
         const { data: repliesData, error: repliesError } = await supabaseKorea
@@ -99,13 +100,15 @@ export default function VideoReviewView() {
           .select('*')
           .in('comment_id', commentIds)
           .order('created_at', { ascending: true })
-        
+
         if (!repliesError && repliesData) {
-          const repliesByComment = repliesData.reduce((acc, reply) => {
-            if (!acc[reply.comment_id]) acc[reply.comment_id] = []
-            acc[reply.comment_id].push(reply)
-            return acc
-          }, {})
+          const repliesByComment = {}
+          repliesData.forEach(reply => {
+            if (!repliesByComment[reply.comment_id]) {
+              repliesByComment[reply.comment_id] = []
+            }
+            repliesByComment[reply.comment_id].push(reply)
+          })
           setReplies(repliesByComment)
         }
       }
@@ -116,7 +119,7 @@ export default function VideoReviewView() {
 
   const addReply = async (commentId) => {
     if (!replyText.trim() || !authorName.trim()) {
-      alert('이름과 댓글을 모두 입력해주세요.')
+      alert('이름과 댓글을 입력해주세요.')
       return
     }
 
@@ -126,29 +129,29 @@ export default function VideoReviewView() {
         .insert({
           comment_id: commentId,
           author_name: authorName,
-          reply_text: replyText
+          reply_text: replyText,
+          created_at: new Date().toISOString()
         })
         .select()
         .single()
 
       if (error) throw error
 
-      setReplies({
-        ...replies,
-        [commentId]: [...(replies[commentId] || []), data]
-      })
+      setReplies(prev => ({
+        ...prev,
+        [commentId]: [...(prev[commentId] || []), data]
+      }))
+      
       setReplyText('')
-      setAuthorName('')
       setReplyingTo(null)
-      alert('댓글이 추가되었습니다.')
     } catch (error) {
       console.error('Error adding reply:', error)
-      alert('댓글 추가 실패')
+      alert('댓글 추가에 실패했습니다.')
     }
   }
 
   const deleteReply = async (replyId, commentId) => {
-    if (!confirm('이 댓글을 삭제하시겠습니까?')) return
+    if (!confirm('댓글을 삭제하시겠습니까?')) return
 
     try {
       const { error } = await supabaseKorea
@@ -158,21 +161,14 @@ export default function VideoReviewView() {
 
       if (error) throw error
 
-      setReplies({
-        ...replies,
-        [commentId]: replies[commentId].filter(r => r.id !== replyId)
-      })
-      alert('댓글이 삭제되었습니다.')
+      setReplies(prev => ({
+        ...prev,
+        [commentId]: prev[commentId].filter(r => r.id !== replyId)
+      }))
     } catch (error) {
       console.error('Error deleting reply:', error)
-      alert('댓글 삭제 실패')
+      alert('댓글 삭제에 실패했습니다.')
     }
-  }
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   const seekToTimestamp = (timestamp, commentId) => {
@@ -183,45 +179,140 @@ export default function VideoReviewView() {
     }
   }
 
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('video/')) {
+      alert('비디오 파일만 업로드 가능합니다.')
+      return
+    }
+
+    setUploading(true)
+
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}.${fileExt}`
+      const filePath = `video-submissions/${fileName}`
+
+      const { error: uploadError } = await supabaseKorea.storage
+        .from('videos')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabaseKorea.storage
+        .from('videos')
+        .getPublicUrl(filePath)
+
+      const { error: updateError } = await supabaseKorea
+        .from('video_submissions')
+        .update({
+          video_file_url: publicUrl,
+          status: 'resubmitted',
+          resubmitted_at: new Date().toISOString()
+        })
+        .eq('id', submissionId)
+
+      if (updateError) throw updateError
+
+      alert('영상이 성공적으로 업로드되었습니다!')
+      loadSubmission()
+    } catch (error) {
+      console.error('Error uploading video:', error)
+      alert('영상 업로드에 실패했습니다.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const sendReviewCompleteNotification = async () => {
+    if (!confirm('수정 완료 알림을 기업에게 전송하시겠습니까?')) return
+
+    setSending(true)
+
+    try {
+      const response = await fetch('/.netlify/functions/send-resubmit-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId })
+      })
+
+      if (!response.ok) {
+        throw new Error('알림 전송 실패')
+      }
+
+      alert('수정 완료 알림이 전송되었습니다!')
+    } catch (error) {
+      console.error('Error sending notification:', error)
+      alert('알림 전송에 실패했습니다.')
+    } finally {
+      setSending(false)
+    }
+  }
+
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">로딩 중...</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!submission) {
-    return <div className="flex items-center justify-center h-screen">영상을 찾을 수 없습니다.</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">영상을 찾을 수 없습니다.</p>
+          <Button onClick={() => navigate(-1)} className="mt-4">
+            뒤로 가기
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const campaignTitle = submission.applications?.campaigns?.title || '캠페인'
   const companyName = submission.applications?.campaigns?.company_name || '기업'
+  const creatorName = submission.applications?.applicant_name || '크리에이터'
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 py-4 px-4 md:py-8 md:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* 헤더 */}
-        <div className="mb-6">
+        {/* Header */}
+        <div className="mb-4 md:mb-6">
           <Button
             variant="ghost"
             onClick={() => navigate(-1)}
-            className="mb-4"
+            className="mb-3 md:mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             뒤로 가기
           </Button>
-          <h1 className="text-3xl font-bold">영상 수정 요청 사항</h1>
-          <p className="text-gray-600 mt-2">
+          <h1 className="text-2xl md:text-3xl font-bold">영상 수정 요청 사항</h1>
+          <p className="text-gray-600 mt-2 text-sm md:text-base">
             {campaignTitle} - {companyName}
           </p>
           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
+            <p className="text-xs md:text-sm text-blue-800">
               💡 수정 요청 사항을 확인하고 영상을 수정한 후 재업로드해 주세요.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 왼쪽: 영상 플레이어 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          {/* Video Player */}
           <div className="lg:col-span-2">
-            <Card className="p-6">
+            <Card className="p-4 md:p-6">
               <div 
                 ref={videoContainerRef}
                 className="aspect-video bg-black rounded-lg overflow-hidden mb-4 relative"
@@ -236,7 +327,7 @@ export default function VideoReviewView() {
                   브라우저가 비디오를 지원하지 않습니다.
                 </video>
                 
-                {/* Read-only comment markers - only show when video is at that timestamp */}
+                {/* Feedback markers */}
                 {comments.map((comment, index) => {
                   const x = comment.box_x || (20 + (comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 60))
                   const y = comment.box_y || (20 + ((comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 7) % 60))
@@ -244,7 +335,6 @@ export default function VideoReviewView() {
                   const height = comment.box_height || 120
                   const isSelected = selectedComment === comment.id
                   
-                  // Only show marker when video is paused AND within ±2 seconds of current time
                   const timeDiff = Math.abs(currentTime - comment.timestamp)
                   const isVisible = isPaused && timeDiff <= 2
                   
@@ -273,14 +363,12 @@ export default function VideoReviewView() {
                       }`}>
                         #{index + 1} {formatTime(comment.timestamp)}
                       </div>
-                      {/* Comment text bubble */}
                       {comment.comment && (
                         <div className="absolute -bottom-2 left-1/2 transform translate-y-full -translate-x-1/2 z-30">
                           <div className="bg-white border-2 border-blue-500 rounded-lg p-2 shadow-lg min-w-[120px] max-w-[200px]">
                             <div className="text-xs text-gray-800 whitespace-normal break-words text-center">
                               {comment.comment}
                             </div>
-                            {/* Arrow pointing up to the box */}
                             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-blue-500"></div>
                             <div className="absolute -top-1.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-white"></div>
                           </div>
@@ -291,7 +379,7 @@ export default function VideoReviewView() {
                 })}
               </div>
 
-              {/* Timeline with feedback markers */}
+              {/* Timeline */}
               <div className="relative h-3 bg-gray-300 rounded-full mb-4">
                 {comments.map((comment, index) => {
                   const position = videoRef.current ? (comment.timestamp / videoRef.current.duration) * 100 : 0
@@ -305,41 +393,55 @@ export default function VideoReviewView() {
                       style={{ left: `${position}%`, transform: 'translate(-50%, -50%)' }}
                       onClick={() => seekToTimestamp(comment.timestamp, comment.id)}
                       title={`#${index + 1} - ${formatTime(comment.timestamp)}`}
-                    >
-                       <div className="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
-                        #{index + 1} {formatTime(comment.timestamp)}
-                      </div>
-                    </div>
+                    />
                   )
                 })}
               </div>
 
-              {/* 영상 재업로드 버튼 */}
+              {/* Re-upload Section */}
               <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg">
-                <h3 className="font-semibold text-lg mb-2">수정 완료 후</h3>
-                <p className="text-sm text-gray-600 mb-3">
+                <h3 className="font-semibold text-base md:text-lg mb-2">수정 완료 후</h3>
+                <p className="text-xs md:text-sm text-gray-600 mb-3">
                   수정 사항을 반영한 영상을 다시 업로드해 주세요.
                 </p>
-                <Button
-                  onClick={() => navigate(`/creator/campaigns`)}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  영상 재업로드하기
-                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? '업로드 중...' : '영상 재업로드하기'}
+                  </Button>
+                  <Button
+                    onClick={sendReviewCompleteNotification}
+                    disabled={sending}
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    {sending ? '전송 중...' : '수정 완료 알림 보내기'}
+                  </Button>
+                </div>
               </div>
             </Card>
           </div>
 
-          {/* 오른쪽: 피드백 목록 */}
+          {/* Feedback List */}
           <div>
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">
+            <Card className="p-4 md:p-6">
+              <h3 className="text-base md:text-lg font-semibold mb-4">
                 수정 요청 사항 ({comments.length})
               </h3>
               
               {comments.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 text-sm">
                   수정 요청 사항이 없습니다.
                 </div>
               ) : (
@@ -349,13 +451,12 @@ export default function VideoReviewView() {
                     return (
                       <div
                         key={comment.id}
-                        className={`border-2 rounded-lg p-4 transition-all ${
+                        className={`border-2 rounded-lg p-3 md:p-4 transition-all ${
                           isSelected 
                             ? 'border-yellow-500 bg-yellow-50' 
                             : 'border-gray-200 hover:border-blue-400'
                         }`}
                       >
-                        {/* 피드백 헤더 */}
                         <div
                           className="cursor-pointer"
                           onClick={() => seekToTimestamp(comment.timestamp, comment.id)}
@@ -367,7 +468,7 @@ export default function VideoReviewView() {
                               }`}>
                                 {index + 1}
                               </span>
-                              <span className={`text-sm font-semibold ${
+                              <span className={`text-xs md:text-sm font-semibold ${
                                 isSelected ? 'text-yellow-700' : 'text-blue-600'
                               }`}>
                                 {formatTime(comment.timestamp)}
@@ -378,11 +479,10 @@ export default function VideoReviewView() {
                             </span>
                           </div>
                           
-                          <p className="text-sm text-gray-700 mb-3 whitespace-pre-wrap font-medium">
+                          <p className="text-xs md:text-sm text-gray-700 mb-3 whitespace-pre-wrap font-medium">
                             {comment.comment}
                           </p>
                           
-                          {/* 첨부 파일 */}
                           {comment.attachment_url && (
                             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
                               <div className="flex items-center justify-between">
@@ -390,7 +490,7 @@ export default function VideoReviewView() {
                                   <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                                   </svg>
-                                  <span className="text-xs font-medium text-blue-700">
+                                  <span className="text-xs font-medium text-blue-700 truncate">
                                     {comment.attachment_name || '첨부파일'}
                                   </span>
                                 </div>
@@ -399,7 +499,7 @@ export default function VideoReviewView() {
                                   download={comment.attachment_name}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 shrink-0"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -412,7 +512,7 @@ export default function VideoReviewView() {
                           )}
                         </div>
 
-                        {/* 댓글 섹션 */}
+                        {/* Comments Section */}
                         <div className="border-t pt-3 mt-3">
                           <div className="flex items-center gap-2 mb-2">
                             <MessageSquare className="w-4 h-4 text-gray-500" />
@@ -421,7 +521,6 @@ export default function VideoReviewView() {
                             </span>
                           </div>
 
-                          {/* 댓글 목록 */}
                           {replies[comment.id]?.map((reply) => (
                             <div key={reply.id} className="bg-gray-50 rounded p-2 mb-2 text-xs relative group">
                               <div className="font-semibold text-gray-700">{reply.author_name}</div>
@@ -440,29 +539,29 @@ export default function VideoReviewView() {
                             </div>
                           ))}
 
-                          {/* 댓글 작성 폼 */}
                           {replyingTo === comment.id ? (
-                            <div className="mt-2">
+                            <div className="mt-2 space-y-2">
                               <input
                                 type="text"
                                 value={authorName}
                                 onChange={(e) => setAuthorName(e.target.value)}
                                 placeholder="이름"
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs mb-1"
+                                className="w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
                               <textarea
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 placeholder="댓글을 입력하세요..."
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                className="w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 rows={2}
                               />
-                              <div className="flex gap-1 mt-1">
+                              <div className="flex gap-2">
                                 <Button
                                   size="sm"
                                   onClick={() => addReply(comment.id)}
-                                  className="flex-1 h-7 text-xs"
+                                  className="flex-1 text-xs"
                                 >
+                                  <Send className="w-3 h-3 mr-1" />
                                   작성
                                 </Button>
                                 <Button
@@ -473,7 +572,7 @@ export default function VideoReviewView() {
                                     setReplyText('')
                                     setAuthorName('')
                                   }}
-                                  className="h-7 text-xs"
+                                  className="flex-1 text-xs"
                                 >
                                   취소
                                 </Button>
@@ -484,7 +583,7 @@ export default function VideoReviewView() {
                               size="sm"
                               variant="outline"
                               onClick={() => setReplyingTo(comment.id)}
-                              className="w-full mt-2 h-7 text-xs"
+                              className="w-full mt-2 text-xs"
                             >
                               <MessageSquare className="w-3 h-3 mr-1" />
                               댓글 달기
