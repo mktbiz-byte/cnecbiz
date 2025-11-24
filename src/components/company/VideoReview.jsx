@@ -23,6 +23,7 @@ export default function VideoReview() {
   const [authorName, setAuthorName] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
+  const [isPaused, setIsPaused] = useState(true)
 
   useEffect(() => {
     loadSubmission()
@@ -37,8 +38,18 @@ export default function VideoReview() {
       setCurrentTime(video.currentTime)
     }
 
+    const handlePlay = () => setIsPaused(false)
+    const handlePause = () => setIsPaused(true)
+
     video.addEventListener('timeupdate', handleTimeUpdate)
-    return () => video.removeEventListener('timeupdate', handleTimeUpdate)
+    video.addEventListener('play', handlePlay)
+    video.addEventListener('pause', handlePause)
+    
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate)
+      video.removeEventListener('play', handlePlay)
+      video.removeEventListener('pause', handlePause)
+    }
   }, [])
 
   const loadSubmission = async () => {
@@ -408,7 +419,7 @@ export default function VideoReview() {
                   const height = comment.box_height || 120
                   
                   // Only show marker when video is paused
-                  const isVisible = videoRef.current?.paused
+                  const isVisible = isPaused
                   
                   if (!isVisible) return null
                   
