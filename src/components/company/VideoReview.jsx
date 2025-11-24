@@ -20,7 +20,8 @@ export default function VideoReview() {
   const [capturedFrame, setCapturedFrame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [signedVideoUrl, setSignedVideoUrl] = useState(null)
-  const [activeMarker, setActiveMarker] = useState(null) // { x, y, timestamp }
+  const [activeMarker, setActiveMarker] = useState(null) // { x, y, timestamp, width, height }
+  const [isResizing, setIsResizing] = useState(false)
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [authorName, setAuthorName] = useState('')
@@ -102,7 +103,7 @@ export default function VideoReview() {
     
     const timestamp = videoRef.current.currentTime
     
-    setActiveMarker({ x, y, timestamp })
+    setActiveMarker({ x, y, timestamp, width: 120, height: 120 })
     captureFrame()
     setCurrentComment('')
   }
@@ -256,18 +257,50 @@ export default function VideoReview() {
                 {/* Active marker (being created) */}
                 {activeMarker && (
                   <div
-                    className="absolute border-4 border-red-500 bg-red-500 bg-opacity-20 pointer-events-none"
+                    className="absolute border-4 border-red-500"
                     style={{
                       left: `${activeMarker.x}%`,
                       top: `${activeMarker.y}%`,
-                      width: '80px',
-                      height: '80px',
-                      transform: 'translate(-50%, -50%)'
+                      width: `${activeMarker.width}px`,
+                      height: `${activeMarker.height}px`,
+                      transform: 'translate(-50%, -50%)',
+                      pointerEvents: 'none'
                     }}
                   >
                     <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
                       {formatTime(activeMarker.timestamp)}
                     </div>
+                    {/* Resize handles */}
+                    <div 
+                      className="absolute -bottom-2 -right-2 w-4 h-4 bg-red-500 rounded-full cursor-se-resize"
+                      style={{ pointerEvents: 'auto' }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation()
+                        setIsResizing(true)
+                        const startX = e.clientX
+                        const startY = e.clientY
+                        const startWidth = activeMarker.width
+                        const startHeight = activeMarker.height
+                        
+                        const handleMouseMove = (moveEvent) => {
+                          const deltaX = moveEvent.clientX - startX
+                          const deltaY = moveEvent.clientY - startY
+                          const rect = videoContainerRef.current.getBoundingClientRect()
+                          const newWidth = Math.max(40, startWidth + (deltaX / rect.width) * 100 * 10)
+                          const newHeight = Math.max(40, startHeight + (deltaY / rect.height) * 100 * 10)
+                          setActiveMarker({ ...activeMarker, width: newWidth, height: newHeight })
+                        }
+                        
+                        const handleMouseUp = () => {
+                          setIsResizing(false)
+                          document.removeEventListener('mousemove', handleMouseMove)
+                          document.removeEventListener('mouseup', handleMouseUp)
+                        }
+                        
+                        document.addEventListener('mousemove', handleMouseMove)
+                        document.addEventListener('mouseup', handleMouseUp)
+                      }}
+                    />
                   </div>
                 )}
                 
@@ -281,12 +314,12 @@ export default function VideoReview() {
                   return (
                     <div
                       key={comment.id}
-                      className="absolute border-4 border-blue-500 bg-blue-500 bg-opacity-20 cursor-pointer hover:bg-opacity-40 transition-all"
+                      className="absolute border-4 border-blue-500 cursor-pointer hover:border-blue-600 transition-all"
                       style={{
                         left: `${x}%`,
                         top: `${y}%`,
-                        width: '80px',
-                        height: '80px',
+                        width: '120px',
+                        height: '120px',
                         transform: 'translate(-50%, -50%)'
                       }}
                       onClick={(e) => {
