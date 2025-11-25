@@ -3,59 +3,45 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronUp, Lightbulb, X } from 'lucide-react'
+import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
-import { missionExamples } from './missionExamples'
 
 export default function CampaignGuide4WeekChallenge() {
   const [searchParams] = useSearchParams()
   const id = searchParams.get('id')
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const [campaign, setCampaign] = useState(null)
   const [expandedWeek, setExpandedWeek] = useState(1)
-  const [showExamplesModal, setShowExamplesModal] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState('skinTrouble')
-  const [currentWeekForExample, setCurrentWeekForExample] = useState(1)
   
-  const [productData, setProductData] = useState({
+  const [guideData, setGuideData] = useState({
     brand: '',
     product_name: '',
     product_features: '',
-    product_key_points: ''
-  })
-
-  const [baseGuide, setBaseGuide] = useState('')
-
-  const [weeklyGuides, setWeeklyGuides] = useState({
+    precautions: '',
     week1: {
       mission: '',
-      reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      reference_url: ''
     },
     week2: {
       mission: '',
-      reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      reference_url: ''
     },
     week3: {
       mission: '',
-      reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      reference_url: ''
     },
     week4: {
       mission: '',
-      reference: '',
       required_dialogue: '',
       required_scenes: '',
-      generated_guide: ''
+      reference_url: ''
     }
   })
 
@@ -75,18 +61,15 @@ export default function CampaignGuide4WeekChallenge() {
       setCampaign(data)
 
       // 기존 데이터가 있으면 로드
-      setProductData({
-        brand: data.brand || '',
-        product_name: data.product_name || '',
-        product_features: data.product_features || '',
-        product_key_points: data.product_key_points || ''
-      })
-
-      setBaseGuide(data.challenge_base_guide || '')
-
-      // 주차별 가이드 로드
-      if (data.challenge_weekly_guides) {
-        setWeeklyGuides(data.challenge_weekly_guides)
+      if (data.challenge_guide_data) {
+        setGuideData(data.challenge_guide_data)
+      } else {
+        // 브랜드명과 제품명 자동 입력
+        setGuideData(prev => ({
+          ...prev,
+          brand: data.brand || '',
+          product_name: data.product_name || ''
+        }))
       }
     } catch (error) {
       console.error('Error loading campaign:', error)
@@ -94,25 +77,20 @@ export default function CampaignGuide4WeekChallenge() {
     }
   }
 
-  const handleSaveDraft = async () => {
+  const handleSave = async () => {
     setLoading(true)
 
     try {
       const { error } = await supabaseKorea
         .from('campaigns')
         .update({
-          brand: productData.brand,
-          product_name: productData.product_name,
-          product_features: productData.product_features,
-          product_key_points: productData.product_key_points,
-          challenge_base_guide: baseGuide,
-          challenge_weekly_guides: weeklyGuides
+          challenge_guide_data: guideData
         })
         .eq('id', id)
 
       if (error) throw error
 
-      alert('임시 저장되었습니다.')
+      alert('저장되었습니다.')
     } catch (error) {
       console.error('Error saving:', error)
       alert('저장 중 오류가 발생했습니다: ' + error.message)
@@ -121,135 +99,50 @@ export default function CampaignGuide4WeekChallenge() {
     }
   }
 
-  const handleGenerateWeeklyGuide = async (week) => {
-    const weekData = weeklyGuides[week]
-    
-    if (!weekData.mission || !weekData.required_dialogue || !weekData.required_scenes) {
-      alert(`Week ${week.replace('week', '')} 필수 항목을 모두 입력해주세요.`)
-      return
-    }
-
-    setGenerating(true)
-
-    try {
-      // Gemini API를 사용한 AI 가이드 생성
-      const weekNumber = week.replace('week', '')
-      const prompt = `당신은 전문 마케팅 콘텐츠 기획자입니다. 4주 챌린지 캠페인의 Week ${weekNumber} 가이드를 작성해주세요.
-
-[제품 정보]
-브랜드: ${productData.brand}
-제품명: ${productData.product_name}
-제품 특징: ${productData.product_features}
-핵심 포인트: ${productData.product_key_points}
-
-[기본 가이드]
-${baseGuide}
-
-[Week ${weekNumber} 미션]
-${weekData.mission}
-
-[참고 레퍼런스]
-${weekData.reference || '없음'}
-
-[필수 대사]
-${weekData.required_dialogue}
-
-[필수 장면]
-${weekData.required_scenes}
-
-위 정보를 바탕으로 크리에이터가 실제로 촬영할 수 있는 상세한 콘텐츠 가이드를 작성해주세요.
-다음 항목을 포함해야 합니다:
-1. 콘텐츠 개요 (이번 주차의 목표와 메시지)
-2. 촬영 가이드 (구체적인 장면 구성과 순서)
-3. 필수 요소 체크리스트 (반드시 포함해야 할 대사와 장면)
-4. 편집 팁 (영상 분위기, 음악, 자막 등)
-5. 주의사항
-
-전문적이고 실용적인 가이드를 작성해주세요.`
-
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + import.meta.env.VITE_GEMINI_API_KEY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      })
-
-      if (!response.ok) throw new Error('AI 생성 실패')
-      
-      const data = await response.json()
-      const generatedGuide = data.candidates[0].content.parts[0].text
-      
-      setWeeklyGuides(prev => ({
-        ...prev,
-        [week]: {
-          ...prev[week],
-          generated_guide: generatedGuide
-        }
-      }))
-
-      alert(`Week ${weekNumber} 가이드가 생성되었습니다!`)
-    } catch (error) {
-      console.error('Error generating guide:', error)
-      alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  const handleFinalizeGuide = async () => {
+  const handleComplete = async () => {
     // 필수 항목 체크
-    if (!productData.brand || !productData.product_name || !productData.product_features || !productData.product_key_points) {
-      alert('제품 정보를 모두 입력해주세요.')
+    if (!guideData.brand || !guideData.product_name || !guideData.product_features || !guideData.precautions) {
+      alert('제품 정보와 주의사항을 모두 입력해주세요.')
       return
     }
 
-    if (!baseGuide) {
-      alert('기본 가이드를 입력해주세요.')
+    // 1주차 가이드 체크
+    if (!guideData.week1.mission || !guideData.week1.required_dialogue || !guideData.week1.required_scenes) {
+      alert('1주차 가이드를 모두 입력해주세요.')
       return
     }
 
-    // 모든 주차 가이드 체크
-    const allWeeksComplete = Object.keys(weeklyGuides).every(week => {
-      const data = weeklyGuides[week]
-      return data.mission && data.required_dialogue && data.required_scenes && data.generated_guide
-    })
-
-    if (!allWeeksComplete) {
-      alert('모든 주차의 가이드를 생성해주세요.')
-      return
-    }
-
-    setGenerating(true)
+    setLoading(true)
 
     try {
-      // 먼저 데이터 저장
-      const { error: updateError } = await supabaseKorea
+      const { error } = await supabaseKorea
         .from('campaigns')
         .update({
-          brand: productData.brand,
-          product_name: productData.product_name,
-          product_features: productData.product_features,
-          product_key_points: productData.product_key_points,
-          challenge_base_guide: baseGuide,
-          challenge_weekly_guides: weeklyGuides
+          challenge_guide_data: guideData
         })
         .eq('id', id)
 
-      if (updateError) throw updateError
+      if (error) throw error
 
-      alert('4주 챌린지 가이드가 완성되었습니다! 리뷰 페이지로 이동합니다.')
+      alert('4주 챌린지 가이드가 완성되었습니다!')
       navigate(`/company/campaigns/${id}/review`)
     } catch (error) {
-      console.error('Error finalizing guide:', error)
+      console.error('Error completing guide:', error)
       alert('가이드 완성 중 오류가 발생했습니다: ' + error.message)
     } finally {
-      setGenerating(false)
+      setLoading(false)
     }
   }
 
-  const updateWeeklyGuide = (week, field, value) => {
-    setWeeklyGuides(prev => ({
+  const updateGuideData = (field, value) => {
+    setGuideData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const updateWeekData = (week, field, value) => {
+    setGuideData(prev => ({
       ...prev,
       [week]: {
         ...prev[week],
@@ -269,7 +162,7 @@ ${weekData.required_scenes}
   return (
     <>
       <CompanyNavigation />
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-5xl mx-auto p-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
             🏆 4주 챌린지 가이드 작성
@@ -284,8 +177,8 @@ ${weekData.required_scenes}
           <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-purple-800">
             <p className="font-semibold mb-1">4주 챌린지 안내</p>
-            <p>기본 가이드 + 주차별 미션 가이드를 작성해주세요.</p>
-            <p className="mt-1">각 주차별로 가이드를 생성하고, 스케줄에 맞춰 크리에이터에게 발송됩니다.</p>
+            <p>제품 정보 + 주의사항 + 주차별 미션 가이드를 작성해주세요.</p>
+            <p className="mt-1">2~4주차 가이드는 캠페인 진행 중 생성 가능합니다.</p>
           </div>
         </div>
 
@@ -302,10 +195,9 @@ ${weekData.required_scenes}
                   <span className="text-red-500 ml-1">*</span>
                 </label>
                 <Input
-                  value={productData.brand}
-                  onChange={(e) => setProductData({ ...productData, brand: e.target.value })}
-                  placeholder="예: ABC Beauty"
-                  required
+                  value={guideData.brand}
+                  onChange={(e) => updateGuideData('brand', e.target.value)}
+                  placeholder="예: SNP"
                 />
               </div>
 
@@ -316,10 +208,9 @@ ${weekData.required_scenes}
                   <span className="text-red-500 ml-1">*</span>
                 </label>
                 <Input
-                  value={productData.product_name}
-                  onChange={(e) => setProductData({ ...productData, product_name: e.target.value })}
-                  placeholder="예: 히알루론산 수분 크림"
-                  required
+                  value={guideData.product_name}
+                  onChange={(e) => updateGuideData('product_name', e.target.value)}
+                  placeholder="예: 콜라겐 마스크팩"
                 />
               </div>
 
@@ -330,64 +221,47 @@ ${weekData.required_scenes}
                   <span className="text-red-500 ml-1">*</span>
                 </label>
                 <p className="text-sm text-gray-600 mb-2">
-                  제품의 주요 성분, 효능, 특징 등을 상세히 작성해주세요.
+                  제품의 주요 성분, 효능, 특징을 작성해주세요. (여러 버전 예시 가능)
                 </p>
                 <textarea
-                  value={productData.product_features}
-                  onChange={(e) => setProductData({ ...productData, product_features: e.target.value })}
-                  placeholder="예:&#10;- 주요 성분: 히알루론산, 세라마이드, 나이아신아마이드&#10;- 효능: 24시간 수분 지속, 피부 장벽 강화, 브라이트닝&#10;- 특징: 끈적임 없는 수분 제형, 민감성 피부 테스트 완료"
+                  value={guideData.product_features}
+                  onChange={(e) => updateGuideData('product_features', e.target.value)}
+                  placeholder={`예시 1: 콜라겐 함유로 탄력 개선, 24시간 촉촉함 유지
+예시 2: 모공 축소와 피부결 개선에 효과적
+예시 3: 저자극 성분으로 민감성 피부도 안심`}
                   className="w-full h-32 p-3 border rounded-lg resize-none"
-                  required
                 />
               </div>
 
-              {/* 핵심 소구 포인트 */}
+              {/* 주의사항 */}
               <div>
                 <label className="block mb-2">
-                  <span className="text-base font-semibold">영상에 꼭 들어갈 제품 소구 포인트</span>
+                  <span className="text-base font-semibold">주의사항</span>
                   <span className="text-red-500 ml-1">*</span>
                 </label>
                 <p className="text-sm text-gray-600 mb-2">
-                  크리에이터가 영상에서 반드시 강조해야 할 핵심 메시지를 작성해주세요.
+                  크리에이터가 반드시 지켜야 할 주의사항을 작성해주세요.
                 </p>
                 <textarea
-                  value={productData.product_key_points}
-                  onChange={(e) => setProductData({ ...productData, product_key_points: e.target.value })}
-                  placeholder="예:&#10;- 24시간 수분 지속력 강조&#10;- 끈적임 없는 텍스처 언급&#10;- 4주 사용 시 피부 변화 강조&#10;- 민감성 피부도 사용 가능하다는 점 강조"
+                  value={guideData.precautions}
+                  onChange={(e) => updateGuideData('precautions', e.target.value)}
+                  placeholder={`예:
+- 제품명과 브랜드명 정확히 언급
+- 과장된 효능 표현 금지
+- 개인적인 사용 경험 중심으로 작성
+- 타 제품 비교 금지`}
                   className="w-full h-32 p-3 border rounded-lg resize-none"
-                  required
                 />
               </div>
             </div>
           </div>
 
-          {/* 기본 가이드 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-xl font-semibold mb-4">⚠️ 캠페인 주의사항</h3>
-            <p className="text-sm text-gray-600 mb-3">
-              사용불가 단어, 유료음원 금지, 공통 주의사항 등을 작성해주세요.
-            </p>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
-              <p className="text-sm text-yellow-800">
-                <strong>필수:</strong> 각 영상은 7일 정도 텀을 두고 업로드해야 합니다.
-              </p>
-            </div>
-            <textarea
-              value={baseGuide}
-              onChange={(e) => setBaseGuide(e.target.value)}
-              placeholder="예:&#10;[사용불가 단어]&#10;- 의료 효능 표현 금지 (치료, 개선, 완치 등)&#10;- 최상급 표현 금지 (최고, 최상, 1등 등)&#10;&#10;[유료음원 금지]&#10;- 저작권이 있는 음악 사용 금지&#10;- 유튜브 오디오 라이브러리 또는 무료 음원 사용&#10;&#10;[공통 주의사항]&#10;- 브랜드명 및 제품명 정확히 언급&#10;- 각 영상은 7일 정도 텀을 두고 업로드&#10;- 솔직한 후기 작성 권장&#10;- 제품은 매일 사용해주세요"
-              className="w-full h-48 p-3 border rounded-lg resize-none"
-              required
-            />
-          </div>
-
           {/* 주차별 가이드 */}
-          {[1, 2, 3, 4].map(weekNum => {
-            const weekKey = `week${weekNum}`
-            const weekData = weeklyGuides[weekKey]
+          {['week1', 'week2', 'week3', 'week4'].map((weekKey) => {
+            const weekNum = parseInt(weekKey.replace('week', ''))
+            const weekData = guideData[weekKey]
             const isExpanded = expandedWeek === weekNum
-            const deadline = campaign[`week${weekNum}_deadline`]
-
+            
             return (
               <div key={weekKey} className="bg-white rounded-lg border border-purple-200 p-6">
                 <div 
@@ -398,67 +272,31 @@ ${weekData.required_scenes}
                     <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
                       Week {weekNum}
                     </span>
-                    <h3 className="text-xl font-semibold">주차별 미션 가이드</h3>
-                    {weekData.generated_guide && (
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-semibold">
-                        생성 완료
-                      </span>
-                    )}
+                    <h3 className="text-xl font-semibold">
+                      {weekNum === 1 ? '주차별 미션 가이드' : '주차별 미션 가이드 (진행하면서 생성 가능)'}
+                    </h3>
                   </div>
                   {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                 </div>
 
-                <p className="text-sm text-gray-600 mt-2">
-                  마감일: <span className="font-semibold">{deadline || '미설정'}</span>
-                </p>
-
                 {isExpanded && (
-                  <div className="mt-4 space-y-4">
-                    {/* 주차별 미션 */}
+                  <div className="mt-6 space-y-6">
+                    {/* 미션 */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="flex items-center gap-2">
-                          <span className="text-base font-semibold">주차별 미션</span>
-                          <span className="text-red-500 ml-1">*</span>
-                        </label>
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            setCurrentWeekForExample(weekNum)
-                            setShowExamplesModal(true)
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          <Lightbulb className="w-3 h-3 mr-1" />
-                          추천 예시 보기
-                        </Button>
-                      </div>
+                      <label className="block mb-2">
+                        <span className="text-base font-semibold">{weekNum}주차 미션</span>
+                        <span className="text-red-500 ml-1">*</span>
+                      </label>
                       <p className="text-sm text-gray-600 mb-2">
-                        이번 주에 크리에이터가 수행할 미션을 작성해주세요.
+                        이번 주차의 핵심 미션을 작성해주세요. (여러 버전 예시 가능)
                       </p>
                       <textarea
                         value={weekData.mission}
-                        onChange={(e) => updateWeeklyGuide(weekKey, 'mission', e.target.value)}
-                        placeholder={`예:&#10;Week ${weekNum} 미션: ${weekNum === 1 ? '첫 사용 후기 및 텍스처 소개' : weekNum === 2 ? '1주차 사용 후 피부 변화 체크' : weekNum === 3 ? '3주차 중간 점검 및 루틴 공유' : '4주 완주 후 최종 비포/애프터'}`}
-                        className="w-full h-24 p-3 border rounded-lg resize-none"
-                        required
-                      />
-                    </div>
-
-                    {/* 참고 레퍼런스 */}
-                    <div>
-                      <label className="block mb-2">
-                        <span className="text-base font-semibold">참고 레퍼런스</span>
-                      </label>
-                      <p className="text-sm text-gray-600 mb-2">
-                        참고할 영상 링크, 이미지 URL 등을 입력해주세요. (선택사항)
-                      </p>
-                      <Input
-                        value={weekData.reference}
-                        onChange={(e) => updateWeeklyGuide(weekKey, 'reference', e.target.value)}
-                        placeholder="예: https://youtube.com/example"
+                        onChange={(e) => updateWeekData(weekKey, 'mission', e.target.value)}
+                        placeholder={`예시 1: 제품 첫 사용 후기와 첫인상 공유
+예시 2: 언박싱부터 첫 사용까지의 과정 기록
+예시 3: 제품의 텍스처와 향, 발림성 소개`}
+                        className="w-full h-32 p-3 border rounded-lg resize-none"
                       />
                     </div>
 
@@ -469,14 +307,17 @@ ${weekData.required_scenes}
                         <span className="text-red-500 ml-1">*</span>
                       </label>
                       <p className="text-sm text-gray-600 mb-2">
-                        이번 주 영상에 반드시 포함되어야 할 대사를 작성해주세요.
+                        영상에 반드시 포함되어야 할 대사를 작성해주세요. (여러 버전 예시 가능)
                       </p>
                       <textarea
                         value={weekData.required_dialogue}
-                        onChange={(e) => updateWeeklyGuide(weekKey, 'required_dialogue', e.target.value)}
-                        placeholder={`예:&#10;- "${weekNum}주차 챌린지 시작!"&#10;- "확실히 피부가 ${weekNum === 1 ? '촉촉해진 느낌' : weekNum === 2 ? '좀 더 밝아진 것 같아요' : weekNum === 3 ? '탄력이 생긴 것 같아요' : '완전히 달라졌어요'}"&#10;- "ABC Beauty 수분 크림 ${weekNum}주 사용 후기"`}
-                        className="w-full h-32 p-3 border rounded-lg resize-none"
-                        required
+                        onChange={(e) => updateWeekData(weekKey, 'required_dialogue', e.target.value)}
+                        placeholder={`예시 대사 1: "안녕하세요! 오늘은 콜라겐 마스크팩 4주 챌린지 첫 번째 미션입니다!"
+예시 대사 2: "SNP 콜라겐 마스크팩으로 시작하는 꿀피부 챌린지, 24시간 촉촉함의 경험을 공유하고 함께 변화를 만들어가요!"
+예시 대사 3: "모공 피부가 푸석했는데 고민이었는데..."
+
+* 해시태그: #SNP콜라겐챌린지 #콜라겐마스크팩 #꿀촉미부 #피부변화 #챗사용후기 #피부고민 #미부개선`}
+                        className="w-full h-40 p-3 border rounded-lg resize-none"
                       />
                     </div>
 
@@ -487,316 +328,62 @@ ${weekData.required_scenes}
                         <span className="text-red-500 ml-1">*</span>
                       </label>
                       <p className="text-sm text-gray-600 mb-2">
-                        이번 주 영상에 반드시 포함되어야 할 촬영 장면을 작성해주세요.
+                        영상에 반드시 포함되어야 할 촬영 장면을 작성해주세요.
                       </p>
                       <textarea
                         value={weekData.required_scenes}
-                        onChange={(e) => updateWeeklyGuide(weekKey, 'required_scenes', e.target.value)}
-                        placeholder={`예:&#10;- 제품 클로즈업 (브랜드명 명확히)&#10;- ${weekNum === 1 ? '언박싱 또는 첫 사용 장면' : weekNum === 2 ? '피부 상태 체크 (거울 앞)' : weekNum === 3 ? '일상 루틴에 제품 사용하는 장면' : '비포/애프터 비교 (Week 1 vs Week 4)'}&#10;- 텍스처 시연 (손등 또는 얼굴)&#10;- 사용 후 표정 (만족스러운 느낌)`}
-                        className="w-full h-32 p-3 border rounded-lg resize-none"
-                        required
+                        onChange={(e) => updateWeekData(weekKey, 'required_scenes', e.target.value)}
+                        placeholder={`필수 장면:
+1. 오프닝: 꿀피부의 시작 - 밝고 활기찬 모습으로 등장, "안녕하세요! 오늘은 콜라겐 마스크팩 4주 챌린지 첫 번째 미션입니다!" 라고 소개
+2. 현재 피부 상태 공개 (Before): 민낯 또는 가벼운 메이크업 상태로 피부 고민 공개 (건조함, 각질함 등)
+3. 제품 소개 & 언박싱: SNP 콜라겐 마스크팩을 소개하고, 패키지를 깨끗하게 보여주기
+4. 제품 사용: 마스크팩 디자인, 텍스처 등을 자세히 보여주기, 자막으로 제품명 강조
+5. 사용 후 느낌: 피부 변화를 확인하고 느낌을 표현`}
+                        className="w-full h-56 p-3 border rounded-lg resize-none"
                       />
                     </div>
 
-                    {/* 생성된 가이드 미리보기 */}
-                    {weekData.generated_guide && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <p className="text-sm font-semibold text-green-800 mb-2">✓ 생성된 가이드</p>
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap">{weekData.generated_guide}</pre>
-                      </div>
-                    )}
-
-                    {/* 주차별 가이드 생성 버튼 */}
-                    <Button
-                      type="button"
-                      onClick={() => handleGenerateWeeklyGuide(weekKey)}
-                      disabled={generating}
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      {generating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          생성 중...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Week {weekNum} 가이드 생성
-                        </>
-                      )}
-                    </Button>
+                    {/* 레퍼런스 영상 URL */}
+                    <div>
+                      <label className="block mb-2">
+                        <span className="text-base font-semibold">레퍼런스 영상 URL</span>
+                      </label>
+                      <p className="text-sm text-gray-600 mb-2">
+                        참고할 수 있는 영상 링크를 입력해주세요. (선택사항)
+                      </p>
+                      <Input
+                        value={weekData.reference_url}
+                        onChange={(e) => updateWeekData(weekKey, 'reference_url', e.target.value)}
+                        placeholder="예: https://www.youtube.com/watch?v=..."
+                      />
+                    </div>
                   </div>
                 )}
               </div>
             )
           })}
-        </div>
 
-        {/* 업로드 스케줄 체크리스트 */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-6 mt-8">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-2xl">📅</span>
-            <h3 className="text-xl font-semibold text-blue-900">업로드 스케줄 체크리스트</h3>
+          {/* 액션 버튼 */}
+          <div className="flex gap-3 justify-end sticky bottom-6 bg-white p-4 rounded-lg border shadow-lg">
+            <Button
+              onClick={handleSave}
+              variant="outline"
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              임시 저장
+            </Button>
+            <Button
+              onClick={handleComplete}
+              disabled={loading}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              가이드 완성
+            </Button>
           </div>
-          <p className="text-sm text-blue-700 mb-4">
-            크리에이터가 각 주차별 마감일을 명확히 확인하고 준수할 수 있도록 스케줄을 설정해주세요.
-          </p>
-
-          <div className="space-y-4">
-            {/* Week 1 스케줄 */}
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 1</span>
-                  <span className="font-semibold text-gray-800">1주차 챌린지</span>
-                </div>
-                <span className="text-xs text-gray-500">마감일</span>
-              </div>
-              <Input
-                type="date"
-                value={campaign.week1_deadline ? new Date(campaign.week1_deadline).toISOString().split("T")[0] : ''}
-                onChange={async (e) => {
-                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
-                  try {
-                    await supabaseKorea
-                      .from('campaigns')
-                      .update({ week1_deadline: newDeadline })
-                      .eq('id', id)
-                    setCampaign({ ...campaign, week1_deadline: newDeadline })
-                  } catch (error) {
-                    console.error('Error updating deadline:', error)
-                  }
-                }}
-                className="mt-2"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                💡 1주차 챌린지 영상 제작 및 업로드 마감일
-              </p>
-            </div>
-
-            {/* Week 2 스케줄 */}
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 2</span>
-                  <span className="font-semibold text-gray-800">2주차 챌린지</span>
-                </div>
-                <span className="text-xs text-gray-500">마감일</span>
-              </div>
-              <Input
-                type="date"
-                value={campaign.week2_deadline ? new Date(campaign.week2_deadline).toISOString().split("T")[0] : ''}
-                onChange={async (e) => {
-                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
-                  try {
-                    await supabaseKorea
-                      .from('campaigns')
-                      .update({ week2_deadline: newDeadline })
-                      .eq('id', id)
-                    setCampaign({ ...campaign, week2_deadline: newDeadline })
-                  } catch (error) {
-                    console.error('Error updating deadline:', error)
-                  }
-                }}
-                className="mt-2"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                💡 2주차 챌린지 영상 제작 및 업로드 마감일
-              </p>
-            </div>
-
-            {/* Week 3 스케줄 */}
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 3</span>
-                  <span className="font-semibold text-gray-800">3주차 챌린지</span>
-                </div>
-                <span className="text-xs text-gray-500">마감일</span>
-              </div>
-              <Input
-                type="date"
-                value={campaign.week3_deadline ? new Date(campaign.week3_deadline).toISOString().split("T")[0] : ''}
-                onChange={async (e) => {
-                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
-                  try {
-                    await supabaseKorea
-                      .from('campaigns')
-                      .update({ week3_deadline: newDeadline })
-                      .eq('id', id)
-                    setCampaign({ ...campaign, week3_deadline: newDeadline })
-                  } catch (error) {
-                    console.error('Error updating deadline:', error)
-                  }
-                }}
-                className="mt-2"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                💡 3주차 챌린지 영상 제작 및 업로드 마감일
-              </p>
-            </div>
-
-            {/* Week 4 스케줄 */}
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-sm font-semibold">Week 4</span>
-                  <span className="font-semibold text-gray-800">4주차 챌린지</span>
-                </div>
-                <span className="text-xs text-gray-500">마감일</span>
-              </div>
-              <Input
-                type="date"
-                value={campaign.week4_deadline ? new Date(campaign.week4_deadline).toISOString().split("T")[0] : ''}
-                onChange={async (e) => {
-                  const newDeadline = e.target.value ? new Date(e.target.value).toISOString() : null
-                  try {
-                    await supabaseKorea
-                      .from('campaigns')
-                      .update({ week4_deadline: newDeadline })
-                      .eq('id', id)
-                    setCampaign({ ...campaign, week4_deadline: newDeadline })
-                  } catch (error) {
-                    console.error('Error updating deadline:', error)
-                  }
-                }}
-                className="mt-2"
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                💡 4주차 챌린지 영상 제작 및 업로드 마감일
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 bg-blue-100 border border-blue-300 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
-              <strong>⚠️ 주의사항:</strong> 각 주차의 마감일을 명확히 설정하여 크리에이터가 4주 동안 꾸준히 콘텐츠를 업로드할 수 있도록 해주세요. 각 영상은 7일 정도 텀을 두고 업로드해야 합니다.
-            </p>
-          </div>
-        </div>
-
-        {/* 버튼 */}
-        <div className="flex gap-4 mt-8">
-          <Button
-            type="button"
-            onClick={handleSaveDraft}
-            variant="outline"
-            disabled={loading || generating}
-            className="flex-1"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                저장 중...
-              </>
-            ) : (
-              '임시 저장'
-            )}
-          </Button>
-
-          <Button
-            type="button"
-            onClick={handleFinalizeGuide}
-            disabled={loading || generating}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                완성 중...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                가이드 완성
-              </>
-            )}
-          </Button>
         </div>
       </div>
-
-      {/* 미션 추천 예시 모달 */}
-      {showExamplesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold">
-                <Lightbulb className="w-5 h-5 inline mr-2 text-yellow-500" />
-                Week {currentWeekForExample} 미션 추천 예시
-              </h3>
-              <button
-                onClick={() => setShowExamplesModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* 카테고리 선택 */}
-              <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-3">제품 카테고리를 선택하면 해당 카테고리에 맞는 미션 예시를 볼 수 있습니다.</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {Object.entries(missionExamples).map(([key, category]) => (
-                    <button
-                      key={key}
-                      onClick={() => setSelectedCategory(key)}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        selectedCategory === key
-                          ? 'border-purple-600 bg-purple-50 text-purple-700'
-                          : 'border-gray-200 hover:border-purple-300'
-                      }`}
-                    >
-                      <div className="font-semibold">{category.name}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 선택된 카테고리의 미션 예시 리스트 */}
-              {selectedCategory && (
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg">
-                    <h4 className="font-bold text-lg mb-4">
-                      {missionExamples[selectedCategory].name} - Week {currentWeekForExample} 미션 예시
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-4">
-                      아래 예시 중 하나를 선택하거나 참고하여 미션을 작성하세요.
-                    </p>
-                    <div className="bg-white rounded-lg p-4">
-                      <div className="space-y-3">
-                        {missionExamples[selectedCategory].missions.map((mission, index) => (
-                          <div
-                            key={index}
-                            className="flex items-start gap-3 p-3 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer border border-gray-200 hover:border-purple-300"
-                            onClick={() => {
-                              // 클릭 시 해당 미션을 입력 필드에 복사할 수 있도록
-                              const weekKey = `week${currentWeekForExample}`
-                              updateWeeklyGuide(weekKey, 'mission', mission)
-                              setShowExamplesModal(false)
-                            }}
-                          >
-                            <span className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center text-sm font-semibold">
-                              {index + 1}
-                            </span>
-                            <p className="text-gray-700 flex-1">{mission}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-gray-700">
-                  <strong>팁:</strong> 위 예시를 참고하여 본인의 제품과 캠페인 특성에 맞게 수정하여 사용하세요.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

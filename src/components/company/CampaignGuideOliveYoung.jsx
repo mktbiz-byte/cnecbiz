@@ -142,15 +142,13 @@ ${step3Guide}
 
 위 내용을 바탕으로 크리에이터가 실제로 사용할 수 있는 상세하고 전문적인 콘텐츠 제작 가이드를 작성해주세요.
 
-**가이드 포함 요소:**
-1. 각 STEP별 콘텐츠 개요
-2. 촬영 구성 및 장면 설명
-3. 필수 포함 요소 및 소품 리스트
-4. 필수 대사 및 멘트
-5. 촬영 팁 및 주의사항
-6. 편집 가이드라인
+**응답 형식 (JSON):**
+{
+  "shooting_tips": "촬영 팁 내용 (조명, 각도, 배경, 소품 활용 등)",
+  "cautions": "주의사항 내용 (금지 사항, 필수 포함 요소, 법적 고지사항 등)"
+}
 
-명확하고 구체적이며 실행 가능한 가이드를 작성해주세요.`
+명확하고 구체적이며 실행 가능한 가이드를 JSON 형식으로 작성해주세요.`
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
@@ -170,21 +168,37 @@ ${step3Guide}
       }
 
       const result = await response.json()
-      const generatedGuide = result.candidates[0].content.parts[0].text
+      const generatedText = result.candidates[0].content.parts[0].text
+      
+      // JSON 파싱
+      let shootingTips = ''
+      let cautions = ''
+      try {
+        const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          shootingTips = parsed.shooting_tips || ''
+          cautions = parsed.cautions || ''
+        }
+      } catch (e) {
+        console.error('JSON 파싱 실패:', e)
+        shootingTips = generatedText
+      }
 
       // 생성된 가이드를 DB에 저장
-      const { error: finalUpdateError } = await supabaseKorea
+      const { error: finalUpdateError } = await supabase
         .from('campaigns')
         .update({
-          ai_generated_guide: generatedGuide,
+          shooting_tips: shootingTips,
+          cautions: cautions,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', id)
 
       if (finalUpdateError) throw finalUpdateError
 
-      alert('올영세일 가이드가 생성되었습니다! 리뷰 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/review`)
+      alert('올영세일 가이드가 생성되었습니다! 미리보기 페이지로 이동합니다.')
+      navigate(`/company/campaigns/${id}/guide/oliveyoung/preview`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
