@@ -11,7 +11,6 @@ export default function OliveYoungInvoice() {
   const { id } = useParams()
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [aiGuide, setAiGuide] = useState(null)
   const [activeTab, setActiveTab] = useState('product_intro')
@@ -116,39 +115,6 @@ export default function OliveYoungInvoice() {
     } catch (error) {
       console.error('저장 실패:', error)
       alert('저장에 실패했습니다: ' + error.message)
-    }
-  }
-
-  const handleSubmit = async () => {
-    if (!aiGuide) {
-      alert('AI 가이드를 먼저 생성해주세요.')
-      return
-    }
-
-    if (!confirm('캠페인을 최종 제출하시겠습니까? 제출 후에는 수정이 불가능합니다.')) {
-      return
-    }
-
-    try {
-      setSubmitting(true)
-
-      const { error } = await supabase
-        .from('campaigns')
-        .update({
-          status: 'recruiting',
-          submitted_at: new Date().toISOString()
-        })
-        .eq('id', id)
-
-      if (error) throw error
-
-      alert('캠페인이 성공적으로 제출되었습니다!')
-      navigate(`/company/campaigns/${id}?region=korea`)
-    } catch (error) {
-      console.error('제출 실패:', error)
-      alert('캠페인 제출에 실패했습니다: ' + error.message)
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -535,21 +501,12 @@ export default function OliveYoungInvoice() {
             가이드 수정
           </Button>
           <Button
-            onClick={handleSubmit}
-            disabled={submitting || !aiGuide}
+            onClick={() => navigate(`/company/campaigns/${id}/order-confirmation`)}
+            disabled={!aiGuide}
             className="flex-1 bg-green-600 hover:bg-green-700"
           >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                제출 중...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                결제하기
-              </>
-            )}
+            <CheckCircle className="w-4 h-4 mr-2" />
+            결제하기
           </Button>
         </div>
       </div>
