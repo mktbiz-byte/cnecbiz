@@ -63,6 +63,39 @@ export default function CampaignGuide4WeekChallenge() {
       // 기존 데이터가 있으면 로드
       if (data.challenge_guide_data) {
         setGuideData(data.challenge_guide_data)
+      } else if (data.challenge_base_guide || data.challenge_weekly_guides) {
+        // 이전 구조의 데이터를 새 구조로 변환
+        const oldWeeklyGuides = data.challenge_weekly_guides || {}
+        setGuideData({
+          brand: data.brand || '',
+          product_name: data.product_name || '',
+          product_features: data.product_features || '',
+          precautions: data.product_key_points || '',
+          week1: {
+            mission: oldWeeklyGuides.week1?.mission || '',
+            required_dialogue: oldWeeklyGuides.week1?.required_dialogue || '',
+            required_scenes: oldWeeklyGuides.week1?.required_scenes || '',
+            reference_url: oldWeeklyGuides.week1?.reference || ''
+          },
+          week2: {
+            mission: oldWeeklyGuides.week2?.mission || '',
+            required_dialogue: oldWeeklyGuides.week2?.required_dialogue || '',
+            required_scenes: oldWeeklyGuides.week2?.required_scenes || '',
+            reference_url: oldWeeklyGuides.week2?.reference || ''
+          },
+          week3: {
+            mission: oldWeeklyGuides.week3?.mission || '',
+            required_dialogue: oldWeeklyGuides.week3?.required_dialogue || '',
+            required_scenes: oldWeeklyGuides.week3?.required_scenes || '',
+            reference_url: oldWeeklyGuides.week3?.reference || ''
+          },
+          week4: {
+            mission: oldWeeklyGuides.week4?.mission || '',
+            required_dialogue: oldWeeklyGuides.week4?.required_dialogue || '',
+            required_scenes: oldWeeklyGuides.week4?.required_scenes || '',
+            reference_url: oldWeeklyGuides.week4?.reference || ''
+          }
+        })
       } else {
         // 브랜드명과 제품명 자동 입력
         setGuideData(prev => ({
