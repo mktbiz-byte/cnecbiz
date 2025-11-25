@@ -135,13 +135,14 @@ export default function ConsultationBanner() {
       <div className="fixed bottom-8 right-8 z-50">
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-4 rounded-full shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300 group"
+          className="flex flex-col items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300 group"
         >
           <div className="flex items-center gap-2">
-            <Phone className="w-5 h-5 animate-pulse" />
-            <Mail className="w-5 h-5" />
+            <Phone className="w-4 h-4 animate-pulse" />
+            <Mail className="w-4 h-4" />
+            <span className="text-xl">💬</span>
           </div>
-          <span className="font-semibold text-lg">💬 상담 신청하기</span>
+          <span className="font-semibold text-sm">상담 신청하기</span>
         </button>
       </div>
 

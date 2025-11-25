@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 const CampaignCreationKorea = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const editId = searchParams.get('id')
+  const editId = searchParams.get('edit') || searchParams.get('id')
   const thumbnailInputRef = useRef(null)
   const detailImageInputRef = useRef(null)
 
