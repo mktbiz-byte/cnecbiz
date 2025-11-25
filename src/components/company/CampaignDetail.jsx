@@ -2121,17 +2121,6 @@ export default function CampaignDetail() {
     }
   }
 
-  const getPackagePrice = (packageType) => {
-    const prices = {
-      'beginner': 200000,
-      'standard': 300000,
-      'premium': 400000,
-      'professional': 500000,
-      'expert': 600000
-    }
-    return prices[packageType] || 300000
-  }
-
   const handleRequestApproval = async () => {
     try {
       // 캠페인 금액 계산
