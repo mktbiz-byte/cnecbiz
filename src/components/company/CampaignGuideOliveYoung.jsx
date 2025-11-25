@@ -123,7 +123,7 @@ export default function CampaignGuideOliveYoung() {
         throw new Error('Gemini API 키가 설정되지 않았습니다.')
       }
 
-      const prompt = `당신은 올리브영 세일 캐페인 전문 기획자입니다. 다음 정보를 바탕으로 3단계 콘텐츠 제작 가이드를 생성해주세요.
+      const prompt = `당신은 올리브영 세일 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 크리에이터가 실제로 사용할 수 있는 전문적이고 상세한 3단계 콘텐츠 제작 가이드를 생성해주세요.
 
 **제품 정보**
 - 브랜드: ${productData.brand}
@@ -131,21 +131,27 @@ export default function CampaignGuideOliveYoung() {
 - 제품 특징: ${productData.product_features}
 - 핵심 포인트: ${productData.product_key_points}
 
-**STEP 1 가이드 (상품 리뷰)**
+**STEP 1 가이드 초안 (상품 리뷰)**
 ${step1Guide}
 
-**STEP 2 가이드 (세일 홈보)**
+**STEP 2 가이드 초안 (세일 홍보)**
 ${step2Guide}
 
-**STEP 3 가이드 (세일 당일 스토리)**
+**STEP 3 가이드 초안 (세일 당일 스토리)**
 ${step3Guide}
 
-위 내용을 바탕으로 크리에이터가 실제로 사용할 수 있는 상세하고 전문적인 콘텐츠 제작 가이드를 작성해주세요.
+위 초안을 바탕으로 각 단계별로 구체적이고 실행 가능한 가이드를 작성해주세요.
+- 각 단계의 목적과 핵심 메시지를 명확히 전달
+- 구체적인 촬영 방법, 필수 대사, 촬영 장면 예시 포함
+- 크리에이터가 바로 실행할 수 있도록 단계별 액션 아이템 제시
 
 **응답 형식 (JSON):**
 {
-  "shooting_tips": "촬영 팁 내용 (조명, 각도, 배경, 소품 활용 등)",
-  "cautions": "주의사항 내용 (금지 사항, 필수 포함 요소, 법적 고지사항 등)"
+  "step1_guide_enhanced": "STEP 1 상품 리뷰 가이드 (전문적으로 가공된 버전, 구체적인 촬영 방법과 필수 요소 포함)",
+  "step2_guide_enhanced": "STEP 2 세일 홍보 가이드 (전문적으로 가공된 버전, 구체적인 촬영 방법과 필수 요소 포함)",
+  "step3_guide_enhanced": "STEP 3 세일 당일 스토리 가이드 (전문적으로 가공된 버전, 구체적인 촬영 방법과 필수 요소 포함)",
+  "shooting_tips": "전체 촬영 팁 (조명, 각도, 배경, 소품 활용 등)",
+  "cautions": "주의사항 (금지 사항, 필수 포함 요소, 법적 고지사항 등)"
 }
 
 명확하고 구체적이며 실행 가능한 가이드를 JSON 형식으로 작성해주세요.`
@@ -171,24 +177,36 @@ ${step3Guide}
       const generatedText = result.candidates[0].content.parts[0].text
       
       // JSON 파싱
+      let step1Enhanced = step1Guide
+      let step2Enhanced = step2Guide
+      let step3Enhanced = step3Guide
       let shootingTips = ''
       let cautions = ''
+      
       try {
         const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0])
+          step1Enhanced = parsed.step1_guide_enhanced || step1Guide
+          step2Enhanced = parsed.step2_guide_enhanced || step2Guide
+          step3Enhanced = parsed.step3_guide_enhanced || step3Guide
           shootingTips = parsed.shooting_tips || ''
           cautions = parsed.cautions || ''
         }
       } catch (e) {
         console.error('JSON 파싱 실패:', e)
-        shootingTips = generatedText
+        // 파싱 실패 시 원본 사용
       }
 
-      // 가이드 생성 완료 표시
+      // AI 가공된 가이드 저장
       const { error: finalUpdateError } = await supabaseKorea
         .from('campaigns')
         .update({
+          oliveyoung_step1_guide_ai: step1Enhanced,
+          oliveyoung_step2_guide_ai: step2Enhanced,
+          oliveyoung_step3_guide_ai: step3Enhanced,
+          oliveyoung_shooting_tips: shootingTips,
+          oliveyoung_cautions: cautions,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', id)

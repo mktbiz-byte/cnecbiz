@@ -182,8 +182,8 @@ export default function CampaignGuide4WeekChallenge() {
     setLoading(true)
 
     try {
-      // 기존 데이터베이스 구조에 맞춰 저장
-      const { error } = await supabaseKorea
+      // 먼저 원본 데이터 저장
+      const { error: saveError } = await supabaseKorea
         .from('campaigns')
         .update({
           brand: guideData.brand,
@@ -219,7 +219,113 @@ export default function CampaignGuide4WeekChallenge() {
         })
         .eq('id', id)
 
-      if (error) throw error
+      if (saveError) throw saveError
+
+      // AI로 가이드 가공
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('Gemini API 키가 설정되지 않았습니다.')
+      }
+
+      // 주차별 가이드 생성
+      const weeklyGuidesAI = {}
+      
+      for (let weekNum = 1; weekNum <= 4; weekNum++) {
+        const weekKey = `week${weekNum}`
+        const weekData = guideData[weekKey]
+        
+        // 해당 주차 데이터가 있을 때만 AI 가공
+        if (weekData.mission || weekData.required_dialogue || weekData.required_scenes) {
+          const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 ${weekNum}주차 가이드를 전문적으로 가공해주세요.
+
+**제품 정보**
+- 브랜드: ${guideData.brand}
+- 제품명: ${guideData.product_name}
+- 제품 특징: ${guideData.product_features}
+- 주의사항: ${guideData.precautions}
+
+**${weekNum}주차 가이드 초안**
+- 미션: ${weekData.mission}
+- 필수 대사: ${weekData.required_dialogue}
+- 필수 촬영 장면: ${weekData.required_scenes}
+
+위 초안을 바탕으로 크리에이터가 실제로 사용할 수 있는 구체적이고 전문적인 가이드를 작성해주세요.
+- 미션의 목적과 핵심 메시지를 명확히 전달
+- 구체적인 촬영 방법과 예시 포함
+- 크리에이터가 바로 실행할 수 있도록 단계별 액션 아이템 제시
+
+**응답 형식 (JSON):**
+{
+  "mission_enhanced": "미션 설명 (전문적으로 가공된 버전)",
+  "required_dialogue_enhanced": "필수 대사 (구체적이고 자연스러운 대사 예시)",
+  "required_scenes_enhanced": "필수 촬영 장면 (구체적인 촬영 방법과 예시)"
+}
+
+JSON 형식으로 작성해주세요.`
+
+          try {
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{ text: prompt }]
+                  }]
+                })
+              }
+            )
+
+            if (response.ok) {
+              const result = await response.json()
+              const generatedText = result.candidates[0].content.parts[0].text
+              
+              try {
+                const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+                if (jsonMatch) {
+                  const parsed = JSON.parse(jsonMatch[0])
+                  weeklyGuidesAI[weekKey] = {
+                    mission: parsed.mission_enhanced || weekData.mission,
+                    required_dialogue: parsed.required_dialogue_enhanced || weekData.required_dialogue,
+                    required_scenes: parsed.required_scenes_enhanced || weekData.required_scenes,
+                    reference: weekData.reference_url
+                  }
+                }
+              } catch (e) {
+                console.error(`Week ${weekNum} JSON 파싱 실패:`, e)
+                // 파싱 실패 시 원본 사용
+                weeklyGuidesAI[weekKey] = {
+                  mission: weekData.mission,
+                  required_dialogue: weekData.required_dialogue,
+                  required_scenes: weekData.required_scenes,
+                  reference: weekData.reference_url
+                }
+              }
+            }
+          } catch (aiError) {
+            console.error(`Week ${weekNum} AI 생성 실패:`, aiError)
+            // AI 실패 시 원본 사용
+            weeklyGuidesAI[weekKey] = {
+              mission: weekData.mission,
+              required_dialogue: weekData.required_dialogue,
+              required_scenes: weekData.required_scenes,
+              reference: weekData.reference_url
+            }
+          }
+        }
+      }
+
+      // AI 가공된 가이드 저장
+      const { error: aiUpdateError } = await supabaseKorea
+        .from('campaigns')
+        .update({
+          challenge_weekly_guides_ai: weeklyGuidesAI,
+          guide_generated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+
+      if (aiUpdateError) throw aiUpdateError
 
       alert('4주 챌린지 가이드가 완성되었습니다! 견적서 페이지로 이동합니다.')
       navigate(`/company/campaigns/${id}/invoice/4week`)

@@ -163,7 +163,7 @@ export default function OliveYoungGuideViewer() {
                 </div>
                 <div className="prose max-w-none">
                   <div className="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
-                    {campaign.oliveyoung_step1_guide}
+                    {campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide}
                   </div>
                 </div>
                 {campaign.oliveyoung_step1_guide_file && (
@@ -201,7 +201,7 @@ export default function OliveYoungGuideViewer() {
                 </div>
                 <div className="prose max-w-none">
                   <div className="whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
-                    {campaign.oliveyoung_step2_guide}
+                    {campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide}
                   </div>
                 </div>
                 {campaign.oliveyoung_step2_guide_file && (
@@ -270,7 +270,7 @@ export default function OliveYoungGuideViewer() {
                 <h2 className="text-2xl font-bold mb-4">💡 촬영 팁</h2>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="whitespace-pre-wrap">
-                    {campaign.shooting_tips || '촬영 팁이 아직 작성되지 않았습니다.'}
+                    {campaign.oliveyoung_shooting_tips || campaign.shooting_tips || '촬영 팁이 아직 작성되지 않았습니다.'}
                   </div>
                 </div>
               </div>
@@ -282,7 +282,7 @@ export default function OliveYoungGuideViewer() {
                 <h2 className="text-2xl font-bold mb-4">⚠️ 주의사항</h2>
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <div className="whitespace-pre-wrap">
-                    {campaign.cautions || '주의사항이 아직 작성되지 않았습니다.'}
+                    {campaign.oliveyoung_cautions || campaign.cautions || '주의사항이 아직 작성되지 않았습니다.'}
                   </div>
                 </div>
               </div>

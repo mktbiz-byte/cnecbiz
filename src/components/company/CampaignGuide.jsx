@@ -134,7 +134,7 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
       const data = await response.json()
       const generatedGuide = data.candidates[0].content.parts[0].text
 
-      // AI 생성 가이드 저장
+      // AI 캠페인 지원 가이드 저장
       const { error: guideError } = await supabaseKorea
         .from('campaigns')
         .update({

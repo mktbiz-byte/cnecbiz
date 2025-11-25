@@ -567,13 +567,13 @@ JSON 형식으로만 응답해주세요.`
           </div>
         )}
 
-        {/* AI 생성 가이드 */}
+        {/* AI 캠페인 지원 가이드 */}
         {aiGuide && (
           <div className="space-y-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-600" />
-                <h2 className="text-2xl font-bold">AI 생성 가이드</h2>
+                <h2 className="text-2xl font-bold">AI 캠페인 지원 가이드</h2>
               </div>
               <Button
                 onClick={generateAIGuide}

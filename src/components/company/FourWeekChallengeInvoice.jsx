@@ -35,6 +35,17 @@ export default function FourWeekChallengeInvoice() {
       // AI 가이드가 이미 생성되어 있으면 표시
       if (data.ai_generated_guide) {
         setAiGuide(data.ai_generated_guide)
+      } else if (data.challenge_weekly_guides_ai) {
+        // challenge_weekly_guides_ai를 ai_generated_guide 형식으로 변환
+        const weeklyGuidesAI = data.challenge_weekly_guides_ai
+        setAiGuide({
+          product_intro: `${data.brand} ${data.product_name}\n\n${data.product_features}`,
+          week1_guide: weeklyGuidesAI.week1 ? `미션: ${weeklyGuidesAI.week1.mission}\n\n필수 대사: ${weeklyGuidesAI.week1.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week1.required_scenes}` : null,
+          week2_guide: weeklyGuidesAI.week2 ? `미션: ${weeklyGuidesAI.week2.mission}\n\n필수 대사: ${weeklyGuidesAI.week2.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week2.required_scenes}` : null,
+          week3_guide: weeklyGuidesAI.week3 ? `미션: ${weeklyGuidesAI.week3.mission}\n\n필수 대사: ${weeklyGuidesAI.week3.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week3.required_scenes}` : null,
+          week4_guide: weeklyGuidesAI.week4 ? `미션: ${weeklyGuidesAI.week4.mission}\n\n필수 대사: ${weeklyGuidesAI.week4.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week4.required_scenes}` : null,
+          cautions: data.product_key_points
+        })
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
@@ -182,12 +193,12 @@ export default function FourWeekChallengeInvoice() {
           </CardContent>
         </Card>
 
-        {/* AI 생성 가이드 */}
+        {/* AI 캠페인 지원 가이드 */}
         <div className="space-y-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-purple-600" />
-              <h2 className="text-2xl font-bold">✨ AI 생성 가이드</h2>
+              <h2 className="text-2xl font-bold">✨ AI 캠페인 지원 가이드</h2>
             </div>
             <Button
               onClick={generateAIGuide}
