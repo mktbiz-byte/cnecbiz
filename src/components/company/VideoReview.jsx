@@ -72,8 +72,10 @@ export default function VideoReview() {
           applications (
             applicant_name,
             phone_number,
+            campaign_id,
             campaigns (
-              title
+              title,
+              company_id
             )
           )
         `)
@@ -81,6 +83,14 @@ export default function VideoReview() {
         .single()
 
       if (error) throw error
+
+      // Check authorization: campaign owner only
+      const campaignCompanyId = data.applications?.campaigns?.company_id
+      if (campaignCompanyId && campaignCompanyId !== user.id) {
+        alert('이 영상에 접근할 권한이 없습니다.')
+        navigate('/company/campaigns')
+        return
+      }
 
       setSubmission(data)
       
