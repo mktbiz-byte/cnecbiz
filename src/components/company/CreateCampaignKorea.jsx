@@ -217,9 +217,30 @@ const CampaignCreationKorea = () => {
           }
         }
 
+        // target_platforms 처리 - 객체 형태로 변환
+        let targetPlatformsObj = {}
+        if (Array.isArray(data.target_platforms)) {
+          // 배열 형태일 경우 객체로 변환
+          targetPlatformsObj = {
+            youtube: data.target_platforms.includes('youtube'),
+            instagram: data.target_platforms.includes('instagram'),
+            tiktok: data.target_platforms.includes('tiktok')
+          }
+        } else if (typeof data.target_platforms === 'object' && data.target_platforms !== null) {
+          // 이미 객체 형태일 경우
+          targetPlatformsObj = data.target_platforms
+        } else {
+          // category로부터 생성
+          targetPlatformsObj = {
+            youtube: categoryArray.includes('youtube'),
+            instagram: categoryArray.includes('instagram'),
+            tiktok: categoryArray.includes('tiktok')
+          }
+        }
+
         setCampaignForm({
           ...data,
-          target_platforms: Array.isArray(data.target_platforms) ? data.target_platforms : [],
+          target_platforms: targetPlatformsObj,
           question1,
           question2,
           question3,
@@ -463,7 +484,8 @@ const CampaignCreationKorea = () => {
 
       // 올리브영 캠페인 검증
       if (campaignForm.campaign_type === 'oliveyoung') {
-        if (campaignForm.target_platforms.length === 0) {
+        const hasSelectedPlatform = Object.values(campaignForm.target_platforms || {}).some(v => v === true)
+        if (!hasSelectedPlatform) {
           setError('타겟 채널을 1개 이상 선택해주세요.')
           setProcessing(false)
           return
