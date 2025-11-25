@@ -493,6 +493,20 @@ export default function CampaignGuide4WeekChallenge() {
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               가이드 완성
             </Button>
+            
+            <Button
+              type="button"
+              onClick={() => {
+                if (!id) {
+                  alert('캠페인 ID가 없습니다.')
+                  return
+                }
+                navigate(`/company/campaigns/guide/4week/final?id=${id}`)
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              최종 가이드 생성 및 발송
+            </Button>
           </div>
         </div>
       </div>
