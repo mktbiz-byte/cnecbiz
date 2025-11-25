@@ -59,37 +59,131 @@ export default function FourWeekChallengeInvoice() {
     try {
       setGenerating(true)
 
-      // challenge_weekly_guides에서 주차별 데이터 가져오기
+      // Gemini API를 사용한 AI 가이드 생성
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('Gemini API 키가 설정되지 않았습니다.')
+      }
+
       const weeklyGuides = campaign.challenge_weekly_guides || {}
 
-      const response = await fetch('/.netlify/functions/generate-4week-challenge-guide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: id,
-          productName: campaign.product_name,
-          productDescription: campaign.product_description,
-          productFeatures: campaign.product_features,
-          productKeyPoints: campaign.product_key_points,
-          week1: weeklyGuides.week1,
-          week2: weeklyGuides.week2,
-          week3: weeklyGuides.week3,
-          week4: weeklyGuides.week4
-        })
-      })
+      const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 크리에이터가 실제로 사용할 수 있는 전문적이고 상세한 4주간의 콘텐츠 제작 가이드를 생성해주세요.
 
-      if (!response.ok) throw new Error('가이드 생성 실패')
+**제품 정보**
+- 브랜드: ${campaign.brand}
+- 제품명: ${campaign.product_name}
+- 제품 특징: ${campaign.product_features}
+- 핵심 포인트: ${campaign.product_key_points}
+
+**1주차 초안**
+- 미션: ${weeklyGuides.week1?.mission || '미작성'}
+- 필수 대사: ${weeklyGuides.week1?.required_dialogue || '미작성'}
+- 필수 촬영 장면: ${weeklyGuides.week1?.required_scenes || '미작성'}
+
+**2주차 초안**
+- 미션: ${weeklyGuides.week2?.mission || '미작성'}
+- 필수 대사: ${weeklyGuides.week2?.required_dialogue || '미작성'}
+- 필수 촬영 장면: ${weeklyGuides.week2?.required_scenes || '미작성'}
+
+**3주차 초안**
+- 미션: ${weeklyGuides.week3?.mission || '미작성'}
+- 필수 대사: ${weeklyGuides.week3?.required_dialogue || '미작성'}
+- 필수 촬영 장면: ${weeklyGuides.week3?.required_scenes || '미작성'}
+
+**4주차 초안**
+- 미션: ${weeklyGuides.week4?.mission || '미작성'}
+- 필수 대사: ${weeklyGuides.week4?.required_dialogue || '미작성'}
+- 필수 촬영 장면: ${weeklyGuides.week4?.required_scenes || '미작성'}
+
+위 초안을 바탕으로 각 주차별로 구체적이고 실행 가능한 가이드를 작성해주세요.
+- 각 주차의 목표와 핵심 메시지를 명확히 전달
+- 구체적인 촬영 방법, 필수 대사, 촬영 장면 예시 포함
+- 크리에이터가 바로 실행할 수 있도록 단계별 액션 아이템 제시
+
+**응답 형식 (JSON):**
+{
+  "week1": {
+    "mission": "1주차 미션 (전문적으로 가공된 버전)",
+    "required_dialogue": "1주차 필수 대사 (구체적이고 자연스러운 대사)",
+    "required_scenes": "1주차 필수 촬영 장면 (세부 가이드 포함)"
+  },
+  "week2": {
+    "mission": "2주차 미션 (전문적으로 가공된 버전)",
+    "required_dialogue": "2주차 필수 대사 (구체적이고 자연스러운 대사)",
+    "required_scenes": "2주차 필수 촬영 장면 (세부 가이드 포함)"
+  },
+  "week3": {
+    "mission": "3주차 미션 (전문적으로 가공된 버전)",
+    "required_dialogue": "3주차 필수 대사 (구체적이고 자연스러운 대사)",
+    "required_scenes": "3주차 필수 촬영 장면 (세부 가이드 포함)"
+  },
+  "week4": {
+    "mission": "4주차 미션 (전문적으로 가공된 버전)",
+    "required_dialogue": "4주차 필수 대사 (구체적이고 자연스러운 대사)",
+    "required_scenes": "4주차 필수 촬영 장면 (세부 가이드 포함)"
+  }
+}
+
+명확하고 구체적이며 실행 가능한 가이드를 JSON 형식으로 작성해주세요.`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }]
+          })
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('AI 가이드 생성에 실패했습니다.')
+      }
 
       const result = await response.json()
-      setAiGuide(result.guide)
+      const generatedText = result.candidates[0].content.parts[0].text
+      
+      // JSON 파싱
+      let weeklyGuidesAI = {
+        week1: weeklyGuides.week1 || {},
+        week2: weeklyGuides.week2 || {},
+        week3: weeklyGuides.week3 || {},
+        week4: weeklyGuides.week4 || {}
+      }
+      
+      try {
+        const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          weeklyGuidesAI = parsed
+        }
+      } catch (e) {
+        console.error('JSON 파싱 실패:', e)
+      }
 
-      // DB에 저장
-      const { error } = await supabase
+      // AI 가공된 가이드 저장
+      const { error: updateError } = await supabase
         .from('campaigns')
-        .update({ ai_generated_guide: result.guide })
+        .update({
+          challenge_weekly_guides_ai: weeklyGuidesAI,
+          guide_generated_at: new Date().toISOString()
+        })
         .eq('id', id)
 
-      if (error) throw error
+      if (updateError) throw updateError
+
+      // 화면에 표시할 가이드 설정
+      setAiGuide({
+        product_intro: `${campaign.brand} ${campaign.product_name}\n\n${campaign.product_features}`,
+        week1_guide: weeklyGuidesAI.week1 ? `미션: ${weeklyGuidesAI.week1.mission}\n\n필수 대사: ${weeklyGuidesAI.week1.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week1.required_scenes}` : null,
+        week2_guide: weeklyGuidesAI.week2 ? `미션: ${weeklyGuidesAI.week2.mission}\n\n필수 대사: ${weeklyGuidesAI.week2.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week2.required_scenes}` : null,
+        week3_guide: weeklyGuidesAI.week3 ? `미션: ${weeklyGuidesAI.week3.mission}\n\n필수 대사: ${weeklyGuidesAI.week3.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week3.required_scenes}` : null,
+        week4_guide: weeklyGuidesAI.week4 ? `미션: ${weeklyGuidesAI.week4.mission}\n\n필수 대사: ${weeklyGuidesAI.week4.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week4.required_scenes}` : null,
+        cautions: campaign.product_key_points
+      })
 
       alert('AI 가이드가 생성되었습니다!')
     } catch (error) {
