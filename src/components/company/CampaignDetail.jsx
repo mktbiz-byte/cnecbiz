@@ -1718,18 +1718,20 @@ export default function CampaignDetail() {
                   )}
                   {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === '4week_challenge') && (
                     <td className="px-4 py-3">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedParticipantForMessage(participant)
-                          setIndividualMessage(participant.personalized_guide || '')
-                          setShowIndividualMessageModal(true)
-                        }}
-                        className="text-purple-600 border-purple-600 hover:bg-purple-50"
-                      >
-                        {participant.personalized_guide ? '메시지 수정' : '메시지 작성'}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedParticipantForMessage(participant)
+                            setIndividualMessage(participant.personalized_guide || '')
+                            setShowIndividualMessageModal(true)
+                          }}
+                          className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                        >
+                          {participant.personalized_guide ? '최종 가이드 확인' : '개별 메시지 작성'}
+                        </Button>
+                      </div>
                     </td>
                   )}
                   <td className="px-4 py-3">
@@ -1822,6 +1824,55 @@ export default function CampaignDetail() {
               )}
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              {campaign.campaign_type === 'oliveyoung' && (
+                <Button
+                  onClick={async () => {
+                    if (selectedParticipants.length === 0) {
+                      alert('크리에이터를 선택해주세요.')
+                      return
+                    }
+                    
+                    if (!confirm(`선택한 ${selectedParticipants.length}명의 크리에이터에게 최종 가이드를 발송하시겠습니까?`)) {
+                      return
+                    }
+                    
+                    try {
+                      let successCount = 0
+                      let errorCount = 0
+                      
+                      for (const participantId of selectedParticipants) {
+                        try {
+                          const { error } = await supabase
+                            .from('applications')
+                            .update({
+                              guide_confirmed: true,
+                              guide_sent: true,
+                              guide_sent_at: new Date().toISOString(),
+                              status: 'filming'
+                            })
+                            .eq('id', participantId)
+                          
+                          if (error) throw error
+                          successCount++
+                        } catch (error) {
+                          console.error(`Error sending guide to ${participantId}:`, error)
+                          errorCount++
+                        }
+                      }
+                      
+                      alert(`가이드 발송 완료!\n성공: ${successCount}명\n실패: ${errorCount}명`)
+                      await fetchParticipants()
+                      setSelectedParticipants([])
+                    } catch (error) {
+                      console.error('Error sending guides:', error)
+                      alert('가이드 발송 실패: ' + error.message)
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  최종 가이드 발송
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={exportShippingInfo}
@@ -4570,7 +4621,7 @@ export default function CampaignDetail() {
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b">
               <h3 className="text-xl font-bold">
-                {selectedParticipantForMessage.creator_name || selectedParticipantForMessage.applicant_name} - 개별 메시지
+                {selectedParticipantForMessage.creator_name || selectedParticipantForMessage.applicant_name} - {selectedParticipantForMessage.personalized_guide ? '최종 가이드' : '개별 메시지 작성'}
               </h3>
               <button
                 onClick={() => {
@@ -4589,10 +4640,12 @@ export default function CampaignDetail() {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  개별 요청사항
+                  {selectedParticipantForMessage.personalized_guide ? '최종 가이드 (수정 가능)' : '개별 요청사항'}
                 </label>
                 <p className="text-sm text-gray-500 mb-3">
-                  이 크리에이터에게만 전달될 추가 요청사항을 작성해주세요. (예: 특정 장면 추가, 특별 연출 요청 등)
+                  {selectedParticipantForMessage.personalized_guide 
+                    ? '크리에이터에게 전달될 최종 가이드를 확인하고 수정할 수 있습니다.'
+                    : '이 크리에이터에게만 전달될 추가 요청사항을 작성해주세요. (예: 특정 장면 추가, 특별 연출 요청 등)'}
                 </p>
                 <textarea
                   value={individualMessage}

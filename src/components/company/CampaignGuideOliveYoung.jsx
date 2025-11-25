@@ -190,7 +190,6 @@ ${step3Guide}
         .from('campaigns')
         .update({
           shooting_tips: shootingTips,
-          cautions: cautions,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', id)
