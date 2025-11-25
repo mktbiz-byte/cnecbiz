@@ -207,6 +207,16 @@ const CampaignCreationKorea = () => {
           categoryArray = data.category.split(',').map(c => c.trim()).filter(Boolean)
         }
 
+        // 날짜 필드 포맷 변환 함수 (ISO -> YYYY-MM-DD)
+        const formatDate = (dateString) => {
+          if (!dateString) return ''
+          try {
+            return new Date(dateString).toISOString().split('T')[0]
+          } catch {
+            return ''
+          }
+        }
+
         setCampaignForm({
           ...data,
           target_platforms: Array.isArray(data.target_platforms) ? data.target_platforms : [],
@@ -214,7 +224,18 @@ const CampaignCreationKorea = () => {
           question2,
           question3,
           question4,
-          category: categoryArray
+          category: categoryArray,
+          // 날짜 필드 포맷 변환
+          application_deadline: formatDate(data.application_deadline),
+          start_date: formatDate(data.start_date),
+          end_date: formatDate(data.end_date),
+          step1_deadline: formatDate(data.step1_deadline),
+          step2_deadline: formatDate(data.step2_deadline),
+          step3_deadline: formatDate(data.step3_deadline),
+          week1_deadline: formatDate(data.week1_deadline),
+          week2_deadline: formatDate(data.week2_deadline),
+          week3_deadline: formatDate(data.week3_deadline),
+          week4_deadline: formatDate(data.week4_deadline)
         })
       }
     } catch (err) {
