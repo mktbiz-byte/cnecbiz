@@ -2121,23 +2121,151 @@ export default function CampaignDetail() {
     }
   }
 
+  const getPackagePrice = (packageType) => {
+    const prices = {
+      'beginner': 200000,
+      'standard': 300000,
+      'premium': 400000,
+      'professional': 500000,
+      'expert': 600000
+    }
+    return prices[packageType] || 300000
+  }
+
   const handleRequestApproval = async () => {
     try {
-      const { error } = await supabase
+      // 캠페인 금액 계산
+      let packagePrice
+      if (campaign.campaign_type === '4week_challenge' || campaign.campaign_type === '4week') {
+        packagePrice = 600000 // 4주 챌린지는 60만원 고정
+      } else {
+        packagePrice = getPackagePrice(campaign.package_type)
+      }
+      const recruitmentCount = campaign.total_slots || campaign.recruitment_count || 1
+      const totalCost = packagePrice * recruitmentCount
+
+      // 회사 포인트 잔액 확인
+      const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
+      if (!currentUser) {
+        alert('로그인이 필요합니다.')
+        return
+      }
+
+      // Korea DB에서 회사 정보 조회 (오류 시 Biz DB로 fallback)
+      let companyData = null
+      let companyDB = supabaseKorea
+      
+      try {
+        const result = await supabaseKorea
+          .from('companies')
+          .select('points_balance, id, company_name')
+          .eq('user_id', currentUser.id)
+          .maybeSingle()
+        companyData = result.data
+      } catch (koreaError) {
+        console.log('[CampaignDetail] Korea DB query failed, trying Biz DB:', koreaError)
+      }
+
+      // Korea DB에 없거나 오류 발생 시 Biz DB에서 조회
+      if (!companyData) {
+        const result = await supabaseBiz
+          .from('companies')
+          .select('points_balance, id, company_name')
+          .eq('user_id', currentUser.id)
+          .maybeSingle()
+        companyData = result.data
+        companyDB = supabaseBiz
+      }
+
+      if (!companyData) {
+        alert('회사 정보를 찾을 수 없습니다.')
+        return
+      }
+
+      // 포인트 부족 체크
+      if (companyData.points_balance < totalCost) {
+        alert(`포인트가 모자랍니다.\n\n필요 포인트: ${totalCost.toLocaleString()}P\n현재 포인트: ${companyData.points_balance.toLocaleString()}P\n부족 포인트: ${(totalCost - companyData.points_balance).toLocaleString()}P`)
+        return
+      }
+
+      // 확인 메시지
+      const confirmed = window.confirm(
+        `포인트를 차감하고 관리자 승인을 요청하시겠습니까?\n\n현재 포인트: ${companyData.points_balance.toLocaleString()}P\n차감 포인트: ${totalCost.toLocaleString()}P\n차감 후 잔여 포인트: ${(companyData.points_balance - totalCost).toLocaleString()}P`
+      )
+
+      if (!confirmed) return
+
+      // 포인트 거래 기록 먼저 생성
+      const newBalance = companyData.points_balance - totalCost
+      const { error: transactionError } = await companyDB
+        .from('points_transactions')
+        .insert([{
+          company_id: currentUser.id,
+          campaign_id: campaign.id,
+          amount: -totalCost,
+          type: 'spend',
+          description: `캠페인 결제: ${campaign.title}`,
+          balance_after: newBalance
+        }])
+
+      if (transactionError) throw transactionError
+
+      // 포인트 차감 (거래 기록 생성 성공 후)
+      const { error: pointsError } = await companyDB
+        .from('companies')
+        .update({ points_balance: newBalance })
+        .eq('id', companyData.id)
+
+      if (pointsError) throw pointsError
+
+      // approval_status를 'pending'으로 변경 (캠페인이 있는 DB에서)
+      const campaignDB = region === 'japan' ? getSupabaseClient('japan') : supabaseKorea
+      const { error: campaignError } = await campaignDB
         .from('campaigns')
-        .update({
+        .update({ 
           approval_status: 'pending',
+          payment_status: 'confirmed',
           approval_requested_at: new Date().toISOString()
         })
         .eq('id', id)
 
-      if (error) throw error
+      if (campaignError) throw campaignError
+
+      // 네이버 웍스 알림 전송
+      try {
+        const campaignTypeText = 
+          campaign.campaign_type === 'oliveyoung' ? '올영세일' :
+          campaign.campaign_type === '4week' || campaign.campaign_type === '4week_challenge' ? '4주 챌린지' :
+          '기획형'
+        
+        const message = `🔔 새로운 캠페인 승인 요청\n\n` +
+          `캠페인명: ${campaign.title}\n` +
+          `기업명: ${companyData.company_name || ''}\n` +
+          `캠페인 타입: ${campaignTypeText}\n` +
+          `결제 금액: ${totalCost.toLocaleString()}원 (포인트)\n` +
+          `신청 시간: ${new Date().toLocaleString('ko-KR')}\n\n` +
+          `승인 페이지: https://cnectotal.netlify.app/admin/approvals`
+        
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message,
+            isAdminNotification: true
+          })
+        })
+      } catch (notifError) {
+        console.error('네이버 웍스 알림 전송 실패:', notifError)
+        // 알림 실패해도 결제는 성공으로 처리
+      }
+
+      alert('포인트 차감 및 승인 요청이 완료되었습니다!')
       
-      alert('승인 요청이 전송되었습니다!')
+      // 페이지 새로고침
       fetchCampaignDetail()
     } catch (error) {
-      console.error('Error requesting approval:', error)
-      alert('승인 요청에 실패했습니다.')
+      console.error('Error paying with points:', error)
+      alert('오류가 발생했습니다: ' + error.message)
     }
   }
 
@@ -2211,11 +2339,11 @@ export default function CampaignDetail() {
                 수정
               </Button>
             )}
-            {/* 승인 요청 버튼: draft 상태에서만 표시 */}
-            {campaign.approval_status === 'draft' && (
+            {/* 포인트 차감 및 승인 요청 버튼: draft 또는 pending_payment 상태에서만 표시 */}
+            {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
               <Button onClick={handleRequestApproval} className="bg-blue-600">
                 <Send className="w-4 h-4 mr-2" />
-                승인 요청하기
+                포인트 차감 및 승인 요청
               </Button>
             )}
             {campaign.approval_status === 'pending' && (
