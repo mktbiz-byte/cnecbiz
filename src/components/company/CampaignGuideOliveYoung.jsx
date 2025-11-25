@@ -186,7 +186,7 @@ ${step3Guide}
       }
 
       // 생성된 가이드를 DB에 저장
-      const { error: finalUpdateError } = await supabase
+      const { error: finalUpdateError } = await supabaseKorea
         .from('campaigns')
         .update({
           shooting_tips: shootingTips,
