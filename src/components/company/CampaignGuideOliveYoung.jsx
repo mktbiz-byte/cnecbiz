@@ -185,11 +185,10 @@ ${step3Guide}
         shootingTips = generatedText
       }
 
-      // 생성된 가이드를 DB에 저장
+      // 가이드 생성 완료 표시
       const { error: finalUpdateError } = await supabaseKorea
         .from('campaigns')
         .update({
-          shooting_tips: shootingTips,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', id)
@@ -197,7 +196,7 @@ ${step3Guide}
       if (finalUpdateError) throw finalUpdateError
 
       alert('올영세일 가이드가 생성되었습니다! 견적서 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/review`)
+      navigate(`/company/campaigns/${id}/invoice/oliveyoung`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
