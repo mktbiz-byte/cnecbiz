@@ -3,8 +3,9 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
+import { missionExamples } from './missionExamples'
 
 export default function CampaignGuide4WeekChallenge() {
   const [searchParams] = useSearchParams()
@@ -13,6 +14,9 @@ export default function CampaignGuide4WeekChallenge() {
   const [loading, setLoading] = useState(false)
   const [campaign, setCampaign] = useState(null)
   const [expandedWeek, setExpandedWeek] = useState(1)
+  const [showExamplesModal, setShowExamplesModal] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('skinTrouble')
+  const [currentWeekForExample, setCurrentWeekForExample] = useState(1)
   
   const [guideData, setGuideData] = useState({
     brand: '',
@@ -114,10 +118,40 @@ export default function CampaignGuide4WeekChallenge() {
     setLoading(true)
 
     try {
+      // 기존 데이터베이스 구조에 맞춰 저장
       const { error } = await supabaseKorea
         .from('campaigns')
         .update({
-          challenge_guide_data: guideData
+          brand: guideData.brand,
+          product_name: guideData.product_name,
+          product_features: guideData.product_features,
+          product_key_points: guideData.precautions,
+          challenge_weekly_guides: {
+            week1: {
+              mission: guideData.week1.mission,
+              required_dialogue: guideData.week1.required_dialogue,
+              required_scenes: guideData.week1.required_scenes,
+              reference: guideData.week1.reference_url
+            },
+            week2: {
+              mission: guideData.week2.mission,
+              required_dialogue: guideData.week2.required_dialogue,
+              required_scenes: guideData.week2.required_scenes,
+              reference: guideData.week2.reference_url
+            },
+            week3: {
+              mission: guideData.week3.mission,
+              required_dialogue: guideData.week3.required_dialogue,
+              required_scenes: guideData.week3.required_scenes,
+              reference: guideData.week3.reference_url
+            },
+            week4: {
+              mission: guideData.week4.mission,
+              required_dialogue: guideData.week4.required_dialogue,
+              required_scenes: guideData.week4.required_scenes,
+              reference: guideData.week4.reference_url
+            }
+          }
         })
         .eq('id', id)
 
@@ -148,10 +182,40 @@ export default function CampaignGuide4WeekChallenge() {
     setLoading(true)
 
     try {
+      // 기존 데이터베이스 구조에 맞춰 저장
       const { error } = await supabaseKorea
         .from('campaigns')
         .update({
-          challenge_guide_data: guideData
+          brand: guideData.brand,
+          product_name: guideData.product_name,
+          product_features: guideData.product_features,
+          product_key_points: guideData.precautions,
+          challenge_weekly_guides: {
+            week1: {
+              mission: guideData.week1.mission,
+              required_dialogue: guideData.week1.required_dialogue,
+              required_scenes: guideData.week1.required_scenes,
+              reference: guideData.week1.reference_url
+            },
+            week2: {
+              mission: guideData.week2.mission,
+              required_dialogue: guideData.week2.required_dialogue,
+              required_scenes: guideData.week2.required_scenes,
+              reference: guideData.week2.reference_url
+            },
+            week3: {
+              mission: guideData.week3.mission,
+              required_dialogue: guideData.week3.required_dialogue,
+              required_scenes: guideData.week3.required_scenes,
+              reference: guideData.week3.reference_url
+            },
+            week4: {
+              mission: guideData.week4.mission,
+              required_dialogue: guideData.week4.required_dialogue,
+              required_scenes: guideData.week4.required_scenes,
+              reference: guideData.week4.reference_url
+            }
+          }
         })
         .eq('id', id)
 
@@ -316,10 +380,25 @@ export default function CampaignGuide4WeekChallenge() {
                   <div className="mt-6 space-y-6">
                     {/* 미션 */}
                     <div>
-                      <label className="block mb-2">
-                        <span className="text-base font-semibold">{weekNum}주차 미션</span>
-                        <span className="text-red-500 ml-1">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="flex items-center gap-2">
+                          <span className="text-base font-semibold">{weekNum}주차 미션</span>
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setCurrentWeekForExample(weekNum)
+                            setShowExamplesModal(true)
+                          }}
+                          className="flex items-center gap-1 text-sm"
+                        >
+                          <Lightbulb className="w-4 h-4" />
+                          미션 예시 보기
+                        </Button>
+                      </div>
                       <p className="text-sm text-gray-600 mb-2">
                         이번 주차의 핵심 미션을 작성해주세요. (여러 버전 예시 가능)
                       </p>
@@ -417,6 +496,77 @@ export default function CampaignGuide4WeekChallenge() {
           </div>
         </div>
       </div>
+
+      {/* 미션 예시 모달 */}
+      {showExamplesModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Lightbulb className="w-6 h-6 text-yellow-500" />
+                {currentWeekForExample}주차 미션 예시
+              </h3>
+              <button
+                onClick={() => setShowExamplesModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 카테고리 탭 */}
+            <div className="flex gap-2 p-4 border-b overflow-x-auto">
+              {Object.entries(missionExamples).map(([key, category]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedCategory(key)}
+                  className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                    selectedCategory === key
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+
+            {/* 예시 목록 */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid gap-3">
+                {missionExamples[selectedCategory].missions.map((mission, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      const weekKey = `week${currentWeekForExample}`
+                      updateWeekData(weekKey, 'mission', mission)
+                      setShowExamplesModal(false)
+                    }}
+                    className="text-left p-4 border rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-sm font-semibold text-gray-400 group-hover:text-purple-600 mt-0.5">
+                        {index + 1}
+                      </span>
+                      <p className="flex-1 text-sm text-gray-700 group-hover:text-gray-900">
+                        {mission}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 푸터 */}
+            <div className="p-4 border-t bg-gray-50">
+              <p className="text-sm text-gray-600 text-center">
+                예시를 클릭하면 해당 주차 미션에 자동으로 입력됩니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
