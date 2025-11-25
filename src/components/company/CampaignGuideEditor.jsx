@@ -149,9 +149,9 @@ const CampaignGuideEditor = () => {
         })
         setAdditionalShootingRequests(data.additional_shooting_requests || '')
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
-        // guide_brand와 guide_product_name 사용 (별도 컬럼)
-        setBrand(data.guide_brand || '')
-        setProductName(data.guide_product_name || '')
+        // guide_brand와 guide_product_name 사용 (별도 컬럼), 없으면 캠페인 생성 시 입력한 값 사용
+        setBrand(data.guide_brand || data.brand || '')
+        setProductName(data.guide_product_name || data.product_name || '')
         setProductFeatures(data.product_features || '')
         setProductKeyPoints(data.product_key_points || '')
         setCreatorAutonomy(data.creator_autonomy || false)
