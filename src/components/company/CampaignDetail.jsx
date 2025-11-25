@@ -3331,7 +3331,22 @@ export default function CampaignDetail() {
               <div>
                 <p className="text-sm text-gray-600">캠페인 기간</p>
                 <p className="font-medium">
-                  {new Date(campaign.start_date).toLocaleDateString()} - {new Date(campaign.end_date).toLocaleDateString()}
+                  {campaign.campaign_type === '4week_challenge' ? (
+                    <>
+                      {campaign.week1_deadline && `1주차: ${new Date(campaign.week1_deadline).toLocaleDateString()}`}
+                      {campaign.week2_deadline && ` / 2주차: ${new Date(campaign.week2_deadline).toLocaleDateString()}`}
+                      {campaign.week3_deadline && ` / 3주차: ${new Date(campaign.week3_deadline).toLocaleDateString()}`}
+                      {campaign.week4_deadline && ` / 4주차: ${new Date(campaign.week4_deadline).toLocaleDateString()}`}
+                    </>
+                  ) : campaign.campaign_type === 'oliveyoung' ? (
+                    <>
+                      {campaign.step1_deadline && `1차: ${new Date(campaign.step1_deadline).toLocaleDateString()}`}
+                      {campaign.step2_deadline && ` / 2차: ${new Date(campaign.step2_deadline).toLocaleDateString()}`}
+                      {campaign.step3_deadline && ` / 3차: ${new Date(campaign.step3_deadline).toLocaleDateString()}`}
+                    </>
+                  ) : (
+                    `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
+                  )}
                 </p>
               </div>
             </div>
