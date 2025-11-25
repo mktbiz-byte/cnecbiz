@@ -526,6 +526,20 @@ ${step3Guide}
               </>
             )}
           </Button>
+          
+          <Button
+            type="button"
+            onClick={() => {
+              if (!id) {
+                alert('캠페인 ID가 없습니다.')
+                return
+              }
+              navigate(`/company/campaigns/guide/oliveyoung/final?id=${id}`)
+            }}
+            className="flex-1 bg-green-600 hover:bg-green-700"
+          >
+            최종 가이드 생성 및 발송
+          </Button>
         </div>
       </div>
     </>
