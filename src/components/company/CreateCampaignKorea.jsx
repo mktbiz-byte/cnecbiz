@@ -592,9 +592,16 @@ const CampaignCreationKorea = () => {
         }
       }
 
-      // 수정 모드일 경우만 여기로 도달
+      // 수정 모드일 경우 가이드 수정 페이지로 이동
+      setSuccess('캠페인이 수정되었습니다! 가이드를 확인해주세요.')
       setTimeout(() => {
-        navigate('/company/campaigns')
+        if (campaignForm.campaign_type === 'oliveyoung') {
+          navigate(`/company/campaigns/guide/oliveyoung?id=${editId}`)
+        } else if (campaignForm.campaign_type === '4week_challenge') {
+          navigate(`/company/campaigns/guide/4week?id=${editId}`)
+        } else {
+          navigate(`/company/campaigns/guide?id=${editId}`)
+        }
       }, 1500)
     } catch (err) {
       console.error('캠페인 저장 실패:', err)
