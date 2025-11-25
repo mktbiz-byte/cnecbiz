@@ -66,6 +66,9 @@ export default function CampaignDetail() {
   const [videoSubmissions, setVideoSubmissions] = useState([])
   const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id: version_index}
   const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
+  const [showIndividualMessageModal, setShowIndividualMessageModal] = useState(false)
+  const [individualMessage, setIndividualMessage] = useState('')
+  const [selectedParticipantForMessage, setSelectedParticipantForMessage] = useState(null)
 
   useEffect(() => {
     const initPage = async () => {
@@ -1589,6 +1592,9 @@ export default function CampaignDetail() {
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 전달</th>
                   </>
                 )}
+                {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === '4week_challenge') && (
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">개별 메시지</th>
+                )}
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">마감일</th>
               </tr>
@@ -1709,6 +1715,22 @@ export default function CampaignDetail() {
                         )}
                       </td>
                     </>
+                  )}
+                  {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === '4week_challenge') && (
+                    <td className="px-4 py-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedParticipantForMessage(participant)
+                          setIndividualMessage(participant.personalized_guide || '')
+                          setShowIndividualMessageModal(true)
+                        }}
+                        className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                      >
+                        {participant.personalized_guide ? '메시지 수정' : '메시지 작성'}
+                      </Button>
+                    </td>
                   )}
                   <td className="px-4 py-3">
                     {(() => {
@@ -4537,6 +4559,92 @@ export default function CampaignDetail() {
                   '🔄 가이드 재생성'
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 개별 메시지 작성 모달 */}
+      {showIndividualMessageModal && selectedParticipantForMessage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-bold">
+                {selectedParticipantForMessage.creator_name || selectedParticipantForMessage.applicant_name} - 개별 메시지
+              </h3>
+              <button
+                onClick={() => {
+                  setShowIndividualMessageModal(false)
+                  setSelectedParticipantForMessage(null)
+                  setIndividualMessage('')
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  개별 요청사항
+                </label>
+                <p className="text-sm text-gray-500 mb-3">
+                  이 크리에이터에게만 전달될 추가 요청사항을 작성해주세요. (예: 특정 장면 추가, 특별 연출 요청 등)
+                </p>
+                <textarea
+                  value={individualMessage}
+                  onChange={(e) => setIndividualMessage(e.target.value)}
+                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                  placeholder="예:
+- 제품을 사용하는 모습을 클로즈업으로 촬영해주세요
+- 밝은 분위기의 영상으로 부탁드립니다
+- 패키지 언박싱 장면을 포함해주세요"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 p-6 border-t bg-gray-50">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowIndividualMessageModal(false)
+                  setSelectedParticipantForMessage(null)
+                  setIndividualMessage('')
+                }}
+                className="flex-1"
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase
+                      .from('applications')
+                      .update({ 
+                        personalized_guide: individualMessage,
+                        guide_updated_at: new Date().toISOString()
+                      })
+                      .eq('id', selectedParticipantForMessage.id)
+                    
+                    if (error) throw error
+                    
+                    alert('개별 메시지가 저장되었습니다.')
+                    setShowIndividualMessageModal(false)
+                    setSelectedParticipantForMessage(null)
+                    setIndividualMessage('')
+                    await fetchParticipants()
+                  } catch (error) {
+                    console.error('Error saving individual message:', error)
+                    alert('저장에 실패했습니다: ' + error.message)
+                  }
+                }}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                저장
+              </Button>
             </div>
           </div>
         </div>
