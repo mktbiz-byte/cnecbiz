@@ -196,8 +196,8 @@ ${step3Guide}
 
       if (finalUpdateError) throw finalUpdateError
 
-      alert('올영세일 가이드가 생성되었습니다! 미리보기 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/guide/oliveyoung/preview`)
+      alert('올영세일 가이드가 생성되었습니다! 견적서 페이지로 이동합니다.')
+      navigate(`/company/campaigns/${id}/review`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
@@ -521,23 +521,9 @@ ${step3Guide}
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                가이드 생성
+                가이드 생성 및 견적서 확인
               </>
             )}
-          </Button>
-          
-          <Button
-            type="button"
-            onClick={() => {
-              if (!id) {
-                alert('캠페인 ID가 없습니다.')
-                return
-              }
-              navigate(`/company/campaigns/guide/oliveyoung/final?id=${id}`)
-            }}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            최종 가이드 생성 및 발송
           </Button>
         </div>
       </div>
