@@ -67,7 +67,26 @@ export default function FourWeekChallengeInvoice() {
 
       const weeklyGuides = campaign.challenge_weekly_guides || {}
 
-      const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 크리에이터가 실제로 사용할 수 있는 전문적이고 상세한 4주간의 콘텐츠 제작 가이드를 생성해주세요.
+      // 각 주차가 비어있는지 확인
+      const isWeekEmpty = (week) => {
+        if (!week) return true
+        const mission = week.mission?.trim()
+        const dialogue = week.required_dialogue?.trim()
+        const scenes = week.required_scenes?.trim()
+        return !mission && !dialogue && !scenes
+      }
+
+      const week1Empty = isWeekEmpty(weeklyGuides.week1)
+      const week2Empty = isWeekEmpty(weeklyGuides.week2)
+      const week3Empty = isWeekEmpty(weeklyGuides.week3)
+      const week4Empty = isWeekEmpty(weeklyGuides.week4)
+
+      // 모든 주차가 비어있으면 에러
+      if (week1Empty && week2Empty && week3Empty && week4Empty) {
+        throw new Error('가이드 내용이 비어있습니다. 먼저 가이드를 작성해주세요.')
+      }
+
+      const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 크리에이터가 실제로 사용할 수 있는 전문적이고 상세한 콘텐츠 제작 가이드를 생성해주세요.
 
 **제품 정보**
 - 브랜드: ${campaign.brand}
@@ -75,25 +94,26 @@ export default function FourWeekChallengeInvoice() {
 - 제품 특징: ${campaign.product_features}
 - 핵심 포인트: ${campaign.product_key_points}
 
-**1주차 초안**
-- 미션: ${weeklyGuides.week1?.mission || '미작성'}
-- 필수 대사: ${weeklyGuides.week1?.required_dialogue || '미작성'}
-- 필수 촬영 장면: ${weeklyGuides.week1?.required_scenes || '미작성'}
-
-**2주차 초안**
-- 미션: ${weeklyGuides.week2?.mission || '미작성'}
-- 필수 대사: ${weeklyGuides.week2?.required_dialogue || '미작성'}
-- 필수 촬영 장면: ${weeklyGuides.week2?.required_scenes || '미작성'}
-
-**3주차 초안**
-- 미션: ${weeklyGuides.week3?.mission || '미작성'}
-- 필수 대사: ${weeklyGuides.week3?.required_dialogue || '미작성'}
-- 필수 촬영 장면: ${weeklyGuides.week3?.required_scenes || '미작성'}
-
-**4주차 초안**
-- 미션: ${weeklyGuides.week4?.mission || '미작성'}
-- 필수 대사: ${weeklyGuides.week4?.required_dialogue || '미작성'}
-- 필수 촬영 장면: ${weeklyGuides.week4?.required_scenes || '미작성'}
+${!week1Empty ? `**1주차 초안**
+- 미션: ${weeklyGuides.week1.mission}
+- 필수 대사: ${weeklyGuides.week1.required_dialogue}
+- 필수 촬영 장면: ${weeklyGuides.week1.required_scenes}
+` : ''}
+${!week2Empty ? `**2주차 초안**
+- 미션: ${weeklyGuides.week2.mission}
+- 필수 대사: ${weeklyGuides.week2.required_dialogue}
+- 필수 촬영 장면: ${weeklyGuides.week2.required_scenes}
+` : ''}
+${!week3Empty ? `**3주차 초안**
+- 미션: ${weeklyGuides.week3.mission}
+- 필수 대사: ${weeklyGuides.week3.required_dialogue}
+- 필수 촬영 장면: ${weeklyGuides.week3.required_scenes}
+` : ''}
+${!week4Empty ? `**4주차 초안**
+- 미션: ${weeklyGuides.week4.mission}
+- 필수 대사: ${weeklyGuides.week4.required_dialogue}
+- 필수 촬영 장면: ${weeklyGuides.week4.required_scenes}
+` : ''}
 
 위 초안을 바탕으로 각 주차별로 구체적이고 실행 가능한 가이드를 작성해주세요.
 - 각 주차의 목표와 핵심 메시지를 명확히 전달
@@ -175,13 +195,19 @@ export default function FourWeekChallengeInvoice() {
 
       if (updateError) throw updateError
 
-      // 화면에 표시할 가이드 설정
+      // 화면에 표시할 가이드 설정 (빈 주차는 null로 설정)
+      const formatWeekGuide = (week, isEmpty) => {
+        if (isEmpty) return null
+        if (!week || !week.mission) return null
+        return `미션: ${week.mission}\n\n필수 대사: ${week.required_dialogue}\n\n필수 촬영 장면: ${week.required_scenes}`
+      }
+
       setAiGuide({
         product_intro: `${campaign.brand} ${campaign.product_name}\n\n${campaign.product_features}`,
-        week1_guide: weeklyGuidesAI.week1 ? `미션: ${weeklyGuidesAI.week1.mission}\n\n필수 대사: ${weeklyGuidesAI.week1.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week1.required_scenes}` : null,
-        week2_guide: weeklyGuidesAI.week2 ? `미션: ${weeklyGuidesAI.week2.mission}\n\n필수 대사: ${weeklyGuidesAI.week2.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week2.required_scenes}` : null,
-        week3_guide: weeklyGuidesAI.week3 ? `미션: ${weeklyGuidesAI.week3.mission}\n\n필수 대사: ${weeklyGuidesAI.week3.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week3.required_scenes}` : null,
-        week4_guide: weeklyGuidesAI.week4 ? `미션: ${weeklyGuidesAI.week4.mission}\n\n필수 대사: ${weeklyGuidesAI.week4.required_dialogue}\n\n필수 촬영 장면: ${weeklyGuidesAI.week4.required_scenes}` : null,
+        week1_guide: formatWeekGuide(weeklyGuidesAI.week1, week1Empty),
+        week2_guide: formatWeekGuide(weeklyGuidesAI.week2, week2Empty),
+        week3_guide: formatWeekGuide(weeklyGuidesAI.week3, week3Empty),
+        week4_guide: formatWeekGuide(weeklyGuidesAI.week4, week4Empty),
         cautions: campaign.product_key_points
       })
 
