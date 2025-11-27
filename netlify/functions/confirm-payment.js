@@ -218,9 +218,7 @@ exports.handler = async (event, context) => {
       const { error: campaignUpdateError } = await campaignSupabase
         .from('campaigns')
         .update({
-          status: 'pending',
-          approval_status: 'pending',
-          payment_status: 'confirmed',
+          status: 'active',  // 입금 확인 후 active 상태로 변경
           updated_at: new Date().toISOString()
         })
         .eq('id', campaign.id)
