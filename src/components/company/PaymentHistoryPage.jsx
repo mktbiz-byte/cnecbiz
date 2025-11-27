@@ -25,24 +25,31 @@ export default function PaymentHistoryPage() {
       console.log('[PaymentHistoryPage] Charge requests:', requests)
       
       if (requests && requests.length > 0) {
-        // 취소된 캠페인 필터링
+        // 취소된 캠페인 필터링 (is_cancelled 필드가 없으므로 status='cancelled' 사용)
         const campaignIds = requests
-          .map(r => r.bank_transfer_info?.campaign_id)
+          .map(r => r.bank_transfer_info?.campaign_id || r.related_campaign_id)
           .filter(Boolean)
         
         let cancelledCampaignIds = []
         if (campaignIds.length > 0) {
-          const { data: campaigns } = await supabaseBiz
+          // campaigns 테이블은 supabaseKorea에 있음
+          const { createClient } = await import('@supabase/supabase-js')
+          const supabaseKorea = createClient(
+            import.meta.env.VITE_SUPABASE_KOREA_URL,
+            import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY
+          )
+          
+          const { data: campaigns } = await supabaseKorea
             .from('campaigns')
-            .select('id, is_cancelled')
+            .select('id, status')
             .in('id', campaignIds)
-            .eq('is_cancelled', true)
+            .eq('status', 'cancelled')
           
           cancelledCampaignIds = campaigns?.map(c => c.id) || []
         }
         
         const filteredRequests = requests.filter(
-          req => !cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id)
+          req => !cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id || req.related_campaign_id)
         )
         console.log('[PaymentHistoryPage] Filtered requests:', filteredRequests)
         console.log('[PaymentHistoryPage] Cancelled campaign IDs:', cancelledCampaignIds)
@@ -149,7 +156,7 @@ export default function PaymentHistoryPage() {
                         {new Date(request.created_at).toLocaleDateString('ko-KR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {request.bank_transfer_info?.campaign_name || '-'}
+                        {request.bank_transfer_info?.campaign_title || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {request.amount.toLocaleString()}원
