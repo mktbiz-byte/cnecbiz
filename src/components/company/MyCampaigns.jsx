@@ -290,6 +290,83 @@ export default function MyCampaigns() {
     }
   }
 
+  // 입금 확인 요청 함수
+  const handleDepositConfirmationRequest = async (campaign) => {
+    if (!confirm('입금 확인 요청을 보내시겠습니까?')) {
+      return
+    }
+
+    try {
+      // 지역 표시
+      const regionMap = {
+        'korea': '한국',
+        'japan': '일본',
+        'usa': '미국'
+      }
+      const regionText = regionMap[campaign.region] || '한국'
+
+      // 캠페인 타입 표시
+      const campaignTypeMap = {
+        'regular': '기획형',
+        'oliveyoung': '올리브영',
+        '4week_challenge': '4주 챌린지'
+      }
+      const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
+
+      // 금액 계산
+      const packagePrice = getPackagePrice(campaign.package_type)
+      const totalSlots = campaign.total_slots || 0
+      const subtotal = packagePrice * totalSlots
+      const vat = Math.floor(subtotal * 0.1)
+      const total = subtotal + vat
+
+      // 회사 정보 가져오기
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) throw new Error('로그인이 필요합니다.')
+
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name')
+        .eq('user_id', user.id)
+        .single()
+
+      const companyName = companyData?.company_name || '회사명 없음'
+
+      // 네이버 웍스 메시지
+      const message = `[새로운 입금 확인 요청]
+
+• 지역: ${regionText}
+• 캠페인 타입: ${campaignTypeText}
+• 회사명: ${companyName}
+• 캠페인명: ${campaign.title}
+• 금액: ${total.toLocaleString()}원
+• 결제 방법: 계좌입금
+
+⚠️ 입금 확인이 지연될 경우 빠른 확인을 부탁드립니다!
+
+입금 확인 페이지: https://cnectotal.netlify.app/admin/payment-requests`
+
+      // 네이버 웍스 알림 발송
+      try {
+        await fetch('/.netlify/functions/send-naver-works', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message,
+            isAdminNotification: true
+          })
+        })
+      } catch (notifError) {
+        console.error('네이버 웍스 알림 전송 실패:', notifError)
+      }
+
+      alert('입금 확인 요청이 전송되었습니다!')
+    } catch (error) {
+      console.error('Error requesting deposit confirmation:', error)
+      alert('오류가 발생했습니다: ' + error.message)
+    }
+  }
+
   const getPackagePrice = (packageType) => {
     const prices = {
       'junior': 200000,
@@ -646,31 +723,52 @@ export default function MyCampaigns() {
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-2">
-                          {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
+                        <div className="flex flex-col gap-2">
+                          {campaign.payment_status === 'pending' && !campaign.is_cancelled && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
+                              <p className="text-xs text-yellow-800 mb-2">
+                                ⚠️ 입금 후 10분이 지났으나, 입금 확인이 안되실 경우 버튼을 눌러 주세요.
+                              </p>
+                              <Button 
+                                variant="outline"
+                                size="sm"
+                                className="w-full border-yellow-300 text-yellow-800 hover:bg-yellow-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDepositConfirmationRequest(campaign)
+                                }}
+                              >
+                                <AlertCircle className="w-4 h-4 mr-2" />
+                                입금 확인 요청
+                              </Button>
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
+                              <Button 
+                                variant="default"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handlePayWithPoints(campaign)
+                                }}
+                              >
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                포인트 차감 및 승인 요청
+                              </Button>
+                            )}
                             <Button 
-                              variant="default"
+                              variant="outline" 
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handlePayWithPoints(campaign)
+                                navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
                               }}
                             >
-                              <CreditCard className="w-4 h-4 mr-2" />
-                              포인트 차감 및 승인 요청
+                              <Eye className="w-4 h-4 mr-2" />
+                              상세보기
                             </Button>
-                          )}
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
-                            }}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            상세보기
-                          </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
