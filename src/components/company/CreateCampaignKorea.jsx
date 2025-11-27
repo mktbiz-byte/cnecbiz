@@ -598,7 +598,17 @@ const CampaignCreationKorea = () => {
             throw quoteError
           }
 
-          setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
+          // 캐페인 상태를 'pending_payment'로 변경
+          const { error: updateError } = await supabaseKorea
+            .from('campaigns')
+            .update({ status: 'pending_payment' })
+            .eq('id', campaignId)
+
+          if (updateError) {
+            console.error('[CreateCampaign] Campaign status update error:', updateError)
+          }
+
+          setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
           // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
           setTimeout(() => {
