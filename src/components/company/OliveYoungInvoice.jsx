@@ -194,17 +194,22 @@ export default function OliveYoungInvoice() {
 
       // 3. 네이버 웍스 알림 발송
       try {
+        const now = new Date()
+        const formattedDate = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 ${now.getHours() < 12 ? '오전' : '오후'} ${now.getHours() % 12 || 12}:${String(now.getMinutes()).padStart(2, '0')}`
+        
         await fetch('/.netlify/functions/send-naver-works-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: `💰 **새로운 입금 요청**\n\n` +
-                     `🏬 **회사:** ${company?.company_name || '미상'}\n` +
-                     `📝 **캠페인:** ${campaign.title}\n` +
-                     `🎯 **타입:** 올리브영\n` +
-                     `👥 **크리에이터 수:** ${campaign.influencer_count || 0}명\n` +
-                     `💰 **금액:** ${totalCost.toLocaleString()}원\n` +
-                     `👤 **입금자명:** ${depositorName}\n\n` +
+            message: `🔔 **새로운 캠페인 승인 요청 (한국)**\n\n` +
+                     `**캠페인명:** ${campaign.title}\n` +
+                     `**기업명:** ${company?.company_name || '미상'}\n` +
+                     `**캠페인 타입:** 올리브영\n` +
+                     `**크리에이터 수:** ${campaign.total_slots || 0}명\n` +
+                     `**결제 금액:** ${totalCost.toLocaleString()}원 (입금)\n` +
+                     `**세금계산서:** ${needsTaxInvoice ? '신청' : '미신청'}\n` +
+                     `**입금자명:** ${depositorName}\n` +
+                     `**신청 시간:** ${formattedDate}\n\n` +
                      `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`,
             isAdminNotification: true
           })
