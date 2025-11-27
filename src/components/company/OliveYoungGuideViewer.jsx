@@ -113,6 +113,32 @@ export default function OliveYoungGuideViewer() {
           </div>
         </div>
 
+        {/* 콘텐츠 타입 */}
+        <div className="bg-white rounded-lg border p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4">🎬 콘텐츠 타입</h2>
+          <div className="flex items-center gap-3">
+            {campaign.content_type === 'store_visit' ? (
+              <>
+                <div className="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-semibold">
+                  🏪 매장 방문형
+                </div>
+                <p className="text-sm text-gray-600">
+                  올리브영 매장을 방문하여 진정성 있는 콘텐츠를 제작해주세요.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-semibold">
+                  📦 제품 배송형
+                </div>
+                <p className="text-sm text-gray-600">
+                  배송받은 제품으로 빠르게 콘텐츠를 제작해주세요.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* 캠페인 진행 단계 */}
         <div className="bg-white rounded-lg border p-6 mb-6">
           <h2 className="text-xl font-bold mb-4">📅 캠페인 진행 단계</h2>
