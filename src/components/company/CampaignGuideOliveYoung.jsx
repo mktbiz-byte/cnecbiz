@@ -423,8 +423,8 @@ ${step3Guide}
                   <span className="text-xs text-gray-500">마감일</span>
                 </div>
                 <Input
-                  type="datetime-local"
-                  value={campaign.step1_deadline ? new Date(campaign.step1_deadline).toISOString().slice(0, 16) : ''}
+                  type="date"
+                  value={campaign.step1_deadline ? new Date(campaign.step1_deadline).toISOString().slice(0, 10) : ''}
                   disabled
                   className="mt-2 bg-gray-50 cursor-not-allowed"
                 />
@@ -443,8 +443,8 @@ ${step3Guide}
                   <span className="text-xs text-gray-500">마감일</span>
                 </div>
                 <Input
-                  type="datetime-local"
-                  value={campaign.step2_deadline ? new Date(campaign.step2_deadline).toISOString().slice(0, 16) : ''}
+                  type="date"
+                  value={campaign.step2_deadline ? new Date(campaign.step2_deadline).toISOString().slice(0, 10) : ''}
                   disabled
                   className="mt-2 bg-gray-50 cursor-not-allowed"
                 />
@@ -463,8 +463,8 @@ ${step3Guide}
                   <span className="text-xs text-gray-500">마감일</span>
                 </div>
                 <Input
-                  type="datetime-local"
-                  value={campaign.step3_deadline ? new Date(campaign.step3_deadline).toISOString().slice(0, 16) : ''}
+                  type="date"
+                  value={campaign.step3_deadline ? new Date(campaign.step3_deadline).toISOString().slice(0, 10) : ''}
                   disabled
                   className="mt-2 bg-gray-50 cursor-not-allowed"
                 />
