@@ -73,7 +73,7 @@ const InvoicePage = () => {
   const [memo, setMemo] = useState('')
   const [depositorName, setDepositorName] = useState('')
   const [uploadingTaxInvoice, setUploadingTaxInvoice] = useState(false)
-  const [needsTaxInvoice, setNeedsTaxInvoice] = useState(false)
+  const [needsTaxInvoice, setNeedsTaxInvoice] = useState(true) // 기본값을 true로 변경 (세금계산서 신청 페이지이므로)
 
   useEffect(() => {
     loadData()
