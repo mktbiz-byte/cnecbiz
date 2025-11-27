@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 
 export default function PaymentHistoryPage() {
   const [chargeRequests, setChargeRequests] = useState([])  // 포인트 결제 신청
@@ -33,12 +33,6 @@ export default function PaymentHistoryPage() {
         let cancelledCampaignIds = []
         if (campaignIds.length > 0) {
           // campaigns 테이블은 supabaseKorea에 있음
-          const { createClient } = await import('@supabase/supabase-js')
-          const supabaseKorea = createClient(
-            import.meta.env.VITE_SUPABASE_KOREA_URL,
-            import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY
-          )
-          
           const { data: campaigns } = await supabaseKorea
             .from('campaigns')
             .select('id, status')

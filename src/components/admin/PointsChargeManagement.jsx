@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -100,11 +100,6 @@ export default function PointsChargeManagement() {
         let cancelledCampaignIds = []
         if (campaignIds.length > 0) {
           // campaigns 테이블은 supabaseKorea에 있음
-          const supabaseKorea = createClient(
-            import.meta.env.VITE_SUPABASE_KOREA_URL,
-            import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY
-          )
-          
           const { data: campaigns } = await supabaseKorea
             .from('campaigns')
             .select('id, status')
