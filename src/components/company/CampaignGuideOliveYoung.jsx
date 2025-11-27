@@ -117,10 +117,10 @@ export default function CampaignGuideOliveYoung() {
 
       if (updateError) throw updateError
 
-      // AI 가이드 생성 (CNEC Plus API 사용)
-      const cnecPlusUrl = import.meta.env.VITE_CNEC_PLUS_API_URL
-      if (!cnecPlusUrl) {
-        throw new Error('CNEC Plus API URL이 설정되지 않았습니다.')
+      // AI 가이드 생성 (Gemini API 직접 호출)
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('Gemini API 키가 설정되지 않았습니다.')
       }
 
       const prompt = `다음 제품 정보와 기업의 요구사항을 바탕으로, 크리에이터가 참고할 수 있도록 간단하고 명확한 가이드를 작성해주세요.
@@ -131,46 +131,50 @@ export default function CampaignGuideOliveYoung() {
 - 제품 특징: ${productData.product_features}
 - 핵심 포인트: ${productData.product_key_points}
 
-**STEP 1 요구사항 (상품 리뷰)**
-${step1Guide}
+**기업 요구사항**
+- STEP 1 (세일 전 영상): ${step1Guide}
+- STEP 2 (올영 스케줄 맞춤 제작): ${step2Guide}
+- STEP 3 (스토리 업로드 + URL 링크): ${step3Guide}
 
-**STEP 2 요구사항 (세일 홍보)**
-${step2Guide}
+**각 스텝별 핵심 요구사항:**
+- STEP 1: 세일 전 영상 콘텐츠 1건 제작 후 SNS 업로드 (기업이 작성한 가이드 내용 포함)
+- STEP 2: 올영 스케줄에 맞춰서 제작 (기업이 작성한 가이드 내용 포함)
+- STEP 3: STEP 2의 영상을 스토리에 업로드 + 링크 URL 설정 (24시간 오픈 필수)
 
-**STEP 3 요구사항 (세일 당일 스토리)**
-${step3Guide}
+**작성 규칙:**
+- 불필요한 촬영 팁, 예시 대사 등은 절대 포함하지 마세요
+- 각 단계별로 핵심 요구사항만 2-3문장으로 간결하게
+- shooting_tips는 빈 문자열로 유지
+- 주의사항은 필수 사항만 1-2문장으로
 
-각 단계별로 기업이 원하는 핵심 내용만 간단히 정리해주세요.
-- 상세한 촬영 방법이나 편집 기법은 포함하지 마세요
-- "이런 것을 원합니다" 수준의 간단한 설명으로 작성해주세요
-- 각 단계당 3-5문장 정도로 간결하게 작성해주세요
-
-**응답 형식 (JSON):**
+JSON 형식으로 응답해주세요:
 {
-  "step1_guide_enhanced": "STEP 1 간략한 요구사항 (3-5문장)",
-  "step2_guide_enhanced": "STEP 2 간략한 요구사항 (3-5문장)",
-  "step3_guide_enhanced": "STEP 3 간략한 요구사항 (3-5문장)",
+  "step1_guide_enhanced": "STEP 1 핵심 요구사항 (2-3문장)",
+  "step2_guide_enhanced": "STEP 2 핵심 요구사항 (2-3문장)",
+  "step3_guide_enhanced": "STEP 3 핵심 요구사항 (2-3문장)",
   "shooting_tips": "",
-  "cautions": "금지 사항 및 필수 포함 요소 (2-3문장)"
-}
+  "cautions": "필수 사항 (1-2문장)"
+}`
 
-간단하고 명확하게 JSON 형식으로 작성해주세요.`
-
-      const response = await fetch(`${cnecPlusUrl}/api/gemini`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: prompt,
-          model: 'gemini-2.0-flash-exp'
-        })
-      })
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }]
+          })
+        }
+      )
 
       if (!response.ok) {
         throw new Error('AI 가이드 생성에 실패했습니다.')
       }
 
       const result = await response.json()
-      const generatedText = result.text
+      const generatedText = result.candidates[0].content.parts[0].text
       
       // JSON 파싱
       let step1Enhanced = step1Guide
