@@ -77,7 +77,34 @@ export default function PaymentHistory() {
 
       if (!error && data) {
         console.log('[PaymentHistory] 충전 신청 내역:', data)
-        setChargeRequests(data)
+        
+        // campaign_id가 있는 경우 캠페인 정보 로드
+        const requestsWithCampaigns = await Promise.all(data.map(async (request) => {
+          if (request.campaign_id) {
+            try {
+              // Korea DB에서 캠페인 조회
+              const { getSupabaseClient } = await import('../../lib/supabaseClients')
+              const supabaseKorea = getSupabaseClient('korea')
+              const { data: campaign } = await supabaseKorea
+                .from('campaigns')
+                .select('title, campaign_name')
+                .eq('id', request.campaign_id)
+                .single()
+              
+              if (campaign) {
+                return {
+                  ...request,
+                  campaign_name: campaign.title || campaign.campaign_name
+                }
+              }
+            } catch (err) {
+              console.error('Error loading campaign:', err)
+            }
+          }
+          return request
+        }))
+        
+        setChargeRequests(requestsWithCampaigns)
       }
     } catch (error) {
       console.error('Error fetching charge requests:', error)
@@ -111,7 +138,35 @@ export default function PaymentHistory() {
 
       if (!error && data) {
         console.log('[PaymentHistory] 캠페인 진행 내역:', data)
-        setPointUsages(data)
+        
+        // campaign_id가 있는 경우 캠페인 정보 로드
+        const usagesWithCampaigns = await Promise.all(data.map(async (transaction) => {
+          if (transaction.campaign_id) {
+            try {
+              // Korea DB에서 캠페인 조회
+              const { getSupabaseClient } = await import('../../lib/supabaseClients')
+              const supabaseKorea = getSupabaseClient('korea')
+              const { data: campaign } = await supabaseKorea
+                .from('campaigns')
+                .select('title, campaign_name, package_type')
+                .eq('id', transaction.campaign_id)
+                .single()
+              
+              if (campaign) {
+                return {
+                  ...transaction,
+                  campaign_name: campaign.title || campaign.campaign_name,
+                  package_type: campaign.package_type
+                }
+              }
+            } catch (err) {
+              console.error('Error loading campaign:', err)
+            }
+          }
+          return transaction
+        }))
+        
+        setPointUsages(usagesWithCampaigns)
       }
     } catch (error) {
       console.error('Error fetching point usages:', error)
@@ -284,7 +339,7 @@ export default function PaymentHistory() {
                               {new Date(request.created_at).toLocaleDateString('ko-KR')}
                             </td>
                             <td className="p-4">
-                              {request.bank_transfer_info?.campaign_name || '-'}
+                              {request.campaign_name || request.bank_transfer_info?.campaign_name || '-'}
                             </td>
                             <td className="p-4 font-bold">
                               {formatCurrency(request.amount)}
@@ -339,10 +394,10 @@ export default function PaymentHistory() {
                             {new Date(transaction.created_at).toLocaleDateString('ko-KR')}
                           </td>
                           <td className="p-4">
-                            {transaction.description}
+                            {transaction.campaign_name || transaction.description || '-'}
                           </td>
                           <td className="p-4 text-sm">
-                            -
+                            {transaction.package_type || '-'}
                           </td>
                           <td className="p-4 font-bold text-red-600">
                             {Math.abs(transaction.amount).toLocaleString()}P
