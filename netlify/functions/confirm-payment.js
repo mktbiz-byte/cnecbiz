@@ -162,7 +162,7 @@ exports.handler = async (event, context) => {
       // supabaseBiz는 campaigns 테이블이 없으므로 supabaseKorea에서 조회
       const supabaseKorea = createClient(
         process.env.VITE_SUPABASE_KOREA_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
+        process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
       )
       
       const { data: koreanCampaign, error: koreaError } = await supabaseKorea
@@ -183,7 +183,7 @@ exports.handler = async (event, context) => {
         // 일본 캐페인 확인
         const supabaseJapan = createClient(
           process.env.VITE_SUPABASE_JAPAN_URL,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
+          process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
         )
         const { data: japanCampaign, error: japanError } = await supabaseJapan
           .from('campaigns')
@@ -212,8 +212,8 @@ exports.handler = async (event, context) => {
       console.log('[confirm-payment] Updating campaign status to pending:', campaign.id)
       
       const campaignSupabase = campaignRegion === 'japan' 
-        ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-        : createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+        ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY)
+        : createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY)
 
       const { data: updateResult, error: campaignUpdateError } = await campaignSupabase
         .from('campaigns')
