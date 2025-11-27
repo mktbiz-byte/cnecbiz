@@ -14,6 +14,19 @@ export default function OliveYoungInvoice() {
   const [paymentMethod, setPaymentMethod] = useState(null) // 'card' or 'bank_transfer'
   const [showPaymentForm, setShowPaymentForm] = useState(false)
 
+  // 패키지 가격 매핑
+  const oliveyoungPackageOptions = {
+    'standard': 400000,
+    'premium': 500000,
+    'professional': 600000
+  }
+
+  // 패키지 단가 계산
+  const getPackagePrice = () => {
+    if (!campaign) return 0
+    return oliveyoungPackageOptions[campaign.package_type] || 0
+  }
+
   const [depositorName, setDepositorName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [company, setCompany] = useState(null)
@@ -210,7 +223,7 @@ export default function OliveYoungInvoice() {
   }
 
   const calculateTotalCost = () => {
-    const packagePrice = campaign?.package_price || 200000
+    const packagePrice = getPackagePrice()
     const influencerCount = campaign?.total_slots || 0
     const subtotal = packagePrice * influencerCount
     const vat = Math.floor(subtotal * 0.1)
@@ -293,7 +306,7 @@ export default function OliveYoungInvoice() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">패키지 단가</span>
-                  <span className="font-semibold">{(campaign.package_price || 0).toLocaleString()}원</span>
+                  <span className="font-semibold">{getPackagePrice().toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">크리에이터 수</span>
@@ -301,11 +314,11 @@ export default function OliveYoungInvoice() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">소계</span>
-                  <span className="font-semibold">{((campaign.package_price || 0) * (campaign.total_slots || 0)).toLocaleString()}원</span>
+                  <span className="font-semibold">{(getPackagePrice() * (campaign.total_slots || 0)).toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">부가세 (10%)</span>
-                  <span className="font-semibold">{Math.floor((campaign.package_price || 0) * (campaign.total_slots || 0) * 0.1).toLocaleString()}원</span>
+                  <span className="font-semibold">{Math.floor(getPackagePrice() * (campaign.total_slots || 0) * 0.1).toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t-2 border-gray-300">
                   <span className="font-bold text-lg">총 결제 금액</span>
