@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseKorea'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, CreditCard, Wallet } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 export default function OliveYoungInvoice() {
@@ -11,6 +11,8 @@ export default function OliveYoungInvoice() {
   const { id } = useParams()
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [paymentMethod, setPaymentMethod] = useState(null) // 'card' or 'bank_transfer'
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
 
   const [depositorName, setDepositorName] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -286,6 +288,7 @@ export default function OliveYoungInvoice() {
             <CardTitle className="text-lg">💰 결제 정보</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* 금액 정보 */}
             <div className="bg-white p-4 rounded-lg">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -311,43 +314,118 @@ export default function OliveYoungInvoice() {
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-lg space-y-3">
-              <h3 className="font-semibold text-sm">입금 계좌 정보</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">은행</span>
-                  <span className="font-semibold">IBK기업은행</span>
+            {/* 결제 방법 선택 */}
+            {!showPaymentForm && (
+              <div>
+                <h3 className="font-semibold text-lg mb-4">결제 방법 선택</h3>
+                <div className="space-y-3">
+                  {/* 계좌 입금 버튼 */}
+                  <Button
+                    onClick={() => {
+                      setPaymentMethod('bank_transfer')
+                      setShowPaymentForm(true)
+                    }}
+                    className="w-full h-auto py-4 flex items-center justify-between"
+                    variant="default"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Wallet className="w-5 h-5" />
+                      <div className="text-left">
+                        <div className="font-semibold">계좌 입금하기</div>
+                        <div className="text-xs opacity-80">
+                          {calculateTotalCost().toLocaleString()}원 입금
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-sm">→</span>
+                  </Button>
+
+                  {/* 카드 결제 버튼 (비활성화) */}
+                  <Button
+                    disabled={true}
+                    className="w-full h-auto py-4 flex items-center justify-between opacity-50 cursor-not-allowed"
+                    variant="outline"
+                  >
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="w-5 h-5" />
+                      <div className="text-left">
+                        <div className="font-semibold">카드 결제</div>
+                        <div className="text-xs opacity-80">
+                          카드결제는 빠른 시일내에 진행 되도록 하겠습니다
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">계좌번호</span>
-                  <span className="font-semibold">047-122753-04-011</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">예금주</span>
-                  <span className="font-semibold">주식회사 하우파파</span>
+
+                {/* 안내 메시지 */}
+                <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mt-4">
+                  <h4 className="font-semibold text-sm mb-2">결제 안내</h4>
+                  <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
+                    <li>계좌 입금하기를 클릭하여 입금 신청서를 작성해주세요</li>
+                    <li>입금 확인 후 자동으로 캠페인이 승인됩니다</li>
+                  </ul>
                 </div>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                입금자명 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={depositorName}
-                onChange={(e) => setDepositorName(e.target.value)}
-                placeholder="입금하실 이름을 입력해주세요"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500">
-                ⚠️ 입금자명은 입금 확인에 사용되므로 정확히 입력해주세요.
-              </p>
-            </div>
+            {/* 입금 신청서 */}
+            {showPaymentForm && paymentMethod === 'bank_transfer' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-lg">입금 신청서</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowPaymentForm(false)
+                      setPaymentMethod(null)
+                    }}
+                  >
+                    다른 방법 선택
+                  </Button>
+                </div>
+
+                <div className="bg-white p-4 rounded-lg space-y-3">
+                  <h4 className="font-semibold text-sm">입금 계좌 정보</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">은행</span>
+                      <span className="font-semibold">IBK기업은행</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">계좌번호</span>
+                      <span className="font-semibold">047-122753-04-011</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">예금주</span>
+                      <span className="font-semibold">주식회사 하우파파</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    입금자명 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={depositorName}
+                    onChange={(e) => setDepositorName(e.target.value)}
+                    placeholder="입금하실 이름을 입력해주세요"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500">
+                    ⚠️ 입금자명은 입금 확인에 사용되므로 정확히 입력해주세요.
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* 세금계산서 정보 */}
+        {showPaymentForm && paymentMethod === 'bank_transfer' && (
         <Card>
           <CardHeader>
             <CardTitle>세금계산서 정보 (선택사항)</CardTitle>
@@ -491,8 +569,10 @@ export default function OliveYoungInvoice() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* 제출 버튼 */}
+        {showPaymentForm && paymentMethod === 'bank_transfer' && (
         <div className="flex gap-4 mt-8">
           <Button
             variant="outline"
@@ -519,6 +599,7 @@ export default function OliveYoungInvoice() {
             )}
           </Button>
         </div>
+        )}
       </div>
     </div>
   )

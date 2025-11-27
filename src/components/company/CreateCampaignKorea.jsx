@@ -496,12 +496,26 @@ const CampaignCreationKorea = () => {
       const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
       if (!currentUser) throw new Error('로그인이 필요합니다')
       
+      // Calculate package_price based on campaign type
+      let packagePrice = 0
+      if (campaignForm.campaign_type === 'oliveyoung') {
+        const selectedPackage = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type)
+        packagePrice = selectedPackage ? selectedPackage.price : 0
+      } else if (campaignForm.campaign_type === '4week_challenge') {
+        const selectedPackage = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type)
+        packagePrice = selectedPackage ? selectedPackage.price : 0
+      } else {
+        const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+        packagePrice = selectedPackage ? selectedPackage.price : 0
+      }
+      
       const campaignData = {
         ...restForm,
         title: autoTitle,
         reward_points: parseInt(campaignForm.reward_points) || 0,
         total_slots: parseInt(campaignForm.total_slots) || 0,
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
+        package_price: packagePrice,  // 패키지 단가 저장
         questions: questions.length > 0 ? questions : null,
         target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
         company_id: currentUser.id,  // 기업 ID 저장
