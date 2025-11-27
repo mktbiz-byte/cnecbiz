@@ -348,7 +348,7 @@ export default function MyCampaigns() {
 
       // 네이버 웍스 알림 발송
       try {
-        await fetch('/.netlify/functions/send-naver-works', {
+        await fetch('/.netlify/functions/send-naver-works-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -701,6 +701,28 @@ export default function MyCampaigns() {
                         </div>
                       </div>
 
+                      {/* 입금 확인 요청 */}
+                      {campaign.payment_status === 'pending' && !campaign.is_cancelled && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                          <p className="text-sm text-yellow-800 mb-2 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            입금 후 10분이 지났으나, 입금 확인이 안되실 경우 버튼을 눌러 주세요.
+                          </p>
+                          <Button 
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-yellow-400 text-yellow-800 hover:bg-yellow-100 font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDepositConfirmationRequest(campaign)
+                            }}
+                          >
+                            <AlertCircle className="w-4 h-4 mr-2" />
+                            입금 확인 요청
+                          </Button>
+                        </div>
+                      )}
+
                       {/* Deadlines */}
                       <div className="flex items-center justify-between text-sm border-t pt-3">
                         <div className="flex items-center gap-6">
@@ -723,53 +745,17 @@ export default function MyCampaigns() {
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-col gap-2">
-                          {campaign.payment_status === 'pending' && !campaign.is_cancelled && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
-                              <p className="text-xs text-yellow-800 mb-2">
-                                ⚠️ 입금 후 10분이 지났으나, 입금 확인이 안되실 경우 버튼을 눌러 주세요.
-                              </p>
-                              <Button 
-                                variant="outline"
-                                size="sm"
-                                className="w-full border-yellow-300 text-yellow-800 hover:bg-yellow-100"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDepositConfirmationRequest(campaign)
-                                }}
-                              >
-                                <AlertCircle className="w-4 h-4 mr-2" />
-                                입금 확인 요청
-                              </Button>
-                            </div>
-                          )}
-                          <div className="flex gap-2">
-                            {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
-                              <Button 
-                                variant="default"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handlePayWithPoints(campaign)
-                                }}
-                              >
-                                <CreditCard className="w-4 h-4 mr-2" />
-                                포인트 차감 및 승인 요청
-                              </Button>
-                            )}
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
-                              }}
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              상세보기
-                            </Button>
-                          </div>
-                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
+                          }}
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          상세보기
+                        </Button>
                       </div>
                     </div>
                   )
