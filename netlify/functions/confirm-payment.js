@@ -311,6 +311,30 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // 세금계산서 신청 레코드 생성 (needs_tax_invoice=true인 경우)
+    if (chargeRequest.needs_tax_invoice && chargeRequest.tax_invoice_info) {
+      try {
+        const { error: taxInvoiceError } = await supabaseAdmin
+          .from('tax_invoice_requests')
+          .insert({
+            company_id: chargeRequest.company_id,
+            charge_request_id: chargeRequest.id,
+            amount: chargeRequest.amount,
+            tax_invoice_info: chargeRequest.tax_invoice_info,
+            is_deposit_confirmed: true,
+            status: 'pending'
+          })
+        
+        if (taxInvoiceError) {
+          console.error('[confirm-payment] 세금계산서 신청 레코드 생성 오류:', taxInvoiceError)
+        } else {
+          console.log('[confirm-payment] 세금계산서 신청 레코드 생성 성공')
+        }
+      } catch (taxError) {
+        console.error('[confirm-payment] 세금계산서 신청 레코드 생성 예외:', taxError)
+      }
+    }
+
     // 네이버 웍스 알림 발송 (관리자용 - 캐페인 승인 요청)
     if (campaign) {
       const regionMap = {
