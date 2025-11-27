@@ -195,6 +195,7 @@ exports.handler = async (event, context) => {
         .from('campaigns')
         .update({
           status: 'pending',
+          approval_status: 'pending',
           payment_status: 'confirmed',
           updated_at: new Date().toISOString()
         })

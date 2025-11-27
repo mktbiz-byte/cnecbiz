@@ -601,7 +601,10 @@ const CampaignCreationKorea = () => {
           // 캐페인 상태를 'pending_payment'로 변경
           const { error: updateError } = await supabaseKorea
             .from('campaigns')
-            .update({ status: 'pending_payment' })
+            .update({ 
+              status: 'pending_payment',
+              approval_status: 'pending_payment'
+            })
             .eq('id', campaignId)
 
           if (updateError) {
