@@ -219,6 +219,7 @@ const InvoicePage = () => {
         total_amount: totalCost
       }
 
+      // 캠페인 결제 요청 생성 (related_campaign_id를 통해 입금 확인 시 자동 승인)
       const { error: chargeError } = await supabaseBiz
         .from('points_charge_requests')
         .insert({
@@ -229,6 +230,7 @@ const InvoicePage = () => {
           depositor_name: depositorName,
           needs_tax_invoice: needsTaxInvoice,
           tax_invoice_info: needsTaxInvoice ? invoiceData.tax_invoice_info : null,
+          related_campaign_id: id, // 입금 확인 시 이 캠페인을 자동 승인 요청
           bank_transfer_info: {
             campaign_id: id,
             ...invoiceData

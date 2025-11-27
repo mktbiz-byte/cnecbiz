@@ -223,8 +223,64 @@ async function autoMatchTransaction(transaction) {
         type: 'charge',
         description: `계좌이체 입금 확인 (자동 매칭)`,
         balance_after: newPoints,
-        charge_request_id: request.id
+        charge_request_id: request.id,
+        related_campaign_id: request.related_campaign_id || null
       });
+
+    // 캠페인 자동 승인 요청 처리
+    if (request.related_campaign_id) {
+      console.log(`📢 캠페인 자동 승인 요청: ${request.related_campaign_id}`);
+      
+      try {
+        // 캠페인 상태를 'pending'으로 변경
+        const { error: campaignError } = await supabaseAdmin
+          .from('campaigns')
+          .update({
+            status: 'pending',
+            submitted_at: new Date().toISOString()
+          })
+          .eq('id', request.related_campaign_id);
+
+        if (campaignError) {
+          console.error('❌ 캠페인 상태 업데이트 오류:', campaignError);
+        } else {
+          console.log('✅ 캠페인 상태를 pending으로 변경 완료');
+          
+          // 캠페인 정보 조회
+          const { data: campaign } = await supabaseAdmin
+            .from('campaigns')
+            .select('title, campaign_type, influencer_count, package_type')
+            .eq('id', request.related_campaign_id)
+            .single();
+
+          // 네이버 웍스 알림 발송
+          const axios = require('axios');
+          const naverWorksWebhook = process.env.NAVER_WORKS_WEBHOOK_URL;
+          
+          if (naverWorksWebhook && campaign) {
+            try {
+              await axios.post(naverWorksWebhook, {
+                content: {
+                  type: 'text',
+                  text: `🎉 **새로운 캠페인 승인 요청**\n\n` +
+                        `🏬 **회사:** ${companyInfo?.company_name || '미상'}\n` +
+                        `📝 **캠페인:** ${campaign.title}\n` +
+                        `🎯 **타입:** ${campaign.campaign_type || '미상'}\n` +
+                        `👥 **크리에이터 수:** ${campaign.influencer_count || 0}명\n` +
+                        `💰 **입금 금액:** ${parseInt(request.amount).toLocaleString()}원\n\n` +
+                        `➡️ 관리자 페이지에서 확인해주세요.`
+                }
+              });
+              console.log('✅ 네이버 웍스 알림 발송 완료');
+            } catch (worksError) {
+              console.error('❌ 네이버 웍스 알림 발송 실패:', worksError.message);
+            }
+          }
+        }
+      } catch (campaignApprovalError) {
+        console.error('❌ 캠페인 자동 승인 처리 오류:', campaignApprovalError);
+      }
+    }
 
     // 충전 요청 상태 업데이트
     await supabaseAdmin

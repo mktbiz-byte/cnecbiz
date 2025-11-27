@@ -16,6 +16,9 @@ export default function OliveYoungInvoice() {
   const [activeTab, setActiveTab] = useState('product_intro')
   const [editingSection, setEditingSection] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [depositorName, setDepositorName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [company, setCompany] = useState(null)
 
   useEffect(() => {
     loadCampaignData()
@@ -35,6 +38,20 @@ export default function OliveYoungInvoice() {
       // AI 가이드가 이미 생성되어 있으면 표시
       if (data.ai_generated_guide) {
         setAiGuide(data.ai_generated_guide)
+      }
+
+      // 회사 정보 로드
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+        if (companyData) {
+          setCompany(companyData)
+          setDepositorName(companyData.company_name || '')
+        }
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
@@ -185,6 +202,81 @@ ${campaign.oliveyoung_step3_guide || '미작성'}
       console.error('저장 실패:', error)
       alert('저장에 실패했습니다: ' + error.message)
     }
+  }
+
+  const handlePaymentRequest = async () => {
+    if (!depositorName.trim()) {
+      alert('입금자명을 입력해주세요.')
+      return
+    }
+
+    if (!confirm(`입금 요청을 진행하시겠습니까?\n\n입금자명: ${depositorName}\n금액: ${calculateTotalCost().toLocaleString()}원`)) {
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('로그인이 필요합니다.')
+
+      const totalCost = calculateTotalCost()
+
+      // 결제 요청 생성 (related_campaign_id를 통해 입금 확인 시 자동 승인)
+      const { error: chargeError } = await supabase
+        .from('points_charge_requests')
+        .insert({
+          company_id: user.id,
+          amount: totalCost,
+          payment_method: 'bank_transfer',
+          status: 'pending',
+          depositor_name: depositorName,
+          related_campaign_id: id, // 입금 확인 시 이 캠페인을 자동 승인 요청
+          bank_transfer_info: {
+            campaign_id: id,
+            campaign_title: campaign.title,
+            campaign_type: 'oliveyoung'
+          }
+        })
+
+      if (chargeError) throw chargeError
+
+      // 네이버 웍스 알림 발송
+      try {
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: `💰 **새로운 입금 요청**\n\n` +
+                     `🏬 **회사:** ${company?.company_name || '미상'}\n` +
+                     `📝 **캠페인:** ${campaign.title}\n` +
+                     `🎯 **타입:** 올리브영\n` +
+                     `👥 **크리에이터 수:** ${campaign.influencer_count || 0}명\n` +
+                     `💰 **금액:** ${totalCost.toLocaleString()}원\n` +
+                     `👤 **입금자명:** ${depositorName}\n\n` +
+                     `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`,
+            isAdminNotification: true
+          })
+        })
+      } catch (notifError) {
+        console.error('알림 발송 실패:', notifError)
+      }
+
+      alert('입금 요청이 제출되었습니다!\n\n입금 확인 후 캠페인이 자동으로 승인 요청됩니다.')
+      navigate('/company/campaigns')
+    } catch (err) {
+      console.error('입금 요청 실패:', err)
+      alert('입금 요청에 실패했습니다: ' + err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const calculateTotalCost = () => {
+    const packagePrice = 200000 // 올리브영 패키지 기본 가격
+    const influencerCount = campaign.influencer_count || 0
+    const subtotal = packagePrice * influencerCount
+    const vat = Math.floor(subtotal * 0.1)
+    return subtotal + vat
   }
 
   if (loading) {
@@ -560,6 +652,73 @@ ${campaign.oliveyoung_step3_guide || '미작성'}
           )}
         </div>
 
+        {/* 결제 정보 */}
+        <Card className="mt-8 bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-lg">💰 결제 정보</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-white p-4 rounded-lg">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">패키지 단가</span>
+                  <span className="font-semibold">200,000원</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">크리에이터 수</span>
+                  <span className="font-semibold">{campaign.influencer_count || 0}명</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">소계</span>
+                  <span className="font-semibold">{(200000 * (campaign.influencer_count || 0)).toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">부가세 (10%)</span>
+                  <span className="font-semibold">{Math.floor(200000 * (campaign.influencer_count || 0) * 0.1).toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t-2 border-gray-300">
+                  <span className="font-bold text-lg">총 결제 금액</span>
+                  <span className="font-bold text-lg text-blue-600">{calculateTotalCost().toLocaleString()}원</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg space-y-3">
+              <h3 className="font-semibold text-sm">입금 계좌 정보</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">은행</span>
+                  <span className="font-semibold">하나은행</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">계좌번호</span>
+                  <span className="font-semibold">123-456789-01234</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">예금주</span>
+                  <span className="font-semibold">씨넥</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                입금자명 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={depositorName}
+                onChange={(e) => setDepositorName(e.target.value)}
+                placeholder="입금하실 이름을 입력해주세요"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500">
+                ⚠️ 입금자명은 입금 확인에 사용되므로 정확히 입력해주세요.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* 제출 버튼 */}
         <div className="flex gap-4 mt-8">
           <Button
@@ -570,12 +729,21 @@ ${campaign.oliveyoung_step3_guide || '미작성'}
             가이드 수정
           </Button>
           <Button
-            onClick={() => navigate(`/company/campaigns/${id}/order-confirmation`)}
-            disabled={!aiGuide}
+            onClick={handlePaymentRequest}
+            disabled={!aiGuide || submitting}
             className="flex-1 bg-green-600 hover:bg-green-700"
           >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            결제하기
+            {submitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                처리 중...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                입금 요청 하기
+              </>
+            )}
           </Button>
         </div>
       </div>
