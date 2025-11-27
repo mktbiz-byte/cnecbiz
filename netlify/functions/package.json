@@ -1,0 +1,9 @@
+{
+  "name": "cnecbiz-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for CNEC BIZ",
+  "dependencies": {
+    "nodemailer": "^7.0.10",
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
