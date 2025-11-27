@@ -1391,8 +1391,8 @@ const CampaignCreationKorea = () => {
                   {questionCount < 4 && (
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                      size="default"
                       onClick={() => setQuestionCount(prev => Math.min(prev + 1, 4))}
                     >
                       + 질문 추가
