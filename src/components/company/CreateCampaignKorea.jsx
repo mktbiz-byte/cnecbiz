@@ -742,7 +742,7 @@ const CampaignCreationKorea = () => {
                           자세히 보기
                         </a>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">가격: 초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</p>
+                      <p className="text-sm text-gray-600 mt-1">가격: 베이직 20만원 / 스탠다드 30만원 / 프리미엄 40만원 / 프로페셔널 60만원 / 엔터프라이즈 100만원</p>
                       <p className="text-xs text-gray-500 mt-1">대사 + 촬영장면 개별 제공, SNS URL 1개 제출</p>
                     </div>
                   </div>
@@ -773,8 +773,8 @@ const CampaignCreationKorea = () => {
                           자세히 보기
                         </a>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">가격: 스탠다드 30만원 / 프리미엄 40만원 (2단계만)</p>
-                      <p className="text-xs text-gray-500 mt-1">통합 가이드, 3단계 콘텐츠 (릴스 2건 + 스토리 1건), URL 3개 + 영상 폴더 2개 제출</p>
+                      <p className="text-sm text-gray-600 mt-1">가격: 스탠다드 40만원 / 프리미엄 50만원 / 프로페셔널 60만원</p>
+                      <p className="text-xs text-gray-500 mt-1">통합 가이드, 2단계 콘텐츠 (릴스 2건), URL 3개 + 영상 폴더 2개 제출</p>
                     </div>
                   </div>
 
@@ -804,8 +804,8 @@ const CampaignCreationKorea = () => {
                           자세히 보기
                         </a>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">가격: 60만원 (고정)</p>
-                      <p className="text-xs text-gray-500 mt-1">주차별 통합 가이드 4개, 4주 연속 콘텐츠, URL 4개 + 영상 4개 제출</p>
+                      <p className="text-sm text-gray-600 mt-1">가격: 스탠다드 60만원 / 프리미엄 70만원 / 프로페셔널 80만원 / 엔터프라이즈 100만원</p>
+                      <p className="text-xs text-gray-500 mt-1">주차별 통합 가이드 4개, 4주 콘텐츠, URL 4개 + 영상 4개 제출</p>
                     </div>
                   </div>
                 </div>
