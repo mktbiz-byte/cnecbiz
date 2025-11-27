@@ -209,11 +209,83 @@ exports.handler = async (event, context) => {
     // 회사 정보 조회
     const { data: company } = await supabaseAdmin
       .from('companies')
-      .select('company_name, email, phone, contact_person')
+      .select('company_name, email, phone, contact_person, notification_phone, notification_email')
       .eq('user_id', chargeRequest.company_id)
       .single()
 
-    // 네이버 웍스 알림 발송 (캐페인 승인 요청)
+    // 고객에게 카카오 알림톡 및 이메일 발송
+    if (campaign && company) {
+      // 1. 카카오 알림톡 발송
+      if (company.notification_phone || company.phone) {
+        try {
+          // 캠페인 기간 포맷팅
+          const startDate = campaign.start_date ? new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '미정'
+          const endDate = campaign.end_date ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '미정'
+          
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: company.notification_phone || company.phone,
+              receiverName: company.company_name || '회사',
+              templateCode: '025100001010',
+              variables: {
+                '회사명': company.company_name || '회사',
+                '캠페인명': campaign.title || '캠페인',
+                '시작일': startDate,
+                '마감일': endDate,
+                '모집인원': String(campaign.total_slots || 0)
+              }
+            })
+          })
+          console.log('[SUCCESS] Kakao alimtalk sent to customer')
+        } catch (kakaoError) {
+          console.error('[ERROR] Failed to send Kakao alimtalk:', kakaoError)
+        }
+      }
+
+      // 2. 이메일 발송
+      if (company.notification_email || company.email) {
+        try {
+          const startDate = campaign.start_date ? new Date(campaign.start_date).toLocaleDateString('ko-KR') : '미정'
+          const endDate = campaign.end_date ? new Date(campaign.end_date).toLocaleDateString('ko-KR') : '미정'
+          
+          await fetch('/.netlify/functions/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: company.notification_email || company.email,
+              subject: '[CNEC] 캠페인 검수 신청',
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #333;">[CNEC] 캠페인 검수 신청</h2>
+                  <p><strong>${company.company_name || '회사'}</strong>님, 신청하신 캠페인이 관리자에게 검수 요청 되었습니다.</p>
+                  
+                  <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 10px 0;"><strong>캠페인:</strong> ${campaign.title || '캠페인'}</p>
+                    <p style="margin: 10px 0;"><strong>모집 기간:</strong> ${startDate} ~ ${endDate}</p>
+                    <p style="margin: 10px 0;"><strong>모집 인원:</strong> ${campaign.total_slots || 0}명</p>
+                  </div>
+                  
+                  <p style="color: #666;">관리자 페이지에서 진행 상황을 확인하실 수 있습니다.</p>
+                  <p style="color: #666;">문의: <strong>1833-6025</strong></p>
+                  
+                  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                  <p style="font-size: 12px; color: #999; text-align: center;">
+                    본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
+                  </p>
+                </div>
+              `
+            })
+          })
+          console.log('[SUCCESS] Email sent to customer')
+        } catch (emailError) {
+          console.error('[ERROR] Failed to send email:', emailError)
+        }
+      }
+    }
+
+    // 네이버 웍스 알림 발송 (관리자용 - 캐페인 승인 요청)
     if (campaign) {
       const regionMap = {
         'korea': '한국',
