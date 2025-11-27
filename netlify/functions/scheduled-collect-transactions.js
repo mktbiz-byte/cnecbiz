@@ -605,6 +605,56 @@ exports.handler = async (event, context) => {
     console.log('✅ [STEP 4] 저장 및 매칭 완료!');
     console.log(`   📝 새로 저장: ${savedCount}건`);
     console.log(`   🎯 자동 매칭: ${matchedCount}건`);
+
+    // 5. 미매칭 입금 감지 및 알림
+    console.log('🔍 [STEP 5] 미매칭 입금 확인...');
+    const unmatchedCount = savedCount - matchedCount;
+    
+    if (unmatchedCount > 0) {
+      try {
+        // 미매칭 입금 내역 조회
+        const { data: unmatchedTransactions } = await supabaseAdmin
+          .from('bank_transactions')
+          .select('*')
+          .eq('is_matched', false)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (unmatchedTransactions && unmatchedTransactions.length > 0) {
+          console.log(`⚠️  미매칭 입금 ${unmatchedTransactions.length}건 발견`);
+          
+          // 네이버 웍스 알림 발송
+          const axios = require('axios');
+          let alertMessage = `⚠️ 미매칭 입금 발견!\n\n`;
+          alertMessage += `총 ${unmatchedTransactions.length}건의 입금이 결제 요청과 매칭되지 않았습니다.\n\n`;
+          
+          unmatchedTransactions.slice(0, 5).forEach((tx, index) => {
+            const date = `${tx.trade_date.substring(0,4)}-${tx.trade_date.substring(4,6)}-${tx.trade_date.substring(6,8)}`;
+            alertMessage += `${index + 1}. ${tx.briefs} / ${parseInt(tx.trade_balance).toLocaleString()}원 (${date})\n`;
+          });
+          
+          if (unmatchedTransactions.length > 5) {
+            alertMessage += `\n... 외 ${unmatchedTransactions.length - 5}건 더 있음\n`;
+          }
+          
+          alertMessage += `\n확인 페이지: https://cnectotal.netlify.app/admin/deposits`;
+          
+          await axios.post(
+            `${process.env.URL}/.netlify/functions/send-naver-works-message`,
+            {
+              message: alertMessage,
+              isAdminNotification: true
+            }
+          );
+          console.log('✅ 미매칭 입금 알림 발송 완료');
+        }
+      } catch (alertError) {
+        console.error('❌ 미매칭 입금 알림 발송 실패:', alertError.message);
+      }
+    } else {
+      console.log('✅ 모든 입금이 정상적으로 매칭되었습니다.');
+    }
+    
     console.log('📊 ========== 계좌 거래 내역 자동 수집 완료 ==========');
 
     return {
