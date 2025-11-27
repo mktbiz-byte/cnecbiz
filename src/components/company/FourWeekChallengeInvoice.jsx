@@ -321,7 +321,72 @@ ${!week4Empty ? `**4주차 초안**
 
       if (chargeError) throw chargeError
 
-      // 네이버 웍스 알림 발송
+      // 1. 카카오톡 알림톡 발송
+      if (company?.notification_phone || company?.phone) {
+        try {
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: company.notification_phone || company.phone,
+              receiverName: company.company_name || '회사',
+              templateCode: '025100000918',
+              variables: {
+                '회사명': company.company_name || '회사',
+                '캠페인명': campaign.title || '캠페인',
+                '금액': totalCost.toLocaleString()
+              }
+            })
+          })
+          console.log('[SUCCESS] Kakao notification sent')
+        } catch (kakaoError) {
+          console.error('[ERROR] Failed to send Kakao notification:', kakaoError)
+        }
+      }
+
+      // 2. 이메일 발송
+      if (company?.notification_email || company?.email) {
+        try {
+          await fetch('/.netlify/functions/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: company.notification_email || company.email,
+              subject: '[CNEC] 캠페인 신청 완료',
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #333;">[CNEC] 캠페인 신청 완료</h2>
+                  <p><strong>${company.company_name || '회사'}</strong>님, 캠페인 신청이 접수되었습니다.</p>
+                  
+                  <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 10px 0;"><strong>캠페인:</strong> ${campaign.title || '캠페인'}</p>
+                    <p style="margin: 10px 0;"><strong>금액:</strong> <span style="font-size: 18px; color: #4CAF50;">${totalCost.toLocaleString()}원</span></p>
+                  </div>
+                  
+                  <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #1976d2;">입금 계좌</h3>
+                    <p style="margin: 5px 0;">IBK기업은행 047-122753-04-011</p>
+                    <p style="margin: 5px 0;">예금주: 주식회사 하우파파</p>
+                  </div>
+                  
+                  <p style="color: #666;">입금 확인 후 캠페인이 시작됩니다.</p>
+                  <p style="color: #666;">문의: <strong>1833-6025</strong></p>
+                  
+                  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                  <p style="font-size: 12px; color: #999; text-align: center;">
+                    본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
+                  </p>
+                </div>
+              `
+            })
+          })
+          console.log('[SUCCESS] Email sent')
+        } catch (emailError) {
+          console.error('[ERROR] Failed to send email:', emailError)
+        }
+      }
+
+      // 3. 네이버 웍스 알림 발송
       try {
         await fetch('/.netlify/functions/send-naver-works-message', {
           method: 'POST',

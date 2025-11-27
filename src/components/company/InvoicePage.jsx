@@ -266,9 +266,10 @@ const InvoicePage = () => {
                 body: JSON.stringify({
                   receiverNum: companyPhone,
                   receiverName: companyName,
-                  templateCode: '025100000942',
+                  templateCode: '025100000918',
                   variables: {
                     '회사명': companyName,
+                    '캠페인명': campaign.title || '캠페인',
                     '금액': totalCost.toLocaleString()
                   }
                 })
@@ -327,36 +328,24 @@ const InvoicePage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   to: companyEmail,
-                  subject: '[CNEC] 포인트 충전 입금 안내',
+                  subject: '[CNEC] 캠페인 신청 완료',
                   html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <h2 style="color: #333;">포인트 충전 신청이 완료되었습니다</h2>
-                      <p>안녕하세요, <strong>${companyName}</strong>님.</p>
-                      <p>포인트 충전 신청이 완료되었습니다.</p>
+                      <h2 style="color: #333;">[CNEC] 캠페인 신청 완료</h2>
+                      <p><strong>${companyName}</strong>님, 캠페인 신청이 접수되었습니다.</p>
                       
                       <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                        <h3 style="margin-top: 0; color: #555;">입금 정보</h3>
-                        <table style="width: 100%; border-collapse: collapse;">
-                          <tr>
-                            <td style="padding: 8px 0; color: #666;"><strong>입금 계좌:</strong></td>
-                            <td style="padding: 8px 0;">${paymentAccount?.bank_name || 'IBK기업은행'} ${paymentAccount?.account_number || '047-122753-04-011'}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 8px 0; color: #666;"><strong>예금주:</strong></td>
-                            <td style="padding: 8px 0;">${paymentAccount?.account_holder || '주식회사 하우파파'}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 8px 0; color: #666;"><strong>입금자명:</strong></td>
-                            <td style="padding: 8px 0;">${depositorName}</td>
-                          </tr>
-                          <tr>
-                            <td style="padding: 8px 0; color: #666;"><strong>입금 금액:</strong></td>
-                            <td style="padding: 8px 0; font-size: 18px; color: #4CAF50;"><strong>${totalCost.toLocaleString()}원</strong></td>
-                          </tr>
-                        </table>
+                        <p style="margin: 10px 0;"><strong>캠페인:</strong> ${campaign.title || '캠페인'}</p>
+                        <p style="margin: 10px 0;"><strong>금액:</strong> <span style="font-size: 18px; color: #4CAF50;">${totalCost.toLocaleString()}원</span></p>
                       </div>
                       
-                      <p style="color: #666;">입금 확인 후 포인트가 자동으로 충전됩니다.</p>
+                      <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #1976d2;">입금 계좌</h3>
+                        <p style="margin: 5px 0;">IBK기업은행 047-122753-04-011</p>
+                        <p style="margin: 5px 0;">예금주: 주식회사 하우파파</p>
+                      </div>
+                      
+                      <p style="color: #666;">입금 확인 후 캠페인이 시작됩니다.</p>
                       <p style="color: #666;">문의: <strong>1833-6025</strong></p>
                       
                       <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
