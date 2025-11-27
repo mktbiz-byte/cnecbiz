@@ -34,7 +34,7 @@ export default function FourWeekChallengeInvoice() {
   const [company, setCompany] = useState(null)
   
   // 세금계산서 정보
-  const [needsTaxInvoice, setNeedsTaxInvoice] = useState(false)
+  const [needsTaxInvoice, setNeedsTaxInvoice] = useState(true) // 기본값을 true로 변경 (세금계산서 신청 페이지이므로)
   const [companyName, setCompanyName] = useState('')
   const [businessNumber, setBusinessNumber] = useState('')
   const [representativeName, setRepresentativeName] = useState('')
