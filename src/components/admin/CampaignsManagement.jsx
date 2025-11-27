@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle } from 'lucide-react'
+import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle, Pause } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -689,6 +689,18 @@ export default function CampaignsManagement() {
                               <PlayCircle className="w-4 h-4 mr-2" />
                               활성화
                             </Button>
+                            {(campaign.status === 'active' || campaign.status === 'in_progress') && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleStatusChange(campaign, 'paused')}
+                                disabled={confirming}
+                                className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-200"
+                              >
+                                <Pause className="w-4 h-4 mr-2" />
+                                중단
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"

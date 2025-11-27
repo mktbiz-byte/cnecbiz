@@ -126,13 +126,15 @@ export default function CompanyDashboard() {
       const pending = activeCampaigns.filter(c => 
         c.status === 'draft' || 
         c.status === 'pending' || 
-        c.status === 'pending_payment'
+        c.status === 'pending_payment' ||
+        c.approval_status === 'pending_approval'
       ).length
       const active = activeCampaigns.filter(c => 
-        c.status === 'recruiting' || 
+        (c.status === 'recruiting' || 
         c.status === 'guide_review' || 
         c.status === 'in_progress' || 
-        c.status === 'revision'
+        c.status === 'revision') &&
+        c.approval_status !== 'pending_approval'
       ).length
       const completed = activeCampaigns.filter(c => c.status === 'completed').length
       const totalSpent = activeCampaigns.reduce((sum, c) => {
