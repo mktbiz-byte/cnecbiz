@@ -45,6 +45,7 @@ export default function OliveYoungInvoice() {
   const [companyAddress, setCompanyAddress] = useState('')
   const [memo, setMemo] = useState('')
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [invoiceEmailSent, setInvoiceEmailSent] = useState(false)
 
   useEffect(() => {
     loadCampaignData()
@@ -81,6 +82,11 @@ export default function OliveYoungInvoice() {
           setBusinessType(companyData.business_type || '')
           setBusinessCategory(companyData.business_category || '')
           setCompanyAddress(companyData.company_address || '')
+          
+          // 견적서 자동 발송
+          if (!invoiceEmailSent && companyData.email) {
+            sendInvoiceEmail(data, companyData)
+          }
         }
       }
     } catch (err) {
@@ -88,6 +94,55 @@ export default function OliveYoungInvoice() {
       alert('캠페인 정보를 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 견적서 이메일 발송
+  const sendInvoiceEmail = async (campaignData, companyData) => {
+    try {
+      // 올리브영 패키지 가격 매핑
+      const oliveyoungPackageOptions = {
+        'standard': 400000,
+        'premium': 500000,
+        'professional': 600000
+      }
+      
+      const packagePrice = oliveyoungPackageOptions[campaignData.package_type] || 0
+      const creatorCount = campaignData.total_slots || 0
+      const subtotal = packagePrice * creatorCount
+      const vat = Math.floor(subtotal * 0.1)
+      const total = subtotal + vat
+
+      const pricing = {
+        packagePrice,
+        creatorCount,
+        subtotal,
+        vat,
+        total
+      }
+
+      const response = await fetch('/.netlify/functions/send-invoice-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign: campaignData,
+          company: companyData,
+          pricing,
+          campaignType: '올리브영',
+          recipientEmail: companyData.email
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        console.log('[OliveYoungInvoice] 견적서 이메일 발송 성공:', result.messageId)
+        setInvoiceEmailSent(true)
+      } else {
+        console.error('[OliveYoungInvoice] 견적서 이메일 발송 실패:', result.error)
+      }
+    } catch (error) {
+      console.error('[OliveYoungInvoice] 견적서 이메일 발송 오류:', error)
     }
   }
 

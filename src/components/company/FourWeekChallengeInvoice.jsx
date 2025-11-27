@@ -44,6 +44,7 @@ export default function FourWeekChallengeInvoice() {
   const [businessCategory, setBusinessCategory] = useState('')
   const [companyAddress, setCompanyAddress] = useState('')
   const [memo, setMemo] = useState('')
+  const [invoiceEmailSent, setInvoiceEmailSent] = useState(false)
 
   useEffect(() => {
     loadCampaignData()
@@ -80,6 +81,11 @@ export default function FourWeekChallengeInvoice() {
           setBusinessType(companyData.business_type || '')
           setBusinessCategory(companyData.business_category || '')
           setCompanyAddress(companyData.company_address || '')
+          
+          // 견적서 자동 발송
+          if (!invoiceEmailSent && companyData.email) {
+            sendInvoiceEmail(data, companyData)
+          }
         }
       }
     } catch (err) {
@@ -87,6 +93,56 @@ export default function FourWeekChallengeInvoice() {
       alert('캠페인 정보를 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 견적서 이메일 발송
+  const sendInvoiceEmail = async (campaignData, companyData) => {
+    try {
+      // 4주 챌린지 패키지 가격 매핑
+      const fourWeekPackageOptions = {
+        'standard': 600000,
+        'premium': 700000,
+        'professional': 800000,
+        'enterprise': 1000000
+      }
+      
+      const packagePrice = fourWeekPackageOptions[campaignData.package_type] || 0
+      const creatorCount = campaignData.total_slots || 0
+      const subtotal = packagePrice * creatorCount
+      const vat = Math.floor(subtotal * 0.1)
+      const total = subtotal + vat
+
+      const pricing = {
+        packagePrice,
+        creatorCount,
+        subtotal,
+        vat,
+        total
+      }
+
+      const response = await fetch('/.netlify/functions/send-invoice-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign: campaignData,
+          company: companyData,
+          pricing,
+          campaignType: '4주 챌린지',
+          recipientEmail: companyData.email
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        console.log('[FourWeekChallengeInvoice] 견적서 이메일 발송 성공:', result.messageId)
+        setInvoiceEmailSent(true)
+      } else {
+        console.error('[FourWeekChallengeInvoice] 견적서 이메일 발송 실패:', result.error)
+      }
+    } catch (error) {
+      console.error('[FourWeekChallengeInvoice] 견적서 이메일 발송 오류:', error)
     }
   }
 
