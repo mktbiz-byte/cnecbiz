@@ -251,10 +251,14 @@ export default function MyCampaigns() {
 
       // 네이버 웍스 알림 전송
       try {
-        const campaignTypeText = 
-          campaign.campaign_type === 'oliveyoung' ? '올영세일' :
-          campaign.campaign_type === '4week' ? '4주 챌린지' :
-          '기획형'
+        const campaignTypeMap = {
+          'planned': '기획형',
+          'regular': '기획형',
+          'oliveyoung': '올영세일',
+          '4week_challenge': '4주 챌린지',
+          '4week': '4주 챌린지'
+        }
+        const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
         
         const regionText = campaign.region === 'japan' ? '일본' : '한국'
         const message = `🔔 새로운 캠페인 승인 요청 (${regionText})\n\n` +
@@ -307,9 +311,11 @@ export default function MyCampaigns() {
 
       // 캠페인 타입 표시
       const campaignTypeMap = {
+        'planned': '기획형',
         'regular': '기획형',
         'oliveyoung': '올리브영',
-        '4week_challenge': '4주 챌린지'
+        '4week_challenge': '4주 챌린지',
+        '4week': '4주 챌린지'
       }
       const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
 
@@ -392,7 +398,9 @@ export default function MyCampaigns() {
   const getCampaignTypeBadge = (campaignType) => {
     const badges = {
       '4week_challenge': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-800' },
+      '4week': { label: '4주 챌린지', color: 'bg-purple-100 text-purple-800' },
       'oliveyoung': { label: '올영세일', color: 'bg-pink-100 text-pink-800' },
+      'planned': { label: '기획형', color: 'bg-indigo-100 text-indigo-800' },
       'regular': { label: '기획형', color: 'bg-indigo-100 text-indigo-800' }
     }
     const badge = badges[campaignType]
