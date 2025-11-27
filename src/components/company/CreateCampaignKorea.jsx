@@ -158,20 +158,20 @@ const CampaignCreationKorea = () => {
       // 4주 챌린지: 패키지 × 인원수
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
       const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots, false)
-      const rewardPoints = Math.floor(finalCost * 0.6)
+      const rewardPoints = Math.floor(pkg.price * 0.6)  // 1명당 포인트
       setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
     } else if (campaignForm.campaign_type === 'oliveyoung') {
       // 올리브영: 패키지 × 인원수
       const pkg = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type) || oliveyoungPackageOptions[0]
       const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots)
-      const rewardPoints = Math.floor(finalCost * 0.6)
+      const rewardPoints = Math.floor(pkg.price * 0.6)  // 1명당 포인트
       setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
     } else {
       // 일반: 패키지 × 인원수
       const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
       if (pkg) {
         const finalCost = calculateFinalCost(pkg.price, campaignForm.total_slots)
-        const rewardPoints = Math.floor(finalCost * 0.6)
+        const rewardPoints = Math.floor(pkg.price * 0.6)  // 1명당 포인트
         setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost, reward_points: rewardPoints }))
       }
     }
@@ -304,7 +304,7 @@ const CampaignCreationKorea = () => {
     }
     
     if (selectedPackage) {
-      const rewardPoints = Math.floor(finalCost * 0.6)
+      const rewardPoints = Math.floor(selectedPackage.price * 0.6)  // 1명당 포인트
       setCampaignForm(prev => ({
         ...prev,
         package_type: value,
@@ -318,22 +318,26 @@ const CampaignCreationKorea = () => {
   const handleSlotsChange = (value) => {
     const slots = parseInt(value) || 0
     let finalCost = 0
+    let packagePrice = 0
     
     if (campaignForm.campaign_type === '4week_challenge') {
       // 4주 챌린지: 패키지 가격
       const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type) || fourWeekPackageOptions[0]
+      packagePrice = pkg.price
       finalCost = calculateFinalCost(pkg.price, slots, false)
     } else if (campaignForm.campaign_type === 'oliveyoung') {
       // 올리브영: 패키지 가격
       const selectedPackage = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type)
+      packagePrice = selectedPackage ? selectedPackage.price : 0
       finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
     } else {
       // 일반: 패키지 가격
       const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+      packagePrice = selectedPackage ? selectedPackage.price : 0
       finalCost = selectedPackage ? calculateFinalCost(selectedPackage.price, slots) : 0
     }
     
-    const rewardPoints = Math.floor(finalCost * 0.6)
+    const rewardPoints = Math.floor(packagePrice * 0.6)  // 1명당 포인트
     setCampaignForm(prev => ({
       ...prev,
       total_slots: slots,
