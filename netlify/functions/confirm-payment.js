@@ -395,21 +395,32 @@ exports.handler = async (event, context) => {
         const naverWorksUrl = 'https://www.worksapis.com/v1.0/bots/7348965/channels/281474978639476/messages'
         const naverWorksToken = process.env.NAVER_WORKS_BOT_TOKEN
 
-        await fetch(naverWorksUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${naverWorksToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            content: {
-              type: 'text',
-              text: message
-            }
+        if (!naverWorksToken) {
+          console.error('[confirm-payment] NAVER_WORKS_BOT_TOKEN is not set')
+        } else {
+          const response = await fetch(naverWorksUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${naverWorksToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              content: {
+                type: 'text',
+                text: message
+              }
+            })
           })
-        })
+          
+          if (!response.ok) {
+            const errorText = await response.text()
+            console.error('[confirm-payment] Naver Works API error:', response.status, errorText)
+          } else {
+            console.log('[confirm-payment] Naver Works notification sent successfully')
+          }
+        }
       } catch (notifError) {
-        console.error('네이버 웍스 알림 전송 실패:', notifError)
+        console.error('[confirm-payment] Failed to send Naver Works notification:', notifError)
       }
     }
 

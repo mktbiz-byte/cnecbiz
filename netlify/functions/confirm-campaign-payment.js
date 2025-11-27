@@ -174,9 +174,9 @@ exports.handler = async (event, context) => {
       console.log('[confirm-campaign-payment] No payment record found, skipping payment update')
     }
 
-    // 3. campaigns 테이블 업데이트 - 상태를 active로 변경
+    // 3. campaigns 테이블 업데이트 - 승인 대기 상태로 변경 (자동 활성화 방지)
     const campaignUpdateData = {
-      status: 'active',  // 입금 확인 후 즉시 active 상태로 변경
+      status: 'pending',  // 승인 대기 상태로 유지 (active로 변경하면 자동 노출됨)
       approval_status: 'pending_approval',  // 승인 대기 상태로 변경
       payment_status: 'confirmed',  // 입금 확인 상킬로 변경
       progress_status: 'pending_approval',  // 진행 상태도 승인 대기로 변경
@@ -204,7 +204,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    console.log('[confirm-campaign-payment] Campaign status updated to active')
+    console.log('[confirm-campaign-payment] Campaign status updated to pending (awaiting approval)')
 
     // 회사 정보 조회 (알림 발송용) (supabaseBiz에서 user_id로 조회)
     const { data: company, error: companyError } = await supabaseBiz
@@ -304,7 +304,7 @@ exports.handler = async (event, context) => {
     }
     const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
 
-    const message = `💵 입금 확인 완료 + 캠페인 활성화 (한국)
+    const message = `💵 입금 확인 완료 - 승인 대기 (한국)
 
 • 회사명: ${company?.company_name || '회사명 없음'}
 • 캠페인명: ${campaign.title}
@@ -313,28 +313,38 @@ exports.handler = async (event, context) => {
 • 입금자명: ${depositorName || '미입력'}
 • 입금일: ${depositDate || new Date().toISOString().split('T')[0]}
 
-✅ 캠페인이 활성화되었습니다.
+⏳ 승인 대기 중입니다. 승인 후 캠페인이 활성화됩니다.
 
-관리 페이지: https://cnectotal.netlify.app/admin/campaigns`
+관리 페이지: https://cnectotal.netlify.app/admin/campaigns/${campaignId}`
 
     try {
       const naverWorksUrl = 'https://www.worksapis.com/v1.0/bots/7348965/channels/281474978639476/messages'
       const naverWorksToken = process.env.NAVER_WORKS_BOT_TOKEN
 
-      await fetch(naverWorksUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${naverWorksToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          content: {
-            type: 'text',
-            text: message
-          }
+      if (!naverWorksToken) {
+        console.error('[confirm-campaign-payment] NAVER_WORKS_BOT_TOKEN is not set')
+      } else {
+        const response = await fetch(naverWorksUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${naverWorksToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            content: {
+              type: 'text',
+              text: message
+            }
+          })
         })
-      })
-      console.log('[confirm-campaign-payment] Naver Works notification sent')
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('[confirm-campaign-payment] Naver Works API error:', response.status, errorText)
+        } else {
+          console.log('[confirm-campaign-payment] Naver Works notification sent successfully')
+        }
+      }
     } catch (notifError) {
       console.error('[confirm-campaign-payment] Failed to send Naver Works notification:', notifError)
     }
