@@ -178,7 +178,8 @@ exports.handler = async (event, context) => {
     const campaignUpdateData = {
       status: 'active',  // 입금 확인 후 즉시 active 상태로 변경
       approval_status: 'pending_approval',  // 승인 대기 상태로 변경
-      payment_status: 'confirmed',  // 입금 확인 상태로 변경
+      payment_status: 'confirmed',  // 입금 확인 상킬로 변경
+      progress_status: 'pending_approval',  // 진행 상태도 승인 대기로 변경
       payment_confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }

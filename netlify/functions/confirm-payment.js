@@ -221,6 +221,7 @@ exports.handler = async (event, context) => {
           status: 'active',  // 입금 확인 후 active 상태로 변경
           approval_status: 'pending_approval',  // 승인 대기 상태로 변경
           payment_status: 'confirmed',  // 입금 확인 상태로 변경
+          progress_status: 'pending_approval',  // 진행 상태도 승인 대기로 변경
           updated_at: new Date().toISOString()
         })
         .eq('id', campaign.id)
