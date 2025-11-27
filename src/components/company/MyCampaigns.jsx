@@ -635,7 +635,7 @@ export default function MyCampaigns() {
                           matchesStatus = campaign.approval_status === 'pending_payment'
                           break
                         case 'pending':
-                          matchesStatus = campaign.approval_status === 'pending'
+                          matchesStatus = campaign.approval_status === 'pending' || campaign.approval_status === 'pending_approval'
                           break
                         case 'recruiting':
                           matchesStatus = campaign.approval_status === 'approved' && campaign.status !== 'completed'
