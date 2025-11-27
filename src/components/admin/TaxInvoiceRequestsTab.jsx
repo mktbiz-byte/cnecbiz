@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign } from 'lucide-react';
+import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign, X } from 'lucide-react';
 
 const TaxInvoiceRequestsTab = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // all, pending, issued, prepaid
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isIssuing, setIsIssuing] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -32,19 +35,32 @@ const TaxInvoiceRequestsTab = () => {
     }
   };
 
-  const handleIssueInvoice = async (request) => {
-    if (!confirm(`${request.companies.company_name}의 세금계산서를 발행하시겠습니까?${!request.is_deposit_confirmed ? '\n\n⚠️ 입금이 확인되지 않았습니다. 선발행 시 미수금으로 처리됩니다.' : ''}`)) {
+  const openModal = (request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRequest(null);
+  };
+
+  const handleIssueInvoice = async () => {
+    if (!selectedRequest) return;
+
+    if (!confirm(`${selectedRequest.companies.company_name}의 세금계산서를 팝빌로 발행하시겠습니까?${!selectedRequest.is_deposit_confirmed ? '\n\n⚠️ 입금이 확인되지 않았습니다. 선발행 시 미수금으로 처리됩니다.' : ''}`)) {
       return;
     }
 
+    setIsIssuing(true);
     try {
       // 팝빌 세금계산서 발행 API 호출
       const response = await fetch('/.netlify/functions/issue-tax-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          taxInvoiceRequestId: request.id,
-          forceIssue: !request.is_deposit_confirmed
+          taxInvoiceRequestId: selectedRequest.id,
+          forceIssue: !selectedRequest.is_deposit_confirmed
         })
       });
 
@@ -54,11 +70,14 @@ const TaxInvoiceRequestsTab = () => {
         throw new Error(result.error || '발행 실패');
       }
 
-      alert('세금계산서가 발행되었습니다.');
+      alert('세금계산서가 팝빌로 발행되었습니다.');
+      closeModal();
       fetchRequests();
     } catch (error) {
       console.error('세금계산서 발행 오류:', error);
       alert(`세금계산서 발행에 실패했습니다: ${error.message}`);
+    } finally {
+      setIsIssuing(false);
     }
   };
 
@@ -274,15 +293,13 @@ const TaxInvoiceRequestsTab = () => {
                         ? new Date(request.issued_at).toLocaleString('ko-KR')
                         : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {request.status === 'pending' && (
-                        <button
-                          onClick={() => handleIssueInvoice(request)}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          발행하기
-                        </button>
-                      )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => openModal(request)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        상세보기
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -291,6 +308,167 @@ const TaxInvoiceRequestsTab = () => {
           </table>
         </div>
       </div>
+
+      {/* 세금계산서 상세 모달 */}
+      {isModalOpen && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">세금계산서 상세 정보</h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className="p-6 space-y-6">
+              {/* 기본 정보 */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">기본 정보</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">신청일시</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {new Date(selectedRequest.created_at).toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">금액</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {selectedRequest.amount.toLocaleString()}원
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">입금 확인</p>
+                    <p className="text-sm font-medium">
+                      {selectedRequest.is_deposit_confirmed ? (
+                        <span className="text-green-600">✓ 확인됨</span>
+                      ) : (
+                        <span className="text-gray-600">✗ 미확인</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">상태</p>
+                    <p className="text-sm font-medium">
+                      {selectedRequest.status === 'issued' ? (
+                        <span className="text-green-600">발행 완료</span>
+                      ) : (
+                        <span className="text-orange-600">발행 대기</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 세금계산서 정보 */}
+              {selectedRequest.tax_invoice_info && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">세금계산서 정보</h3>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">회사명</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.company_name || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">사업자등록번호</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.business_number || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">대표자명</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.representative || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">연락처</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.contact || '-'}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-600">이메일</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.email || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">업태</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.business_type || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">업종</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.business_category || '-'}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-600">주소</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {selectedRequest.tax_invoice_info.address || '-'}
+                        </p>
+                      </div>
+                      {selectedRequest.tax_invoice_info.memo && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-600">메모</p>
+                          <p className="text-sm font-medium text-gray-900">
+                            {selectedRequest.tax_invoice_info.memo}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 경고 메시지 */}
+              {!selectedRequest.is_deposit_confirmed && selectedRequest.status === 'pending' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <h4 className="text-sm font-medium text-yellow-800">입금 미확인</h4>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        입금이 확인되지 않았습니다. 발행 시 선발행(미수금)으로 처리됩니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                닫기
+              </button>
+              {selectedRequest.status === 'pending' && (
+                <button
+                  onClick={handleIssueInvoice}
+                  disabled={isIssuing}
+                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isIssuing ? '발행 중...' : '발행하기 (팝빌)'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
