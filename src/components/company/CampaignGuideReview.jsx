@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseKorea'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { ArrowLeft, Edit, CheckCircle, Sparkles, Loader2, Save, X } from 'lucide-react'
+import { ArrowLeft, Edit, CheckCircle, Sparkles, Loader2, Save, X, AlertCircle } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 export default function CampaignGuideReview() {
@@ -638,6 +638,15 @@ JSON 형식으로만 응답해주세요.`
               </div>
             </div>
 
+            {/* 경고 메시지 - 항상 표시 */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-800">
+                <p className="font-semibold mb-1">⚠️ 원하시는 스타일의 컴셉을 꼭 확인해 주세요.</p>
+                <p>체크박스를 통해 원하지 않는 컴셉을 선택 해제할 수 있습니다.</p>
+              </div>
+            </div>
+
             {/* 제품 소개 */}
             {activeTab === 'product_intro' && (
             <Card>
@@ -811,15 +820,6 @@ JSON 형식으로만 응답해주세요.`
 
             {/* 추천 촬영 팁 */}
             {activeTab === 'filming_tips' && (
-            <>
-            {/* 경고 메시지 */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-yellow-800">
-                <p className="font-semibold mb-1">⚠️ 원하시는 스타일의 컨셉을 꼭 확인해 주세요.</p>
-                <p>체크박스를 통해 원하지 않는 컨셉을 선택 해제할 수 있습니다.</p>
-              </div>
-            </div>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">추천 촬영 팁</CardTitle>
@@ -865,7 +865,6 @@ JSON 형식으로만 응답해주세요.`
                 )}
               </CardContent>
             </Card>
-            </>
             )}
 
             {/* 주의사항 */}
