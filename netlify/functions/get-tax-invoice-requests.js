@@ -44,10 +44,7 @@ exports.handler = async (event, context) => {
         tax_invoice_info,
         created_at,
         confirmed_at,
-        companies (
-          company_name,
-          email
-        )
+        is_credit
       `)
       .eq('needs_tax_invoice', true)
       .order('created_at', { ascending: false });
@@ -70,6 +67,23 @@ exports.handler = async (event, context) => {
       throw error;
     }
 
+    // company_id 목록 추출
+    const companyIds = [...new Set(chargeRequests.map(req => req.company_id))];
+    
+    // companies 테이블에서 회사 정보 조회
+    const { data: companies, error: companiesError } = await supabaseAdmin
+      .from('companies')
+      .select('id, company_name, email')
+      .in('id', companyIds);
+    
+    if (companiesError) {
+      console.error('❌ 회사 정보 조회 실패:', companiesError);
+      throw companiesError;
+    }
+    
+    // company_id로 매핑하기 위한 Map 생성
+    const companyMap = new Map(companies.map(c => [c.id, c]));
+
     // 데이터 변환 (TaxInvoiceRequestsTab에서 기대하는 형식으로)
     const requests = chargeRequests.map(req => ({
       id: req.id,
@@ -79,7 +93,7 @@ exports.handler = async (event, context) => {
       is_prepaid: req.is_credit || false,
       created_at: req.created_at,
       issued_at: req.confirmed_at,
-      companies: req.companies,
+      companies: companyMap.get(req.company_id) || { company_name: '알 수 없음', email: '' },
       tax_invoice_info: req.tax_invoice_info
     }));
 
