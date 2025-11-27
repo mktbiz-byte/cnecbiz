@@ -24,8 +24,12 @@ exports.handler = async (event) => {
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
     const senderName = process.env.GMAIL_SENDER_NAME || 'CNECBIZ';
 
+    console.log('[send-email] Gmail Email:', gmailEmail);
+    console.log('[send-email] Password exists:', !!gmailAppPassword);
+    console.log('[send-email] Password length:', gmailAppPassword ? gmailAppPassword.length : 0);
+
     if (!gmailAppPassword) {
-      console.error('GMAIL_APP_PASSWORD 환경변수가 설정되지 않았습니다.');
+      console.error('[send-email] GMAIL_APP_PASSWORD 환경변수가 설정되지 않았습니다.');
       return {
         statusCode: 500,
         body: JSON.stringify({
@@ -35,12 +39,16 @@ exports.handler = async (event) => {
       };
     }
 
+    // 공백 제거 및 정리
+    const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '');
+    console.log('[send-email] Clean password length:', cleanPassword.length);
+
     // Gmail SMTP 설정
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: gmailEmail,
-        pass: gmailAppPassword.replace(/\s/g, '') // 공백 제거
+        pass: cleanPassword
       }
     });
 
