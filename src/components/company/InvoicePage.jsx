@@ -250,6 +250,16 @@ const InvoicePage = () => {
 
       if (chargeError) throw chargeError
 
+      // 캐페인 상태를 'pending_payment'로 변경
+      const { error: updateError } = await supabaseClient
+        .from('campaigns')
+        .update({ status: 'pending_payment' })
+        .eq('id', id)
+
+      if (updateError) {
+        console.error('[ERROR] Failed to update campaign status:', updateError)
+      }
+
       // 3. 알림 발송 (카카오톡, 이메일, 네이버 웍스)
       try {
         const companyName = company.company_name || ''
