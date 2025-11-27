@@ -47,6 +47,7 @@ exports.handler = async (event, context) => {
         is_credit
       `)
       .eq('needs_tax_invoice', true)
+      .not('related_campaign_id', 'is', null)  // 캐페인 결제 요청만 (포인트 충전 제외)
       .order('created_at', { ascending: false });
 
     // 필터 적용 (status 기반)
