@@ -103,13 +103,13 @@ export default function OliveYoungInvoice() {
 
     setSubmitting(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) throw new Error('로그인이 필요합니다.')
 
       const totalCost = calculateTotalCost()
 
       // 결제 요청 생성 (related_campaign_id를 통해 입금 확인 시 자동 승인)
-      const { error: chargeError } = await supabase
+      const { error: chargeError } = await supabaseBiz
         .from('points_charge_requests')
         .insert({
           company_id: user.id,
