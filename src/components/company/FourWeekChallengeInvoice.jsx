@@ -19,6 +19,18 @@ export default function FourWeekChallengeInvoice() {
   const [depositorName, setDepositorName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [company, setCompany] = useState(null)
+  
+  // 세금계산서 정보
+  const [needsTaxInvoice, setNeedsTaxInvoice] = useState(false)
+  const [companyName, setCompanyName] = useState('')
+  const [businessNumber, setBusinessNumber] = useState('')
+  const [representativeName, setRepresentativeName] = useState('')
+  const [contact, setContact] = useState('')
+  const [email, setEmail] = useState('')
+  const [businessType, setBusinessType] = useState('')
+  const [businessCategory, setBusinessCategory] = useState('')
+  const [companyAddress, setCompanyAddress] = useState('')
+  const [memo, setMemo] = useState('')
 
   useEffect(() => {
     loadCampaignData()
@@ -46,6 +58,15 @@ export default function FourWeekChallengeInvoice() {
         if (companyData) {
           setCompany(companyData)
           setDepositorName(companyData.company_name || '')
+          // 프로필 정보로 세금계산서 필드 자동 채우기
+          setCompanyName(companyData.company_name || '')
+          setBusinessNumber(companyData.business_registration_number || '')
+          setRepresentativeName(companyData.ceo_name || '')
+          setContact(companyData.phone || '')
+          setEmail(companyData.tax_invoice_email || companyData.email || '')
+          setBusinessType(companyData.business_type || '')
+          setBusinessCategory(companyData.business_category || '')
+          setCompanyAddress(companyData.company_address || '')
         }
       }
 
@@ -831,6 +852,151 @@ ${!week4Empty ? `**4주차 초안**
                 ⚠️ 입금자명은 입금 확인에 사용되므로 정확히 입력해주세요.
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* 세금계산서 정보 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>세금계산서 정보 (선택사항)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={needsTaxInvoice}
+                  onChange={(e) => setNeedsTaxInvoice(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">세금계산서 발행 필요</span>
+              </label>
+              <p className="text-sm text-gray-600 mt-2">세금계산서 발행을 원하시는 경우 체크하고 아래 정보를 입력해주세요.</p>
+            </div>
+
+            {needsTaxInvoice && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      회사명 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="(주)에이블씨앤씨"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      사업자등록번호
+                    </label>
+                    <input
+                      type="text"
+                      value={businessNumber}
+                      onChange={(e) => setBusinessNumber(e.target.value)}
+                      placeholder="123-45-67890"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      대표자명
+                    </label>
+                    <input
+                      type="text"
+                      value={representativeName}
+                      onChange={(e) => setRepresentativeName(e.target.value)}
+                      placeholder="홍길동"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      연락처 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                      placeholder="010-1234-5678"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    세금계산서 받으실 메일 주소 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="company@example.com"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      업태
+                    </label>
+                    <input
+                      type="text"
+                      value={businessType}
+                      onChange={(e) => setBusinessType(e.target.value)}
+                      placeholder="예: 제조업, 도소매업, 서비스업"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      종목
+                    </label>
+                    <input
+                      type="text"
+                      value={businessCategory}
+                      onChange={(e) => setBusinessCategory(e.target.value)}
+                      placeholder="예: 광고대행, 컴퓨터판매, 건설업"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    주소
+                  </label>
+                  <input
+                    type="text"
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
+                    placeholder="서울시 강남구..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    메모 (선택사항)
+                  </label>
+                  <textarea
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    placeholder="추가 요청사항이 있으시면 입력해주세요"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

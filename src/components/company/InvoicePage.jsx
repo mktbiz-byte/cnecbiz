@@ -120,6 +120,17 @@ const InvoicePage = () => {
         console.error('회사 정보 로드 실패:', companyError)
       } else {
         setCompany(companyData)
+        // 프로필 정보로 세금계산서 필드 자동 채우기
+        if (companyData) {
+          setCompanyName(companyData.company_name || '')
+          setBusinessNumber(companyData.business_registration_number || '')
+          setRepresentativeName(companyData.ceo_name || '')
+          setContact(companyData.phone || '')
+          setEmail(companyData.tax_invoice_email || companyData.email || '')
+          setBusinessType(companyData.business_type || '')
+          setBusinessCategory(companyData.business_category || '')
+          setCompanyAddress(companyData.company_address || '')
+        }
       }
 
       // 입금 계좌 정보 로드 (Biz DB) - 항상 korea 계좌 사용
