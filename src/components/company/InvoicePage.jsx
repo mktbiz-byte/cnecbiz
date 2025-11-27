@@ -251,7 +251,8 @@ const InvoicePage = () => {
       if (chargeError) throw chargeError
 
       // 캐페인 상태를 'pending_payment'로 변경
-      const { error: updateError } = await supabaseClient
+      const regionClient = getSupabaseClient(region)
+      const { error: updateError } = await regionClient
         .from('campaigns')
         .update({ 
           status: 'pending_payment',
