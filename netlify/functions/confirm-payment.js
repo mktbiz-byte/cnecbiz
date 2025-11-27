@@ -261,7 +261,8 @@ exports.handler = async (event, context) => {
           const startDate = campaign.start_date ? new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '미정'
           const endDate = campaign.end_date ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '미정'
           
-          await fetch('/.netlify/functions/send-kakao-notification', {
+          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -289,7 +290,8 @@ exports.handler = async (event, context) => {
           const startDate = campaign.start_date ? new Date(campaign.start_date).toLocaleDateString('ko-KR') : '미정'
           const endDate = campaign.end_date ? new Date(campaign.end_date).toLocaleDateString('ko-KR') : '미정'
           
-          await fetch('/.netlify/functions/send-email', {
+          const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+          await fetch(`${baseUrl}/.netlify/functions/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
