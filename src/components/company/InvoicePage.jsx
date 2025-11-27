@@ -296,16 +296,16 @@ const InvoicePage = () => {
               campaign.campaign_type === '4week' ? '4주 챌린지' :
               '기획형'
             
-            const naverMessage = `🔔 새로운 캠페인 승인 요청 (${region === 'japan' ? '일본' : '한국'})\n\n` +
+            const naverMessage = `🔔 새로운 입금 확인 요청 (${region === 'japan' ? '일본' : '한국'})\n\n` +
               `캠페인명: ${campaign.title}\n` +
               `기업명: ${companyName}\n` +
               `캠페인 타입: ${campaignTypeText}\n` +
-              `결제 금액: ${totalCost.toLocaleString()}원 (입금)\n` +
+              `결제 금액: ${totalCost.toLocaleString()}원 (계좌입금)\n` +
               `세금계산서: ${needsTaxInvoice ? '신청' : '미신청'}\n` +
               `입금자명: ${depositorName}\n` +
               `신청 시간: ${koreanDate}\n\n` +
-              `승인 페이지: https://cnectotal.netlify.app/admin/approvals\n` +
-              `입금 확인: https://cnectotal.netlify.app/admin/deposits`
+              `⚠️ **입금 확인이 지연될 경우 빠른 확인을 부탁드립니다!**\n\n` +
+              `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`
 
             await fetch('/.netlify/functions/send-naver-works-message', {
               method: 'POST',

@@ -256,12 +256,15 @@ export default function MyCampaigns() {
           campaign.campaign_type === '4week' ? '4주 챌린지' :
           '기획형'
         
-        const message = `🔔 새로운 캠페인 승인 요청\n\n` +
+        const regionText = campaign.region === 'japan' ? '일본' : '한국'
+        const message = `🔔 새로운 캠페인 승인 요청 (${regionText})\n\n` +
           `캠페인명: ${campaign.title}\n` +
           `기업명: ${companyData.company_name || company?.company_name || ''}\n` +
           `캠페인 타입: ${campaignTypeText}\n` +
-          `결제 금액: ${totalCost.toLocaleString()}원 (포인트)\n` +
-          `신청 시간: ${new Date().toLocaleString('ko-KR')}\n\n` +
+          `결제 방법: 포인트 차감\n` +
+          `결제 금액: ${totalCost.toLocaleString()}원\n` +
+          `신청 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n\n` +
+          `⚠️ 포인트 차감이 완료되었습니다. 빠른 승인을 부탁드립니다.\n\n` +
           `승인 페이지: https://cnectotal.netlify.app/admin/approvals`
         
         await fetch('/.netlify/functions/send-naver-works-message', {

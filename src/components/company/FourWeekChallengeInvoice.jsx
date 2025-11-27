@@ -15,17 +15,11 @@ export default function FourWeekChallengeInvoice() {
   const [paymentMethod, setPaymentMethod] = useState(null) // 'card' or 'bank_transfer'
   const [showPaymentForm, setShowPaymentForm] = useState(false)
 
-  // 패키지 가격 매핑
-  const fourWeekPackageOptions = {
-    'standard': 400000,
-    'premium': 500000,
-    'professional': 600000
-  }
-
-  // 패키지 단가 계산
+  // 패키지 단가 계산 (estimated_cost 사용)
   const getPackagePrice = () => {
-    if (!campaign) return 0
-    return fourWeekPackageOptions[campaign.package_type] || 0
+    if (!campaign || !campaign.estimated_cost || !campaign.total_slots) return 0
+    // estimated_cost는 총 비용이므로 크리에이터 수로 나눔
+    return Math.floor(campaign.estimated_cost / campaign.total_slots)
   }
 
   const [depositorName, setDepositorName] = useState('')
@@ -201,15 +195,16 @@ export default function FourWeekChallengeInvoice() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: `🔔 **새로운 캠페인 승인 요청 (한국)**\n\n` +
+            message: `🔔 **새로운 입금 확인 요청 (한국)**\n\n` +
                      `**캠페인명:** ${campaign.title}\n` +
                      `**기업명:** ${company?.company_name || '미상'}\n` +
                      `**캠페인 타입:** 4주 챌린지\n` +
                      `**크리에이터 수:** ${campaign.total_slots || 0}명\n` +
-                     `**결제 금액:** ${totalCost.toLocaleString()}원 (입금)\n` +
+                     `**결제 금액:** ${totalCost.toLocaleString()}원 (계좌입금)\n` +
                      `**세금계산서:** ${needsTaxInvoice ? '신청' : '미신청'}\n` +
                      `**입금자명:** ${depositorName}\n` +
                      `**신청 시간:** ${formattedDate}\n\n` +
+                     `⚠️ **입금 확인이 지연될 경우 빠른 확인을 부탁드립니다!**\n\n` +
                      `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`,
             isAdminNotification: true
           })

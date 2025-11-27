@@ -4,8 +4,9 @@ import { supabase } from '../../lib/supabaseKorea'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { ArrowLeft, CheckCircle, Loader2, CreditCard, Wallet } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, CreditCard, Wallet, Mail, FileText } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
+import { generateInvoicePDF, getPDFBase64 } from '../../utils/pdfGenerator'
 
 export default function OliveYoungInvoice() {
   const navigate = useNavigate()
@@ -43,6 +44,7 @@ export default function OliveYoungInvoice() {
   const [businessCategory, setBusinessCategory] = useState('')
   const [companyAddress, setCompanyAddress] = useState('')
   const [memo, setMemo] = useState('')
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   useEffect(() => {
     loadCampaignData()
@@ -201,15 +203,16 @@ export default function OliveYoungInvoice() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: `🔔 **새로운 캠페인 승인 요청 (한국)**\n\n` +
+            message: `🔔 **새로운 입금 확인 요청 (한국)**\n\n` +
                      `**캠페인명:** ${campaign.title}\n` +
                      `**기업명:** ${company?.company_name || '미상'}\n` +
                      `**캠페인 타입:** 올리브영\n` +
                      `**크리에이터 수:** ${campaign.total_slots || 0}명\n` +
-                     `**결제 금액:** ${totalCost.toLocaleString()}원 (입금)\n` +
+                     `**결제 금액:** ${totalCost.toLocaleString()}원 (계좌입금)\n` +
                      `**세금계산서:** ${needsTaxInvoice ? '신청' : '미신청'}\n` +
                      `**입금자명:** ${depositorName}\n` +
                      `**신청 시간:** ${formattedDate}\n\n` +
+                     `⚠️ **입금 확인이 지연될 경우 빠른 확인을 부탁드립니다!**\n\n` +
                      `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`,
             isAdminNotification: true
           })
