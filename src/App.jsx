@@ -144,7 +144,7 @@ function App() {
         <Route path="/company/translator" element={<Translator />} />
         <Route path="/company/contracts" element={<ContractManagement />} />
         <Route path="/company/teams" element={<TeamManagement />} />
-        <Route path="/company/points/charge" element={<PointsChargePage />} />
+        {/* <Route path="/company/points/charge" element={<PointsChargePage />} /> */} {/* 포인트 시스템 제거로 비활성화 */}
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
