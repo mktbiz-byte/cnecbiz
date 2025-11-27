@@ -545,73 +545,9 @@ const CampaignCreationKorea = () => {
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
-        // 포인트 차감 로직 (supabaseBiz에서 사용자 확인)
-        const { data: { user } } = await supabaseBiz.auth.getUser()
-        if (!user) throw new Error('로그인이 필요합니다')
-
-        const finalCost = campaignForm.estimated_cost
-
-        // 현재 포인트 조회 (supabaseBiz에서)
-        const { data: companyData, error: companyError } = await supabaseBiz
-          .from('companies')
-          .select('points_balance')
-          .eq('user_id', user.id)
-          .single()
-
-        if (companyError) {
-          console.error('[CreateCampaign] Company fetch error:', companyError)
-          throw companyError
-        }
-
-        const currentPoints = companyData?.points_balance || 0
-        const neededPoints = finalCost
-
-        console.log('[CreateCampaign] Points check:', { currentPoints, neededPoints })
-
-        // 포인트 부족 시 charge request 생성
-        if (currentPoints < neededPoints) {
-          console.log('[CreateCampaign] Insufficient points, creating charge request')
-          
-          const { data: quoteData, error: quoteError } = await supabaseBiz
-            .from('points_charge_requests')
-            .insert({
-              company_id: user.id,
-              amount: finalCost,
-              original_amount: finalCost,
-              discount_rate: 0,
-              payment_method: 'bank_transfer',
-              status: 'pending',
-              bank_transfer_info: {
-                campaign_id: campaignId,
-                campaign_title: autoTitle,
-                campaign_cost: finalCost,
-                current_points: currentPoints,
-                needed_points: neededPoints,
-                reason: 'campaign_creation'
-              }
-            })
-            .select()
-            .single()
-
-          if (quoteError) {
-            console.error('[CreateCampaign] Charge request error:', quoteError)
-            throw quoteError
-          }
-
-          // 캐페인 상태를 'pending_payment'로 변경
-          const { error: updateError } = await supabaseKorea
-            .from('campaigns')
-            .update({ 
-              status: 'pending_payment',
-              approval_status: 'pending_payment'
-            })
-            .eq('id', campaignId)
-
-          if (updateError) {
-            console.error('[CreateCampaign] Campaign status update error:', updateError)
-          }
-
-          setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
+        // 포인트 시스템 제거: 모든 결제는 계좌이체로 진행
+        // 입금 확인 요청은 InvoicePage에서 세금계산서 신청 시에만 생성
+        setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
           // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
           setTimeout(() => {
