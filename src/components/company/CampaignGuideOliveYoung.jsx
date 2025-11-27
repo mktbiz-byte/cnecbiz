@@ -380,16 +380,24 @@ ${step3Guide}
             <p className="text-sm text-gray-600 mb-3">
               세일 당일 스토리 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.
             </p>
-            <p className="text-xs text-pink-600 mb-3">
-              ℹ️ 본 영상은 STEP 2의 영상이 업로드 + URL이 삽입됩니다
-            </p>
-            <textarea
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-sm font-semibold text-blue-800 mb-2">⚠️ 중요: STEP 2의 영상이 링크로 + URL이 삽입됩니다</p>
+              <p className="text-xs text-blue-700">스토리에 넣을 URL을 공유해주세요</p>
+            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              스토리 URL <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="url"
               value={step3Guide}
               onChange={(e) => setStep3Guide(e.target.value)}
-              placeholder="예:&#10;[콘텐츠 개요]&#10;- 인스타그램 스토리 형식&#10;- STEP 2 영상 링크 공유&#10;- 세일 당일 긴급 알림 느낌&#10;&#10;[필수 포함 요소]&#10;- STEP 2 영상 썸네일 또는 링크&#10;- '오늘만' '지금 바로' 등 긴박감 텍스트&#10;- 올리브영 앱 링크 또는 QR 코드&#10;- 할인 종료 시간 카운트다운 (선택)&#10;&#10;[필수 대사/텍스트]&#10;- '오늘이 마지막 날!'&#10;- '지금 바로 올리브영 가세요'&#10;- '이 영상 보고 바로 구매했어요' (STEP 2 링크)&#10;- '세일 놓치지 마세요 🔥'"
-              className="w-full h-64 p-3 border rounded-lg resize-none"
+              placeholder="https://www.oliveyoung.co.kr/store/..."
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
               required
             />
+            <p className="text-xs text-gray-500 mt-2">
+              예시: https://www.oliveyoung.co.kr/store/goods/getSaleGoodsList.do
+            </p>
           </div>
 
           {/* 업로드 스케줄 체크리스트 */}
