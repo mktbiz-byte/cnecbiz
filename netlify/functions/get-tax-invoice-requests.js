@@ -44,7 +44,8 @@ exports.handler = async (event, context) => {
         tax_invoice_info,
         created_at,
         confirmed_at,
-        is_credit
+        is_credit,
+        tax_invoice_issued
       `)
       .eq('needs_tax_invoice', true)
       .not('related_campaign_id', 'is', null)  // 캐페인 결제 요청만 (포인트 충전 제외)
@@ -89,7 +90,7 @@ exports.handler = async (event, context) => {
     const requests = chargeRequests.map(req => ({
       id: req.id,
       amount: req.amount,
-      status: req.status === 'completed' ? 'issued' : 'pending',
+      status: req.tax_invoice_issued ? 'issued' : 'pending',  // tax_invoice_issued 필드 사용
       is_deposit_confirmed: req.status === 'completed' || req.status === 'confirmed',
       is_prepaid: req.is_credit || false,
       created_at: req.created_at,
