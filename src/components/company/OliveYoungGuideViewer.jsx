@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseKorea'
 import { Button } from '../ui/button'
-import { ArrowLeft, Calendar, ExternalLink, CreditCard } from 'lucide-react'
+import { ArrowLeft, Calendar, ExternalLink, CreditCard, Edit, Save, X } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 export default function OliveYoungGuideViewer() {
@@ -10,6 +10,9 @@ export default function OliveYoungGuideViewer() {
   const { id } = useParams()
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [editingStep, setEditingStep] = useState(null)
+  const [editValue, setEditValue] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadCampaign()
@@ -35,6 +38,51 @@ export default function OliveYoungGuideViewer() {
 
   const handleProceedToPayment = () => {
     navigate(`/company/campaigns/${id}/invoice/oliveyoung`)
+  }
+
+  const handleEdit = (step) => {
+    setEditingStep(step)
+    const fieldName = `oliveyoung_step${step}_guide_ai`
+    const value = campaign[fieldName] || campaign[`oliveyoung_step${step}_guide`] || ''
+    // Remove "STEP X:" prefix if exists
+    const cleanValue = value.replace(/^STEP\s*\d+\s*:\s*/i, '')
+    setEditValue(cleanValue)
+  }
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      const fieldName = `oliveyoung_step${editingStep}_guide_ai`
+      
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ [fieldName]: editValue })
+        .eq('id', id)
+
+      if (error) throw error
+
+      // Update local state
+      setCampaign({ ...campaign, [fieldName]: editValue })
+      setEditingStep(null)
+      alert('수정이 저장되었습니다!')
+    } catch (error) {
+      console.error('Error saving:', error)
+      alert('저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setEditingStep(null)
+    setEditValue('')
+  }
+
+  // Helper function to clean guide text
+  const cleanGuideText = (text) => {
+    if (!text) return ''
+    // Remove "STEP X:" prefix
+    return text.replace(/^STEP\s*\d+\s*:\s*/i, '').trim()
   }
 
   if (loading) {
@@ -156,10 +204,50 @@ export default function OliveYoungGuideViewer() {
                   {new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}
                 </div>
               )}
+              {editingStep !== 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEdit(1)}
+                  className="ml-2"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              )}
             </div>
-            <p className="text-gray-700 text-sm pl-3">
-              {campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || '제품 리뷰 영상을 제작해주세요.'}
-            </p>
+            {editingStep === 1 ? (
+              <div className="pl-3 space-y-2">
+                <textarea
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-sm min-h-[100px]"
+                  placeholder="STEP 1 가이드를 입력하세요"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <Save className="w-4 h-4 mr-1" />
+                    {saving ? '저장 중...' : '저장'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    취소
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-700 text-sm pl-3 whitespace-pre-wrap">
+                {cleanGuideText(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || '제품 리뷰 영상을 제작해주세요.')}
+              </p>
+            )}
           </div>
 
           {/* STEP 2 */}
@@ -175,14 +263,54 @@ export default function OliveYoungGuideViewer() {
                   {new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}
                 </div>
               )}
+              {editingStep !== 2 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEdit(2)}
+                  className="ml-2"
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              )}
             </div>
-            <p className="text-gray-700 text-sm pl-3">
-              {campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || '세일 홍보 영상을 제작해주세요.'}
-            </p>
+            {editingStep === 2 ? (
+              <div className="pl-3 space-y-2">
+                <textarea
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-sm min-h-[100px]"
+                  placeholder="STEP 2 가이드를 입력하세요"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <Save className="w-4 h-4 mr-1" />
+                    {saving ? '저장 중...' : '저장'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={saving}
+                    size="sm"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    취소
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-700 text-sm pl-3 whitespace-pre-wrap">
+                {cleanGuideText(campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || '세일 홍보 영상을 제작해주세요.')}
+              </p>
+            )}
           </div>
 
           {/* STEP 3 */}
-          {hasInstagram && campaign.oliveyoung_step3_guide && (
+          {hasInstagram && (
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-sm font-semibold">
@@ -195,21 +323,70 @@ export default function OliveYoungGuideViewer() {
                     {new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}
                   </div>
                 )}
+                {editingStep !== 3 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(3)}
+                    className="ml-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 pl-3 ml-3">
-                <p className="text-sm text-yellow-800 mb-2">
-                  ℹ️ STEP 2 영상에 아래 URL을 추가하여 인스타그램 스토리에 업로드해주세요.
-                </p>
-                <a
-                  href={campaign.oliveyoung_step3_guide}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  {campaign.oliveyoung_step3_guide}
-                </a>
-              </div>
+              {editingStep === 3 ? (
+                <div className="pl-3 space-y-2">
+                  <textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg text-sm min-h-[100px]"
+                    placeholder="STEP 3 가이드를 입력하세요"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving}
+                      size="sm"
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      {saving ? '저장 중...' : '저장'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancel}
+                      disabled={saving}
+                      size="sm"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      취소
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {(campaign.oliveyoung_step3_guide_ai || campaign.oliveyoung_step3_guide_text) && (
+                    <p className="text-gray-700 text-sm pl-3 mb-3 whitespace-pre-wrap">
+                      {cleanGuideText(campaign.oliveyoung_step3_guide_ai || campaign.oliveyoung_step3_guide_text || '')}
+                    </p>
+                  )}
+                  {campaign.oliveyoung_step3_guide && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 pl-3 ml-3">
+                      <p className="text-sm text-yellow-800 mb-2">
+                        ℹ️ STEP 2 영상에 아래 URL을 추가하여 인스타그램 스토리에 업로드해주세요.
+                      </p>
+                      <a
+                        href={campaign.oliveyoung_step3_guide}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        {campaign.oliveyoung_step3_guide}
+                      </a>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
