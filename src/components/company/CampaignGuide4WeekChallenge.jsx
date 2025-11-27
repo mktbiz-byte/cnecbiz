@@ -221,22 +221,29 @@ export default function CampaignGuide4WeekChallenge() {
 
       if (saveError) throw saveError
 
-      // AI로 가이드 가공
+      // AI로 가이드 가공 (최적화: 한 번의 호출로 4주차 모두 생성)
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY
       if (!apiKey) {
         throw new Error('Gemini API 키가 설정되지 않았습니다.')
       }
 
-      // 주차별 가이드 생성
-      const weeklyGuidesAI = {}
-      
+      // 4주차 데이터 수집
+      const weeksData = []
       for (let weekNum = 1; weekNum <= 4; weekNum++) {
         const weekKey = `week${weekNum}`
         const weekData = guideData[weekKey]
-        
-        // 해당 주차 데이터가 있을 때만 AI 가공
-        if (weekData.mission || weekData.required_dialogue || weekData.required_scenes) {
-          const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 ${weekNum}주차 가이드를 전문적으로 가공해주세요.
+        weeksData.push({
+          weekNum,
+          weekKey,
+          mission: weekData.mission || '',
+          required_dialogue: weekData.required_dialogue || '',
+          required_scenes: weekData.required_scenes || '',
+          reference_url: weekData.reference_url || ''
+        })
+      }
+
+      // 한 번의 AI 호출로 4주차 모두 처리
+      const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다. 다음 4주차 가이드를 전문적으로 가공해주세요.
 
 **제품 정보**
 - 브랜드: ${guideData.brand}
@@ -244,132 +251,110 @@ export default function CampaignGuide4WeekChallenge() {
 - 제품 특징: ${guideData.product_features}
 - 주의사항: ${guideData.precautions}
 
-**${weekNum}주차 가이드 초안**
-- 미션: ${weekData.mission}
-- 필수 대사: ${weekData.required_dialogue}
-- 필수 촬영 장면: ${weekData.required_scenes}
+**4주차 가이드 초안**
+${weeksData.map(w => `
+${w.weekNum}주차:
+- 미션: ${w.mission}
+- 필수 대사: ${w.required_dialogue}
+- 필수 촬영 장면: ${w.required_scenes}
+`).join('')}
 
-위 초안을 바탕으로 크리에이터가 실제로 사용할 수 있는 구체적이고 전문적인 가이드를 작성해주세요.
-- 미션의 목적과 핵심 메시지를 명확히 전달
-- 구체적인 촬영 방법과 예시 포함
-- 크리에이터가 바로 실행할 수 있도록 단계별 액션 아이템 제시
+각 주차별로:
+1. 상세 가이드: 크리에이터가 실제로 사용할 수 있는 구체적이고 전문적인 가이드
+2. 간단한 가이드: 2-3문장 이내로 간단하고 명확하게 ("해당 미션에 맞게 촬영 필수" 포함)
 
 **응답 형식 (JSON):**
 {
-  "mission_enhanced": "미션 설명 (전문적으로 가공된 버전)",
-  "required_dialogue_enhanced": "필수 대사 (구체적이고 자연스러운 대사 예시)",
-  "required_scenes_enhanced": "필수 촬영 장면 (구체적인 촬영 방법과 예시)"
+  "week1": {
+    "mission_enhanced": "상세 미션 설명",
+    "required_dialogue_enhanced": "상세 필수 대사",
+    "required_scenes_enhanced": "상세 필수 촬영 장면",
+    "simple_guide": "간단한 가이드 (2-3문장)"
+  },
+  "week2": { ... },
+  "week3": { ... },
+  "week4": { ... }
 }
 
 JSON 형식으로 작성해주세요.`
 
-          try {
-            const response = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{
-                    parts: [{ text: prompt }]
-                  }]
-                })
-              }
-            )
+      let weeklyGuidesAI = {}
+      let simpleGuidesAI = {}
 
-            if (response.ok) {
-              const result = await response.json()
-              const generatedText = result.candidates[0].content.parts[0].text
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: prompt }]
+              }]
+            })
+          }
+        )
+
+        if (response.ok) {
+          const result = await response.json()
+          const generatedText = result.candidates[0].content.parts[0].text
+          
+          try {
+            const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0])
               
-              try {
-                const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
-                if (jsonMatch) {
-                  const parsed = JSON.parse(jsonMatch[0])
+              // 결과 파싱
+              for (let weekNum = 1; weekNum <= 4; weekNum++) {
+                const weekKey = `week${weekNum}`
+                const weekData = guideData[weekKey]
+                const aiData = parsed[weekKey]
+                
+                if (aiData) {
+                  // 상세 가이드
                   weeklyGuidesAI[weekKey] = {
-                    mission: parsed.mission_enhanced || weekData.mission,
-                    required_dialogue: parsed.required_dialogue_enhanced || weekData.required_dialogue,
-                    required_scenes: parsed.required_scenes_enhanced || weekData.required_scenes,
+                    mission: aiData.mission_enhanced || weekData.mission,
+                    required_dialogue: aiData.required_dialogue_enhanced || weekData.required_dialogue,
+                    required_scenes: aiData.required_scenes_enhanced || weekData.required_scenes,
                     reference: weekData.reference_url
                   }
-                }
-              } catch (e) {
-                console.error(`Week ${weekNum} JSON 파싱 실패:`, e)
-                // 파싱 실패 시 원본 사용
-                weeklyGuidesAI[weekKey] = {
-                  mission: weekData.mission,
-                  required_dialogue: weekData.required_dialogue,
-                  required_scenes: weekData.required_scenes,
-                  reference: weekData.reference_url
+                  
+                  // 간단한 가이드
+                  simpleGuidesAI[weekKey] = aiData.simple_guide || (
+                    weekData.mission ? `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.` : '미정'
+                  )
+                } else {
+                  // AI 데이터 없으면 원본 사용
+                  weeklyGuidesAI[weekKey] = {
+                    mission: weekData.mission,
+                    required_dialogue: weekData.required_dialogue,
+                    required_scenes: weekData.required_scenes,
+                    reference: weekData.reference_url
+                  }
+                  simpleGuidesAI[weekKey] = weekData.mission ? `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.` : '미정'
                 }
               }
             }
-          } catch (aiError) {
-            console.error(`Week ${weekNum} AI 생성 실패:`, aiError)
-            // AI 실패 시 원본 사용
-            weeklyGuidesAI[weekKey] = {
-              mission: weekData.mission,
-              required_dialogue: weekData.required_dialogue,
-              required_scenes: weekData.required_scenes,
-              reference: weekData.reference_url
-            }
+          } catch (e) {
+            console.error('JSON 파싱 실패:', e)
+            throw e
           }
-        }
-      }
-
-      // 간단한 AI 가이드 생성
-      const simpleGuidesAI = {}
-      
-      for (let weekNum = 1; weekNum <= 4; weekNum++) {
-        const weekKey = `week${weekNum}`
-        const weekData = guideData[weekKey]
-        
-        if (!weekData.mission || weekData.mission.trim() === '') {
-          // 미기입 시
-          simpleGuidesAI[weekKey] = '미정'
         } else {
-          // 기입 시 - AI로 간단한 메시지 생성
-          const prompt = `다음은 4주 챌린지 캠페인의 ${weekNum}주차 미션입니다.
-
-**제품 정보**
-- 브랜드: ${guideData.brand}
-- 제품명: ${guideData.product_name}
-- 제품 특징: ${guideData.product_features}
-
-**${weekNum}주차 미션**
-${weekData.mission}
-
-위 미션을 바탕으로 크리에이터가 해당 주차에 무엇을 촬영해야 하는지 간단하고 명확하게 알려주세요.
-- 2-3문장 이내로 작성
-- "해당 미션에 맞게 촬영 필수"라는 메시지 포함
-- 구체적인 촬영 방법이나 대사는 필요 없음
-
-간단한 텍스트로만 작성해주세요.`
-
-          try {
-            const response = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{
-                    parts: [{ text: prompt }]
-                  }]
-                })
-              }
-            )
-
-            if (response.ok) {
-              const result = await response.json()
-              const generatedText = result.candidates[0].content.parts[0].text
-              simpleGuidesAI[weekKey] = generatedText.trim()
-            } else {
-              simpleGuidesAI[weekKey] = `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.`
-            }
-          } catch (aiError) {
-            console.error(`Week ${weekNum} AI 생성 실패:`, aiError)
-            simpleGuidesAI[weekKey] = `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.`
+          throw new Error('AI API 호출 실패')
+        }
+      } catch (aiError) {
+        console.error('AI 생성 실패:', aiError)
+        // AI 실패 시 원본 사용
+        for (let weekNum = 1; weekNum <= 4; weekNum++) {
+          const weekKey = `week${weekNum}`
+          const weekData = guideData[weekKey]
+          weeklyGuidesAI[weekKey] = {
+            mission: weekData.mission,
+            required_dialogue: weekData.required_dialogue,
+            required_scenes: weekData.required_scenes,
+            reference: weekData.reference_url
           }
+          simpleGuidesAI[weekKey] = weekData.mission ? `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.` : '미정'
         }
       }
 
