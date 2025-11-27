@@ -69,22 +69,22 @@ exports.handler = async (event, context) => {
       throw error;
     }
 
-    // company_id 목록 추출
-    const companyIds = [...new Set(chargeRequests.map(req => req.company_id))];
+    // company_id 목록 추출 (실제로는 user_id임)
+    const userIds = [...new Set(chargeRequests.map(req => req.company_id))];
     
-    // companies 테이블에서 회사 정보 조회
+    // companies 테이블에서 회사 정보 조회 (user_id로 조회)
     const { data: companies, error: companiesError } = await supabaseAdmin
       .from('companies')
-      .select('id, company_name, email')
-      .in('id', companyIds);
+      .select('id, user_id, company_name, email')
+      .in('user_id', userIds);
     
     if (companiesError) {
       console.error('❌ 회사 정보 조회 실패:', companiesError);
       throw companiesError;
     }
     
-    // company_id로 매핑하기 위한 Map 생성
-    const companyMap = new Map(companies.map(c => [c.id, c]));
+    // user_id로 매핑하기 위한 Map 생성 (company_id는 실제로 user_id임)
+    const companyMap = new Map(companies.map(c => [c.user_id, c]));
 
     // 데이터 변환 (TaxInvoiceRequestsTab에서 기대하는 형식으로)
     const requests = chargeRequests.map(req => ({
