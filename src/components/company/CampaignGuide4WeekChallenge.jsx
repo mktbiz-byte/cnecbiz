@@ -316,19 +316,81 @@ JSON 형식으로 작성해주세요.`
         }
       }
 
-      // AI 가공된 가이드 저장
+      // 간단한 AI 가이드 생성
+      const simpleGuidesAI = {}
+      
+      for (let weekNum = 1; weekNum <= 4; weekNum++) {
+        const weekKey = `week${weekNum}`
+        const weekData = guideData[weekKey]
+        
+        if (!weekData.mission || weekData.mission.trim() === '') {
+          // 미기입 시
+          simpleGuidesAI[weekKey] = '미정'
+        } else {
+          // 기입 시 - AI로 간단한 메시지 생성
+          const prompt = `다음은 4주 챌린지 캠페인의 ${weekNum}주차 미션입니다.
+
+**제품 정보**
+- 브랜드: ${guideData.brand}
+- 제품명: ${guideData.product_name}
+- 제품 특징: ${guideData.product_features}
+
+**${weekNum}주차 미션**
+${weekData.mission}
+
+위 미션을 바탕으로 크리에이터가 해당 주차에 무엇을 촬영해야 하는지 간단하고 명확하게 알려주세요.
+- 2-3문장 이내로 작성
+- "해당 미션에 맞게 촬영 필수"라는 메시지 포함
+- 구체적인 촬영 방법이나 대사는 필요 없음
+
+간단한 텍스트로만 작성해주세요.`
+
+          try {
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{ text: prompt }]
+                  }]
+                })
+              }
+            )
+
+            if (response.ok) {
+              const result = await response.json()
+              const generatedText = result.candidates[0].content.parts[0].text
+              simpleGuidesAI[weekKey] = generatedText.trim()
+            } else {
+              simpleGuidesAI[weekKey] = `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.`
+            }
+          } catch (aiError) {
+            console.error(`Week ${weekNum} AI 생성 실패:`, aiError)
+            simpleGuidesAI[weekKey] = `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.`
+          }
+        }
+      }
+
+      // AI 가이드 저장 (week1_guide_ai, week2_guide_ai, ...)
+      const updateData = {
+        week1_guide_ai: simpleGuidesAI.week1,
+        week2_guide_ai: simpleGuidesAI.week2,
+        week3_guide_ai: simpleGuidesAI.week3,
+        week4_guide_ai: simpleGuidesAI.week4,
+        guide_generated_at: new Date().toISOString()
+      }
+
       const { error: aiUpdateError } = await supabaseKorea
         .from('campaigns')
-        .update({
-          challenge_weekly_guides_ai: weeklyGuidesAI,
-          guide_generated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id)
 
       if (aiUpdateError) throw aiUpdateError
 
-      alert('4주 챌린지 가이드가 완성되었습니다! 견적서 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/invoice/4week`)
+      alert('4주 챌린지 가이드가 생성되었습니다! 가이드를 확인하고 결제를 진행하세요.')
+      navigate(`/company/campaigns/${id}/guide/4week/review`)
     } catch (error) {
       console.error('Error completing guide:', error)
       alert('가이드 완성 중 오류가 발생했습니다: ' + error.message)
