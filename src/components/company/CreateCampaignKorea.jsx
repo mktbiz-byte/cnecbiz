@@ -1014,9 +1014,9 @@ const CampaignCreationKorea = () => {
                 )}
               </div>
 
-              {/* 7. 업로드 스케줄 */}
+              {/* 7. 스케줄 설정 */}
               <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">📅 업로드 스케줄</h3>
+                <h3 className="text-lg font-semibold mb-4">📅 스케줄 설정</h3>
                 
                 {/* 모집 마감일 */}
                 <div className="mb-4">
