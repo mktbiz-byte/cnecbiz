@@ -396,7 +396,7 @@ ${!week4Empty ? `**4주차 초안**
                      `🏬 **회사:** ${company?.company_name || '미상'}\n` +
                      `📝 **캠페인:** ${campaign.title}\n` +
                      `🎯 **타입:** 4주 챌린지\n` +
-                     `👥 **크리에이터 수:** ${campaign.influencer_count || 0}명\n` +
+                     `👥 **크리에이터 수:** ${campaign.total_slots || 0}명\n` +
                      `💰 **금액:** ${totalCost.toLocaleString()}원\n` +
                      `👤 **입금자명:** ${depositorName}\n\n` +
                      `➡️ 입금 확인: https://cnectotal.netlify.app/admin/deposits`,
@@ -419,7 +419,7 @@ ${!week4Empty ? `**4주차 초안**
 
   const calculateTotalCost = () => {
     const packagePrice = 600000 // 4주 챌린지 패키지 기본 가격
-    const influencerCount = campaign.influencer_count || 0
+    const influencerCount = campaign.total_slots || 0
     const subtotal = packagePrice * influencerCount
     const vat = Math.floor(subtotal * 0.1)
     return subtotal + vat
@@ -867,15 +867,15 @@ ${!week4Empty ? `**4주차 초안**
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">크리에이터 수</span>
-                  <span className="font-semibold">{campaign.influencer_count || 0}명</span>
+                  <span className="font-semibold">{campaign.total_slots || 0}명</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">소계</span>
-                  <span className="font-semibold">{(600000 * (campaign.influencer_count || 0)).toLocaleString()}원</span>
+                  <span className="font-semibold">{(600000 * (campaign.total_slots || 0)).toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">부가세 (10%)</span>
-                  <span className="font-semibold">{Math.floor(600000 * (campaign.influencer_count || 0) * 0.1).toLocaleString()}원</span>
+                  <span className="font-semibold">{Math.floor(600000 * (campaign.total_slots || 0) * 0.1).toLocaleString()}원</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t-2 border-gray-300">
                   <span className="font-bold text-lg">총 결제 금액</span>

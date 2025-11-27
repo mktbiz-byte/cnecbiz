@@ -358,8 +358,8 @@ ${campaign.oliveyoung_step3_guide || '미작성'}
   }
 
   const calculateTotalCost = () => {
-    const packagePrice = 200000 // 올리브영 패키지 기본 가격
-    const influencerCount = campaign.influencer_count || 0
+    const packagePrice = campaign?.package_price || 200000
+    const influencerCount = campaign?.total_slots || 0
     const subtotal = packagePrice * influencerCount
     const vat = Math.floor(subtotal * 0.1)
     return subtotal + vat
