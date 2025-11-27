@@ -8,12 +8,13 @@ const { createClient } = require('@supabase/supabase-js')
 // Supabase 클라이언트 초기화
 const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
 const supabaseBizUrl = process.env.VITE_SUPABASE_BIZ_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+const supabaseBizServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY  // Biz용 Service Role Key
 
 // Korea DB (campaigns 테이블)
-const supabaseKorea = createClient(supabaseKoreaUrl, supabaseServiceKey)
+const supabaseKorea = createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
 // Biz DB (admin_users 테이블)
-const supabaseBiz = createClient(supabaseBizUrl, supabaseServiceKey)
+const supabaseBiz = createClient(supabaseBizUrl, supabaseBizServiceKey)
 
 exports.handler = async (event, context) => {
   // CORS 헤더
