@@ -37,7 +37,7 @@ export default function FourWeekChallengeGuideViewer() {
   }
 
   const handleProceedToPayment = () => {
-    navigate(`/company/campaigns/${id}/invoice/4week-challenge`)
+    navigate(`/company/campaigns/${id}/invoice/4week`)
   }
 
   const handleEdit = (week) => {
