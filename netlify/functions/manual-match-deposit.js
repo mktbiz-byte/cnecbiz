@@ -80,6 +80,128 @@ async function processDeposit(request, transaction) {
     // 매출 기록 실패해도 포인트 충전은 완료되었으므로 에러 throw 안 함
   }
 
+  // 5. related_campaign_id가 있으면 캠페인 승인 요청으로 변경
+  let campaignInfo = null
+  if (request.related_campaign_id) {
+    console.log(`📢 캠페인 승인 요청: ${request.related_campaign_id}`)
+    
+    // 모든 DB에서 캠페인 찾기
+    const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
+    const supabaseGlobalUrl = process.env.VITE_SUPABASE_GLOBAL_URL
+    
+    const supabaseKorea = createClient(supabaseKoreaUrl, supabaseServiceKey)
+    const supabaseGlobal = createClient(supabaseGlobalUrl, supabaseServiceKey)
+    
+    // 1. Korea DB 확인 (올영, 기획형, 4주 챌린지)
+    const { data: koreaData } = await supabaseKorea
+      .from('campaigns')
+      .select('*')
+      .eq('id', request.related_campaign_id)
+      .maybeSingle()
+    
+    if (koreaData) {
+      const { error: updateError } = await supabaseKorea
+        .from('campaigns')
+        .update({ 
+          status: 'pending_approval',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', request.related_campaign_id)
+      
+      if (!updateError) {
+        console.log('✅ Korea DB 캠페인 승인 요청 완료')
+        campaignInfo = { ...koreaData, region: 'korea' }
+      }
+    }
+    
+    // 2. Global DB 확인 (일본, 미국)
+    if (!campaignInfo) {
+      const { data: globalData } = await supabaseGlobal
+        .from('campaigns')
+        .select('*')
+        .eq('id', request.related_campaign_id)
+        .maybeSingle()
+      
+      if (globalData) {
+        const { error: updateError } = await supabaseGlobal
+          .from('campaigns')
+          .update({ 
+            status: 'pending_approval',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', request.related_campaign_id)
+        
+        if (!updateError) {
+          console.log('✅ Global DB 캠페인 승인 요청 완료')
+          campaignInfo = { ...globalData, region: globalData.region || 'global' }
+        }
+      }
+    }
+    
+    // 3. Biz DB 확인 (기타)
+    if (!campaignInfo) {
+      const { data: bizData } = await supabaseAdmin
+        .from('campaigns')
+        .select('*')
+        .eq('id', request.related_campaign_id)
+        .maybeSingle()
+      
+      if (bizData) {
+        const { error: updateError } = await supabaseAdmin
+          .from('campaigns')
+          .update({ 
+            status: 'pending_approval',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', request.related_campaign_id)
+        
+        if (!updateError) {
+          console.log('✅ Biz DB 캠페인 승인 요청 완료')
+          campaignInfo = { ...bizData, region: 'biz' }
+        }
+      }
+    }
+    
+    // 4. 네이버 웍스 알림 전송
+    if (campaignInfo) {
+      try {
+        const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+        const campaignTypeKo = {
+          'oliveyoung': '올리브영',
+          'planned': '기획형',
+          '4week_challenge': '4주 챌린지',
+          'standard': '기본형'
+        }[campaignInfo.campaign_type] || campaignInfo.campaign_type
+        
+        const regionKo = {
+          'korea': '한국',
+          'japan': '일본',
+          'usa': '미국',
+          'global': '글로벌'
+        }[campaignInfo.region] || campaignInfo.region
+        
+        await fetch(`${baseUrl}/.netlify/functions/send-naver-works-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: `🎉 **입금 확인 - 캠페인 승인 대기**\n\n` +
+                     `🏢 **회사:** ${request.company_name || '미상'}\n` +
+                     `📝 **캠페인:** ${campaignInfo.title}\n` +
+                     `🌏 **지역:** ${regionKo}\n` +
+                     `🎯 **타입:** ${campaignTypeKo}\n` +
+                     `👥 **모집 인원:** ${campaignInfo.total_slots || 0}명\n` +
+                     `💰 **입금액:** ${request.amount.toLocaleString()}원\n\n` +
+                     `➡️ 승인 처리: https://cnectotal.netlify.app/admin/campaigns`,
+            isAdminNotification: true
+          })
+        })
+        console.log('✅ 네이버 웍스 알림 전송 완료')
+      } catch (notifError) {
+        console.error('⚠️ 네이버 웍스 알림 실패:', notifError)
+      }
+    }
+  }
+
   return { success: true, newPoints }
 }
 
