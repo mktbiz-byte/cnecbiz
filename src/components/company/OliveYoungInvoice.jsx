@@ -256,6 +256,18 @@ export default function OliveYoungInvoice() {
           payment_method: 'bank_transfer',
           status: 'pending',
           depositor_name: depositorName,
+          needs_tax_invoice: needsTaxInvoice,
+          tax_invoice_info: needsTaxInvoice ? {
+            company_name: companyName,
+            business_number: businessNumber,
+            representative_name: representativeName,
+            contact: contact,
+            email: email,
+            business_type: businessType,
+            business_category: businessCategory,
+            company_address: companyAddress,
+            memo: memo
+          } : null,
           related_campaign_id: id, // 입금 확인 시 이 캠페인을 자동 승인 요청
           bank_transfer_info: {
             campaign_id: id,
