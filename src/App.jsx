@@ -127,6 +127,7 @@ function App() {
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns/guide/oliveyoung" element={<CampaignGuideOliveYoung />} />
         <Route path="/company/campaigns/:id/guide/oliveyoung/preview" element={<OliveYoungGuideViewer />} />
+        <Route path="/company/campaigns/:id/guide/oliveyoung/review" element={<OliveYoungGuideViewer />} />
         <Route path="/company/campaigns/guide/oliveyoung/final" element={<OliveYoungFinalGuide />} />
         <Route path="/company/campaigns/guide/4week" element={<CampaignGuide4WeekChallenge />} />
         <Route path="/company/campaigns/guide/4week/final" element={<FourWeekChallengeFinalGuide />} />

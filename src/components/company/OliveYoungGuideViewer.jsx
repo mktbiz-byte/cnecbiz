@@ -60,10 +60,9 @@ export default function OliveYoungGuideViewer() {
 
   const tabs = [
     { id: 'product', label: '제품 소개' },
-    { id: 'video1', label: '첫번째 영상 가이드' },
-    { id: 'video2', label: '두번째 영상 가이드' },
-    { id: 'story', label: '스토리 필수 사항' },
-    { id: 'tips', label: '촬영 팁' },
+    { id: 'video1', label: '1차 영상' },
+    { id: 'video2', label: '2차 영상' },
+    { id: 'story', label: '스토리 URL' },
     { id: 'cautions', label: '주의사항' }
   ]
 
@@ -261,18 +260,6 @@ export default function OliveYoungGuideViewer() {
                     <p>인스타그램 카테고리를 선택하지 않았거나 스토리 가이드가 없습니다.</p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* 촬영 팁 */}
-            {activeTab === 'tips' && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">💡 촬영 팁</h2>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="whitespace-pre-wrap">
-                    {campaign.oliveyoung_shooting_tips || campaign.shooting_tips || '촬영 팁이 아직 작성되지 않았습니다.'}
-                  </div>
-                </div>
               </div>
             )}
 

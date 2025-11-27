@@ -117,10 +117,10 @@ export default function CampaignGuideOliveYoung() {
 
       if (updateError) throw updateError
 
-      // AI 가이드 생성
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) {
-        throw new Error('Gemini API 키가 설정되지 않았습니다.')
+      // AI 가이드 생성 (CNEC Plus API 사용)
+      const cnecPlusUrl = import.meta.env.VITE_CNEC_PLUS_API_URL
+      if (!cnecPlusUrl) {
+        throw new Error('CNEC Plus API URL이 설정되지 않았습니다.')
       }
 
       const prompt = `당신은 올리브영 세일 캠페인 전문 기획자입니다. 다음 정보를 바탕으로 크리에이터가 실제로 사용할 수 있는 전문적이고 상세한 3단계 콘텐츠 제작 가이드를 생성해주세요.
@@ -156,25 +156,21 @@ ${step3Guide}
 
 명확하고 구체적이며 실행 가능한 가이드를 JSON 형식으로 작성해주세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }]
-          })
-        }
-      )
+      const response = await fetch(`${cnecPlusUrl}/api/gemini`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: prompt,
+          model: 'gemini-2.0-flash-exp'
+        })
+      })
 
       if (!response.ok) {
         throw new Error('AI 가이드 생성에 실패했습니다.')
       }
 
       const result = await response.json()
-      const generatedText = result.candidates[0].content.parts[0].text
+      const generatedText = result.text
       
       // JSON 파싱
       let step1Enhanced = step1Guide
@@ -213,8 +209,8 @@ ${step3Guide}
 
       if (finalUpdateError) throw finalUpdateError
 
-      alert('올영세일 가이드가 생성되었습니다! 견적서 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/invoice/oliveyoung`)
+      alert('올영세일 가이드가 생성되었습니다! 가이드 리뷰 페이지로 이동합니다.')
+      navigate(`/company/campaigns/${id}/guide/oliveyoung/review`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
