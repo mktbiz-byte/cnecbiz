@@ -226,14 +226,7 @@ export default function PaymentHistory() {
               <div className="text-3xl font-bold">{totalCount}</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm text-gray-600 mb-2">현재 포인트</div>
-              <div className="text-3xl font-bold text-blue-600">
-                {currentPoints.toLocaleString()}P
-              </div>
-            </CardContent>
-          </Card>
+
         </div>
 
         {/* Tabs */}
@@ -281,7 +274,6 @@ export default function PaymentHistory() {
                         <th className="text-left p-4">금액</th>
                         <th className="text-left p-4">상태</th>
                         <th className="text-left p-4">세금계산서</th>
-                        <th className="text-left p-4">충전 포인트</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -305,10 +297,7 @@ export default function PaymentHistory() {
                                 <span className="text-gray-400">불필요</span>
                               )}
                             </td>
-                            <td className="p-4 text-sm">
-                              {(request.status === 'completed' || request.status === 'confirmed') ? 
-                                `${Math.round(request.amount / 1.1).toLocaleString()}P` : '-'}
-                            </td>
+
                           </tr>
                         );
                       })}
