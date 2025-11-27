@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseKorea'
+import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ArrowLeft, CheckCircle, Loader2, CreditCard, Wallet } from 'lucide-react'
@@ -58,10 +59,10 @@ export default function OliveYoungInvoice() {
       if (error) throw error
       setCampaign(data)
 
-      // 회사 정보 로드
-      const { data: { user } } = await supabase.auth.getUser()
+      // 회사 정보 로드 (supabaseBiz 사용)
+      const { data: { user } } = await supabaseBiz.auth.getUser()
       if (user) {
-        const { data: companyData } = await supabase
+        const { data: companyData } = await supabaseBiz
           .from('companies')
           .select('*')
           .eq('user_id', user.id)

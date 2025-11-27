@@ -8,7 +8,7 @@ import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit,
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
-// 크리에이터 포인트 계산 함수
+// 크리에이터 포인트 계산 함수 (1인당)
 const calculateCreatorPoints = (campaign) => {
   if (!campaign) return 0
   
@@ -18,33 +18,34 @@ const calculateCreatorPoints = (campaign) => {
   }
   
   const campaignType = campaign.campaign_type
+  const totalSlots = campaign.total_slots || 1 // 0으로 나누기 방지
   
-  // 4주 챌린지: reward_points 또는 주차별 합계 xd7 70%
+  // 4주 챌린지: reward_points 또는 주차별 합계 xd7 70% xf7 인원
   if (campaignType === '4week_challenge') {
     const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) + 
                        (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
     const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
-    return Math.round(totalReward * 0.7)
+    return Math.round((totalReward * 0.7) / totalSlots)
   }
   
-  // 기획형: 단계별 합계 xd7 60%
+  // 기획형: 단계별 합계 xd7 60% xf7 인원
   if (campaignType === 'planned') {
     const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) + 
                      (campaign.step3_reward || 0)
     const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round(totalReward * 0.6)
+    return Math.round((totalReward * 0.6) / totalSlots)
   }
   
-  // 올영세일: 단계별 합계 xd7 70%
+  // 올영세일: 단계별 합계 xd7 70% xf7 인원
   if (campaignType === 'oliveyoung') {
     const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) + 
                      (campaign.step3_reward || 0)
     const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round(totalReward * 0.7)
+    return Math.round((totalReward * 0.7) / totalSlots)
   }
   
-  // 기본: reward_points xd7 60%
-  return Math.round((campaign.reward_points || 0) * 0.6)
+  // 기본: reward_points xd7 60% xf7 인원
+  return Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
 }
 
 export default function CampaignsManagement() {
