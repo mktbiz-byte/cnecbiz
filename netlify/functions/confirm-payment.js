@@ -153,43 +153,67 @@ exports.handler = async (event, context) => {
     let campaign = null
     let campaignRegion = 'biz'
     
-    if (chargeRequest.bank_transfer_info?.campaign_id) {
-      const campaignId = chargeRequest.bank_transfer_info.campaign_id
+    // related_campaign_id 먼저 확인, 없으면 bank_transfer_info.campaign_id 확인
+    const campaignId = chargeRequest.related_campaign_id || chargeRequest.bank_transfer_info?.campaign_id
+    
+    if (campaignId) {
+      console.log('[confirm-payment] Looking for campaign:', campaignId)
       
-      // 한국 캐페인 먼저 확인
-      const { data: koreanCampaign } = await supabaseAdmin
+      // supabaseBiz는 campaigns 테이블이 없으므로 supabaseKorea에서 조회
+      const supabaseKorea = createClient(
+        process.env.VITE_SUPABASE_KOREA_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      )
+      
+      const { data: koreanCampaign, error: koreaError } = await supabaseKorea
         .from('campaigns')
         .select('*')
         .eq('id', campaignId)
         .single()
       
+      if (koreaError) {
+        console.error('[confirm-payment] Korea campaign lookup error:', koreaError)
+      }
+      
       if (koreanCampaign) {
         campaign = koreanCampaign
         campaignRegion = koreanCampaign.region || 'korea'
+        console.log('[confirm-payment] Found Korean campaign:', campaign.title)
       } else {
         // 일본 캐페인 확인
         const supabaseJapan = createClient(
           process.env.VITE_SUPABASE_JAPAN_URL,
           process.env.SUPABASE_SERVICE_ROLE_KEY
         )
-        const { data: japanCampaign } = await supabaseJapan
+        const { data: japanCampaign, error: japanError } = await supabaseJapan
           .from('campaigns')
           .select('*')
           .eq('id', campaignId)
           .single()
         
+        if (japanError) {
+          console.error('[confirm-payment] Japan campaign lookup error:', japanError)
+        }
+        
         if (japanCampaign) {
           campaign = japanCampaign
           campaignRegion = 'japan'
+          console.log('[confirm-payment] Found Japan campaign:', campaign.title)
+        } else {
+          console.error('[confirm-payment] Campaign not found in Korea or Japan:', campaignId)
         }
       }
+    } else {
+      console.log('[confirm-payment] No campaign ID found in charge request')
     }
 
     // 캐페인 상태를 '승인요청중'으로 변경
     if (campaign) {
+      console.log('[confirm-payment] Updating campaign status to pending:', campaign.id)
+      
       const campaignSupabase = campaignRegion === 'japan' 
         ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-        : supabaseAdmin
+        : createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
       const { error: campaignUpdateError } = await campaignSupabase
         .from('campaigns')
@@ -202,8 +226,12 @@ exports.handler = async (event, context) => {
         .eq('id', campaign.id)
 
       if (campaignUpdateError) {
-        console.error('캐페인 상태 업데이트 오류:', campaignUpdateError)
+        console.error('[confirm-payment] 캐페인 상태 업데이트 오류:', campaignUpdateError)
+      } else {
+        console.log('[confirm-payment] Campaign status updated successfully')
       }
+    } else {
+      console.log('[confirm-payment] No campaign to update')
     }
 
     // 회사 정보 조회
