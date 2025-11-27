@@ -5,10 +5,15 @@
 
 const { createClient } = require('@supabase/supabase-js')
 
-// Supabase 클라이언트 초기화 (Korea 데이터베이스)
-const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
+// Supabase 클라이언트 초기화
+const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL
+const supabaseBizUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+// Korea DB (campaigns 테이블)
+const supabaseKorea = createClient(supabaseKoreaUrl, supabaseServiceKey)
+// Biz DB (admin_users 테이블)
+const supabaseBiz = createClient(supabaseBizUrl, supabaseServiceKey)
 
 exports.handler = async (event, context) => {
   // CORS 헤더
@@ -59,8 +64,8 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 관리자 권한 확인
-    const { data: admin, error: adminError } = await supabase
+    // 관리자 권한 확인 (supabaseBiz에서 조회)
+    const { data: admin, error: adminError } = await supabaseBiz
       .from('admin_users')
       .select('role, email')
       .eq('id', adminUserId)
@@ -77,8 +82,8 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 캠페인 조회
-    const { data: campaign, error: campaignError } = await supabase
+    // 캠페인 조회 (supabaseKorea에서 조회)
+    const { data: campaign, error: campaignError } = await supabaseKorea
       .from('campaigns')
       .select('*')
       .eq('id', campaignId)
@@ -107,8 +112,8 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 1. payments 테이블에서 해당 캠페인의 결제 정보 조회
-    const { data: payment, error: paymentError } = await supabase
+    // 1. payments 테이블에서 해당 캠페인의 결제 정보 조회 (supabaseKorea)
+    const { data: payment, error: paymentError } = await supabaseKorea
       .from('payments')
       .select('*')
       .eq('campaign_id', campaignId)
@@ -145,7 +150,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    const { error: paymentUpdateError } = await supabase
+    const { error: paymentUpdateError } = await supabaseKorea
       .from('payments')
       .update(paymentUpdateData)
       .eq('id', payment.id)
@@ -172,7 +177,7 @@ exports.handler = async (event, context) => {
 
     if (memo) campaignUpdateData.admin_memo = memo
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseKorea
       .from('campaigns')
       .update(campaignUpdateData)
       .eq('id', campaignId)
@@ -190,8 +195,8 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 회사 정보 조회 (알림 발송용)
-    const { data: company } = await supabase
+    // 회사 정보 조회 (알림 발송용) (supabaseBiz에서 조회)
+    const { data: company } = await supabaseBiz
       .from('companies')
       .select('company_name, email, phone, contact_person')
       .eq('user_id', campaign.company_id)
