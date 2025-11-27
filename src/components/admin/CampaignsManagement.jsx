@@ -317,7 +317,7 @@ export default function CampaignsManagement() {
           matchesStatus = campaign.approval_status === 'pending_payment'
           break
         case 'pending':
-          matchesStatus = campaign.approval_status === 'pending'
+          matchesStatus = campaign.approval_status === 'pending' || campaign.approval_status === 'pending_approval'
           break
         case 'recruiting':
           matchesStatus = campaign.approval_status === 'approved' && campaign.status !== 'completed'
@@ -326,7 +326,9 @@ export default function CampaignsManagement() {
           matchesStatus = campaign.status === 'guide_review'
           break
         case 'in_progress':
-          matchesStatus = campaign.status === 'in_progress' || campaign.status === 'active'
+          // active 상태이지만 approval_status가 pending_approval이 아닌 경우만 촬영중으로 분류
+          matchesStatus = (campaign.status === 'in_progress') || 
+                         (campaign.status === 'active' && campaign.approval_status !== 'pending_approval')
           break
         case 'revision':
           matchesStatus = campaign.approval_status === 'rejected' || campaign.status === 'revision'
