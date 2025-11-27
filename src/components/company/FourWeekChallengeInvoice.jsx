@@ -889,15 +889,15 @@ ${!week4Empty ? `**4주차 초안**
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">은행</span>
-                  <span className="font-semibold">하나은행</span>
+                  <span className="font-semibold">IBK기업은행</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">계좌번호</span>
-                  <span className="font-semibold">123-456789-01234</span>
+                  <span className="font-semibold">047-122753-04-011</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">예금주</span>
-                  <span className="font-semibold">씨넥</span>
+                  <span className="font-semibold">주식회사 하우파파</span>
                 </div>
               </div>
             </div>
