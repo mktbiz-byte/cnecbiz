@@ -181,6 +181,8 @@ export default function FourWeekChallengeInvoice() {
   // 견적서 이메일 발송
   const sendInvoiceEmail = async (campaignData, companyData) => {
     try {
+      console.log('[FourWeekChallengeInvoice] 견적서 PDF 이메일 발송 시작')
+      
       // 4주 챌린지 패키지 가격 매핑
       const fourWeekPackageOptions = {
         'standard': 600000,
@@ -195,38 +197,34 @@ export default function FourWeekChallengeInvoice() {
       const vat = Math.floor(subtotal * 0.1)
       const total = subtotal + vat
 
-      const pricing = {
-        packagePrice,
-        creatorCount,
-        subtotal,
-        vat,
-        total
-      }
-
-      // HTML 견적서 생성
-      const today = new Date().toLocaleDateString('ko-KR')
-      const invoiceHTML = generateInvoiceHTML(campaignData, companyData, pricing, '4주 챌린지', today)
-      
-      const response = await fetch('/.netlify/functions/send-email', {
+      // PDF 견적서 생성 및 발송
+      const response = await fetch('/.netlify/functions/generate-invoice-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: companyData.email,
-          subject: `[CNEC] 4주 챌린지 캠페인 견적서 - ${campaignData.title}`,
-          html: invoiceHTML
+          campaign: {
+            title: campaignData.title,
+            campaign_type: '4주 챌린지',
+            total_slots: campaignData.total_slots
+          },
+          company: companyData,
+          packagePrice,
+          subtotal,
+          vat,
+          total
         })
       })
 
       const result = await response.json()
       
       if (result.success) {
-        console.log('[FourWeekChallengeInvoice] 견적서 이메일 발송 성공:', result.messageId)
+        console.log('[FourWeekChallengeInvoice] 견적서 PDF 이메일 발송 성공:', result.to)
         setInvoiceEmailSent(true)
       } else {
-        console.error('[FourWeekChallengeInvoice] 견적서 이메일 발송 실패:', result.error)
+        console.error('[FourWeekChallengeInvoice] 견적서 PDF 이메일 발송 실패:', result.error)
       }
     } catch (error) {
-      console.error('[FourWeekChallengeInvoice] 견적서 이메일 발송 오류:', error)
+      console.error('[FourWeekChallengeInvoice] 견적서 PDF 이메일 발송 오류:', error)
     }
   }
 

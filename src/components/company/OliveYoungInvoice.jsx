@@ -182,6 +182,8 @@ export default function OliveYoungInvoice() {
   // 견적서 이메일 발송
   const sendInvoiceEmail = async (campaignData, companyData) => {
     try {
+      console.log('[OliveYoungInvoice] 견적서 PDF 이메일 발송 시작')
+      
       // 올리브영 패키지 가격 매핑
       const oliveyoungPackageOptions = {
         'standard': 400000,
@@ -195,38 +197,34 @@ export default function OliveYoungInvoice() {
       const vat = Math.floor(subtotal * 0.1)
       const total = subtotal + vat
 
-      const pricing = {
-        packagePrice,
-        creatorCount,
-        subtotal,
-        vat,
-        total
-      }
-
-      // HTML 견적서 생성
-      const today = new Date().toLocaleDateString('ko-KR')
-      const invoiceHTML = generateInvoiceHTML(campaignData, companyData, pricing, '올리브영', today)
-      
-      const response = await fetch('/.netlify/functions/send-email', {
+      // PDF 견적서 생성 및 발송
+      const response = await fetch('/.netlify/functions/generate-invoice-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: companyData.email,
-          subject: `[CNEC] 올리브영 캠페인 견적서 - ${campaignData.title}`,
-          html: invoiceHTML
+          campaign: {
+            title: campaignData.title,
+            campaign_type: '올리브영',
+            total_slots: campaignData.total_slots
+          },
+          company: companyData,
+          packagePrice,
+          subtotal,
+          vat,
+          total
         })
       })
 
       const result = await response.json()
       
       if (result.success) {
-        console.log('[OliveYoungInvoice] 견적서 이메일 발송 성공:', result.messageId)
+        console.log('[OliveYoungInvoice] 견적서 PDF 이메일 발송 성공:', result.to)
         setInvoiceEmailSent(true)
       } else {
-        console.error('[OliveYoungInvoice] 견적서 이메일 발송 실패:', result.error)
+        console.error('[OliveYoungInvoice] 견적서 PDF 이메일 발송 실패:', result.error)
       }
     } catch (error) {
-      console.error('[OliveYoungInvoice] 견적서 이메일 발송 오류:', error)
+      console.error('[OliveYoungInvoice] 견적서 PDF 이메일 발송 오류:', error)
     }
   }
 
