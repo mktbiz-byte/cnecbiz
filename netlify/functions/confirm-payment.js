@@ -215,29 +215,40 @@ exports.handler = async (event, context) => {
         ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
         : createClient(process.env.VITE_SUPABASE_KOREA_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
-      const { error: campaignUpdateError } = await campaignSupabase
+      const { data: updateResult, error: campaignUpdateError } = await campaignSupabase
         .from('campaigns')
         .update({
           status: 'active',  // 입금 확인 후 active 상태로 변경
           updated_at: new Date().toISOString()
         })
         .eq('id', campaign.id)
+        .select()
 
       if (campaignUpdateError) {
-        console.error('[confirm-payment] 캐페인 상태 업데이트 오류:', campaignUpdateError)
+        console.error('[confirm-payment] 캠페인 상태 업데이트 오류:', campaignUpdateError)
+        console.error('[confirm-payment] Campaign ID:', campaign.id)
+        console.error('[confirm-payment] Region:', campaignRegion)
       } else {
         console.log('[confirm-payment] Campaign status updated successfully')
+        console.log('[confirm-payment] Update result:', updateResult)
       }
     } else {
       console.log('[confirm-payment] No campaign to update')
     }
 
     // 회사 정보 조회
-    const { data: company } = await supabaseAdmin
+    console.log('[confirm-payment] Looking up company info for user_id:', chargeRequest.company_id)
+    const { data: company, error: companyError } = await supabaseAdmin
       .from('companies')
       .select('company_name, email, phone, contact_person, notification_phone, notification_email')
       .eq('user_id', chargeRequest.company_id)
       .single()
+    
+    if (companyError) {
+      console.error('[confirm-payment] Company lookup error:', companyError)
+    } else {
+      console.log('[confirm-payment] Company found:', company?.company_name)
+    }
 
     // 고객에게 카카오 알림톡 및 이메일 발송
     if (campaign && company) {

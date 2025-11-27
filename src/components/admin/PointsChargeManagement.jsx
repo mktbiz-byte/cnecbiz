@@ -92,18 +92,24 @@ export default function PointsChargeManagement() {
           companiesMap[c.user_id] = c
         })
 
-        // 취소된 캠페인의 충전 신청 확인
+        // 취소된 캠페인의 충전 신청 확인 (is_cancelled 필드가 없으므로 status='cancelled' 사용)
         const campaignIds = requests
-          .map(r => r.bank_transfer_info?.campaign_id)
+          .map(r => r.bank_transfer_info?.campaign_id || r.related_campaign_id)
           .filter(Boolean)
         
         let cancelledCampaignIds = []
         if (campaignIds.length > 0) {
-          const { data: campaigns } = await supabaseBiz
+          // campaigns 테이블은 supabaseKorea에 있음
+          const supabaseKorea = createClient(
+            import.meta.env.VITE_SUPABASE_KOREA_URL,
+            import.meta.env.VITE_SUPABASE_KOREA_ANON_KEY
+          )
+          
+          const { data: campaigns } = await supabaseKorea
             .from('campaigns')
-            .select('id, is_cancelled')
+            .select('id, status')
             .in('id', campaignIds)
-            .eq('is_cancelled', true)
+            .eq('status', 'cancelled')
           
           cancelledCampaignIds = campaigns?.map(c => c.id) || []
         }
@@ -112,7 +118,7 @@ export default function PointsChargeManagement() {
           .map(req => ({
             ...req,
             companies: companiesMap[req.company_id] || null,
-            is_cancelled_campaign: cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id)
+            is_cancelled_campaign: cancelledCampaignIds.includes(req.bank_transfer_info?.campaign_id || req.related_campaign_id)
           }))
           .filter(req => !req.is_cancelled_campaign)  // 취소된 캠페인 제외
 
