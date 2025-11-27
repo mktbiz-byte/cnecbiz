@@ -42,8 +42,8 @@ export default function FourWeekChallengeGuideViewer() {
 
   const handleEdit = (week) => {
     setEditingWeek(week)
-    const fieldName = `week${week}_guide_ai`
-    setEditValue(campaign[fieldName] || '')
+    const weekKey = `week${week}`
+    setEditValue(campaign.challenge_weekly_guides_ai?.[weekKey] || '')
   }
 
   const handleSave = async () => {
@@ -54,15 +54,20 @@ export default function FourWeekChallengeGuideViewer() {
 
     setSaving(true)
     try {
-      const fieldName = `week${editingWeek}_guide_ai`
+      const weekKey = `week${editingWeek}`
+      const updatedGuides = {
+        ...campaign.challenge_weekly_guides_ai,
+        [weekKey]: editValue.trim()
+      }
+      
       const { error } = await supabase
         .from('campaigns')
-        .update({ [fieldName]: editValue.trim() })
+        .update({ challenge_weekly_guides_ai: updatedGuides })
         .eq('id', id)
 
       if (error) throw error
 
-      setCampaign({ ...campaign, [fieldName]: editValue.trim() })
+      setCampaign({ ...campaign, challenge_weekly_guides_ai: updatedGuides })
       setEditingWeek(null)
       setEditValue('')
       alert('저장되었습니다.')
@@ -154,7 +159,8 @@ export default function FourWeekChallengeGuideViewer() {
           <h2 className="text-xl font-bold mb-4">📅 주차별 미션 가이드</h2>
           
           {[1, 2, 3, 4].map((week) => {
-            const guideAI = campaign[`week${week}_guide_ai`]
+            const weekKey = `week${week}`
+            const guideAI = campaign.challenge_weekly_guides_ai?.[weekKey]
             const isEditing = editingWeek === week
             
             return (

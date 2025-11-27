@@ -373,12 +373,9 @@ ${weekData.mission}
         }
       }
 
-      // AI 가이드 저장 (week1_guide_ai, week2_guide_ai, ...)
+      // AI 가이드 저장 (challenge_weekly_guides_ai JSON)
       const updateData = {
-        week1_guide_ai: simpleGuidesAI.week1,
-        week2_guide_ai: simpleGuidesAI.week2,
-        week3_guide_ai: simpleGuidesAI.week3,
-        week4_guide_ai: simpleGuidesAI.week4,
+        challenge_weekly_guides_ai: simpleGuidesAI,
         guide_generated_at: new Date().toISOString()
       }
 
