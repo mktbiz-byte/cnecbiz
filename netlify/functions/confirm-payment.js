@@ -149,48 +149,144 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 포인트 지급
-    const pointsToAdd = depositAmount || chargeRequest.amount
-    const { error: pointsError } = await supabaseAdmin.rpc('add_points', {
-      user_id: chargeRequest.company_id,
-      points: parseInt(pointsToAdd),
-      transaction_type: 'charge',
-      transaction_description: `계좌이체 충전 - ${parseInt(pointsToAdd).toLocaleString()}원 (관리자 승인)`
-    })
-
-    if (pointsError) {
-      console.error('포인트 지급 오류:', pointsError)
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '포인트 지급 중 오류가 발생했습니다.',
-          details: pointsError.message
-        })
+    // 캐페인 정보 조회 (충전 신청에 연결된 캐페인)
+    let campaign = null
+    let campaignRegion = 'biz'
+    
+    if (chargeRequest.bank_transfer_info?.campaign_id) {
+      const campaignId = chargeRequest.bank_transfer_info.campaign_id
+      
+      // 한국 캐페인 먼저 확인
+      const { data: koreanCampaign } = await supabaseAdmin
+        .from('campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .single()
+      
+      if (koreanCampaign) {
+        campaign = koreanCampaign
+        campaignRegion = koreanCampaign.region || 'korea'
+      } else {
+        // 일본 캐페인 확인
+        const supabaseJapan = createClient(
+          process.env.VITE_SUPABASE_JAPAN_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        )
+        const { data: japanCampaign } = await supabaseJapan
+          .from('campaigns')
+          .select('*')
+          .eq('id', campaignId)
+          .single()
+        
+        if (japanCampaign) {
+          campaign = japanCampaign
+          campaignRegion = 'japan'
+        }
       }
     }
 
-    // 회사 정보 조회 (알림 발송용)
+    // 캐페인 상태를 '승인요청중'으로 변경
+    if (campaign) {
+      const campaignSupabase = campaignRegion === 'japan' 
+        ? createClient(process.env.VITE_SUPABASE_JAPAN_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+        : supabaseAdmin
+
+      const { error: campaignUpdateError } = await campaignSupabase
+        .from('campaigns')
+        .update({
+          approval_status: 'pending',
+          payment_status: 'confirmed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', campaign.id)
+
+      if (campaignUpdateError) {
+        console.error('캐페인 상태 업데이트 오류:', campaignUpdateError)
+      }
+    }
+
+    // 회사 정보 조회
     const { data: company } = await supabaseAdmin
       .from('companies')
       .select('company_name, email, phone, contact_person')
       .eq('user_id', chargeRequest.company_id)
       .single()
 
-    // TODO: 카카오톡 알림 발송 (입금 확인 완료)
-    // await sendKakaoNotification(...)
+    // 네이버 웍스 알림 발송 (캐페인 승인 요청)
+    if (campaign) {
+      const regionMap = {
+        'korea': '한국',
+        'japan': '일본',
+        'us': '미국',
+        'taiwan': '대만'
+      }
+      const regionText = regionMap[campaignRegion] || '한국'
+
+      const campaignTypeMap = {
+        'planned': '기획형',
+        'regular': '기획형',
+        'oliveyoung': '올리브영',
+        '4week_challenge': '4주 챌린지',
+        '4week': '4주 챌린지'
+      }
+      const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
+
+      const message = `💵 입금 확인 완료 + 캐페인 승인 요청 (${regionText})
+
+` +
+        `• 회사명: ${company?.company_name || '회사명 없음'}
+` +
+        `• 캐페인명: ${campaign.title}
+` +
+        `• 캐페인 타입: ${campaignTypeText}
+` +
+        `• 입금 금액: ${parseInt(depositAmount || chargeRequest.amount).toLocaleString()}원
+` +
+        `• 입금자명: ${depositorName}
+` +
+        `• 입금일: ${depositDate}
+
+` +
+        `⚠️ 캐페인이 승인 대기 상태로 변경되었습니다. 빠른 승인을 부탁드립니다.
+
+` +
+        `승인 페이지: https://cnectotal.netlify.app/admin/approvals`
+
+      try {
+        const naverWorksUrl = 'https://www.worksapis.com/v1.0/bots/7348965/channels/281474978639476/messages'
+        const naverWorksToken = process.env.NAVER_WORKS_BOT_TOKEN
+
+        await fetch(naverWorksUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${naverWorksToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            content: {
+              type: 'text',
+              text: message
+            }
+          })
+        })
+      } catch (notifError) {
+        console.error('네이버 웍스 알림 전송 실패:', notifError)
+      }
+    }
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        message: '입금 확인이 완료되었습니다.',
+        message: campaign 
+          ? '입금 확인 및 캐페인 승인 요청이 완료되었습니다.'
+          : '입금 확인이 완료되었습니다.',
         data: {
           chargeRequestId,
           companyName: company?.company_name,
-          pointsAdded: pointsToAdd
+          campaignId: campaign?.id,
+          campaignTitle: campaign?.title
         }
       })
     }
