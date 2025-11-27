@@ -147,39 +147,39 @@ export default function FourWeekChallengeGuideViewer() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 <span>
-                  {campaign.recruitment_end_date ? new Date(campaign.recruitment_end_date).toLocaleDateString('ko-KR') : '미정'}
+                  {campaign.application_deadline ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR') : '미정'}
                 </span>
               </div>
             </div>
             <div className="flex items-start">
-              <span className="font-semibold w-32">주차별 스케줄:</span>
+              <span className="font-semibold w-32">주차별 마감일:</span>
               <div className="space-y-1">
-                {campaign.challenge_weekly_guides?.week1?.start_date && (
+                {campaign.week1_deadline && (
                   <div className="flex items-center gap-2">
                     <span className="text-pink-600 font-medium">1주차:</span>
-                    <span>{new Date(campaign.challenge_weekly_guides.week1.start_date).toLocaleDateString('ko-KR')} ~ {new Date(campaign.challenge_weekly_guides.week1.end_date).toLocaleDateString('ko-KR')}</span>
+                    <span>{new Date(campaign.week1_deadline).toLocaleDateString('ko-KR')}</span>
                   </div>
                 )}
-                {campaign.challenge_weekly_guides?.week2?.start_date && (
+                {campaign.week2_deadline && (
                   <div className="flex items-center gap-2">
                     <span className="text-pink-600 font-medium">2주차:</span>
-                    <span>{new Date(campaign.challenge_weekly_guides.week2.start_date).toLocaleDateString('ko-KR')} ~ {new Date(campaign.challenge_weekly_guides.week2.end_date).toLocaleDateString('ko-KR')}</span>
+                    <span>{new Date(campaign.week2_deadline).toLocaleDateString('ko-KR')}</span>
                   </div>
                 )}
-                {campaign.challenge_weekly_guides?.week3?.start_date && (
+                {campaign.week3_deadline && (
                   <div className="flex items-center gap-2">
                     <span className="text-pink-600 font-medium">3주차:</span>
-                    <span>{new Date(campaign.challenge_weekly_guides.week3.start_date).toLocaleDateString('ko-KR')} ~ {new Date(campaign.challenge_weekly_guides.week3.end_date).toLocaleDateString('ko-KR')}</span>
+                    <span>{new Date(campaign.week3_deadline).toLocaleDateString('ko-KR')}</span>
                   </div>
                 )}
-                {campaign.challenge_weekly_guides?.week4?.start_date && (
+                {campaign.week4_deadline && (
                   <div className="flex items-center gap-2">
                     <span className="text-pink-600 font-medium">4주차:</span>
-                    <span>{new Date(campaign.challenge_weekly_guides.week4.start_date).toLocaleDateString('ko-KR')} ~ {new Date(campaign.challenge_weekly_guides.week4.end_date).toLocaleDateString('ko-KR')}</span>
+                    <span>{new Date(campaign.week4_deadline).toLocaleDateString('ko-KR')}</span>
                   </div>
                 )}
-                {!campaign.challenge_weekly_guides?.week1?.start_date && (
-                  <span className="text-gray-400 italic">주차별 스케줄이 설정되지 않았습니다.</span>
+                {!campaign.week1_deadline && (
+                  <span className="text-gray-400 italic">주차별 마감일이 설정되지 않았습니다.</span>
                 )}
               </div>
             </div>
