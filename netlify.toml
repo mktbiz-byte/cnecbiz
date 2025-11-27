@@ -8,7 +8,7 @@
 
 # Scheduled Functions
 [functions."scheduled-collect-transactions"]
-  schedule = "*/5 * * * *"
+  schedule = "* * * * *"  # 매 1분마다 실행
 
 [functions."scheduled-unmatched-deposits-alert"]
   schedule = "0 7 * * *"  # 매일 오후 4시 (한국시간 = UTC+9)
