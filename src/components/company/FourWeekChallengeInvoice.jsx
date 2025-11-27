@@ -15,11 +15,18 @@ export default function FourWeekChallengeInvoice() {
   const [paymentMethod, setPaymentMethod] = useState(null) // 'card' or 'bank_transfer'
   const [showPaymentForm, setShowPaymentForm] = useState(false)
 
-  // 패키지 단가 계산 (estimated_cost 사용)
+  // 4주 챌린지 패키지 가격 매핑
+  const fourWeekPackageOptions = {
+    'standard': 600000,
+    'premium': 700000,
+    'professional': 800000,
+    'enterprise': 1000000
+  }
+
+  // 패키지 단가 계산
   const getPackagePrice = () => {
-    if (!campaign || !campaign.estimated_cost || !campaign.total_slots) return 0
-    // estimated_cost는 총 비용이므로 크리에이터 수로 나눔
-    return Math.floor(campaign.estimated_cost / campaign.total_slots)
+    if (!campaign) return 0
+    return fourWeekPackageOptions[campaign.package_type] || 0
   }
 
   const [depositorName, setDepositorName] = useState('')
