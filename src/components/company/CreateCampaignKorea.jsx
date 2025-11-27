@@ -548,19 +548,18 @@ const CampaignCreationKorea = () => {
         // 포인트 시스템 제거: 모든 결제는 계좌이체로 진행
         // 입금 확인 요청은 InvoicePage에서 세금계산서 신청 시에만 생성
         setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
-          
-          // 캠페인 타입에 따라 적절한 가이드 페이지로 이동
-          setTimeout(() => {
-            if (campaignForm.campaign_type === 'oliveyoung') {
-              navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
-            } else if (campaignForm.campaign_type === '4week_challenge') {
-              navigate(`/company/campaigns/guide/4week?id=${campaignId}`)
-            } else {
-              navigate(`/company/campaigns/guide?id=${campaignId}`)
-            }
-          }, 1500)
-          return
-        }
+        
+        // 캐페인 타입에 따라 적절한 가이드 페이지로 이동
+        setTimeout(() => {
+          if (campaignForm.campaign_type === 'oliveyoung') {
+            navigate(`/company/campaigns/guide/oliveyoung?id=${campaignId}`)
+          } else if (campaignForm.campaign_type === '4week_challenge') {
+            navigate(`/company/campaigns/guide/4week?id=${campaignId}`)
+          } else {
+            navigate(`/company/campaigns/guide?id=${campaignId}`)
+          }
+        }, 1500)
+        return
       }
 
       // 수정 모드일 경우 가이드 수정 페이지로 이동
