@@ -194,7 +194,7 @@ exports.handler = async (event, context) => {
       const { error: campaignUpdateError } = await campaignSupabase
         .from('campaigns')
         .update({
-          approval_status: 'pending',
+          status: 'pending',
           payment_status: 'confirmed',
           updated_at: new Date().toISOString()
         })
