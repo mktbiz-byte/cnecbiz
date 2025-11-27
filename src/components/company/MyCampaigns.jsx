@@ -153,13 +153,8 @@ export default function MyCampaigns() {
 
   const handlePayWithPoints = async (campaign) => {
     try {
-      // 캠페인 금액 계산
-      let packagePrice
-      if (campaign.campaign_type === '4week_challenge' || campaign.campaign_type === '4week') {
-        packagePrice = 600000 // 4주 챌린지는 60만원 고정
-      } else {
-        packagePrice = getPackagePrice(campaign.package_type)
-      }
+      // 캐페인 금액 계산
+      const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
       const recruitmentCount = campaign.total_slots || campaign.recruitment_count || 1
       const totalCost = packagePrice * recruitmentCount
 
@@ -373,26 +368,49 @@ export default function MyCampaigns() {
     }
   }
 
-  const getPackagePrice = (packageType) => {
-    const prices = {
-      // 기획형
+  const getPackagePrice = (packageType, campaignType) => {
+    // 올리브영 패키지 가격
+    const oliveyoungPrices = {
+      'standard': 400000,
+      'premium': 500000,
+      'professional': 600000
+    }
+
+    // 기획형 & 4주 챌린지 패키지 가격 (동일)
+    const generalPrices = {
       'junior': 200000,
       'intermediate': 300000,
       'senior': 500000,
       'basic': 200000,
-      // 올리브영
-      'oliveyoung': 200000,
-      '올영 20만원': 200000,
-      'standard': 400000,
-      'premium': 300000,
-      '프리미엄 30만원': 300000,
-      // 4주 챌린지
-      '4week_challenge': 600000,
-      '4주챌린지 60만원': 600000,
-      'professional': 800000,
+      'standard': 300000,
+      'premium': 400000,
+      'professional': 600000,
       'enterprise': 1000000
     }
-    return prices[packageType?.toLowerCase()] || 200000
+
+    // 레거시 패키지
+    const legacyPrices = {
+      'oliveyoung': 200000,
+      '올영 20만원': 200000,
+      '프리미엄 30만원': 300000,
+      '4week_challenge': 600000,
+      '4주챌린지 60만원': 600000
+    }
+
+    const packageKey = packageType?.toLowerCase()
+
+    // 레거시 패키지 먼저 확인
+    if (legacyPrices[packageKey]) {
+      return legacyPrices[packageKey]
+    }
+
+    // 올리브영 패키지
+    if (campaignType === 'oliveyoung' && oliveyoungPrices[packageKey]) {
+      return oliveyoungPrices[packageKey]
+    }
+
+    // 기획형 & 4주 챌린지 패키지
+    return generalPrices[packageKey] || 200000
   }
 
   const getCampaignTypeBadge = (campaignType) => {
@@ -644,11 +662,7 @@ export default function MyCampaigns() {
                   .map((campaign) => {
                   // 4주 챌린지는 60만원 고정, 나머지는 패키지 가격 사용
                   let packagePrice
-                  if (campaign.campaign_type === '4week_challenge' || campaign.campaign_type === '4week') {
-                    packagePrice = 600000
-                  } else {
-                    packagePrice = getPackagePrice(campaign.package_type)
-                  }
+                  packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
                   const subtotal = packagePrice * (campaign.total_slots || 0)
                   const vat = Math.floor(subtotal * 0.1)
                   const totalCost = subtotal + vat
