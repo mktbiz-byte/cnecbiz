@@ -134,27 +134,24 @@ const CampaignsManagement = () => {
       if (newStatus === 'active' && campaign.company_email) {
         console.log('[DEBUG] 알림 전송 조건 충족 - company_email:', campaign.company_email)
         try {
-          // company_email로 companies 테이블 조회 (company_id는 불일치할 수 있음)
-          console.log('[DEBUG] company_email로 회사 정보 조회 시작:', campaign.company_email)
-          const { data: companies, error: companyError } = await supabaseBiz
+          // 회사 정보 조회 (confirm-campaign-payment.js와 동일한 방식)
+          console.log('[DEBUG] user_id로 회사 정보 조회 시작:', campaign.company_id)
+          const { data: company, error: companyError } = await supabaseBiz
             .from('companies')
-            .select('company_name, email, phone, notification_phone, notification_email')
-            .eq('email', campaign.company_email)
+            .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+            .eq('user_id', campaign.company_id)
+            .single()
           
-          console.log('[DEBUG] 회사 조회 결과:', companies, '에러:', companyError)
+          console.log('[DEBUG] 회사 조회 결과:', company, '에러:', companyError)
           
-          // companies 테이블에서 조회한 정보 사용, 없으면 캠페인 정보 사용
-          const company = companies && companies.length > 0 ? companies[0] : {
-            company_name: campaign.brand || campaign.brand_name || '회사',
-            email: campaign.company_email,
-            phone: null,
-            notification_phone: null,
-            notification_email: campaign.company_email
+          if (companyError) {
+            console.error('[ERROR] 회사 정보 조회 실패:', companyError)
+            throw companyError
           }
           
           console.log('[DEBUG] 최종 회사 정보:', company)
 
-          if (company.email) {
+          if (company) {
             const formatDate = (dateString) => {
               if (!dateString) return '미정'
               return new Date(dateString).toLocaleDateString('ko-KR', { 
