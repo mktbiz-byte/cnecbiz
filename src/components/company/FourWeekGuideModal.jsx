@@ -197,20 +197,14 @@ JSON 형식으로만 응답해주세요.`
         }
       }))
 
-      // Load existing AI guides
-      const existingGuides = campaign.challenge_weekly_guides_ai || {}
+      // Save to database using week-specific columns
+      const weekColumn = `${weekToGenerate}_guide`
+      const guideText = JSON.stringify(generatedGuide, null, 2)
       
-      // Update with new guide
-      const updatedGuides = {
-        ...existingGuides,
-        [weekToGenerate]: generatedGuide
-      }
-
-      // Save to database
       const { error } = await supabase
         .from('campaigns')
         .update({ 
-          challenge_weekly_guides_ai: updatedGuides,
+          [weekColumn]: guideText,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', campaign.id)
