@@ -4,10 +4,34 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
-const { sendNotification, generateEmailHtml } = require('./send-notification-helper')
 
-// Supabase Admin 클라이언트 초기화
-const supabaseAdmin = createClient(
+// Supabase 클라이언트 생성 함수
+function getSupabaseClient(region) {
+  let supabaseUrl, supabaseKey
+
+  switch (region) {
+    case 'korea':
+      supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
+      supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+      break
+    case 'japan':
+      supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
+      supabaseKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+      break
+    case 'us':
+      supabaseUrl = process.env.VITE_SUPABASE_US_URL
+      supabaseKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
+      break
+    default:
+      supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
+      supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  }
+
+  return createClient(supabaseUrl, supabaseKey)
+}
+
+// Biz DB 클라이언트
+const supabaseBiz = createClient(
   process.env.VITE_SUPABASE_BIZ_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
@@ -40,7 +64,9 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { campaignId, adminNote } = JSON.parse(event.body)
+    const { campaignId, region = 'korea', adminNote } = JSON.parse(event.body)
+
+    console.log('[approve-campaign] Request:', { campaignId, region })
 
     // 입력 검증
     if (!campaignId) {
@@ -54,14 +80,18 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // 지역별 Supabase 클라이언트 선택
+    const supabaseRegion = getSupabaseClient(region)
+
     // 캠페인 정보 조회
-    const { data: campaign, error: campaignError } = await supabaseAdmin
+    const { data: campaign, error: campaignError } = await supabaseRegion
       .from('campaigns')
-      .select('*, companies(company_name, email, phone)')
+      .select('*')
       .eq('id', campaignId)
       .single()
 
     if (campaignError || !campaign) {
+      console.error('[approve-campaign] Campaign not found:', campaignError)
       return {
         statusCode: 404,
         headers,
@@ -72,18 +102,43 @@ exports.handler = async (event, context) => {
       }
     }
 
+    console.log('[approve-campaign] Campaign found:', campaign.title)
+
+    // 회사 정보 조회 (Biz DB에서)
+    const { data: company, error: companyError } = await supabaseBiz
+      .from('companies')
+      .select('*')
+      .eq('user_id', campaign.user_id)
+      .single()
+
+    if (companyError || !company) {
+      console.error('[approve-campaign] Company not found:', companyError)
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: '회사 정보를 찾을 수 없습니다.'
+        })
+      }
+    }
+
+    console.log('[approve-campaign] Company found:', company.company_name)
+
     // 캠페인 상태 업데이트
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await supabaseRegion
       .from('campaigns')
       .update({
         status: 'active',
+        approval_status: 'approved',
         approved_at: new Date().toISOString(),
-        admin_note: adminNote || null
+        admin_note: adminNote || null,
+        updated_at: new Date().toISOString()
       })
       .eq('id', campaignId)
 
     if (updateError) {
-      console.error('캠페인 상태 업데이트 오류:', updateError)
+      console.error('[approve-campaign] Update error:', updateError)
       return {
         statusCode: 500,
         headers,
@@ -94,32 +149,130 @@ exports.handler = async (event, context) => {
       }
     }
 
+    console.log('[approve-campaign] Campaign approved successfully')
+
     // 알림 발송 (카카오톡 + 이메일)
     try {
-      const templateCode = '025100001005' // 캠페인 승인 및 모집 시작
-      const variables = {
-        '회사명': campaign.companies.company_name,
-        '캠페인명': campaign.title,
-        '시작일': campaign.start_date,
-        '마감일': campaign.end_date,
-        '모집인원': campaign.target_creators.toString()
+      const alimtalkApiKey = process.env.ALIMTALK_API_KEY
+      const alimtalkUserId = process.env.ALIMTALK_USER_ID
+      const alimtalkSenderKey = process.env.ALIMTALK_SENDER_KEY
+      
+      // 알림톡 템플릿 코드
+      const templateCode = '025100001005' // [CNEC] 신청하신 캠페인 승인 완료
+      
+      // 날짜 포맷팅
+      const formatDate = (dateString) => {
+        if (!dateString) return '-'
+        const date = new Date(dateString)
+        return date.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
       }
 
-      const emailTemplate = generateEmailHtml(templateCode, variables)
+      const variables = {
+        '회사명': company.company_name || '고객사',
+        '캠페인명': campaign.title || campaign.campaign_name || '캠페인',
+        '시작일': formatDate(campaign.recruitment_start_date || campaign.start_date),
+        '마감일': formatDate(campaign.recruitment_deadline || campaign.end_date),
+        '모집인원': (campaign.total_slots || campaign.target_creators || 0).toString()
+      }
 
-      await sendNotification({
-        receiverNum: campaign.companies.phone,
-        receiverEmail: campaign.companies.email,
-        receiverName: campaign.companies.company_name,
-        templateCode,
-        variables,
-        emailSubject: emailTemplate.subject,
-        emailHtml: emailTemplate.html
-      })
+      console.log('[approve-campaign] Sending notification with variables:', variables)
 
-      console.log('알림 발송 완료')
+      // 알림톡 전송
+      if (alimtalkApiKey && alimtalkUserId && alimtalkSenderKey && company.phone) {
+        const alimtalkResponse = await fetch('https://kakaoapi.aligo.in/akv10/alimtalk/send/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            apikey: alimtalkApiKey,
+            userid: alimtalkUserId,
+            senderkey: alimtalkSenderKey,
+            tpl_code: templateCode,
+            sender: '18336025',
+            receiver_1: company.phone.replace(/-/g, ''),
+            subject_1: '[CNEC] 신청하신 캠페인 승인 완료',
+            message_1: `[CNEC] 신청하신 캠페인 승인 완료\n\n#{회사명}님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.\n\n캠페인: #{캠페인명}\n모집 기간: #{시작일} ~ #{마감일}\n모집 인원: #{모집인원}명\n\n관리자 페이지에서 진행 상황을 확인하실 수 있습니다.\n\n문의: 1833-6025`,
+            button_1: JSON.stringify({
+              button: [{
+                name: '관리자 페이지',
+                linkType: 'WL',
+                linkTypeName: '웹링크',
+                linkMo: 'https://cnectotal.netlify.app/company/campaigns',
+                linkPc: 'https://cnectotal.netlify.app/company/campaigns'
+              }]
+            }),
+            ...Object.entries(variables).reduce((acc, [key, value], index) => {
+              acc[`emtitle_${index + 1}`] = key
+              acc[`emoption_${index + 1}`] = value
+              return acc
+            }, {})
+          }).toString()
+        })
+
+        const alimtalkResult = await alimtalkResponse.json()
+        console.log('[approve-campaign] Alimtalk response:', alimtalkResult)
+      } else {
+        console.log('[approve-campaign] Alimtalk credentials missing or no phone number')
+      }
+
+      // 이메일 전송
+      if (company.email) {
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+            <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #4F46E5; margin-bottom: 20px;">[CNEC] 신청하신 캠페인 승인 완료</h2>
+              <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                ${variables['회사명']}님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.
+              </p>
+              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 10px 0;"><strong>캠페인:</strong> ${variables['캠페인명']}</p>
+                <p style="margin: 10px 0;"><strong>모집 기간:</strong> ${variables['시작일']} ~ ${variables['마감일']}</p>
+                <p style="margin: 10px 0;"><strong>모집 인원:</strong> ${variables['모집인원']}명</p>
+              </div>
+              <p style="font-size: 14px; color: #666; margin-top: 20px;">
+                관리자 페이지에서 진행 상황을 확인하실 수 있습니다.
+              </p>
+              <a href="https://cnectotal.netlify.app/company/campaigns" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">
+                관리자 페이지 바로가기
+              </a>
+              <p style="font-size: 12px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                문의: 1833-6025
+              </p>
+            </div>
+          </div>
+        `
+
+        const gmailUser = process.env.GMAIL_USER
+        const gmailAppPassword = process.env.GMAIL_APP_PASSWORD
+
+        if (gmailUser && gmailAppPassword) {
+          const nodemailer = require('nodemailer')
+          
+          const transporter = nodemailer.createTransporter({
+            service: 'gmail',
+            auth: {
+              user: gmailUser,
+              pass: gmailAppPassword
+            }
+          })
+
+          await transporter.sendMail({
+            from: `"CNEC" <${gmailUser}>`,
+            to: company.email,
+            subject: '[CNEC] 신청하신 캠페인 승인 완료',
+            html: emailHtml
+          })
+
+          console.log('[approve-campaign] Email sent successfully')
+        } else {
+          console.log('[approve-campaign] Gmail credentials missing')
+        }
+      }
+
+      console.log('[approve-campaign] Notification sent successfully')
     } catch (notifError) {
-      console.error('알림 발송 오류:', notifError.message)
+      console.error('[approve-campaign] Notification error:', notifError)
       // 알림 발송 실패해도 승인은 완료
     }
 
@@ -133,7 +286,7 @@ exports.handler = async (event, context) => {
     }
 
   } catch (error) {
-    console.error('서버 오류:', error)
+    console.error('[approve-campaign] Server error:', error)
     return {
       statusCode: 500,
       headers,

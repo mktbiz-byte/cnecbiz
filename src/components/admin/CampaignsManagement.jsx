@@ -131,27 +131,31 @@ export default function CampaignsManagement() {
   }
 
   const handleApproveCampaign = async (campaign) => {
-    if (!confirm(`캠페인을 승인하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`)) {
+    if (!confirm(`캠페인을 승인하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n\n승인 시 기업에게 알림톡과 메일이 전송됩니다.`)) {
       return
     }
 
     setConfirming(true)
     try {
-      // 캠페인이 어느 DB에 있는지 확인하고 업데이트
-      const region = campaign.region || 'biz'
-      const supabaseClient = getSupabaseClient(region)
-
-      const { error } = await supabaseClient
-        .from('campaigns')
-        .update({ 
-          approval_status: 'approved',
-          status: 'active'
+      // approve-campaign Netlify Function 호출 (알림톡 + 메일 전송)
+      const response = await fetch('/.netlify/functions/approve-campaign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          region: campaign.region || 'korea'
         })
-        .eq('id', campaign.id)
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      alert('캠페인이 승인되었습니다!')
+      if (!result.success) {
+        throw new Error(result.error || '캠페인 승인에 실패했습니다.')
+      }
+
+      alert('캠페인이 승인되었습니다! 기업에게 알림이 전송되었습니다.')
       fetchCampaigns()
 
     } catch (error) {
