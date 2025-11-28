@@ -2649,12 +2649,12 @@ export default function CampaignDetail() {
             {/* 지원한 크리에이터 섹션 */}
             <Card>
               <CardHeader>
-                <CardTitle>지원한 크리에이터 ({applications.length}명)</CardTitle>
+                <CardTitle>지원한 크리에이터 ({applications.filter(app => app.status !== 'selected' && app.status !== 'approved' && app.status !== 'virtual_selected' && app.status !== 'filming' && app.status !== 'video_submitted' && app.status !== 'revision_requested' && app.status !== 'completed').length}명)</CardTitle>
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {applications.map(app => {
+                  {applications.filter(app => app.status !== 'selected' && app.status !== 'approved' && app.status !== 'virtual_selected' && app.status !== 'filming' && app.status !== 'video_submitted' && app.status !== 'revision_requested' && app.status !== 'completed').map(app => {
                     // 이미 participants에 있는지 확인
                     const isAlreadyParticipant = participants.some(p => 
                       (p.creator_name || p.applicant_name) === app.applicant_name
