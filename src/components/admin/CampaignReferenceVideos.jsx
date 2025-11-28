@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Video, Plus, Trash2, Save, X, Eye, EyeOff, ChevronUp, ChevronDown } from 'lucide-react'
-import { supabaseBiz as supabase } from '../../lib/supabaseClients'
+import { supabaseBiz as supabase } from '../../lib/supabaseClients.js'
 
 export default function CampaignReferenceVideos() {
   const [videos, setVideos] = useState([])

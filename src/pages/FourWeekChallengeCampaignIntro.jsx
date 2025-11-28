@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { ArrowRight, Sparkles, FileText, Users, Video, Calendar, Target, TrendingUp, Award } from 'lucide-react'
-import { supabaseBiz as supabase } from '../../lib/supabaseClients'
+import { supabaseBiz as supabase } from '../../lib/supabaseClients.js'
 
 export default function FourWeekChallengeCampaignIntro() {
   const navigate = useNavigate()

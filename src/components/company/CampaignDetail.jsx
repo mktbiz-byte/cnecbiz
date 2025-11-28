@@ -2074,11 +2074,12 @@ export default function CampaignDetail() {
             {/* 4-Week Challenge Guide Viewer */}
             {campaign.campaign_type === '4week_challenge' && (
               <div className="mt-6">
-                <FourWeekGuideViewer 
-                  campaign={campaign}
-                  supabase={supabase}
-                  onUpdate={fetchCampaignDetail}
-                />
+                <Button
+                  onClick={() => setShow4WeekGuideModal(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  🎯 4주 챌린지 가이드 보기
+                </Button>
               </div>
             )}
 
@@ -5025,11 +5026,9 @@ export default function CampaignDetail() {
 
       {/* 4-Week Challenge Guide Modal */}
       {show4WeekGuideModal && campaign.campaign_type === '4week_challenge' && (
-        <FourWeekGuideModal
+        <FourWeekGuideViewer
           campaign={campaign}
           onClose={() => setShow4WeekGuideModal(false)}
-          onSave={fetchCampaignDetail}
-          supabase={supabase}
         />
       )}
 
