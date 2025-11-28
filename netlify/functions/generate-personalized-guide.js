@@ -35,6 +35,10 @@ export async function handler(event) {
    - 과도하게 자극적이거나 광고 같은 표현은 피하고, 진솔한 후기 느낌으로 작성
    - 일상 브이로그 스타일의 자연스러운 말투 사용
 7. **성분 설명 최소화**: 제품 성분에 대한 설명은 1번만 언급하거나 아예 생략. 효과와 결과 중심으로 작성
+8. **개인 리뷰 형태**: 광고가 아닌 개인적인 솔직 후기 느낌으로 작성. "이거 써봤는데", "제가 써보니까" 등 1인칭 시점 유지
+9. **친근한 대사**: 반말 또는 존댓말 혼용으로 친구에게 말하듯 편안한 톤. 딱딱하거나 격식 있는 표현 지양
+10. **한국인 감성**: 한국 문화와 정서에 맞는 표현 사용. "대박", "진짜", "완전", "ㄹㅇ" 등 한국인이 자주 쓰는 자연스러운 감탄사와 표현 활용
+11. **참고 영상 검색**: Google Search를 활용하여 YouTube에서 "제품명 리뷰" 또는 "카테고리 + 추천" 관련 영상을 검색하고, **10만뷰 이상**의 인기 영상 2-3개를 찾아 reference_videos에 포함하세요. 각 영상의 핵심 포인트를 분석하여 key_point에 기록하세요.
 
 ---
 
@@ -153,7 +157,24 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     "product": ["${productInfo.brand}추천", "인생템", "꿀템발견", "이거진짜"],
     "common": ${JSON.stringify(creatorAnalysis.contentAnalysis?.topHashtags?.slice(0, 3) || ['뷰티', '데일리', '추천'])}
   },
-  "why_recommended": "이 크리에이터의 평소 콘텐츠 스타일(${creatorAnalysis.style?.tone}, ${creatorAnalysis.style?.topics?.join(', ')})과 팔로워 특성(${creatorAnalysis.followers?.toLocaleString()}명, 참여율 ${creatorAnalysis.contentAnalysis?.engagementRate}%)을 고려할 때, 이 제품의 핵심 포인트를 가장 효과적으로 전달할 수 있습니다. 특히 [1-2문장으로 구체적인 이유 설명]",
+  "why_recommended": {
+    "scene_reasoning": "위 촬영 장면과 대사는 최근 ${creatorAnalysis.platform} 트렌드를 분석하여 구성했습니다. 특히 [첫 3초 후킹 → Before 문제 상황 → After 해결 결과] 구조가 가장 높은 조회수와 참여율을 기록하고 있습니다. 대사는 ${creatorAnalysis.style?.tone} 톤을 유지하면서도 제품의 핵심 효과를 자연스럽게 전달하도록 설계했습니다.",
+    "reference_videos": [
+      {
+        "title": "[참고 영상 1] 유사한 제품 리뷰 영상",
+        "url": "https://youtube.com/watch?v=example1",
+        "views": "100만+",
+        "key_point": "후킹 장면의 임팩트와 Before/After 대비 효과가 뛰어남"
+      },
+      {
+        "title": "[참고 영상 2] 같은 카테고리 인기 영상",
+        "url": "https://youtube.com/watch?v=example2",
+        "views": "50만+",
+        "key_point": "자연스러운 대사와 일상 브이로그 스타일이 신뢰도를 높임"
+      }
+    ],
+    "creator_fit": "이 크리에이터의 평소 콘텐츠 스타일(${creatorAnalysis.style?.tone})과 팔로워 특성(${creatorAnalysis.followers?.toLocaleString()}명, 참여율 ${creatorAnalysis.contentAnalysis?.engagementRate}%)을 고려할 때, 위 가이드가 가장 효과적으로 제품의 핵심 포인트를 전달할 수 있습니다."
+  },
   "shooting_requirements": {
     "must_include": [
       "제품 클로즈업 (텍스처, 패키징)",
