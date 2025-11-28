@@ -315,7 +315,7 @@ export default function LandingPage() {
                 <span>{pageContent.cta_button_text}</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              <button className="px-8 py-4 bg-white text-slate-700 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 transition-all flex items-center space-x-2 text-lg font-medium">
+              <button onClick={() => window.dispatchEvent(new CustomEvent("openConsultationModal"))} className="px-8 py-4 bg-white text-slate-700 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 transition-all flex items-center space-x-2 text-lg font-medium">
                 <MessageCircle className="w-5 h-5" />
                 <span>상담 신청</span>
               </button>
