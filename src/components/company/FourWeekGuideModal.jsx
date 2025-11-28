@@ -70,25 +70,102 @@ export default function FourWeekGuideModal({
   }, [campaign])
 
   const handleGenerateGuide = async () => {
+    if (!campaign.challenge_weekly_guides) {
+      alert('캠페인 생성 시 작성한 주차별 가이드가 없습니다.')
+      return
+    }
+
     setGenerating(true)
     try {
-      // AI 가이드 생성 로직
-      const response = await fetch('/.netlify/functions/generate-4week-guide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaign: {
-            brand: campaign.brand,
-            product_name: campaign.product_name,
-            product_features: campaign.product_features,
-            challenge_weekly_guides: campaign.challenge_weekly_guides
-          }
-        })
-      })
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('Gemini API 키가 설정되지 않았습니다.')
+      }
 
-      if (!response.ok) throw new Error('AI 생성 실패')
+      const weeklyGuides = campaign.challenge_weekly_guides
+      const prompt = `당신은 한국 뷰티/패션 크리에이터를 위한 4주 챌린지 캠페인 가이드 작성 전문가입니다.
+
+다음 제품 정보와 주차별 미션을 바탕으로, 각 주차별로 크리에이터가 쉽게 실행할 수 있는 가이드를 작성해주세요.
+
+**제품 정보:**
+- 브랜드: ${campaign.brand || '미정'}
+- 제품명: ${campaign.product_name || '미정'}
+- 제품 특징: ${campaign.product_features || '미정'}
+- 핵심 포인트: ${campaign.product_key_points || '미정'}
+
+**주차별 미션:**
+${['week1', 'week2', 'week3', 'week4'].map((week, idx) => {
+  const weekData = weeklyGuides[week]
+  return `
+${idx + 1}주차:
+- 미션: ${weekData?.mission || '미정'}
+- 필수 대사: ${weekData?.required_dialogue || '미정'}
+- 필수 장면: ${weekData?.required_scenes || '미정'}
+- 참고 URL: ${weekData?.reference || '없음'}`
+}).join('\n')}
+
+**가이드 작성 요구사항:**
+각 주차별로 다음 항목을 포함해주세요:
+1. 상품 정보 + 종합 정보 (간단명료하게)
+2. 해당 주차 미션 (명확하게)
+3. 필수 해시태그 3~5개 (배열)
+4. 필수 대사 3~5개 (배열)
+5. 필수 촬영 장면 3~5개 (배열)
+6. 주의사항 (FHD 이상, 필터 자제, 마감일 엄수, 패널티 등)
+7. 참고 영상 URL (있다면 포함, 배열)
+
+**응답 형식 (JSON):**
+{
+  "week1": {
+    "product_info": "상품 정보 + 종합 정보",
+    "mission": "1주차 미션",
+    "hashtags": ["해시태그1", "해시태그2"],
+    "required_dialogues": ["필수 대사1", "필수 대사2"],
+    "required_scenes": ["필수 장면1", "필수 장면2"],
+    "cautions": "주의사항",
+    "reference_urls": []
+  },
+  "week2": { ... },
+  "week3": { ... },
+  "week4": { ... }
+}
+
+JSON 형식으로만 응답해주세요.`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 4096,
+              responseMimeType: "application/json"
+            }
+          })
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(`AI 생성 실패: ${errorData.error?.message || response.statusText}`)
+      }
+
+      const result = await response.json()
       
-      const { guides } = await response.json()
+      if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+        throw new Error('AI 응답 형식이 올바르지 않습니다.')
+      }
+
+      const generatedText = result.candidates[0].content.parts[0].text
+      const guides = JSON.parse(generatedText)
+      
       setGuideData(guides)
       alert('✅ AI 가이드가 생성되었습니다!')
     } catch (error) {
