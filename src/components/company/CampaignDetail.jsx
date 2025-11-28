@@ -728,36 +728,7 @@ export default function CampaignDetail() {
         alert(`${skipped.map(a => a.applicant_name).join(', ')}는 이미 확정되어 제외됩니다.`)
       }
       
-      // applications에 추가
-      const participantsToAdd = toAdd.map(app => {
-        // 메인 채널에서 플랫폼 추출
-        let platform = '-'
-        if (app.main_channel) {
-          if (app.main_channel.includes('YouTube') || app.main_channel.includes('유튜브')) {
-            platform = 'YouTube'
-          } else if (app.main_channel.includes('Instagram') || app.main_channel.includes('인스타그램')) {
-            platform = 'Instagram'
-          } else if (app.main_channel.includes('TikTok') || app.main_channel.includes('틱톡')) {
-            platform = 'TikTok'
-          }
-        }
-        
-        return {
-          campaign_id: id,
-          user_id: app.user_id,
-          applicant_name: app.applicant_name,
-          status: 'guide_confirmation',
-          created_at: new Date().toISOString()
-        }
-      })
-
-      const { error: insertError } = await supabase
-        .from('applications')
-        .insert(participantsToAdd)
-
-      if (insertError) throw insertError
-
-      // applications의 status를 'selected'로 업데이트
+      // applications의 status를 'selected'로 업데이트 (크리에이터 관리 탭과 동일)
       console.log('Updating applications status to selected for IDs:', toAdd.map(app => app.id))
       const { error: updateError, data: updateData } = await supabase
         .from('applications')
