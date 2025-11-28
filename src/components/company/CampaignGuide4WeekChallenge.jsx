@@ -259,17 +259,21 @@ ${w.weekNum}주차:
 - 필수 촬영 장면: ${w.required_scenes}
 `).join('')}
 
-각 주차별로:
-1. 상세 가이드: 크리에이터가 실제로 사용할 수 있는 구체적이고 전문적인 가이드
-2. 간단한 가이드: 2-3문장 이내로 간단하고 명확하게 ("해당 미션에 맞게 촬영 필수" 포함)
+각 주차별로 다음 5가지 항목을 생성해주세요:
+1. product_info: 제품 정보 + 해당 주차 미션을 2-3문장으로 요약
+2. required_dialogues: 필수 대사를 배열로 (3-5개)
+3. required_scenes: 필수 촬영 장면을 배열로 (3-5개)
+4. hashtags: 필수 해시태그를 배열로 (3-5개, # 포함)
+5. reference_urls: 참고 영상 URL을 배열로 (입력된 URL 그대로 사용)
 
 **응답 형식 (JSON):**
 {
   "week1": {
-    "mission_enhanced": "상세 미션 설명",
-    "required_dialogue_enhanced": "상세 필수 대사",
-    "required_scenes_enhanced": "상세 필수 촬영 장면",
-    "simple_guide": "간단한 가이드 (2-3문장)"
+    "product_info": "제품명과 주차 미션 요약 (2-3문장)",
+    "required_dialogues": ["대사1", "대사2", "대사3"],
+    "required_scenes": ["장면1", "장면2", "장면3"],
+    "hashtags": ["#태그1", "#태그2", "#태그3"],
+    "reference_urls": ["입력된 URL"]
   },
   "week2": { ... },
   "week3": { ... },
@@ -311,27 +315,23 @@ JSON 형식으로 작성해주세요.`
                 const aiData = parsed[weekKey]
                 
                 if (aiData) {
-                  // 상세 가이드
-                  weeklyGuidesAI[weekKey] = {
-                    mission: aiData.mission_enhanced || weekData.mission,
-                    required_dialogue: aiData.required_dialogue_enhanced || weekData.required_dialogue,
-                    required_scenes: aiData.required_scenes_enhanced || weekData.required_scenes,
-                    reference: weekData.reference_url
+                  // JSON 구조로 저장
+                  simpleGuidesAI[weekKey] = {
+                    product_info: aiData.product_info || `${guideData.product_name}: ${weekData.mission}`,
+                    required_dialogues: aiData.required_dialogues || [],
+                    required_scenes: aiData.required_scenes || [],
+                    hashtags: aiData.hashtags || [],
+                    reference_urls: weekData.reference_url ? [weekData.reference_url] : []
                   }
-                  
-                  // 간단한 가이드
-                  simpleGuidesAI[weekKey] = aiData.simple_guide || (
-                    weekData.mission ? `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.` : '미정'
-                  )
                 } else {
-                  // AI 데이터 없으면 원본 사용
-                  weeklyGuidesAI[weekKey] = {
-                    mission: weekData.mission,
-                    required_dialogue: weekData.required_dialogue,
-                    required_scenes: weekData.required_scenes,
-                    reference: weekData.reference_url
+                  // AI 데이터 없으면 기본 구조 사용
+                  simpleGuidesAI[weekKey] = {
+                    product_info: `${guideData.product_name}: ${weekData.mission}`,
+                    required_dialogues: [],
+                    required_scenes: [],
+                    hashtags: [],
+                    reference_urls: weekData.reference_url ? [weekData.reference_url] : []
                   }
-                  simpleGuidesAI[weekKey] = weekData.mission ? `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.` : '미정'
                 }
               }
             }
@@ -344,23 +344,23 @@ JSON 형식으로 작성해주세요.`
         }
       } catch (aiError) {
         console.error('AI 생성 실패:', aiError)
-        // AI 실패 시 원본 사용
+        // AI 실패 시 기본 구조 사용
         for (let weekNum = 1; weekNum <= 4; weekNum++) {
           const weekKey = `week${weekNum}`
           const weekData = guideData[weekKey]
-          weeklyGuidesAI[weekKey] = {
-            mission: weekData.mission,
-            required_dialogue: weekData.required_dialogue,
-            required_scenes: weekData.required_scenes,
-            reference: weekData.reference_url
+          simpleGuidesAI[weekKey] = {
+            product_info: `${guideData.product_name}: ${weekData.mission}`,
+            required_dialogues: [],
+            required_scenes: [],
+            hashtags: [],
+            reference_urls: weekData.reference_url ? [weekData.reference_url] : []
           }
-          simpleGuidesAI[weekKey] = weekData.mission ? `${weekNum}주차 미션: ${weekData.mission}\n\n해당 미션에 맞게 촬영해주세요.` : '미정'
         }
       }
 
-      // AI 가이드 저장 (challenge_weekly_guides_ai JSON)
+      // AI 가이드 저장 (challenge_weekly_guides_ai JSON - JSON.stringify)
       const updateData = {
-        challenge_weekly_guides_ai: simpleGuidesAI,
+        challenge_weekly_guides_ai: JSON.stringify(simpleGuidesAI),
         guide_generated_at: new Date().toISOString()
       }
 
