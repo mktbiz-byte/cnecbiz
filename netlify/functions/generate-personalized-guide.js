@@ -221,15 +221,22 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     }
 
     const data = await response.json()
+    console.log('Gemini API Response:', JSON.stringify(data, null, 2))
+    
     let personalizedGuide = data.candidates?.[0]?.content?.parts?.[0]?.text
 
     if (!personalizedGuide) {
-      throw new Error('No guide generated')
+      console.error('Empty response from Gemini API:', data)
+      throw new Error('No guide generated - empty response from AI')
     }
 
-    // Extract JSON from markdown code block if present
+    console.log('Raw AI response:', personalizedGuide)
+
+    // Since we use responseMimeType: "application/json", the response should be pure JSON
+    // But still check for markdown code blocks just in case
     const jsonMatch = personalizedGuide.match(/```json\s*([\s\S]*?)\s*```/)
     if (jsonMatch) {
+      console.log('Found JSON in markdown code block')
       personalizedGuide = jsonMatch[1]
     }
 
@@ -237,6 +244,7 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     let guideJson
     try {
       guideJson = JSON.parse(personalizedGuide)
+      console.log('Successfully parsed guide JSON')
       
       // Validate YouTube URLs if present
       if (guideJson?.why_recommended?.reference_videos) {

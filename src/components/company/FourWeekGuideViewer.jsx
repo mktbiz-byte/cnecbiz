@@ -43,6 +43,14 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
   const currentWeekData = getCurrentWeekData()
   const currentDeadline = getCurrentDeadline()
 
+  // Debug logging
+  console.log('FourWeekGuideViewer Debug:', {
+    activeWeek,
+    currentWeekData,
+    isSimpleFormat: currentWeekData?.is_simple,
+    guideText: currentWeekData?.guide_text
+  })
+
   // Check if it's simple text format
   const isSimpleFormat = currentWeekData?.is_simple
 
