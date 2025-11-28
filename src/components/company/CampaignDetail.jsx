@@ -2655,9 +2655,9 @@ export default function CampaignDetail() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {applications.map(app => {
-                    // 이미 participants에 있는지 확인
+                    // 이미 participants에 있는지 확인 (user_id로 비교)
                     const isAlreadyParticipant = participants.some(p => 
-                      (p.creator_name || p.applicant_name) === app.applicant_name
+                      p.user_id && app.user_id && p.user_id === app.user_id
                     )
                     
                     return (
