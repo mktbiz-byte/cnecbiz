@@ -20,7 +20,18 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
 
   // Get current week data
   const getCurrentWeekData = () => {
-    return weeklyGuides[activeWeek] || null
+    const weekData = weeklyGuides[activeWeek]
+    
+    // If weekData is a string, convert to simple object
+    if (typeof weekData === 'string') {
+      return {
+        guide_text: weekData,
+        is_simple: true
+      }
+    }
+    
+    // If weekData is an object, return as is
+    return weekData || null
   }
 
   const getCurrentDeadline = () => {
@@ -32,7 +43,10 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
   const currentWeekData = getCurrentWeekData()
   const currentDeadline = getCurrentDeadline()
 
-  // Extract all fields from JSON
+  // Check if it's simple text format
+  const isSimpleFormat = currentWeekData?.is_simple
+
+  // Extract all fields from JSON (for object format)
   const productInfo = currentWeekData?.product_info || ''
   const mission = currentWeekData?.mission || ''
   const requiredDialogues = currentWeekData?.required_dialogues || []
@@ -41,7 +55,10 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
   const hashtags = currentWeekData?.hashtags || []
   const referenceUrls = currentWeekData?.reference_urls || []
 
-  const hasContent = productInfo || mission || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
+  // Simple text format
+  const guideText = currentWeekData?.guide_text || ''
+
+  const hasContent = isSimpleFormat ? !!guideText : (productInfo || mission || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0)
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -100,136 +117,153 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
 
           {hasContent ? (
             <div className="space-y-6">
-              {/* 제품 정보 */}
-              {productInfo && (
+              {/* Simple text format */}
+              {isSimpleFormat ? (
                 <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
                   <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
-                    <span>📦</span>
-                    제품 정보
+                    <span>📝</span>
+                    {activeWeek.replace('week', '')}주차 가이드
                   </h4>
                   <div className="bg-white rounded-lg p-4 border border-purple-100">
                     <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                      {productInfo}
+                      {guideText}
                     </p>
                   </div>
                 </div>
-              )}
-
-              {/* 미션 */}
-              {mission && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-                  <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
-                    <span>🎯</span>
-                    {activeWeek.replace('week', '')}주차 미션
-                  </h4>
-                  <div className="bg-white rounded-lg p-4 border border-blue-100">
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                      {mission}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* 필수 대사 */}
-              {requiredDialogues.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
-                    <span>💬</span>
-                    필수 대사
-                  </h4>
-                  <div className="bg-white rounded-lg p-4 border border-blue-100">
-                    <ul className="space-y-2">
-                      {requiredDialogues.map((dialogue, idx) => (
-                        <li key={idx} className="text-sm text-gray-800 flex gap-2">
-                          <span className="text-blue-600 font-semibold">{idx + 1}.</span>
-                          <span>{dialogue}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* 필수 장면 */}
-              {requiredScenes.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
-                    <span>🎬</span>
-                    필수 장면
-                  </h4>
-                  <div className="bg-white rounded-lg p-4 border border-green-100">
-                    <ul className="space-y-2">
-                      {requiredScenes.map((scene, idx) => (
-                        <li key={idx} className="text-sm text-gray-800 flex gap-2">
-                          <span className="text-green-600 font-semibold">{idx + 1}.</span>
-                          <span>{scene}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* 주의사항 */}
-              {cautions && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                  <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
-                    <span>⚠️</span>
-                    주의사항
-                  </h4>
-                  <div className="bg-white rounded-lg p-4 border border-red-100">
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                      {cautions}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* 필수 해시태그 */}
-              {hashtags.length > 0 && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
-                  <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
-                    <span>📌</span>
-                    필수 해시태그
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {hashtags.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300"
-                      >
-                        {tag.startsWith('#') ? tag : `#${tag}`}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 참고 영상 URL */}
-              {referenceUrls.length > 0 && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
-                  <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
-                    <span>🔗</span>
-                    참고 영상
-                  </h4>
-                  <div className="space-y-3">
-                    {referenceUrls.map((url, idx) => (
-                      <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
-                        >
-                          {url}
-                        </a>
+              ) : (
+                <>
+                  {/* Object format - 제품 정보 */}
+                  {productInfo && (
+                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
+                        <span>📦</span>
+                        제품 정보
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-purple-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {productInfo}
+                        </p>
                       </div>
-                    ))}
-                    <p className="text-xs text-gray-500 mt-3">
-                      💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
-                    </p>
-                  </div>
-                </div>
+                    </div>
+                  )}
+
+                  {/* 미션 */}
+                  {mission && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                        <span>🎯</span>
+                        {activeWeek.replace('week', '')}주차 미션
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-blue-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {mission}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 필수 대사 */}
+                  {requiredDialogues.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                        <span>💬</span>
+                        필수 대사
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-blue-100">
+                        <ul className="space-y-2">
+                          {requiredDialogues.map((dialogue, idx) => (
+                            <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                              <span className="text-blue-600 font-semibold">{idx + 1}.</span>
+                              <span>{dialogue}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 필수 장면 */}
+                  {requiredScenes.length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
+                        <span>🎬</span>
+                        필수 장면
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-green-100">
+                        <ul className="space-y-2">
+                          {requiredScenes.map((scene, idx) => (
+                            <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                              <span className="text-green-600 font-semibold">{idx + 1}.</span>
+                              <span>{scene}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 주의사항 */}
+                  {cautions && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
+                        <span>⚠️</span>
+                        주의사항
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-red-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {cautions}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 필수 해시태그 */}
+                  {hashtags.length > 0 && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                        <span>📌</span>
+                        필수 해시태그
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {hashtags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300"
+                          >
+                            {tag.startsWith('#') ? tag : `#${tag}`}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 참고 영상 URL */}
+                  {referenceUrls.length > 0 && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                        <span>🔗</span>
+                        참고 영상
+                      </h4>
+                      <div className="space-y-3">
+                        {referenceUrls.map((url, idx) => (
+                          <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                            >
+                              {url}
+                            </a>
+                          </div>
+                        ))}
+                        <p className="text-xs text-gray-500 mt-3">
+                          💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : (
