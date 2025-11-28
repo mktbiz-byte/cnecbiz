@@ -281,11 +281,14 @@ export default function CampaignsManagement() {
         console.log('[DEBUG] 알림 전송 조건 충족')
         try {
           // 회사 정보 조회
-          const { data: company } = await supabaseBiz
+          console.log('[DEBUG] 회사 정보 조회 시작:', campaign.company_id)
+          const { data: companies, error: companyError } = await supabaseBiz
             .from('companies')
             .select('company_name, email, phone, notification_phone, notification_email')
             .eq('id', campaign.company_id)
-            .single()
+          
+          console.log('[DEBUG] 회사 조회 결과:', companies, '에러:', companyError)
+          const company = companies && companies.length > 0 ? companies[0] : null
 
           if (company) {
             const formatDate = (dateString) => {
