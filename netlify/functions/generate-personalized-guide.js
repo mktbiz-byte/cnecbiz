@@ -223,22 +223,21 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     const data = await response.json()
     console.log('Gemini API Response:', JSON.stringify(data, null, 2))
     
-    let personalizedGuide = data.candidates?.[0]?.content?.parts?.[0]?.text
+    // Concatenate all parts from the response
+    const parts = data.candidates?.[0]?.content?.parts || []
+    let personalizedGuide = parts.map(part => part.text || '').join('')
 
     if (!personalizedGuide) {
       console.error('Empty response from Gemini API:', data)
       throw new Error('No guide generated - empty response from AI')
     }
 
-    console.log('Raw AI response:', personalizedGuide)
+    console.log('Raw AI response (concatenated):', personalizedGuide)
 
-    // Since we use responseMimeType: "application/json", the response should be pure JSON
-    // But still check for markdown code blocks just in case
-    const jsonMatch = personalizedGuide.match(/```json\s*([\s\S]*?)\s*```/)
-    if (jsonMatch) {
-      console.log('Found JSON in markdown code block')
-      personalizedGuide = jsonMatch[1]
-    }
+    // Remove markdown code blocks (```, ```json, etc.)
+    personalizedGuide = personalizedGuide.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+    
+    console.log('After removing code blocks:', personalizedGuide.substring(0, 200))
 
     // Try to parse as JSON to validate
     let guideJson
