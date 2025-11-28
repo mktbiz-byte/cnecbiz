@@ -262,21 +262,86 @@ export default function CampaignsManagement() {
 
       alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
       
-      // 활성화 시 알림 전송 (백그라운드로 실행, 실패해도 상태 변경은 완료)
-      if (newStatus === 'active') {
+      // 활성화 시 알림 전송 (confirm-campaign-payment 방식 사용)
+      if (newStatus === 'active' && campaign.company_id) {
         try {
-          await fetch('/.netlify/functions/send-campaign-activation-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              campaignId: campaign.id,
-              region: region
-            })
-          })
-          console.log('알림 전송 요청 완료')
+          // 회사 정보 조회
+          const { data: company } = await supabaseBiz
+            .from('companies')
+            .select('company_name, email, phone, notification_phone, notification_email')
+            .eq('id', campaign.company_id)
+            .single()
+
+          if (company) {
+            const formatDate = (dateString) => {
+              if (!dateString) return '미정'
+              return new Date(dateString).toLocaleDateString('ko-KR', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })
+            }
+
+            const startDate = formatDate(campaign.recruitment_start_date || campaign.start_date)
+            const endDate = formatDate(campaign.recruitment_deadline || campaign.end_date)
+            const campaignTitle = campaign.campaign_name || campaign.title || '캠페인'
+
+            // 카카오 알림톡 발송
+            if (company.notification_phone || company.phone) {
+              fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: company.notification_phone || company.phone,
+                  receiverName: company.company_name || '회사',
+                  templateCode: '025100001005',
+                  variables: {
+                    '회사명': company.company_name || '회사',
+                    '캠페인명': campaignTitle,
+                    '시작일': startDate,
+                    '마감일': endDate,
+                    '모집인원': String(campaign.total_slots || campaign.target_creators || 0)
+                  }
+                })
+              }).catch(err => console.error('알림톡 전송 실패:', err))
+            }
+
+            // 이메일 발송
+            if (company.notification_email || company.email) {
+              fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: company.notification_email || company.email,
+                  subject: '[CNEC] 캠페인 승인 완료',
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #333;">[CNEC] 캠페인 승인 완료</h2>
+                      <p><strong>${company.company_name || '회사'}</strong>님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.</p>
+                      
+                      <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <p style="margin: 10px 0;"><strong>캠페인:</strong> ${campaignTitle}</p>
+                        <p style="margin: 10px 0;"><strong>모집 기간:</strong> ${startDate} ~ ${endDate}</p>
+                        <p style="margin: 10px 0;"><strong>모집 인원:</strong> ${campaign.total_slots || campaign.target_creators || 0}명</p>
+                      </div>
+                      
+                      <p style="color: #666;">관리자 페이지에서 진행 상황을 확인하실 수 있습니다.</p>
+                      <p style="color: #666;">문의: <strong>1833-6025</strong></p>
+                      
+                      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                      <p style="font-size: 12px; color: #999; text-align: center;">
+                        본 메일은 발신전용입니다. 문의사항은 1833-6025로 연락주세요.
+                      </p>
+                    </div>
+                  `
+                })
+              }).catch(err => console.error('이메일 전송 실패:', err))
+            }
+
+            console.log('활성화 알림 전송 완료')
+          }
         } catch (notifError) {
           console.error('알림 전송 오류:', notifError)
-          // 알림 실패해도 무시
         }
       }
       
