@@ -241,53 +241,43 @@ export default function CampaignsManagement() {
       completed: '완료'
     }
 
-    // 활성화 시 알림 전송 안내
-    const confirmMessage = newStatus === 'active' 
-      ? `캠페인을 활성화하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n\n활성화 시 기업에게 알림톡과 메일이 전송됩니다.`
-      : `캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`
-
-    if (!confirm(confirmMessage)) {
+    if (!confirm(`캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`)) {
       return
     }
 
     setConfirming(true)
     try {
-      // 활성화일 경우 approve-campaign 함수 호출 (알림 전송)
-      if (newStatus === 'active') {
-        const response = await fetch('/.netlify/functions/approve-campaign', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            campaignId: campaign.id,
-            region: campaign.region || 'korea'
-          })
+      const region = campaign.region || 'biz'
+      const supabaseClient = getSupabaseClient(region)
+
+      const { error } = await supabaseClient
+        .from('campaigns')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
         })
+        .eq('id', campaign.id)
 
-        const result = await response.json()
+      if (error) throw error
 
-        if (!result.success) {
-          throw new Error(result.error || '캠페인 활성화에 실패했습니다.')
-        }
-
-        alert('캠페인이 활성화되었습니다! 기업에게 알림이 전송되었습니다.')
-      } else {
-        // 다른 상태 변경은 직접 Supabase 업데이트
-        const region = campaign.region || 'biz'
-        const supabaseClient = getSupabaseClient(region)
-
-        const { error } = await supabaseClient
-          .from('campaigns')
-          .update({ 
-            status: newStatus,
-            updated_at: new Date().toISOString()
+      alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+      
+      // 활성화 시 알림 전송 (백그라운드로 실행, 실패해도 상태 변경은 완료)
+      if (newStatus === 'active') {
+        try {
+          await fetch('/.netlify/functions/send-campaign-activation-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignId: campaign.id,
+              region: region
+            })
           })
-          .eq('id', campaign.id)
-
-        if (error) throw error
-
-        alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+          console.log('알림 전송 요청 완료')
+        } catch (notifError) {
+          console.error('알림 전송 오류:', notifError)
+          // 알림 실패해도 무시
+        }
       }
       
       fetchCampaigns()
