@@ -96,6 +96,7 @@ function levenshteinDistance(str1, str2) {
   return matrix[str2.length][str1.length];
 }
 
+// Force redeploy - Fixed maybeSingle issue - 2025-11-28
 exports.handler = async (event, context) => {
   console.log('📊 ========== 기업정보 조회 시작 ==========');
   console.log('🔧 [DEBUG] HTTP Method:', event.httpMethod);
