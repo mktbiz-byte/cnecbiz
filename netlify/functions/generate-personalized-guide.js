@@ -38,7 +38,13 @@ export async function handler(event) {
 8. **개인 리뷰 형태**: 광고가 아닌 개인적인 솔직 후기 느낌으로 작성. "이거 써봤는데", "제가 써보니까" 등 1인칭 시점 유지
 9. **친근한 대사**: 반말 또는 존댓말 혼용으로 친구에게 말하듯 편안한 톤. 딱딱하거나 격식 있는 표현 지양
 10. **한국인 감성**: 한국 문화와 정서에 맞는 표현 사용. "대박", "진짜", "완전", "ㄹㅇ" 등 한국인이 자주 쓰는 자연스러운 감탄사와 표현 활용
-11. **참고 영상 검색**: Google Search를 활용하여 YouTube에서 "제품명 리뷰" 또는 "카테고리 + 추천" 관련 영상을 검색하고, **10만뷰 이상**의 인기 영상 2-3개를 찾아 reference_videos에 포함하세요. 각 영상의 핵심 포인트를 분석하여 key_point에 기록하세요.
+11. **참고 영상 검색 (필수)**: Google Search를 활용하여 YouTube에서 다음과 같이 검색하세요:
+   - **검색어**: "${productInfo.product_name} 리뷰 shorts" 또는 "${productInfo.brand} 추천 shorts" 또는 "뷰티 리뷰 shorts"
+   - **우선순위**: YouTube Shorts 영상 우선 검색
+   - **조회수**: 10만뷰 이상의 실제 인기 영상 2-3개
+   - **URL 형식**: 반드시 실제 재생 가능한 YouTube URL (예: https://youtube.com/shorts/AbC123 또는 https://youtube.com/watch?v=AbC123)
+   - **플레이스홀더 금지**: YOUR_VIDEO_ID, example1, example2 같은 가짜 URL 절대 사용 금지
+   - **검색 실패 시**: 검색 결과가 없으면 reference_videos를 빈 배열 []로 반환
 
 ---
 
@@ -158,22 +164,19 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     "common": ${JSON.stringify(creatorAnalysis.contentAnalysis?.topHashtags?.slice(0, 3) || ['뷰티', '데일리', '추천'])}
   },
   "why_recommended": {
-    "scene_reasoning": "위 촬영 장면과 대사는 최근 ${creatorAnalysis.platform} 트렌드를 분석하여 구성했습니다. 특히 [첫 3초 후킹 → Before 문제 상황 → After 해결 결과] 구조가 가장 높은 조회수와 참여율을 기록하고 있습니다. 대사는 ${creatorAnalysis.style?.tone} 톤을 유지하면서도 제품의 핵심 효과를 자연스럽게 전달하도록 설계했습니다.",
+    "scene_reasoning": "위 촬영 장면과 대사는 최근 YouTube Shorts 트렌드를 분석하여 구성했습니다. [첫 3초 후킹 → Before 문제 상황 → After 해결 결과] 구조가 가장 높은 조회수와 참여율을 기록하고 있으며, 특히 숏폼 콘텐츠에서 효과적입니다. 대사는 개인 리뷰 형태로 친근하고 자연스럽게 작성하여 광고 느낌을 최소화하고 신뢰도를 높였습니다. 한국인 감성에 맞는 표현('대박', '진짜', '완전' 등)을 활용하여 공감대를 형성합니다.",
     "reference_videos": [
-      {
-        "title": "[참고 영상 1] 유사한 제품 리뷰 영상",
-        "url": "https://youtube.com/watch?v=example1",
-        "views": "100만+",
-        "key_point": "후킹 장면의 임팩트와 Before/After 대비 효과가 뛰어남"
-      },
-      {
-        "title": "[참고 영상 2] 같은 카테고리 인기 영상",
-        "url": "https://youtube.com/watch?v=example2",
-        "views": "50만+",
-        "key_point": "자연스러운 대사와 일상 브이로그 스타일이 신뢰도를 높임"
-      }
+      // Google Search로 실제 YouTube Shorts 영상을 검색하여 여기에 삽입하세요.
+      // 반드시 실제 재생 가능한 URL을 제공해야 합니다.
+      // 예시:
+      // {
+      //   "title": "실제 영상 제목",
+      //   "url": "https://youtube.com/shorts/AbC123",
+      //   "views": "250만+",
+      //   "key_point": "첫 3초 후킹이 강력하고 Before/After 대비가 명확함"
+      // }
     ],
-    "creator_fit": "이 크리에이터의 평소 콘텐츠 스타일(${creatorAnalysis.style?.tone})과 팔로워 특성(${creatorAnalysis.followers?.toLocaleString()}명, 참여율 ${creatorAnalysis.contentAnalysis?.engagementRate}%)을 고려할 때, 위 가이드가 가장 효과적으로 제품의 핵심 포인트를 전달할 수 있습니다."
+    "content_strategy": "이 가이드는 숏폼 콘텐츠의 핵심인 '빠른 전개'와 '명확한 메시지'에 집중합니다. 제품의 핵심 효과(${productInfo.product_key_points})를 시각적으로 강조하고, 개인 리뷰 형태로 진정성을 더했습니다. 성분 설명은 최소화하고 실제 사용 경험과 결과 중심으로 구성하여 시청자의 구매 욕구를 자극합니다."
   },
   "shooting_requirements": {
     "must_include": [
