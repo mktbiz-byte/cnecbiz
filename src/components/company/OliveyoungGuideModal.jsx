@@ -1,8 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 
 export default function OliveyoungGuideModal({ campaign, onClose }) {
   const [activeStep, setActiveStep] = useState('step1')
+
+  // Parse guide data to get URLs
+  const parseGuideData = (guideText) => {
+    if (!guideText) return null
+    try {
+      return typeof guideText === 'string' ? JSON.parse(guideText) : guideText
+    } catch {
+      return null
+    }
+  }
+
+  const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai)
+  const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai)
+  const step3Data = parseGuideData(campaign.oliveyoung_step3_guide_ai)
 
   // STEP 3 고정 안내 문구
   const step3Instruction = {
@@ -18,23 +32,24 @@ export default function OliveyoungGuideModal({ campaign, onClose }) {
 ※ 24시간 이내 삭제 시 캠페인 규정 위반으로 처리될 수 있습니다.`
   }
 
-  // 각 STEP별 URL 가져오기
-  const getStepUrl = (step) => {
-    if (step === 'step1') return campaign.step1_url
-    if (step === 'step2') return campaign.step2_url
-    if (step === 'step3') return campaign.step3_url
+  // Get current step data
+  const getCurrentStepData = () => {
+    if (activeStep === 'step1') return step1Data
+    if (activeStep === 'step2') return step2Data
+    if (activeStep === 'step3') return step3Data
     return null
   }
 
-  const getStepDeadline = (step) => {
-    if (step === 'step1') return campaign.step1_deadline
-    if (step === 'step2') return campaign.step2_deadline
-    if (step === 'step3') return campaign.step3_deadline
+  const getStepDeadline = () => {
+    if (activeStep === 'step1') return campaign.step1_deadline
+    if (activeStep === 'step2') return campaign.step2_deadline
+    if (activeStep === 'step3') return campaign.step3_deadline
     return null
   }
 
-  const currentUrl = getStepUrl(activeStep)
-  const currentDeadline = getStepDeadline(activeStep)
+  const currentStepData = getCurrentStepData()
+  const currentDeadline = getStepDeadline()
+  const currentUrls = currentStepData?.reference_urls || []
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -52,17 +67,21 @@ export default function OliveyoungGuideModal({ campaign, onClose }) {
 
         {/* STEP 탭 */}
         <div className="flex gap-2 px-6 pt-4 border-b bg-white">
-          {['step1', 'step2', 'step3'].map((step, idx) => (
+          {[
+            { key: 'step1', label: 'STEP 1: 세일 전 영상' },
+            { key: 'step2', label: 'STEP 2: 세일 당일 영상' },
+            { key: 'step3', label: 'STEP 3: 스토리 링크' }
+          ].map((step) => (
             <button
-              key={step}
-              onClick={() => setActiveStep(step)}
+              key={step.key}
+              onClick={() => setActiveStep(step.key)}
               className={`px-6 py-3 font-medium text-sm transition-all ${
-                activeStep === step
+                activeStep === step.key
                   ? 'border-b-2 border-pink-600 text-pink-600 bg-pink-50'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
-              STEP {idx + 1}
+              {step.label}
             </button>
           ))}
         </div>
@@ -97,20 +116,24 @@ export default function OliveyoungGuideModal({ campaign, onClose }) {
           )}
 
           {/* URL 표시 */}
-          {currentUrl ? (
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          {currentUrls.length > 0 ? (
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <span className="text-purple-600">🔗</span>
-                STEP {activeStep.replace('step', '')} 참고 영상
+                참고 영상
               </h4>
-              <a
-                href={currentUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-blue-600 hover:text-blue-800 hover:underline break-all bg-white px-4 py-3 rounded-lg border border-blue-200 transition-all hover:shadow-md"
-              >
-                {currentUrl}
-              </a>
+              {currentUrls.map((url, idx) => (
+                <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-blue-600 hover:text-blue-800 hover:underline break-all bg-white px-4 py-3 rounded-lg border border-blue-200 transition-all hover:shadow-md"
+                  >
+                    {url}
+                  </a>
+                </div>
+              ))}
               <p className="text-xs text-gray-500 mt-3">
                 💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
               </p>
@@ -118,7 +141,7 @@ export default function OliveyoungGuideModal({ campaign, onClose }) {
           ) : (
             <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <p className="text-gray-500">
-                STEP {activeStep.replace('step', '')}의 참고 영상 URL이 등록되지 않았습니다.
+                {activeStep === 'step1' ? 'STEP 1' : activeStep === 'step2' ? 'STEP 2' : 'STEP 3'}의 참고 영상 URL이 등록되지 않았습니다.
               </p>
               <p className="text-sm text-gray-400 mt-2">
                 관리자에게 문의해 주세요.

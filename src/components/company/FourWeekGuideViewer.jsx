@@ -1,334 +1,143 @@
-import { useState, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { X } from 'lucide-react'
 
-export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
-  const [activeWeek, setActiveWeek] = useState('week1')
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [sending, setSending] = useState(false)
-  
-  const [weekGuides, setWeekGuides] = useState({
-    week1: null,
-    week2: null,
-    week3: null,
-    week4: null
-  })
+export default function FourWeekGuideViewer({ campaign, onClose }) {
+  const [activeWeek, setActiveWeek] = useState(1)
 
-  useEffect(() => {
-    if (campaign && campaign.challenge_weekly_guides) {
-      setWeekGuides(campaign.challenge_weekly_guides)
-    }
-  }, [campaign])
-
-  const handleSaveWeek = async (weekToSave) => {
-    setSaving(true)
+  // Parse challenge_weekly_guides JSON
+  const parseWeeklyGuides = () => {
+    if (!campaign.challenge_weekly_guides) return {}
     try {
-      const updatedGuides = {
-        ...campaign.challenge_weekly_guides,
-        [weekToSave]: weekGuides[weekToSave]
-      }
-      
-      const { error } = await supabase
-        .from('campaigns')
-        .update({
-          challenge_weekly_guides: updatedGuides
-        })
-        .eq('id', campaign.id)
-
-      if (error) throw error
-
-      const weekNum = weekToSave.replace('week', '')
-      alert(`✅ ${weekNum}주차 가이드가 저장되었습니다!`)
-      setEditing(false)
-      if (onUpdate) onUpdate()
-    } catch (error) {
-      console.error('Error saving guide:', error)
-      alert('저장 실패: ' + error.message)
-    } finally {
-      setSaving(false)
+      return typeof campaign.challenge_weekly_guides === 'string' 
+        ? JSON.parse(campaign.challenge_weekly_guides) 
+        : campaign.challenge_weekly_guides
+    } catch {
+      return {}
     }
   }
 
-  const handleSendWeek = async (weekToSend) => {
-    const weekNum = weekToSend.replace('week', '')
-    
-    if (!confirm(`${weekNum}주차 가이드를 모든 참여자에게 전달하시겠습니까?\n\n알림톡과 이메일이 발송됩니다.`)) {
-      return
-    }
+  const weeklyGuides = parseWeeklyGuides()
 
-    setSending(true)
-    try {
-      // First save the guide
-      await handleSaveWeek(weekToSend)
-
-      // Call Netlify Function to send notifications
-      const response = await fetch('/.netlify/functions/deliver-4week-guide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-          weekNumber: parseInt(weekNum),
-          region: 'korea' // TODO: Get from campaign or context
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to deliver guide')
-      }
-
-      const result = await response.json()
-      
-      if (result.errorCount > 0) {
-        alert(`✅ ${weekNum}주차 가이드 전달 완료\n\n성공: ${result.successCount}명\n실패: ${result.errorCount}명`)
-      } else {
-        alert(`✅ ${weekNum}주차 가이드가 ${result.successCount}명의 참여자에게 전달되었습니다!\n\n알림톡과 이메일이 발송되었습니다.`)
-      }
-      
-      if (onUpdate) onUpdate()
-      
-    } catch (error) {
-      console.error('Error sending guide:', error)
-      alert('전달 실패: ' + error.message)
-    } finally {
-      setSending(false)
-    }
+  // Get current week data
+  const getCurrentWeekData = () => {
+    return weeklyGuides[`week${activeWeek}`] || null
   }
 
-  const currentGuide = weekGuides[activeWeek]
-
-  if (!campaign.challenge_weekly_guides || Object.keys(campaign.challenge_weekly_guides).length === 0) {
-    return (
-      <div className="bg-gray-50 rounded-lg p-8 text-center">
-        <p className="text-gray-500">아직 생성된 4주 챌린지 촬영 가이드가 없습니다.</p>
-        <p className="text-sm text-gray-400 mt-2">좌측의 "🤖 AI 생성" 버튼을 클릭하세요.</p>
-      </div>
-    )
+  const getWeekDeadline = () => {
+    const deadlineField = `week${activeWeek}_deadline`
+    return campaign[deadlineField]
   }
+
+  const currentWeekData = getCurrentWeekData()
+  const currentDeadline = getWeekDeadline()
+  const currentUrls = currentWeekData?.reference_urls || []
+  const weekMission = currentWeekData?.mission || ''
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
-      {/* 헤더 */}
-      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">📸 4주 챌린지 촬영 가이드</h3>
-        <button
-          onClick={() => setEditing(!editing)}
-          className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-        >
-          {editing ? '취소' : '✏️ 수정'}
-        </button>
-      </div>
-
-      {/* 주차 탭 */}
-      <div className="flex gap-2 px-6 pt-4 border-b">
-        {['week1', 'week2', 'week3', 'week4'].map((week, idx) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* 헤더 */}
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
+          <h3 className="text-xl font-bold text-gray-900">🎯 4주 챌린지 촬영 가이드</h3>
           <button
-            key={week}
-            onClick={() => setActiveWeek(week)}
-            className={`px-4 py-2 font-medium text-sm transition-colors ${
-              activeWeek === week
-                ? 'border-b-2 border-purple-600 text-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            {idx + 1}주차
-          </button>
-        ))}
-      </div>
-
-      {/* 가이드 내용 */}
-      <div className="p-6">
-        {!currentGuide ? (
-          <p className="text-gray-500">{activeWeek.replace('week', '')}주차 가이드가 없습니다.</p>
-        ) : editing ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">상품 정보</label>
-              <textarea
-                value={currentGuide.product_info || ''}
-                onChange={(e) => setWeekGuides(prev => ({
-                  ...prev,
-                  [activeWeek]: { ...prev[activeWeek], product_info: e.target.value }
-                }))}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">미션</label>
-              <textarea
-                value={currentGuide.mission || ''}
-                onChange={(e) => setWeekGuides(prev => ({
-                  ...prev,
-                  [activeWeek]: { ...prev[activeWeek], mission: e.target.value }
-                }))}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">필수 대사</label>
-              <textarea
-                value={Array.isArray(currentGuide.required_dialogues) ? currentGuide.required_dialogues.join('\n') : ''}
-                onChange={(e) => setWeekGuides(prev => ({
-                  ...prev,
-                  [activeWeek]: { ...prev[activeWeek], required_dialogues: e.target.value.split('\n') }
-                }))}
-                rows={5}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                placeholder="한 줄에 하나씩 입력"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">필수 촬영 장면</label>
-              <textarea
-                value={Array.isArray(currentGuide.required_scenes) ? currentGuide.required_scenes.join('\n') : ''}
-                onChange={(e) => setWeekGuides(prev => ({
-                  ...prev,
-                  [activeWeek]: { ...prev[activeWeek], required_scenes: e.target.value.split('\n') }
-                }))}
-                rows={5}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                placeholder="한 줄에 하나씩 입력"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">주의사항</label>
-              <textarea
-                value={currentGuide.cautions || ''}
-                onChange={(e) => setWeekGuides(prev => ({
-                  ...prev,
-                  [activeWeek]: { ...prev[activeWeek], cautions: e.target.value }
-                }))}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* 상품 정보 */}
-            {currentGuide.product_info && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">📦 상품 정보</h4>
-                <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg whitespace-pre-wrap">
-                  {currentGuide.product_info}
-                </p>
-              </div>
-            )}
-
-            {/* 미션 */}
-            {currentGuide.mission && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">🎯 미션</h4>
-                <p className="text-sm text-gray-600 bg-purple-50 p-3 rounded-lg whitespace-pre-wrap">
-                  {currentGuide.mission}
-                </p>
-              </div>
-            )}
-
-            {/* 필수 해시태그 */}
-            {currentGuide.hashtags && currentGuide.hashtags.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">#️⃣ 필수 해시태그</h4>
-                <div className="flex flex-wrap gap-2">
-                  {currentGuide.hashtags.map((tag, idx) => (
-                    <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 필수 대사 */}
-            {currentGuide.required_dialogues && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">💬 필수 대사</h4>
-                <ul className="space-y-2">
-                  {(Array.isArray(currentGuide.required_dialogues) 
-                    ? currentGuide.required_dialogues 
-                    : [currentGuide.required_dialogues]).map((dialogue, idx) => (
-                    <li key={idx} className="text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg flex items-start gap-2">
-                      <span className="font-semibold text-yellow-700">{idx + 1}.</span>
-                      <span>{dialogue}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* 필수 촬영 장면 */}
-            {currentGuide.required_scenes && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">🎥 필수 촬영 장면</h4>
-                <ul className="space-y-2">
-                  {(Array.isArray(currentGuide.required_scenes) 
-                    ? currentGuide.required_scenes 
-                    : [currentGuide.required_scenes]).map((scene, idx) => (
-                    <li key={idx} className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg flex items-start gap-2">
-                      <span className="font-semibold text-blue-700">{idx + 1}.</span>
-                      <span>{scene}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* 주의사항 */}
-            {currentGuide.cautions && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">⚠️ 주의사항</h4>
-                <p className="text-sm text-gray-600 bg-red-50 p-3 rounded-lg whitespace-pre-wrap">
-                  {currentGuide.cautions}
-                </p>
-              </div>
-            )}
-
-            {/* 참고 영상 */}
-            {currentGuide.reference_urls && currentGuide.reference_urls.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">🔗 참고 영상</h4>
-                <div className="space-y-2">
-                  {currentGuide.reference_urls.map((url, idx) => (
-                    <a
-                      key={idx}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-sm text-blue-600 hover:text-blue-800 underline bg-gray-50 p-3 rounded-lg"
-                    >
-                      {url}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 저장 및 전달 버튼 */}
-      {editing && (
-        <div className="px-6 pb-6 space-y-3">
-          <button
-            onClick={() => handleSaveWeek(activeWeek)}
-            disabled={saving}
-            className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-            💾 {activeWeek.replace('week', '')}주차 저장
-          </button>
-          <button
-            onClick={() => handleSendWeek(activeWeek)}
-            disabled={sending || saving}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {sending && <Loader2 className="w-4 h-4 animate-spin" />}
-            📤 {activeWeek.replace('week', '')}주차 전달
+            <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
-      )}
+
+        {/* 주차 탭 */}
+        <div className="flex gap-2 px-6 pt-4 border-b bg-white">
+          {[1, 2, 3, 4].map((week) => (
+            <button
+              key={week}
+              onClick={() => setActiveWeek(week)}
+              className={`px-6 py-3 font-medium text-sm transition-all ${
+                activeWeek === week
+                  ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              {week}주차
+            </button>
+          ))}
+        </div>
+
+        {/* 가이드 내용 */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* 마감일 표시 */}
+          {currentDeadline && (
+            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-700 font-semibold">📅 마감일:</span>
+                <span className="text-yellow-900 font-bold">
+                  {new Date(currentDeadline).toLocaleDateString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'short'
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 미션 설명 */}
+          {weekMission && (
+            <div className="mb-6 bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
+              <h4 className="text-base font-bold text-blue-900 mb-3">🎯 {activeWeek}주차 미션</h4>
+              <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
+                {weekMission}
+              </p>
+            </div>
+          )}
+
+          {/* URL 표시 */}
+          {currentUrls.length > 0 ? (
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <span className="text-purple-600">🔗</span>
+                참고 영상
+              </h4>
+              {currentUrls.map((url, idx) => (
+                <div key={idx} className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-blue-600 hover:text-blue-800 hover:underline break-all bg-white px-4 py-3 rounded-lg border border-blue-200 transition-all hover:shadow-md"
+                  >
+                    {url}
+                  </a>
+                </div>
+              ))}
+              <p className="text-xs text-gray-500 mt-3">
+                💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <p className="text-gray-500">
+                {activeWeek}주차의 참고 영상 URL이 등록되지 않았습니다.
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                관리자에게 문의해 주세요.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 하단 버튼 */}
+        <div className="px-6 py-4 border-t bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
