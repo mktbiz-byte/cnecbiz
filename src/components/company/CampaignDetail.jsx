@@ -77,6 +77,15 @@ export default function CampaignDetail() {
     step2: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
     step3: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
   })
+  const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
+  const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
+  const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
+  const [fourWeekGuideData, setFourWeekGuideData] = useState({
+    week1: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
+    week2: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
+    week3: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
+    week4: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
+  })
 
   useEffect(() => {
     const initPage = async () => {
@@ -1885,6 +1894,31 @@ export default function CampaignDetail() {
                     className="bg-green-600 hover:bg-green-700 text-white"
                   >
                     최종 가이드 발송
+                  </Button>
+                 </>
+              )}
+              {campaign.campaign_type === '4week_challenge' && (
+                <>
+                  <Button
+                    onClick={() => {
+                      // Load existing guide data if available
+                      if (campaign.week1_guide || campaign.week2_guide || campaign.week3_guide || campaign.week4_guide) {
+                        try {
+                          setFourWeekGuideData({
+                            week1: campaign.week1_guide ? JSON.parse(campaign.week1_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
+                            week2: campaign.week2_guide ? JSON.parse(campaign.week2_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
+                            week3: campaign.week3_guide ? JSON.parse(campaign.week3_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
+                            week4: campaign.week4_guide ? JSON.parse(campaign.week4_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
+                          })
+                        } catch (e) {
+                          console.error('Failed to parse existing guide:', e)
+                        }
+                      }
+                      setShow4WeekGuideModal(true)
+                    }}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    🤖 AI 4주 챌린지 가이드 생성하기
                   </Button>
                 </>
               )}
@@ -4951,7 +4985,7 @@ https://www.instagram.com/reel/example2"
                 onClick={async () => {
                   try {
                     // Save to campaigns table
-                    const { error } = await supabaseBiz
+                    const { error } = await supabase
                       .from('campaigns')
                       .update({
                         oliveyoung_step1_guide: JSON.stringify(unifiedGuideData.step1),
@@ -4966,6 +5000,203 @@ https://www.instagram.com/reel/example2"
                     alert('🎉 가이드가 저장되었습니다!')
                     await fetchCampaignDetail()
                     setShowUnifiedGuideModal(false)
+                  } catch (error) {
+                    console.error('Error saving guide:', error)
+                    alert('가이드 저장에 실패했습니다: ' + error.message)
+                  }
+                }}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                💾 가이드 저장
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4-Week Challenge Guide Modal */}
+      {show4WeekGuideModal && campaign.campaign_type === '4week_challenge' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-bold">🏆 4주 챌린지 가이드 생성</h3>
+              <button
+                onClick={() => setShow4WeekGuideModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="border-b">
+              <div className="flex">
+                <button
+                  onClick={() => setFourWeekGuideTab('week1')}
+                  className={`px-6 py-3 font-medium transition-colors ${
+                    fourWeekGuideTab === 'week1'
+                      ? 'border-b-2 border-purple-600 text-purple-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  1주차 가이드
+                </button>
+                <button
+                  onClick={() => setFourWeekGuideTab('week2')}
+                  className={`px-6 py-3 font-medium transition-colors ${
+                    fourWeekGuideTab === 'week2'
+                      ? 'border-b-2 border-purple-600 text-purple-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  2주차 가이드
+                </button>
+                <button
+                  onClick={() => setFourWeekGuideTab('week3')}
+                  className={`px-6 py-3 font-medium transition-colors ${
+                    fourWeekGuideTab === 'week3'
+                      ? 'border-b-2 border-purple-600 text-purple-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  3주차 가이드
+                </button>
+                <button
+                  onClick={() => setFourWeekGuideTab('week4')}
+                  className={`px-6 py-3 font-medium transition-colors ${
+                    fourWeekGuideTab === 'week4'
+                      ? 'border-b-2 border-purple-600 text-purple-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  4주차 가이드
+                </button>
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                {/* Reference URLs */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🎥 참고 영상 URL <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    크리에이터에게 보여줄 참고 영상 URL을 입력하세요. (여러 개는 줄바꿈으로 구분)
+                  </p>
+                  <textarea
+                    value={fourWeekGuideData[fourWeekGuideTab].reference_urls}
+                    onChange={(e) => setFourWeekGuideData({
+                      ...fourWeekGuideData,
+                      [fourWeekGuideTab]: {
+                        ...fourWeekGuideData[fourWeekGuideTab],
+                        reference_urls: e.target.value
+                      }
+                    })}
+                    className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    placeholder="https://www.youtube.com/watch?v=example1
+https://www.instagram.com/reel/example2"
+                  />
+                </div>
+
+                {/* Required Dialogue */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💬 필수 대사
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    크리에이터가 반드시 말해야 하는 대사를 작성하세요.
+                  </p>
+                  <textarea
+                    value={fourWeekGuideData[fourWeekGuideTab].required_dialogue}
+                    onChange={(e) => setFourWeekGuideData({
+                      ...fourWeekGuideData,
+                      [fourWeekGuideTab]: {
+                        ...fourWeekGuideData[fourWeekGuideTab],
+                        required_dialogue: e.target.value
+                      }
+                    })}
+                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    placeholder="예: '오늘은 {fourWeekGuideTab === 'week1' ? '1주차' : fourWeekGuideTab === 'week2' ? '2주차' : fourWeekGuideTab === 'week3' ? '3주차' : '4주차'} 챌린지 내용을 소개할게요!'"
+                  />
+                </div>
+
+                {/* Required Scenes */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    🎥 필수 장면
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    반드시 포함되어야 하는 장면을 설명하세요.
+                  </p>
+                  <textarea
+                    value={fourWeekGuideData[fourWeekGuideTab].required_scenes}
+                    onChange={(e) => setFourWeekGuideData({
+                      ...fourWeekGuideData,
+                      [fourWeekGuideTab]: {
+                        ...fourWeekGuideData[fourWeekGuideTab],
+                        required_scenes: e.target.value
+                      }
+                    })}
+                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    placeholder="예:\n- 제품 클로즈업 촬영\n- 사용 전후 비교\n- 효과 설명"
+                  />
+                </div>
+
+                {/* Examples */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    💡 구체적인 예시
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    구체적인 예시를 작성하세요.
+                  </p>
+                  <textarea
+                    value={fourWeekGuideData[fourWeekGuideTab].examples}
+                    onChange={(e) => setFourWeekGuideData({
+                      ...fourWeekGuideData,
+                      [fourWeekGuideTab]: {
+                        ...fourWeekGuideData[fourWeekGuideTab],
+                        examples: e.target.value
+                      }
+                    })}
+                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    placeholder="예:\n- 제품 패키지 공개\n- 사용 전후 비교\n- 효과 설명"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-6 border-t flex gap-3">
+              <Button
+                onClick={() => setShow4WeekGuideModal(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    // Save to campaigns table
+                    const { error } = await supabase
+                      .from('campaigns')
+                      .update({
+                        week1_guide: JSON.stringify(fourWeekGuideData.week1),
+                        week2_guide: JSON.stringify(fourWeekGuideData.week2),
+                        week3_guide: JSON.stringify(fourWeekGuideData.week3),
+                        week4_guide: JSON.stringify(fourWeekGuideData.week4),
+                        guide_generated_at: new Date().toISOString()
+                      })
+                      .eq('id', campaign.id)
+                    
+                    if (error) throw error
+                    
+                    alert('🎉 가이드가 저장되었습니다!')
+                    await fetchCampaignDetail()
+                    setShow4WeekGuideModal(false)
                   } catch (error) {
                     console.error('Error saving guide:', error)
                     alert('가이드 저장에 실패했습니다: ' + error.message)
