@@ -1756,14 +1756,39 @@ export default function CampaignDetail() {
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-gray-700">
-                          {participant.submission_deadline || campaign.content_submission_deadline || '미정'}
+                          {(() => {
+                            // 올리브영 세일: 2개 마감일
+                            if (campaign.campaign_type === 'oliveyoung') {
+                              return (
+                                <div className="space-y-1">
+                                  <div className="text-xs text-gray-500">세일 전: {campaign.deadline_presale || '미정'}</div>
+                                  <div className="text-xs text-gray-500">세일 당일: {campaign.deadline_saleday || '미정'}</div>
+                                </div>
+                              )
+                            }
+                            // 4주 챌린지: 4개 마감일
+                            if (campaign.campaign_type === '4week_challenge') {
+                              return (
+                                <div className="space-y-1">
+                                  <div className="text-xs text-gray-500">1주차: {campaign.deadline_week1 || '미정'}</div>
+                                  <div className="text-xs text-gray-500">2주차: {campaign.deadline_week2 || '미정'}</div>
+                                  <div className="text-xs text-gray-500">3주차: {campaign.deadline_week3 || '미정'}</div>
+                                  <div className="text-xs text-gray-500">4주차: {campaign.deadline_week4 || '미정'}</div>
+                                </div>
+                              )
+                            }
+                            // 기본: 단일 마감일
+                            return participant.submission_deadline || campaign.content_submission_deadline || '미정'
+                          })()}
                         </span>
-                        <button
-                          onClick={() => setEditingDeadline(participant.id)}
-                          className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-xs"
-                        >
-                          수정
-                        </button>
+                        {campaign.campaign_type !== 'oliveyoung' && campaign.campaign_type !== '4week_challenge' && (
+                          <button
+                            onClick={() => setEditingDeadline(participant.id)}
+                            className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-xs"
+                          >
+                            수정
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
