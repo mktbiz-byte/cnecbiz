@@ -3205,7 +3205,26 @@ export default function CampaignDetail() {
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
+                              <div>
+                                <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
+                                <div className="flex gap-2 mt-1">
+                                  {submission.video_number && (
+                                    <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded">
+                                      영상 {submission.video_number}
+                                    </span>
+                                  )}
+                                  {submission.week_number && (
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                                      {submission.week_number}주차
+                                    </span>
+                                  )}
+                                  {submission.version && (
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
+                                      V{submission.version}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                               {submissions.length > 1 && (
                                 <div className="flex gap-2">
                                   {submissions.map((_, index) => (
