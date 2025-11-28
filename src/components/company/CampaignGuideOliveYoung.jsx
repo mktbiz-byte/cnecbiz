@@ -134,12 +134,10 @@ export default function CampaignGuideOliveYoung() {
 **기업 요구사항**
 - STEP 1 (세일 전 영상): ${step1Guide}
 - STEP 2 (올영 스케줄 맞춤 제작): ${step2Guide}
-- STEP 3 (스토리 업로드 + URL 링크): ${step3Guide}
 
 **각 스텝별 핵심 요구사항:**
 - STEP 1: 세일 전 영상 콘텐츠 1건 제작 후 SNS 업로드 (기업이 작성한 가이드 내용 포함)
 - STEP 2: 올영 스케줄에 맞춰서 제작 (기업이 작성한 가이드 내용 포함)
-- STEP 3: STEP 2의 영상을 스토리에 업로드 + 링크 URL 설정 (24시간 오픈 필수)
 
 **작성 규칙:**
 - 불필요한 촬영 팁, 예시 대사 등은 절대 포함하지 마세요
@@ -151,7 +149,6 @@ JSON 형식으로 응답해주세요:
 {
   "step1_guide_enhanced": "STEP 1 핵심 요구사항 (2-3문장)",
   "step2_guide_enhanced": "STEP 2 핵심 요구사항 (2-3문장)",
-  "step3_guide_enhanced": "STEP 3 핵심 요구사항 (2-3문장)",
   "shooting_tips": "",
   "cautions": "필수 사항 (1-2문장)"
 }`
@@ -179,7 +176,6 @@ JSON 형식으로 응답해주세요:
       // JSON 파싱
       let step1Enhanced = step1Guide
       let step2Enhanced = step2Guide
-      let step3Enhanced = step3Guide
       let shootingTips = ''
       let cautions = ''
       
@@ -189,7 +185,6 @@ JSON 형식으로 응답해주세요:
           const parsed = JSON.parse(jsonMatch[0])
           step1Enhanced = parsed.step1_guide_enhanced || step1Guide
           step2Enhanced = parsed.step2_guide_enhanced || step2Guide
-          step3Enhanced = parsed.step3_guide_enhanced || step3Guide
           shootingTips = parsed.shooting_tips || ''
           cautions = parsed.cautions || ''
         }
@@ -198,13 +193,12 @@ JSON 형식으로 응답해주세요:
         // 파싱 실패 시 원본 사용
       }
 
-      // AI 가공된 가이드 저장
+      // AI 가공된 가이드 저장 (STEP 3는 제외)
       const { error: finalUpdateError } = await supabaseKorea
         .from('campaigns')
         .update({
           oliveyoung_step1_guide_ai: step1Enhanced,
           oliveyoung_step2_guide_ai: step2Enhanced,
-          oliveyoung_step3_guide_ai: step3Enhanced,
           oliveyoung_shooting_tips: shootingTips,
           oliveyoung_cautions: cautions,
           guide_generated_at: new Date().toISOString()
