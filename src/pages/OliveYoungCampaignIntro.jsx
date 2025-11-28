@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { ArrowRight, Sparkles, FileText, Users, Video, Calendar, Target, Gift, Zap } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { supabaseBiz as supabase } from '../../lib/supabaseClients'
 
 export default function OliveYoungCampaignIntro() {
   const navigate = useNavigate()
