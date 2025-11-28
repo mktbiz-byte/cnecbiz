@@ -89,14 +89,12 @@ export default function FourWeekGuideModal({
     }
   }, [campaign])
 
-  const handleGenerateGuides = async () => {
-    // Validate all weeks
-    for (const week of ['week1', 'week2', 'week3', 'week4']) {
-      const weekData = weeklyGuides[week]
-      if (!weekData.mission || !weekData.required_dialogue || !weekData.required_scenes) {
-        alert(`${week.replace('week', '')}주차 가이드를 모두 입력해주세요.`)
-        return
-      }
+  const handleGenerateWeekGuide = async (weekToGenerate) => {
+    // Validate current week
+    const weekData = weeklyGuides[weekToGenerate]
+    if (!weekData.mission || !weekData.required_dialogue || !weekData.required_scenes) {
+      alert(`${weekToGenerate.replace('week', '')}주차 가이드를 모두 입력해주세요.`)
+      return
     }
 
     setGenerating(true)
@@ -106,11 +104,7 @@ export default function FourWeekGuideModal({
         throw new Error('Gemini API 키가 설정되지 않았습니다.')
       }
 
-      const generatedGuides = {}
-
-      for (const week of ['week1', 'week2', 'week3', 'week4']) {
-        const weekData = weeklyGuides[week]
-        const weekNum = week.replace('week', '')
+      const weekNum = weekToGenerate.replace('week', '')
         
         const prompt = `당신은 한국 뷰티/패션 크리에이터를 위한 4주 챌린지 캠페인 가이드 작성 전문가입니다.
 
@@ -188,54 +182,42 @@ JSON 형식으로만 응답해주세요.`
           throw new Error(`${weekNum}주차 AI 응답 형식이 올바르지 않습니다.`)
         }
 
-        const generatedText = result.candidates[0].content.parts[0].text
-        generatedGuides[week] = JSON.parse(generatedText)
-      }
+      const generatedText = result.candidates[0].content.parts[0].text
+      const generatedGuide = JSON.parse(generatedText)
 
-      // Update UI state with generated guides
+      // Update UI state with generated guide for current week
       setWeeklyGuides(prev => ({
-        week1: {
-          ...prev.week1,
-          mission: generatedGuides.week1.mission || prev.week1.mission,
-          required_dialogue: generatedGuides.week1.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
-          required_scenes: generatedGuides.week1.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
-          hashtags: generatedGuides.week1.hashtags || []
-        },
-        week2: {
-          ...prev.week2,
-          mission: generatedGuides.week2.mission || prev.week2.mission,
-          required_dialogue: generatedGuides.week2.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
-          required_scenes: generatedGuides.week2.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
-          hashtags: generatedGuides.week2.hashtags || []
-        },
-        week3: {
-          ...prev.week3,
-          mission: generatedGuides.week3.mission || prev.week3.mission,
-          required_dialogue: generatedGuides.week3.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
-          required_scenes: generatedGuides.week3.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
-          hashtags: generatedGuides.week3.hashtags || []
-        },
-        week4: {
-          ...prev.week4,
-          mission: generatedGuides.week4.mission || prev.week4.mission,
-          required_dialogue: generatedGuides.week4.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
-          required_scenes: generatedGuides.week4.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
-          hashtags: generatedGuides.week4.hashtags || []
+        ...prev,
+        [weekToGenerate]: {
+          ...prev[weekToGenerate],
+          mission: generatedGuide.mission || prev[weekToGenerate].mission,
+          required_dialogue: generatedGuide.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
+          required_scenes: generatedGuide.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
+          hashtags: generatedGuide.hashtags || []
         }
       }))
+
+      // Load existing AI guides
+      const existingGuides = campaign.challenge_weekly_guides_ai || {}
+      
+      // Update with new guide
+      const updatedGuides = {
+        ...existingGuides,
+        [weekToGenerate]: generatedGuide
+      }
 
       // Save to database
       const { error } = await supabase
         .from('campaigns')
         .update({ 
-          challenge_weekly_guides_ai: generatedGuides,
+          challenge_weekly_guides_ai: updatedGuides,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', campaign.id)
 
       if (error) throw error
 
-      alert('✅ 4개 주차별 AI 가이드가 생성되었습니다! 각 탭에서 확인하고 수정하세요.')
+      alert(`✅ ${weekNum}주차 AI 가이드가 생성되었습니다! 내용을 확인하고 수정하세요.`)
     } catch (error) {
       console.error('Error generating guides:', error)
       alert('가이드 생성 실패: ' + error.message)
@@ -493,20 +475,20 @@ JSON 형식으로만 응답해주세요.`
           {/* 버튼 */}
           <div className="flex gap-3 pt-4 border-t">
             <button
+              onClick={() => handleGenerateWeekGuide(activeWeek)}
+              disabled={generating}
+              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {generating && <Loader2 className="w-4 h-4 animate-spin" />}
+              🤖 {activeWeek.replace('week', '')}주차 AI 가이드 생성
+            </button>
+            <button
               onClick={handleSave}
               disabled={saving}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               💾 가이드 저장
-            </button>
-            <button
-              onClick={handleGenerateGuides}
-              disabled={generating}
-              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {generating && <Loader2 className="w-4 h-4 animate-spin" />}
-              🤖 AI로 4개 주차별 가이드 생성
             </button>
           </div>
         </div>
