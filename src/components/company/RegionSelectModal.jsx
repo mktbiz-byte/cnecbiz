@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { X } from 'lucide-react'
+import { X, AlertCircle } from 'lucide-react'
 
 export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegion }) {
   const navigate = useNavigate()
@@ -32,14 +32,18 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
       name: '일본',
       flag: '🇯🇵',
       description: '',
-      color: 'bg-red-50 hover:bg-red-100 border-red-200'
+      color: 'bg-red-50 hover:bg-red-100 border-red-200',
+      disabled: true,
+      disabledMessage: '관리자 상담 후 신청 가능'
     },
     {
       id: 'us',
       name: '미국',
       flag: '🇺🇸',
       description: '',
-      color: 'bg-blue-50 hover:bg-blue-100 border-blue-200'
+      color: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
+      disabled: true,
+      disabledMessage: '관리자 상담 후 신청 가능'
     },
     {
       id: 'taiwan',
@@ -93,6 +97,18 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
         </div>
 
         <div className="p-6 border-t bg-gray-50">
+          <div className="flex items-start gap-3 mb-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-800 mb-1">
+                시스템 개편 안내
+              </p>
+              <p className="text-sm text-gray-600">
+                현재 시스템 개편 작업으로 인해 <strong className="text-gray-800">대한민국 캠페인만 생성 가능</strong>합니다. 
+                일본 및 미국 캠페인은 관리자 상담을 통해 신청해 주시기 바랍니다.
+              </p>
+            </div>
+          </div>
           <p className="text-sm text-gray-600 text-center">
             선택한 나라에 캠페인을 생성해 보세요.
           </p>
@@ -101,4 +117,3 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
     </div>
   )
 }
-
