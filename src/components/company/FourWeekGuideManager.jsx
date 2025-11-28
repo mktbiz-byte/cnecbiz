@@ -40,9 +40,33 @@ export default function FourWeekGuideManager({ campaign, filteredParticipants, o
   const handleGenerateWeekGuide = async (week) => {
     setIsGenerating(true)
     try {
-      // TODO: Netlify Function 호출하여 AI 가이드 생성
-      // 지금은 임시로 모달만 열기
-      alert(`${week}주차 가이드 생성 기능은 곧 추가됩니다.`)
+      const response = await fetch('/.netlify/functions/generate-4week-challenge-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaign: campaign,
+          weekNumber: week,
+          individualMessage: '',
+          creatorName: '크리에이터'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Supabase에 가이드 저장
+      const { error } = await getSupabaseClient()
+        .from('campaigns')
+        .update({ [`week${week}_guide`]: data.guide })
+        .eq('id', campaign.id)
+
+      if (error) throw error
+
+      alert(`${week}주차 가이드가 생성되었습니다!`)
+      if (onRefresh) onRefresh()
     } catch (error) {
       console.error(`Error generating week${week} guide:`, error)
       alert(`${week}주차 가이드 생성 실패: ` + error.message)
