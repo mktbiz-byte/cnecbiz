@@ -134,17 +134,25 @@ const CampaignsManagement = () => {
       if (newStatus === 'active' && campaign.company_email) {
         console.log('[DEBUG] 알림 전송 조건 충족 - company_email:', campaign.company_email)
         try {
-          // 캠페인 데이터에서 직접 회사 정보 사용
-          // company_id가 companies 테이블에 없을 수 있으므로 campaign 객체의 정보를 직접 사용
-          const company = {
+          // company_email로 companies 테이블 조회 (company_id는 불일치할 수 있음)
+          console.log('[DEBUG] company_email로 회사 정보 조회 시작:', campaign.company_email)
+          const { data: companies, error: companyError } = await supabaseBiz
+            .from('companies')
+            .select('company_name, email, phone, notification_phone, notification_email')
+            .eq('email', campaign.company_email)
+          
+          console.log('[DEBUG] 회사 조회 결과:', companies, '에러:', companyError)
+          
+          // companies 테이블에서 조회한 정보 사용, 없으면 캠페인 정보 사용
+          const company = companies && companies.length > 0 ? companies[0] : {
             company_name: campaign.brand || campaign.brand_name || '회사',
             email: campaign.company_email,
-            phone: null, // 캠페인 테이블에 전화번호 없음
+            phone: null,
             notification_phone: null,
             notification_email: campaign.company_email
           }
           
-          console.log('[DEBUG] 캠페인에서 추출한 회사 정보:', company)
+          console.log('[DEBUG] 최종 회사 정보:', company)
 
           if (company.email) {
             const formatDate = (dateString) => {
