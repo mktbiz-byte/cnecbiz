@@ -46,7 +46,9 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
       name: '대만',
       flag: '🇹🇼',
       description: 'cnec-tw.com 캠페인 생성',
-      color: 'bg-green-50 hover:bg-green-100 border-green-200'
+      color: 'bg-green-50 hover:bg-green-100 border-green-200',
+      disabled: true,
+      disabledMessage: '서비스 준비 중입니다'
     }
   ]
 
@@ -65,15 +67,21 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
             {regions.map((region) => (
               <Card
                 key={region.id}
-                className={`cursor-pointer transition-all ${region.color} border-2`}
-                onClick={() => handleSelectRegion(region.id)}
+                className={`transition-all border-2 ${
+                  region.disabled 
+                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
+                    : `cursor-pointer ${region.color}`
+                }`}
+                onClick={() => !region.disabled && handleSelectRegion(region.id)}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     <div className="text-5xl">{region.flag}</div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold mb-1">{region.name}</h3>
-                      <p className="text-sm text-gray-600">{region.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {region.disabled ? region.disabledMessage : region.description}
+                      </p>
                     </div>
                   </div>
                 </CardContent>

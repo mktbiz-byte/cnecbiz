@@ -377,9 +377,9 @@ export default function CompanyDashboard() {
               {campaigns.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <p>아직 생성된 캠페인이 없습니다.</p>
-                  <Button 
+                  <Button
                     className="mt-4"
-                    onClick={() => navigate('/company/campaigns/select-region')}
+                    onClick={() => setShowRegionModal(true)}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     첫 캠페인 만들기
