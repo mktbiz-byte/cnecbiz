@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUs } from '../../lib/supabase'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 
 const CampaignsManagement = () => {
   const [campaigns, setCampaigns] = useState([])
@@ -21,7 +21,7 @@ const CampaignsManagement = () => {
       { name: 'biz', client: supabaseBiz },
       { name: 'korea', client: supabaseKorea },
       { name: 'japan', client: supabaseJapan },
-      { name: 'us', client: supabaseUs }
+      { name: 'us', client: supabaseUS }
     ]
 
     for (const region of regions) {
@@ -86,7 +86,7 @@ const CampaignsManagement = () => {
       'biz': supabaseBiz,
       'korea': supabaseKorea,
       'japan': supabaseJapan,
-      'us': supabaseUs
+      'us': supabaseUS
     }
     return clients[region]
   }
