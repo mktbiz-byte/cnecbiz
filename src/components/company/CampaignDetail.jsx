@@ -746,7 +746,6 @@ export default function CampaignDetail() {
           campaign_id: id,
           user_id: app.user_id,
           creator_name: app.applicant_name,
-          creator_email: app.applicant_email || app.email || '',
           creator_platform: platform,
           status: 'guide_confirmation',
           created_at: new Date().toISOString()
@@ -787,17 +786,7 @@ export default function CampaignDetail() {
             .eq('id', app.user_id)
             .maybeSingle()
           
-          // applications 테이블에 이메일과 플랫폼 정보 업데이트
-          if (profile) {
-            await supabase
-              .from('applications')
-              .update({
-                creator_email: profile.email || '',
-                creator_platform: app.main_channel || ''
-              })
-              .eq('campaign_id', id)
-              .eq('creator_name', app.applicant_name)
-          }
+          // 알림톡 발송만 수행 (creator_email, creator_platform 필드 없음)
           
           if (profile?.phone) {
             await sendCampaignSelectedNotification(
@@ -2798,16 +2787,7 @@ export default function CampaignDetail() {
                               .eq('id', app.user_id)
                               .maybeSingle()
 
-                            if (profile) {
-                              // applications 테이블에 이메일 업데이트
-                              await supabase
-                                .from('applications')
-                                .update({
-                                  creator_email: profile.email || ''
-                                })
-                                .eq('campaign_id', id)
-                                .eq('creator_name', app.applicant_name)
-                              
+                            if (profile && profile.phone) {
                               // 카카오 알림톡
                               if (profile.phone) {
                                 await sendCampaignSelectedNotification(
