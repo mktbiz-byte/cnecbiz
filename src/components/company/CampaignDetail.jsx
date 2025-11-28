@@ -2519,24 +2519,13 @@ export default function CampaignDetail() {
                             platform = 'TikTok'
                           }
                           
-                          const { error: insertError } = await supabase
-                            .from('applications')
-                            .insert([{
-                              campaign_id: id,
-                              creator_name: app.applicant_name,
-                              creator_email: app.applicant_email || app.email || '',
-                              creator_platform: platform,
-                              status: 'guide_confirmation',
-                              created_at: new Date().toISOString()
-                            }])
-
-                          if (insertError) throw insertError
-
+                          // 기존 application 업데이트 (새로 삽입하지 않음)
                           const { error: updateError } = await supabase
                             .from('applications')
                             .update({ 
                               status: 'selected',
-                              virtual_selected: false 
+                              virtual_selected: false,
+                              creator_platform: platform
                             })
                             .eq('id', app.id)
 
@@ -2799,24 +2788,13 @@ export default function CampaignDetail() {
                             platform = 'TikTok'
                           }
                           
-                          const { error: insertError } = await supabase
-                            .from('applications')
-                            .insert([{
-                              campaign_id: id,
-                              creator_name: app.applicant_name,
-                              creator_email: app.applicant_email || app.email || '',
-                              creator_platform: platform,
-                              status: 'guide_confirmation',
-                              created_at: new Date().toISOString()
-                            }])
-
-                          if (insertError) throw insertError
-
+                          // 기존 application 업데이트 (새로 삽입하지 않음)
                           const { error: updateError } = await supabase
                             .from('applications')
                             .update({ 
                               status: 'selected',
-                              virtual_selected: false 
+                              virtual_selected: false,
+                              creator_platform: platform
                             })
                             .eq('id', app.id)
 
