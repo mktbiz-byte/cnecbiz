@@ -50,6 +50,8 @@ export default function OliveyoungGuideModal({ campaign, onClose }) {
   const currentStepData = getCurrentStepData()
   const currentDeadline = getStepDeadline()
   const currentUrls = currentStepData?.reference_urls || []
+  const guideText = currentStepData?.guide || currentStepData?.content || ''
+  const requiredHashtags = currentStepData?.required_hashtags || []
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -115,33 +117,73 @@ export default function OliveyoungGuideModal({ campaign, onClose }) {
             </div>
           )}
 
-          {/* URL 표시 */}
-          {currentUrls.length > 0 ? (
-            <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          {/* 가이드 텍스트 표시 */}
+          {guideText && (
+            <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
+                <span>📝</span>
+                {activeStep === 'step1' ? '세일 전 영상 가이드' : activeStep === 'step2' ? '세일 당일 영상 가이드' : '스토리 링크 가이드'}
+              </h4>
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {guideText}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* 필수 해시태그 표시 */}
+          {requiredHashtags.length > 0 && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <span>📌</span>
+                필수 해시태그
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {requiredHashtags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium border border-blue-300"
+                  >
+                    {tag.startsWith('#') ? tag : `#${tag}`}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 참고 영상 URL 표시 */}
+          {currentUrls.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
                 <span className="text-purple-600">🔗</span>
                 참고 영상
               </h4>
-              {currentUrls.map((url, idx) => (
-                <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-blue-600 hover:text-blue-800 hover:underline break-all bg-white px-4 py-3 rounded-lg border border-blue-200 transition-all hover:shadow-md"
-                  >
-                    {url}
-                  </a>
-                </div>
-              ))}
-              <p className="text-xs text-gray-500 mt-3">
-                💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
-              </p>
+              <div className="space-y-3">
+                {currentUrls.map((url, idx) => (
+                  <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-blue-600 hover:text-blue-800 hover:underline break-all bg-white px-4 py-3 rounded-lg border border-blue-200 transition-all hover:shadow-md"
+                    >
+                      {url}
+                    </a>
+                  </div>
+                ))}
+                <p className="text-xs text-gray-500 mt-3">
+                  💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                </p>
+              </div>
             </div>
-          ) : (
+          )}
+
+          {/* 데이터가 없을 때 */}
+          {!guideText && requiredHashtags.length === 0 && currentUrls.length === 0 && (
             <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
               <p className="text-gray-500">
-                {activeStep === 'step1' ? 'STEP 1' : activeStep === 'step2' ? 'STEP 2' : 'STEP 3'}의 참고 영상 URL이 등록되지 않았습니다.
+                {activeStep === 'step1' ? 'STEP 1' : activeStep === 'step2' ? 'STEP 2' : 'STEP 3'}의 가이드가 등록되지 않았습니다.
               </p>
               <p className="text-sm text-gray-400 mt-2">
                 관리자에게 문의해 주세요.
