@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Check, ArrowRight, Sparkles, FileText, Users, Video, Calendar, Target } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 export default function RegularCampaignIntro() {
   const navigate = useNavigate()
