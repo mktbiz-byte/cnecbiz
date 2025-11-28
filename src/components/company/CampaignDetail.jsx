@@ -2534,6 +2534,7 @@ export default function CampaignDetail() {
                           await fetchParticipants()
 
                           // 알림톡 및 이메일 발송
+                          // 알림톡 발송
                           try {
                             const { data: profile } = await supabase
                               .from('user_profiles')
@@ -2541,27 +2542,15 @@ export default function CampaignDetail() {
                               .eq('id', app.user_id)
                               .maybeSingle()
 
-                            if (profile) {
-                              // applications 테이블에 이메일 업데이트
-                              await supabase
-                                .from('applications')
-                                .update({
-                                  creator_email: profile.email || ''
-                                })
-                                .eq('campaign_id', id)
-                                .eq('creator_name', app.applicant_name)
-                              
-                              // 카카오 알림톡
-                              if (profile.phone) {
-                                await sendCampaignSelectedNotification(
-                                  profile.phone,
-                                  app.applicant_name,
-                                  {
-                                    campaignName: campaign?.title || '캠페인'
-                                  }
-                                )
-                                console.log('Alimtalk sent successfully')
-                              }
+                            if (profile && profile.phone) {
+                              await sendCampaignSelectedNotification(
+                                profile.phone,
+                                app.applicant_name,
+                                {
+                                  campaignName: campaign?.title || '캐페인'
+                                }
+                              )
+                              console.log('Alimtalk sent successfully')
                             }
                           } catch (notificationError) {
                             console.error('Notification error:', notificationError)
