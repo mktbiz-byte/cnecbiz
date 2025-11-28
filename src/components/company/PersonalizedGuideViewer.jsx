@@ -9,16 +9,39 @@ export default function PersonalizedGuideViewer({ guide, onSave }) {
 
   // Parse guide if it's a string
   const parseGuide = (guideData) => {
-    if (!guideData) return null
+    if (!guideData) {
+      console.log('No guide data provided')
+      return null
+    }
+    
+    // If it's already an object, return it
+    if (typeof guideData === 'object') {
+      console.log('Guide data is already an object:', guideData)
+      return guideData
+    }
+    
+    // If it's a string, try to parse it
     if (typeof guideData === 'string') {
+      // Check for empty or invalid strings
+      const trimmed = guideData.trim()
+      if (!trimmed || trimmed === '``' || trimmed === '```') {
+        console.log('Guide data is empty or invalid:', trimmed)
+        return null
+      }
+      
       try {
-        return JSON.parse(guideData)
+        const parsed = JSON.parse(trimmed)
+        console.log('Successfully parsed guide data:', parsed)
+        return parsed
       } catch (e) {
-        console.error('Failed to parse guide:', e)
+        console.error('Failed to parse guide as JSON:', e)
+        console.error('Raw guide data:', guideData)
         return null
       }
     }
-    return guideData
+    
+    console.log('Unknown guide data type:', typeof guideData)
+    return null
   }
 
   const guideData = parseGuide(guide)
@@ -26,7 +49,18 @@ export default function PersonalizedGuideViewer({ guide, onSave }) {
   if (!guideData) {
     return (
       <div className="text-center text-gray-500 py-8">
-        가이드 데이터를 불러올 수 없습니다.
+        <p className="mb-2">가이드 데이터를 불러올 수 없습니다.</p>
+        <p className="text-sm">가이드를 다시 생성해주세요.</p>
+      </div>
+    )
+  }
+  
+  // Validate that we have the required fields
+  if (!guideData.shooting_scenes || !Array.isArray(guideData.shooting_scenes)) {
+    return (
+      <div className="text-center text-gray-500 py-8">
+        <p className="mb-2">가이드 형식이 올바르지 않습니다.</p>
+        <p className="text-sm">가이드를 다시 생성해주세요.</p>
       </div>
     )
   }
