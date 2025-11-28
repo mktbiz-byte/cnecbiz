@@ -1,12 +1,8 @@
 import { useState } from 'react'
-import { X, Edit, Save } from 'lucide-react'
-import { supabase } from '../../lib/supabaseKorea'
+import { X } from 'lucide-react'
 
-export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
+export default function OliveyoungGuideModal({ campaign, onClose }) {
   const [activeStep, setActiveStep] = useState('step1')
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedData, setEditedData] = useState(null)
-  const [saving, setSaving] = useState(false)
 
   // Parse guide data to get URLs
   const parseGuideData = (guideText) => {
@@ -37,7 +33,6 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
 
   // Get current step data
   const getCurrentStepData = () => {
-    if (isEditing && editedData) return editedData
     if (activeStep === 'step1') return step1Data
     if (activeStep === 'step2') return step2Data
     return null
@@ -48,47 +43,6 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
     if (activeStep === 'step2') return campaign.step2_deadline
     if (activeStep === 'step3') return campaign.step3_deadline
     return null
-  }
-
-  const handleEdit = () => {
-    const currentData = activeStep === 'step1' ? step1Data : step2Data
-    setEditedData(JSON.parse(JSON.stringify(currentData || {
-      product_info: '',
-      required_dialogues: [],
-      required_scenes: [],
-      cautions: '',
-      hashtags: [],
-      reference_urls: []
-    })))
-    setIsEditing(true)
-  }
-
-  const handleSave = async () => {
-    try {
-      setSaving(true)
-      const fieldName = activeStep === 'step1' ? 'oliveyoung_step1_guide_ai' : 'oliveyoung_step2_guide_ai'
-      
-      const { error } = await supabase
-        .from('campaigns')
-        .update({ [fieldName]: JSON.stringify(editedData) })
-        .eq('id', campaign.id)
-
-      if (error) throw error
-
-      alert('수정이 저장되었습니다!')
-      setIsEditing(false)
-      if (onUpdate) onUpdate()
-    } catch (error) {
-      console.error('Error saving:', error)
-      alert('저장에 실패했습니다: ' + error.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleCancel = () => {
-    setIsEditing(false)
-    setEditedData(null)
   }
 
   const currentStepData = getCurrentStepData()
@@ -113,41 +67,12 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
         {/* 헤더 */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-pink-50 to-purple-50">
           <h3 className="text-xl font-bold text-gray-900">📸 올리브영 촬영 가이드</h3>
-          <div className="flex items-center gap-2">
-            {activeStep !== 'step3' && !isEditing && (
-              <button
-                onClick={handleEdit}
-                className="p-2 hover:bg-purple-100 rounded-lg transition-colors text-purple-600"
-              >
-                <Edit className="w-5 h-5" />
-              </button>
-            )}
-            {isEditing && (
-              <>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-1"
-                >
-                  <Save className="w-4 h-4" />
-                  {saving ? '저장 중...' : '저장'}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  disabled={saving}
-                  className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-                >
-                  취소
-                </button>
-              </>
-            )}
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
         </div>
 
         {/* STEP 탭 */}
@@ -159,16 +84,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
           ].map((step) => (
             <button
               key={step.key}
-              onClick={() => {
-                if (isEditing) {
-                  if (confirm('수정 중인 내용이 있습니다. 탭을 변경하시겠습니까?')) {
-                    handleCancel()
-                    setActiveStep(step.key)
-                  }
-                } else {
-                  setActiveStep(step.key)
-                }
-              }}
+              onClick={() => setActiveStep(step.key)}
               className={`px-6 py-3 font-medium text-sm transition-all ${
                 activeStep === step.key
                   ? 'border-b-2 border-pink-600 text-pink-600 bg-pink-50'
@@ -247,82 +163,146 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
               {hasContent ? (
                 <div className="space-y-6">
                   {/* 제품 정보 */}
-                  {(productInfo || isEditing) && (
+                  {productInfo && (
                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
                       <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
                         <span>📦</span>
                         제품 정보
                       </h4>
                       <div className="bg-white rounded-lg p-4 border border-purple-100">
-                        {isEditing ? (
-                          <textarea
-                            value={productInfo}
-                            onChange={(e) => setEditedData({ ...editedData, product_info: e.target.value })}
-                            className="w-full p-2 border rounded text-sm min-h-[80px]"
-                            placeholder="제품 정보를 입력하세요"
-                          />
-                        ) : (
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                            {productInfo}
-                          </p>
-                        )}
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {productInfo}
+                        </p>
                       </div>
                     </div>
                   )}
 
                   {/* 필수 대사 */}
-                  {(requiredDialogues.length > 0 || isEditing) && (
+                  {requiredDialogues.length > 0 && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                       <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
                         <span>💬</span>
                         필수 대사
                       </h4>
                       <div className="bg-white rounded-lg p-4 border border-blue-100">
-                        {isEditing ? (
-                          <div className="space-y-2">
-                            {requiredDialogues.map((dialogue, idx) => (
-                              <div key={idx} className="flex gap-2">
-                                <span className="text-blue-600 font-semibold pt-2">{idx + 1}.</span>
-                                <input
-                                  type="text"
-                                  value={dialogue}
-                                  onChange={(e) => {
-                                    const newDialogues = [...requiredDialogues]
-                                    newDialogues[idx] = e.target.value
-                                    setEditedData({ ...editedData, required_dialogues: newDialogues })
-                                  }}
-                                  className="flex-1 p-2 border rounded text-sm"
-                                />
-                                <button
-                                  onClick={() => {
-                                    const newDialogues = requiredDialogues.filter((_, i) => i !== idx)
-                                    setEditedData({ ...editedData, required_dialogues: newDialogues })
-                                  }}
-                                  className="px-2 text-red-600 hover:text-red-700"
-                                >
-                                  삭제
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => {
-                                setEditedData({ ...editedData, required_dialogues: [...requiredDialogues, ''] })
-                              }}
-                              className="text-sm text-blue-600 hover:text-blue-700"
-                            >
-                              + 대사 추가
-                            </button>
-                          </div>
-                        ) : (
-                          <ul className="space-y-2">
-                            {requiredDialogues.map((dialogue, idx) => (
-                              <li key={idx} className="text-sm text-gray-800 flex gap-2">
-                                <span className="text-blue-600 font-semibold">{idx + 1}.</span>
-                                <span>{dialogue}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                        <ul className="space-y-2">
+                          {requiredDialogues.map((dialogue, idx) => (
+                            <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                              <span className="text-blue-600 font-semibold">{idx + 1}.</span>
+                              <span>{dialogue}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     </div>
                   )}
+
+                  {/* 필수 장면 */}
+                  {requiredScenes.length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
+                        <span>🎬</span>
+                        필수 장면
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-green-100">
+                        <ul className="space-y-2">
+                          {requiredScenes.map((scene, idx) => (
+                            <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                              <span className="text-green-600 font-semibold">{idx + 1}.</span>
+                              <span>{scene}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 주의사항 */}
+                  {cautions && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
+                        <span>⚠️</span>
+                        주의사항
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-red-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {cautions}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 필수 해시태그 */}
+                  {hashtags.length > 0 && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                        <span>📌</span>
+                        필수 해시태그
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {hashtags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300"
+                          >
+                            {tag.startsWith('#') ? tag : `#${tag}`}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 참고 영상 URL */}
+                  {referenceUrls.length > 0 && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                        <span>🔗</span>
+                        참고 영상
+                      </h4>
+                      <div className="space-y-3">
+                        {referenceUrls.map((url, idx) => (
+                          <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                            >
+                              {url}
+                            </a>
+                          </div>
+                        ))}
+                        <p className="text-xs text-gray-500 mt-3">
+                          💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <p className="text-gray-500">
+                    {activeStep === 'step1' ? 'STEP 1' : 'STEP 2'}의 가이드가 등록되지 않았습니다.
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    관리자에게 문의해 주세요.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* 하단 버튼 */}
+        <div className="px-6 py-4 border-t bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
