@@ -250,7 +250,7 @@ export default function CampaignsManagement() {
       const region = campaign.region || 'biz'
       const supabaseClient = getSupabaseClient(region)
 
-      // 활성화 시 approval_status도 함께 업데이트
+      // 상태 변경 시 approval_status도 함께 업데이트
       const updateData = {
         status: newStatus,
         updated_at: new Date().toISOString()
@@ -259,6 +259,9 @@ export default function CampaignsManagement() {
       if (newStatus === 'active') {
         updateData.approval_status = 'approved'
         updateData.approved_at = new Date().toISOString()
+      } else if (newStatus === 'paused') {
+        // 중단 시 pending_approval로 변경하여 승인요청중 탭으로 이동
+        updateData.approval_status = 'pending_approval'
       }
 
       const { error } = await supabaseClient
