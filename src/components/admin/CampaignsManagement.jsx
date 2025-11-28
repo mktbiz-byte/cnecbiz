@@ -271,7 +271,9 @@ export default function CampaignsManagement() {
       alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
       
       // 활성화 시 알림 전송 (confirm-campaign-payment 방식 사용)
+      console.log('[DEBUG] newStatus:', newStatus, 'campaign.company_id:', campaign.company_id)
       if (newStatus === 'active' && campaign.company_id) {
+        console.log('[DEBUG] 알림 전송 조건 충족')
         try {
           // 회사 정보 조회
           const { data: company } = await supabaseBiz
