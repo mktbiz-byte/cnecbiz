@@ -1022,6 +1022,85 @@ export default function CampaignDetail() {
     }
   }
 
+  // 올리브영 / 4주 챌린지 가이드 전달 함수
+  const handleDeliverOliveYoung4WeekGuide = async () => {
+    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' 
+      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide_ai)
+      : campaign.challenge_weekly_guides_ai
+
+    if (!hasGuide) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    const participantCount = participants.length
+    if (participantCount === 0) {
+      alert('참여 크리에이터가 없습니다.')
+      return
+    }
+
+    // 개별 메시지 입력 (선택사항)
+    const individualMessage = prompt('모든 크리에이터에게 전달할 개별 메시지를 입력하세요 (선택사항):')
+
+    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 가이드를 전달하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const participant of participants) {
+        try {
+          // 가이드 전달 상태 업데이트
+          const updateData = { 
+            guide_confirmed: true
+          }
+          
+          // 개별 메시지가 있으면 추가
+          if (individualMessage && individualMessage.trim()) {
+            updateData.additional_message = individualMessage.trim()
+          }
+
+          const { error: updateError } = await supabase
+            .from('applications')
+            .update(updateData)
+            .eq('id', participant.id)
+
+          if (updateError) {
+            throw new Error(updateError.message)
+          }
+
+          // 크리에이터에게 알림 발송
+          await sendGuideDeliveredNotification(
+            participant.user_id,
+            campaign.id,
+            campaign.title,
+            region
+          )
+
+          successCount++
+        } catch (error) {
+          console.error(`Error delivering guide to ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 크리에이터에게 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${successCount}명 성공, ${errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliverOliveYoung4WeekGuide:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
+
+
   // AI 맞춤 가이드 생성 함수
   const handleGeneratePersonalizedGuides = async (selectedParticipantsList) => {
     if (!selectedParticipantsList || selectedParticipantsList.length === 0) {
@@ -1957,6 +2036,15 @@ export default function CampaignDetail() {
                   >
                     🤖 AI 4주 챌린지 가이드 생성하기
                   </Button>
+                  {campaign.challenge_weekly_guides_ai && (
+                    <Button
+                      variant="outline"
+                      onClick={handleDeliverOliveYoung4WeekGuide}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      전체 전달하기 ({filteredParticipants.length}명)
+                    </Button>
+                  )}
                 </>
               )}
               <Button
@@ -2041,10 +2129,10 @@ export default function CampaignDetail() {
                   >
                     올영 세일 통합 가이드 생성
                   </Button>
-                  {campaign.ai_generated_guide && (
+                  {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide_ai) && (
                     <Button
                       variant="outline"
-                      onClick={handleDeliverGuideToAll}
+                      onClick={handleDeliverOliveYoung4WeekGuide}
                       className="text-green-600 border-green-600 hover:bg-green-50"
                     >
                       전체 전달하기 ({filteredParticipants.length}명)
