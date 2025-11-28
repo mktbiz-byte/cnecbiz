@@ -14,6 +14,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import ContractPreviewModal from '../contracts/ContractPreviewModal'
 import { getCompanyContractTemplate, getCreatorConsentTemplate } from '../contracts/ContractTemplates'
+import CampaignReferenceVideos from './CampaignReferenceVideos'
 
 export default function SiteManagement() {
   const navigate = useNavigate()
@@ -782,6 +783,10 @@ export default function SiteManagement() {
               <TabsTrigger value="contracts" className="flex items-center gap-2">
                 <FileSignature className="w-4 h-4" />
                 전자계약서
+              </TabsTrigger>
+              <TabsTrigger value="campaign-videos" className="flex items-center gap-2">
+                <Video className="w-4 h-4" />
+                캠페인 영상
               </TabsTrigger>
             </TabsList>
 
@@ -1914,6 +1919,11 @@ export default function SiteManagement() {
                 </Card>
               </div>
             </TabsContent>
+            {/* 캠페인 레퍼런스 영상 탭 */}
+            <TabsContent value="campaign-videos">
+              <CampaignReferenceVideos />
+            </TabsContent>
+
           </Tabs>
         </div>
       </div>

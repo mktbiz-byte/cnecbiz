@@ -1,10 +1,39 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
-import { Check, ArrowRight, Calendar, Users, Video, Trophy } from 'lucide-react'
+import { ArrowRight, Sparkles, FileText, Users, Video, Calendar, Target, TrendingUp, Award } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 export default function FourWeekChallengeCampaignIntro() {
   const navigate = useNavigate()
+  const [referenceVideos, setReferenceVideos] = useState([])
+
+  useEffect(() => {
+    fetchReferenceVideos()
+  }, [])
+
+  const fetchReferenceVideos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('campaign_reference_videos')
+        .select('*')
+        .eq('campaign_type', '4week')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+      
+      if (error) throw error
+      setReferenceVideos(data || [])
+    } catch (error) {
+      console.error('Error fetching reference videos:', error)
+    }
+  }
+
+  const getVideoId = (url) => {
+    if (!url) return null
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)
+    return match ? match[1] : null
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
@@ -12,330 +41,269 @@ export default function FourWeekChallengeCampaignIntro() {
       <div className="max-w-6xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
           <div className="inline-block bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-semibold mb-4">
-            🏆 4주 챌린지
+            🏆 4주 챌린지 가이드
           </div>
           <h1 className="text-5xl font-bold mb-6 text-gray-900">
-            4주간의 여정으로<br />
-            확실한 변화를 보여주세요
+            4주간 지속되는<br />
+            강력한 브랜드 각인 효과
           </h1>
           <p className="text-xl text-gray-600 mb-8">
-            주차별 통합 가이드로 4주간 지속적인 콘텐츠 제작 및 제품 효과 검증
+            4개의 미션 가이드로 4주간 연속 노출되는 프리미엄 장기 캠페인
           </p>
           <Button 
-            onClick={() => navigate('/company/campaigns/new')}
+            onClick={() => navigate('/company/campaigns/create/korea')}
             size="lg"
             className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-lg"
           >
-            지금 시작하기
+            캠페인 생성하기
             <ArrowRight className="ml-2 w-5 h-5" />
           </Button>
         </div>
 
-        {/* 가격 카드 */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl p-8 mb-16 text-center">
-          <div className="inline-block bg-white/20 px-4 py-2 rounded-full text-sm font-semibold mb-4">
-            고정 금액
-          </div>
-          <div className="text-5xl font-bold mb-2">₩600,000</div>
-          <p className="text-purple-100 mb-6">VAT 별도 (고정)</p>
-          <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Video className="w-5 h-5" />
-                <span className="font-semibold">4개 URL 제출</span>
-              </div>
-              <p className="text-sm text-purple-100">Week 1, 2, 3, 4 각각</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Calendar className="w-5 h-5" />
-                <span className="font-semibold">4주 통합 가이드</span>
-              </div>
-              <p className="text-sm text-purple-100">주차별 미션 + 영상 4개 제출</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 4주 프로세스 */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">4주 챌린지 프로세스</h2>
-          <div className="grid md:grid-cols-4 gap-4">
-            <Card className="border-2 border-purple-200">
-              <CardContent className="p-6">
-                <div className="bg-purple-100 text-purple-700 w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-4">
-                  1
-                </div>
-                <h3 className="text-lg font-semibold mb-3">Week 1</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  첫 사용 후기 및 제품 소개
-                </p>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>제품 언박싱</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>첫 사용 장면</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>사용 전 상태</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 border-purple-200">
-              <CardContent className="p-6">
-                <div className="bg-purple-100 text-purple-700 w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-4">
-                  2
-                </div>
-                <h3 className="text-lg font-semibold mb-3">Week 2</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  1주차 사용 후 변화 체크
-                </p>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>피부/상태 체크</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>사용 루틴 공유</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>초기 변화 언급</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 border-purple-200">
-              <CardContent className="p-6">
-                <div className="bg-purple-100 text-purple-700 w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-4">
-                  3
-                </div>
-                <h3 className="text-lg font-semibold mb-3">Week 3</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  중간 점검 및 루틴 공유
-                </p>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>중간 점검</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>일상 루틴 공유</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>지속 사용 의지</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-2 border-purple-200">
-              <CardContent className="p-6">
-                <div className="bg-purple-100 text-purple-700 w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mb-4">
-                  4
-                </div>
-                <h3 className="text-lg font-semibold mb-3">Week 4</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  최종 비포/애프터 공개
-                </p>
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>4주 완주 인증</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>비포/애프터 비교</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-3 h-3 text-purple-600" />
-                    <span>최종 후기</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* 특징 */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">왜 4주 챌린지인가?</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <Trophy className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">검증된 효과</h3>
-                    <p className="text-gray-600">
-                      4주간의 지속적인 사용으로 제품 효과를 명확하게 보여줄 수 있습니다.
-                      비포/애프터 비교로 신뢰도를 높입니다.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <Calendar className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">지속적 노출</h3>
-                    <p className="text-gray-600">
-                      4주간 매주 1회씩 총 4개의 콘텐츠로 지속적인 브랜드 노출을 확보합니다.
-                      팔로워들의 관심을 유지할 수 있습니다.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <Video className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">주차별 통합 가이드</h3>
-                    <p className="text-gray-600">
-                      각 주차별로 미션, 필수 대사, 필수 장면을 통합 가이드로 제공하여
-                      일관성 있는 콘텐츠 제작이 가능합니다.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-purple-100 p-3 rounded-lg">
-                    <Users className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">스토리텔링</h3>
-                    <p className="text-gray-600">
-                      4주간의 여정을 스토리로 풀어내어 시청자들의 공감과
-                      몰입도를 높일 수 있습니다.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* 적합한 제품 */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">4주 챌린지에 적합한 제품</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card className="bg-gradient-to-br from-purple-50 to-blue-50">
-              <CardContent className="p-6 text-center">
-                <div className="text-4xl mb-3">💆‍♀️</div>
-                <h3 className="text-lg font-semibold mb-2">스킨케어</h3>
-                <p className="text-sm text-gray-600">
-                  수분크림, 세럼, 마스크팩 등<br />
-                  피부 변화를 확인할 수 있는 제품
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-purple-50 to-blue-50">
-              <CardContent className="p-6 text-center">
-                <div className="text-4xl mb-3">💪</div>
-                <h3 className="text-lg font-semibold mb-2">건강기능식품</h3>
-                <p className="text-sm text-gray-600">
-                  다이어트, 영양제, 프로틴 등<br />
-                  체형/건강 변화를 보여줄 수 있는 제품
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-purple-50 to-blue-50">
-              <CardContent className="p-6 text-center">
-                <div className="text-4xl mb-3">💇‍♀️</div>
-                <h3 className="text-lg font-semibold mb-2">헤어케어</h3>
-                <p className="text-sm text-gray-600">
-                  샴푸, 트리트먼트, 헤어토닉 등<br />
-                  모발 상태 개선을 확인할 수 있는 제품
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* 스케줄 예시 */}
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-8">캠페인 스케줄 예시</h2>
-          <Card className="bg-gradient-to-r from-purple-50 to-blue-50">
+        {/* 가격 정보 */}
+        <div className="max-w-md mx-auto mb-16">
+          <Card className="border-2 border-purple-400 shadow-lg">
             <CardContent className="p-8">
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold min-w-[120px] text-center">
-                    Week 1
-                  </div>
-                  <div>
-                    <p className="font-semibold">첫 사용 후기</p>
-                    <p className="text-sm text-gray-600">제품 언박싱 및 첫 사용 장면</p>
-                  </div>
+              <div className="text-center">
+                <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold inline-block mb-4">
+                  고정 가격 패키지
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold min-w-[120px] text-center">
-                    Week 2
-                  </div>
-                  <div>
-                    <p className="font-semibold">1주차 변화 체크</p>
-                    <p className="text-sm text-gray-600">사용 후 초기 변화 확인</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold min-w-[120px] text-center">
-                    Week 3
-                  </div>
-                  <div>
-                    <p className="font-semibold">중간 점검</p>
-                    <p className="text-sm text-gray-600">일상 루틴 공유 및 지속 사용</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold min-w-[120px] text-center">
-                    Week 4
-                  </div>
-                  <div>
-                    <p className="font-semibold">최종 비포/애프터</p>
-                    <p className="text-sm text-gray-600">4주 완주 인증 및 최종 후기</p>
-                  </div>
+                <div className="text-5xl font-bold mb-2">₩600,000</div>
+                <p className="text-gray-600 text-sm mb-6">VAT 별도 / 4주 전체</p>
+                <div className="space-y-2 text-left text-sm">
+                  <p className="text-gray-700">• 4개의 미션 가이드 제공</p>
+                  <p className="text-gray-700">• 4주 연속 SNS 리뷰</p>
+                  <p className="text-gray-700">• 주차별 통합 가이드</p>
+                  <p className="text-gray-700">• 장기 브랜드 각인 효과</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* 이 캠페인을 선택해야 하는 이유 */}
+        <div className="mb-16">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-4">
+              <Sparkles className="inline w-8 h-8 text-purple-600 mr-2" />
+              왜 4주 챌린지를 선택해야 할까요?
+            </h2>
+            <p className="text-gray-600">4주간 지속적인 노출로 브랜드를 깊이 각인시키는 프리미엄 장기 캠페인입니다</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="border-2 border-purple-100">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-purple-100 p-3 rounded-lg">
+                    <TrendingUp className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg mb-2">지속적인 브랜드 노출</h3>
+                    <p className="text-gray-600">
+                      4주 동안 매주 새로운 콘텐츠가 업로드되어 지속적으로 브랜드가 노출됩니다. 
+                      단발성 캠페인과 달리 장기간 브랜드 인지도를 높일 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-purple-100">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-blue-100 p-3 rounded-lg">
+                    <Award className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg mb-2">미션 기반 콘텐츠</h3>
+                    <p className="text-gray-600">
+                      매주 다른 미션을 수행하며 제품의 다양한 측면을 소개합니다. 
+                      "1주차: 언박싱", "2주차: 첫 사용", "3주차: 일상 활용", "4주차: 최종 리뷰" 등의 구성으로 스토리텔링이 가능합니다.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-purple-100">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-green-100 p-3 rounded-lg">
+                    <Target className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg mb-2">높은 신뢰도 구축</h3>
+                    <p className="text-gray-600">
+                      4주간의 장기 사용 후기로 제품에 대한 신뢰도가 높아집니다. 
+                      단기 리뷰보다 진정성 있는 평가로 인식되어 구매 전환율이 높습니다.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-purple-100">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-cyan-100 p-3 rounded-lg">
+                    <FileText className="w-6 h-6 text-cyan-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg mb-2">통합 가이드 제공</h3>
+                    <p className="text-gray-600">
+                      4주차 미션을 하나의 통합 가이드로 제공하여, 
+                      크리에이터가 일관된 스토리라인으로 연속된 콘텐츠를 제작할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* 캠페인 생성 방법 */}
+        <div className="mb-16">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-4">
+              <FileText className="inline w-8 h-8 text-purple-600 mr-2" />
+              캠페인 생성 방법
+            </h2>
+            <p className="text-gray-600">간단한 5단계로 캠페인을 시작하세요</p>
+          </div>
+          <div className="grid md:grid-cols-5 gap-4">
+            {[
+              { step: '1', title: '캠페인 타입 선택', desc: '4주 챌린지 선택' },
+              { step: '2', title: '참여 인원 선택', desc: '크리에이터 수 결정' },
+              { step: '3', title: '기본 정보 입력', desc: '캠페인명, 4주 일정' },
+              { step: '4', title: '미션 가이드 업로드', desc: '4주차 미션 가이드' },
+              { step: '5', title: '캠페인 생성', desc: '크리에이터 모집 시작' }
+            ].map((item, idx) => (
+              <Card key={idx} className="border-2 border-purple-100 hover:border-purple-400 transition-all">
+                <CardContent className="p-4 text-center">
+                  <div className="bg-purple-600 text-white w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">
+                    {item.step}
+                  </div>
+                  <h3 className="font-bold mb-2 text-sm">{item.title}</h3>
+                  <p className="text-xs text-gray-600">{item.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* 프로세스 */}
+        <div className="mb-16">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-4">
+              <Calendar className="inline w-8 h-8 text-purple-600 mr-2" />
+              캠페인 진행 프로세스
+            </h2>
+            <p className="text-gray-600">4주간 매주 새로운 미션으로 브랜드를 각인시킵니다</p>
+          </div>
+          <div className="space-y-4">
+            {[
+              { 
+                title: '1주차: 제품 소개 및 첫 인상', 
+                desc: '언박싱 또는 제품 첫 만남을 소개합니다. 제품의 외관, 패키징, 첫 느낌 등을 전달하며 기대감을 조성합니다.',
+                icon: Award,
+                color: 'purple'
+              },
+              { 
+                title: '2주차: 첫 사용 경험', 
+                desc: '제품을 처음 사용한 경험을 공유합니다. 사용 방법, 첫 느낌, 초기 효과 등을 상세하게 리뷰합니다.',
+                icon: Video,
+                color: 'blue'
+              },
+              { 
+                title: '3주차: 일상 속 활용', 
+                desc: '일상생활에서 제품을 어떻게 활용하는지 보여줍니다. 다양한 사용 시나리오와 실제 활용 팁을 공유합니다.',
+                icon: Users,
+                color: 'green'
+              },
+              { 
+                title: '4주차: 최종 리뷰 및 추천', 
+                desc: '4주간 사용한 최종 리뷰를 작성합니다. 장단점, 효과, 추천 대상 등을 종합적으로 평가하고 구매를 추천합니다.',
+                icon: Target,
+                color: 'cyan'
+              }
+            ].map((item, idx) => (
+              <Card key={idx} className={`border-2 border-${item.color}-100`}>
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className={`bg-${item.color}-100 p-3 rounded-lg flex-shrink-0`}>
+                      <item.icon className={`w-6 h-6 text-${item.color}-600`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`bg-${item.color}-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm`}>
+                          {idx + 1}
+                        </span>
+                        <h3 className="font-bold text-lg">{item.title}</h3>
+                      </div>
+                      <p className="text-gray-600">{item.desc}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* 레퍼런스 영상 */}
+        {referenceVideos.length > 0 && (
+          <div className="mb-16">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold mb-4">
+                <Video className="inline w-8 h-8 text-purple-600 mr-2" />
+                레퍼런스 영상 확인
+              </h2>
+              <p className="text-gray-600">실제 4주 챌린지 캠페인으로 제작된 영상을 확인해보세요</p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {referenceVideos.map((video) => {
+                const videoId = getVideoId(video.video_url)
+                return (
+                  <Card key={video.id} className="border-2 border-gray-200 hover:border-purple-400 transition-all overflow-hidden">
+                    <CardContent className="p-0">
+                      {videoId ? (
+                        <div className="relative pb-[177.78%]">
+                          <iframe
+                            className="absolute top-0 left-0 w-full h-full"
+                            src={`https://www.youtube.com/embed/${videoId}`}
+                            title={video.title}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      ) : (
+                        <div className="aspect-[9/16] bg-gray-200 flex items-center justify-center">
+                          <Video className="w-12 h-12 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <h3 className="font-bold mb-1">{video.title}</h3>
+                        {video.description && (
+                          <p className="text-sm text-gray-600">{video.description}</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* CTA */}
-        <div className="text-center bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl p-12">
+        <div className="text-center bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-12 text-white">
           <h2 className="text-3xl font-bold mb-4">
-            4주 챌린지로 제품 효과를 증명하세요
+            지금 바로 4주 챌린지를 시작하세요
           </h2>
-          <p className="text-xl mb-8 text-purple-100">
-            지속적인 콘텐츠 제작과 명확한 변화 증명으로 신뢰도를 높이는 4주 챌린지
+          <p className="text-xl mb-8 opacity-90">
+            4주간 지속되는 강력한 브랜드 각인 효과를 경험하세요
           </p>
           <Button 
-            onClick={() => navigate('/company/campaigns/new')}
+            onClick={() => navigate('/company/campaigns/create/korea')}
             size="lg"
             className="bg-white text-purple-600 hover:bg-gray-100 px-8 py-6 text-lg"
           >
