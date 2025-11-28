@@ -63,9 +63,123 @@ export default function CampaignGuideReview() {
     setGenerating(true)
 
     try {
-      // Gemini API 호출
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY
       
+      // STEP 1: YouTube 트렌드 분석 (해시태그/카테고리 기반)
+      let trendInsights = null
+      
+      if (campaignData.required_hashtags && campaignData.required_hashtags.length > 0) {
+        console.log('🔍 YouTube 트렌드 분석 시작...')
+        
+        const hashtagsForSearch = campaignData.required_hashtags.join(' ')
+        
+        const trendResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `You are a YouTube trend analyst for Korean beauty/fashion influencer marketing.
+
+**Task**: Search YouTube for trending videos using these hashtags/categories: ${hashtagsForSearch}
+
+**Search Strategy**:
+1. Search using HASHTAGS/CATEGORIES, NOT product names
+   - Example: Search for "#민감성피부 #토너" NOT "라운드랩 토너"
+2. Prioritize Shorts/Reels format videos (under 60 seconds)
+3. If no Shorts found, analyze general videos but note they need stronger hooks
+
+**Analysis Requirements**:
+1. Find 3-5 reference videos that creators can realistically reproduce
+2. For each video, identify:
+   - Video URL
+   - What makes it special (hook, editing style, storytelling)
+   - Why it's trending (view count, engagement pattern)
+3. Summarize overall trends:
+   - Common hook patterns in first 3 seconds
+   - Popular editing techniques
+   - Effective dialogue/caption styles
+   - Trending background music/sound effects
+
+**Important**:
+- NO predictions or estimated metrics
+- Focus on what creators can ACTUALLY do
+- If only general videos exist, emphasize hook strengthening strategies
+
+Return JSON format:
+{
+  "reference_videos": [
+    {
+      "url": "actual YouTube URL",
+      "format": "shorts" or "general",
+      "what_makes_it_special": "specific observation",
+      "why_trending": "concrete reason based on visible metrics"
+    }
+  ],
+  "trend_summary": {
+    "hook_patterns": ["pattern 1", "pattern 2"],
+    "editing_techniques": ["technique 1", "technique 2"],
+    "dialogue_styles": ["style 1", "style 2"],
+    "has_shorts": true/false
+  }
+}`
+                }]
+              }],
+              generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 2048,
+                responseMimeType: "application/json",
+                // Enable Google Search for real-time YouTube data
+                tools: [{
+                  googleSearchRetrieval: {}
+                }]
+              }
+            })
+          }
+        )
+
+        if (trendResponse.ok) {
+          const trendResult = await trendResponse.json()
+          if (trendResult.candidates && trendResult.candidates[0]) {
+            const trendText = trendResult.candidates[0].content.parts[0].text
+            trendInsights = JSON.parse(trendText)
+            console.log('✅ YouTube 트렌드 분석 완료:', trendInsights)
+          }
+        } else {
+          console.warn('⚠️ YouTube 트렌드 분석 실패, 기본 가이드 생성 진행')
+        }
+      }
+
+      // STEP 2: AI 가이드 생성 (트렌드 반영)
+      // 트렌드 정보를 프롬프트에 추가
+      const trendSection = trendInsights ? `
+
+### 📊 YouTube 트렌드 분석 결과
+
+**참고 영상** (크리에이터가 재현 가능한 형식):
+${trendInsights.reference_videos.map((v, i) => `${i + 1}. ${v.url}
+   - 포맷: ${v.format === 'shorts' ? 'Shorts/Reels (60초 이하)' : '일반 영상'}
+   - 특별한 점: ${v.what_makes_it_special}
+   - 트렌딩 이유: ${v.why_trending}`).join('
+')}
+
+**트렌드 요약**:
+- **훅 패턴** (첫 3초): ${trendInsights.trend_summary.hook_patterns.join(', ')}
+- **편집 기법**: ${trendInsights.trend_summary.editing_techniques.join(', ')}
+- **대사/자막 스타일**: ${trendInsights.trend_summary.dialogue_styles.join(', ')}
+${!trendInsights.trend_summary.has_shorts ? '
+⚠️ **주의**: Shorts 형식 영상이 부족하므로, 훅 강화 및 빠른 전개가 필수입니다.' : ''}
+
+**가이드 작성 시 반영사항**:
+- 위 트렌드를 필수 대사 및 촬영 장면에 자연스럽게 통합
+- 참고 영상의 성공 요소를 크리에이터가 재현 가능한 형태로 제시
+- 일반 영상만 있는 경우, 첫 3초 훅 강화 전략 명시
+` : ''
+
       const autonomyNote = campaignData.creator_autonomy 
         ? '\n\n**중요:** 이 캠페인은 크리에이터 자율성을 보장합니다. 촬영 장면과 대사는 크리에이터가 자유롭게 결정할 수 있으나, 핵심 소구 포인트는 반드시 포함되어야 합니다.'
         : ''
@@ -138,7 +252,7 @@ ${campaignData.additional_details || '- 없음'}
 
 ### 참고 레퍼런스
 ${campaignData.reference_links && campaignData.reference_links.length > 0 ? campaignData.reference_links.map((link, i) => `${i + 1}. ${link}`).join('\n') : '- 없음'}
-
+${trendSection}
 ### 메타 파트너십 광고코드 (필수)
 ${campaignData.meta_ad_code_requested ? `- 요청됨: 영상 완료 후 파트너십 광고 코드를 발급받아 마이페이지 해당 캠페인의 코드 작성 공간에 반드시 제공해주세요.
 
@@ -228,10 +342,19 @@ JSON만 응답하세요.`
         setSelectedConcepts(guideData.video_concepts.map((_, index) => index))
       }
 
-      // Supabase에 저장 (JSONB 타입이므로 객체 그대로 저장)
+      // Supabase에 저장 (ai_generated_guide + ai_guide_insights)
+      const updateData = {
+        ai_generated_guide: guideData
+      }
+      
+      // 트렌드 인사이트가 있으면 함께 저장
+      if (trendInsights) {
+        updateData.ai_guide_insights = trendInsights
+      }
+
       const { error: saveError } = await supabase
         .from('campaigns')
-        .update({ ai_generated_guide: guideData })
+        .update(updateData)
         .eq('id', id)
 
       if (saveError) {
@@ -353,10 +476,19 @@ JSON 형식으로만 응답해주세요.`
         setSelectedConcepts(guideData.video_concepts.map((_, index) => index))
       }
 
-      // Supabase에 저장 (JSONB 타입이므로 객체 그대로 저장)
+      // Supabase에 저장 (ai_generated_guide + ai_guide_insights)
+      const updateData = {
+        ai_generated_guide: guideData
+      }
+      
+      // 트렌드 인사이트가 있으면 함께 저장
+      if (trendInsights) {
+        updateData.ai_guide_insights = trendInsights
+      }
+
       const { error: saveError } = await supabase
         .from('campaigns')
-        .update({ ai_generated_guide: guideData })
+        .update(updateData)
         .eq('id', id)
 
       if (saveError) {
