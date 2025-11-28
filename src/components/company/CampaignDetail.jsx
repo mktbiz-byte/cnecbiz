@@ -20,6 +20,7 @@ import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, se
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
 import OliveYoungGuideModal from './OliveYoungGuideModal'
 import FourWeekGuideModal from './FourWeekGuideModal'
+import FourWeekGuideManager from './FourWeekGuideManager'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 
@@ -85,6 +86,10 @@ export default function CampaignDetail() {
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
+  const [currentWeek, setCurrentWeek] = useState(1)
+  const [singleWeekGuideData, setSingleWeekGuideData] = useState({ required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' })
+  const [showSingleWeekModal, setShowSingleWeekModal] = useState(false)
+  const [showWeekGuideViewModal, setShowWeekGuideViewModal] = useState(false)
   const [fourWeekGuideData, setFourWeekGuideData] = useState({
     week1: {
       product_info: '',
@@ -2038,60 +2043,11 @@ export default function CampaignDetail() {
                  </>
               )}
               {campaign.campaign_type === '4week_challenge' && (
-                <>
-                  <Button
-                    onClick={() => {
-                      // Load existing guide data if available
-                      if (campaign.week1_guide || campaign.week2_guide || campaign.week3_guide || campaign.week4_guide) {
-                        const safeParseGuide = (guideText) => {
-                          if (!guideText) return { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
-                          try {
-                            // JSON인지 확인
-                            const trimmed = guideText.trim()
-                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-                              return JSON.parse(trimmed)
-                            }
-                            // 일반 텍스트면 required_dialogue에 넣기
-                            return {
-                              required_dialogue: trimmed,
-                              required_scenes: '',
-                              examples: '',
-                              reference_urls: ''
-                            }
-                          } catch (e) {
-                            console.error('Failed to parse guide, using as plain text:', e)
-                            return {
-                              required_dialogue: guideText,
-                              required_scenes: '',
-                              examples: '',
-                              reference_urls: ''
-                            }
-                          }
-                        }
-                        
-                        setFourWeekGuideData({
-                          week1: safeParseGuide(campaign.week1_guide),
-                          week2: safeParseGuide(campaign.week2_guide),
-                          week3: safeParseGuide(campaign.week3_guide),
-                          week4: safeParseGuide(campaign.week4_guide)
-                        })
-                      }
-                      setShow4WeekGuideModal(true)
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    🤖 AI 4주 챌린지 가이드 생성하기
-                  </Button>
-                  {campaign.challenge_weekly_guides_ai && (
-                    <Button
-                      variant="outline"
-                      onClick={handleDeliverOliveYoung4WeekGuide}
-                      className="text-green-600 border-green-600 hover:bg-green-50"
-                    >
-                      전체 전달하기 ({filteredParticipants.length}명)
-                    </Button>
-                  )}
-                </>
+                <FourWeekGuideManager 
+                  campaign={campaign}
+                  filteredParticipants={filteredParticipants}
+                  onRefresh={fetchParticipants}
+                />
               )}
               <Button
                 variant="outline"
