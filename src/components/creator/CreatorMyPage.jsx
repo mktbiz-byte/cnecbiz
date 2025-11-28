@@ -223,6 +223,76 @@ const CreatorMyPage = () => {
                   {getStatusBadge(campaign.video_status)}
                 </div>
 
+                {/* 마감일 섹션 */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                    <Calendar className="w-5 h-5 mr-2" />
+                    영상 촬영 마감일
+                  </h3>
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4">
+                    {campaign.campaigns?.campaign_type === 'regular' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📹 영상 촬영 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.start_date ? new Date(campaign.campaigns.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📱 SNS 업로드 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.end_date ? new Date(campaign.campaigns.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : campaign.campaigns?.campaign_type === 'oliveyoung' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📹 세일 전 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.deadline_presale ? new Date(campaign.campaigns.deadline_presale).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📱 세일 당일 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.deadline_saleday ? new Date(campaign.campaigns.deadline_saleday).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : campaign.campaigns?.campaign_type === '4week_challenge' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📹 1주차 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.deadline_week1 ? new Date(campaign.campaigns.deadline_week1).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📹 2주차 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.deadline_week2 ? new Date(campaign.campaigns.deadline_week2).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📹 3주차 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.deadline_week3 ? new Date(campaign.campaigns.deadline_week3).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <span className="text-red-600 font-semibold mr-2">📹 4주차 마감:</span>
+                          <span className="text-gray-900 font-bold">
+                            {campaign.campaigns?.deadline_week4 ? new Date(campaign.campaigns.deadline_week4).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/\./g, '.') : '미정'}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">마감일 정보가 없습니다.</p>
+                    )}
+                  </div>
+                </div>
+
                 {/* 가이드 섹션 */}
                 <div className="mb-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
