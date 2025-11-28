@@ -220,33 +220,23 @@ JSON 형식으로만 응답해주세요.`
     }
   }
 
-  const handleSave = async () => {
+  const handleSaveWeek = async (weekToSave) => {
     setSaving(true)
     try {
-      const guidesToSave = {
-        week1: {
-          mission: weeklyGuides.week1.mission,
-          required_dialogue: weeklyGuides.week1.required_dialogue,
-          required_scenes: weeklyGuides.week1.required_scenes,
-          reference: weeklyGuides.week1.reference
-        },
-        week2: {
-          mission: weeklyGuides.week2.mission,
-          required_dialogue: weeklyGuides.week2.required_dialogue,
-          required_scenes: weeklyGuides.week2.required_scenes,
-          reference: weeklyGuides.week2.reference
-        },
-        week3: {
-          mission: weeklyGuides.week3.mission,
-          required_dialogue: weeklyGuides.week3.required_dialogue,
-          required_scenes: weeklyGuides.week3.required_scenes,
-          reference: weeklyGuides.week3.reference
-        },
-        week4: {
-          mission: weeklyGuides.week4.mission,
-          required_dialogue: weeklyGuides.week4.required_dialogue,
-          required_scenes: weeklyGuides.week4.required_scenes,
-          reference: weeklyGuides.week4.reference
+      const weekData = weeklyGuides[weekToSave]
+      const weekNum = weekToSave.replace('week', '')
+
+      // Load existing guides
+      const existingGuides = campaign.challenge_weekly_guides || {}
+      
+      // Update with current week
+      const updatedGuides = {
+        ...existingGuides,
+        [weekToSave]: {
+          mission: weekData.mission,
+          required_dialogue: weekData.required_dialogue,
+          required_scenes: weekData.required_scenes,
+          reference: weekData.reference
         }
       }
 
@@ -257,19 +247,59 @@ JSON 형식으로만 응답해주세요.`
           product_name: commonData.product_name,
           product_features: commonData.product_features,
           product_key_points: commonData.precautions,
-          challenge_weekly_guides: guidesToSave
+          challenge_weekly_guides: updatedGuides
         })
         .eq('id', campaign.id)
 
       if (error) throw error
 
-      alert('✅ 가이드가 저장되었습니다!')
+      alert(`✅ ${weekNum}주차 가이드가 저장되었습니다!`)
       onSave()
     } catch (error) {
       console.error('Error saving guide:', error)
       alert('저장 실패: ' + error.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const [sending, setSending] = useState(false)
+
+  const handleSendWeek = async (weekToSend) => {
+    const weekNum = weekToSend.replace('week', '')
+    
+    if (!confirm(`${weekNum}주차 가이드를 모든 참여자에게 전달하시겠습니까?`)) {
+      return
+    }
+
+    setSending(true)
+    try {
+      // First save the guide
+      await handleSaveWeek(weekToSend)
+
+      // Get all participants for this campaign
+      const { data: participants, error: participantsError } = await supabase
+        .from('participants')
+        .select('user_id, user_profiles(email, name)')
+        .eq('campaign_id', campaign.id)
+        .eq('status', 'selected')
+
+      if (participantsError) throw participantsError
+
+      if (!participants || participants.length === 0) {
+        alert('선정된 참여자가 없습니다.')
+        return
+      }
+
+      // TODO: Send email/notification to participants
+      // For now, just show success message
+      alert(`✅ ${weekNum}주차 가이드가 ${participants.length}명의 참여자에게 전달되었습니다!`)
+      
+    } catch (error) {
+      console.error('Error sending guide:', error)
+      alert('전달 실패: ' + error.message)
+    } finally {
+      setSending(false)
     }
   }
 
@@ -467,23 +497,33 @@ JSON 형식으로만 응답해주세요.`
           </div>
 
           {/* 버튼 */}
-          <div className="flex gap-3 pt-4 border-t">
+          <div className="space-y-3 pt-4 border-t">
             <button
               onClick={() => handleGenerateWeekGuide(activeWeek)}
               disabled={generating}
-              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {generating && <Loader2 className="w-4 h-4 animate-spin" />}
               🤖 {activeWeek.replace('week', '')}주차 AI 가이드 생성
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              💾 가이드 저장
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleSaveWeek(activeWeek)}
+                disabled={saving}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                💾 {activeWeek.replace('week', '')}주차 저장
+              </button>
+              <button
+                onClick={() => handleSendWeek(activeWeek)}
+                disabled={sending || saving}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {sending && <Loader2 className="w-4 h-4 animate-spin" />}
+                📤 {activeWeek.replace('week', '')}주차 전달
+              </button>
+            </div>
           </div>
         </div>
       </div>

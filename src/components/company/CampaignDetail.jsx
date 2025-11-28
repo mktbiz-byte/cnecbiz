@@ -21,6 +21,8 @@ import { getAIRecommendations, generateAIRecommendations } from '../../services/
 import OliveYoungGuideModal from './OliveYoungGuideModal'
 import FourWeekGuideModal from './FourWeekGuideModal'
 import FourWeekGuideManager from './FourWeekGuideManager'
+import OliveyoungGuideViewer from './OliveyoungGuideViewer'
+import FourWeekGuideViewer from './FourWeekGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 
@@ -2053,6 +2055,31 @@ export default function CampaignDetail() {
                   onRefresh={fetchParticipants}
                 />
               )}
+            </div>
+
+            {/* Oliveyoung Guide Viewer */}
+            {campaign.campaign_type === 'oliveyoung' && (
+              <div className="mt-6">
+                <OliveyoungGuideViewer 
+                  campaign={campaign}
+                  supabase={supabase}
+                  onUpdate={fetchCampaignDetail}
+                />
+              </div>
+            )}
+
+            {/* 4-Week Challenge Guide Viewer */}
+            {campaign.campaign_type === '4week_challenge' && (
+              <div className="mt-6">
+                <FourWeekGuideViewer 
+                  campaign={campaign}
+                  supabase={supabase}
+                  onUpdate={fetchCampaignDetail}
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 flex-wrap">
               <Button
                 variant="outline"
                 onClick={exportShippingInfo}
