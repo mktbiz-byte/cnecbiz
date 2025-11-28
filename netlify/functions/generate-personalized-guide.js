@@ -186,8 +186,8 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
       "최종 결과 (만족스러운 표정과 함께)"
     ],
     "video_style": {
-      "tempo": "빠르고 역동적 (숏폼의 경우 3초마다 장면 전환)",
-      "tone": "${creatorAnalysis.style?.tone}"
+      "tempo": "빠르고 역동적인 편집 (숏폼의 경우 3초마다 장면 전환)",
+      "tone": "친근하고 자연스러운 말투"
     }
   },
   "creator_tips": [
@@ -200,12 +200,14 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
 }
 \`\`\`
 
-**중요**: 
-- 위 JSON 형식을 정확히 따라주세요
-- 이모티콘을 절대 사용하지 마세요
-- shooting_scenes 배열에 최소 10개 이상의 장면을 포함하세요
-- 각 장면의 dialogue는 크리에이터의 평소 말투(${creatorAnalysis.style?.tone})를 반영하세요
-- 제품의 핵심 포인트(${productInfo.product_key_points})를 자연스럽게 녹여내세요`
+**중요 지침**: 
+- **한국어만 사용**: 모든 텍스트는 100% 한국어로 작성하세요. 영어, 러시아어, 일본어 등 외국어 절대 사용 금지
+- **이모티콘 사용 금지**: 절대로 이모티콘을 사용하지 마세요
+- **JSON 형식 준수**: 위 JSON 형식을 정확히 따라주세요
+- **10개 이상 장면**: shooting_scenes 배열에 최소 10개 이상의 장면을 포함하세요
+- **자연스러운 대사**: 각 장면의 dialogue는 친근하고 자연스러운 한국어 말투로 작성하세요
+- **핵심 포인트 반영**: 제품의 핵심 포인트(${productInfo.product_key_points})를 자연스럽게 녹여내세요
+- **실제 YouTube URL 필수**: reference_videos는 반드시 Google Search로 찾은 실제 재생 가능한 YouTube URL을 사용하세요. 플레이스홀더나 가짜 URL 절대 금지. 검색 결과가 없으면 빈 배열 []로 반환하세요.`
 
     const response = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + process.env.GEMINI_API_KEY,
@@ -246,6 +248,36 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     let guideJson
     try {
       guideJson = JSON.parse(personalizedGuide)
+      
+      // Validate YouTube URLs if present
+      if (guideJson?.why_recommended?.reference_videos) {
+        const validVideos = guideJson.why_recommended.reference_videos.filter(video => {
+          if (!video.url) return false
+          
+          // Check if URL is a valid YouTube URL
+          const youtubeRegex = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})$/
+          const match = video.url.match(youtubeRegex)
+          
+          if (!match) {
+            console.warn('Invalid YouTube URL detected:', video.url)
+            return false
+          }
+          
+          // Check if video ID looks valid (11 characters, alphanumeric + - _)
+          const videoId = match[4]
+          if (videoId.length !== 11) {
+            console.warn('Invalid YouTube video ID length:', videoId)
+            return false
+          }
+          
+          return true
+        })
+        
+        // Replace with validated videos only
+        guideJson.why_recommended.reference_videos = validVideos
+        
+        console.log(`Validated ${validVideos.length} out of ${guideJson.why_recommended.reference_videos.length} YouTube URLs`)
+      }
     } catch (e) {
       console.error('Failed to parse guide as JSON:', e)
       // If parsing fails, return as text
