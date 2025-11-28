@@ -683,7 +683,13 @@ export default function MyCampaigns() {
                             {getRegionBadge(campaign.region)}
                             {getCampaignTypeBadge(campaign.campaign_type)}
                             {getPaymentStatusBadge(campaign.payment_status, campaign.is_cancelled)}
-                            {getProgressStatusBadge(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)}
+                            {getProgressStatusBadge(
+                              // active + confirmed = 모집중
+                              campaign.status === 'active' && campaign.payment_status === 'confirmed' 
+                                ? 'recruiting' 
+                                : (campaign.progress_status || campaign.approval_status),
+                              campaign.is_cancelled
+                            )}
                           </div>
                           <h3 className="font-bold text-xl mb-1">{campaign.title}</h3>
                           <p className="text-sm text-gray-600">
