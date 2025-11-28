@@ -194,6 +194,37 @@ JSON 형식으로만 응답해주세요.`
         generatedGuides[step] = JSON.parse(generatedText)
       }
 
+      // Update UI state with generated guides
+      setStepGuides(prev => ({
+        step1: {
+          ...prev.step1,
+          guide: generatedGuides.step1.product_info + '\n\n' +
+                 '필수 대사:\n' + generatedGuides.step1.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n') + '\n\n' +
+                 '필수 장면:\n' + generatedGuides.step1.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n') + '\n\n' +
+                 '주의사항:\n' + generatedGuides.step1.cautions,
+          hashtags: generatedGuides.step1.hashtags || [],
+          reference_urls: generatedGuides.step1.reference_urls || []
+        },
+        step2: {
+          ...prev.step2,
+          guide: generatedGuides.step2.product_info + '\n\n' +
+                 '필수 대사:\n' + generatedGuides.step2.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n') + '\n\n' +
+                 '필수 장면:\n' + generatedGuides.step2.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n') + '\n\n' +
+                 '주의사항:\n' + generatedGuides.step2.cautions,
+          hashtags: generatedGuides.step2.hashtags || [],
+          reference_urls: generatedGuides.step2.reference_urls || []
+        },
+        step3: {
+          ...prev.step3,
+          guide: generatedGuides.step3.product_info + '\n\n' +
+                 '필수 대사:\n' + generatedGuides.step3.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n') + '\n\n' +
+                 '필수 장면:\n' + generatedGuides.step3.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n') + '\n\n' +
+                 '주의사항:\n' + generatedGuides.step3.cautions,
+          hashtags: generatedGuides.step3.hashtags || [],
+          reference_urls: generatedGuides.step3.reference_urls || []
+        }
+      }))
+
       // Save to database
       const { error } = await supabase
         .from('campaigns')
@@ -207,8 +238,7 @@ JSON 형식으로만 응답해주세요.`
 
       if (error) throw error
 
-      alert('✅ 3개 STEP별 AI 가이드가 생성되고 저장되었습니다!')
-      onSave()
+      alert('✅ 3개 STEP별 AI 가이드가 생성되었습니다! 각 탭에서 확인하고 수정하세요.')
     } catch (error) {
       console.error('Error generating guides:', error)
       alert('가이드 생성 실패: ' + error.message)

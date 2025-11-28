@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../ui/button'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
+import FourWeekGuideModal from './FourWeekGuideModal'
 
 export default function FourWeekGuideManager({ campaign, filteredParticipants, onRefresh }) {
   const [currentWeek, setCurrentWeek] = useState(1)
@@ -12,6 +13,7 @@ export default function FourWeekGuideManager({ campaign, filteredParticipants, o
   })
   const [showSingleWeekModal, setShowSingleWeekModal] = useState(false)
   const [showWeekGuideViewModal, setShowWeekGuideViewModal] = useState(false)
+  const [showGuideModal, setShowGuideModal] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
   const safeParseGuide = (guideText) => {
@@ -117,12 +119,11 @@ export default function FourWeekGuideManager({ campaign, filteredParticipants, o
           <h4 className="font-medium">{week}주차 가이드</h4>
           <div className="flex gap-2">
             <Button
-              onClick={() => handleGenerateWeekGuide(week)}
+              onClick={() => setShowGuideModal(true)}
               size="sm"
               className="bg-purple-600 hover:bg-purple-700 text-white"
-              disabled={isGenerating}
             >
-              {isGenerating ? '생성 중...' : '🤖 AI 생성'}
+              🤖 AI 생성
             </Button>
             
             {hasGuide && (
@@ -221,6 +222,19 @@ export default function FourWeekGuideManager({ campaign, filteredParticipants, o
             </div>
           </div>
         </div>
+      )}
+      
+      {/* 4주 챌린지 가이드 모달 */}
+      {showGuideModal && (
+        <FourWeekGuideModal
+          campaign={campaign}
+          onClose={() => setShowGuideModal(false)}
+          onSave={() => {
+            setShowGuideModal(false)
+            if (onRefresh) onRefresh()
+          }}
+          supabase={getSupabaseClient()}
+        />
       )}
     </div>
   )

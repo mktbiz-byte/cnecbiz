@@ -192,6 +192,38 @@ JSON 형식으로만 응답해주세요.`
         generatedGuides[week] = JSON.parse(generatedText)
       }
 
+      // Update UI state with generated guides
+      setWeeklyGuides(prev => ({
+        week1: {
+          ...prev.week1,
+          mission: generatedGuides.week1.mission || prev.week1.mission,
+          required_dialogue: generatedGuides.week1.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
+          required_scenes: generatedGuides.week1.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
+          hashtags: generatedGuides.week1.hashtags || []
+        },
+        week2: {
+          ...prev.week2,
+          mission: generatedGuides.week2.mission || prev.week2.mission,
+          required_dialogue: generatedGuides.week2.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
+          required_scenes: generatedGuides.week2.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
+          hashtags: generatedGuides.week2.hashtags || []
+        },
+        week3: {
+          ...prev.week3,
+          mission: generatedGuides.week3.mission || prev.week3.mission,
+          required_dialogue: generatedGuides.week3.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
+          required_scenes: generatedGuides.week3.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
+          hashtags: generatedGuides.week3.hashtags || []
+        },
+        week4: {
+          ...prev.week4,
+          mission: generatedGuides.week4.mission || prev.week4.mission,
+          required_dialogue: generatedGuides.week4.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
+          required_scenes: generatedGuides.week4.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
+          hashtags: generatedGuides.week4.hashtags || []
+        }
+      }))
+
       // Save to database
       const { error } = await supabase
         .from('campaigns')
@@ -203,8 +235,7 @@ JSON 형식으로만 응답해주세요.`
 
       if (error) throw error
 
-      alert('✅ 4개 주차별 AI 가이드가 생성되고 저장되었습니다!')
-      onSave()
+      alert('✅ 4개 주차별 AI 가이드가 생성되었습니다! 각 탭에서 확인하고 수정하세요.')
     } catch (error) {
       console.error('Error generating guides:', error)
       alert('가이드 생성 실패: ' + error.message)
