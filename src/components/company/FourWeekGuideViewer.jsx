@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { X, Calendar, Target } from 'lucide-react'
+import { X } from 'lucide-react'
 
 export default function FourWeekGuideViewer({ campaign, onClose }) {
+  const [activeWeek, setActiveWeek] = useState('week1')
+
   // Parse challenge_weekly_guides_ai JSON
   const parseWeeklyGuides = () => {
     if (!campaign.challenge_weekly_guides_ai) return {}
@@ -16,108 +18,34 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
 
   const weeklyGuides = parseWeeklyGuides()
 
-  // Get week data
-  const getWeekData = (weekNum) => {
-    return weeklyGuides[`week${weekNum}`] || null
+  // Get current week data
+  const getCurrentWeekData = () => {
+    return weeklyGuides[activeWeek] || null
   }
 
-  const getWeekDeadline = (weekNum) => {
+  const getCurrentDeadline = () => {
+    const weekNum = activeWeek.replace('week', '')
     const deadlineField = `week${weekNum}_deadline`
     return campaign[deadlineField]
   }
 
-  const renderWeekSection = (weekNum) => {
-    const weekData = getWeekData(weekNum)
-    const deadline = getWeekDeadline(weekNum)
-    const urls = weekData?.reference_urls || []
-    const mission = weekData?.mission || ''
+  const currentWeekData = getCurrentWeekData()
+  const currentDeadline = getCurrentDeadline()
 
-    return (
-      <div key={weekNum} className="border-b border-gray-200 last:border-b-0 pb-8 mb-8 last:mb-0">
-        {/* 주차 헤더 */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-white font-bold text-lg">
-            {weekNum}
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">{weekNum}주차 미션</h3>
-            {deadline && (
-              <div className="flex items-center gap-2 mt-1">
-                <Calendar className="w-4 h-4 text-yellow-600" />
-                <span className="text-sm text-yellow-700 font-semibold">
-                  마감일: {new Date(deadline).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'short'
-                  })}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+  // Extract all fields from JSON
+  const productInfo = currentWeekData?.product_info || ''
+  const mission = currentWeekData?.mission || ''
+  const requiredDialogues = currentWeekData?.required_dialogues || []
+  const requiredScenes = currentWeekData?.required_scenes || []
+  const cautions = currentWeekData?.cautions || ''
+  const hashtags = currentWeekData?.hashtags || []
+  const referenceUrls = currentWeekData?.reference_urls || []
 
-        {/* 미션 설명 */}
-        {mission ? (
-          <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
-            <div className="flex items-start gap-3">
-              <Target className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
-              <div>
-                <h4 className="text-base font-bold text-blue-900 mb-2">미션 가이드</h4>
-                <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
-                  {mission}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mb-6 bg-gray-50 border-l-4 border-gray-300 p-6 rounded-r-lg">
-            <p className="text-gray-500 text-sm">
-              {weekNum}주차 미션 가이드가 아직 생성되지 않았습니다.
-            </p>
-          </div>
-        )}
-
-        {/* 참고 영상 URL */}
-        {urls.length > 0 ? (
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-              <span className="text-purple-600">🔗</span>
-              참고 영상
-            </h4>
-            {urls.map((url, idx) => (
-              <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3">
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-blue-600 hover:text-blue-800 hover:underline break-all bg-white px-4 py-3 rounded-lg border border-blue-200 transition-all hover:shadow-md text-sm"
-                >
-                  {url}
-                </a>
-              </div>
-            ))}
-            <p className="text-xs text-gray-500 mt-2">
-              💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
-            </p>
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-            <p className="text-gray-500 text-sm">
-              {weekNum}주차의 참고 영상 URL이 등록되지 않았습니다.
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              관리자에게 문의해 주세요.
-            </p>
-          </div>
-        )}
-      </div>
-    )
-  }
+  const hasContent = productInfo || mission || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* 헤더 */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
           <h2 className="text-xl font-bold text-gray-900">🎯 4주 챌린지 촬영 가이드</h2>
@@ -129,9 +57,191 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
           </button>
         </div>
 
-        {/* 전체 주차 가이드 */}
+        {/* 주차 탭 */}
+        <div className="flex gap-2 px-6 pt-4 border-b bg-white">
+          {[
+            { key: 'week1', label: '1주차' },
+            { key: 'week2', label: '2주차' },
+            { key: 'week3', label: '3주차' },
+            { key: 'week4', label: '4주차' }
+          ].map((week) => (
+            <button
+              key={week.key}
+              onClick={() => setActiveWeek(week.key)}
+              className={`px-6 py-3 font-medium text-sm transition-all ${
+                activeWeek === week.key
+                  ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              {week.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 가이드 내용 */}
         <div className="flex-1 overflow-y-auto p-6">
-          {[1, 2, 3, 4].map(weekNum => renderWeekSection(weekNum))}
+          {/* 마감일 표시 */}
+          {currentDeadline && (
+            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-700 font-semibold">📅 마감일:</span>
+                <span className="text-yellow-900 font-bold">
+                  {new Date(currentDeadline).toLocaleDateString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'short'
+                  })}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {hasContent ? (
+            <div className="space-y-6">
+              {/* 제품 정보 */}
+              {productInfo && (
+                <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
+                    <span>📦</span>
+                    제품 정보
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                      {productInfo}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 미션 */}
+              {mission && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                    <span>🎯</span>
+                    {activeWeek.replace('week', '')}주차 미션
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                      {mission}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 필수 대사 */}
+              {requiredDialogues.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                    <span>💬</span>
+                    필수 대사
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                    <ul className="space-y-2">
+                      {requiredDialogues.map((dialogue, idx) => (
+                        <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                          <span className="text-blue-600 font-semibold">{idx + 1}.</span>
+                          <span>{dialogue}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* 필수 장면 */}
+              {requiredScenes.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
+                    <span>🎬</span>
+                    필수 장면
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-green-100">
+                    <ul className="space-y-2">
+                      {requiredScenes.map((scene, idx) => (
+                        <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                          <span className="text-green-600 font-semibold">{idx + 1}.</span>
+                          <span>{scene}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* 주의사항 */}
+              {cautions && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
+                    <span>⚠️</span>
+                    주의사항
+                  </h4>
+                  <div className="bg-white rounded-lg p-4 border border-red-100">
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                      {cautions}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 필수 해시태그 */}
+              {hashtags.length > 0 && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                    <span>📌</span>
+                    필수 해시태그
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {hashtags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300"
+                      >
+                        {tag.startsWith('#') ? tag : `#${tag}`}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 참고 영상 URL */}
+              {referenceUrls.length > 0 && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                    <span>🔗</span>
+                    참고 영상
+                  </h4>
+                  <div className="space-y-3">
+                    {referenceUrls.map((url, idx) => (
+                      <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                        >
+                          {url}
+                        </a>
+                      </div>
+                    ))}
+                    <p className="text-xs text-gray-500 mt-3">
+                      💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <p className="text-gray-500">
+                {activeWeek.replace('week', '')}주차 가이드가 등록되지 않았습니다.
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                관리자에게 문의해 주세요.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 하단 버튼 */}
