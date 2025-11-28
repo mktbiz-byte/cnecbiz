@@ -5,6 +5,7 @@ export default function OliveyoungGuideViewer({ campaign, supabase, onUpdate }) 
   const [activeStep, setActiveStep] = useState('step1')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sending, setSending] = useState(false)
   
   const [stepGuides, setStepGuides] = useState({
     step1: null,
@@ -53,6 +54,49 @@ export default function OliveyoungGuideViewer({ campaign, supabase, onUpdate }) 
       alert('저장 실패: ' + error.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSendAll = async () => {
+    if (!confirm('올리브영 가이드 (STEP 1, 2, 3)를 모든 참여자에게 전달하시겠습니까?\n\n알림톡과 이메일이 발송됩니다.')) {
+      return
+    }
+
+    setSending(true)
+    try {
+      // First save the guide
+      await handleSave()
+
+      // Call Netlify Function to send notifications
+      const response = await fetch('/.netlify/functions/deliver-oliveyoung-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          region: 'korea' // TODO: Get from campaign or context
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to deliver guide')
+      }
+
+      const result = await response.json()
+      
+      if (result.errorCount > 0) {
+        alert(`✅ 올리브영 가이드 전달 완료\n\n성공: ${result.successCount}명\n실패: ${result.errorCount}명`)
+      } else {
+        alert(`✅ 올리브영 가이드가 ${result.successCount}명의 참여자에게 전달되었습니다!\n\n알림톡과 이메일이 발송되었습니다.`)
+      }
+      
+      if (onUpdate) onUpdate()
+      
+    } catch (error) {
+      console.error('Error sending guide:', error)
+      alert('전달 실패: ' + error.message)
+    } finally {
+      setSending(false)
     }
   }
 
@@ -243,16 +287,24 @@ export default function OliveyoungGuideViewer({ campaign, supabase, onUpdate }) 
         )}
       </div>
 
-      {/* 저장 버튼 */}
+      {/* 저장 및 전달 버튼 */}
       {editing && (
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 space-y-3">
           <button
             onClick={handleSave}
-            disabled={saving}
-            className="w-full px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            disabled={saving || sending}
+            className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             💾 저장
+          </button>
+          <button
+            onClick={handleSendAll}
+            disabled={saving || sending}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {sending && <Loader2 className="w-4 h-4 animate-spin" />}
+            📤 전체 전달 (STEP 1, 2, 3)
           </button>
         </div>
       )}

@@ -52,7 +52,7 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
   const handleSendWeek = async (weekToSend) => {
     const weekNum = weekToSend.replace('week', '')
     
-    if (!confirm(`${weekNum}주차 가이드를 모든 참여자에게 전달하시겠습니까?`)) {
+    if (!confirm(`${weekNum}주차 가이드를 모든 참여자에게 전달하시겠습니까?\n\n알림톡과 이메일이 발송됩니다.`)) {
       return
     }
 
@@ -61,23 +61,31 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
       // First save the guide
       await handleSaveWeek(weekToSend)
 
-      // Get all participants for this campaign
-      const { data: participants, error: participantsError } = await supabase
-        .from('participants')
-        .select('user_id, user_profiles(email, name)')
-        .eq('campaign_id', campaign.id)
-        .eq('status', 'selected')
+      // Call Netlify Function to send notifications
+      const response = await fetch('/.netlify/functions/deliver-4week-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          weekNumber: parseInt(weekNum),
+          region: 'korea' // TODO: Get from campaign or context
+        })
+      })
 
-      if (participantsError) throw participantsError
-
-      if (!participants || participants.length === 0) {
-        alert('선정된 참여자가 없습니다.')
-        return
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to deliver guide')
       }
 
-      // TODO: Send email/notification to participants
-      // For now, just show success message
-      alert(`✅ ${weekNum}주차 가이드가 ${participants.length}명의 참여자에게 전달되었습니다!`)
+      const result = await response.json()
+      
+      if (result.errorCount > 0) {
+        alert(`✅ ${weekNum}주차 가이드 전달 완료\n\n성공: ${result.successCount}명\n실패: ${result.errorCount}명`)
+      } else {
+        alert(`✅ ${weekNum}주차 가이드가 ${result.successCount}명의 참여자에게 전달되었습니다!\n\n알림톡과 이메일이 발송되었습니다.`)
+      }
+      
+      if (onUpdate) onUpdate()
       
     } catch (error) {
       console.error('Error sending guide:', error)
