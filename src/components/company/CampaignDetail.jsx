@@ -1150,7 +1150,8 @@ export default function CampaignDetail() {
                 brand: campaign.brand || '',
                 product_name: campaign.title || '',
                 product_features: campaign.product_features || campaign.description || '',
-                product_key_points: campaign.product_key_points || campaign.key_message || ''
+                product_key_points: campaign.product_key_points || campaign.key_message || '',
+                video_duration: campaign.video_duration
               },
               baseGuide: campaign.guide_content || campaign.ai_generated_guide || ''
             })
