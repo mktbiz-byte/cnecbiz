@@ -2695,7 +2695,7 @@ export default function CampaignDetail() {
                 <div>
                   <CardTitle>가상 선정한 크리에이터</CardTitle>
                   <p className="text-sm text-gray-600 mt-1">
-                    현재 다른 캠페인의 기한 조과 이슈로 인해 신규 캠페인에 지원한 인플루언서들입니다.
+                    임시로 기업이 선정한 크리에이터 입니다. 확정 선정이 아니니 자유롭게 최종 선정하여 확정하여 주세요.
                   </p>
                 </div>
                 <Button 
