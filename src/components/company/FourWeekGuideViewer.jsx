@@ -1,8 +1,12 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Edit, Save } from 'lucide-react'
+import { supabase } from '../../lib/supabaseKorea'
 
-export default function FourWeekGuideViewer({ campaign, onClose }) {
+export default function FourWeekGuideViewer({ campaign, onClose, onUpdate }) {
   const [activeWeek, setActiveWeek] = useState('week1')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedData, setEditedData] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   // Parse challenge_weekly_guides_ai JSON
   const parseWeeklyGuides = () => {
@@ -20,6 +24,8 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
 
   // Get current week data
   const getCurrentWeekData = () => {
+    if (isEditing && editedData) return editedData
+    
     const weekData = weeklyGuides[activeWeek]
     
     // If weekData is a string, convert to simple object
@@ -32,6 +38,52 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
     
     // If weekData is an object, return as is
     return weekData || null
+  }
+
+  const handleEdit = () => {
+    const currentData = getCurrentWeekData()
+    setEditedData(JSON.parse(JSON.stringify(currentData || {
+      guide_text: '',
+      is_simple: true
+    })))
+    setIsEditing(true)
+  }
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      
+      // Update the weekly guides object
+      const updatedGuides = { ...weeklyGuides }
+      
+      // If it's simple format, save as string; otherwise save as object
+      if (editedData.is_simple) {
+        updatedGuides[activeWeek] = editedData.guide_text
+      } else {
+        updatedGuides[activeWeek] = editedData
+      }
+      
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ challenge_weekly_guides_ai: JSON.stringify(updatedGuides) })
+        .eq('id', campaign.id)
+
+      if (error) throw error
+
+      alert('수정이 저장되었습니다!')
+      setIsEditing(false)
+      if (onUpdate) onUpdate()
+    } catch (error) {
+      console.error('Error saving:', error)
+      alert('저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setIsEditing(false)
+    setEditedData(null)
   }
 
   const getCurrentDeadline = () => {
@@ -74,12 +126,41 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
         {/* 헤더 */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50">
           <h2 className="text-xl font-bold text-gray-900">🎯 4주 챌린지 촬영 가이드</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!isEditing && (
+              <button
+                onClick={handleEdit}
+                className="p-2 hover:bg-purple-100 rounded-lg transition-colors text-purple-600"
+              >
+                <Edit className="w-5 h-5" />
+              </button>
+            )}
+            {isEditing && (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm flex items-center gap-1"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? '저장 중...' : '저장'}
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={saving}
+                  className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                >
+                  취소
+                </button>
+              </>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* 주차 탭 */}
@@ -92,7 +173,16 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
           ].map((week) => (
             <button
               key={week.key}
-              onClick={() => setActiveWeek(week.key)}
+              onClick={() => {
+                if (isEditing) {
+                  if (confirm('수정 중인 내용이 있습니다. 주차를 변경하시게습니까?')) {
+                    handleCancel()
+                    setActiveWeek(week.key)
+                  }
+                } else {
+                  setActiveWeek(week.key)
+                }
+              }}
               className={`px-6 py-3 font-medium text-sm transition-all ${
                 activeWeek === week.key
                   ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
@@ -133,9 +223,18 @@ export default function FourWeekGuideViewer({ campaign, onClose }) {
                     {activeWeek.replace('week', '')}주차 가이드
                   </h4>
                   <div className="bg-white rounded-lg p-4 border border-purple-100">
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                      {guideText}
-                    </p>
+                    {isEditing ? (
+                      <textarea
+                        value={guideText}
+                        onChange={(e) => setEditedData({ ...editedData, guide_text: e.target.value })}
+                        className="w-full p-2 border rounded text-sm min-h-[200px]"
+                        placeholder="가이드 내용을 입력하세요"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                        {guideText}
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
