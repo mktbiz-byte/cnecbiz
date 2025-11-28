@@ -3915,7 +3915,52 @@ export default function CampaignDetail() {
                             {guideData.why_recommended && (
                               <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                                 <h4 className="font-semibold mb-2 text-purple-900">🤖 AI 가이드 추천 이유</h4>
-                                <p className="text-sm text-gray-700">{guideData.why_recommended}</p>
+                                {typeof guideData.why_recommended === 'string' ? (
+                                  <p className="text-sm text-gray-700">{guideData.why_recommended}</p>
+                                ) : (
+                                  <div className="space-y-3">
+                                    {/* 장면 구성 이유 */}
+                                    {guideData.why_recommended.scene_reasoning && (
+                                      <div>
+                                        <p className="text-sm font-medium text-purple-800 mb-1">🎬 장면 구성 이유</p>
+                                        <p className="text-sm text-gray-700">{guideData.why_recommended.scene_reasoning}</p>
+                                      </div>
+                                    )}
+                                    
+                                    {/* 참고 영상 */}
+                                    {guideData.why_recommended.reference_videos && guideData.why_recommended.reference_videos.length > 0 && (
+                                      <div>
+                                        <p className="text-sm font-medium text-purple-800 mb-2">📺 참고 영상</p>
+                                        <div className="space-y-2">
+                                          {guideData.why_recommended.reference_videos.map((video, idx) => (
+                                            <div key={idx} className="bg-white p-3 rounded border border-purple-100">
+                                              <div className="flex items-start justify-between mb-1">
+                                                <a 
+                                                  href={video.url} 
+                                                  target="_blank" 
+                                                  rel="noopener noreferrer"
+                                                  className="text-sm font-medium text-purple-700 hover:text-purple-900 hover:underline flex-1"
+                                                >
+                                                  {video.title}
+                                                </a>
+                                                <span className="text-xs text-gray-500 ml-2">{video.views}</span>
+                                              </div>
+                                              <p className="text-xs text-gray-600">{video.key_point}</p>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* 크리에이터 적합성 */}
+                                    {guideData.why_recommended.creator_fit && (
+                                      <div>
+                                        <p className="text-sm font-medium text-purple-800 mb-1">🎯 크리에이터 적합성</p>
+                                        <p className="text-sm text-gray-700">{guideData.why_recommended.creator_fit}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
 
