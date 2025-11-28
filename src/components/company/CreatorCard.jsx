@@ -182,30 +182,32 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
           </div>
         )}
 
-        {/* SNS 및 프로필 버튼 */}
-        <div className="flex gap-1 mb-2">
-          {appliedChannels.map(channel => (
-            <Button
-              key={channel.name}
-              size="sm"
-              variant="ghost"
-              className="flex-1 text-[10px] h-6"
-              onClick={() => window.open(channel.url, '_blank')}
-            >
-              SNS
-            </Button>
-          ))}
-          {onViewProfile && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="flex-1 text-[10px] h-6"
-              onClick={() => onViewProfile(application)}
-            >
-              상세
-            </Button>
-          )}
-        </div>
+        {/* SNS 버튼 */}
+        {appliedChannels.length > 0 && (
+          <div className="flex gap-1 mb-2">
+            {appliedChannels.map(channel => {
+              // 채널별 아이콘 및 색상
+              const channelStyles = {
+                youtube: { label: 'YouTube', className: 'bg-red-50 text-red-700 hover:bg-red-100' },
+                instagram: { label: 'Instagram', className: 'bg-pink-50 text-pink-700 hover:bg-pink-100' },
+                tiktok: { label: 'TikTok', className: 'bg-gray-50 text-gray-700 hover:bg-gray-100' }
+              }
+              const style = channelStyles[channel.name] || { label: channel.label, className: '' }
+              
+              return (
+                <Button
+                  key={channel.name}
+                  size="sm"
+                  variant="ghost"
+                  className={`flex-1 text-[10px] h-6 ${style.className}`}
+                  onClick={() => window.open(channel.url, '_blank')}
+                >
+                  {style.label}
+                </Button>
+              )
+            })}
+          </div>
+        )}
 
         {/* 액션 버튼 - 컴팩트 */}
         <div className="space-y-1.5">
