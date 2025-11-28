@@ -242,11 +242,13 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
             )}
 
             {/* 필수 대사 */}
-            {currentGuide.required_dialogues && currentGuide.required_dialogues.length > 0 && (
+            {currentGuide.required_dialogues && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">💬 필수 대사</h4>
                 <ul className="space-y-2">
-                  {currentGuide.required_dialogues.map((dialogue, idx) => (
+                  {(Array.isArray(currentGuide.required_dialogues) 
+                    ? currentGuide.required_dialogues 
+                    : [currentGuide.required_dialogues]).map((dialogue, idx) => (
                     <li key={idx} className="text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg flex items-start gap-2">
                       <span className="font-semibold text-yellow-700">{idx + 1}.</span>
                       <span>{dialogue}</span>
@@ -257,11 +259,13 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
             )}
 
             {/* 필수 촬영 장면 */}
-            {currentGuide.required_scenes && currentGuide.required_scenes.length > 0 && (
+            {currentGuide.required_scenes && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">🎥 필수 촬영 장면</h4>
                 <ul className="space-y-2">
-                  {currentGuide.required_scenes.map((scene, idx) => (
+                  {(Array.isArray(currentGuide.required_scenes) 
+                    ? currentGuide.required_scenes 
+                    : [currentGuide.required_scenes]).map((scene, idx) => (
                     <li key={idx} className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg flex items-start gap-2">
                       <span className="font-semibold text-blue-700">{idx + 1}.</span>
                       <span>{scene}</span>

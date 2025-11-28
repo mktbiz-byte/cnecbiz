@@ -20,6 +20,7 @@ import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, se
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
 import OliveYoungGuideModal from './OliveYoungGuideModal'
 import FourWeekGuideModal from './FourWeekGuideModal'
+import OliveyoungGuideModal from './OliveyoungGuideModal'
 import FourWeekGuideManager from './FourWeekGuideManager'
 import OliveyoungGuideViewer from './OliveyoungGuideViewer'
 import FourWeekGuideViewer from './FourWeekGuideViewer'
@@ -87,6 +88,7 @@ export default function CampaignDetail() {
     reference_urls: ['']
   })
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
+  const [showOliveyoungGuideModal, setShowOliveyoungGuideModal] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
@@ -2060,11 +2062,12 @@ export default function CampaignDetail() {
             {/* Oliveyoung Guide Viewer */}
             {campaign.campaign_type === 'oliveyoung' && (
               <div className="mt-6">
-                <OliveyoungGuideViewer 
-                  campaign={campaign}
-                  supabase={supabase}
-                  onUpdate={fetchCampaignDetail}
-                />
+                <Button
+                  onClick={() => setShowOliveyoungGuideModal(true)}
+                  className="bg-pink-600 hover:bg-pink-700 text-white"
+                >
+                  📸 촬영 가이드 보기
+                </Button>
               </div>
             )}
 
@@ -5026,6 +5029,16 @@ export default function CampaignDetail() {
           campaign={campaign}
           onClose={() => setShow4WeekGuideModal(false)}
           onSave={fetchCampaignDetail}
+          supabase={supabase}
+        />
+      )}
+
+      {/* Oliveyoung Guide Modal */}
+      {showOliveyoungGuideModal && campaign.campaign_type === 'oliveyoung' && (
+        <OliveyoungGuideModal
+          campaign={campaign}
+          onClose={() => setShowOliveyoungGuideModal(false)}
+          onUpdate={fetchCampaignDetail}
           supabase={supabase}
         />
       )}
