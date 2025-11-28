@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { User, Star } from 'lucide-react'
 
-export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant }) {
+export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant, onViewProfile }) {
   const { 
     applicant_name, 
     age, 
@@ -182,20 +182,46 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
           </div>
         )}
 
+        {/* SNS 및 프로필 버튼 */}
+        <div className="flex gap-1 mb-2">
+          {appliedChannels.map(channel => (
+            <Button
+              key={channel.name}
+              size="sm"
+              variant="ghost"
+              className="flex-1 text-[10px] h-6"
+              onClick={() => window.open(channel.url, '_blank')}
+            >
+              SNS
+            </Button>
+          ))}
+          {onViewProfile && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="flex-1 text-[10px] h-6"
+              onClick={() => onViewProfile(application)}
+            >
+              상세
+            </Button>
+          )}
+        </div>
+
         {/* 액션 버튼 - 컴팩트 */}
         <div className="space-y-1.5">
-          {isAlreadyParticipant ? (
-            <Badge className="w-full h-10 flex items-center justify-center bg-green-100 text-green-800 text-sm font-semibold">
-              선정 완료
-            </Badge>
-          ) : isConfirmed ? (
-            <Button
-              onClick={() => onCancel && onCancel(application)}
-              size="md"
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold h-10"
-            >
-              선정 취소
-            </Button>
+          {isAlreadyParticipant || isConfirmed ? (
+            <>
+              <Badge className="w-full h-10 flex items-center justify-center bg-green-100 text-green-800 text-sm font-semibold">
+                선정 완료
+              </Badge>
+              <Button
+                onClick={() => onCancel && onCancel(application)}
+                size="sm"
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold h-8"
+              >
+                선정 취소
+              </Button>
+            </>
           ) : (
             <>
               {!virtual_selected && (

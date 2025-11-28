@@ -2452,10 +2452,25 @@ export default function CampaignDetail() {
                               size="sm" 
                               variant="ghost"
                               className="w-full text-[10px] h-6"
-                              onClick={() => {
-                                // 모달로 상세 프로필 보기
-                                setSelectedParticipant(rec)
-                                setShowProfileModal(true)
+                              onClick={async () => {
+                                // user_profiles에서 크리에이터 정보 가져오기
+                                try {
+                                  const { data: profile } = await supabase
+                                    .from('user_profiles')
+                                    .select('*')
+                                    .eq('id', rec.user_id)
+                                    .maybeSingle()
+                                  
+                                  // applications 데이터 + user_profiles 데이터 병합
+                                  setSelectedParticipant({
+                                    ...rec,
+                                    ...profile
+                                  })
+                                  setShowProfileModal(true)
+                                } catch (error) {
+                                  console.error('Error fetching profile:', error)
+                                  alert('프로필 정보를 불러오는데 실패했습니다.')
+                                }
                               }}
                             >
                               상세
@@ -2493,6 +2508,26 @@ export default function CampaignDetail() {
                         onCancel={(app) => {
                           setCancellingApp(app)
                           setCancelModalOpen(true)
+                        }}
+                        onViewProfile={async (app) => {
+                          // user_profiles에서 크리에이터 정보 가져오기
+                          try {
+                            const { data: profile } = await supabase
+                              .from('user_profiles')
+                              .select('*')
+                              .eq('id', app.user_id)
+                              .maybeSingle()
+                            
+                            // applications 데이터 + user_profiles 데이터 병합
+                            setSelectedParticipant({
+                              ...app,
+                              ...profile
+                            })
+                            setShowProfileModal(true)
+                          } catch (error) {
+                            console.error('Error fetching profile:', error)
+                            alert('프로필 정보를 불러오는데 실패했습니다.')
+                          }
                         }}
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
@@ -2750,6 +2785,26 @@ export default function CampaignDetail() {
                         onCancel={(app) => {
                           setCancellingApp(app)
                           setCancelModalOpen(true)
+                        }}
+                        onViewProfile={async (app) => {
+                          // user_profiles에서 크리에이터 정보 가져오기
+                          try {
+                            const { data: profile } = await supabase
+                              .from('user_profiles')
+                              .select('*')
+                              .eq('id', app.user_id)
+                              .maybeSingle()
+                            
+                            // applications 데이터 + user_profiles 데이터 병합
+                            setSelectedParticipant({
+                              ...app,
+                              ...profile
+                            })
+                            setShowProfileModal(true)
+                          } catch (error) {
+                            console.error('Error fetching profile:', error)
+                            alert('프로필 정보를 불러오는데 실패했습니다.')
+                          }
                         }}
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
