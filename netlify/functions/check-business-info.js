@@ -168,13 +168,12 @@ exports.handler = async (event, context) => {
     console.log('✅ [STEP 1] 입력 데이터 검증 완료');
     console.log('  - 포맷된 사업자번호:', formattedBusinessNumber);
 
-    // 1. Supabase에서 중복 체크
+    // 1. Supabase에서 중복 체크 (중복 허용 - 같은 사업자번호로 여러 회사 가입 가능)
     console.log('🔍 [STEP 2] Supabase 중복 체크 시작...');
-    const { data: existingCompany, error: dbError } = await supabase
+    const { data: existingCompanies, error: dbError } = await supabase
       .from('companies')
       .select('id, company_name')
-      .eq('business_registration_number', formattedBusinessNumber)
-      .maybeSingle();
+      .eq('business_registration_number', formattedBusinessNumber);
 
     if (dbError) {
       console.error('❌ [STEP 2] Supabase 오류:', dbError);
@@ -189,19 +188,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (existingCompany) {
-      console.log('⚠️ [STEP 2] 이미 가입된 사업자번호:', existingCompany);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '이미 가입된 사업자등록번호입니다.',
-        }),
-      };
+    // 중복 허용: 같은 사업자번호로 여러 회사가 가입 가능
+    if (existingCompanies && existingCompanies.length > 0) {
+      console.log(`⚠️ [STEP 2] 기존 가입 회사 ${existingCompanies.length}개 발견 (중복 허용):`, existingCompanies.map(c => c.company_name));
     }
 
-    console.log('✅ [STEP 2] 중복 체크 통과');
+    console.log('✅ [STEP 2] 중복 체크 통과 (중복 허용)');
 
     // 2. 팔빌 휴폐업 조회 API 호출
     console.log('🔍 [STEP 3] 팔빌 휴폐업 조회 API 호출 시작...');
