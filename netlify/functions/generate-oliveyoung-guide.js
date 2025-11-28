@@ -14,167 +14,102 @@ exports.handler = async (event) => {
   }
 
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: 'Method Not Allowed' }
+    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) }
   }
 
   try {
-    const {
-      campaignId,
-      productName,
-      productDescription,
-      productFeatures,
-      productKeyPoints,
-      video1Guide,
-      video1Dialogue,
-      video1Scenes,
-      video1Reference,
-      video2Guide,
-      video2Dialogue,
-      video2Scenes,
-      video2Reference,
-      storyGuide,
-      storyContent,
-      storyReference
-    } = JSON.parse(event.body)
+    const { campaignInfo, existingData } = JSON.parse(event.body)
 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
-    // 제품 소개 생성
-    const productIntroPrompt = `
-당신은 올리브영 캠페인의 크리에이터용 가이드를 작성하는 전문가입니다.
-다음 정보를 바탕으로 크리에이터가 이해하기 쉽고, 촬영에 바로 활용할 수 있는 제품 소개 가이드를 작성해주세요.
-
-제품명: ${productName}
-제품 설명: ${productDescription || '정보 없음'}
-제품 특징: ${productFeatures || '정보 없음'}
-핵심 포인트: ${productKeyPoints || '정보 없음'}
-
-작성 가이드:
-- 제품의 핵심 특징과 효능을 명확하게 설명
-- 크리에이터가 강조해야 할 포인트를 구체적으로 제시
-- 타겟 고객과 사용 상황을 명시
-- 친근하고 이해하기 쉬운 톤으로 작성
-
-500자 이내로 작성해주세요.
-`
-
-    const productIntroResult = await model.generateContent(productIntroPrompt)
-    const productIntro = productIntroResult.response.text()
-
-    // 1차 영상 가이드 생성
-    const video1Prompt = `
-올리브영 캠페인의 1차 영상 가이드를 작성해주세요.
-크리에이터가 이 가이드만 보고 바로 촬영할 수 있도록 구체적으로 작성해주세요.
-
-제품명: ${productName}
-촬영 가이드: ${video1Guide || '정보 없음'}
-필수 대사: ${video1Dialogue || '정보 없음'}
-필수 장면: ${video1Scenes || '정보 없음'}
-레퍼런스 URL: ${video1Reference || '없음'}
-
-작성 형식:
-1. 영상 컨셉 및 목적
-2. 촬영 구성 (인트로 → 메인 → 아웃트로)
-3. 필수 포함 대사 (구체적으로)
-4. 필수 촬영 장면 (구체적으로)
-5. 촬영 팁 및 주의사항
-${video1Reference ? `6. 레퍼런스 참고: ${video1Reference}` : ''}
-
-친근하고 실용적인 톤으로 작성해주세요.
-`
-
-    const video1Result = await model.generateContent(video1Prompt)
-    const video1GuideText = video1Result.response.text()
-
-    // 2차 영상 가이드 생성
-    const video2Prompt = `
-올리브영 캠페인의 2차 영상 가이드를 작성해주세요.
-크리에이터가 이 가이드만 보고 바로 촬영할 수 있도록 구체적으로 작성해주세요.
-
-제품명: ${productName}
-촬영 가이드: ${video2Guide || '정보 없음'}
-필수 대사: ${video2Dialogue || '정보 없음'}
-필수 장면: ${video2Scenes || '정보 없음'}
-레퍼런스 URL: ${video2Reference || '없음'}
-
-작성 형식:
-1. 영상 컨셉 및 목적
-2. 촬영 구성 (인트로 → 메인 → 아웃트로)
-3. 필수 포함 대사 (구체적으로)
-4. 필수 촬영 장면 (구체적으로)
-5. 촬영 팁 및 주의사항
-${video2Reference ? `6. 레퍼런스 참고: ${video2Reference}` : ''}
-
-친근하고 실용적인 톤으로 작성해주세요.
-`
-
-    const video2Result = await model.generateContent(video2Prompt)
-    const video2GuideText = video2Result.response.text()
-
-    // 스토리 URL 가이드 생성
-    const storyPrompt = `
-올리브영 캠페인의 스토리 URL 가이드를 작성해주세요.
-2차 영상 업로드 후 스토리에 URL을 태그하는 방법을 안내해주세요.
-
-제품명: ${productName}
-스토리 가이드: ${storyGuide || '정보 없음'}
-필수 포함 내용: ${storyContent || '정보 없음'}
-레퍼런스 URL: ${storyReference || '없음'}
-
-작성 형식:
-1. 스토리 URL 태그 목적
-2. 업로드 순서 (2차 영상 업로드 → 스토리 URL 태그)
-3. 스토리에 포함할 내용 (텍스트, 해시태그, 멘션 등)
-4. URL 태그 방법 (구체적인 단계)
-5. 주의사항
-${storyReference ? `6. 레퍼런스 참고: ${storyReference}` : ''}
-
-친근하고 실용적인 톤으로 작성해주세요.
-`
-
-    const storyResult = await model.generateContent(storyPrompt)
-    const storyGuideText = storyResult.response.text()
-
-    // 주의사항 생성
-    const cautionsPrompt = `
-올리브영 캠페인의 주의사항을 작성해주세요.
-크리에이터가 반드시 지켜야 할 사항들을 명확하게 안내해주세요.
-
-제품명: ${productName}
-제품 특징: ${productFeatures || '정보 없음'}
-핵심 포인트: ${productKeyPoints || '정보 없음'}
-
-작성 형식:
-1. 제품 관련 주의사항 (과장 금지, 정확한 정보 전달 등)
-2. 촬영 관련 주의사항 (필수 장면, 금지 사항 등)
-3. 업로드 관련 주의사항 (해시태그, 멘션, 타이밍 등)
-4. 기타 준수 사항
-
-명확하고 구체적으로 작성해주세요.
-`
-
-    const cautionsResult = await model.generateContent(cautionsPrompt)
-    const cautions = cautionsResult.response.text()
-
-    const guide = {
-      product_intro: productIntro,
-      video1_guide: video1GuideText,
-      video2_guide: video2GuideText,
-      story_guide: storyGuideText,
-      cautions: cautions
+    // Generate guide for each step
+    const generatedGuide = {
+      step1: await generateStepGuide(model, campaignInfo, existingData.step1, '세일 전 가이드', '올리브영 세일 전에 제품을 소개하고 기대감을 높이는'),
+      step2: await generateStepGuide(model, campaignInfo, existingData.step2, '세일 당일 영상 가이드', '올리브영 세일 당일에 제품을 구매하도록 유도하는'),
+      step3: await generateStepGuide(model, campaignInfo, existingData.step3, '스토리 URL 가이드', '인스타그램 스토리에 올리브영 구매 링크를 삽입하는')
     }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ guide })
+      body: JSON.stringify({ generatedGuide })
     }
   } catch (error) {
-    console.error('AI 가이드 생성 오류:', error)
+    console.error('Error generating Olive Young guide:', error)
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message || 'Failed to generate guide' })
     }
+  }
+}
+
+async function generateStepGuide(model, campaignInfo, existingStepData, stepName, stepPurpose) {
+  const prompt = `당신은 올리브영 세일 캠페인의 크리에이터 가이드를 작성하는 전문가입니다.
+
+**캠페인 정보:**
+- 브랜드: ${campaignInfo.brand}
+- 제품명: ${campaignInfo.product_name}
+- 캠페인 설명: ${campaignInfo.campaign_description || '없음'}
+- 핵심 메시지: ${campaignInfo.key_messages || '없음'}
+
+**가이드 단계:** ${stepName}
+**목적:** ${stepPurpose} 영상 가이드
+
+**관리자가 입력한 정보:**
+- 참고 영상 URL: ${existingStepData.reference_urls}
+${existingStepData.required_dialogue ? `- 필수 대사: ${existingStepData.required_dialogue}` : ''}
+${existingStepData.required_scenes ? `- 필수 장면: ${existingStepData.required_scenes}` : ''}
+${existingStepData.examples ? `- 예시: ${existingStepData.examples}` : ''}
+
+**작업:**
+관리자가 입력한 정보를 **절대 수정하지 말고 그대로 유지**하면서, 비어있는 필드만 자동으로 생성해주세요.
+
+1. **필수 대사** (비어있으면 생성):
+   - 크리에이터가 반드시 말해야 하는 3-5개의 핵심 대사
+   - 자연스럽고 진정성 있는 톤으로 작성
+   - 제품의 핵심 가치와 올리브영 세일 정보 포함
+
+2. **필수 장면** (비어있으면 생성):
+   - 반드시 포함되어야 하는 5-7개의 장면
+   - 구체적이고 실행 가능한 촬영 가이드
+   - 제품 클로즈업, 사용 장면, 결과 등 포함
+
+3. **예시** (비어있으면 생성):
+   - 3-5개의 구체적인 실행 예시
+   - 크리에이터가 바로 따라할 수 있는 수준으로 상세하게
+   - 다양한 스타일과 접근 방식 제시
+
+**응답 형식 (JSON):**
+{
+  "required_dialogue": "관리자가 입력한 내용 또는 새로 생성한 내용",
+  "required_scenes": "관리자가 입력한 내용 또는 새로 생성한 내용",
+  "examples": "관리자가 입력한 내용 또는 새로 생성한 내용",
+  "reference_urls": "${existingStepData.reference_urls}"
+}
+
+**중요:**
+- 참고 영상 URL은 절대 변경하지 마세요
+- 관리자가 이미 입력한 필드는 그대로 유지하세요
+- 비어있는 필드만 생성하세요
+- JSON 형식으로만 응답하세요`
+
+  const result = await model.generateContent(prompt)
+  const response = result.response.text()
+  
+  // Extract JSON from response
+  const jsonMatch = response.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) {
+    throw new Error('Invalid AI response format')
+  }
+  
+  const generatedData = JSON.parse(jsonMatch[0])
+  
+  // Merge with existing data (prioritize existing data)
+  return {
+    reference_urls: existingStepData.reference_urls, // Always keep original
+    required_dialogue: existingStepData.required_dialogue || generatedData.required_dialogue,
+    required_scenes: existingStepData.required_scenes || generatedData.required_scenes,
+    examples: existingStepData.examples || generatedData.examples
   }
 }
