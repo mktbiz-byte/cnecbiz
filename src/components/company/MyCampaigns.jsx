@@ -644,7 +644,9 @@ export default function MyCampaigns() {
                           matchesStatus = campaign.status === 'guide_review' || campaign.progress_status === 'guide_confirmation'
                           break
                         case 'in_progress':
-                          matchesStatus = campaign.status === 'in_progress' || campaign.status === 'active' || campaign.progress_status === 'filming'
+                          // 촬영중: in_progress 또는 progress_status가 filming인 경우만
+                          // active는 단순히 활성화된 캠페인이므로 제외
+                          matchesStatus = campaign.status === 'in_progress' || campaign.progress_status === 'filming'
                           break
                         case 'revision':
                           matchesStatus = campaign.approval_status === 'rejected' || campaign.status === 'revision' || campaign.progress_status === 'editing'
