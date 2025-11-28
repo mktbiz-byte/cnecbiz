@@ -143,20 +143,7 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
       "dialogue": "극적인 변화를 강조하는 대사",
       "shooting_tip": "분할 화면으로 Before/After 비교"
     },
-    {
-      "order": 11,
-      "scene_type": "추가 효과",
-      "scene_description": "일상 속 사용 모습 또는 추가 효과",
-      "dialogue": "자연스러운 사용 장면 대사",
-      "shooting_tip": "다양한 상황에서의 활용 모습"
-    },
-    {
-      "order": 12,
-      "scene_type": "마무리",
-      "scene_description": "제품 추천 및 구매 유도",
-      "dialogue": "진심 어린 추천 멘트",
-      "shooting_tip": "제품을 들고 환하게 웃는 모습"
-    }
+
   ],
   "required_hashtags": {
     "real": ["${productInfo.brand}", "${productInfo.product_name.replace(/\s+/g, '')}", "솔직후기", "리얼리뷰"],
@@ -221,8 +208,7 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json"
+            maxOutputTokens: 8192
           }
         })
       }
