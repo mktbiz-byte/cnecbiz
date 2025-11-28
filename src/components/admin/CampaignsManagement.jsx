@@ -297,8 +297,7 @@ export default function CampaignsManagement() {
               })
             }
 
-            const startDate = formatDate(campaign.recruitment_start_date || campaign.start_date)
-            const endDate = formatDate(campaign.recruitment_deadline || campaign.end_date)
+            const deadline = formatDate(campaign.application_deadline || campaign.recruitment_deadline || campaign.end_date)
             const campaignTitle = campaign.campaign_name || campaign.title || '캠페인'
 
             // 카카오 알림톡 발송
@@ -315,8 +314,7 @@ export default function CampaignsManagement() {
                     variables: {
                       '회사명': company.company_name || '회사',
                       '캠페인명': campaignTitle,
-                      '시작일': startDate,
-                      '마감일': endDate,
+                      '마감일': deadline,
                       '모집인원': String(campaign.total_slots || campaign.target_creators || 0)
                     }
                   })
@@ -347,7 +345,7 @@ export default function CampaignsManagement() {
                         
                         <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                           <p style="margin: 10px 0;"><strong>캠페인:</strong> ${campaignTitle}</p>
-                          <p style="margin: 10px 0;"><strong>모집 기간:</strong> ${startDate} ~ ${endDate}</p>
+                          <p style="margin: 10px 0;"><strong>모집 마감일:</strong> ${deadline}</p>
                           <p style="margin: 10px 0;"><strong>모집 인원:</strong> ${campaign.total_slots || campaign.target_creators || 0}명</p>
                         </div>
                         
