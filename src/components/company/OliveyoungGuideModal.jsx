@@ -58,10 +58,8 @@ export default function OliveyoungGuideModal({ campaign, onClose }) {
 
   const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
 
-  // STEP 3 story URL (validate it's actually a URL)
-  const rawStoryUrl = campaign.oliveyoung_step3_guide || ''
-  const isValidUrl = rawStoryUrl && (rawStoryUrl.startsWith('http://') || rawStoryUrl.startsWith('https://'))
-  const storyUrl = isValidUrl ? rawStoryUrl : ''
+  // STEP 3 story URL
+  const storyUrl = campaign.oliveyoung_step3_guide || ''
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
