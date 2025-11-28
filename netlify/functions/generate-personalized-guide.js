@@ -232,12 +232,42 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
       throw new Error('No guide generated - empty response from AI')
     }
 
-    console.log('Raw AI response (concatenated):', personalizedGuide)
+    console.log('Raw AI response (concatenated):', personalizedGuide.substring(0, 500))
 
     // Remove markdown code blocks (```, ```json, etc.)
     personalizedGuide = personalizedGuide.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
     
     console.log('After removing code blocks:', personalizedGuide.substring(0, 200))
+    
+    // Handle duplicate JSON objects - extract only the first valid JSON
+    // This happens when Gemini returns multiple parts with the same JSON
+    try {
+      // Try to find where the first JSON object ends
+      let braceCount = 0
+      let firstJsonEnd = -1
+      
+      for (let i = 0; i < personalizedGuide.length; i++) {
+        if (personalizedGuide[i] === '{') {
+          braceCount++
+        } else if (personalizedGuide[i] === '}') {
+          braceCount--
+          if (braceCount === 0) {
+            firstJsonEnd = i + 1
+            break
+          }
+        }
+      }
+      
+      if (firstJsonEnd > 0 && firstJsonEnd < personalizedGuide.length) {
+        const potentialDuplicate = personalizedGuide.substring(firstJsonEnd).trim()
+        if (potentialDuplicate.length > 0) {
+          console.log('Detected potential duplicate JSON, extracting first valid JSON only')
+          personalizedGuide = personalizedGuide.substring(0, firstJsonEnd)
+        }
+      }
+    } catch (e) {
+      console.warn('Error while checking for duplicate JSON:', e)
+    }
 
     // Try to parse as JSON to validate
     let guideJson
