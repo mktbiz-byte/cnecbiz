@@ -15,25 +15,23 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
   })
 
   useEffect(() => {
-    if (campaign) {
-      setWeekGuides({
-        week1: campaign.week1_guide ? (typeof campaign.week1_guide === 'string' ? campaign.week1_guide : JSON.stringify(campaign.week1_guide, null, 2)) : null,
-        week2: campaign.week2_guide ? (typeof campaign.week2_guide === 'string' ? campaign.week2_guide : JSON.stringify(campaign.week2_guide, null, 2)) : null,
-        week3: campaign.week3_guide ? (typeof campaign.week3_guide === 'string' ? campaign.week3_guide : JSON.stringify(campaign.week3_guide, null, 2)) : null,
-        week4: campaign.week4_guide ? (typeof campaign.week4_guide === 'string' ? campaign.week4_guide : JSON.stringify(campaign.week4_guide, null, 2)) : null
-      })
+    if (campaign && campaign.challenge_weekly_guides) {
+      setWeekGuides(campaign.challenge_weekly_guides)
     }
   }, [campaign])
 
   const handleSaveWeek = async (weekToSave) => {
     setSaving(true)
     try {
-      const weekColumn = `${weekToSave}_guide`
+      const updatedGuides = {
+        ...campaign.challenge_weekly_guides,
+        [weekToSave]: weekGuides[weekToSave]
+      }
       
       const { error } = await supabase
         .from('campaigns')
         .update({
-          [weekColumn]: weekGuides[weekToSave]
+          challenge_weekly_guides: updatedGuides
         })
         .eq('id', campaign.id)
 
@@ -91,11 +89,11 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
 
   const currentGuide = weekGuides[activeWeek]
 
-  if (!campaign.week1_guide && !campaign.week2_guide && !campaign.week3_guide && !campaign.week4_guide) {
+  if (!campaign.challenge_weekly_guides || Object.keys(campaign.challenge_weekly_guides).length === 0) {
     return (
       <div className="bg-gray-50 rounded-lg p-8 text-center">
-        <p className="text-gray-500">아직 생성된 4주 챌린지 가이드가 없습니다.</p>
-        <p className="text-sm text-gray-400 mt-2">상단의 "AI 최종 가이드 생성하기" 버튼을 클릭하세요.</p>
+        <p className="text-gray-500">아직 생성된 4주 챌린지 촬영 가이드가 없습니다.</p>
+        <p className="text-sm text-gray-400 mt-2">좌측의 "🤖 AI 생성" 버튼을 클릭하세요.</p>
       </div>
     )
   }
@@ -104,7 +102,7 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
     <div className="bg-white rounded-lg border border-gray-200">
       {/* 헤더 */}
       <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">4주 챌린지 가이드</h3>
+        <h3 className="text-lg font-semibold text-gray-900">📸 4주 챌린지 촬영 가이드</h3>
         <button
           onClick={() => setEditing(!editing)}
           className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
@@ -132,22 +130,167 @@ export default function FourWeekGuideViewer({ campaign, supabase, onUpdate }) {
 
       {/* 가이드 내용 */}
       <div className="p-6">
-        {editing ? (
-          <textarea
-            value={currentGuide || ''}
-            onChange={(e) => setWeekGuides(prev => ({ ...prev, [activeWeek]: e.target.value }))}
-            rows={20}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 font-mono text-sm"
-            placeholder={`${activeWeek.replace('week', '')}주차 가이드를 입력하세요...`}
-          />
+        {!currentGuide ? (
+          <p className="text-gray-500">{activeWeek.replace('week', '')}주차 가이드가 없습니다.</p>
+        ) : editing ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">상품 정보</label>
+              <textarea
+                value={currentGuide.product_info || ''}
+                onChange={(e) => setWeekGuides(prev => ({
+                  ...prev,
+                  [activeWeek]: { ...prev[activeWeek], product_info: e.target.value }
+                }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">미션</label>
+              <textarea
+                value={currentGuide.mission || ''}
+                onChange={(e) => setWeekGuides(prev => ({
+                  ...prev,
+                  [activeWeek]: { ...prev[activeWeek], mission: e.target.value }
+                }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">필수 대사</label>
+              <textarea
+                value={Array.isArray(currentGuide.required_dialogues) ? currentGuide.required_dialogues.join('\n') : ''}
+                onChange={(e) => setWeekGuides(prev => ({
+                  ...prev,
+                  [activeWeek]: { ...prev[activeWeek], required_dialogues: e.target.value.split('\n') }
+                }))}
+                rows={5}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="한 줄에 하나씩 입력"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">필수 촬영 장면</label>
+              <textarea
+                value={Array.isArray(currentGuide.required_scenes) ? currentGuide.required_scenes.join('\n') : ''}
+                onChange={(e) => setWeekGuides(prev => ({
+                  ...prev,
+                  [activeWeek]: { ...prev[activeWeek], required_scenes: e.target.value.split('\n') }
+                }))}
+                rows={5}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="한 줄에 하나씩 입력"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">주의사항</label>
+              <textarea
+                value={currentGuide.cautions || ''}
+                onChange={(e) => setWeekGuides(prev => ({
+                  ...prev,
+                  [activeWeek]: { ...prev[activeWeek], cautions: e.target.value }
+                }))}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          </div>
         ) : (
-          <div className="prose max-w-none">
-            {currentGuide ? (
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-4 rounded-lg">
-                {currentGuide}
-              </pre>
-            ) : (
-              <p className="text-gray-500">{activeWeek.replace('week', '')}주차 가이드가 없습니다.</p>
+          <div className="space-y-6">
+            {/* 상품 정보 */}
+            {currentGuide.product_info && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">📦 상품 정보</h4>
+                <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg whitespace-pre-wrap">
+                  {currentGuide.product_info}
+                </p>
+              </div>
+            )}
+
+            {/* 미션 */}
+            {currentGuide.mission && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">🎯 미션</h4>
+                <p className="text-sm text-gray-600 bg-purple-50 p-3 rounded-lg whitespace-pre-wrap">
+                  {currentGuide.mission}
+                </p>
+              </div>
+            )}
+
+            {/* 필수 해시태그 */}
+            {currentGuide.hashtags && currentGuide.hashtags.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">#️⃣ 필수 해시태그</h4>
+                <div className="flex flex-wrap gap-2">
+                  {currentGuide.hashtags.map((tag, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 필수 대사 */}
+            {currentGuide.required_dialogues && currentGuide.required_dialogues.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">💬 필수 대사</h4>
+                <ul className="space-y-2">
+                  {currentGuide.required_dialogues.map((dialogue, idx) => (
+                    <li key={idx} className="text-sm text-gray-600 bg-yellow-50 p-3 rounded-lg flex items-start gap-2">
+                      <span className="font-semibold text-yellow-700">{idx + 1}.</span>
+                      <span>{dialogue}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 필수 촬영 장면 */}
+            {currentGuide.required_scenes && currentGuide.required_scenes.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">🎥 필수 촬영 장면</h4>
+                <ul className="space-y-2">
+                  {currentGuide.required_scenes.map((scene, idx) => (
+                    <li key={idx} className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg flex items-start gap-2">
+                      <span className="font-semibold text-blue-700">{idx + 1}.</span>
+                      <span>{scene}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 주의사항 */}
+            {currentGuide.cautions && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">⚠️ 주의사항</h4>
+                <p className="text-sm text-gray-600 bg-red-50 p-3 rounded-lg whitespace-pre-wrap">
+                  {currentGuide.cautions}
+                </p>
+              </div>
+            )}
+
+            {/* 참고 영상 */}
+            {currentGuide.reference_urls && currentGuide.reference_urls.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">🔗 참고 영상</h4>
+                <div className="space-y-2">
+                  {currentGuide.reference_urls.map((url, idx) => (
+                    <a
+                      key={idx}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-sm text-blue-600 hover:text-blue-800 underline bg-gray-50 p-3 rounded-lg"
+                    >
+                      {url}
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}

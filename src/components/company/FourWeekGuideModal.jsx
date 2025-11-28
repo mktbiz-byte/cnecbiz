@@ -4,11 +4,12 @@ import { Plus, X, Loader2 } from 'lucide-react'
 
 export default function FourWeekGuideModal({ 
   campaign, 
+  initialWeek = 1,
   onClose, 
   onSave,
   supabase 
 }) {
-  const [activeWeek, setActiveWeek] = useState('week1')
+  const [activeWeek, setActiveWeek] = useState(`week${initialWeek}`)
   
   const [commonData, setCommonData] = useState({
     brand: '',
@@ -197,14 +198,17 @@ JSON 형식으로만 응답해주세요.`
         }
       }))
 
-      // Save to database using week-specific columns
-      const weekColumn = `${weekToGenerate}_guide`
-      const guideText = JSON.stringify(generatedGuide, null, 2)
+      // Save to database using challenge_weekly_guides JSONB column
+      const existingGuides = campaign.challenge_weekly_guides || {}
+      const updatedGuides = {
+        ...existingGuides,
+        [weekToGenerate]: generatedGuide
+      }
       
       const { error } = await supabase
         .from('campaigns')
         .update({ 
-          [weekColumn]: guideText,
+          challenge_weekly_guides: updatedGuides,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', campaign.id)

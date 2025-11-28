@@ -119,7 +119,10 @@ export default function FourWeekGuideManager({ campaign, filteredParticipants, o
           <h4 className="font-medium">{week}주차 가이드</h4>
           <div className="flex gap-2">
             <Button
-              onClick={() => setShowGuideModal(true)}
+              onClick={() => {
+                setCurrentWeek(week)
+                setShowGuideModal(true)
+              }}
               size="sm"
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
@@ -228,6 +231,7 @@ export default function FourWeekGuideManager({ campaign, filteredParticipants, o
       {showGuideModal && (
         <FourWeekGuideModal
           campaign={campaign}
+          initialWeek={currentWeek}
           onClose={() => setShowGuideModal(false)}
           onSave={() => {
             setShowGuideModal(false)
