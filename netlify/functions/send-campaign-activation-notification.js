@@ -1,6 +1,7 @@
 /**
  * 캠페인 활성화 알림 전송
  * 기업에게 캠페인이 활성화되었음을 알림톡 + 이메일로 전송
+ * Version: 1.0.1
  */
 
 const { createClient } = require('@supabase/supabase-js')
