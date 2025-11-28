@@ -164,15 +164,13 @@ Return JSON format:
 ${trendInsights.reference_videos.map((v, i) => `${i + 1}. ${v.url}
    - 포맷: ${v.format === 'shorts' ? 'Shorts/Reels (60초 이하)' : '일반 영상'}
    - 특별한 점: ${v.what_makes_it_special}
-   - 트렌딩 이유: ${v.why_trending}`).join('
-')}
+   - 트렌딩 이유: ${v.why_trending}`).join('\n')}
 
 **트렌드 요약**:
 - **훅 패턴** (첫 3초): ${trendInsights.trend_summary.hook_patterns.join(', ')}
 - **편집 기법**: ${trendInsights.trend_summary.editing_techniques.join(', ')}
 - **대사/자막 스타일**: ${trendInsights.trend_summary.dialogue_styles.join(', ')}
-${!trendInsights.trend_summary.has_shorts ? '
-⚠️ **주의**: Shorts 형식 영상이 부족하므로, 훅 강화 및 빠른 전개가 필수입니다.' : ''}
+${!trendInsights.trend_summary.has_shorts ? '\n⚠️ **주의**: Shorts 형식 영상이 부족하므로, 훅 강화 및 빠른 전개가 필수입니다.' : ''}
 
 **가이드 작성 시 반영사항**:
 - 위 트렌드를 필수 대사 및 촬영 장면에 자연스럽게 통합
