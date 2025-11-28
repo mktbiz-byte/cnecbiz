@@ -1,8 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, MessageCircle, Mail, Phone } from 'lucide-react'
 
 export default function ConsultationBanner() {
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Listen for custom event from other components
+  useEffect(() => {
+    const handleOpenModal = () => setIsModalOpen(true)
+    window.addEventListener('openConsultationModal', handleOpenModal)
+    return () => window.removeEventListener('openConsultationModal', handleOpenModal)
+  }, [])
   const [formData, setFormData] = useState({
     name: '',
     phone: '',

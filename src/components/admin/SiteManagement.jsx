@@ -233,7 +233,13 @@ export default function SiteManagement() {
     try {
       const { error } = await supabaseBiz
         .from('faqs')
-        .insert([{ ...newFaq, order: faqs.length, is_visible: true }])
+        .insert([{ 
+          question: newFaq.question,
+          answer: newFaq.answer,
+          category: newFaq.category || 'general',
+          display_order: faqs.length,
+          is_active: true 
+        }])
 
       if (error) throw error
 

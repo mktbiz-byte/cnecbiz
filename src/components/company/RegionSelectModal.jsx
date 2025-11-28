@@ -24,28 +24,28 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
       id: 'korea',
       name: '대한민국',
       flag: '🇰🇷',
-      description: 'cnec-kr 캠페인 생성',
+      description: '',
       color: 'bg-blue-50 hover:bg-blue-100 border-blue-200'
     },
     {
       id: 'japan',
       name: '일본',
       flag: '🇯🇵',
-      description: 'cnec.jp 캠페인 생성',
+      description: '',
       color: 'bg-red-50 hover:bg-red-100 border-red-200'
     },
     {
       id: 'us',
       name: '미국',
       flag: '🇺🇸',
-      description: 'cnec-us.com 캠페인 생성',
+      description: '',
       color: 'bg-blue-50 hover:bg-blue-100 border-blue-200'
     },
     {
       id: 'taiwan',
       name: '대만',
       flag: '🇹🇼',
-      description: 'cnec-tw.com 캠페인 생성',
+      description: '',
       color: 'bg-green-50 hover:bg-green-100 border-green-200',
       disabled: true,
       disabledMessage: '서비스 준비 중입니다'
@@ -79,9 +79,11 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
                     <div className="text-5xl">{region.flag}</div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold mb-1">{region.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        {region.disabled ? region.disabledMessage : region.description}
-                      </p>
+                      {(region.disabled || region.description) && (
+                        <p className="text-sm text-gray-600">
+                          {region.disabled ? region.disabledMessage : region.description}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -92,7 +94,7 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
 
         <div className="p-6 border-t bg-gray-50">
           <p className="text-sm text-gray-600 text-center">
-            선택한 나라의 Supabase 데이터베이스에 캠페인이 생성됩니다
+            선택한 나라에 캠페인을 생성해 보세요.
           </p>
         </div>
       </div>

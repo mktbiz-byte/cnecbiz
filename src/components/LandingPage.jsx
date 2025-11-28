@@ -19,7 +19,7 @@ export default function LandingPage() {
     stats_campaigns: '4,562+',
     stats_creators: '21,580+',
     stats_countries: '4개국',
-    stats_success: '50만+'
+    stats_success: '1억+'
   })
 
   useEffect(() => {
@@ -175,7 +175,7 @@ export default function LandingPage() {
     { icon: Video, label: '완료된 캠페인', value: pageContent.stats_campaigns, color: 'from-blue-500 to-cyan-500' },
     { icon: Users, label: '파트너 크리에이터', value: pageContent.stats_creators, color: 'from-purple-500 to-pink-500' },
     { icon: Globe, label: '진출 국가', value: pageContent.stats_countries, color: 'from-orange-500 to-red-500' },
-    { icon: TrendingUp, label: '평균 조회수', value: pageContent.stats_success, color: 'from-green-500 to-emerald-500' },
+    { icon: TrendingUp, label: '누적 조회수', value: pageContent.stats_success, color: 'from-green-500 to-emerald-500' },
   ]
 
   const features = [
@@ -704,7 +704,10 @@ export default function LandingPage() {
             >
               무료로 시작하기
             </button>
-            <button className="px-10 py-5 bg-white/10 backdrop-blur-sm border-2 border-white text-white rounded-xl hover:bg-white/20 transition-all text-lg font-bold">
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('openConsultationModal'))}
+              className="px-10 py-5 bg-white/10 backdrop-blur-sm border-2 border-white text-white rounded-xl hover:bg-white/20 transition-all text-lg font-bold"
+            >
               상담 신청하기
             </button>
           </div>
