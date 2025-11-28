@@ -4093,7 +4093,17 @@ export default function CampaignDetail() {
                           </div>
                         );
                       } catch (error) {
-                        return selectedGuide.personalized_guide;
+                        // JSON 파싱 실패 시 텍스트로 표시
+                        const content = selectedGuide.personalized_guide;
+                        if (!content || content.trim() === '' || content.trim() === '``') {
+                          return (
+                            <div className="text-center py-8 text-gray-500">
+                              <p>가이드 내용이 비어있습니다.</p>
+                              <p className="text-sm mt-2">가이드를 다시 생성해주세요.</p>
+                            </div>
+                          );
+                        }
+                        return <div className="whitespace-pre-wrap">{content}</div>;
                       }
                     })()}
                   </div>
