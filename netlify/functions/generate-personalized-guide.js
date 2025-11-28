@@ -188,10 +188,11 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
 \`\`\`
 
 **중요 지침**: 
+- **JSON만 출력**: 인사말, 설명, 기타 텍스트 없이 순수 JSON만 출력하세요
 - **한국어만 사용**: 모든 텍스트는 100% 한국어로 작성하세요. 영어, 러시아어, 일본어 등 외국어 절대 사용 금지
 - **이모티콘 사용 금지**: 절대로 이모티콘을 사용하지 마세요
 - **JSON 형식 준수**: 위 JSON 형식을 정확히 따라주세요
-- **10개 이상 장면**: shooting_scenes 배열에 최소 10개 이상의 장면을 포함하세요
+- **정확히 10개 장면**: shooting_scenes 배열에 정확히 10개의 장면을 포함하세요
 - **자연스러운 대사**: 각 장면의 dialogue는 친근하고 자연스러운 한국어 말투로 작성하세요
 - **핵심 포인트 반영**: 제품의 핵심 포인트(${productInfo.product_key_points})를 자연스럽게 녹여내세요
 - **실제 YouTube URL 필수**: reference_videos는 반드시 Google Search로 찾은 실제 재생 가능한 YouTube URL을 사용하세요. 플레이스홀더나 가짜 URL 절대 금지. 검색 결과가 없으면 빈 배열 []로 반환하세요.`
@@ -208,7 +209,8 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 8192
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json"
           }
         })
       }
