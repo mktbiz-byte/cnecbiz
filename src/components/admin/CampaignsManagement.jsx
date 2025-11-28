@@ -250,12 +250,20 @@ export default function CampaignsManagement() {
       const region = campaign.region || 'biz'
       const supabaseClient = getSupabaseClient(region)
 
+      // 활성화 시 approval_status도 함께 업데이트
+      const updateData = {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      }
+      
+      if (newStatus === 'active') {
+        updateData.approval_status = 'approved'
+        updateData.approved_at = new Date().toISOString()
+      }
+
       const { error } = await supabaseClient
         .from('campaigns')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', campaign.id)
 
       if (error) throw error
