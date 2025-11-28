@@ -1765,23 +1765,24 @@ export default function CampaignDetail() {
                       <div className="flex items-center gap-2">
                         <span className="text-gray-700">
                           {(() => {
-                            // 올리브영 세일: 2개 마감일
+                            // 올리브영 세일: 3개 마감일 (step1, step2, step3)
                             if (campaign.campaign_type === 'oliveyoung') {
                               return (
                                 <div className="space-y-1">
-                                  <div className="text-xs text-gray-500">세일 전: {campaign.deadline_presale || '미정'}</div>
-                                  <div className="text-xs text-gray-500">세일 당일: {campaign.deadline_saleday || '미정'}</div>
+                                  <div className="text-xs text-gray-500">1차: {campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
+                                  <div className="text-xs text-gray-500">2차: {campaign.step2_deadline ? new Date(campaign.step2_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
+                                  <div className="text-xs text-gray-500">3차: {campaign.step3_deadline ? new Date(campaign.step3_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
                                 </div>
                               )
                             }
-                            // 4주 챌린지: 4개 마감일
+                            // 4주 챌린지: 4개 마감일 (week1~4)
                             if (campaign.campaign_type === '4week_challenge') {
                               return (
                                 <div className="space-y-1">
-                                  <div className="text-xs text-gray-500">1주차: {campaign.deadline_week1 || '미정'}</div>
-                                  <div className="text-xs text-gray-500">2주차: {campaign.deadline_week2 || '미정'}</div>
-                                  <div className="text-xs text-gray-500">3주차: {campaign.deadline_week3 || '미정'}</div>
-                                  <div className="text-xs text-gray-500">4주차: {campaign.deadline_week4 || '미정'}</div>
+                                  <div className="text-xs text-gray-500">1주차: {campaign.week1_deadline ? new Date(campaign.week1_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
+                                  <div className="text-xs text-gray-500">2주차: {campaign.week2_deadline ? new Date(campaign.week2_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
+                                  <div className="text-xs text-gray-500">3주차: {campaign.week3_deadline ? new Date(campaign.week3_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
+                                  <div className="text-xs text-gray-500">4주차: {campaign.week4_deadline ? new Date(campaign.week4_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
                                 </div>
                               )
                             }
