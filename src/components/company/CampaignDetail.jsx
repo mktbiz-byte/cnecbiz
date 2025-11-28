@@ -1950,15 +1950,37 @@ export default function CampaignDetail() {
                     onClick={() => {
                       // Load existing guide data if available
                       if (campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) {
-                        try {
-                          setUnifiedGuideData({
-                            step1: campaign.oliveyoung_step1_guide ? JSON.parse(campaign.oliveyoung_step1_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            step2: campaign.oliveyoung_step2_guide ? JSON.parse(campaign.oliveyoung_step2_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            step3: campaign.oliveyoung_step3_guide ? JSON.parse(campaign.oliveyoung_step3_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
-                          })
-                        } catch (e) {
-                          console.error('Failed to parse existing guide:', e)
+                        const safeParseGuide = (guideText) => {
+                          if (!guideText) return { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
+                          try {
+                            // JSON인지 확인
+                            const trimmed = guideText.trim()
+                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                              return JSON.parse(trimmed)
+                            }
+                            // 일반 텍스트면 required_dialogue에 넣기
+                            return {
+                              required_dialogue: trimmed,
+                              required_scenes: '',
+                              examples: '',
+                              reference_urls: ''
+                            }
+                          } catch (e) {
+                            console.error('Failed to parse guide, using as plain text:', e)
+                            return {
+                              required_dialogue: guideText,
+                              required_scenes: '',
+                              examples: '',
+                              reference_urls: ''
+                            }
+                          }
                         }
+                        
+                        setUnifiedGuideData({
+                          step1: safeParseGuide(campaign.oliveyoung_step1_guide),
+                          step2: safeParseGuide(campaign.oliveyoung_step2_guide),
+                          step3: safeParseGuide(campaign.oliveyoung_step3_guide)
+                        })
                       }
                       setShowUnifiedGuideModal(true)
                     }}
@@ -2021,16 +2043,38 @@ export default function CampaignDetail() {
                     onClick={() => {
                       // Load existing guide data if available
                       if (campaign.week1_guide || campaign.week2_guide || campaign.week3_guide || campaign.week4_guide) {
-                        try {
-                          setFourWeekGuideData({
-                            week1: campaign.week1_guide ? JSON.parse(campaign.week1_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            week2: campaign.week2_guide ? JSON.parse(campaign.week2_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            week3: campaign.week3_guide ? JSON.parse(campaign.week3_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            week4: campaign.week4_guide ? JSON.parse(campaign.week4_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
-                          })
-                        } catch (e) {
-                          console.error('Failed to parse existing guide:', e)
+                        const safeParseGuide = (guideText) => {
+                          if (!guideText) return { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
+                          try {
+                            // JSON인지 확인
+                            const trimmed = guideText.trim()
+                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                              return JSON.parse(trimmed)
+                            }
+                            // 일반 텍스트면 required_dialogue에 넣기
+                            return {
+                              required_dialogue: trimmed,
+                              required_scenes: '',
+                              examples: '',
+                              reference_urls: ''
+                            }
+                          } catch (e) {
+                            console.error('Failed to parse guide, using as plain text:', e)
+                            return {
+                              required_dialogue: guideText,
+                              required_scenes: '',
+                              examples: '',
+                              reference_urls: ''
+                            }
+                          }
                         }
+                        
+                        setFourWeekGuideData({
+                          week1: safeParseGuide(campaign.week1_guide),
+                          week2: safeParseGuide(campaign.week2_guide),
+                          week3: safeParseGuide(campaign.week3_guide),
+                          week4: safeParseGuide(campaign.week4_guide)
+                        })
                       }
                       setShow4WeekGuideModal(true)
                     }}
