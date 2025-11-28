@@ -18,6 +18,8 @@ import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabas
 import CreatorCard from './CreatorCard'
 import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, sendGuideDeliveredNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
+import OliveYoungGuideModal from './OliveYoungGuideModal'
+import FourWeekGuideModal from './FourWeekGuideModal'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 
@@ -73,18 +75,53 @@ export default function CampaignDetail() {
   const [unifiedGuideTab, setUnifiedGuideTab] = useState('step1')
   const [isGeneratingUnifiedGuide, setIsGeneratingUnifiedGuide] = useState(false)
   const [unifiedGuideData, setUnifiedGuideData] = useState({
-    step1: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-    step2: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-    step3: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
+    product_info: '',
+    hashtags: [],
+    required_dialogues: ['', '', ''],
+    required_scenes: ['', '', ''],
+    cautions: '',
+    reference_urls: ['']
   })
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   const [fourWeekGuideData, setFourWeekGuideData] = useState({
-    week1: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-    week2: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-    week3: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-    week4: { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
+    week1: {
+      product_info: '',
+      mission: '',
+      hashtags: [],
+      required_dialogues: ['', '', ''],
+      required_scenes: ['', '', ''],
+      cautions: '',
+      reference_urls: ['']
+    },
+    week2: {
+      product_info: '',
+      mission: '',
+      hashtags: [],
+      required_dialogues: ['', '', ''],
+      required_scenes: ['', '', ''],
+      cautions: '',
+      reference_urls: ['']
+    },
+    week3: {
+      product_info: '',
+      mission: '',
+      hashtags: [],
+      required_dialogues: ['', '', ''],
+      required_scenes: ['', '', ''],
+      cautions: '',
+      reference_urls: ['']
+    },
+    week4: {
+      product_info: '',
+      mission: '',
+      hashtags: [],
+      required_dialogues: ['', '', ''],
+      required_scenes: ['', '', ''],
+      cautions: '',
+      reference_urls: ['']
+    }
   })
 
   useEffect(() => {
@@ -4769,446 +4806,24 @@ export default function CampaignDetail() {
         </div>
       )}
 
-      {/* Unified Guide Modal for Olive Young */}
+      {/* Olive Young Guide Modal */}
       {showUnifiedGuideModal && campaign.campaign_type === 'oliveyoung' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold">🎉 올리브영 세일 최종 가이드 생성</h3>
-              <button
-                onClick={() => setShowUnifiedGuideModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b">
-              <div className="flex">
-                <button
-                  onClick={() => setUnifiedGuideTab('step1')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    unifiedGuideTab === 'step1'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  1단계: 세일 전 가이드
-                </button>
-                <button
-                  onClick={() => setUnifiedGuideTab('step2')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    unifiedGuideTab === 'step2'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  2단계: 세일 당일 영상 가이드
-                </button>
-                <button
-                  onClick={() => setUnifiedGuideTab('step3')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    unifiedGuideTab === 'step3'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  3단계: 스토리 URL 가이드
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-6">
-                {/* Reference URLs - Always shown first */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 참고 영상 URL <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터에게 보여줄 참고 영상 URL을 입력하세요. (여러 개는 줄바꿈으로 구분)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].reference_urls}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        reference_urls: e.target.value
-                      }
-                    })}
-                    className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="https://www.youtube.com/watch?v=example1
-https://www.instagram.com/reel/example2"
-                  />
-                </div>
-
-                {/* Required Dialogue */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💬 필수 대사
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터가 반드시 말해야 하는 대사를 작성하세요. (AI가 자동 생성할 수 있습니다)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].required_dialogue}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        required_dialogue: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예: '오늘은 올리브영 세일에서 꼭 사야 할 제품을 소개할게요!'"
-                  />
-                </div>
-
-                {/* Required Scenes */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 필수 장면
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    반드시 포함되어야 하는 장면을 설명하세요. (AI가 자동 생성할 수 있습니다)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].required_scenes}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        required_scenes: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예:
-- 제품 패키지 클로즈업
-- 사용 전후 비교
-- 올리브영 매장 방문 장면"
-                  />
-                </div>
-
-                {/* Examples */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💡 예시 (3-5개)
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    구체적인 예시를 작성하세요. (AI가 자동 생성할 수 있습니다)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].examples}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        examples: e.target.value
-                      }
-                    })}
-                    className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예시 1: 제품을 손에 들고 '이거 진짜 추천해요!' 라고 말하기
-예시 2: 제품 텍스처를 클로즈업으로 보여주기
-예시 3: 사용 후 피부 변화 보여주기"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="flex gap-3 p-6 border-t bg-gray-50">
-              <Button
-                variant="outline"
-                onClick={() => setShowUnifiedGuideModal(false)}
-                className="flex-1"
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  // Validate reference URLs
-                  const hasAllUrls = 
-                    unifiedGuideData.step1.reference_urls.trim() &&
-                    unifiedGuideData.step2.reference_urls.trim() &&
-                    unifiedGuideData.step3.reference_urls.trim()
-                  
-                  if (!hasAllUrls) {
-                    alert('모든 단계의 참고 영상 URL을 입력해주세요.')
-                    return
-                  }
-
-                  if (!confirm('AI가 입력하신 정보를 기반으로 나머지 가이드를 자동 생성합니다. 계속하시겠습니까?')) {
-                    return
-                  }
-
-                  setIsGeneratingUnifiedGuide(true)
-                  
-                  try {
-                    const response = await fetch('/.netlify/functions/generate-oliveyoung-guide', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        campaignInfo: {
-                          brand: campaign.brand,
-                          product_name: campaign.product_name,
-                          campaign_description: campaign.campaign_description,
-                          key_messages: campaign.key_messages
-                        },
-                        existingData: unifiedGuideData
-                      })
-                    })
-
-                    if (!response.ok) {
-                      throw new Error('AI 가이드 생성 실패')
-                    }
-
-                    const { generatedGuide } = await response.json()
-                    setUnifiedGuideData(generatedGuide)
-                    
-                    alert('🎉 AI 가이드 생성 완료! 내용을 확인하고 수정하세요.')
-                  } catch (error) {
-                    console.error('Error generating guide:', error)
-                    alert('AI 가이드 생성에 실패했습니다: ' + error.message)
-                  } finally {
-                    setIsGeneratingUnifiedGuide(false)
-                  }
-                }}
-                disabled={isGeneratingUnifiedGuide}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                {isGeneratingUnifiedGuide ? '생성 중...' : '🤖 AI로 나머지 자동 생성'}
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    // Save to campaigns table
-                    const { error } = await supabase
-                      .from('campaigns')
-                      .update({
-                        oliveyoung_step1_guide: JSON.stringify(unifiedGuideData.step1),
-                        oliveyoung_step2_guide: JSON.stringify(unifiedGuideData.step2),
-                        oliveyoung_step3_guide: JSON.stringify(unifiedGuideData.step3),
-                        guide_generated_at: new Date().toISOString()
-                      })
-                      .eq('id', campaign.id)
-                    
-                    if (error) throw error
-                    
-                    alert('🎉 가이드가 저장되었습니다!')
-                    await fetchCampaignDetail()
-                    setShowUnifiedGuideModal(false)
-                  } catch (error) {
-                    console.error('Error saving guide:', error)
-                    alert('가이드 저장에 실패했습니다: ' + error.message)
-                  }
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                💾 가이드 저장
-              </Button>
-            </div>
-          </div>
-        </div>
+        <OliveYoungGuideModal
+          campaign={campaign}
+          onClose={() => setShowUnifiedGuideModal(false)}
+          onSave={fetchCampaignDetail}
+          supabase={supabase}
+        />
       )}
 
       {/* 4-Week Challenge Guide Modal */}
       {show4WeekGuideModal && campaign.campaign_type === '4week_challenge' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold">🏆 4주 챌린지 가이드 생성</h3>
-              <button
-                onClick={() => setShow4WeekGuideModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b">
-              <div className="flex">
-                <button
-                  onClick={() => setFourWeekGuideTab('week1')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week1'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  1주차 가이드
-                </button>
-                <button
-                  onClick={() => setFourWeekGuideTab('week2')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week2'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  2주차 가이드
-                </button>
-                <button
-                  onClick={() => setFourWeekGuideTab('week3')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week3'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  3주차 가이드
-                </button>
-                <button
-                  onClick={() => setFourWeekGuideTab('week4')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week4'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  4주차 가이드
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-6">
-                {/* Reference URLs */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 참고 영상 URL <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터에게 보여줄 참고 영상 URL을 입력하세요. (여러 개는 줄바꿈으로 구분)
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].reference_urls}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        reference_urls: e.target.value
-                      }
-                    })}
-                    className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="https://www.youtube.com/watch?v=example1
-https://www.instagram.com/reel/example2"
-                  />
-                </div>
-
-                {/* Required Dialogue */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💬 필수 대사
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터가 반드시 말해야 하는 대사를 작성하세요.
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].required_dialogue}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        required_dialogue: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예: '오늘은 {fourWeekGuideTab === 'week1' ? '1주차' : fourWeekGuideTab === 'week2' ? '2주차' : fourWeekGuideTab === 'week3' ? '3주차' : '4주차'} 챌린지 내용을 소개할게요!'"
-                  />
-                </div>
-
-                {/* Required Scenes */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 필수 장면
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    반드시 포함되어야 하는 장면을 설명하세요.
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].required_scenes}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        required_scenes: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예:\n- 제품 클로즈업 촬영\n- 사용 전후 비교\n- 효과 설명"
-                  />
-                </div>
-
-                {/* Examples */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💡 구체적인 예시
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    구체적인 예시를 작성하세요.
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].examples}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        examples: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예:\n- 제품 패키지 공개\n- 사용 전후 비교\n- 효과 설명"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="p-6 border-t flex gap-3">
-              <Button
-                onClick={() => setShow4WeekGuideModal(false)}
-                variant="outline"
-                className="flex-1"
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    // Save to campaigns table
-                    const { error } = await supabase
-                      .from('campaigns')
-                      .update({
-                        week1_guide: JSON.stringify(fourWeekGuideData.week1),
-                        week2_guide: JSON.stringify(fourWeekGuideData.week2),
-                        week3_guide: JSON.stringify(fourWeekGuideData.week3),
-                        week4_guide: JSON.stringify(fourWeekGuideData.week4),
-                        guide_generated_at: new Date().toISOString()
-                      })
-                      .eq('id', campaign.id)
-                    
-                    if (error) throw error
-                    
-                    alert('🎉 가이드가 저장되었습니다!')
-                    await fetchCampaignDetail()
-                    setShow4WeekGuideModal(false)
-                  } catch (error) {
-                    console.error('Error saving guide:', error)
-                    alert('가이드 저장에 실패했습니다: ' + error.message)
-                  }
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                💾 가이드 저장
-              </Button>
-            </div>
-          </div>
-        </div>
+        <FourWeekGuideModal
+          campaign={campaign}
+          onClose={() => setShow4WeekGuideModal(false)}
+          onSave={fetchCampaignDetail}
+          supabase={supabase}
+        />
       )}
     </div>
   )
