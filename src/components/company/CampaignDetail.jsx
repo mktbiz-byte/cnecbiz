@@ -745,8 +745,7 @@ export default function CampaignDetail() {
         return {
           campaign_id: id,
           user_id: app.user_id,
-          creator_name: app.applicant_name,
-          creator_platform: platform,
+          applicant_name: app.applicant_name,
           status: 'guide_confirmation',
           created_at: new Date().toISOString()
         }
