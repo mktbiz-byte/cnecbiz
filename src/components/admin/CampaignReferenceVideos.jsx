@@ -148,7 +148,7 @@ export default function CampaignReferenceVideos() {
             <Video className="w-5 h-5" />
             캠페인 레퍼런스 영상 관리
           </CardTitle>
-        </CardTitle>
+        </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600 mb-4">
             각 캠페인 소개 페이지에 표시될 레퍼런스 영상을 관리합니다. 
