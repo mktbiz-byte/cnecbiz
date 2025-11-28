@@ -2524,8 +2524,7 @@ export default function CampaignDetail() {
                             .from('applications')
                             .update({ 
                               status: 'selected',
-                              virtual_selected: false,
-                              creator_platform: platform
+                              virtual_selected: false
                             })
                             .eq('id', app.id)
 
@@ -2793,8 +2792,7 @@ export default function CampaignDetail() {
                             .from('applications')
                             .update({ 
                               status: 'selected',
-                              virtual_selected: false,
-                              creator_platform: platform
+                              virtual_selected: false
                             })
                             .eq('id', app.id)
 
