@@ -9,70 +9,94 @@ export default function FourWeekGuideModal({
   supabase 
 }) {
   const [activeWeek, setActiveWeek] = useState('week1')
-  const [guideData, setGuideData] = useState({
-    week1: {
-      product_info: '',
-      mission: '',
-      hashtags: [],
-      required_dialogues: ['', '', ''],
-      required_scenes: ['', '', ''],
-      cautions: '',
-      reference_urls: ['']
-    },
-    week2: {
-      product_info: '',
-      mission: '',
-      hashtags: [],
-      required_dialogues: ['', '', ''],
-      required_scenes: ['', '', ''],
-      cautions: '',
-      reference_urls: ['']
-    },
-    week3: {
-      product_info: '',
-      mission: '',
-      hashtags: [],
-      required_dialogues: ['', '', ''],
-      required_scenes: ['', '', ''],
-      cautions: '',
-      reference_urls: ['']
-    },
-    week4: {
-      product_info: '',
-      mission: '',
-      hashtags: [],
-      required_dialogues: ['', '', ''],
-      required_scenes: ['', '', ''],
-      cautions: '',
-      reference_urls: ['']
-    }
+  
+  const [commonData, setCommonData] = useState({
+    brand: '',
+    product_name: '',
+    product_features: '',
+    precautions: ''
+  })
+
+  const [weeklyGuides, setWeeklyGuides] = useState({
+    week1: { mission: '', required_dialogue: '', required_scenes: '', reference: '', hashtags: [] },
+    week2: { mission: '', required_dialogue: '', required_scenes: '', reference: '', hashtags: [] },
+    week3: { mission: '', required_dialogue: '', required_scenes: '', reference: '', hashtags: [] },
+    week4: { mission: '', required_dialogue: '', required_scenes: '', reference: '', hashtags: [] }
   })
   
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Load existing guides if available
+  // Load existing data
   useEffect(() => {
-    ['week1', 'week2', 'week3', 'week4'].forEach(week => {
-      const fieldName = `${week}_guide`
-      if (campaign[fieldName]) {
-        try {
-          const parsed = JSON.parse(campaign[fieldName])
-          setGuideData(prev => ({
-            ...prev,
-            [week]: parsed
-          }))
-        } catch (e) {
-          console.error(`Failed to parse ${week} guide:`, e)
-        }
+    if (campaign) {
+      setCommonData({
+        brand: campaign.brand || '',
+        product_name: campaign.product_name || '',
+        product_features: campaign.product_features || '',
+        precautions: campaign.product_key_points || ''
+      })
+
+      if (campaign.challenge_weekly_guides) {
+        const guides = campaign.challenge_weekly_guides
+        setWeeklyGuides({
+          week1: {
+            mission: guides.week1?.mission || '',
+            required_dialogue: guides.week1?.required_dialogue || '',
+            required_scenes: guides.week1?.required_scenes || '',
+            reference: guides.week1?.reference || '',
+            hashtags: []
+          },
+          week2: {
+            mission: guides.week2?.mission || '',
+            required_dialogue: guides.week2?.required_dialogue || '',
+            required_scenes: guides.week2?.required_scenes || '',
+            reference: guides.week2?.reference || '',
+            hashtags: []
+          },
+          week3: {
+            mission: guides.week3?.mission || '',
+            required_dialogue: guides.week3?.required_dialogue || '',
+            required_scenes: guides.week3?.required_scenes || '',
+            reference: guides.week3?.reference || '',
+            hashtags: []
+          },
+          week4: {
+            mission: guides.week4?.mission || '',
+            required_dialogue: guides.week4?.required_dialogue || '',
+            required_scenes: guides.week4?.required_scenes || '',
+            reference: guides.week4?.reference || '',
+            hashtags: []
+          }
+        })
       }
-    })
+
+      // Load AI guides if exist
+      if (campaign.challenge_weekly_guides_ai) {
+        const aiGuides = campaign.challenge_weekly_guides_ai
+        ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
+          if (aiGuides[week]?.hashtags) {
+            setWeeklyGuides(prev => ({
+              ...prev,
+              [week]: {
+                ...prev[week],
+                hashtags: aiGuides[week].hashtags
+              }
+            }))
+          }
+        })
+      }
+    }
   }, [campaign])
 
-  const handleGenerateGuide = async () => {
-    if (!campaign.challenge_weekly_guides) {
-      alert('캠페인 생성 시 작성한 주차별 가이드가 없습니다.')
-      return
+  const handleGenerateGuides = async () => {
+    // Validate all weeks
+    for (const week of ['week1', 'week2', 'week3', 'week4']) {
+      const weekData = weeklyGuides[week]
+      if (!weekData.mission || !weekData.required_dialogue || !weekData.required_scenes) {
+        alert(`${week.replace('week', '')}주차 가이드를 모두 입력해주세요.`)
+        return
+      }
     }
 
     setGenerating(true)
@@ -82,94 +106,107 @@ export default function FourWeekGuideModal({
         throw new Error('Gemini API 키가 설정되지 않았습니다.')
       }
 
-      const weeklyGuides = campaign.challenge_weekly_guides
-      const prompt = `당신은 한국 뷰티/패션 크리에이터를 위한 4주 챌린지 캠페인 가이드 작성 전문가입니다.
+      const generatedGuides = {}
 
-다음 제품 정보와 주차별 미션을 바탕으로, 각 주차별로 크리에이터가 쉽게 실행할 수 있는 가이드를 작성해주세요.
+      for (const week of ['week1', 'week2', 'week3', 'week4']) {
+        const weekData = weeklyGuides[week]
+        const weekNum = week.replace('week', '')
+        
+        const prompt = `당신은 한국 뷰티/패션 크리에이터를 위한 4주 챌린지 캠페인 가이드 작성 전문가입니다.
 
-**제품 정보:**
-- 브랜드: ${campaign.brand || '미정'}
-- 제품명: ${campaign.product_name || '미정'}
-- 제품 특징: ${campaign.product_features || '미정'}
-- 핵심 포인트: ${campaign.product_key_points || '미정'}
+다음 제품 정보와 ${weekNum}주차 미션을 바탕으로, 크리에이터가 쉽게 실행할 수 있는 가이드를 작성해주세요.
 
-**주차별 미션:**
-${['week1', 'week2', 'week3', 'week4'].map((week, idx) => {
-  const weekData = weeklyGuides[week]
-  return `
-${idx + 1}주차:
-- 미션: ${weekData?.mission || '미정'}
-- 필수 대사: ${weekData?.required_dialogue || '미정'}
-- 필수 장면: ${weekData?.required_scenes || '미정'}
-- 참고 URL: ${weekData?.reference || '없음'}`
-}).join('\n')}
+**제품 정보 (통합):**
+- 브랜드: ${commonData.brand || '미정'}
+- 제품명: ${commonData.product_name || '미정'}
+- 제품 특징: ${commonData.product_features || '미정'}
+- 주의사항: ${commonData.precautions || '미정'}
+
+**${weekNum}주차 미션:**
+${weekData.mission}
+
+**필수 대사:**
+${weekData.required_dialogue}
+
+**필수 장면:**
+${weekData.required_scenes}
+
+${weekData.reference ? `**참고 영상:**\n${weekData.reference}` : ''}
+
+${weekData.hashtags.length > 0 ? `**필수 해시태그:**\n${weekData.hashtags.join(', ')}` : ''}
 
 **가이드 작성 요구사항:**
-각 주차별로 다음 항목을 포함해주세요:
-1. 상품 정보 + 종합 정보 (간단명료하게)
-2. 해당 주차 미션 (명확하게)
-3. 필수 해시태그 3~5개 (배열)
-4. 필수 대사 3~5개 (배열)
-5. 필수 촬영 장면 3~5개 (배열)
-6. 주의사항 (FHD 이상, 필터 자제, 마감일 엄수, 패널티 등)
-7. 참고 영상 URL (있다면 포함, 배열)
+1. 상품 정보 + 종합 정보를 간단명료하게 정리
+2. 해당 주차 미션을 명확하게 설명
+3. 필수 해시태그 3~5개 제안 (기업이 제공한 해시태그가 있다면 반드시 포함)
+4. 필수 대사 3~5개 작성 - 크리에이터가 반드시 말해야 할 핵심 멘트
+5. 필수 촬영 장면 3~5개 작성 - 반드시 포함되어야 할 장면 설명
+6. 주의사항 작성 (FHD 이상, 필터 자제, 마감일 엄수, 패널티 등)
+7. 참고 영상 URL이 있다면 포함
 
 **응답 형식 (JSON):**
 {
-  "week1": {
-    "product_info": "상품 정보 + 종합 정보",
-    "mission": "1주차 미션",
-    "hashtags": ["해시태그1", "해시태그2"],
-    "required_dialogues": ["필수 대사1", "필수 대사2"],
-    "required_scenes": ["필수 장면1", "필수 장면2"],
-    "cautions": "주의사항",
-    "reference_urls": []
-  },
-  "week2": { ... },
-  "week3": { ... },
-  "week4": { ... }
+  "product_info": "상품 정보 + 종합 정보 요약",
+  "mission": "${weekNum}주차 미션",
+  "hashtags": ["해시태그1", "해시태그2", "해시태그3"],
+  "required_dialogues": ["필수 대사1", "필수 대사2", "필수 대사3"],
+  "required_scenes": ["필수 장면1", "필수 장면2", "필수 장면3"],
+  "cautions": "주의사항 내용",
+  "reference_urls": ${weekData.reference ? `["${weekData.reference}"]` : '[]'}
 }
 
 JSON 형식으로만 응답해주세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 4096,
-              responseMimeType: "application/json"
-            }
-          })
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: prompt }]
+              }],
+              generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 2048,
+                responseMimeType: "application/json"
+              }
+            })
+          }
+        )
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(`${weekNum}주차 AI 생성 실패: ${errorData.error?.message || response.statusText}`)
         }
-      )
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(`AI 생성 실패: ${errorData.error?.message || response.statusText}`)
+        const result = await response.json()
+        
+        if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
+          throw new Error(`${weekNum}주차 AI 응답 형식이 올바르지 않습니다.`)
+        }
+
+        const generatedText = result.candidates[0].content.parts[0].text
+        generatedGuides[week] = JSON.parse(generatedText)
       }
 
-      const result = await response.json()
-      
-      if (!result.candidates || !result.candidates[0] || !result.candidates[0].content) {
-        throw new Error('AI 응답 형식이 올바르지 않습니다.')
-      }
+      // Save to database
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ 
+          challenge_weekly_guides_ai: generatedGuides,
+          guide_generated_at: new Date().toISOString()
+        })
+        .eq('id', campaign.id)
 
-      const generatedText = result.candidates[0].content.parts[0].text
-      const guides = JSON.parse(generatedText)
-      
-      setGuideData(guides)
-      alert('✅ AI 가이드가 생성되었습니다!')
+      if (error) throw error
+
+      alert('✅ 4개 주차별 AI 가이드가 생성되고 저장되었습니다!')
+      onSave()
     } catch (error) {
-      console.error('Error generating guide:', error)
+      console.error('Error generating guides:', error)
       alert('가이드 생성 실패: ' + error.message)
     } finally {
       setGenerating(false)
@@ -179,22 +216,48 @@ JSON 형식으로만 응답해주세요.`
   const handleSave = async () => {
     setSaving(true)
     try {
+      const guidesToSave = {
+        week1: {
+          mission: weeklyGuides.week1.mission,
+          required_dialogue: weeklyGuides.week1.required_dialogue,
+          required_scenes: weeklyGuides.week1.required_scenes,
+          reference: weeklyGuides.week1.reference
+        },
+        week2: {
+          mission: weeklyGuides.week2.mission,
+          required_dialogue: weeklyGuides.week2.required_dialogue,
+          required_scenes: weeklyGuides.week2.required_scenes,
+          reference: weeklyGuides.week2.reference
+        },
+        week3: {
+          mission: weeklyGuides.week3.mission,
+          required_dialogue: weeklyGuides.week3.required_dialogue,
+          required_scenes: weeklyGuides.week3.required_scenes,
+          reference: weeklyGuides.week3.reference
+        },
+        week4: {
+          mission: weeklyGuides.week4.mission,
+          required_dialogue: weeklyGuides.week4.required_dialogue,
+          required_scenes: weeklyGuides.week4.required_scenes,
+          reference: weeklyGuides.week4.reference
+        }
+      }
+
       const { error } = await supabase
         .from('campaigns')
         .update({
-          week1_guide: JSON.stringify(guideData.week1),
-          week2_guide: JSON.stringify(guideData.week2),
-          week3_guide: JSON.stringify(guideData.week3),
-          week4_guide: JSON.stringify(guideData.week4),
-          guide_generated_at: new Date().toISOString()
+          brand: commonData.brand,
+          product_name: commonData.product_name,
+          product_features: commonData.product_features,
+          product_key_points: commonData.precautions,
+          challenge_weekly_guides: guidesToSave
         })
         .eq('id', campaign.id)
-      
+
       if (error) throw error
-      
+
       alert('✅ 가이드가 저장되었습니다!')
-      if (onSave) onSave()
-      onClose()
+      onSave()
     } catch (error) {
       console.error('Error saving guide:', error)
       alert('저장 실패: ' + error.message)
@@ -203,38 +266,8 @@ JSON 형식으로만 응답해주세요.`
     }
   }
 
-  const addItem = (week, field) => {
-    setGuideData(prev => ({
-      ...prev,
-      [week]: {
-        ...prev[week],
-        [field]: [...prev[week][field], '']
-      }
-    }))
-  }
-
-  const removeItem = (week, field, index) => {
-    setGuideData(prev => ({
-      ...prev,
-      [week]: {
-        ...prev[week],
-        [field]: prev[week][field].filter((_, i) => i !== index)
-      }
-    }))
-  }
-
-  const updateItem = (week, field, index, value) => {
-    setGuideData(prev => ({
-      ...prev,
-      [week]: {
-        ...prev[week],
-        [field]: prev[week][field].map((item, i) => i === index ? value : item)
-      }
-    }))
-  }
-
-  const updateField = (week, field, value) => {
-    setGuideData(prev => ({
+  const updateWeekData = (week, field, value) => {
+    setWeeklyGuides(prev => ({
       ...prev,
       [week]: {
         ...prev[week],
@@ -243,272 +276,208 @@ JSON 형식으로만 응답해주세요.`
     }))
   }
 
-  const currentWeekData = guideData[activeWeek]
-  const weekNumber = activeWeek.replace('week', '')
+  const addHashtag = (week) => {
+    updateWeekData(week, 'hashtags', [...weeklyGuides[week].hashtags, ''])
+  }
+
+  const removeHashtag = (week, index) => {
+    updateWeekData(week, 'hashtags', weeklyGuides[week].hashtags.filter((_, i) => i !== index))
+  }
+
+  const updateHashtag = (week, index, value) => {
+    const newHashtags = [...weeklyGuides[week].hashtags]
+    newHashtags[index] = value
+    updateWeekData(week, 'hashtags', newHashtags)
+  }
+
+  const currentWeek = weeklyGuides[activeWeek]
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="text-xl font-bold">🏆 4주 챌린지 가이드</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
-          >
-            ×
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+          <h3 className="text-2xl font-bold text-gray-900">🏆 4주 챌린지 캠페인 가이드</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Week Tabs */}
-        <div className="border-b">
-          <div className="flex">
+        <div className="p-6 space-y-6">
+          {/* 제품 기본 정보 */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 mb-3">📦 제품 기본 정보 (모든 주차 공통)</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">브랜드</label>
+                <input
+                  type="text"
+                  value={commonData.brand}
+                  onChange={(e) => setCommonData(prev => ({ ...prev, brand: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="브랜드명"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
+                <input
+                  type="text"
+                  value={commonData.product_name}
+                  onChange={(e) => setCommonData(prev => ({ ...prev, product_name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="제품명"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">제품 특징</label>
+                <textarea
+                  value={commonData.product_features}
+                  onChange={(e) => setCommonData(prev => ({ ...prev, product_features: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="제품의 주요 특징"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">주의사항</label>
+                <textarea
+                  value={commonData.precautions}
+                  onChange={(e) => setCommonData(prev => ({ ...prev, precautions: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="주의사항"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 주차 탭 */}
+          <div className="flex gap-2 border-b">
             {['week1', 'week2', 'week3', 'week4'].map((week, idx) => (
               <button
                 key={week}
                 onClick={() => setActiveWeek(week)}
-                className={`px-6 py-3 font-medium transition-colors ${
+                className={`px-4 py-2 font-medium text-sm transition-colors ${
                   activeWeek === week
                     ? 'border-b-2 border-purple-600 text-purple-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                {idx + 1}주차 가이드
+                {idx + 1}주차
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* AI 생성 버튼 */}
-            {activeWeek === 'week1' && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <p className="text-sm text-purple-800 mb-3">
-                  캠페인 생성 시 작성한 내용을 바탕으로 AI가 4주차 가이드를 모두 생성합니다.
-                </p>
-                <Button
-                  onClick={handleGenerateGuide}
-                  disabled={generating}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  {generating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    '🤖 AI로 가이드 생성'
-                  )}
-                </Button>
-              </div>
-            )}
-
-            {/* 상품 정보 */}
+          {/* 현재 주차 가이드 */}
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                📦 상품 정보 + 종합 정보
+                🎯 미션
               </label>
               <textarea
-                value={currentWeekData.product_info}
-                onChange={(e) => updateField(activeWeek, 'product_info', e.target.value)}
-                className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                placeholder="브랜드, 제품명, 주요 특징 등을 정리해주세요."
+                value={currentWeek.mission}
+                onChange={(e) => updateWeekData(activeWeek, 'mission', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="이번 주차 미션을 입력하세요..."
               />
             </div>
 
-            {/* 미션 */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                🎯 {weekNumber}주차 미션
+                💬 필수 대사
               </label>
               <textarea
-                value={currentWeekData.mission}
-                onChange={(e) => updateField(activeWeek, 'mission', e.target.value)}
-                className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                placeholder={`${weekNumber}주차에 크리에이터가 수행할 미션을 작성해주세요.`}
+                value={currentWeek.required_dialogue}
+                onChange={(e) => updateWeekData(activeWeek, 'required_dialogue', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="필수 대사를 입력하세요..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                🎥 필수 촬영 장면
+              </label>
+              <textarea
+                value={currentWeek.required_scenes}
+                onChange={(e) => updateWeekData(activeWeek, 'required_scenes', e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="필수 촬영 장면을 입력하세요..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                🔗 참고 영상 URL
+              </label>
+              <input
+                type="url"
+                value={currentWeek.reference}
+                onChange={(e) => updateWeekData(activeWeek, 'reference', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                placeholder="https://..."
               />
             </div>
 
             {/* 해시태그 */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                #️⃣ 해시태그
-              </label>
-              {currentWeekData.hashtags.map((tag, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={tag}
-                    onChange={(e) => updateItem(activeWeek, 'hashtags', index, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="#해시태그"
-                  />
-                  <button
-                    onClick={() => removeItem(activeWeek, 'hashtags', index)}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <Button
-                onClick={() => addItem(activeWeek, 'hashtags')}
-                variant="outline"
-                size="sm"
-                className="mt-2"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                해시태그 추가
-              </Button>
-            </div>
-
-            {/* 필수 대사 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                💬 필수 대사 (3~5개)
-              </label>
-              {currentWeekData.required_dialogues.map((dialogue, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={dialogue}
-                    onChange={(e) => updateItem(activeWeek, 'required_dialogues', index, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder={`필수 대사 ${index + 1}`}
-                  />
-                  {currentWeekData.required_dialogues.length > 3 && (
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  #️⃣ 필수 해시태그
+                </label>
+                <button
+                  onClick={() => addHashtag(activeWeek)}
+                  className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" /> 추가
+                </button>
+              </div>
+              <div className="space-y-2">
+                {currentWeek.hashtags.map((tag, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={tag}
+                      onChange={(e) => updateHashtag(activeWeek, index, e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="해시태그 (# 제외)"
+                    />
                     <button
-                      onClick={() => removeItem(activeWeek, 'required_dialogues', index)}
+                      onClick={() => removeHashtag(activeWeek, index)}
                       className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-5 h-5" />
                     </button>
-                  )}
-                </div>
-              ))}
-              {currentWeekData.required_dialogues.length < 5 && (
-                <Button
-                  onClick={() => addItem(activeWeek, 'required_dialogues')}
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  대사 추가
-                </Button>
-              )}
-            </div>
-
-            {/* 필수 촬영 장면 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                🎥 필수 촬영 장면 (3~5개)
-              </label>
-              {currentWeekData.required_scenes.map((scene, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <textarea
-                    value={scene}
-                    onChange={(e) => updateItem(activeWeek, 'required_scenes', index, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder={`필수 장면 ${index + 1}`}
-                    rows={2}
-                  />
-                  {currentWeekData.required_scenes.length > 3 && (
-                    <button
-                      onClick={() => removeItem(activeWeek, 'required_scenes', index)}
-                      className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {currentWeekData.required_scenes.length < 5 && (
-                <Button
-                  onClick={() => addItem(activeWeek, 'required_scenes')}
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  장면 추가
-                </Button>
-              )}
-            </div>
-
-            {/* 주의사항 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                ⚠️ 주의사항
-              </label>
-              <textarea
-                value={currentWeekData.cautions}
-                onChange={(e) => updateField(activeWeek, 'cautions', e.target.value)}
-                className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                placeholder="크리에이터가 반드시 지켜야 할 주의사항을 작성해주세요."
-              />
-            </div>
-
-            {/* 참고 영상 URL */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                🔗 참고 영상 URL
-              </label>
-              {currentWeekData.reference_urls.map((url, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => updateItem(activeWeek, 'reference_urls', index, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="https://www.youtube.com/watch?v=..."
-                  />
-                  <button
-                    onClick={() => removeItem(activeWeek, 'reference_urls', index)}
-                    className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <Button
-                onClick={() => addItem(activeWeek, 'reference_urls')}
-                variant="outline"
-                size="sm"
-                className="mt-2"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                URL 추가
-              </Button>
+                  </div>
+                ))}
+                {currentWeek.hashtags.length === 0 && (
+                  <p className="text-sm text-gray-500">해시태그를 추가해주세요.</p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t flex gap-3">
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="flex-1"
-          >
-            취소
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                저장 중...
-              </>
-            ) : (
-              '💾 가이드 저장'
-            )}
-          </Button>
+          {/* 버튼 */}
+          <div className="flex gap-3 pt-4 border-t">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              💾 가이드 저장
+            </button>
+            <button
+              onClick={handleGenerateGuides}
+              disabled={generating}
+              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {generating && <Loader2 className="w-4 h-4 animate-spin" />}
+              🤖 AI로 4개 주차별 가이드 생성
+            </button>
+          </div>
         </div>
       </div>
     </div>
