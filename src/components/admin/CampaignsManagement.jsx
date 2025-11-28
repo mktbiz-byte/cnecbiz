@@ -1,126 +1,73 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle, Pause } from 'lucide-react'
-import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
-import AdminNavigation from './AdminNavigation'
+import React, { useState, useEffect } from 'react'
+import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUs } from '../../lib/supabase'
 
-// 크리에이터 포인트 계산 함수 (1인당)
-const calculateCreatorPoints = (campaign) => {
-  if (!campaign) return 0
-  
-  // 수동 설정값이 있으면 우선 사용
-  if (campaign.creator_points_override) {
-    return campaign.creator_points_override
-  }
-  
-  const campaignType = campaign.campaign_type
-  const totalSlots = campaign.total_slots || 1 // 0으로 나누기 방지
-  
-  // 4주 챌린지: reward_points 또는 주차별 합계 xd7 70% xf7 인원
-  if (campaignType === '4week_challenge') {
-    const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) + 
-                       (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
-    const totalReward = weeklyTotal > 0 ? weeklyTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.7) / totalSlots)
-  }
-  
-  // 기획형: 단계별 합계 xd7 60% xf7 인원
-  if (campaignType === 'planned') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) + 
-                     (campaign.step3_reward || 0)
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.6) / totalSlots)
-  }
-  
-  // 올영세일: 단계별 합계 xd7 70% xf7 인원
-  if (campaignType === 'oliveyoung') {
-    const stepTotal = (campaign.step1_reward || 0) + (campaign.step2_reward || 0) + 
-                     (campaign.step3_reward || 0)
-    const totalReward = stepTotal > 0 ? stepTotal : (campaign.reward_points || 0)
-    return Math.round((totalReward * 0.7) / totalSlots)
-  }
-  
-  // 기본: reward_points xd7 60% xf7 인원
-  return Math.round(((campaign.reward_points || 0) * 0.6) / totalSlots)
-}
-
-export default function CampaignsManagement() {
-  const navigate = useNavigate()
+const CampaignsManagement = () => {
   const [campaigns, setCampaigns] = useState([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedRegion, setSelectedRegion] = useState('all')
-  const [selectedStatus, setSelectedStatus] = useState('all')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
-  const [editingPoints, setEditingPoints] = useState(null) // {campaignId, value}
-  const [savingPoints, setSavingPoints] = useState(false)
+  const [activeTab, setActiveTab] = useState('pending_approval')
 
-  useEffect(() => {
-    checkAuth()
-    fetchCampaigns()
-  }, [])
+  const tabs = [
+    { id: 'pending_approval', label: '승인 대기', status: 'pending', approval_status: 'pending_approval' },
+    { id: 'active', label: '활성 캠페인', status: 'active', approval_status: 'approved' },
+    { id: 'paused', label: '일시 중지', status: 'paused', approval_status: 'pending_approval' },
+    { id: 'completed', label: '완료', status: 'completed', approval_status: 'approved' }
+  ]
 
-  const checkAuth = async () => {
-    console.log('[CampaignsManagement] checkAuth started')
-    try {
-      if (!supabaseBiz) {
-        console.log('[CampaignsManagement] No supabaseBiz client')
-        navigate('/login')
-        return
+  const getCampaignsFromAllRegions = async () => {
+    console.log('[getCampaignsFromAllRegions] Starting to fetch campaigns from all regions...')
+    const allCampaigns = []
+    const regions = [
+      { name: 'biz', client: supabaseBiz },
+      { name: 'korea', client: supabaseKorea },
+      { name: 'japan', client: supabaseJapan },
+      { name: 'us', client: supabaseUs }
+    ]
+
+    for (const region of regions) {
+      try {
+        console.log(`[getCampaignsFromAllRegions] Fetching from ${region.name}...`)
+        if (!region.client) {
+          console.log(`[getCampaignsFromAllRegions] No client for region: ${region.name}`)
+          continue
+        }
+        console.log(`[getCampaignsFromAllRegions] Client for ${region.name}: exists`)
+        
+        const { data, error } = await region.client
+          .from('campaigns')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error(`[getCampaignsFromAllRegions] Error fetching from ${region.name}:`, error)
+          continue
+        }
+
+        console.log(`[getCampaignsFromAllRegions] Fetched ${data?.length || 0} campaigns from ${region.name}`)
+        if (data && data.length > 0) {
+          console.log(`[getCampaignsFromAllRegions] Sample campaign from ${region.name}:`, Object.keys(data[0]))
+          const campaignsWithRegion = data.map(campaign => ({
+            ...campaign,
+            region: region.name
+          }))
+          allCampaigns.push(...campaignsWithRegion)
+        } else {
+          console.log(`[getCampaignsFromAllRegions] Sample campaign from ${region.name}: no data`)
+        }
+      } catch (err) {
+        console.error(`[getCampaignsFromAllRegions] Exception fetching from ${region.name}:`, err)
       }
-
-      console.log('[CampaignsManagement] Getting user...')
-      const { data: { user }, error: userError } = await supabaseBiz.auth.getUser()
-      if (userError) {
-        console.error('[CampaignsManagement] User error:', userError)
-        navigate('/login')
-        return
-      }
-      if (!user) {
-        console.log('[CampaignsManagement] No user found')
-        navigate('/login')
-        return
-      }
-
-      console.log('[CampaignsManagement] User email:', user.email)
-      console.log('[CampaignsManagement] Fetching admin data...')
-      const { data: adminData, error: adminError } = await supabaseBiz
-        .from('admin_users')
-        .select('*')
-        .eq('email', user.email)
-        .single()
-
-      if (adminError) {
-        console.error('[CampaignsManagement] Admin data error:', adminError)
-      }
-
-      if (!adminData) {
-        console.log('[CampaignsManagement] No admin data found')
-        // 일반 관리자도 접근 가능하도록 변경
-        setIsSuperAdmin(false)
-        return
-      }
-
-      console.log('[CampaignsManagement] Admin role:', adminData.role)
-      const isSuperAdminValue = adminData.role === 'super_admin'
-      console.log('[CampaignsManagement] isSuperAdmin:', isSuperAdminValue)
-      setIsSuperAdmin(isSuperAdminValue)
-    } catch (error) {
-      console.error('[CampaignsManagement] checkAuth error:', error)
-      setIsSuperAdmin(false)
     }
+
+    console.log(`[getCampaignsFromAllRegions] Total campaigns: ${allCampaigns.length}`)
+    return allCampaigns
   }
 
   const fetchCampaigns = async () => {
     console.log('[CampaignsManagement] Starting to fetch campaigns...')
-    setLoading(true)
     try {
-      const allCampaigns = await getCampaignsWithStats()
+      setLoading(true)
+      const allCampaigns = await getCampaignsFromAllRegions()
       console.log('[CampaignsManagement] Fetched campaigns:', allCampaigns.length)
       setCampaigns(allCampaigns)
     } catch (error) {
@@ -130,167 +77,76 @@ export default function CampaignsManagement() {
     }
   }
 
-  const handleApproveCampaign = async (campaign) => {
-    if (!confirm(`캠페인을 승인하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n\n승인 시 기업에게 알림톡과 메일이 전송됩니다.`)) {
-      return
+  useEffect(() => {
+    fetchCampaigns()
+  }, [])
+
+  const getRegionClient = (region) => {
+    const clients = {
+      'biz': supabaseBiz,
+      'korea': supabaseKorea,
+      'japan': supabaseJapan,
+      'us': supabaseUs
     }
-
-    setConfirming(true)
-    try {
-      // approve-campaign Netlify Function 호출 (알림톡 + 메일 전송)
-      const response = await fetch('/.netlify/functions/approve-campaign', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-          region: campaign.region || 'korea'
-        })
-      })
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '캠페인 승인에 실패했습니다.')
-      }
-
-      alert('캠페인이 승인되었습니다! 기업에게 알림이 전송되었습니다.')
-      fetchCampaigns()
-
-    } catch (error) {
-      console.error('승인 오류:', error)
-      alert('승인에 실패했습니다: ' + error.message)
-    } finally {
-      setConfirming(false)
-    }
-  }
-
-  const handleConfirmPayment = async (campaign) => {
-    if (!confirm(`입금을 확인하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n금액: ${(campaign.estimated_cost || 0).toLocaleString()}원`)) {
-      return
-    }
-
-    setConfirming(true)
-    try {
-      const { data: { user } } = await supabaseBiz.auth.getUser()
-
-      const response = await fetch('/.netlify/functions/confirm-campaign-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-          adminUserId: user.id,
-          depositAmount: campaign.estimated_cost
-        })
-      })
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '입금 확인 처리에 실패했습니다.')
-      }
-
-      alert('입금이 확인되었습니다. 캠페인이 승인 대기 상태로 변경되었습니다.')
-      fetchCampaigns()
-
-    } catch (error) {
-      console.error('입금 확인 오류:', error)
-      alert(error.message)
-    } finally {
-      setConfirming(false)
-    }
-  }
-
-  const handleSaveCreatorPoints = async (campaignId) => {
-    if (!editingPoints || editingPoints.campaignId !== campaignId) return
-    
-    setSavingPoints(true)
-    try {
-      const campaign = campaigns.find(c => c.id === campaignId)
-      const region = campaign?.region || 'biz'
-      const supabaseClient = getSupabaseClient(region)
-      
-      const { error } = await supabaseClient
-        .from('campaigns')
-        .update({ 
-          creator_points_override: parseInt(editingPoints.value) || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', campaignId)
-      
-      if (error) throw error
-      
-      setEditingPoints(null)
-      fetchCampaigns()
-    } catch (error) {
-      console.error('크리에이터 포인트 저장 오류:', error)
-      alert('포인트 저장에 실패했습니다: ' + error.message)
-    } finally {
-      setSavingPoints(false)
-    }
+    return clients[region]
   }
 
   const handleStatusChange = async (campaign, newStatus) => {
-    const statusLabels = {
-      draft: '임시',
-      active: '활성',
-      paused: '중단',
-      completed: '완료'
-    }
-
-    if (!confirm(`캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`)) {
+    console.log('[DEBUG] Campaign object:', campaign)
+    console.log('[DEBUG] newStatus:', newStatus, 'campaign.company_id:', campaign.company_id)
+    
+    if (!confirm(`캠페인을 ${newStatus === 'active' ? '활성화' : '일시중지'}하시겠습니까?`)) {
       return
     }
 
-    setConfirming(true)
     try {
-      const region = campaign.region || 'biz'
-      const supabaseClient = getSupabaseClient(region)
+      setConfirming(true)
+      const client = getRegionClient(campaign.region)
+      
+      if (!client) {
+        throw new Error(`Invalid region: ${campaign.region}`)
+      }
 
-      // 상태 변경 시 approval_status도 함께 업데이트
-      const updateData = {
+      // 상태 업데이트
+      const updates = {
         status: newStatus,
+        approval_status: newStatus === 'active' ? 'approved' : 'pending_approval',
         updated_at: new Date().toISOString()
       }
-      
+
       if (newStatus === 'active') {
-        updateData.approval_status = 'approved'
-        updateData.approved_at = new Date().toISOString()
-      } else if (newStatus === 'paused') {
-        // 중단 시 pending_approval로 변경하여 승인요청중 탭으로 이동
-        updateData.approval_status = 'pending_approval'
+        updates.approved_at = new Date().toISOString()
       }
 
-      const { error } = await supabaseClient
+      const { error } = await client
         .from('campaigns')
-        .update(updateData)
+        .update(updates)
         .eq('id', campaign.id)
 
-      if (error) throw error
+      if (error) {
+        throw error
+      }
 
-      alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+      alert(`캠페인이 ${newStatus === 'active' ? '활성화' : '일시중지'}되었습니다.`)
       
-      // 활성화 시 알림 전송 (confirm-campaign-payment 방식 사용)
-      console.log('[DEBUG] Campaign object:', campaign)
-      console.log('[DEBUG] newStatus:', newStatus, 'campaign.company_id:', campaign.company_id)
+      // 활성화 시 알림 전송
       console.log('[DEBUG] Campaign keys:', Object.keys(campaign))
-      if (newStatus === 'active' && campaign.company_id) {
-        console.log('[DEBUG] 알림 전송 조건 충족')
+      if (newStatus === 'active' && campaign.company_email) {
+        console.log('[DEBUG] 알림 전송 조건 충족 - company_email:', campaign.company_email)
         try {
-          // 회사 정보 조회
-          console.log('[DEBUG] 회사 정보 조회 시작:', campaign.company_id)
-          const { data: companies, error: companyError } = await supabaseBiz
-            .from('companies')
-            .select('company_name, email, phone, notification_phone, notification_email')
-            .eq('id', campaign.company_id)
+          // 캠페인 데이터에서 직접 회사 정보 사용
+          // company_id가 companies 테이블에 없을 수 있으므로 campaign 객체의 정보를 직접 사용
+          const company = {
+            company_name: campaign.brand || campaign.brand_name || '회사',
+            email: campaign.company_email,
+            phone: null, // 캠페인 테이블에 전화번호 없음
+            notification_phone: null,
+            notification_email: campaign.company_email
+          }
           
-          console.log('[DEBUG] 회사 조회 결과:', companies, '에러:', companyError)
-          const company = companies && companies.length > 0 ? companies[0] : null
+          console.log('[DEBUG] 캠페인에서 추출한 회사 정보:', company)
 
-          if (company) {
+          if (company.email) {
             const formatDate = (dateString) => {
               if (!dateString) return '미정'
               return new Date(dateString).toLocaleDateString('ko-KR', { 
@@ -304,10 +160,10 @@ export default function CampaignsManagement() {
             const endDate = formatDate(campaign.recruitment_deadline || campaign.end_date)
             const campaignTitle = campaign.campaign_name || campaign.title || '캠페인'
 
-            // 카카오 알림톡 발송
+            // 카카오 알림톡 발송 (전화번호가 있을 경우만)
             if (company.notification_phone || company.phone) {
               try {
-                console.log('알림톡 전송 시작:', company.notification_phone || company.phone)
+                console.log('[DEBUG] 알림톡 전송 시작:', company.notification_phone || company.phone)
                 const kakaoRes = await fetch('/.netlify/functions/send-kakao-notification', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -325,18 +181,18 @@ export default function CampaignsManagement() {
                   })
                 })
                 const kakaoResult = await kakaoRes.json()
-                console.log('알림톡 응답:', kakaoResult)
+                console.log('[DEBUG] 알림톡 응답:', kakaoResult)
               } catch (err) {
-                console.error('알림톡 전송 실패:', err)
+                console.error('[ERROR] 알림톡 전송 실패:', err)
               }
             } else {
-              console.log('전화번호 없음:', company)
+              console.log('[DEBUG] 전화번호 없음 - 캠페인 테이블에 전화번호 필드 없음')
             }
 
             // 이메일 발송
             if (company.notification_email || company.email) {
               try {
-                console.log('이메일 전송 시작:', company.notification_email || company.email)
+                console.log('[DEBUG] 이메일 전송 시작:', company.notification_email || company.email)
                 const emailRes = await fetch('/.netlify/functions/send-email', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -366,19 +222,21 @@ export default function CampaignsManagement() {
                   })
                 })
                 const emailResult = await emailRes.json()
-                console.log('이메일 응답:', emailResult)
+                console.log('[DEBUG] 이메일 응답:', emailResult)
               } catch (err) {
-                console.error('이메일 전송 실패:', err)
+                console.error('[ERROR] 이메일 전송 실패:', err)
               }
             } else {
-              console.log('이메일 주소 없음:', company)
+              console.log('[DEBUG] 이메일 주소 없음:', company)
             }
 
-            console.log('활성화 알림 전송 완료')
+            console.log('[DEBUG] 활성화 알림 전송 완료')
           }
         } catch (notifError) {
-          console.error('알림 전송 오류:', notifError)
+          console.error('[ERROR] 알림 전송 오류:', notifError)
         }
+      } else if (newStatus === 'active') {
+        console.log('[DEBUG] 알림 전송 조건 미충족 - company_email:', campaign.company_email)
       }
       
       fetchCampaigns()
@@ -395,484 +253,154 @@ export default function CampaignsManagement() {
       return
     }
 
-    if (!confirm('⚠️ 최종 확인: 캠페인과 관련된 모든 데이터가 삭제됩니다. 계속하시겠습니까?')) {
-      return
-    }
-
-    setConfirming(true)
     try {
-      const region = campaign.region || 'biz'
-      const supabaseClient = getSupabaseClient(region)
+      const client = getRegionClient(campaign.region)
+      
+      if (!client) {
+        throw new Error(`Invalid region: ${campaign.region}`)
+      }
 
-      const { error } = await supabaseClient
+      const { error } = await client
         .from('campaigns')
         .delete()
         .eq('id', campaign.id)
 
-      if (error) throw error
+      if (error) {
+        throw error
+      }
 
       alert('캠페인이 삭제되었습니다.')
       fetchCampaigns()
     } catch (error) {
       console.error('삭제 오류:', error)
-      alert('삭제에 실패했습니다: ' + error.message)
-    } finally {
-      setConfirming(false)
+      alert('캠페인 삭제에 실패했습니다: ' + error.message)
     }
   }
 
-  const filteredCampaigns = campaigns.filter(campaign => {
-    const matchesSearch = searchTerm === '' ||
-      campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      campaign.campaign_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      campaign.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      campaign.product_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesRegion = selectedRegion === 'all' || campaign.region === selectedRegion
-    
-    // 상태별 필터링 로직 개선
-    let matchesStatus = true
-    if (selectedStatus !== 'all') {
-      switch (selectedStatus) {
-        case 'draft':
-          matchesStatus = campaign.status === 'draft' || campaign.approval_status === 'draft'
-          break
-        case 'pending_payment':
-          matchesStatus = campaign.approval_status === 'pending_payment'
-          break
-        case 'pending':
-          matchesStatus = campaign.approval_status === 'pending' || campaign.approval_status === 'pending_approval'
-          break
-        case 'recruiting':
-          matchesStatus = campaign.approval_status === 'approved' && campaign.status !== 'completed'
-          break
-        case 'guide_review':
-          matchesStatus = campaign.status === 'guide_review'
-          break
-        case 'in_progress':
-          // active 상태이지만 approval_status가 pending_approval이 아닌 경우만 촬영중으로 분류
-          matchesStatus = (campaign.status === 'in_progress') || 
-                         (campaign.status === 'active' && campaign.approval_status !== 'pending_approval')
-          break
-        case 'revision':
-          matchesStatus = campaign.approval_status === 'rejected' || campaign.status === 'revision'
-          break
-        case 'completed':
-          matchesStatus = campaign.status === 'completed'
-          break
-        case 'cancelled':
-          matchesStatus = campaign.approval_status === 'cancelled' || campaign.status === 'cancelled'
-          break
-        default:
-          matchesStatus = true
-      }
-    }
+  const getFilteredCampaigns = () => {
+    const currentTab = tabs.find(tab => tab.id === activeTab)
+    if (!currentTab) return []
 
-    return matchesSearch && matchesRegion && matchesStatus
-  })
+    return campaigns.filter(campaign => {
+      const statusMatch = campaign.status === currentTab.status
+      const approvalMatch = campaign.approval_status === currentTab.approval_status
+      return statusMatch && approvalMatch
+    })
+  }
 
-  const getStatusBadge = (status) => {
-    const badges = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      pending_payment: 'bg-orange-100 text-orange-700',
-      approved: 'bg-green-100 text-green-700',
-      rejected: 'bg-red-100 text-red-700',
-      cancelled: 'bg-gray-100 text-gray-700',
-      active: 'bg-blue-100 text-blue-700',
-      completed: 'bg-gray-100 text-gray-700'
-    }
-    const labels = {
-      pending: '대기중',
-      pending_payment: '입금확인중',
-      approved: '승인',
-      rejected: '거부',
-      cancelled: '취소됨',
-      active: '진행중',
-      completed: '완료'
-    }
-    const icons = {
-      pending: Clock,
-      pending_payment: Clock,
-      approved: CheckCircle,
-      rejected: XCircle,
-      cancelled: XCircle,
-      active: TrendingUp,
-      completed: CheckCircle
-    }
-    const Icon = icons[status] || Clock
+  const filteredCampaigns = getFilteredCampaigns()
 
+  if (loading) {
     return (
-      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${badges[status] || 'bg-gray-100 text-gray-700'}`}>
-        <Icon className="w-3 h-3" />
-        {labels[status] || status}
-      </span>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-lg">로딩 중...</div>
+      </div>
     )
-  }
-
-  const getCampaignTypeBadge = (campaignType) => {
-    const badges = {
-      planned: 'bg-purple-100 text-purple-700',
-      oliveyoung: 'bg-pink-100 text-pink-700',
-      '4week_challenge': 'bg-orange-100 text-orange-700'
-    }
-    const labels = {
-      planned: '기획형',
-      oliveyoung: '올영세일',
-      '4week_challenge': '4주 챌린지'
-    }
-    
-    if (!campaignType || !badges[campaignType]) return null
-    
-    return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badges[campaignType]}`}>
-        {labels[campaignType]}
-      </span>
-    )
-  }
-
-  const getRegionBadge = (region) => {
-    const badges = {
-      korea: 'bg-blue-100 text-blue-700',
-      japan: 'bg-red-100 text-red-700',
-      us: 'bg-purple-100 text-purple-700',
-      usa: 'bg-purple-100 text-purple-700',
-      taiwan: 'bg-green-100 text-green-700'
-    }
-    const labels = {
-      korea: '🇰🇷 한국',
-      japan: '🇯🇵 일본',
-      us: '🇺🇸 미국',
-      usa: '🇺🇸 미국',
-      taiwan: '🇹🇼 대만'
-    }
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${badges[region] || 'bg-gray-100 text-gray-700'}`}>
-        {labels[region] || region}
-      </span>
-    )
-  }
-
-  const stats = {
-    total: campaigns.length,
-    pending: campaigns.filter(c => c.status === 'pending' || c.approval_status === 'pending').length,
-    active: campaigns.filter(c => c.status === 'active' || c.approval_status === 'approved').length,
-    completed: campaigns.filter(c => c.status === 'completed').length
   }
 
   return (
-    <>
-      <AdminNavigation />
-      <div className="min-h-screen bg-gray-50 lg:ml-64">
-        <div className="max-w-7xl mx-auto p-6">
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">캠페인 관리</h1>
 
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold">캠페인 관리</h1>
+      {/* Tabs */}
+      <div className="flex space-x-4 mb-6 border-b">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 font-medium transition-colors ${
+              activeTab === tab.id
+                ? 'border-b-2 border-blue-500 text-blue-600'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            {tab.label} ({campaigns.filter(c => c.status === tab.status && c.approval_status === tab.approval_status).length})
+          </button>
+        ))}
+      </div>
+
+      {/* Campaign List */}
+      <div className="space-y-4">
+        {filteredCampaigns.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            캠페인이 없습니다.
           </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm text-gray-600 mb-2">전체 캠페인</div>
-              <div className="text-3xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm text-gray-600 mb-2">대기중</div>
-              <div className="text-3xl font-bold text-yellow-600">{stats.pending}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm text-gray-600 mb-2">진행중</div>
-              <div className="text-3xl font-bold text-blue-600">{stats.active}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-sm text-gray-600 mb-2">완료</div>
-              <div className="text-3xl font-bold text-green-600">{stats.completed}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Region Tabs */}
-        <Tabs value={selectedRegion} onValueChange={setSelectedRegion} className="mb-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all">전체</TabsTrigger>
-            <TabsTrigger value="korea">한국 🇰🇷</TabsTrigger>
-            <TabsTrigger value="japan">일본 🇯🇵</TabsTrigger>
-            <TabsTrigger value="us">미국 🇺🇸</TabsTrigger>
-            <TabsTrigger value="taiwan">대만 🇹🇼</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Status Tabs */}
-        <Tabs value={selectedStatus} onValueChange={setSelectedStatus} className="mb-6">
-          <TabsList className="grid w-full grid-cols-10 gap-1">
-            <TabsTrigger value="all" className="text-xs px-2">전체</TabsTrigger>
-            <TabsTrigger value="draft" className="text-xs px-2">작성중</TabsTrigger>
-            <TabsTrigger value="pending_payment" className="text-xs px-2">입금확인중</TabsTrigger>
-            <TabsTrigger value="pending" className="text-xs px-2">승인요청중</TabsTrigger>
-            <TabsTrigger value="recruiting" className="text-xs px-2">모집중</TabsTrigger>
-            <TabsTrigger value="guide_review" className="text-xs px-2">가이드검토중</TabsTrigger>
-            <TabsTrigger value="in_progress" className="text-xs px-2">촬영중</TabsTrigger>
-            <TabsTrigger value="revision" className="text-xs px-2">수정중</TabsTrigger>
-            <TabsTrigger value="completed" className="text-xs px-2">최종완료</TabsTrigger>
-            <TabsTrigger value="cancelled" className="text-xs px-2">취소됨</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Search */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="캠페인 제목, 설명 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Campaigns List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>캠페인 목록 ({filteredCampaigns.length}개)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-12 text-gray-500">로딩 중...</div>
-            ) : (
-              <div className="space-y-4">
-                {filteredCampaigns.map((campaign) => (
-                  <div
-                    key={`${campaign.region}-${campaign.id}`}
-                    className="p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold">{campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}</h3>
-                          {getCampaignTypeBadge(campaign.campaign_type)}
-                          {getRegionBadge(campaign.region)}
-                          {getStatusBadge(campaign.approval_status || campaign.status)}
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3">
-                          {campaign.description || '설명 없음'}
-                        </p>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                          <div className="bg-white p-3 rounded-lg">
-                            <div className="text-gray-500 text-xs mb-1">예산</div>
-                            <div className="font-semibold text-gray-900">{campaign.currency || '₩'}{campaign.budget?.toLocaleString()}</div>
-                          </div>
-                          {campaign.region === 'korea' && (
-                            <div className="bg-purple-50 p-3 rounded-lg relative group">
-                              <div className="text-purple-600 text-xs mb-1">크리에이터 P</div>
-                              {editingPoints?.campaignId === campaign.id ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="number"
-                                    value={editingPoints.value}
-                                    onChange={(e) => setEditingPoints({ campaignId: campaign.id, value: e.target.value })}
-                                    className="w-24 px-2 py-1 text-sm border rounded"
-                                    disabled={savingPoints}
-                                  />
-                                  <button
-                                    onClick={() => handleSaveCreatorPoints(campaign.id)}
-                                    disabled={savingPoints}
-                                    className="text-green-600 hover:text-green-800 disabled:opacity-50"
-                                  >
-                                    <CheckCircle size={16} />
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingPoints(null)}
-                                    disabled={savingPoints}
-                                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
-                                  >
-                                    <XCircle size={16} />
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <div className="font-semibold text-purple-900">₩{calculateCreatorPoints(campaign).toLocaleString()}</div>
-                                  {isSuperAdmin && (
-                                    <button
-                                      onClick={() => setEditingPoints({ campaignId: campaign.id, value: calculateCreatorPoints(campaign) })}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-purple-600 hover:text-purple-800"
-                                    >
-                                      <Edit size={14} />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          <div className="bg-white p-3 rounded-lg">
-                            <div className="text-gray-500 text-xs mb-1">모집 인원</div>
-                            <div className="font-semibold text-gray-900">{campaign.max_participants || campaign.total_slots || 0}명</div>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg">
-                            <div className="text-gray-500 text-xs mb-1">지원자</div>
-                            <div className="font-semibold text-blue-600">{campaign.application_stats?.total || 0}명</div>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg">
-                            <div className="text-gray-500 text-xs mb-1">선정 완료</div>
-                            <div className="font-semibold text-green-600">{campaign.application_stats?.selected || 0}명</div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm mt-3">
-                          <div className="bg-white p-3 rounded-lg">
-                            <div className="text-gray-500 text-xs mb-1">모집 마감일</div>
-                            <div className="font-medium text-gray-900">{campaign.application_deadline ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ') : '-'}</div>
-                          </div>
-                          <div className="bg-white p-3 rounded-lg">
-                            <div className="text-gray-500 text-xs mb-1">캐페인 기간</div>
-                            <div className="font-medium text-gray-900 text-xs">
-                              {(() => {
-                                const formatDate = (date) => date ? new Date(date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).replace(/\. /g, '. ') : null
-                                
-                                // 4주 챌린지: 주차별 마감일
-                                if (campaign.campaign_type === '4week_challenge') {
-                                  const weeks = [
-                                    campaign.week1_deadline,
-                                    campaign.week2_deadline,
-                                    campaign.week3_deadline,
-                                    campaign.week4_deadline
-                                  ].filter(Boolean)
-                                  if (weeks.length > 0) {
-                                    return `1주차: ${formatDate(weeks[0])}${weeks.length > 1 ? ` ~ 4주차: ${formatDate(weeks[weeks.length-1])}` : ''}`
-                                  }
-                                }
-                                
-                                // 올영세일: 단계별 마감일
-                                if (campaign.campaign_type === 'oliveyoung') {
-                                  const steps = [
-                                    campaign.step1_deadline,
-                                    campaign.step2_deadline,
-                                    campaign.step3_deadline
-                                  ].filter(Boolean)
-                                  if (steps.length > 0) {
-                                    return `1단계: ${formatDate(steps[0])}${steps.length > 1 ? ` ~ ${steps.length}단계: ${formatDate(steps[steps.length-1])}` : ''}`
-                                  }
-                                }
-                                
-                                // 기획형/일반: start_date ~ end_date
-                                if (campaign.start_date && campaign.end_date) {
-                                  return `${formatDate(campaign.start_date)} - ${formatDate(campaign.end_date)}`
-                                }
-                                
-                                return '-'
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        {campaign.payment_status === 'pending' && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleConfirmPayment(campaign)}
-                            disabled={confirming}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <DollarSign className="w-4 h-4 mr-2" />
-                            입금 확인
-                          </Button>
-                        )}
-                        {campaign.approval_status === 'pending' && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleApproveCampaign(campaign)}
-                            disabled={confirming}
-                            className="bg-blue-600 hover:bg-blue-700"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            승인
-                          </Button>
-                        )}
-                        {isSuperAdmin && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleStatusChange(campaign, 'active')}
-                              disabled={confirming || campaign.status === 'active'}
-                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                            >
-                              <PlayCircle className="w-4 h-4 mr-2" />
-                              활성화
-                            </Button>
-                            {(campaign.status === 'active' || campaign.status === 'in_progress') && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleStatusChange(campaign, 'paused')}
-                                disabled={confirming}
-                                className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-200"
-                              >
-                                <Pause className="w-4 h-4 mr-2" />
-                                중단
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(campaign)}
-                              disabled={confirming}
-                              className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              삭제
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/admin/campaigns/${campaign.id}/edit?region=${campaign.region}`)}
-                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                        >
-                          <Edit className="w-4 h-4 mr-2" />
-                          수정
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/admin/campaigns/${campaign.id}?region=${campaign.region}`)}
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          상세보기
-                        </Button>
-                      </div>
+        ) : (
+          filteredCampaigns.map(campaign => (
+            <div key={campaign.id} className="bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-semibold">{campaign.campaign_name || campaign.title || '제목 없음'}</h3>
+                    <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">
+                      {campaign.region?.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mb-2">{campaign.brand || campaign.brand_name || '브랜드 없음'}</p>
+                  <p className="text-sm text-gray-500 mb-4">{campaign.description || campaign.product_description || '설명 없음'}</p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">모집 인원:</span> {campaign.total_slots || campaign.target_creators || 0}명
+                    </div>
+                    <div>
+                      <span className="font-medium">남은 인원:</span> {campaign.remaining_slots || campaign.total_slots || 0}명
+                    </div>
+                    <div>
+                      <span className="font-medium">시작일:</span> {campaign.recruitment_start_date || campaign.start_date ? new Date(campaign.recruitment_start_date || campaign.start_date).toLocaleDateString('ko-KR') : '미정'}
+                    </div>
+                    <div>
+                      <span className="font-medium">마감일:</span> {campaign.recruitment_deadline || campaign.end_date ? new Date(campaign.recruitment_deadline || campaign.end_date).toLocaleDateString('ko-KR') : '미정'}
+                    </div>
+                    <div>
+                      <span className="font-medium">회사 이메일:</span> {campaign.company_email || '없음'}
+                    </div>
+                    <div>
+                      <span className="font-medium">상태:</span> {campaign.status} / {campaign.approval_status}
                     </div>
                   </div>
-                ))}
-
-                {filteredCampaigns.length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    {searchTerm || selectedRegion !== 'all' || selectedStatus !== 'all'
-                      ? '검색 결과가 없습니다'
-                      : '등록된 캠페인이 없습니다'}
-                  </div>
-                )}
+                </div>
+                <div className="flex flex-col gap-2 ml-4">
+                  {activeTab === 'pending_approval' && (
+                    <button
+                      onClick={() => handleStatusChange(campaign, 'active')}
+                      disabled={confirming}
+                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {confirming ? '처리 중...' : '활성화'}
+                    </button>
+                  )}
+                  {activeTab === 'active' && (
+                    <button
+                      onClick={() => handleStatusChange(campaign, 'paused')}
+                      disabled={confirming}
+                      className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {confirming ? '처리 중...' : '일시중지'}
+                    </button>
+                  )}
+                  {activeTab === 'paused' && (
+                    <button
+                      onClick={() => handleStatusChange(campaign, 'active')}
+                      disabled={confirming}
+                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {confirming ? '처리 중...' : '재활성화'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(campaign)}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 whitespace-nowrap"
+                  >
+                    삭제
+                  </button>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          ))
+        )}
       </div>
-      </div>
-    </>
+    </div>
   )
 }
 
+export default CampaignsManagement
