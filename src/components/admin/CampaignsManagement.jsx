@@ -241,26 +241,55 @@ export default function CampaignsManagement() {
       completed: '완료'
     }
 
-    if (!confirm(`캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`)) {
+    // 활성화 시 알림 전송 안내
+    const confirmMessage = newStatus === 'active' 
+      ? `캠페인을 활성화하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}\n\n활성화 시 기업에게 알림톡과 메일이 전송됩니다.`
+      : `캠페인 상태를 "${statusLabels[newStatus]}"로 변경하시겠습니까?\n\n캠페인: ${campaign.campaign_name || campaign.title}`
+
+    if (!confirm(confirmMessage)) {
       return
     }
 
     setConfirming(true)
     try {
-      const region = campaign.region || 'biz'
-      const supabaseClient = getSupabaseClient(region)
-
-      const { error } = await supabaseClient
-        .from('campaigns')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
+      // 활성화일 경우 approve-campaign 함수 호출 (알림 전송)
+      if (newStatus === 'active') {
+        const response = await fetch('/.netlify/functions/approve-campaign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            region: campaign.region || 'korea'
+          })
         })
-        .eq('id', campaign.id)
 
-      if (error) throw error
+        const result = await response.json()
 
-      alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+        if (!result.success) {
+          throw new Error(result.error || '캠페인 활성화에 실패했습니다.')
+        }
+
+        alert('캠페인이 활성화되었습니다! 기업에게 알림이 전송되었습니다.')
+      } else {
+        // 다른 상태 변경은 직접 Supabase 업데이트
+        const region = campaign.region || 'biz'
+        const supabaseClient = getSupabaseClient(region)
+
+        const { error } = await supabaseClient
+          .from('campaigns')
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', campaign.id)
+
+        if (error) throw error
+
+        alert(`캠페인 상태가 "${statusLabels[newStatus]}"로 변경되었습니다!`)
+      }
+      
       fetchCampaigns()
     } catch (error) {
       console.error('상태 변경 오류:', error)

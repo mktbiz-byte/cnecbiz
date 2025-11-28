@@ -179,41 +179,75 @@ exports.handler = async (event, context) => {
 
       // 알림톡 전송
       if (alimtalkApiKey && alimtalkUserId && alimtalkSenderKey && company.phone) {
+        console.log('[approve-campaign] Sending Alimtalk to:', company.phone)
+        
+        // 메시지 본문 (변수 직접 치환)
+        const message = `[CNEC] 신청하신 캠페인 승인 완료
+
+#{회사명}님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.
+
+캠페인: #{캠페인명}
+모집 기간: #{시작일} ~ #{마감일}
+모집 인원: #{모집인원}명
+
+관리자 페이지에서 진행 상황을 확인하실 수 있습니다.
+
+문의: 1833-6025`
+        
+        const alimtalkParams = {
+          apikey: alimtalkApiKey,
+          userid: alimtalkUserId,
+          senderkey: alimtalkSenderKey,
+          tpl_code: templateCode,
+          sender: '18336025',
+          receiver_1: company.phone.replace(/-/g, ''),
+          subject_1: '[CNEC] 신청하신 캠페인 승인 완료',
+          message_1: message,
+          button_1: JSON.stringify({
+            button: [{
+              name: '관리자 페이지',
+              linkType: 'WL',
+              linkTypeName: '웹링크',
+              linkMo: 'https://cnectotal.netlify.app/company/campaigns',
+              linkPc: 'https://cnectotal.netlify.app/company/campaigns'
+            }]
+          }),
+          emtitle_1: '회사명',
+          emoption_1: variables['회사명'],
+          emtitle_2: '캠페인명',
+          emoption_2: variables['캠페인명'],
+          emtitle_3: '시작일',
+          emoption_3: variables['시작일'],
+          emtitle_4: '마감일',
+          emoption_4: variables['마감일'],
+          emtitle_5: '모집인원',
+          emoption_5: variables['모집인원']
+        }
+        
+        console.log('[approve-campaign] Alimtalk params:', JSON.stringify(alimtalkParams, null, 2))
+        
         const alimtalkResponse = await fetch('https://kakaoapi.aligo.in/akv10/alimtalk/send/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
-          body: new URLSearchParams({
-            apikey: alimtalkApiKey,
-            userid: alimtalkUserId,
-            senderkey: alimtalkSenderKey,
-            tpl_code: templateCode,
-            sender: '18336025',
-            receiver_1: company.phone.replace(/-/g, ''),
-            subject_1: '[CNEC] 신청하신 캠페인 승인 완료',
-            message_1: `[CNEC] 신청하신 캠페인 승인 완료\n\n#{회사명}님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.\n\n캠페인: #{캠페인명}\n모집 기간: #{시작일} ~ #{마감일}\n모집 인원: #{모집인원}명\n\n관리자 페이지에서 진행 상황을 확인하실 수 있습니다.\n\n문의: 1833-6025`,
-            button_1: JSON.stringify({
-              button: [{
-                name: '관리자 페이지',
-                linkType: 'WL',
-                linkTypeName: '웹링크',
-                linkMo: 'https://cnectotal.netlify.app/company/campaigns',
-                linkPc: 'https://cnectotal.netlify.app/company/campaigns'
-              }]
-            }),
-            ...Object.entries(variables).reduce((acc, [key, value], index) => {
-              acc[`emtitle_${index + 1}`] = key
-              acc[`emoption_${index + 1}`] = value
-              return acc
-            }, {})
-          }).toString()
+          body: new URLSearchParams(alimtalkParams).toString()
         })
 
         const alimtalkResult = await alimtalkResponse.json()
-        console.log('[approve-campaign] Alimtalk response:', alimtalkResult)
+        console.log('[approve-campaign] Alimtalk response:', JSON.stringify(alimtalkResult, null, 2))
+        
+        if (alimtalkResult.code !== 0) {
+          console.error('[approve-campaign] Alimtalk failed:', alimtalkResult.message)
+        }
       } else {
-        console.log('[approve-campaign] Alimtalk credentials missing or no phone number')
+        console.log('[approve-campaign] Alimtalk credentials missing:', {
+          hasApiKey: !!alimtalkApiKey,
+          hasUserId: !!alimtalkUserId,
+          hasSenderKey: !!alimtalkSenderKey,
+          hasPhone: !!company.phone,
+          phone: company.phone
+        })
       }
 
       // 이메일 전송
