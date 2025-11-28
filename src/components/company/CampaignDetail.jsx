@@ -1476,7 +1476,8 @@ export default function CampaignDetail() {
               brand: campaign.brand,
               product_name: campaign.product_name,
               product_features: campaign.product_features,
-              product_key_points: campaign.product_key_points
+              product_key_points: campaign.product_key_points,
+              video_duration: campaign.video_duration
             },
             baseGuide: campaign.ai_guide || ''
           })
@@ -3906,6 +3907,14 @@ export default function CampaignDetail() {
                                     </div>
                                   )}
                                 </div>
+                              </div>
+                            )}
+
+                            {/* AI 가이드 추천 이유 */}
+                            {guideData.why_recommended && (
+                              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                <h4 className="font-semibold mb-2 text-purple-900">🤖 AI 가이드 추천 이유</h4>
+                                <p className="text-sm text-gray-700">{guideData.why_recommended}</p>
                               </div>
                             )}
 

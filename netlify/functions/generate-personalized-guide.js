@@ -61,7 +61,7 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
 {
   "campaign_title": "${productInfo.brand} ${productInfo.product_name} 촬영 가이드",
   "target_platform": "${creatorAnalysis.platform}",
-  "video_duration": "${creatorAnalysis.platform === 'youtube' ? '5-10분' : '30-60초'}",
+  "video_duration": "${productInfo.video_duration || (creatorAnalysis.platform === 'youtube' ? '자유' : '30-60초')}",
   "shooting_scenes": [
     {
       "order": 1,
@@ -153,6 +153,7 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     "product": ["${productInfo.brand}추천", "인생템", "꿀템발견", "이거진짜"],
     "common": ${JSON.stringify(creatorAnalysis.contentAnalysis?.topHashtags?.slice(0, 3) || ['뷰티', '데일리', '추천'])}
   },
+  "why_recommended": "이 크리에이터의 평소 콘텐츠 스타일(${creatorAnalysis.style?.tone}, ${creatorAnalysis.style?.topics?.join(', ')})과 팔로워 특성(${creatorAnalysis.followers?.toLocaleString()}명, 참여율 ${creatorAnalysis.contentAnalysis?.engagementRate}%)을 고려할 때, 이 제품의 핵심 포인트를 가장 효과적으로 전달할 수 있습니다. 특히 [1-2문장으로 구체적인 이유 설명]",
   "shooting_requirements": {
     "must_include": [
       "제품 클로즈업 (텍스처, 패키징)",
