@@ -76,8 +76,7 @@ export default function CampaignReferenceVideos() {
         .from('campaign_reference_videos')
         .insert({
           campaign_type: selectedCampaignType,
-          url: embedUrl,
-          youtube_url: newVideo.url,
+          video_url: embedUrl,
           title: newVideo.title,
           description: newVideo.description || null,
           display_order: maxOrder + 1,
@@ -305,7 +304,7 @@ export default function CampaignReferenceVideos() {
                   {/* 영상 미리보기 (9:16 비율) */}
                   <div className="aspect-[9/16] bg-gray-100 rounded overflow-hidden mt-8">
                     <iframe
-                      src={video.url}
+                      src={video.video_url}
                       title={video.title}
                       className="w-full h-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -318,7 +317,7 @@ export default function CampaignReferenceVideos() {
                     {video.description && (
                       <p className="text-sm text-gray-600 mt-1">{video.description}</p>
                     )}
-                    <p className="text-xs text-gray-400 mt-2 break-all">{video.url}</p>
+                    <p className="text-xs text-gray-400 mt-2 break-all">{video.video_url}</p>
                   </div>
                   
                   <Button
