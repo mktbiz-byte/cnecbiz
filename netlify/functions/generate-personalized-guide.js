@@ -222,6 +222,7 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 8192,
+            responseMimeType: "application/json"
           }
         })
       }
