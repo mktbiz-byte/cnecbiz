@@ -638,7 +638,7 @@ const CampaignCreationKorea = () => {
             >
               <div className="text-3xl mb-2">🏆</div>
               <h3 className="font-bold text-lg mb-2">4주 챌린지 가이드</h3>
-              <p className="text-sm text-gray-600 mb-2">60만원 (고정)</p>
+              <p className="text-sm text-gray-600 mb-2">60만원</p>
               <ul className="text-xs text-gray-500 space-y-1">
                 <li>• 주차별 통합 가이드 4개</li>
                 <li>• 4주 연속 콘텐츠</li>

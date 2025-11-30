@@ -162,7 +162,7 @@ const HomePage = () => {
             <CardHeader>
               <div className="text-4xl mb-2">🏆</div>
               <CardTitle>4주 챌린지</CardTitle>
-              <CardDescription>60만원 (고정)</CardDescription>
+              <CardDescription>60만원</CardDescription>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm text-gray-600">

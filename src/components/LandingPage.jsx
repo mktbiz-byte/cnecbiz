@@ -406,7 +406,7 @@ export default function LandingPage() {
             >
               <div className="text-5xl mb-4">🏆</div>
               <h3 className="text-2xl font-bold mb-3 group-hover:text-purple-600 transition-colors">4주 챌린지</h3>
-              <p className="text-lg text-slate-700 font-semibold mb-3">60만원 (고정)</p>
+              <p className="text-lg text-slate-700 font-semibold mb-3">60만원</p>
               <ul className="space-y-2 mb-4">
                 <li className="flex items-center gap-2 text-slate-600">
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
