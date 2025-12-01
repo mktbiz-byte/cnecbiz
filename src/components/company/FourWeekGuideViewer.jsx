@@ -28,8 +28,37 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate }) {
     
     const weekData = weeklyGuides[activeWeek]
     
-    // If weekData is a string, convert to simple object
+    // If weekData is a string, try to parse it into structured format
     if (typeof weekData === 'string') {
+      // Try to extract structured information from text
+      const text = weekData
+      const lines = text.split(/[.!]/).filter(line => line.trim())
+      
+      // Extract mission (usually the first sentence)
+      const mission = lines[0]?.trim() || text
+      
+      // Extract required dialogues (look for quotes)
+      const dialogueMatches = text.match(/['\"](.*?)['\"]/g) || []
+      const required_dialogues = dialogueMatches.map(d => d.replace(/['\"]/g, ''))
+      
+      // Extract hashtags (look for # or mentions of hashtag)
+      const hashtagMatches = text.match(/#\w+/g) || []
+      const hashtags = hashtagMatches.map(h => h.replace('#', ''))
+      
+      // If we found structured data, return it
+      if (required_dialogues.length > 0 || hashtags.length > 0) {
+        return {
+          mission: mission,
+          required_dialogues: required_dialogues,
+          required_scenes: [],
+          hashtags: hashtags,
+          product_info: '',
+          cautions: '해당 미션에 맞게 촬영 필수',
+          reference_urls: []
+        }
+      }
+      
+      // Otherwise, return as simple text
       return {
         guide_text: weekData,
         is_simple: true
