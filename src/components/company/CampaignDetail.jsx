@@ -1012,7 +1012,7 @@ export default function CampaignDetail() {
             .from('applications')
             .update({ 
               personalized_guide: JSON.stringify(campaign.ai_generated_guide),
-              guide_confirmed: true
+              updated_at: new Date().toISOString()
             })
             .eq('id', participant.id)
 
@@ -1110,7 +1110,7 @@ export default function CampaignDetail() {
         try {
           // 가이드 전달 상태 업데이트
           const updateData = { 
-            guide_confirmed: true
+            updated_at: new Date().toISOString()
           }
           
           // 개별 메시지가 있으면 추가
@@ -1223,7 +1223,7 @@ export default function CampaignDetail() {
         try {
           // 가이드 전달 상태 업데이트
           const updateData = { 
-            guide_confirmed: true
+            updated_at: new Date().toISOString()
           }
           
           // 개별 메시지가 있으면 추가
@@ -1441,11 +1441,14 @@ export default function CampaignDetail() {
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           console.log('[DEBUG] Updating application status to filming:', participantId)
           
-          // 재전달인 경우 상태를 변경하지 않고 guide_confirmed만 업데이트
-          const updatePayload = { guide_confirmed: true }
+          // 재전달인 경우 상태를 변경하지 않음
+          const updatePayload = {
+            updated_at: new Date().toISOString()
+          }
           if (participant.status !== 'filming') {
             updatePayload.status = 'filming'
           }
+          // guide_confirmed 필드는 한국 DB에 없으므로 제거
           
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
