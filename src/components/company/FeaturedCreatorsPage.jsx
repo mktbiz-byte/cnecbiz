@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabaseBiz } from '../../lib/supabaseClients';
+import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients';
 import styled from 'styled-components';
 import { Instagram, Youtube, TrendingUp, Users, Eye, CheckCircle, Circle, Send, Music, Sparkles } from 'lucide-react';
 const FeaturedCreatorsPage = () => {
@@ -18,11 +18,15 @@ const FeaturedCreatorsPage = () => {
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [selectedCreatorForInvite, setSelectedCreatorForInvite] = useState(null);
   const [campaignForm, setCampaignForm] = useState({
+    companyName: '',
+    campaignId: '', // 선택한 캠페인 ID
     campaignName: '',
     packageType: '',
     rewardAmount: '',
     deadline: ''
   });
+  const [userCampaigns, setUserCampaigns] = useState([]);
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
 
   useEffect(() => {
     fetchFeaturedCreators();
@@ -72,13 +76,50 @@ const FeaturedCreatorsPage = () => {
     });
   };
 
-  const handleOpenCampaignModal = (creator) => {
+  const handleOpenCampaignModal = async (creator) => {
     setSelectedCreatorForInvite(creator);
     setShowCampaignModal(true);
+    await fetchUserCampaigns();
+  };
+
+  const fetchUserCampaigns = async () => {
+    setLoadingCampaigns(true);
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser();
+      if (!user) return;
+
+      // 한국 지역 캠페인 가져오기
+      const { data: koreaCampaigns } = await supabaseKorea
+        .from('campaigns')
+        .select('id, title, package_type, campaign_type, region, recruitment_deadline, total_slots')
+        .eq('company_email', user.email)
+        .eq('is_cancelled', false)
+        .in('approval_status', ['pending', 'approved'])
+        .order('created_at', { ascending: false });
+
+      // 일본 지역 캠페인 가져오기
+      const supabaseJapan = getSupabaseClient('japan');
+      const { data: japanCampaigns } = await supabaseJapan
+        .from('campaigns')
+        .select('id, title, package_type, campaign_type, region, recruitment_deadline, total_slots')
+        .eq('company_email', user.email)
+        .eq('is_cancelled', false)
+        .in('approval_status', ['pending', 'approved'])
+        .order('created_at', { ascending: false });
+
+      const koreaCampaignsWithRegion = (koreaCampaigns || []).map(c => ({ ...c, region: 'korea' }));
+      const japanCampaignsWithRegion = (japanCampaigns || []).map(c => ({ ...c, region: 'japan' }));
+
+      setUserCampaigns([...koreaCampaignsWithRegion, ...japanCampaignsWithRegion]);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+    } finally {
+      setLoadingCampaigns(false);
+    }
   };
 
   const handleCampaignInvite = async () => {
-    if (!campaignForm.campaignName || !campaignForm.packageType || !campaignForm.rewardAmount || !campaignForm.deadline) {
+    if (!campaignForm.companyName || !campaignForm.campaignName || !campaignForm.packageType || !campaignForm.rewardAmount || !campaignForm.deadline) {
       alert('모든 필드를 입력해주세요.');
       return;
     }
@@ -95,6 +136,11 @@ const FeaturedCreatorsPage = () => {
       return;
     }
 
+    // 캠페인 링크 생성
+    const campaignLink = campaignForm.campaignId 
+      ? `https://cnec.co.kr/campaign-application?campaign_id=${campaignForm.campaignId}`
+      : 'https://cnec.co.kr';
+
     setSending(true);
     try {
       const response = await fetch('/.netlify/functions/send-kakao-notification', {
@@ -105,11 +151,13 @@ const FeaturedCreatorsPage = () => {
           receiverName: selectedCreatorForInvite.nickname || selectedCreatorForInvite.creator_name || selectedCreatorForInvite.name,
           templateCode: '025110001005',
           variables: {
+            '크리에이터명': selectedCreatorForInvite.nickname || selectedCreatorForInvite.creator_name || selectedCreatorForInvite.name,
+            '기업명': campaignForm.companyName,
             '캠페인명': campaignForm.campaignName,
             '패키지': campaignForm.packageType,
-            '보상금': campaignForm.rewardAmount + '원',
+            '보상금': campaignForm.rewardAmount,
             '마감일': campaignForm.deadline,
-            '캠페인링크': 'https://cnec.co.kr'
+            '캠페인링크': campaignLink
           }
         })
       });
@@ -120,6 +168,8 @@ const FeaturedCreatorsPage = () => {
         alert('캠페인 초대 알림톡이 발송되었습니다!');
         setShowCampaignModal(false);
         setCampaignForm({
+          companyName: '',
+          campaignId: '',
           campaignName: '',
           packageType: '',
           rewardAmount: '',
@@ -355,6 +405,57 @@ const FeaturedCreatorsPage = () => {
                   </SelectedCreatorItem>
                 </SelectedCreatorsList>
               )}
+
+              <FormGroup>
+                <Label>기업명 *</Label>
+                <Input
+                  type="text"
+                  placeholder="기업명을 입력하세요"
+                  value={campaignForm.companyName}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, companyName: e.target.value })}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>캠페인 선택 (선택사항)</Label>
+                {loadingCampaigns ? (
+                  <div style={{ padding: '12px', textAlign: 'center', color: '#666' }}>캠페인 목록 불러오는 중...</div>
+                ) : userCampaigns.length > 0 ? (
+                  <select
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                    value={campaignForm.campaignId}
+                    onChange={(e) => {
+                      const selectedCampaign = userCampaigns.find(c => c.id === e.target.value);
+                      if (selectedCampaign) {
+                        setCampaignForm({
+                          ...campaignForm,
+                          campaignId: selectedCampaign.id,
+                          campaignName: selectedCampaign.title,
+                          packageType: selectedCampaign.package_type || '',
+                          deadline: selectedCampaign.recruitment_deadline || ''
+                        });
+                      } else {
+                        setCampaignForm({ ...campaignForm, campaignId: '' });
+                      }
+                    }}
+                  >
+                    <option value="">직접 입력</option>
+                    {userCampaigns.map(campaign => (
+                      <option key={campaign.id} value={campaign.id}>
+                        {campaign.title} ({campaign.region === 'japan' ? '일본' : '한국'})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div style={{ padding: '12px', textAlign: 'center', color: '#666' }}>진행 중인 캠페인이 없습니다</div>
+                )}
+              </FormGroup>
 
               <FormGroup>
                 <Label>캠페인명 *</Label>
