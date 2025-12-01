@@ -491,125 +491,158 @@ async function scrapeTikTokProfile(profileUrl) {
 // ==================== Gemini AI Analysis ====================
 
 async function analyzeVideoWithGemini(videoUrl, platform) {
-  console.log(`Starting multi-agent analysis for: ${videoUrl}`);
+  console.log(`Starting video analysis for: ${videoUrl}`);
   
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
   
-  // 4개 에이전트 프롬프트 정의 (뷰티 크리에이터 특화)
-  const agents = [
-    // 영상 분석 에이전트 1: 시각적 구성과 제품 표현력
-    {
-      name: 'video_agent_1',
-      prompt: `당신은 뷰티 콘텐츠 전문 비디오 분석가입니다. 다음 YouTube 영상을 시청하고 **시각적 구성과 제품 표현력**을 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **오프닝 후킹력** (14점 만점)\n   - 첫 3초 내 제품 발색/텍스처가 명확하게 보이는가?\n   - 뷰티 문제 제시 또는 결과물 미리보기로 호기심 유발\n   - 조명과 클로즈업으로 디테일 강조\n\n2. **제품 시연 효과성** (11점 만점)\n   - 손+얼굴 동시 시연으로 발색 비교\n   - Before/After 분할 화면 활용\n   - 여러 각도에서 제품 효과 확인 가능\n\n3. **비주얼 품질** (3점 만점)\n   - 자연광/링라이트 조명으로 색감 정확도\n   - 4K 이상 해상도, 피부 텍스처 선명도\n   - 구도와 색보정 (피부톤 왜곡 없음)\n\nJSON 형식으로 응답:\n{\n  "opening_hook": { "score": 0-14, "reason": "구체적 분석" },\n  "product_demo": { "score": 0-11, "reason": "구체적 분석" },\n  "visual_quality": { "score": 0-3, "reason": "구체적 분석" }\n}`
-    },
-    // 영상 분석 에이전트 2: 스토리텔링과 신뢰도 구축
-    {
-      name: 'video_agent_2',
-      prompt: `당신은 뷰티 콘텐츠 전문 비디오 분석가입니다. 다음 YouTube 영상을 시청하고 **스토리텔링과 신뢰도 구축**을 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **신뢰도 구축** (13점 만점)\n   - 사용 전후 비교 (예: "7일 사용 후 90% 개선")\n   - 피부 고민별 실제 테스트 장면\n   - 다른 제품과의 비교 시연\n\n2. **스토리텔링 구조** (7점 만점)\n   - 문제(피부 고민) → 해결(제품 사용) → 결과(변화) 구조\n   - 감정 여정 (공감 → 기대 → 만족)\n   - 일상 속 사용 장면 연출\n\n3. **편집 완성도** (8점 만점)\n   - 컷 리듬 (2-3초/컷, 뷰티 숏폼 최적)\n   - 영상 길이 (30-90초, 제품 설명 충분)\n   - 텍스트 오버레이 (제품명, 가격, 특징)\n\nJSON 형식으로 응답:\n{\n  "credibility": { "score": 0-13, "reason": "구체적 분석" },\n  "storytelling": { "score": 0-7, "reason": "구체적 분석" },\n  "editing": { "score": 0-8, "reason": "구체적 분석" }\n}`
-    },
-    // 영상 분석 에이전트 3: 제품 정보 전달과 구매 유도
-    {
-      name: 'video_agent_3',
-      prompt: `당신은 뷰티 콘텐츠 전문 비디오 분석가입니다. 다음 YouTube 영상을 시청하고 **제품 정보 전달과 구매 유도**를 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **CTA 명확성** (6점 만점)\n   - 가격/할인 정보 명시 (예: "29,000원 → 19,900원")\n   - 구매처 안내 (올리브영, 무신사 등)\n   - 링크/쿠폰 코드 제공\n\n2. **오프닝 후킹력** (추가 평가)\n   - 제품 결과물 미리보기 (완성된 메이크업)\n   - 구체적 수치 제시 (예: "24시간 지속")\n   - 타겟 고객 명확화 (예: "지성 피부용")\n\nJSON 형식으로 응답:\n{\n  "cta_clarity": { "score": 0-6, "reason": "구체적 분석" },\n  "opening_hook_2": { "score": 0-14, "reason": "구체적 분석" }\n}`
-    },
-    // 음성 분석 에이전트 1: 음성 품질과 제품 정보 전달
-    {
-      name: 'audio_agent_1',
-      prompt: `당신은 뷰티 콘텐츠 전문 오디오 분석가입니다. 다음 YouTube 영상을 시청하고 **음성 품질과 제품 정보 전달**을 중심으로 평가해주세요.\n\n영상 URL: ${videoUrl}\n\n다음 항목을 평가하세요:\n\n1. **오디오 품질** (8점 만점)\n   - 배경음악 (120-130 BPM, 뷰티 콘텐츠 적합)\n   - 음성 톤 (밝고 친근함, 명료한 발음)\n   - 믹싱 밸런스 (음성 > 배경음악)\n\n2. **신뢰도 구축** (추가 평가)\n   - 제품명, 브랜드명 명확한 발음\n   - 가격, 용량, 구매처 언급\n   - 사용법 구체적 설명\n\nJSON 형식으로 응답:\n{\n  "audio_quality": { "score": 0-8, "reason": "구체적 분석" },\n  "credibility_2": { "score": 0-13, "reason": "구체적 분석" }\n}`
-    }
-  ];
+  const prompt = `당신은 숏폼 콘텐츠 분석 전문가입니다. 다음 영상을 시청하고 콘텐츠 제작 역량을 평가해주세요.
+
+영상 URL: ${videoUrl}
+
+## 평가 항목 (총 70점)
+
+### 1. 오프닝 후킹력 (14점)
+- **첫 3초 임팩트** (6점): 긴급성/호기심/문제 제시가 명확한가?
+- **시각적 후킹 요소** (5점): Before/After 즉시 제공, 제품 클로즈업, 인플루언서 얼굴 등
+- **오프닝 메시지** (3점): 숫자/통계/구체적 효과 언급
+
+### 2. 신뢰도 구축 (13점)
+- **사회적 증거** (6점): 판매 수치, 리뷰 언급, 인기 증명
+- **과학적/전문적 증명** (4점): 성분 설명, 테스트 결과, 전문가 의견
+- **진정성 신호** (3점): "내돈내산", "솔직 후기", 실제 사용 장면
+
+### 3. 제품 시연 효과성 (11점)
+- **Before/After 명확성** (4점): 분할 화면, 시연 장면 충분
+- **제품 등장 빈도** (4점): 제품이 충분히 보이는가
+- **차별점 증명** (3점): 타 제품 대비 장점 시연
+
+### 4. 오디오 품질 (8점)
+- **배경음악** (3점): 120-130 BPM, 콘텐츠와 어울림
+- **음성 톤** (3점): 명료한 발음, 적절한 속도
+- **믹싱** (2점): 음성 명확히 들림, 배경음과 밸런스
+
+### 5. 편집 & 페이싱 (8점)
+- **컷 리듬** (3점): 2-3초/컷, 지루하지 않은 템포
+- **영상 길이** (3점): 30-90초 최적 길이
+- **텍스트 오버레이** (2점): 핵심 메시지 자막 강조
+
+### 6. 스토리텔링 구조 (7점)
+- **문제-해결 구조** (4점): 문제 제시 → 제품 소개 → CTA
+- **감정 여정** (3점): 공감 → 기대 → 만족 흐름
+
+### 7. CTA 명확성 (6점)
+- **가격/혜택 정보** (3점): 가격, 할인율 명시
+- **구매처 안내** (3점): 링크, 쿠폰 코드, 구매 방법
+
+### 8. 비주얼 품질 (3점)
+- **조명/해상도** (2점): 밝고 선명한 화질
+- **구도/색감** (1점): 제품이 잘 보이는 구도
+
+## 출력 형식 (JSON)
+
+반드시 다음 JSON 형식으로 응답하세요. 마크다운 코드 블록(\`\`\`)을 사용하지 마세요.
+
+{
+  "opening_hook": {
+    "score": 0-14,
+    "reason": "구체적 분석 (1-2문장)"
+  },
+  "credibility": {
+    "score": 0-13,
+    "reason": "구체적 분석 (1-2문장)"
+  },
+  "product_demo": {
+    "score": 0-11,
+    "reason": "구체적 분석 (1-2문장)"
+  },
+  "audio_quality": {
+    "score": 0-8,
+    "reason": "구체적 분석 (1-2문장)"
+  },
+  "editing": {
+    "score": 0-8,
+    "reason": "구체적 분석 (1-2문장)"
+  },
+  "storytelling": {
+    "score": 0-7,
+    "reason": "구체적 분석 (1-2문장)"
+  },
+  "cta_clarity": {
+    "score": 0-6,
+    "reason": "구체적 분석 (1-2문장)"
+  },
+  "visual_quality": {
+    "score": 0-3,
+    "reason": "구체적 분석 (1-2문장)"
+  }
+}`;
   
   try {
-    // 4개 에이전트 병렬 실행
-    const results = await Promise.all(
-      agents.map(async (agent) => {
-        try {
-          const result = await model.generateContent(agent.prompt);
-          const text = result.response.text();
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          return jsonMatch ? { name: agent.name, data: JSON.parse(jsonMatch[0]) } : null;
-        } catch (error) {
-          console.error(`Agent ${agent.name} failed:`, error.message);
-          return null;
-        }
-      })
-    );
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
     
-    // 결과 통합 및 평균화
-    const scores = {
-      opening_hook: { score: 0, max: 14, reason: '' },
-      credibility: { score: 0, max: 13, reason: '' },
-      product_demo: { score: 0, max: 11, reason: '' },
-      audio_quality: { score: 0, max: 8, reason: '' },
-      editing: { score: 0, max: 8, reason: '' },
-      storytelling: { score: 0, max: 7, reason: '' },
-      cta_clarity: { score: 0, max: 6, reason: '' },
-      visual_quality: { score: 0, max: 3, reason: '' }
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonText = responseText.trim();
+    
+    // Remove markdown code blocks if present
+    jsonText = jsonText.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
+    
+    // Extract first complete JSON object using brace counting
+    let braceCount = 0;
+    let jsonStart = -1;
+    let jsonEnd = -1;
+    
+    for (let i = 0; i < jsonText.length; i++) {
+      if (jsonText[i] === '{') {
+        if (braceCount === 0) jsonStart = i;
+        braceCount++;
+      } else if (jsonText[i] === '}') {
+        braceCount--;
+        if (braceCount === 0 && jsonStart !== -1) {
+          jsonEnd = i + 1;
+          break;
+        }
+      }
+    }
+    
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error('No valid JSON found in response');
+    }
+    
+    const extractedJson = jsonText.substring(jsonStart, jsonEnd);
+    const parsedData = JSON.parse(extractedJson);
+    
+    // Validate and cap scores
+    const maxScores = {
+      opening_hook: 14,
+      credibility: 13,
+      product_demo: 11,
+      audio_quality: 8,
+      editing: 8,
+      storytelling: 7,
+      cta_clarity: 6,
+      visual_quality: 3
     };
     
-    // 각 에이전트 결과 수집
-    const video1 = results.find(r => r?.name === 'video_agent_1')?.data;
-    const video2 = results.find(r => r?.name === 'video_agent_2')?.data;
-    const video3 = results.find(r => r?.name === 'video_agent_3')?.data;
-    const audio1 = results.find(r => r?.name === 'audio_agent_1')?.data;
-    
-    // 오프닝 후킹력: video1 + video3 평균
-    if (video1?.opening_hook && video3?.opening_hook_2) {
-      scores.opening_hook.score = Math.round((video1.opening_hook.score + video3.opening_hook_2.score) / 2);
-      scores.opening_hook.reason = video1.opening_hook.reason;
-    } else if (video1?.opening_hook) {
-      scores.opening_hook.score = video1.opening_hook.score;
-      scores.opening_hook.reason = video1.opening_hook.reason;
-    }
-    
-    // 신뢰도: video2 + audio1 평균
-    if (video2?.credibility && audio1?.credibility_2) {
-      scores.credibility.score = Math.round((video2.credibility.score + audio1.credibility_2.score) / 2);
-      scores.credibility.reason = video2.credibility.reason;
-    } else if (video2?.credibility) {
-      scores.credibility.score = video2.credibility.score;
-      scores.credibility.reason = video2.credibility.reason;
-    }
-    
-    // 제품 시연: video1만 사용
-    if (video1?.product_demo) {
-      scores.product_demo.score = video1.product_demo.score;
-      scores.product_demo.reason = video1.product_demo.reason;
-    }
-    
-    // 오디오 품질: audio1만 사용
-    if (audio1?.audio_quality) {
-      scores.audio_quality.score = audio1.audio_quality.score;
-      scores.audio_quality.reason = audio1.audio_quality.reason;
-    }
-    
-    // 편집 완성도: video2만 사용
-    if (video2?.editing) {
-      scores.editing.score = video2.editing.score;
-      scores.editing.reason = video2.editing.reason;
-    }
-    
-    // 스토리텔링: video2만 사용
-    if (video2?.storytelling) {
-      scores.storytelling.score = video2.storytelling.score;
-      scores.storytelling.reason = video2.storytelling.reason;
-    }
-    
-    // CTA 명확성: video3만 사용
-    if (video3?.cta_clarity) {
-      scores.cta_clarity.score = video3.cta_clarity.score;
-      scores.cta_clarity.reason = video3.cta_clarity.reason;
-    }
-    
-    // 비주얼 품질: video1만 사용
-    if (video1?.visual_quality) {
-      scores.visual_quality.score = video1.visual_quality.score;
-      scores.visual_quality.reason = video1.visual_quality.reason;
+    const scores = {};
+    for (const [key, maxScore] of Object.entries(maxScores)) {
+      const itemData = parsedData[key] || {};
+      let score = parseInt(itemData.score) || 0;
+      
+      // Cap score at maximum
+      if (score > maxScore) score = maxScore;
+      if (score < 0) score = 0;
+      
+      scores[key] = {
+        score: score,
+        max: maxScore,
+        reason: itemData.reason || '분석 완료'
+      };
     }
     
     const total_score = Object.values(scores).reduce((sum, item) => sum + item.score, 0);
     
-    console.log(`Multi-agent analysis complete. Total score: ${total_score}`);
+    console.log(`Video analysis complete. Total score: ${total_score}`);
     
     return {
       scores,
