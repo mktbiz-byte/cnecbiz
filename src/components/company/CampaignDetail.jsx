@@ -1345,7 +1345,8 @@ export default function CampaignDetail() {
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
             .update({ 
-              status: 'filming'
+              status: 'filming',
+              guide_confirmed: true
             })
             .eq('id', participantId)
             .select()
