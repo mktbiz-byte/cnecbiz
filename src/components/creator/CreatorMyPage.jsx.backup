@@ -61,7 +61,7 @@ const CreatorMyPage = () => {
     }
   }
 
-  const handleVideoUpload = async (participantId, files, weekNumber = null) => {
+  const handleVideoUpload = async (participantId, files) => {
     try {
       setUploading(true)
 
@@ -69,8 +69,7 @@ const CreatorMyPage = () => {
       
       for (const file of files) {
         const fileExt = file.name.split('.').pop()
-        const weekPrefix = weekNumber ? `week${weekNumber}_` : ''
-        const fileName = `${participantId}/${weekPrefix}${Date.now()}.${fileExt}`
+        const fileName = `${participantId}/${Date.now()}.${fileExt}`
         
         const { data, error } = await supabaseKorea.storage
           .from('campaign-videos')
@@ -91,22 +90,12 @@ const CreatorMyPage = () => {
       }
 
       // 업로드된 파일 정보를 DB에 저장
-      let updateData = {}
-      if (weekNumber) {
-        // 4주 챌린지: 주차별 필드에 저장
-        updateData[`week${weekNumber}_video`] = uploadedFiles
-        updateData[`week${weekNumber}_video_status`] = 'uploaded'
-      } else {
-        // 일반 캠페인: video_files에 저장
-        updateData = {
-          video_files: uploadedFiles,
-          video_status: 'uploaded'
-        }
-      }
-      
       const { error: updateError } = await supabaseKorea
         .from('campaign_participants')
-        .update(updateData)
+        .update({
+          video_files: uploadedFiles,
+          video_status: 'uploaded'
+        })
         .eq('id', participantId)
 
       if (updateError) throw updateError
@@ -435,153 +424,18 @@ const CreatorMyPage = () => {
                         return <p className="text-sm text-gray-700 whitespace-pre-wrap">{guide}</p>
                       } else if (guide && typeof guide === 'object') {
                         return (
-// 4주 챌린지 가이드 렌더링 (116~128줄 대체)
-} else if (guide && typeof guide === 'object') {
-  // 4주 챌린지 또는 올영 가이드
-  const isOliveyoung = campaign.campaigns?.campaign_type === 'oliveyoung' || campaign.campaigns?.campaign_type === 'oliveyoung_sale'
-  const is4WeekChallenge = campaign.campaigns?.campaign_type === '4week_challenge'
-  
-  if (is4WeekChallenge) {
-    // 4주 챌린지 상세 가이드
-    return (
-      <div className="space-y-6">
-        {['week1', 'week2', 'week3', 'week4'].map((weekKey, index) => {
-          const weekNum = index + 1
-          const weekGuide = guide[weekKey]
-          
-          if (!weekGuide) return null
-          
-          // 문자열인 경우 (오래된 형식)
-          if (typeof weekGuide === 'string') {
-            return (
-              <div key={weekKey} className="bg-white rounded-lg border p-4">
-                <h4 className="font-bold text-lg mb-3 text-purple-700">
-                  📅 {weekNum}주차 가이드
-                </h4>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{weekGuide}</p>
-              </div>
-            )
-          }
-          
-          // 객체인 경우 (AI 생성 가이드)
-          return (
-            <div key={weekKey} className="bg-white rounded-lg border-2 border-purple-200 p-5">
-              <h4 className="font-bold text-xl mb-4 text-purple-700 flex items-center">
-                📅 {weekNum}주차 가이드
-              </h4>
-              
-              {/* 제품 정보 */}
-              {weekGuide.product_info && (
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded mb-4">
-                  <h5 className="font-bold text-gray-900 mb-2">📦 제품 정보</h5>
-                  <p className="text-sm text-gray-700">{weekGuide.product_info}</p>
-                </div>
-              )}
-              
-              {/* 미션 */}
-              {weekGuide.mission && (
-                <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded mb-4">
-                  <h5 className="font-bold text-gray-900 mb-2">🎯 미션</h5>
-                  <p className="text-sm text-gray-700">{weekGuide.mission}</p>
-                </div>
-              )}
-              
-              {/* 필수 대사 */}
-              {weekGuide.required_dialogues && weekGuide.required_dialogues.length > 0 && (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-4">
-                  <h5 className="font-bold text-gray-900 mb-3">💬 필수 대사</h5>
-                  <ul className="space-y-2">
-                    {weekGuide.required_dialogues.map((dialogue, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <span className="bg-yellow-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
-                          {idx + 1}
-                        </span>
-                        <span className="text-sm text-gray-700">"{dialogue}"</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {/* 필수 촬영 장면 */}
-              {weekGuide.required_scenes && weekGuide.required_scenes.length > 0 && (
-                <div className="bg-purple-50 border-l-4 border-purple-400 p-4 rounded mb-4">
-                  <h5 className="font-bold text-gray-900 mb-3">🎬 필수 촬영 장면</h5>
-                  <ul className="space-y-2">
-                    {weekGuide.required_scenes.map((scene, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <span className="bg-purple-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0 mt-0.5">
-                          {idx + 1}
-                        </span>
-                        <span className="text-sm text-gray-700">{scene}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {/* 참고 영상 */}
-              {weekGuide.reference_urls && weekGuide.reference_urls.length > 0 && (
-                <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded mb-4">
-                  <h5 className="font-bold text-gray-900 mb-3">🔗 참고 영상</h5>
-                  {weekGuide.reference_urls.map((url, idx) => (
-                    <a
-                      key={idx}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:underline block mb-1"
-                    >
-                      {url}
-                    </a>
-                  ))}
-                  <p className="text-xs text-gray-600 mt-2">⚠️ 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.</p>
-                </div>
-              )}
-              
-              {/* 해시태그 */}
-              {weekGuide.hashtags && weekGuide.hashtags.length > 0 && (
-                <div className="bg-pink-50 border-l-4 border-pink-400 p-4 rounded mb-4">
-                  <h5 className="font-bold text-gray-900 mb-3">🏷️ 필수 해시태그</h5>
-                  <div className="flex flex-wrap gap-2">
-                    {weekGuide.hashtags.map((tag, idx) => (
-                      <span key={idx} className="bg-pink-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* 주의사항 */}
-              {weekGuide.cautions && (
-                <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
-                  <h5 className="font-bold text-gray-900 mb-2">⚠️ 주의사항</h5>
-                  <p className="text-sm text-gray-700">{weekGuide.cautions}</p>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    )
-  } else {
-    // 올영 또는 기타 객체 형식 가이드
-    return (
-      <div className="space-y-4">
-        {Object.entries(guide).map(([key, value]) => (
-          <div key={key}>
-            <h4 className="font-medium text-gray-900 mb-2">
-              {key.toUpperCase().replace('WEEK', 'Week ').replace('STEP', 'Step ')}
-            </h4>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">{value}</p>
-          </div>
-        ))}
-      </div>
-    )
-  }
-}
-
+                          <div className="space-y-4">
+                            {Object.entries(guide).map(([key, value]) => (
+                              <div key={key}>
+                                <h4 className="font-medium text-gray-900 mb-2">
+                                  {key.toUpperCase().replace('WEEK', 'Week ').replace('STEP', 'Step ')}
+                                </h4>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{value}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      }
                       return <p className="text-sm text-gray-500">가이드가 없습니다.</p>
                     })()}
                   </div>
@@ -617,140 +471,46 @@ const CreatorMyPage = () => {
                       <Upload className="w-5 h-5 mr-2" />
                       영상 업로드
                     </h3>
+                    {campaign.video_files && campaign.video_files.length > 0 && (
+                      <button
+                        onClick={() => navigate(`/creator/video-feedback?participantId=${campaign.id}`)}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex items-center"
+                      >
+                        <MessageSquare className="w-4 h-4 mr-1" />
+                        피드백 확인
+                      </button>
+                    )}
                   </div>
-                  
-                  {campaign.campaigns?.campaign_type === '4week_challenge' ? (
-                    // 4주 챌린지: 주차별 영상 업로드
-                    <div className="space-y-4">
-                      {[1, 2, 3, 4].map((weekNum) => {
-                        const weekKey = `week${weekNum}_video`
-                        const weekVideo = campaign[weekKey]
-                        const weekDeadlineKey = `week${weekNum}_deadline`
-                        const weekDeadline = campaign.campaigns?.[weekDeadlineKey]
-                        
-                        return (
-                          <div key={weekNum} className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <h4 className="font-bold text-gray-900">
-                                  📹 {weekNum}주차 영상
-                                </h4>
-                                {weekDeadline && (
-                                  <p className="text-xs text-red-600 mt-1">
-                                    마감: {new Date(weekDeadline).toLocaleDateString('ko-KR')}
-                                  </p>
-                                )}
-                              </div>
-                              {weekVideo ? (
-                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                                  ✓ 제출완료
-                                </span>
-                              ) : (
-                                <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">
-                                  미제출
-                                </span>
-                              )}
-                            </div>
-                            
-                            {weekVideo ? (
-                              <div className="space-y-2">
-                                {Array.isArray(weekVideo) ? (
-                                  weekVideo.map((file, index) => (
-                                    <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border">
-                                      <div className="flex items-center">
-                                        <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
-                                        <span className="text-sm text-gray-700">{file.name}</span>
-                                      </div>
-                                      <a
-                                        href={file.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                                      >
-                                        <Eye className="w-4 h-4 mr-1" />
-                                        보기
-                                      </a>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border">
-                                    <div className="flex items-center">
-                                      <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
-                                      <span className="text-sm text-gray-700">
-                                        {typeof weekVideo === 'string' ? `${weekNum}주차 영상` : weekVideo.name}
-                                      </span>
-                                    </div>
-                                    <a
-                                      href={typeof weekVideo === 'string' ? weekVideo : weekVideo.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                                    >
-                                      <Eye className="w-4 h-4 mr-1" />
-                                      보기
-                                    </a>
-                                  </div>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    setSelectedCampaign({...campaign, weekNumber: weekNum})
-                                    setShowUploadModal(true)
-                                  }}
-                                  className="w-full px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                                >
-                                  재업로드
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setSelectedCampaign({...campaign, weekNumber: weekNum})
-                                  setShowUploadModal(true)
-                                }}
-                                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                              >
-                                {weekNum}주차 영상 업로드
-                              </button>
-                            )}
+                  {campaign.video_files && campaign.video_files.length > 0 ? (
+                    <div className="space-y-2">
+                      {campaign.video_files.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                          <div className="flex items-center">
+                            <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
+                            <span className="text-sm text-gray-700">{file.name}</span>
                           </div>
-                        )
-                      })}
+                          <a
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            보기
+                          </a>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    // 일반 캠페인: 단일 영상 업로드
-                    <>
-                      {campaign.video_files && campaign.video_files.length > 0 ? (
-                        <div className="space-y-2">
-                          {campaign.video_files.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                              <div className="flex items-center">
-                                <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
-                                <span className="text-sm text-gray-700">{file.name}</span>
-                              </div>
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                              >
-                                <Eye className="w-4 h-4 mr-1" />
-                                보기
-                              </a>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setSelectedCampaign(campaign)
-                            setShowUploadModal(true)
-                          }}
-                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                        >
-                          영상 업로드
-                        </button>
-                      )}
-                    </>
+                    <button
+                      onClick={() => {
+                        setSelectedCampaign(campaign)
+                        setShowUploadModal(true)
+                      }}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      영상 업로드
+                    </button>
                   )}
                 </div>
 
@@ -849,7 +609,7 @@ const VideoUploadModal = ({ campaign, onClose, onUpload, uploading }) => {
       alert('업로드할 파일을 선택해주세요.')
       return
     }
-    onUpload(campaign.id, files, campaign.weekNumber)
+    onUpload(campaign.id, files)
   }
 
   return (
