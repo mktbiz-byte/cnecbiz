@@ -1031,15 +1031,18 @@ export default function CampaignDetail() {
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              // 주차별 마감일 처리
               let deadlineText = ''
-              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
-                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
-                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
-                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              if (campaign.campaign_type === '4week_challenge') {
+                // 4주 챌린지: 해당 주차 마감일 사용
+                const weekDeadlineField = `week${weekNumber}_deadline`
+                const weekDeadline = campaign[weekDeadlineField]
+                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                // 올리브영: STEP1 마감일 사용
+                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
               } else {
-                deadlineText = campaign.content_submission_deadline || '미정'
+                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
               }
 
               await fetch('/.netlify/functions/send-kakao-notification', {
@@ -1140,15 +1143,18 @@ export default function CampaignDetail() {
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              // 주차별 마감일 처리
               let deadlineText = ''
-              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
-                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
-                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
-                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              if (campaign.campaign_type === '4week_challenge') {
+                // 4주 챌린지: 해당 주차 마감일 사용
+                const weekDeadlineField = `week${weekNumber}_deadline`
+                const weekDeadline = campaign[weekDeadlineField]
+                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                // 올리브영: STEP1 마감일 사용
+                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
               } else {
-                deadlineText = campaign.content_submission_deadline || '미정'
+                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
               }
 
               await fetch('/.netlify/functions/send-kakao-notification', {
@@ -1275,15 +1281,18 @@ export default function CampaignDetail() {
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              // 주차별 마감일 처리
               let deadlineText = ''
-              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
-                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
-                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
-                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              if (campaign.campaign_type === '4week_challenge') {
+                // 4주 챌린지: 해당 주차 마감일 사용
+                const weekDeadlineField = `week${weekNumber}_deadline`
+                const weekDeadline = campaign[weekDeadlineField]
+                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                // 올리브영: STEP1 마감일 사용
+                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
               } else {
-                deadlineText = campaign.content_submission_deadline || '미정'
+                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
               }
 
               await fetch('/.netlify/functions/send-kakao-notification', {
