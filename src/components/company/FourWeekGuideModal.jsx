@@ -279,26 +279,78 @@ JSON 형식으로만 응답해주세요.`
 
     setSending(true)
     try {
-      // First save the guide
+      // First save the guide to campaign
       await handleSaveWeek(weekToSend)
 
-      // Get all participants for this campaign
-      const { data: participants, error: participantsError } = await supabase
-        .from('participants')
-        .select('user_id, user_profiles(email, name)')
+      // Get the saved guide data from challenge_weekly_guides_ai
+      const { data: campaignData, error: campaignError } = await supabase
+        .from('campaigns')
+        .select('challenge_weekly_guides_ai, challenge_weekly_guides')
+        .eq('id', campaign.id)
+        .single()
+
+      if (campaignError) throw campaignError
+
+      // Get guide from AI guides or fallback to basic guides
+      const aiGuides = typeof campaignData.challenge_weekly_guides_ai === 'string'
+        ? JSON.parse(campaignData.challenge_weekly_guides_ai)
+        : campaignData.challenge_weekly_guides_ai
+      
+      const weekGuide = aiGuides?.[weekToSend] || campaignData.challenge_weekly_guides?.[weekToSend]
+
+      if (!weekGuide) {
+        alert(`${weekNum}주차 가이드를 찾을 수 없습니다. 먼저 저장해주세요.`)
+        return
+      }
+
+      // Get all applications for this campaign
+      const { data: applications, error: applicationsError } = await supabase
+        .from('applications')
+        .select('id, user_id, custom_guide')
         .eq('campaign_id', campaign.id)
-        .eq('status', 'selected')
+        .eq('is_selected', true)
 
-      if (participantsError) throw participantsError
+      if (applicationsError) throw applicationsError
 
-      if (!participants || participants.length === 0) {
+      if (!applications || applications.length === 0) {
         alert('선정된 참여자가 없습니다.')
         return
       }
 
+      // Save guide to each application's custom_guide field
+      const updatePromises = applications.map(async (app) => {
+        // Get existing custom_guide
+        const existingGuide = app.custom_guide || {}
+        
+        // Update with current week guide
+        const updatedGuide = {
+          ...existingGuide,
+          [weekToSend]: {
+            ...weekGuide,
+            delivered_at: new Date().toISOString(),
+            week_number: parseInt(weekNum)
+          }
+        }
+
+        // Update application
+        return supabase
+          .from('applications')
+          .update({ custom_guide: updatedGuide })
+          .eq('id', app.id)
+      })
+
+      const results = await Promise.all(updatePromises)
+      
+      // Check for errors
+      const errors = results.filter(r => r.error)
+      if (errors.length > 0) {
+        console.error('Some updates failed:', errors)
+        throw new Error(`${errors.length}개 업데이트 실패`)
+      }
+
       // TODO: Send email/notification to participants
-      // For now, just show success message
-      alert(`✅ ${weekNum}주차 가이드가 ${participants.length}명의 참여자에게 전달되었습니다!`)
+      
+      alert(`✅ ${weekNum}주차 가이드가 ${applications.length}명의 참여자에게 전달되었습니다!`)
       
     } catch (error) {
       console.error('Error sending guide:', error)
