@@ -38,7 +38,43 @@ export default function FourWeekGuideModal({
         precautions: campaign.product_key_points || ''
       })
 
-      if (campaign.challenge_weekly_guides) {
+      // Load AI guides first if exist (priority)
+      if (campaign.challenge_weekly_guides_ai) {
+        const aiGuides = typeof campaign.challenge_weekly_guides_ai === 'string'
+          ? JSON.parse(campaign.challenge_weekly_guides_ai)
+          : campaign.challenge_weekly_guides_ai
+
+        const loadedGuides = {}
+        ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
+          const weekData = aiGuides[week]
+          if (weekData) {
+            // AI guide format
+            loadedGuides[week] = {
+              mission: weekData.mission || '',
+              required_dialogue: Array.isArray(weekData.required_dialogues)
+                ? weekData.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n')
+                : (weekData.required_dialogue || ''),
+              required_scenes: Array.isArray(weekData.required_scenes)
+                ? weekData.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n')
+                : (weekData.required_scenes || ''),
+              reference: Array.isArray(weekData.reference_urls) && weekData.reference_urls.length > 0
+                ? weekData.reference_urls[0]
+                : (weekData.reference || ''),
+              hashtags: weekData.hashtags || []
+            }
+          } else {
+            loadedGuides[week] = {
+              mission: '',
+              required_dialogue: '',
+              required_scenes: '',
+              reference: '',
+              hashtags: []
+            }
+          }
+        })
+        setWeeklyGuides(loadedGuides)
+      } else if (campaign.challenge_weekly_guides) {
+        // Fallback to old format
         const guides = campaign.challenge_weekly_guides
         setWeeklyGuides({
           week1: {
@@ -68,22 +104,6 @@ export default function FourWeekGuideModal({
             required_scenes: guides.week4?.required_scenes || '',
             reference: guides.week4?.reference || '',
             hashtags: []
-          }
-        })
-      }
-
-      // Load AI guides if exist
-      if (campaign.challenge_weekly_guides_ai) {
-        const aiGuides = campaign.challenge_weekly_guides_ai
-        ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
-          if (aiGuides[week]?.hashtags) {
-            setWeeklyGuides(prev => ({
-              ...prev,
-              [week]: {
-                ...prev[week],
-                hashtags: aiGuides[week].hashtags
-              }
-            }))
           }
         })
       }
@@ -198,8 +218,12 @@ JSON 형식으로만 응답해주세요.`
         }
       }))
 
-      // Save to database using challenge_weekly_guides JSONB column
-      const existingGuides = campaign.challenge_weekly_guides || {}
+      // Save to database using challenge_weekly_guides_ai JSONB column
+      const existingGuides = campaign.challenge_weekly_guides_ai 
+        ? (typeof campaign.challenge_weekly_guides_ai === 'string' 
+            ? JSON.parse(campaign.challenge_weekly_guides_ai) 
+            : campaign.challenge_weekly_guides_ai)
+        : {}
       const updatedGuides = {
         ...existingGuides,
         [weekToGenerate]: generatedGuide
@@ -208,7 +232,7 @@ JSON 형식으로만 응답해주세요.`
       const { error } = await supabase
         .from('campaigns')
         .update({ 
-          challenge_weekly_guides: updatedGuides,
+          challenge_weekly_guides_ai: updatedGuides,
           guide_generated_at: new Date().toISOString()
         })
         .eq('id', campaign.id)
@@ -230,17 +254,22 @@ JSON 형식으로만 응답해주세요.`
       const weekData = weeklyGuides[weekToSave]
       const weekNum = weekToSave.replace('week', '')
 
-      // Load existing guides
-      const existingGuides = campaign.challenge_weekly_guides || {}
+      // Load existing AI guides
+      const existingGuides = campaign.challenge_weekly_guides_ai
+        ? (typeof campaign.challenge_weekly_guides_ai === 'string'
+            ? JSON.parse(campaign.challenge_weekly_guides_ai)
+            : campaign.challenge_weekly_guides_ai)
+        : {}
       
-      // Update with current week
+      // Update with current week - convert to AI format
       const updatedGuides = {
         ...existingGuides,
         [weekToSave]: {
           mission: weekData.mission,
-          required_dialogue: weekData.required_dialogue,
-          required_scenes: weekData.required_scenes,
-          reference: weekData.reference
+          required_dialogues: weekData.required_dialogue.split('\n').filter(d => d.trim()),
+          required_scenes: weekData.required_scenes.split('\n').filter(s => s.trim()),
+          reference_urls: weekData.reference ? [weekData.reference] : [],
+          hashtags: weekData.hashtags || []
         }
       }
 
@@ -251,7 +280,7 @@ JSON 형식으로만 응답해주세요.`
           product_name: commonData.product_name,
           product_features: commonData.product_features,
           product_key_points: commonData.precautions,
-          challenge_weekly_guides: updatedGuides
+          challenge_weekly_guides_ai: updatedGuides
         })
         .eq('id', campaign.id)
 
