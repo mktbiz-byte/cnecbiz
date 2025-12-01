@@ -254,18 +254,6 @@ export default function FeaturedCreatorManagementPageNew() {
       const reliability = capiResult.reliability || 0
 
       const newCreator = {
-        platform: formData.platform,
-        channel_name: formData.channel_name,
-        channel_url: formData.channel_url,
-        profile_image: capiResult.channel_info?.profile_image || '', // Get from CAPI analysis
-        followers: capiResult.channel_info?.subscribers || 0,
-        avg_views: capiResult.channel_info?.total_views || 0,
-        avg_likes: 0, // Not available in current CAPI
-        avg_comments: 0, // Not available in current CAPI
-        category: capiResult.category || '',
-        target_audience: capiResult.target_audience || '',
-        content_style: capiResult.content_style || '',
-        regions: formData.regions,
         supported_campaigns: formData.supported_campaigns,
         capi_score: totalScore,
         capi_grade: grade,
