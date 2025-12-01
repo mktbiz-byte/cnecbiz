@@ -1494,7 +1494,6 @@ export default function CampaignDetail() {
               } catch (alimtalkError) {
                 console.error('Alimtalk error:', alimtalkError)
               }
-            }
           }
 
           // 이메일 발송
