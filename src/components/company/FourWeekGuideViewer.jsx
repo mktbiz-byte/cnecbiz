@@ -34,9 +34,10 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate }) {
           reference_urls: aiWeekData.reference_urls || (oldWeekData.reference ? [oldWeekData.reference] : [])
         }
       } else if (aiWeekData && typeof aiWeekData === 'string') {
-        // AI guide is simple text, use old structured data if available
+        // AI guide is simple text - prioritize AI text
         mergedGuides[week] = {
-          mission: oldWeekData.mission || aiWeekData,
+          mission: aiWeekData,  // Use AI guide text as mission
+          ai_description: aiWeekData,  // Also keep as AI description
           required_dialogues: oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : [],
           required_scenes: oldWeekData.required_scenes ? [oldWeekData.required_scenes] : [],
           hashtags: [],
