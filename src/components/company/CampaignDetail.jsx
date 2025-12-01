@@ -606,7 +606,7 @@ export default function CampaignDetail() {
   // 송장번호 템플릿 다운로드
   const downloadTrackingTemplate = () => {
     const data = participants.map(p => ({
-      '크리에이터명': p.creator_name,
+      '크리에이터명': p.creator_name || p.applicant_name || '이름 없음',
       '송장번호': ''
     }))
 
