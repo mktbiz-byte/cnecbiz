@@ -212,6 +212,8 @@ JSON 형식으로만 응답해주세요.`
         [weekToGenerate]: generatedGuide
       }
       
+      console.log('🔍 Saving AI guide to DB:', JSON.stringify(updatedGuides, null, 2))
+      
       const { error } = await supabase
         .from('campaigns')
         .update({ 
@@ -260,6 +262,8 @@ JSON 형식으로만 응답해주세요.`
           hashtags: weekData.hashtags || []
         }
       }
+
+      console.log('💾 handleSaveWeek - Saving to DB:', JSON.stringify(updatedGuides, null, 2))
 
       const { error } = await supabase
         .from('campaigns')
