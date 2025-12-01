@@ -253,7 +253,30 @@ export default function FeaturedCreatorManagementPageNew() {
       const grade = capiResult.grade || calculateCapiGrade(totalScore)
       const reliability = capiResult.reliability || 0
 
+      // Get channel info from CAPI result
+      const channelInfo = capiResult.channel_info || {}
+      const channelName = channelInfo.channel_name || formData.channel_name || 'Unknown'
+      
       const newCreator = {
+        // Required fields
+        source_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID for CAPI-only creators
+        source_country: formData.regions[0] || 'korea',
+        name: channelName,
+        primary_country: formData.regions[0] || 'korea',
+        
+        // Optional profile fields
+        profile_image_url: channelInfo.profile_image_url || null,
+        bio: channelInfo.bio || null,
+        
+        // Platform handles and followers
+        instagram_handle: formData.platform === 'instagram' ? channelInfo.handle : null,
+        instagram_followers: formData.platform === 'instagram' ? channelInfo.followers : null,
+        youtube_handle: formData.platform === 'youtube' ? channelInfo.handle : null,
+        youtube_subscribers: formData.platform === 'youtube' ? channelInfo.followers : null,
+        tiktok_handle: formData.platform === 'tiktok' ? channelInfo.handle : null,
+        tiktok_followers: formData.platform === 'tiktok' ? channelInfo.followers : null,
+        
+        // CAPI fields
         supported_campaigns: formData.supported_campaigns,
         capi_score: totalScore,
         capi_grade: grade,
@@ -262,8 +285,11 @@ export default function FeaturedCreatorManagementPageNew() {
         capi_reliability: reliability,
         capi_analysis: capiResult,
         capi_generated_at: new Date().toISOString(),
+        
+        // Metadata
         featured_type: 'capi',
-        is_active: true
+        is_active: true,
+        active_regions: formData.regions
       }
 
       const { data, error } = await supabaseBiz
