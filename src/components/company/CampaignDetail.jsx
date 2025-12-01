@@ -1049,6 +1049,82 @@ export default function CampaignDetail() {
     }
   }
 
+  // 4주 챌린지 개별 주차 가이드 전달 함수
+  const handleDeliver4WeekGuideByWeek = async (weekNumber) => {
+    if (!campaign.challenge_weekly_guides_ai) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    const participantCount = participants.length
+    if (participantCount === 0) {
+      alert('참여 크리에이터가 없습니다.')
+      return
+    }
+
+    // 개별 메시지 입력 (선택사항)
+    const individualMessage = prompt(`${weekNumber}주차 가이드와 함께 전달할 메시지를 입력하세요 (선택사항):`)
+
+    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const participant of participants) {
+        try {
+          // 가이드 전달 상태 업데이트
+          const updateData = { 
+            guide_confirmed: true
+          }
+          
+          // 개별 메시지가 있으면 추가
+          let message = `${weekNumber}주차 가이드`
+          if (individualMessage && individualMessage.trim()) {
+            message += `\n\n${individualMessage.trim()}`
+          }
+          updateData.additional_message = message
+
+          const { error: updateError } = await supabase
+            .from('applications')
+            .update(updateData)
+            .eq('id', participant.id)
+
+          if (updateError) {
+            throw new Error(updateError.message)
+          }
+
+          // 크리에이터에게 알림 발송
+          await sendGuideDeliveredNotification(
+            participant.user_id,
+            campaign.id,
+            campaign.title,
+            region
+          )
+
+          successCount++
+        } catch (error) {
+          console.error(`Error delivering guide to ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 크리에이터에게 ${weekNumber}주차 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${successCount}명 성공, ${errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliver4WeekGuideByWeek:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
+
   // 올리브영 / 4주 챌린지 가이드 전달 함수
   const handleDeliverOliveYoung4WeekGuide = async () => {
     const hasGuide = campaign.campaign_type === 'oliveyoung_sale' 
@@ -2206,6 +2282,45 @@ export default function CampaignDetail() {
                       전체 전달하기 ({filteredParticipants.length}명)
                     </Button>
                   )}
+                </>
+              )}
+              {campaign.campaign_type === '4week_challenge' && campaign.challenge_weekly_guides_ai && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">주차별 가이드 전달:</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(1)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      1주차 발송
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(2)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      2주차 발송
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(3)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      3주차 발송
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(4)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      4주차 발송
+                    </Button>
+                  </div>
                 </>
               )}
               <Button
