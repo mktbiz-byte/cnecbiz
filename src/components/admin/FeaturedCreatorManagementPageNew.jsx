@@ -248,10 +248,7 @@ export default function FeaturedCreatorManagementPageNew() {
       return
     }
 
-    if (!formData.basic_price || !formData.standard_price || !formData.premium_price || !formData.monthly_price) {
-      alert('모든 패키지 가격을 입력해주세요.')
-      return
-    }
+    // Pricing is optional - skip validation
 
     try {
       const contentScore = capiResult.total_content_score || 0
@@ -274,10 +271,10 @@ export default function FeaturedCreatorManagementPageNew() {
         content_style: capiResult.content_style || '',
         regions: formData.regions,
         supported_campaigns: formData.supported_campaigns,
-        basic_price: parseInt(formData.basic_price.replace(/,/g, '')),
-        standard_price: parseInt(formData.standard_price.replace(/,/g, '')),
-        premium_price: parseInt(formData.premium_price.replace(/,/g, '')),
-        monthly_price: parseInt(formData.monthly_price.replace(/,/g, '')),
+        basic_price: formData.basic_price ? parseInt(formData.basic_price.replace(/,/g, '')) : 0,
+        standard_price: formData.standard_price ? parseInt(formData.standard_price.replace(/,/g, '')) : 0,
+        premium_price: formData.premium_price ? parseInt(formData.premium_price.replace(/,/g, '')) : 0,
+        monthly_price: formData.monthly_price ? parseInt(formData.monthly_price.replace(/,/g, '')) : 0,
         capi_score: totalScore,
         capi_grade: grade,
         capi_content_score: contentScore,
