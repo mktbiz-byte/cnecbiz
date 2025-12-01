@@ -170,20 +170,29 @@ const CreatorMyPage = () => {
     
     // 캠페인 타입별 가이드 반환
     if (campaignData.campaign_type === 'regular') {
-      return campaign.personalized_guide || campaignData.ai_guide || '가이드가 아직 생성되지 않았습니다.'
+      return campaign.personalized_guide || campaignData.ai_generated_guide || campaignData.ai_guide || '가이드가 아직 생성되지 않았습니다.'
     } else if (campaignData.campaign_type === 'oliveyoung') {
       return {
-        step1: campaignData.step1_guide,
-        step2: campaignData.step2_guide,
-        step3: campaignData.step3_guide
+        step1: campaignData.oliveyoung_step1_guide || campaignData.oliveyoung_step1_guide_ai,
+        step2: campaignData.oliveyoung_step2_guide || campaignData.oliveyoung_step2_guide_ai,
+        step3: campaignData.oliveyoung_step3_guide || campaignData.oliveyoung_step3_guide_ai
       }
     } else if (campaignData.campaign_type === '4week_challenge') {
+      const weeklyGuides = campaignData.challenge_weekly_guides_ai || campaignData.challenge_weekly_guides
+      if (weeklyGuides && typeof weeklyGuides === 'object') {
+        return weeklyGuides
+      }
       return {
         week1: campaignData.week1_guide,
         week2: campaignData.week2_guide,
         week3: campaignData.week3_guide,
         week4: campaignData.week4_guide
       }
+    }
+    
+    // 기획형 캠페인 (package_type 존재)
+    if (campaignData.package_type) {
+      return campaign.personalized_guide || campaignData.ai_generated_guide || '가이드가 아직 생성되지 않았습니다.'
     }
     
     return null
