@@ -1254,8 +1254,6 @@ export default function CampaignDetail() {
             .from('applications')
             .update({ 
               guide_confirmed: true,
-              guide_sent: true,
-              guide_sent_at: new Date().toISOString(),
               status: 'filming'
             })
             .eq('id', participantId)
@@ -2023,8 +2021,6 @@ export default function CampaignDetail() {
                               .from('applications')
                               .update({
                                 guide_confirmed: true,
-                                guide_sent: true,
-                                guide_sent_at: new Date().toISOString(),
                                 status: 'filming'
                               })
                               .eq('id', participantId)
