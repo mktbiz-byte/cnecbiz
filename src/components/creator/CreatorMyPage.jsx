@@ -317,7 +317,110 @@ const CreatorMyPage = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     {(() => {
                       const guide = getCampaignGuide(campaign)
+                      
+                      // Try to parse as JSON for structured guide
                       if (typeof guide === 'string') {
+                        try {
+                          const parsed = JSON.parse(guide)
+                          if (parsed && typeof parsed === 'object') {
+                            return (
+                              <div className="space-y-6">
+                                {/* Additional Message at Top */}
+                                {campaign.individual_message && (
+                                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                                    <h4 className="font-bold text-gray-900 mb-2">📢 특별 전달사항</h4>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{campaign.individual_message}</p>
+                                  </div>
+                                )}
+                                
+                                {/* Campaign Info */}
+                                {parsed.campaign_title && (
+                                  <div className="bg-white rounded-lg p-4 border">
+                                    <div className="grid grid-cols-3 gap-4 text-sm">
+                                      <div>
+                                        <p className="text-gray-600 mb-1">캐페인 제목</p>
+                                        <p className="font-semibold">{parsed.campaign_title}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-600 mb-1">플랫폼</p>
+                                        <p className="font-semibold uppercase">{parsed.target_platform}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-600 mb-1">영상 길이</p>
+                                        <p className="font-semibold">{parsed.video_duration}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Shooting Scenes */}
+                                {parsed.shooting_scenes && Array.isArray(parsed.shooting_scenes) && (
+                                  <div className="bg-white rounded-lg border p-4">
+                                    <h4 className="font-bold text-lg mb-4">🎥 촬영 장면 구성 ({parsed.shooting_scenes.length}개)</h4>
+                                    <div className="space-y-4">
+                                      {parsed.shooting_scenes.map((scene, index) => (
+                                        <div key={index} className="border-l-4 border-purple-500 pl-4 py-2 bg-gray-50 rounded-r">
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <span className="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                              장면 {scene.order}
+                                            </span>
+                                            <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                              {scene.scene_type}
+                                            </span>
+                                          </div>
+                                          <p className="text-sm text-gray-700 mb-2">
+                                            <span className="font-semibold">장면:</span> {scene.scene_description}
+                                          </p>
+                                          <p className="text-sm text-gray-700 mb-2">
+                                            <span className="font-semibold">💬 대사:</span> "{scene.dialogue}"
+                                          </p>
+                                          <p className="text-sm text-gray-600">
+                                            <span className="font-semibold">💡 촬영 팁:</span> {scene.shooting_tip}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Required Hashtags */}
+                                {parsed.required_hashtags && (
+                                  <div className="bg-white rounded-lg border p-4">
+                                    <h4 className="font-bold text-lg mb-4">🏷️ 필수 해시태그</h4>
+                                    <div className="space-y-3">
+                                      {parsed.required_hashtags.real && parsed.required_hashtags.real.length > 0 && (
+                                        <div>
+                                          <p className="text-sm text-gray-600 mb-2">리얼 해시태그</p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {parsed.required_hashtags.real.map((tag, index) => (
+                                              <span key={index} className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">
+                                                #{tag}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {parsed.required_hashtags.product && parsed.required_hashtags.product.length > 0 && (
+                                        <div>
+                                          <p className="text-sm text-gray-600 mb-2">제품 해시태그</p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {parsed.required_hashtags.product.map((tag, index) => (
+                                              <span key={index} className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">
+                                                #{tag}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          }
+                        } catch (e) {
+                          // If parsing fails, show as plain text
+                        }
                         return <p className="text-sm text-gray-700 whitespace-pre-wrap">{guide}</p>
                       } else if (guide && typeof guide === 'object') {
                         return (
