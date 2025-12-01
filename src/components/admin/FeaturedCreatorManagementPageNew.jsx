@@ -27,11 +27,7 @@ export default function FeaturedCreatorManagementPageNew() {
     channel_name: '',
     channel_url: '',
     regions: [],
-    supported_campaigns: [], // 지원 가능한 캠페인 유형
-    basic_price: '',
-    standard_price: '',
-    premium_price: '',
-    monthly_price: ''
+    supported_campaigns: [] // 지원 가능한 캠페인 유형
   })
   
   const [capiResult, setCapiResult] = useState(null)
@@ -248,7 +244,7 @@ export default function FeaturedCreatorManagementPageNew() {
       return
     }
 
-    // Pricing is optional - skip validation
+
 
     try {
       const contentScore = capiResult.total_content_score || 0
@@ -271,10 +267,6 @@ export default function FeaturedCreatorManagementPageNew() {
         content_style: capiResult.content_style || '',
         regions: formData.regions,
         supported_campaigns: formData.supported_campaigns,
-        basic_price: formData.basic_price ? parseInt(formData.basic_price.replace(/,/g, '')) : 0,
-        standard_price: formData.standard_price ? parseInt(formData.standard_price.replace(/,/g, '')) : 0,
-        premium_price: formData.premium_price ? parseInt(formData.premium_price.replace(/,/g, '')) : 0,
-        monthly_price: formData.monthly_price ? parseInt(formData.monthly_price.replace(/,/g, '')) : 0,
         capi_score: totalScore,
         capi_grade: grade,
         capi_content_score: contentScore,
@@ -301,11 +293,7 @@ export default function FeaturedCreatorManagementPageNew() {
         channel_name: '',
         channel_url: '',
         regions: [],
-        supported_campaigns: [],
-        basic_price: '',
-        standard_price: '',
-        premium_price: '',
-        monthly_price: ''
+        supported_campaigns: []
       })
       setCapiResult(null)
     } catch (err) {
@@ -1028,11 +1016,7 @@ export default function FeaturedCreatorManagementPageNew() {
                                 </div>
                               </div>
                             )}
-                            <div className="text-sm text-gray-500">
-                              기본: {creator.basic_price?.toLocaleString()}원 • 
-                              스탠다드: {creator.standard_price?.toLocaleString()}원 • 
-                              프리미엄: {creator.premium_price?.toLocaleString()}원
-                            </div>
+
                           </div>
                           <div className="flex gap-2">
                             {creator.capi_analysis && (
