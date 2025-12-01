@@ -51,8 +51,18 @@ export default function FourWeekGuideModal({
         const aiWeekData = aiGuides?.[week]
         const oldWeekData = oldGuides[week] || {}
         
-        // If AI guide exists and is an object (not a string), use it
-        if (aiWeekData && typeof aiWeekData === 'object') {
+        // If AI guide exists (string or object), use it
+        if (aiWeekData && typeof aiWeekData === 'string') {
+          // AI guide is a simple string description - merge with old guide structure
+          loadedGuides[week] = {
+            mission: oldWeekData.mission || '',
+            required_dialogue: oldWeekData.required_dialogue || '',
+            required_scenes: oldWeekData.required_scenes || '',
+            reference: oldWeekData.reference || '',
+            hashtags: [],
+            ai_description: aiWeekData  // Add AI description
+          }
+        } else if (aiWeekData && typeof aiWeekData === 'object') {
           loadedGuides[week] = {
             mission: aiWeekData.mission || oldWeekData.mission || '',
             required_dialogue: Array.isArray(aiWeekData.required_dialogues)
@@ -73,7 +83,8 @@ export default function FourWeekGuideModal({
             required_dialogue: oldWeekData.required_dialogue || '',
             required_scenes: oldWeekData.required_scenes || '',
             reference: oldWeekData.reference || '',
-            hashtags: []
+            hashtags: [],
+            ai_description: null
           }
         }
       })
@@ -463,6 +474,14 @@ JSON 형식으로만 응답해주세요.`
 
           {/* 현재 주차 가이드 */}
           <div className="space-y-4">
+            {/* AI 생성 가이드 설명 */}
+            {currentWeek.ai_description && (
+              <div className="bg-gradient-to-r from-blue-100 to-cyan-100 border-2 border-blue-300 rounded-lg p-4">
+                <h6 className="text-sm font-semibold text-blue-800 mb-2">🤖 AI 맞춤형 가이드</h6>
+                <p className="text-sm text-blue-900 font-medium whitespace-pre-wrap">{currentWeek.ai_description}</p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 🎯 미션
