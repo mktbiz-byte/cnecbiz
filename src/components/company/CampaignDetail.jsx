@@ -1113,6 +1113,7 @@ export default function CampaignDetail() {
         try {
           // 가이드 전달 상태 업데이트
           const updateData = { 
+            status: 'filming',
             updated_at: new Date().toISOString()
           }
           
@@ -1253,6 +1254,7 @@ export default function CampaignDetail() {
         try {
           // 가이드 전달 상태 업데이트
           const updateData = { 
+            status: 'filming',
             updated_at: new Date().toISOString()
           }
           
