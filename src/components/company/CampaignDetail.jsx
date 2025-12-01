@@ -1021,12 +1021,45 @@ export default function CampaignDetail() {
           }
 
           // 크리에이터에게 알림 발송
-          await sendGuideDeliveredNotification(
-            participant.user_id,
-            campaign.id,
-            campaign.title,
-            region
-          )
+          // user_id와 phone 정보 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
+            .maybeSingle()
+
+          // 팝빌 알림톡 발송
+          if (profile?.phone) {
+            try {
+              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              let deadlineText = ''
+              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
+                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              } else {
+                deadlineText = campaign.content_submission_deadline || '미정'
+              }
+
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  templateCode: '025100001012',
+                  variables: {
+                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '캠페인명': campaign.title,
+                    '제출기한': deadlineText
+                  }
+                })
+              })
+            } catch (alimtalkError) {
+              console.error('Alimtalk error:', alimtalkError)
+            }
+          }
 
           successCount++
         } catch (error) {
@@ -1097,12 +1130,45 @@ export default function CampaignDetail() {
           }
 
           // 크리에이터에게 알림 발송
-          await sendGuideDeliveredNotification(
-            participant.user_id,
-            campaign.id,
-            campaign.title,
-            region
-          )
+          // user_id와 phone 정보 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
+            .maybeSingle()
+
+          // 팝빌 알림톡 발송
+          if (profile?.phone) {
+            try {
+              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              let deadlineText = ''
+              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
+                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              } else {
+                deadlineText = campaign.content_submission_deadline || '미정'
+              }
+
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  templateCode: '025100001012',
+                  variables: {
+                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '캠페인명': campaign.title,
+                    '제출기한': deadlineText
+                  }
+                })
+              })
+            } catch (alimtalkError) {
+              console.error('Alimtalk error:', alimtalkError)
+            }
+          }
 
           successCount++
         } catch (error) {
@@ -1175,12 +1241,45 @@ export default function CampaignDetail() {
           }
 
           // 크리에이터에게 알림 발송
-          await sendGuideDeliveredNotification(
-            participant.user_id,
-            campaign.id,
-            campaign.title,
-            region
-          )
+          // user_id와 phone 정보 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
+            .maybeSingle()
+
+          // 팝빌 알림톡 발송
+          if (profile?.phone) {
+            try {
+              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              let deadlineText = ''
+              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
+                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              } else {
+                deadlineText = campaign.content_submission_deadline || '미정'
+              }
+
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  templateCode: '025100001012',
+                  variables: {
+                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '캠페인명': campaign.title,
+                    '제출기한': deadlineText
+                  }
+                })
+              })
+            } catch (alimtalkError) {
+              console.error('Alimtalk error:', alimtalkError)
+            }
+          }
 
           successCount++
         } catch (error) {
