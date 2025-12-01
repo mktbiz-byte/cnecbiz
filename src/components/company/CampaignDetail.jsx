@@ -1426,27 +1426,30 @@ export default function CampaignDetail() {
             continue
           }
 
-          // 이미 승인된 경우 건너뛰기
-          if (participant.guide_confirmed) {
-            console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already approved`)
-            continue
-          }
-
-          // 이미 영상 제출 이후 단계인 경우 건너뛰기
+          // 이미 영상 제출 이후 단계인 경우 건너뛰기 (재전달은 허용)
           if (['video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)) {
             console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already in ${participant.status} status, skipping guide delivery`)
             errorCount++
             continue
           }
+          
+          // 가이드 재전달 로그
+          if (participant.guide_confirmed) {
+            console.log(`[RE-DELIVERY] Sending guide again to ${(participant.creator_name || participant.applicant_name || '크리에이터')}`)
+          }
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           console.log('[DEBUG] Updating application status to filming:', participantId)
+          
+          // 재전달인 경우 상태를 변경하지 않고 guide_confirmed만 업데이트
+          const updatePayload = { guide_confirmed: true }
+          if (participant.status !== 'filming') {
+            updatePayload.status = 'filming'
+          }
+          
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
-            .update({ 
-              status: 'filming',
-              guide_confirmed: true
-            })
+            .update(updatePayload)
             .eq('id', participantId)
             .select()
           
