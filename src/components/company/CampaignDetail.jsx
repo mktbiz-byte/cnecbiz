@@ -1253,7 +1253,6 @@ export default function CampaignDetail() {
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
             .update({ 
-              guide_confirmed: true,
               status: 'filming'
             })
             .eq('id', participantId)
@@ -2029,7 +2028,6 @@ export default function CampaignDetail() {
                             const { error } = await supabase
                               .from('applications')
                               .update({
-                                guide_confirmed: true,
                                 status: 'filming'
                               })
                               .eq('id', participantId)
