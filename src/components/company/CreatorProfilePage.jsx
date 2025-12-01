@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabaseBiz } from '../../supabaseClient'
+import { supabaseBiz } from '../../lib/supabaseClients'
 
 export default function CreatorProfilePage() {
   const { id } = useParams()
