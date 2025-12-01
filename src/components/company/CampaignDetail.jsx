@@ -2249,6 +2249,7 @@ export default function CampaignDetail() {
                   filteredParticipants={filteredParticipants}
                   onRefresh={fetchParticipants}
                   onCampaignUpdate={fetchCampaignDetail}
+                  supabase={supabase}
                 />
               )}
             </div>
