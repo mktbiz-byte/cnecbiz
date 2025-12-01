@@ -15,6 +15,14 @@ const FeaturedCreatorsPage = () => {
     brandName: ''
   });
   const [sending, setSending] = useState(false);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [selectedCreatorForInvite, setSelectedCreatorForInvite] = useState(null);
+  const [campaignForm, setCampaignForm] = useState({
+    campaignName: '',
+    packageType: '',
+    rewardAmount: '',
+    deadline: ''
+  });
 
   useEffect(() => {
     fetchFeaturedCreators();
@@ -62,6 +70,71 @@ const FeaturedCreatorsPage = () => {
         return [...prev, creator];
       }
     });
+  };
+
+  const handleOpenCampaignModal = (creator) => {
+    setSelectedCreatorForInvite(creator);
+    setShowCampaignModal(true);
+  };
+
+  const handleCampaignInvite = async () => {
+    if (!campaignForm.campaignName || !campaignForm.packageType || !campaignForm.rewardAmount || !campaignForm.deadline) {
+      alert('모든 필드를 입력해주세요.');
+      return;
+    }
+
+    if (!selectedCreatorForInvite) {
+      alert('크리에이터 정보가 없습니다.');
+      return;
+    }
+
+    // 크리에이터 전화번호 추출
+    const creatorPhone = selectedCreatorForInvite.phone || selectedCreatorForInvite.user_profiles?.phone;
+    if (!creatorPhone) {
+      alert('크리에이터의 전화번호가 등록되어 있지 않습니다.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch('/.netlify/functions/send-kakao-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverNum: creatorPhone,
+          receiverName: selectedCreatorForInvite.nickname || selectedCreatorForInvite.creator_name || selectedCreatorForInvite.name,
+          templateCode: '025110001005',
+          variables: {
+            '캠페인명': campaignForm.campaignName,
+            '패키지': campaignForm.packageType,
+            '보상금': campaignForm.rewardAmount + '원',
+            '마감일': campaignForm.deadline,
+            '캠페인링크': 'https://cnec.co.kr'
+          }
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('캠페인 초대 알림톡이 발송되었습니다!');
+        setShowCampaignModal(false);
+        setCampaignForm({
+          campaignName: '',
+          packageType: '',
+          rewardAmount: '',
+          deadline: ''
+        });
+        setSelectedCreatorForInvite(null);
+      } else {
+        throw new Error(result.error || '알림톡 발송에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error sending campaign invitation:', error);
+      alert(error.message || '알림톡 발송 중 오류가 발생했습니다.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleInquirySubmit = async () => {
@@ -227,6 +300,10 @@ const FeaturedCreatorsPage = () => {
                   <Sparkles size={16} />
                   AI 프로필
                 </AIProfileButton>
+                <CampaignInviteButton onClick={() => handleOpenCampaignModal(creator)}>
+                  <Send size={16} />
+                  캠페인 지원 요청
+                </CampaignInviteButton>
                 {creator.youtube_url && (
                   <PlatformButton href={creator.youtube_url} target="_blank" rel="noopener noreferrer">
                     <Youtube size={16} />
@@ -256,6 +333,78 @@ const FeaturedCreatorsPage = () => {
           <EmptyIcon>🎬</EmptyIcon>
           <EmptyText>아직 등록된 추천 크리에이터가 없습니다.</EmptyText>
         </EmptyState>
+      )}
+
+      {showCampaignModal && (
+        <ModalOverlay onClick={() => setShowCampaignModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>캠페인 지원 요청</ModalTitle>
+              <CloseButton onClick={() => setShowCampaignModal(false)}>×</CloseButton>
+            </ModalHeader>
+
+            <ModalBody>
+              {selectedCreatorForInvite && (
+                <SelectedCreatorsList>
+                  <ListTitle>선택한 크리에이터</ListTitle>
+                  <SelectedCreatorItem>
+                    {selectedCreatorForInvite.profile_image_url && (
+                      <SmallProfileImage src={selectedCreatorForInvite.profile_image_url} alt={selectedCreatorForInvite.name} />
+                    )}
+                    <span>{selectedCreatorForInvite.nickname || selectedCreatorForInvite.creator_name} (@{selectedCreatorForInvite.nickname || selectedCreatorForInvite.creator_name})</span>
+                  </SelectedCreatorItem>
+                </SelectedCreatorsList>
+              )}
+
+              <FormGroup>
+                <Label>캠페인명 *</Label>
+                <Input
+                  type="text"
+                  placeholder="캠페인명을 입력하세요"
+                  value={campaignForm.campaignName}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, campaignName: e.target.value })}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>패키지 *</Label>
+                <Input
+                  type="text"
+                  placeholder="예: 기본 패키지, 프리미엄 패키지"
+                  value={campaignForm.packageType}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, packageType: e.target.value })}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>보상금액 *</Label>
+                <Input
+                  type="text"
+                  placeholder="예: 500,000 (숫자만 입력)"
+                  value={campaignForm.rewardAmount}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, rewardAmount: e.target.value })}
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>마감일 *</Label>
+                <Input
+                  type="text"
+                  placeholder="예: 2025-12-31"
+                  value={campaignForm.deadline}
+                  onChange={(e) => setCampaignForm({ ...campaignForm, deadline: e.target.value })}
+                />
+              </FormGroup>
+            </ModalBody>
+
+            <ModalFooter>
+              <CancelButton onClick={() => setShowCampaignModal(false)}>취소</CancelButton>
+              <SubmitButton onClick={handleCampaignInvite} disabled={sending}>
+                {sending ? '발송 중...' : '알림톡 발송'}
+              </SubmitButton>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
       )}
 
       {showInquiryModal && (
@@ -550,6 +699,28 @@ const AIProfileButton = styled.button`
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  }
+`;
+
+const CampaignInviteButton = styled.button`
+  flex: 1 1 100%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
   }
 `;
 
