@@ -38,75 +38,47 @@ export default function FourWeekGuideModal({
         precautions: campaign.product_key_points || ''
       })
 
-      // Load AI guides first if exist (priority)
-      if (campaign.challenge_weekly_guides_ai) {
-        const aiGuides = typeof campaign.challenge_weekly_guides_ai === 'string'
-          ? JSON.parse(campaign.challenge_weekly_guides_ai)
-          : campaign.challenge_weekly_guides_ai
+      // Load guides with fallback logic
+      const loadedGuides = {}
+      const aiGuides = campaign.challenge_weekly_guides_ai 
+        ? (typeof campaign.challenge_weekly_guides_ai === 'string'
+            ? JSON.parse(campaign.challenge_weekly_guides_ai)
+            : campaign.challenge_weekly_guides_ai)
+        : null
+      const oldGuides = campaign.challenge_weekly_guides || {}
 
-        const loadedGuides = {}
-        ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
-          const weekData = aiGuides[week]
-          if (weekData) {
-            // AI guide format
-            loadedGuides[week] = {
-              mission: weekData.mission || '',
-              required_dialogue: Array.isArray(weekData.required_dialogues)
-                ? weekData.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n')
-                : (weekData.required_dialogue || ''),
-              required_scenes: Array.isArray(weekData.required_scenes)
-                ? weekData.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n')
-                : (weekData.required_scenes || ''),
-              reference: Array.isArray(weekData.reference_urls) && weekData.reference_urls.length > 0
-                ? weekData.reference_urls[0]
-                : (weekData.reference || ''),
-              hashtags: weekData.hashtags || []
-            }
-          } else {
-            loadedGuides[week] = {
-              mission: '',
-              required_dialogue: '',
-              required_scenes: '',
-              reference: '',
-              hashtags: []
-            }
+      ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
+        const aiWeekData = aiGuides?.[week]
+        const oldWeekData = oldGuides[week] || {}
+        
+        // If AI guide exists and is an object (not a string), use it
+        if (aiWeekData && typeof aiWeekData === 'object') {
+          loadedGuides[week] = {
+            mission: aiWeekData.mission || oldWeekData.mission || '',
+            required_dialogue: Array.isArray(aiWeekData.required_dialogues)
+              ? aiWeekData.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n')
+              : (aiWeekData.required_dialogue || oldWeekData.required_dialogue || ''),
+            required_scenes: Array.isArray(aiWeekData.required_scenes)
+              ? aiWeekData.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n')
+              : (aiWeekData.required_scenes || oldWeekData.required_scenes || ''),
+            reference: Array.isArray(aiWeekData.reference_urls) && aiWeekData.reference_urls.length > 0
+              ? aiWeekData.reference_urls[0]
+              : (aiWeekData.reference || oldWeekData.reference || ''),
+            hashtags: aiWeekData.hashtags || []
           }
-        })
-        setWeeklyGuides(loadedGuides)
-      } else if (campaign.challenge_weekly_guides) {
-        // Fallback to old format
-        const guides = campaign.challenge_weekly_guides
-        setWeeklyGuides({
-          week1: {
-            mission: guides.week1?.mission || '',
-            required_dialogue: guides.week1?.required_dialogue || '',
-            required_scenes: guides.week1?.required_scenes || '',
-            reference: guides.week1?.reference || '',
-            hashtags: []
-          },
-          week2: {
-            mission: guides.week2?.mission || '',
-            required_dialogue: guides.week2?.required_dialogue || '',
-            required_scenes: guides.week2?.required_scenes || '',
-            reference: guides.week2?.reference || '',
-            hashtags: []
-          },
-          week3: {
-            mission: guides.week3?.mission || '',
-            required_dialogue: guides.week3?.required_dialogue || '',
-            required_scenes: guides.week3?.required_scenes || '',
-            reference: guides.week3?.reference || '',
-            hashtags: []
-          },
-          week4: {
-            mission: guides.week4?.mission || '',
-            required_dialogue: guides.week4?.required_dialogue || '',
-            required_scenes: guides.week4?.required_scenes || '',
-            reference: guides.week4?.reference || '',
+        } else {
+          // Fallback to old format or empty
+          loadedGuides[week] = {
+            mission: oldWeekData.mission || '',
+            required_dialogue: oldWeekData.required_dialogue || '',
+            required_scenes: oldWeekData.required_scenes || '',
+            reference: oldWeekData.reference || '',
             hashtags: []
           }
-        })
-      }
+        }
+      })
+      
+      setWeeklyGuides(loadedGuides)
     }
   }, [campaign])
 
