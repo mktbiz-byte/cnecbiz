@@ -812,7 +812,7 @@ export default function FeaturedCreatorManagementPageNew() {
                           </div>
                           <div className="flex justify-between text-sm pt-2 border-t border-purple-100">
                             <span className="font-semibold">계정 활성도</span>
-                            <span className="font-bold text-purple-600">30/30점</span>
+                            <span className="font-bold text-purple-600">{capiResult.activity_total_score || 0}/30점</span>
                           </div>
                         </div>
                       </div>
