@@ -624,6 +624,13 @@ export default function CampaignDetail() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
+      console.log('[DEBUG] Uploaded tracking data:', jsonData)
+      console.log('[DEBUG] Current participants:', participants.map(p => ({
+        id: p.id,
+        creator_name: p.creator_name,
+        applicant_name: p.applicant_name
+      })))
+
       let successCount = 0
       let failCount = 0
 
@@ -631,30 +638,39 @@ export default function CampaignDetail() {
         const creatorName = row['크리에이터명']
         const trackingNumber = row['송장번호']
 
-        if (!creatorName || !trackingNumber) continue
+        console.log('[DEBUG] Processing row:', { creatorName, trackingNumber })
 
-        const participant = participants.find(p => p.creator_name === creatorName)
+        if (!creatorName || !trackingNumber) {
+          console.log('[DEBUG] Skipping row - missing name or tracking number')
+          continue
+        }
+
+        const participant = participants.find(p => 
+          p.creator_name === creatorName || p.applicant_name === creatorName
+        )
+        console.log('[DEBUG] Found participant:', participant)
+        
         if (!participant) {
+          console.log('[DEBUG] No matching participant found for:', creatorName)
           failCount++
           continue
         }
 
         try {
-          await supabase
+          const { error } = await supabase
             .from('applications')
             .update({ tracking_number: trackingNumber })
             .eq('id', participant.id)
 
-          await supabase
-            .from('applications')
-            .update({ tracking_number: trackingNumber })
-            .eq('campaign_id', participant.campaign_id)
-            .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
-            .eq('status', 'selected')
-
-          successCount++
+          if (error) {
+            console.error(`[ERROR] Failed to update tracking for ${creatorName}:`, error)
+            failCount++
+          } else {
+            console.log(`[SUCCESS] Updated tracking for ${creatorName}`)
+            successCount++
+          }
         } catch (error) {
-          console.error(`Error updating ${creatorName}:`, error)
+          console.error(`[ERROR] Exception updating ${creatorName}:`, error)
           failCount++
         }
       }
