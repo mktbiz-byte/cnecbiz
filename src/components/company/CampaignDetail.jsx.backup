@@ -20,6 +20,11 @@ import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, se
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
 import OliveYoungGuideModal from './OliveYoungGuideModal'
 import FourWeekGuideModal from './FourWeekGuideModal'
+import OliveyoungGuideModal from './OliveyoungGuideModal'
+import FourWeekGuideManager from './FourWeekGuideManager'
+
+import FourWeekGuideViewer from './FourWeekGuideViewer'
+import PersonalizedGuideViewer from './PersonalizedGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 
@@ -64,6 +69,7 @@ export default function CampaignDetail() {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false)
   const [regenerateRequest, setRegenerateRequest] = useState('')
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const [isGeneratingAllGuides, setIsGeneratingAllGuides] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
   const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id: version_index}
@@ -83,8 +89,13 @@ export default function CampaignDetail() {
     reference_urls: ['']
   })
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
+  const [showOliveyoungGuideModal, setShowOliveyoungGuideModal] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
+  const [currentWeek, setCurrentWeek] = useState(1)
+  const [singleWeekGuideData, setSingleWeekGuideData] = useState({ required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' })
+  const [showSingleWeekModal, setShowSingleWeekModal] = useState(false)
+  const [showWeekGuideViewModal, setShowWeekGuideViewModal] = useState(false)
   const [fourWeekGuideData, setFourWeekGuideData] = useState({
     week1: {
       product_info: '',
@@ -595,7 +606,7 @@ export default function CampaignDetail() {
   // 송장번호 템플릿 다운로드
   const downloadTrackingTemplate = () => {
     const data = participants.map(p => ({
-      '크리에이터명': p.creator_name,
+      '크리에이터명': p.creator_name || p.applicant_name || '이름 없음',
       '송장번호': ''
     }))
 
@@ -613,6 +624,13 @@ export default function CampaignDetail() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
+      console.log('[DEBUG] Uploaded tracking data:', jsonData)
+      console.log('[DEBUG] Current participants:', participants.map(p => ({
+        id: p.id,
+        creator_name: p.creator_name,
+        applicant_name: p.applicant_name
+      })))
+
       let successCount = 0
       let failCount = 0
 
@@ -620,30 +638,39 @@ export default function CampaignDetail() {
         const creatorName = row['크리에이터명']
         const trackingNumber = row['송장번호']
 
-        if (!creatorName || !trackingNumber) continue
+        console.log('[DEBUG] Processing row:', { creatorName, trackingNumber })
 
-        const participant = participants.find(p => p.creator_name === creatorName)
+        if (!creatorName || !trackingNumber) {
+          console.log('[DEBUG] Skipping row - missing name or tracking number')
+          continue
+        }
+
+        const participant = participants.find(p => 
+          p.creator_name === creatorName || p.applicant_name === creatorName
+        )
+        console.log('[DEBUG] Found participant:', participant)
+        
         if (!participant) {
+          console.log('[DEBUG] No matching participant found for:', creatorName)
           failCount++
           continue
         }
 
         try {
-          await supabase
+          const { error } = await supabase
             .from('applications')
             .update({ tracking_number: trackingNumber })
             .eq('id', participant.id)
 
-          await supabase
-            .from('applications')
-            .update({ tracking_number: trackingNumber })
-            .eq('campaign_id', participant.campaign_id)
-            .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
-            .eq('status', 'selected')
-
-          successCount++
+          if (error) {
+            console.error(`[ERROR] Failed to update tracking for ${creatorName}:`, error)
+            failCount++
+          } else {
+            console.log(`[SUCCESS] Updated tracking for ${creatorName}`)
+            successCount++
+          }
         } catch (error) {
-          console.error(`Error updating ${creatorName}:`, error)
+          console.error(`[ERROR] Exception updating ${creatorName}:`, error)
           failCount++
         }
       }
@@ -985,7 +1012,7 @@ export default function CampaignDetail() {
             .from('applications')
             .update({ 
               personalized_guide: JSON.stringify(campaign.ai_generated_guide),
-              guide_confirmed: true
+              updated_at: new Date().toISOString()
             })
             .eq('id', participant.id)
 
@@ -994,12 +1021,45 @@ export default function CampaignDetail() {
           }
 
           // 크리에이터에게 알림 발송
-          await sendGuideDeliveredNotification(
-            participant.user_id,
-            campaign.id,
-            campaign.title,
-            region
-          )
+          // user_id와 phone 정보 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
+            .maybeSingle()
+
+          // 팝빌 알림톡 발송
+          if (profile?.phone) {
+            try {
+              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              let deadlineText = ''
+              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
+                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              } else {
+                deadlineText = campaign.content_submission_deadline || '미정'
+              }
+
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  templateCode: '025100001012',
+                  variables: {
+                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '캠페인명': campaign.title,
+                    '제출기한': deadlineText
+                  }
+                })
+              })
+            } catch (alimtalkError) {
+              console.error('Alimtalk error:', alimtalkError)
+            }
+          }
 
           successCount++
         } catch (error) {
@@ -1022,6 +1082,227 @@ export default function CampaignDetail() {
     }
   }
 
+  // 4주 챌린지 개별 주차 가이드 전달 함수
+  const handleDeliver4WeekGuideByWeek = async (weekNumber) => {
+    if (!campaign.challenge_weekly_guides_ai) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    const participantCount = participants.length
+    if (participantCount === 0) {
+      alert('참여 크리에이터가 없습니다.')
+      return
+    }
+
+    // 개별 메시지 입력 (선택사항)
+    const individualMessage = prompt(`${weekNumber}주차 가이드와 함께 전달할 메시지를 입력하세요 (선택사항):`)
+
+    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const participant of participants) {
+        try {
+          // 가이드 전달 상태 업데이트
+          const updateData = { 
+            updated_at: new Date().toISOString()
+          }
+          
+          // 개별 메시지가 있으면 추가
+          let message = `${weekNumber}주차 가이드`
+          if (individualMessage && individualMessage.trim()) {
+            message += `\n\n${individualMessage.trim()}`
+          }
+          updateData.additional_message = message
+
+          const { error: updateError } = await supabase
+            .from('applications')
+            .update(updateData)
+            .eq('id', participant.id)
+
+          if (updateError) {
+            throw new Error(updateError.message)
+          }
+
+          // 크리에이터에게 알림 발송
+          // user_id와 phone 정보 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
+            .maybeSingle()
+
+          // 팝빌 알림톡 발송
+          if (profile?.phone) {
+            try {
+              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              let deadlineText = ''
+              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
+                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              } else {
+                deadlineText = campaign.content_submission_deadline || '미정'
+              }
+
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  templateCode: '025100001012',
+                  variables: {
+                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '캠페인명': campaign.title,
+                    '제출기한': deadlineText
+                  }
+                })
+              })
+            } catch (alimtalkError) {
+              console.error('Alimtalk error:', alimtalkError)
+            }
+          }
+
+          successCount++
+        } catch (error) {
+          console.error(`Error delivering guide to ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 크리에이터에게 ${weekNumber}주차 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${successCount}명 성공, ${errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliver4WeekGuideByWeek:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 올리브영 / 4주 챌린지 가이드 전달 함수
+  const handleDeliverOliveYoung4WeekGuide = async () => {
+    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' 
+      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide_ai)
+      : campaign.challenge_weekly_guides_ai
+
+    if (!hasGuide) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    const participantCount = participants.length
+    if (participantCount === 0) {
+      alert('참여 크리에이터가 없습니다.')
+      return
+    }
+
+    // 개별 메시지 입력 (선택사항)
+    const individualMessage = prompt('모든 크리에이터에게 전달할 개별 메시지를 입력하세요 (선택사항):')
+
+    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 가이드를 전달하시겠습니까?`)) {
+      return
+    }
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const participant of participants) {
+        try {
+          // 가이드 전달 상태 업데이트
+          const updateData = { 
+            updated_at: new Date().toISOString()
+          }
+          
+          // 개별 메시지가 있으면 추가
+          if (individualMessage && individualMessage.trim()) {
+            updateData.additional_message = individualMessage.trim()
+          }
+
+          const { error: updateError } = await supabase
+            .from('applications')
+            .update(updateData)
+            .eq('id', participant.id)
+
+          if (updateError) {
+            throw new Error(updateError.message)
+          }
+
+          // 크리에이터에게 알림 발송
+          // user_id와 phone 정보 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
+            .maybeSingle()
+
+          // 팝빌 알림톡 발송
+          if (profile?.phone) {
+            try {
+              // 올리브영 캠페인의 경우 3개 step 마감일 포함
+              let deadlineText = ''
+              if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+                const step1 = campaign.step1_deadline ? `STEP1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step2 = campaign.step2_deadline ? `STEP2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : ''
+                const step3 = campaign.step3_deadline ? `STEP3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : ''
+                deadlineText = [step1, step2, step3].filter(Boolean).join(', ') || '미정'
+              } else {
+                deadlineText = campaign.content_submission_deadline || '미정'
+              }
+
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  templateCode: '025100001012',
+                  variables: {
+                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '캠페인명': campaign.title,
+                    '제출기한': deadlineText
+                  }
+                })
+              })
+            } catch (alimtalkError) {
+              console.error('Alimtalk error:', alimtalkError)
+            }
+          }
+
+          successCount++
+        } catch (error) {
+          console.error(`Error delivering guide to ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount === 0) {
+        alert(`${successCount}명의 크리에이터에게 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${successCount}명 성공, ${errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliverOliveYoung4WeekGuide:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
+
+
   // AI 맞춤 가이드 생성 함수
   const handleGeneratePersonalizedGuides = async (selectedParticipantsList) => {
     if (!selectedParticipantsList || selectedParticipantsList.length === 0) {
@@ -1033,6 +1314,7 @@ export default function CampaignDetail() {
       return
     }
 
+    setIsGeneratingAllGuides(true)
     try {
       let successCount = 0
       let errorCount = 0
@@ -1071,7 +1353,8 @@ export default function CampaignDetail() {
                 brand: campaign.brand || '',
                 product_name: campaign.title || '',
                 product_features: campaign.product_features || campaign.description || '',
-                product_key_points: campaign.product_key_points || campaign.key_message || ''
+                product_key_points: campaign.product_key_points || campaign.key_message || '',
+                video_duration: campaign.video_duration
               },
               baseGuide: campaign.guide_content || campaign.ai_generated_guide || ''
             })
@@ -1113,6 +1396,8 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error in handleGeneratePersonalizedGuides:', error)
       alert('가이드 생성에 실패했습니다: ' + error.message)
+    } finally {
+      setIsGeneratingAllGuides(false)
     }
   }
 
@@ -1141,55 +1426,56 @@ export default function CampaignDetail() {
             continue
           }
 
-          // 이미 승인된 경우 건너뛰기
-          if (participant.guide_confirmed) {
-            console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already approved`)
-            continue
-          }
-
-          // 이미 영상 제출 이후 단계인 경우 건너뛰기
+          // 이미 영상 제출 이후 단계인 경우 건너뛰기 (재전달은 허용)
           if (['video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)) {
             console.log(`Participant ${(participant.creator_name || participant.applicant_name || '크리에이터')} already in ${participant.status} status, skipping guide delivery`)
             errorCount++
             continue
           }
+          
+          // 가이드 재전달 로그
+          if (participant.guide_confirmed) {
+            console.log(`[RE-DELIVERY] Sending guide again to ${(participant.creator_name || participant.applicant_name || '크리에이터')}`)
+          }
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           console.log('[DEBUG] Updating application status to filming:', participantId)
+          
+          // 재전달인 경우 상태를 변경하지 않음
+          const updatePayload = {
+            updated_at: new Date().toISOString()
+          }
+          if (participant.status !== 'filming') {
+            updatePayload.status = 'filming'
+          }
+          // guide_confirmed 필드는 한국 DB에 없으므로 제거
+          
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
-            .update({ 
-              guide_confirmed: true,
-              guide_sent: true,
-              guide_sent_at: new Date().toISOString(),
-              status: 'filming'
-            })
+            .update(updatePayload)
             .eq('id', participantId)
             .select()
           
           if (updateError) {
-            console.error('[ERROR] Failed to update application status:', updateError)
+            console.error('[ERROR] Failed to update application status:')
+            console.error('Error code:', updateError.code)
+            console.error('Error message:', updateError.message)
+            console.error('Error details:', updateError.details)
+            console.error('Error hint:', updateError.hint)
+            console.error('Full error:', JSON.stringify(updateError, null, 2))
             throw updateError
           }
           console.log('[DEBUG] Successfully updated application status:', updateData)
 
           // user_id와 phone 정보 가져오기
-          const { data: app } = await supabase
-            .from('applications')
-            .select('user_id, applicant_name')
-            .eq('campaign_id', id)
-            .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
             .maybeSingle()
 
-          if (app?.user_id) {
-            const { data: profile } = await supabase
-              .from('user_profiles')
-              .select('phone')
-              .eq('id', app.user_id)
-              .maybeSingle()
-
-            // 팝빌 알림톡 발송
-            if (profile?.phone) {
+          // 팔빌 알림톡 발송
+          if (profile?.phone) {
               try {
                 await fetch('/.netlify/functions/send-kakao-notification', {
                   method: 'POST',
@@ -1208,10 +1494,10 @@ export default function CampaignDetail() {
               } catch (alimtalkError) {
                 console.error('Alimtalk error:', alimtalkError)
               }
-            }
+          }
 
-            // 이메일 발송
-            try {
+          // 이메일 발송
+          try {
               await fetch('/.netlify/functions/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1231,11 +1517,14 @@ export default function CampaignDetail() {
             } catch (emailError) {
               console.error('Email error:', emailError)
             }
-          }
 
           successCount++
         } catch (error) {
-          console.error(`Error approving guide for participant ${participantId}:`, error)
+          console.error(`Error approving guide for participant ${participantId}:`)
+          console.error('Error type:', typeof error)
+          console.error('Error message:', error?.message)
+          console.error('Error code:', error?.code)
+          console.error('Full error object:', JSON.stringify(error, null, 2))
           errorCount++
         }
       }
@@ -1397,7 +1686,8 @@ export default function CampaignDetail() {
               brand: campaign.brand,
               product_name: campaign.product_name,
               product_features: campaign.product_features,
-              product_key_points: campaign.product_key_points
+              product_key_points: campaign.product_key_points,
+              video_duration: campaign.video_duration
             },
             baseGuide: campaign.ai_guide || ''
           })
@@ -1869,15 +2159,37 @@ export default function CampaignDetail() {
                     onClick={() => {
                       // Load existing guide data if available
                       if (campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) {
-                        try {
-                          setUnifiedGuideData({
-                            step1: campaign.oliveyoung_step1_guide ? JSON.parse(campaign.oliveyoung_step1_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            step2: campaign.oliveyoung_step2_guide ? JSON.parse(campaign.oliveyoung_step2_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            step3: campaign.oliveyoung_step3_guide ? JSON.parse(campaign.oliveyoung_step3_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
-                          })
-                        } catch (e) {
-                          console.error('Failed to parse existing guide:', e)
+                        const safeParseGuide = (guideText) => {
+                          if (!guideText) return { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
+                          try {
+                            // JSON인지 확인
+                            const trimmed = guideText.trim()
+                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                              return JSON.parse(trimmed)
+                            }
+                            // 일반 텍스트면 required_dialogue에 넣기
+                            return {
+                              required_dialogue: trimmed,
+                              required_scenes: '',
+                              examples: '',
+                              reference_urls: ''
+                            }
+                          } catch (e) {
+                            console.error('Failed to parse guide, using as plain text:', e)
+                            return {
+                              required_dialogue: guideText,
+                              required_scenes: '',
+                              examples: '',
+                              reference_urls: ''
+                            }
+                          }
                         }
+                        
+                        setUnifiedGuideData({
+                          step1: safeParseGuide(campaign.oliveyoung_step1_guide),
+                          step2: safeParseGuide(campaign.oliveyoung_step2_guide),
+                          step3: safeParseGuide(campaign.oliveyoung_step3_guide)
+                        })
                       }
                       setShowUnifiedGuideModal(true)
                     }}
@@ -1905,9 +2217,6 @@ export default function CampaignDetail() {
                             const { error } = await supabase
                               .from('applications')
                               .update({
-                                guide_confirmed: true,
-                                guide_sent: true,
-                                guide_sent_at: new Date().toISOString(),
                                 status: 'filming'
                               })
                               .eq('id', participantId)
@@ -1935,30 +2244,41 @@ export default function CampaignDetail() {
                  </>
               )}
               {campaign.campaign_type === '4week_challenge' && (
-                <>
-                  <Button
-                    onClick={() => {
-                      // Load existing guide data if available
-                      if (campaign.week1_guide || campaign.week2_guide || campaign.week3_guide || campaign.week4_guide) {
-                        try {
-                          setFourWeekGuideData({
-                            week1: campaign.week1_guide ? JSON.parse(campaign.week1_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            week2: campaign.week2_guide ? JSON.parse(campaign.week2_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            week3: campaign.week3_guide ? JSON.parse(campaign.week3_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' },
-                            week4: campaign.week4_guide ? JSON.parse(campaign.week4_guide) : { required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' }
-                          })
-                        } catch (e) {
-                          console.error('Failed to parse existing guide:', e)
-                        }
-                      }
-                      setShow4WeekGuideModal(true)
-                    }}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                  >
-                    🤖 AI 4주 챌린지 가이드 생성하기
-                  </Button>
-                </>
+                <FourWeekGuideManager 
+                  campaign={campaign}
+                  filteredParticipants={filteredParticipants}
+                  onRefresh={fetchParticipants}
+                  onCampaignUpdate={fetchCampaignDetail}
+                  supabase={supabase}
+                />
               )}
+            </div>
+
+            {/* Oliveyoung Guide Viewer */}
+            {campaign.campaign_type === 'oliveyoung' && (
+              <div className="mt-6">
+                <Button
+                  onClick={() => setShowOliveyoungGuideModal(true)}
+                  className="bg-pink-600 hover:bg-pink-700 text-white"
+                >
+                  📸 촬영 가이드 보기
+                </Button>
+              </div>
+            )}
+
+            {/* 4-Week Challenge Guide Viewer */}
+            {campaign.campaign_type === '4week_challenge' && (
+              <div className="mt-6">
+                <Button
+                  onClick={() => setShow4WeekGuideModal(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  🎯 4주 챌린지 가이드 보기
+                </Button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 flex-wrap">
               <Button
                 variant="outline"
                 onClick={exportShippingInfo}
@@ -2019,8 +2339,19 @@ export default function CampaignDetail() {
                   <Button
                     onClick={() => handleGeneratePersonalizedGuides(filteredParticipants)}
                     className="bg-purple-600 hover:bg-purple-700 text-white"
+                    disabled={isGeneratingAllGuides}
                   >
-                    🚀 전체 AI 가이드 생성 ({filteredParticipants.length}명)
+                    {isGeneratingAllGuides ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        생성 중... ({filteredParticipants.length}명)
+                      </>
+                    ) : (
+                      `🚀 전체 AI 가이드 생성 (${filteredParticipants.length}명)`
+                    )}
                   </Button>
                   <Button
                     variant="outline"
@@ -2041,15 +2372,54 @@ export default function CampaignDetail() {
                   >
                     올영 세일 통합 가이드 생성
                   </Button>
-                  {campaign.ai_generated_guide && (
+                  {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide_ai) && (
                     <Button
                       variant="outline"
-                      onClick={handleDeliverGuideToAll}
+                      onClick={handleDeliverOliveYoung4WeekGuide}
                       className="text-green-600 border-green-600 hover:bg-green-50"
                     >
                       전체 전달하기 ({filteredParticipants.length}명)
                     </Button>
                   )}
+                </>
+              )}
+              {campaign.campaign_type === '4week_challenge' && campaign.challenge_weekly_guides_ai && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">주차별 가이드 전달:</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(1)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      1주차 발송
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(2)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      2주차 발송
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(3)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      3주차 발송
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeliver4WeekGuideByWeek(4)}
+                      className="text-green-600 border-green-600 hover:bg-green-50"
+                    >
+                      4주차 발송
+                    </Button>
+                  </div>
                 </>
               )}
               <Button
@@ -2565,9 +2935,9 @@ export default function CampaignDetail() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {applications.map(app => {
-                    // 이미 participants에 있는지 확인
+                    // 이미 participants에 있는지 확인 (user_id로 비교)
                     const isAlreadyParticipant = participants.some(p => 
-                      (p.creator_name || p.applicant_name) === app.applicant_name
+                      p.user_id && app.user_id && p.user_id === app.user_id
                     )
                     
                     return (
@@ -3100,7 +3470,26 @@ export default function CampaignDetail() {
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
+                              <div>
+                                <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
+                                <div className="flex gap-2 mt-1">
+                                  {submission.video_number && (
+                                    <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded">
+                                      영상 {submission.video_number}
+                                    </span>
+                                  )}
+                                  {submission.week_number && (
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                                      {submission.week_number}주차
+                                    </span>
+                                  )}
+                                  {submission.version && (
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
+                                      V{submission.version}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                               {submissions.length > 1 && (
                                 <div className="flex gap-2">
                                   {submissions.map((_, index) => (
@@ -3764,131 +4153,25 @@ export default function CampaignDetail() {
                     })()}
                   </div>
                 ) : (
-                  <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
-                    {(() => {
-                      try {
-                        const guideData = typeof selectedGuide.personalized_guide === 'string'
-                          ? JSON.parse(selectedGuide.personalized_guide)
-                          : selectedGuide.personalized_guide;
-                        
-                        return (
-                          <div className="space-y-6">
-                            {/* 기본 정보 */}
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                              <div className="space-y-1 text-sm">
-                                <div><strong>캠페인:</strong> {guideData.campaign_title}</div>
-                                <div><strong>플랫폼:</strong> {guideData.target_platform}</div>
-                                <div><strong>영상 길이:</strong> {guideData.video_duration}</div>
-                              </div>
-                            </div>
-
-                            {/* 필수 해시태그 */}
-                            {guideData.required_hashtags && (
-                              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                                <h4 className="font-semibold mb-3">필수 해시태그</h4>
-                                <div className="space-y-2">
-                                  {guideData.required_hashtags.real && (
-                                    <div>
-                                      <span className="text-sm font-medium text-gray-700">리얼 후기:</span>
-                                      <div className="flex flex-wrap gap-2 mt-1">
-                                        {guideData.required_hashtags.real.map((tag, i) => (
-                                          <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">#{tag}</span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {guideData.required_hashtags.product && (
-                                    <div>
-                                      <span className="text-sm font-medium text-gray-700">제품 관련:</span>
-                                      <div className="flex flex-wrap gap-2 mt-1">
-                                        {guideData.required_hashtags.product.map((tag, i) => (
-                                          <span key={i} className="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">#{tag}</span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {guideData.required_hashtags.common && (
-                                    <div>
-                                      <span className="text-sm font-medium text-gray-700">공통:</span>
-                                      <div className="flex flex-wrap gap-2 mt-1">
-                                        {guideData.required_hashtags.common.map((tag, i) => (
-                                          <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">#{tag}</span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 촬영 요구사항 */}
-                            {guideData.shooting_requirements && (
-                              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                                <h4 className="font-semibold mb-3">촬영 요구사항</h4>
-                                <div className="space-y-2">
-                                  {guideData.shooting_requirements.must_include && (
-                                    <div>
-                                      <span className="text-sm font-medium text-gray-700">필수 포함 장면:</span>
-                                      <ul className="list-disc list-inside mt-1 space-y-1">
-                                        {guideData.shooting_requirements.must_include.map((item, i) => (
-                                          <li key={i} className="text-sm text-gray-700">{item}</li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                  {guideData.shooting_requirements.video_style && (
-                                    <div className="mt-2">
-                                      <span className="text-sm font-medium text-gray-700">영상 스타일:</span>
-                                      <div className="text-sm text-gray-700 mt-1">
-                                        <div>템포: {guideData.shooting_requirements.video_style.tempo}</div>
-                                        <div>톤: {guideData.shooting_requirements.video_style.tone}</div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* 촬영 씬 */}
-                            <div>
-                              <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-semibold">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
-                                <span className="text-sm text-red-600 font-medium">본 대사와 촬영 장면은 크리에이터의 스타일에 맞게 변경하여 촬영해 주세요.</span>
-                              </div>
-                              <div className="space-y-3">
-                                {(guideData.shooting_scenes || []).map((scene, idx) => (
-                                  <div key={idx} className="bg-gray-50 p-3 rounded border border-gray-200">
-                                    <div className="font-semibold text-purple-700">씬 {scene.order}: {scene.scene_type}</div>
-                                    <div className="text-sm mt-1 text-gray-700">{scene.scene_description}</div>
-                                    {scene.dialogue && (
-                                      <div className="text-sm mt-1 italic text-gray-600">""{scene.dialogue}""</div>
-                                    )}
-                                    {scene.shooting_tip && (
-                                      <div className="text-xs mt-1 text-gray-500">팁: {scene.shooting_tip}</div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* 크리에이터 팁 */}
-                            {guideData.creator_tips && guideData.creator_tips.length > 0 && (
-                              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                                <h4 className="font-semibold mb-3">크리에이터 팁</h4>
-                                <ul className="list-decimal list-inside space-y-1">
-                                  {guideData.creator_tips.filter(tip => tip).map((tip, i) => (
-                                    <li key={i} className="text-sm text-gray-700">{tip}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      } catch (error) {
-                        return selectedGuide.personalized_guide;
-                      }
-                    })()}
-                  </div>
+                  <PersonalizedGuideViewer 
+                    guide={selectedGuide.personalized_guide}
+                    onSave={async (updatedGuide) => {
+                      await supabase
+                        .from('applications')
+                        .update({ 
+                          personalized_guide: updatedGuide,
+                          guide_updated_at: new Date().toISOString()
+                        })
+                        .eq('id', selectedGuide.id)
+                      
+                      // Update local state
+                      setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                      const updatedParticipants = participants.map(p => 
+                        p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                      )
+                      setParticipants(updatedParticipants)
+                    }}
+                  />
                 )}
               </div>
             </div>
@@ -4806,446 +5089,32 @@ export default function CampaignDetail() {
         </div>
       )}
 
-      {/* Unified Guide Modal for Olive Young */}
+      {/* Olive Young Guide Modal */}
       {showUnifiedGuideModal && campaign.campaign_type === 'oliveyoung' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold">🎉 올리브영 세일 최종 가이드 생성</h3>
-              <button
-                onClick={() => setShowUnifiedGuideModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="border-b">
-              <div className="flex">
-                <button
-                  onClick={() => setUnifiedGuideTab('step1')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    unifiedGuideTab === 'step1'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  1단계: 세일 전 가이드
-                </button>
-                <button
-                  onClick={() => setUnifiedGuideTab('step2')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    unifiedGuideTab === 'step2'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  2단계: 세일 당일 영상 가이드
-                </button>
-                <button
-                  onClick={() => setUnifiedGuideTab('step3')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    unifiedGuideTab === 'step3'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  3단계: 스토리 URL 가이드
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-6">
-                {/* Reference URLs - Always shown first */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 참고 영상 URL <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터에게 보여줄 참고 영상 URL을 입력하세요. (여러 개는 줄바꿈으로 구분)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].reference_urls}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        reference_urls: e.target.value
-                      }
-                    })}
-                    className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="https://www.youtube.com/watch?v=example1
-https://www.instagram.com/reel/example2"
-                  />
-                </div>
-
-                {/* Required Dialogue */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💬 필수 대사
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터가 반드시 말해야 하는 대사를 작성하세요. (AI가 자동 생성할 수 있습니다)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].required_dialogue}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        required_dialogue: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예: '오늘은 올리브영 세일에서 꼭 사야 할 제품을 소개할게요!'"
-                  />
-                </div>
-
-                {/* Required Scenes */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 필수 장면
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    반드시 포함되어야 하는 장면을 설명하세요. (AI가 자동 생성할 수 있습니다)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].required_scenes}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        required_scenes: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예:
-- 제품 패키지 클로즈업
-- 사용 전후 비교
-- 올리브영 매장 방문 장면"
-                  />
-                </div>
-
-                {/* Examples */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💡 예시 (3-5개)
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    구체적인 예시를 작성하세요. (AI가 자동 생성할 수 있습니다)
-                  </p>
-                  <textarea
-                    value={unifiedGuideData[unifiedGuideTab].examples}
-                    onChange={(e) => setUnifiedGuideData({
-                      ...unifiedGuideData,
-                      [unifiedGuideTab]: {
-                        ...unifiedGuideData[unifiedGuideTab],
-                        examples: e.target.value
-                      }
-                    })}
-                    className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예시 1: 제품을 손에 들고 '이거 진짜 추천해요!' 라고 말하기
-예시 2: 제품 텍스처를 클로즈업으로 보여주기
-예시 3: 사용 후 피부 변화 보여주기"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="flex gap-3 p-6 border-t bg-gray-50">
-              <Button
-                variant="outline"
-                onClick={() => setShowUnifiedGuideModal(false)}
-                className="flex-1"
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  // Validate reference URLs
-                  const hasAllUrls = 
-                    unifiedGuideData.step1.reference_urls.trim() &&
-                    unifiedGuideData.step2.reference_urls.trim() &&
-                    unifiedGuideData.step3.reference_urls.trim()
-                  
-                  if (!hasAllUrls) {
-                    alert('모든 단계의 참고 영상 URL을 입력해주세요.')
-                    return
-                  }
-
-                  if (!confirm('AI가 입력하신 정보를 기반으로 나머지 가이드를 자동 생성합니다. 계속하시겠습니까?')) {
-                    return
-                  }
-
-                  setIsGeneratingUnifiedGuide(true)
-                  
-                  try {
-                    const response = await fetch('/.netlify/functions/generate-oliveyoung-guide', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        campaignInfo: {
-                          brand: campaign.brand,
-                          product_name: campaign.product_name,
-                          campaign_description: campaign.campaign_description,
-                          key_messages: campaign.key_messages
-                        },
-                        existingData: unifiedGuideData
-                      })
-                    })
-
-                    if (!response.ok) {
-                      throw new Error('AI 가이드 생성 실패')
-                    }
-
-                    const { generatedGuide } = await response.json()
-                    setUnifiedGuideData(generatedGuide)
-                    
-                    alert('🎉 AI 가이드 생성 완료! 내용을 확인하고 수정하세요.')
-                  } catch (error) {
-                    console.error('Error generating guide:', error)
-                    alert('AI 가이드 생성에 실패했습니다: ' + error.message)
-                  } finally {
-                    setIsGeneratingUnifiedGuide(false)
-                  }
-                }}
-                disabled={isGeneratingUnifiedGuide}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                {isGeneratingUnifiedGuide ? '생성 중...' : '🤖 AI로 나머지 자동 생성'}
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    // Save to campaigns table
-                    const { error } = await supabase
-                      .from('campaigns')
-                      .update({
-                        oliveyoung_step1_guide: JSON.stringify(unifiedGuideData.step1),
-                        oliveyoung_step2_guide: JSON.stringify(unifiedGuideData.step2),
-                        oliveyoung_step3_guide: JSON.stringify(unifiedGuideData.step3),
-                        guide_generated_at: new Date().toISOString()
-                      })
-                      .eq('id', campaign.id)
-                    
-                    if (error) throw error
-                    
-                    alert('🎉 가이드가 저장되었습니다!')
-                    await fetchCampaignDetail()
-                    setShowUnifiedGuideModal(false)
-                  } catch (error) {
-                    console.error('Error saving guide:', error)
-                    alert('가이드 저장에 실패했습니다: ' + error.message)
-                  }
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                💾 가이드 저장
-              </Button>
-            </div>
-          </div>
-        </div>
+        <OliveYoungGuideModal
+          campaign={campaign}
+          onClose={() => setShowUnifiedGuideModal(false)}
+          onSave={fetchCampaignDetail}
+          supabase={supabase}
+        />
       )}
 
       {/* 4-Week Challenge Guide Modal */}
       {show4WeekGuideModal && campaign.campaign_type === '4week_challenge' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold">🏆 4주 챌린지 가이드 생성</h3>
-              <button
-                onClick={() => setShow4WeekGuideModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
-            </div>
+        <FourWeekGuideViewer
+          campaign={campaign}
+          onClose={() => setShow4WeekGuideModal(false)}
+        />
+      )}
 
-            {/* Tabs */}
-            <div className="border-b">
-              <div className="flex">
-                <button
-                  onClick={() => setFourWeekGuideTab('week1')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week1'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  1주차 가이드
-                </button>
-                <button
-                  onClick={() => setFourWeekGuideTab('week2')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week2'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  2주차 가이드
-                </button>
-                <button
-                  onClick={() => setFourWeekGuideTab('week3')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week3'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  3주차 가이드
-                </button>
-                <button
-                  onClick={() => setFourWeekGuideTab('week4')}
-                  className={`px-6 py-3 font-medium transition-colors ${
-                    fourWeekGuideTab === 'week4'
-                      ? 'border-b-2 border-purple-600 text-purple-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  4주차 가이드
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-6">
-                {/* Reference URLs */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 참고 영상 URL <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터에게 보여줄 참고 영상 URL을 입력하세요. (여러 개는 줄바꿈으로 구분)
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].reference_urls}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        reference_urls: e.target.value
-                      }
-                    })}
-                    className="w-full h-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="https://www.youtube.com/watch?v=example1
-https://www.instagram.com/reel/example2"
-                  />
-                </div>
-
-                {/* Required Dialogue */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💬 필수 대사
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    크리에이터가 반드시 말해야 하는 대사를 작성하세요.
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].required_dialogue}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        required_dialogue: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예: '오늘은 {fourWeekGuideTab === 'week1' ? '1주차' : fourWeekGuideTab === 'week2' ? '2주차' : fourWeekGuideTab === 'week3' ? '3주차' : '4주차'} 챌린지 내용을 소개할게요!'"
-                  />
-                </div>
-
-                {/* Required Scenes */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    🎥 필수 장면
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    반드시 포함되어야 하는 장면을 설명하세요.
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].required_scenes}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        required_scenes: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예:\n- 제품 클로즈업 촬영\n- 사용 전후 비교\n- 효과 설명"
-                  />
-                </div>
-
-                {/* Examples */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    💡 구체적인 예시
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    구체적인 예시를 작성하세요.
-                  </p>
-                  <textarea
-                    value={fourWeekGuideData[fourWeekGuideTab].examples}
-                    onChange={(e) => setFourWeekGuideData({
-                      ...fourWeekGuideData,
-                      [fourWeekGuideTab]: {
-                        ...fourWeekGuideData[fourWeekGuideTab],
-                        examples: e.target.value
-                      }
-                    })}
-                    className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="예:\n- 제품 패키지 공개\n- 사용 전후 비교\n- 효과 설명"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="p-6 border-t flex gap-3">
-              <Button
-                onClick={() => setShow4WeekGuideModal(false)}
-                variant="outline"
-                className="flex-1"
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    // Save to campaigns table
-                    const { error } = await supabase
-                      .from('campaigns')
-                      .update({
-                        week1_guide: JSON.stringify(fourWeekGuideData.week1),
-                        week2_guide: JSON.stringify(fourWeekGuideData.week2),
-                        week3_guide: JSON.stringify(fourWeekGuideData.week3),
-                        week4_guide: JSON.stringify(fourWeekGuideData.week4),
-                        guide_generated_at: new Date().toISOString()
-                      })
-                      .eq('id', campaign.id)
-                    
-                    if (error) throw error
-                    
-                    alert('🎉 가이드가 저장되었습니다!')
-                    await fetchCampaignDetail()
-                    setShow4WeekGuideModal(false)
-                  } catch (error) {
-                    console.error('Error saving guide:', error)
-                    alert('가이드 저장에 실패했습니다: ' + error.message)
-                  }
-                }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              >
-                💾 가이드 저장
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Oliveyoung Guide Modal */}
+      {showOliveyoungGuideModal && campaign.campaign_type === 'oliveyoung' && (
+        <OliveyoungGuideModal
+          campaign={campaign}
+          onClose={() => setShowOliveyoungGuideModal(false)}
+          onUpdate={fetchCampaignDetail}
+          supabase={supabase}
+        />
       )}
     </div>
   )

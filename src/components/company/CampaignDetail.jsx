@@ -1160,7 +1160,7 @@ export default function CampaignDetail() {
                   templateCode: '025100001012',
                   variables: {
                     '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
-                    '캠페인명': campaign.title,
+                    '캠페인명': `${campaign.title} ${weekNumber}주차`,
                     '제출기한': deadlineText
                   }
                 })
@@ -1168,6 +1168,30 @@ export default function CampaignDetail() {
             } catch (alimtalkError) {
               console.error('Alimtalk error:', alimtalkError)
             }
+          }
+
+          // 이메일 발송
+          try {
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: participant.creator_email,
+                subject: `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 전달`,
+                html: `
+                  <h2>${(participant.creator_name || participant.applicant_name || '크리에이터')}님, ${weekNumber}주차 촬영 가이드가 전달되었습니다.</h2>
+                  <p><strong>캠페인:</strong> ${campaign.title}</p>
+                  <p><strong>주차:</strong> ${weekNumber}주차</p>
+                  <p><strong>영상 제출 기한:</strong> ${campaign.content_submission_deadline || '미정'}</p>
+                  <p>크리에이터 대시보드에서 ${weekNumber}주차 가이드를 확인하시고, 가이드에 따라 촬영을 진행해 주세요.</p>
+                  ${individualMessage && individualMessage.trim() ? `<p><strong>추가 메시지:</strong> ${individualMessage.trim()}</p>` : ''}
+                  <p>기한 내 미제출 시 패널티가 부과될 수 있습니다.</p>
+                  <p>문의: 1833-6025</p>
+                `
+              })
+            })
+          } catch (emailError) {
+            console.error('Email error:', emailError)
           }
 
           successCount++

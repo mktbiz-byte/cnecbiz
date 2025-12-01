@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { X, Edit, Save } from 'lucide-react'
 import { supabase } from '../../lib/supabaseKorea'
 
-export default function FourWeekGuideViewer({ campaign, onClose, onUpdate }) {
+export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdit }) {
   const [activeWeek, setActiveWeek] = useState('week1')
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(null)
@@ -131,12 +131,21 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate }) {
       if (editedData.is_simple) {
         updatedGuides[activeWeek] = editedData.guide_text
       } else {
-        updatedGuides[activeWeek] = editedData
+        // Save complete AI guide object
+        updatedGuides[activeWeek] = {
+          product_info: editedData.product_info || '',
+          mission: editedData.mission || '',
+          required_dialogues: editedData.required_dialogues || [],
+          required_scenes: editedData.required_scenes || [],
+          cautions: editedData.cautions || '',
+          hashtags: editedData.hashtags || [],
+          reference_urls: editedData.reference_urls || []
+        }
       }
       
       const { error } = await supabase
         .from('campaigns')
-        .update({ challenge_weekly_guides_ai: JSON.stringify(updatedGuides) })
+        .update({ challenge_weekly_guides_ai: updatedGuides })
         .eq('id', campaign.id)
 
       if (error) throw error
