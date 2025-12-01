@@ -24,13 +24,27 @@ const FeaturedCreatorsPage = () => {
     try {
       const { data, error } = await supabaseBiz
         .from('featured_creator_applications')
-        .select('*')
+        .select(`
+          *,
+          user_profiles!featured_creator_applications_user_id_fkey (
+            rating,
+            company_review
+          )
+        `)
         .eq('status', 'approved')
         .eq('country', 'korea')
         .order('approved_at', { ascending: false });
 
       if (error) throw error;
-      setCreators(data || []);
+      
+      // Flatten user_profiles data
+      const flattenedData = (data || []).map(creator => ({
+        ...creator,
+        rating: creator.user_profiles?.rating || 0,
+        company_review: creator.user_profiles?.company_review || ''
+      }));
+      
+      setCreators(flattenedData);
     } catch (err) {
       console.error('Error fetching creators:', err);
       setError('크리에이터 목록을 불러오는데 실패했습니다.');
@@ -180,6 +194,13 @@ const FeaturedCreatorsPage = () => {
                   <StatLabel>평균 조회수</StatLabel>
                   <StatValue>{formatFollowers(creator.avg_views)}</StatValue>
                 </StatItem>
+                {creator.rating > 0 && (
+                  <StatItem>
+                    <span style={{ color: '#fbbf24' }}>⭐</span>
+                    <StatLabel>평점</StatLabel>
+                    <StatValue>{creator.rating.toFixed(1)}</StatValue>
+                  </StatItem>
+                )}
               </StatsSection>
 
               <CategoryTags>
