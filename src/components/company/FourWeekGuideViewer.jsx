@@ -8,16 +8,57 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate }) {
   const [editedData, setEditedData] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  // Parse challenge_weekly_guides_ai JSON
+  // Parse and merge challenge_weekly_guides and challenge_weekly_guides_ai
   const parseWeeklyGuides = () => {
-    if (!campaign.challenge_weekly_guides_ai) return {}
-    try {
-      return typeof campaign.challenge_weekly_guides_ai === 'string' 
-        ? JSON.parse(campaign.challenge_weekly_guides_ai) 
-        : campaign.challenge_weekly_guides_ai
-    } catch {
-      return {}
-    }
+    const aiGuides = campaign.challenge_weekly_guides_ai 
+      ? (typeof campaign.challenge_weekly_guides_ai === 'string'
+          ? JSON.parse(campaign.challenge_weekly_guides_ai)
+          : campaign.challenge_weekly_guides_ai)
+      : null
+    const oldGuides = campaign.challenge_weekly_guides || {}
+
+    const mergedGuides = {}
+    ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
+      const aiWeekData = aiGuides?.[week]
+      const oldWeekData = oldGuides[week] || {}
+      
+      // If AI guide exists and is an object (not a string), use it with fallback to old data
+      if (aiWeekData && typeof aiWeekData === 'object') {
+        mergedGuides[week] = {
+          mission: aiWeekData.mission || oldWeekData.mission || '',
+          required_dialogues: aiWeekData.required_dialogues || (oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : []),
+          required_scenes: aiWeekData.required_scenes || (oldWeekData.required_scenes ? [oldWeekData.required_scenes] : []),
+          hashtags: aiWeekData.hashtags || [],
+          product_info: aiWeekData.product_info || '',
+          cautions: aiWeekData.cautions || oldWeekData.cautions || '',
+          reference_urls: aiWeekData.reference_urls || (oldWeekData.reference ? [oldWeekData.reference] : [])
+        }
+      } else if (aiWeekData && typeof aiWeekData === 'string') {
+        // AI guide is simple text, use old structured data if available
+        mergedGuides[week] = {
+          mission: oldWeekData.mission || aiWeekData,
+          required_dialogues: oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : [],
+          required_scenes: oldWeekData.required_scenes ? [oldWeekData.required_scenes] : [],
+          hashtags: [],
+          product_info: '',
+          cautions: oldWeekData.cautions || '',
+          reference_urls: oldWeekData.reference ? [oldWeekData.reference] : []
+        }
+      } else {
+        // No AI guide, use old data
+        mergedGuides[week] = {
+          mission: oldWeekData.mission || '',
+          required_dialogues: oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : [],
+          required_scenes: oldWeekData.required_scenes ? [oldWeekData.required_scenes] : [],
+          hashtags: [],
+          product_info: '',
+          cautions: oldWeekData.cautions || '',
+          reference_urls: oldWeekData.reference ? [oldWeekData.reference] : []
+        }
+      }
+    })
+    
+    return mergedGuides
   }
 
   const weeklyGuides = parseWeeklyGuides()
