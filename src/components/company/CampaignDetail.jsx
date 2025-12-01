@@ -1260,7 +1260,12 @@ export default function CampaignDetail() {
             .select()
           
           if (updateError) {
-            console.error('[ERROR] Failed to update application status:', updateError)
+            console.error('[ERROR] Failed to update application status:')
+            console.error('Error code:', updateError.code)
+            console.error('Error message:', updateError.message)
+            console.error('Error details:', updateError.details)
+            console.error('Error hint:', updateError.hint)
+            console.error('Full error:', JSON.stringify(updateError, null, 2))
             throw updateError
           }
           console.log('[DEBUG] Successfully updated application status:', updateData)
@@ -1327,7 +1332,11 @@ export default function CampaignDetail() {
 
           successCount++
         } catch (error) {
-          console.error(`Error approving guide for participant ${participantId}:`, error)
+          console.error(`Error approving guide for participant ${participantId}:`)
+          console.error('Error type:', typeof error)
+          console.error('Error message:', error?.message)
+          console.error('Error code:', error?.code)
+          console.error('Full error object:', JSON.stringify(error, null, 2))
           errorCount++
         }
       }
