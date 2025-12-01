@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabaseBiz } from '../../lib/supabaseClients';
 import styled from 'styled-components';
-import { Instagram, Youtube, TrendingUp, Users, Eye, CheckCircle, Circle, Send, Music } from 'lucide-react';
+import { Instagram, Youtube, TrendingUp, Users, Eye, CheckCircle, Circle, Send, Music, Sparkles } from 'lucide-react';
 const FeaturedCreatorsPage = () => {
   const navigate = useNavigate();
   const [creators, setCreators] = useState([]);
@@ -223,6 +223,10 @@ const FeaturedCreatorsPage = () => {
                 <ViewProfileButton onClick={() => navigate(`/featured-creators/${creator.id}`)}>
                   프로필 보기
                 </ViewProfileButton>
+                <AIProfileButton onClick={() => navigate(`/company/creators/${creator.id}/profile`)}>
+                  <Sparkles size={16} />
+                  AI 프로필
+                </AIProfileButton>
                 {creator.youtube_url && (
                   <PlatformButton href={creator.youtube_url} target="_blank" rel="noopener noreferrer">
                     <Youtube size={16} />
@@ -510,7 +514,7 @@ const ActionButtons = styled.div`
 `;
 
 const ViewProfileButton = styled.button`
-  flex: 1 1 100%;
+  flex: 1 1 calc(50% - 4px);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
@@ -524,6 +528,28 @@ const ViewProfileButton = styled.button`
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  }
+`;
+
+const AIProfileButton = styled.button`
+  flex: 1 1 calc(50% - 4px);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
   }
 `;
 

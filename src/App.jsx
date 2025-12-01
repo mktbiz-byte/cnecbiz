@@ -70,6 +70,7 @@ import CreatorProfileApplication from './components/creator/CreatorProfileApplic
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
 import FeaturedCreatorsPage from './components/company/FeaturedCreatorsPage'
 import FeaturedCreatorProfile from './components/company/FeaturedCreatorProfile'
+import CreatorProfilePage from './components/company/CreatorProfilePage'
 import WithdrawalRequest from './components/creator/WithdrawalRequest'
 import TaxOfficePage from './components/tax/TaxOfficePage'
 import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
@@ -153,6 +154,7 @@ function App() {
         <Route path="/company/payments" element={<PaymentHistory />} />
         <Route path="/featured-creators" element={<FeaturedCreatorsPage />} />
         <Route path="/featured-creators/:id" element={<FeaturedCreatorProfile />} />
+        <Route path="/company/creators/:id/profile" element={<CreatorProfilePage />} />
         <Route path="/admin/creators" element={<CreatorManagementPage />} />
         <Route path="/admin/channel-report/:creatorId" element={<CreatorReport />} />
         <Route path="/admin/our-channel-report/:channelId" element={<OurChannelReport />} />

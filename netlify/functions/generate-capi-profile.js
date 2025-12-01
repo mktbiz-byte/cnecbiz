@@ -121,7 +121,8 @@ export const handler = async (event) => {
         videoAnalyses.push({
           ...video,
           content_score: analysis.total_score,
-          scores: analysis.scores
+          scores: analysis.scores,
+          reliability: analysis.reliability || 0
         });
       } catch (error) {
         console.error(`Failed to analyze video ${video.url}:`, error);
@@ -146,12 +147,19 @@ export const handler = async (event) => {
     const totalContentScore = Object.values(avgContentScores).reduce((sum, item) => sum + item.score, 0);
     const totalScore = Math.round(totalContentScore + activityScore.total);
 
+    // Calculate average reliability from all video analyses
+    const avgReliability = Math.round(
+      videoAnalyses.reduce((sum, v) => sum + (v.reliability || 0), 0) / videoAnalyses.length
+    );
+    
     const result = {
       total_score: totalScore,
       grade: calculateGrade(totalScore),
       content_score: Math.round(totalContentScore),
       total_content_score: Math.round(totalContentScore), // For frontend compatibility
       activity_score: activityScore.total,
+      activity_total_score: activityScore.total, // For frontend display fix
+      reliability: avgReliability,
       
       content_scores: avgContentScores,
       activity_scores: activityScore.breakdown,
@@ -489,6 +497,69 @@ async function scrapeTikTokProfile(profileUrl) {
 }
 
 // ==================== Gemini AI Analysis ====================
+// Calculate reliability score based on evaluation quality
+function calculateReliabilityScore(scores, maxScores) {
+  let totalReliability = 0;
+  let count = 0;
+  
+  for (const [key, data] of Object.entries(scores)) {
+    const maxScore = maxScores[key];
+    const score = data.score;
+    const reason = data.reason || '';
+    
+    // 1. Reason clarity (40 points): Check if reason is specific and detailed
+    let reasonScore = 0;
+    if (reason.length > 50) reasonScore += 20; // Long enough
+    else if (reason.length > 20) reasonScore += 10; // Medium
+    
+    if (reason.includes('Before') || reason.includes('After') || reason.includes('시각적') || 
+        reason.includes('효과') || reason.includes('명확') || reason.includes('구체적')) {
+      reasonScore += 20; // Contains specific keywords
+    } else if (reason.length > 30) {
+      reasonScore += 10; // At least some detail
+    }
+    
+    // 2. Score appropriateness (30 points): Not too extreme
+    let scoreAppropriatenessScore = 0;
+    const scoreRatio = score / maxScore;
+    if (scoreRatio >= 0.3 && scoreRatio <= 0.9) {
+      scoreAppropriatenessScore = 30; // Reasonable range
+    } else if (scoreRatio >= 0.2 && scoreRatio <= 0.95) {
+      scoreAppropriatenessScore = 20; // Acceptable
+    } else {
+      scoreAppropriatenessScore = 10; // Too extreme
+    }
+    
+    // 3. Consistency (30 points): Check if reason matches score
+    let consistencyScore = 0;
+    const hasPositiveWords = reason.includes('효과적') || reason.includes('명확') || 
+                             reason.includes('우수') || reason.includes('좋') || 
+                             reason.includes('잘');
+    const hasNegativeWords = reason.includes('부족') || reason.includes('미흡') || 
+                             reason.includes('약함') || reason.includes('없');
+    
+    if (scoreRatio > 0.7 && hasPositiveWords) {
+      consistencyScore = 30; // High score + positive words
+    } else if (scoreRatio < 0.4 && hasNegativeWords) {
+      consistencyScore = 30; // Low score + negative words
+    } else if (scoreRatio >= 0.4 && scoreRatio <= 0.7) {
+      consistencyScore = 25; // Medium score (neutral is ok)
+    } else {
+      consistencyScore = 15; // Mismatch
+    }
+    
+    const itemReliability = reasonScore + scoreAppropriatenessScore + consistencyScore;
+    totalReliability += itemReliability;
+    count++;
+  }
+  
+  // Average reliability across all items (0-100)
+  const avgReliability = Math.round(totalReliability / count);
+  
+  // Cap at 100
+  return Math.min(avgReliability, 100);
+}
+
 
 async function analyzeVideoWithGemini(videoUrl, platform) {
   console.log(`Starting video analysis for: ${videoUrl}`);
@@ -642,11 +713,15 @@ async function analyzeVideoWithGemini(videoUrl, platform) {
     
     const total_score = Object.values(scores).reduce((sum, item) => sum + item.score, 0);
     
-    console.log(`Video analysis complete. Total score: ${total_score}`);
+    // Calculate reliability score (0-100%)
+    const reliability = calculateReliabilityScore(scores, maxScores);
+    
+    console.log(`Video analysis complete. Total score: ${total_score}, Reliability: ${reliability}%`);
     
     return {
       scores,
-      total_score
+      total_score,
+      reliability
     };
     
   } catch (error) {

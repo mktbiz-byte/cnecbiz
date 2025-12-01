@@ -255,19 +255,20 @@ export default function FeaturedCreatorManagementPageNew() {
 
     try {
       const contentScore = capiResult.total_content_score || 0
-      const activityScore = 30 // Mock activity score (should be calculated from stats)
-      const totalScore = contentScore + activityScore
-      const grade = calculateCapiGrade(totalScore)
+      const activityScore = capiResult.activity_total_score || capiResult.activity_score || 0
+      const totalScore = capiResult.total_score || (contentScore + activityScore)
+      const grade = capiResult.grade || calculateCapiGrade(totalScore)
+      const reliability = capiResult.reliability || 0
 
       const newCreator = {
         platform: formData.platform,
         channel_name: formData.channel_name,
         channel_url: formData.channel_url,
-        profile_image: capiResult.profile_image || '', // Get from CAPI analysis
-        followers: capiResult.followers || 0,
-        avg_views: capiResult.avg_views || 0,
-        avg_likes: capiResult.avg_likes || 0,
-        avg_comments: capiResult.avg_comments || 0,
+        profile_image: capiResult.channel_info?.profile_image || '', // Get from CAPI analysis
+        followers: capiResult.channel_info?.subscribers || 0,
+        avg_views: capiResult.channel_info?.total_views || 0,
+        avg_likes: 0, // Not available in current CAPI
+        avg_comments: 0, // Not available in current CAPI
         category: capiResult.category || '',
         target_audience: capiResult.target_audience || '',
         content_style: capiResult.content_style || '',
@@ -281,6 +282,7 @@ export default function FeaturedCreatorManagementPageNew() {
         capi_grade: grade,
         capi_content_score: contentScore,
         capi_activity_score: activityScore,
+        capi_reliability: reliability,
         capi_analysis: capiResult,
         capi_generated_at: new Date().toISOString(),
         featured_type: 'capi',
