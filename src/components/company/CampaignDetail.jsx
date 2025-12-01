@@ -2248,6 +2248,7 @@ export default function CampaignDetail() {
                   campaign={campaign}
                   filteredParticipants={filteredParticipants}
                   onRefresh={fetchParticipants}
+                  onCampaignUpdate={fetchCampaignDetail}
                 />
               )}
             </div>

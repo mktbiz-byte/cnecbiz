@@ -3,7 +3,7 @@ import { Button } from '../ui/button'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import FourWeekGuideModal from './FourWeekGuideModal'
 
-export default function FourWeekGuideManager({ campaign, filteredParticipants, onRefresh }) {
+export default function FourWeekGuideManager({ campaign, filteredParticipants, onRefresh, onCampaignUpdate }) {
   const [showGuideModal, setShowGuideModal] = useState(false)
 
   return (
@@ -34,6 +34,7 @@ export default function FourWeekGuideManager({ campaign, filteredParticipants, o
           onSave={() => {
             setShowGuideModal(false)
             if (onRefresh) onRefresh()
+            if (onCampaignUpdate) onCampaignUpdate()
           }}
           supabase={getSupabaseClient()}
         />
