@@ -244,13 +244,18 @@ JSON 형식으로만 응답해주세요.`
             : campaign.challenge_weekly_guides_ai)
         : {}
       
-      // Update with current week - convert to AI format
+      // Update with current week - preserve AI-generated structure if exists
+      const existingWeekGuide = existingGuides[weekToSave]
       const updatedGuides = {
         ...existingGuides,
         [weekToSave]: {
+          // Preserve AI-generated fields
+          product_info: existingWeekGuide?.product_info,
+          cautions: existingWeekGuide?.cautions,
+          // Update editable fields from form
           mission: weekData.mission,
-          required_dialogues: weekData.required_dialogue.split('\n').filter(d => d.trim()),
-          required_scenes: weekData.required_scenes.split('\n').filter(s => s.trim()),
+          required_dialogues: weekData.required_dialogue.split('\n').filter(d => d.trim()).map(d => d.replace(/^\d+\.\s*/, '')),
+          required_scenes: weekData.required_scenes.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+\.\s*/, '')),
           reference_urls: weekData.reference ? [weekData.reference] : [],
           hashtags: weekData.hashtags || []
         }
