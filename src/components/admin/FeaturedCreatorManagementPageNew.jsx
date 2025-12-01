@@ -271,7 +271,17 @@ export default function FeaturedCreatorManagementPageNew() {
         .insert([newCreator])
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.error('[CAPI SAVE ERROR] Supabase error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          full_error: JSON.stringify(error)
+        })
+        console.error('[CAPI SAVE ERROR] Attempted to save:', JSON.stringify(newCreator, null, 2))
+        throw error
+      }
 
       alert('크리에이터가 저장되었습니다!')
       await loadFeaturedCreators()
@@ -285,8 +295,12 @@ export default function FeaturedCreatorManagementPageNew() {
       })
       setCapiResult(null)
     } catch (err) {
-      console.error('Error saving creator:', err)
-      alert('저장 중 오류가 발생했습니다.')
+      console.error('[CAPI SAVE ERROR] Exception:', err)
+      console.error('[CAPI SAVE ERROR] Error code:', err.code)
+      console.error('[CAPI SAVE ERROR] Error message:', err.message)
+      console.error('[CAPI SAVE ERROR] Error details:', err.details)
+      console.error('[CAPI SAVE ERROR] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)))
+      alert('저장 중 오류가 발생했습니다: ' + (err.message || JSON.stringify(err)))
     }
   }
 
