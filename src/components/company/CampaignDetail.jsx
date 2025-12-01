@@ -1468,22 +1468,14 @@ export default function CampaignDetail() {
           console.log('[DEBUG] Successfully updated application status:', updateData)
 
           // user_id와 phone 정보 가져오기
-          const { data: app } = await supabase
-            .from('applications')
-            .select('user_id, applicant_name')
-            .eq('campaign_id', id)
-            .eq('applicant_name', (participant.creator_name || participant.applicant_name || '크리에이터'))
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone')
+            .eq('id', participant.user_id)
             .maybeSingle()
 
-          if (app?.user_id) {
-            const { data: profile } = await supabase
-              .from('user_profiles')
-              .select('phone')
-              .eq('id', app.user_id)
-              .maybeSingle()
-
-            // 팝빌 알림톡 발송
-            if (profile?.phone) {
+          // 팔빌 알림톡 발송
+          if (profile?.phone) {
               try {
                 await fetch('/.netlify/functions/send-kakao-notification', {
                   method: 'POST',
@@ -1503,9 +1495,10 @@ export default function CampaignDetail() {
                 console.error('Alimtalk error:', alimtalkError)
               }
             }
+          }
 
-            // 이메일 발송
-            try {
+          // 이메일 발송
+          try {
               await fetch('/.netlify/functions/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1525,7 +1518,6 @@ export default function CampaignDetail() {
             } catch (emailError) {
               console.error('Email error:', emailError)
             }
-          }
 
           successCount++
         } catch (error) {
