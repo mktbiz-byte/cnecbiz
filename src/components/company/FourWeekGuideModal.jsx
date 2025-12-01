@@ -197,7 +197,9 @@ JSON 형식으로만 응답해주세요.`
           mission: generatedGuide.mission || prev[weekToGenerate].mission,
           required_dialogue: generatedGuide.required_dialogues.map((d, i) => `${i+1}. ${d}`).join('\n'),
           required_scenes: generatedGuide.required_scenes.map((s, i) => `${i+1}. ${s}`).join('\n'),
-          hashtags: generatedGuide.hashtags || []
+          hashtags: generatedGuide.hashtags || [],
+          product_info: generatedGuide.product_info || '',
+          cautions: generatedGuide.cautions || ''
         }
       }))
 
@@ -246,14 +248,14 @@ JSON 형식으로만 응답해주세요.`
             : campaign.challenge_weekly_guides_ai)
         : {}
       
-      // Update with current week - preserve AI-generated structure if exists
+      // Update with current week - use data from weekData (UI state)
       const existingWeekGuide = existingGuides[weekToSave]
       const updatedGuides = {
         ...existingGuides,
         [weekToSave]: {
-          // Preserve AI-generated fields
-          product_info: existingWeekGuide?.product_info,
-          cautions: existingWeekGuide?.cautions,
+          // Use AI-generated fields from weekData (UI state) with fallback to existing
+          product_info: weekData.product_info || existingWeekGuide?.product_info || '',
+          cautions: weekData.cautions || existingWeekGuide?.cautions || '',
           // Update editable fields from form
           mission: weekData.mission,
           required_dialogues: weekData.required_dialogue.split('\n').filter(d => d.trim()).map(d => d.replace(/^\d+\.\s*/, '')),
