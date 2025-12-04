@@ -240,6 +240,8 @@ export default function AllCreatorsPage() {
       '포인트': creator.points || 0,
       '별점': creator.rating || 0,
       '기업 후기': creator.company_review || '-',
+      'SMS 수신동의': creator.sms_consent ? '동의' : '미동의',
+      '이메일 수신동의': creator.email_consent ? '동의' : '미동의',
       '가입일': creator.created_at ? new Date(creator.created_at).toLocaleDateString() : '-'
     }))
 
@@ -268,6 +270,8 @@ export default function AllCreatorsPage() {
       { wch: 10 }, // 포인트
       { wch: 10 }, // 별점
       { wch: 30 }, // 기업 후기
+      { wch: 15 }, // SMS 수신동의
+      { wch: 15 }, // 이메일 수신동의
       { wch: 15 }  // 가입일
     ]
     worksheet['!cols'] = columnWidths
