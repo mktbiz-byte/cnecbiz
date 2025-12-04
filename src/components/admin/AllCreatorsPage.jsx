@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Users, Search, Globe, TrendingUp, Star, MessageSquare, X } from 'lucide-react'
+import { Users, Search, Globe, TrendingUp, Star, MessageSquare, X, Download } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
+import * as XLSX from 'xlsx'
 
 export default function AllCreatorsPage() {
   const navigate = useNavigate()
@@ -214,6 +215,107 @@ export default function AllCreatorsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const exportToExcel = (data, filename, regionName) => {
+    // 엑셀 데이터 준비
+    const excelData = data.map(creator => ({
+      '이름': creator.name || '-',
+      '이메일': creator.email || '-',
+      '전화번호': creator.phone || '-',
+      '채널명': creator.channel_name || '-',
+      '인스타그램 URL': creator.instagram_url || '-',
+      '인스타그램 팔로워': creator.instagram_followers || 0,
+      '유튜브 URL': creator.youtube_url || '-',
+      '유튜브 구독자': creator.youtube_subscribers || 0,
+      '틱톡 URL': creator.tiktok_url || '-',
+      '틱톡 팔로워': creator.tiktok_followers || 0,
+      '나이': creator.age || '-',
+      '지역': creator.region || regionName,
+      '피부타입': creator.skin_type || '-',
+      '주소': creator.address ? `${creator.postcode || ''} ${creator.address} ${creator.detail_address || ''}`.trim() : '-',
+      '은행명': creator.bank_name || '-',
+      '계좌번호': creator.bank_account_number || '-',
+      '예금주': creator.bank_account_holder || '-',
+      '포인트': creator.points || 0,
+      '별점': creator.rating || 0,
+      '기업 후기': creator.company_review || '-',
+      '가입일': creator.created_at ? new Date(creator.created_at).toLocaleDateString() : '-'
+    }))
+
+    // 워크시트 생성
+    const worksheet = XLSX.utils.json_to_sheet(excelData)
+    
+    // 컬럼 너비 설정
+    const columnWidths = [
+      { wch: 10 }, // 이름
+      { wch: 25 }, // 이메일
+      { wch: 15 }, // 전화번호
+      { wch: 20 }, // 채널명
+      { wch: 40 }, // 인스타그램 URL
+      { wch: 15 }, // 인스타그램 팔로워
+      { wch: 40 }, // 유튜브 URL
+      { wch: 15 }, // 유튜브 구독자
+      { wch: 40 }, // 틱톡 URL
+      { wch: 15 }, // 틱톡 팔로워
+      { wch: 10 }, // 나이
+      { wch: 10 }, // 지역
+      { wch: 15 }, // 피부타입
+      { wch: 50 }, // 주소
+      { wch: 15 }, // 은행명
+      { wch: 20 }, // 계좌번호
+      { wch: 15 }, // 예금주
+      { wch: 10 }, // 포인트
+      { wch: 10 }, // 별점
+      { wch: 30 }, // 기업 후기
+      { wch: 15 }  // 가입일
+    ]
+    worksheet['!cols'] = columnWidths
+
+    // 워크북 생성
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, regionName)
+
+    // 파일 다운로드
+    XLSX.writeFile(workbook, filename)
+  }
+
+  const handleExportByRegion = (region) => {
+    let data = []
+    let regionName = ''
+    let filename = ''
+
+    switch(region) {
+      case 'korea':
+        data = creators.korea
+        regionName = '한국'
+        filename = `크리에이터_한국_${new Date().toISOString().split('T')[0]}.xlsx`
+        break
+      case 'japan':
+        data = creators.japan
+        regionName = '일본'
+        filename = `크리에이터_일본_${new Date().toISOString().split('T')[0]}.xlsx`
+        break
+      case 'us':
+        data = creators.us
+        regionName = '미국'
+        filename = `크리에이터_미국_${new Date().toISOString().split('T')[0]}.xlsx`
+        break
+      case 'taiwan':
+        data = creators.taiwan
+        regionName = '대만'
+        filename = `크리에이터_대만_${new Date().toISOString().split('T')[0]}.xlsx`
+        break
+      default:
+        return
+    }
+
+    if (data.length === 0) {
+      alert(`${regionName} 크리에이터 데이터가 없습니다.`)
+      return
+    }
+
+    exportToExcel(data, filename, regionName)
   }
 
   const CreatorTable = ({ creators, region }) => {
@@ -432,7 +534,17 @@ export default function AllCreatorsPage() {
             <TabsContent value="korea">
               <Card>
                 <CardHeader>
-                  <CardTitle>한국 크리에이터 ({stats.korea}명)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>한국 크리에이터 ({stats.korea}명)</CardTitle>
+                    <Button
+                      onClick={() => handleExportByRegion('korea')}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      엑셀 다운로드
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <CreatorTable creators={creators.korea.map(c => ({ ...c, region: '한국' }))} region="korea" />
@@ -443,7 +555,17 @@ export default function AllCreatorsPage() {
             <TabsContent value="japan">
               <Card>
                 <CardHeader>
-                  <CardTitle>일본 크리에이터 ({stats.japan}명)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>일본 크리에이터 ({stats.japan}명)</CardTitle>
+                    <Button
+                      onClick={() => handleExportByRegion('japan')}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      엑셀 다운로드
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <CreatorTable creators={creators.japan.map(c => ({ ...c, region: '일본' }))} region="japan" />
@@ -454,7 +576,17 @@ export default function AllCreatorsPage() {
             <TabsContent value="us">
               <Card>
                 <CardHeader>
-                  <CardTitle>미국 크리에이터 ({stats.us}명)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>미국 크리에이터 ({stats.us}명)</CardTitle>
+                    <Button
+                      onClick={() => handleExportByRegion('us')}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      엑셀 다운로드
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <CreatorTable creators={creators.us.map(c => ({ ...c, region: '미국' }))} region="us" />
@@ -465,7 +597,17 @@ export default function AllCreatorsPage() {
             <TabsContent value="taiwan">
               <Card>
                 <CardHeader>
-                  <CardTitle>대만 크리에이터 ({stats.taiwan}명)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>대만 크리에이터 ({stats.taiwan}명)</CardTitle>
+                    <Button
+                      onClick={() => handleExportByRegion('taiwan')}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      엑셀 다운로드
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <CreatorTable creators={creators.taiwan.map(c => ({ ...c, region: '대만' }))} region="taiwan" />
