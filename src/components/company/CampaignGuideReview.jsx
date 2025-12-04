@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseKorea'
+import { getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ArrowLeft, Edit, CheckCircle, Sparkles, Loader2, Save, X, AlertCircle } from 'lucide-react'
@@ -9,6 +10,9 @@ import CompanyNavigation from './CompanyNavigation'
 export default function CampaignGuideReview() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const region = searchParams.get('region') || 'korea'
+  const supabaseClient = region === 'japan' ? getSupabaseClient('japan') : supabase
   const [campaign, setCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -26,7 +30,7 @@ export default function CampaignGuideReview() {
 
   const loadCampaignData = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -1083,7 +1087,7 @@ JSON 형식으로만 응답해주세요.`
                   {saving ? '저장 중...' : '최종 가이드 저장'}
                 </Button>
                 <Button
-                  onClick={() => navigate(`/company/campaigns/${id}/order-confirmation`)}
+                  onClick={() => navigate(`/company/campaigns/${id}/order-confirmation?region=${region}`)}
                   size="lg"
                   className="bg-blue-600 hover:bg-blue-700"
                 >
