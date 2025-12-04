@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { X, MessageCircle, Mail, Phone } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 
 export default function ConsultationBanner() {
+  const location = useLocation()
+  const isMainPage = location.pathname === '/'
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Listen for custom event from other components
@@ -138,8 +141,10 @@ export default function ConsultationBanner() {
 
   return (
     <>
-      {/* 오른쪽 하단 따라다니는 배너 */}
-      <div className="fixed bottom-8 right-8 z-50">
+      {/* 오른쪽 하단 따라다니는 배너 - 모바일에서는 메인 페이지에서만 표시 */}
+      <div className={`fixed bottom-8 right-8 z-50 ${
+        isMainPage ? '' : 'hidden md:block'
+      }`}>
         <button
           onClick={() => setIsModalOpen(true)}
           className="flex flex-col items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300 group"
