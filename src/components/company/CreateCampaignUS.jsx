@@ -27,7 +27,7 @@ const CreateCampaignUS = () => {
     end_date: '',
     status: 'draft',
     target_platforms: {
-      instagram: true,
+      instagram: true,  // 기본값으로 Instagram 선택
       youtube: false,
       tiktok: false
     },
