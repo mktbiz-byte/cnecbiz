@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,8 @@ import { supabaseBiz, createCampaignInRegions } from '../../lib/supabaseClients'
 
 export default function CreateCampaign() {
   const navigate = useNavigate()
+  const params = useParams()
+  const region = params.region || 'us' // Default to 'us' if not specified
   const [user, setUser] = useState(null)
   const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -18,8 +20,8 @@ export default function CreateCampaign() {
     requirements: '',
     category: 'beauty',
     image_url: '',
-    reward_amount: '',
-    max_participants: '',
+    reward_amount: 300000,  // Default to basic package
+    max_participants: 10,
     application_deadline: '',
     start_date: '',
     end_date: '',
@@ -41,22 +43,85 @@ export default function CreateCampaign() {
     question4: '',
     question4_type: 'short',
     question4_options: '',
-    age_requirement: '',
-    skin_type_requirement: '',
     offline_visit_requirement: '',
-    budget: 0,
-    creator_count: 1,
     target_audience: '',
     product_category: 'beauty',
-    region: ''
+    // Package system
+    package_type: 'planned_300k',
+    total_slots: 10,
+    remaining_slots: 10,
+    estimated_cost: 330000  // VAT included
   })
 
   // Translator state
   const [sourceText, setSourceText] = useState('')
   const [translatedText, setTranslatedText] = useState('')
-  const [targetLang, setTargetLang] = useState('japanese')
+  const [targetLang, setTargetLang] = useState(region === 'us' ? 'english' : region === 'taiwan' ? 'chinese_traditional' : 'japanese')
   const [translating, setTranslating] = useState(false)
   const [bulkTranslating, setBulkTranslating] = useState(false)
+
+  // Package options for US/Taiwan campaigns
+  const packageOptions = [
+    { 
+      value: 'planned_300k', 
+      label: '기획형 ₩300,000', 
+      price: 300000,
+      priceWithVat: 330000,
+      description: '제품 사용 후기 영상'
+    },
+    { 
+      value: 'planned_400k', 
+      label: '기획형 ₩400,000', 
+      price: 400000,
+      priceWithVat: 440000,
+      description: '전문 리뷰 + 상세 가이드'
+    },
+    { 
+      value: 'planned_500k', 
+      label: '기획형 ₩500,000', 
+      price: 500000,
+      priceWithVat: 550000,
+      description: '스페셜 리뷰 + 상세 가이드'
+    },
+    { 
+      value: '4week_challenge', 
+      label: '4주 챌린지 ₩600,000', 
+      price: 600000,
+      priceWithVat: 660000,
+      description: '4주간 지속적인 콘텐츠 제작 (4건 이상 업로드 + 추첨 ₩150,000)'
+    }
+  ]
+
+  // Package change handler
+  const handlePackageChange = (value) => {
+    const selectedPackage = packageOptions.find(p => p.value === value)
+    if (selectedPackage) {
+      const finalCost = selectedPackage.priceWithVat * formData.total_slots
+      setFormData(prev => ({
+        ...prev,
+        package_type: value,
+        estimated_cost: finalCost,
+        reward_amount: selectedPackage.price,
+        max_participants: prev.total_slots
+      }))
+    }
+  }
+
+  // Slots change handler
+  const handleSlotsChange = (value) => {
+    const slots = parseInt(value) || 0
+    const selectedPackage = packageOptions.find(p => p.value === formData.package_type)
+    if (selectedPackage) {
+      const finalCost = selectedPackage.priceWithVat * slots
+      setFormData(prev => ({
+        ...prev,
+        total_slots: slots,
+        remaining_slots: slots,
+        max_participants: slots,
+        estimated_cost: finalCost
+      }))
+    }
+  }
 
   const languages = [
     { id: 'japanese', label: '🇯🇵 일본어', flag: 'JP' },
@@ -225,23 +290,11 @@ ${JSON.stringify(textsToTranslate, null, 2)}
     }
   }
 
-  const handleRegionSelect = (region) => {
-    setFormData(prev => ({
-      ...prev,
-      region: region
-    }))
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!formData.title || !formData.description || !formData.region) {
+    if (!formData.title || !formData.description) {
       alert('필수 항목을 모두 입력해주세요')
-      return
-    }
-
-    if (formData.budget <= 0) {
-      alert('예산을 입력해주세요')
       return
     }
 
@@ -275,16 +328,17 @@ ${JSON.stringify(textsToTranslate, null, 2)}
         question4: formData.question4 || '',
         question4_type: formData.question4_type || 'short',
         question4_options: formData.question4_options || '',
-        age_requirement: formData.age_requirement || '',
-        skin_type_requirement: formData.skin_type_requirement || '',
         offline_visit_requirement: formData.offline_visit_requirement || '',
-        budget: formData.budget,
-        creator_count: formData.creator_count,
         target_audience: formData.target_audience,
-        product_category: formData.product_category
+        product_category: formData.product_category,
+        // Package system fields
+        package_type: formData.package_type,
+        total_slots: formData.total_slots,
+        remaining_slots: formData.remaining_slots,
+        estimated_cost: formData.estimated_cost
       }
 
-      const results = await createCampaignInRegions(campaignData, [formData.region])
+      const results = await createCampaignInRegions(campaignData, [region])
 
       const successCount = results.filter(r => r.success).length
       const failCount = results.filter(r => !r.success).length
@@ -425,10 +479,41 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                   </p>
                 </div>
 
-                {/* Reward Amount Selection */}
+                {/* Package Selection */}
                 <div>
-                  <label className="block text-sm font-medium mb-3">보상 금액 선택 *</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-sm font-medium mb-2">패키지 선택 *</label>
+                  <select
+                    value={formData.package_type}
+                    onChange={(e) => handlePackageChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {packageOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label} (VAT 포함)
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {packageOptions.find(p => p.value === formData.package_type)?.description}
+                  </p>
+                </div>
+
+                {/* Total Slots */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">모집 인원 *</label>
+                  <Input
+                    type="number"
+                    value={formData.total_slots}
+                    onChange={(e) => handleSlotsChange(e.target.value)}
+                    min="1"
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    총 비용: ₩{formData.estimated_cost.toLocaleString()} (VAT 10% 포함)
+                  </p>
+                </div>
+
+                <div className="hidden">
                     {/* 20만원 */}
                     <button
                       type="button"
@@ -518,15 +603,6 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                       <div className="text-xs text-blue-600 mt-1">주당 {formData.region === 'japan' ? '¥15,000' : formData.region === 'us' ? '$112' : '₩150,000'}</div>
                     </button>
                   </div>
-                  {formData.reward_amount && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      선택된 금액: <span className="font-bold">
-                        {formData.region === 'japan' ? `¥${formData.reward_amount.toLocaleString()}` : 
-                         formData.region === 'us' ? `$${formData.reward_amount}` : 
-                         `₩${formData.reward_amount.toLocaleString()}`}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Dates */}
@@ -558,43 +634,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                   </div>
                 </div>
 
-                {/* Max Participants */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">최대 참가자 수 *</label>
-                  <Input
-                    type="number"
-                    value={formData.max_participants}
-                    onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) })}
-                    placeholder="예: 10"
-                    min="1"
-                    required
-                  />
-                  <p className="text-sm text-gray-500 mt-1">선착순으로 모집되며, 인원이 마감되면 자동으로 모집이 종료됩니다.</p>
-                </div>
 
-                {/* Budget & Creators */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">예산 (원) *</label>
-                    <Input
-                      type="number"
-                      value={formData.budget}
-                      onChange={(e) => setFormData({ ...formData, budget: parseInt(e.target.value) })}
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">크리에이터 수</label>
-                    <Input
-                      type="number"
-                      value={formData.creator_count}
-                      onChange={(e) => setFormData({ ...formData, creator_count: parseInt(e.target.value) })}
-                      placeholder="1"
-                      min="1"
-                    />
-                  </div>
-                </div>
 
                 {/* SNS Platforms */}
                 <div>
@@ -649,53 +689,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                   <p className="text-sm text-gray-500 mt-2">하나 이상 선택해주세요</p>
                 </div>
 
-                {/* Target Region */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">타겟 지역 * (1개만 선택 가능)</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { id: 'korea', label: '🇰🇷 한국', available: true },
-                      { id: 'japan', label: '🇯🇵 일본', available: true },
-                      { id: 'us', label: '🇺🇸 미국', available: true },
-                      { id: 'taiwan', label: '🇹🇼 대만', available: true },
-                      { id: 'china', label: '🇨🇳 중국', available: false },
-                      { id: 'thailand', label: '🇹🇭 태국', available: false },
-                      { id: 'vietnam', label: '🇻🇳 베트남', available: false },
-                      { id: 'indonesia', label: '🇮🇩 인도네시아', available: false }
-                    ].map(region => (
-                      <button
-                        key={region.id}
-                        type="button"
-                        onClick={() => region.available && handleRegionSelect(region.id)}
-                        disabled={!region.available}
-                        className={`p-3 border-2 rounded-lg transition-all relative ${
-                          formData.region === region.id
-                            ? 'border-blue-600 bg-blue-50'
-                            : region.available
-                            ? 'border-gray-200 hover:border-gray-300'
-                            : 'border-gray-100 bg-gray-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className={`text-sm font-medium ${
-                            region.available ? '' : 'text-gray-400'
-                          }`}>
-                            {region.label}
-                          </span>
-                          {formData.region === region.id && (
-                            <CheckCircle className="w-4 h-4 text-blue-600" />
-                          )}
-                        </div>
-                        {!region.available && (
-                          <div className="mt-1 text-xs text-gray-400">오픈예정</div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    * 각 국가별로 언어가 달라 각각 등록해주세요
-                  </p>
-                </div>
+
 
                 {/* Additional Questions (Optional) */}
                 <div className="border-t pt-6">
@@ -736,39 +730,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
                   ))}
                 </div>
 
-                {/* Participation Requirements (Optional) */}
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-semibold mb-4">참가 조건 (선택사항)</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">나이 제한</label>
-                      <Input
-                        type="text"
-                        value={formData.age_requirement}
-                        onChange={(e) => setFormData({ ...formData, age_requirement: e.target.value })}
-                        placeholder="예: 20세 이상"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">피부 타입 제한</label>
-                      <Input
-                        type="text"
-                        value={formData.skin_type_requirement}
-                        onChange={(e) => setFormData({ ...formData, skin_type_requirement: e.target.value })}
-                        placeholder="예: 지성 피부, 건성 피부"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">오프라인 방문 여부</label>
-                      <Input
-                        type="text"
-                        value={formData.offline_visit_requirement}
-                        onChange={(e) => setFormData({ ...formData, offline_visit_requirement: e.target.value })}
-                        placeholder="예: 서울 강남 매장 방문 필수"
-                      />
-                    </div>
-                  </div>
-                </div>
+
 
                 {/* Submit */}
                 <div className="flex gap-4 pt-4">
@@ -797,7 +759,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Languages className="w-5 h-5 text-blue-600" />
-                  한국어 → 일본어 번역기
+                  한국어 → 영어 번역기
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
