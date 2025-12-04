@@ -310,7 +310,11 @@ const InvoicePage = () => {
               campaign.campaign_type === '4week' ? '4주 챌린지' :
               '기획형'
             
-            const naverMessage = `🔔 새로운 입금 확인 요청 (${region === 'japan' ? '일본' : '한국'})\n\n` +
+            const regionText = region === 'japan' ? '일본' : 
+                               region === 'us' ? '미국' : 
+                               region === 'taiwan' ? '대만' : '한국'
+            
+            const naverMessage = `🔔 새로운 입금 확인 요청 (${regionText})\n\n` +
               `캠페인명: ${campaign.title}\n` +
               `기업명: ${companyName}\n` +
               `캠페인 타입: ${campaignTypeText}\n` +
