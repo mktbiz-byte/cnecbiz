@@ -31,15 +31,17 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
       id: 'japan',
       name: '일본',
       flag: '🇯🇵',
-      description: '',
-      color: 'bg-red-50 hover:bg-red-100 border-red-200'
+      description: '신청 전 카카오톡 채널 @크넥 으로 상담 후 진행해 주세요.',
+      color: 'bg-red-50 hover:bg-red-100 border-red-200',
+      requiresConsultation: true
     },
     {
       id: 'us',
       name: '미국',
       flag: '🇺🇸',
-      description: '',
-      color: 'bg-blue-50 hover:bg-blue-100 border-blue-200'
+      description: '신청 전 카카오톡 채널 @크넥 으로 상담 후 진행해 주세요.',
+      color: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
+      requiresConsultation: true
     },
     {
       id: 'taiwan',
@@ -79,9 +81,14 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
                     <div className="text-5xl">{region.flag}</div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold mb-1">{region.name}</h3>
-                      {(region.disabled || region.description) && (
+                      {region.disabled && (
                         <p className="text-sm text-gray-600">
-                          {region.disabled ? region.disabledMessage : region.description}
+                          {region.disabledMessage}
+                        </p>
+                      )}
+                      {!region.disabled && region.description && (
+                        <p className="text-sm text-orange-600 font-medium">
+                          {region.description}
                         </p>
                       )}
                     </div>
