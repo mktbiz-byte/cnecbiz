@@ -247,7 +247,7 @@ export default function SignupWithVerification() {
   return (
     <>
       <InAppBrowserWarning />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6 pb-32 md:pb-6">
         <Card className="w-full max-w-2xl shadow-2xl border-none">
           <CardHeader className="space-y-4 text-center pb-8">
             <div className="flex justify-center">
