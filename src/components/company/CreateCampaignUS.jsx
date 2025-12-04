@@ -7,8 +7,8 @@ import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
 
-const CreateCampaignJapan = () => {
-  const supabase = getSupabaseClient('japan')
+const CreateCampaignUS = () => {
+  const supabase = getSupabaseClient('us')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const editId = searchParams.get('id') || searchParams.get('edit')  // id 또는 edit 파라미터 모두 지원
@@ -20,7 +20,7 @@ const CreateCampaignJapan = () => {
     requirements: '',
     category: 'beauty',
     image_url: '',
-    reward_amount: 12000,  // 초급 패키지 기본 보상 (엔화)
+    reward_amount: 30,  // 초급 패키지 기본 보상 (달러)
     max_participants: 10,
     application_deadline: '',
     start_date: '',
@@ -61,7 +61,7 @@ const CreateCampaignJapan = () => {
 
   // 번역 시스템 state
   const [koreanText, setKoreanText] = useState('')
-  const [japaneseText, setJapaneseText] = useState('')
+  const [useseText, setUSeseText] = useState('')
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState('')
 
@@ -136,14 +136,14 @@ const CreateCampaignJapan = () => {
     }
   }
 
-  // 패키지 옵션 (원화 결제, 엔화 보상)
+  // 패키지 옵션 (원화 결제, 달러 보상)
   const packageOptions = [
     { 
       value: 'junior', 
       label: '초급 크리에이터 패키지', 
       price: 200000,  // 원화
       priceWithVat: 220000,
-      rewardYen: 12000,  // 엔화 보상
+      rewardYen: 30,  // 달러 보상
       description: '팔로워 1만~5만 (인스타 기준)',
       expectedApplicants: { youtube: 5, instagram: 8, tiktok: 10 }
     },
@@ -152,7 +152,7 @@ const CreateCampaignJapan = () => {
       label: '중급 크리에이터 패키지', 
       price: 300000,
       priceWithVat: 330000,
-      rewardYen: 18000,
+      rewardYen: 45,
       description: '팔로워 5만~20만 (인스타 기준)',
       expectedApplicants: { youtube: 10, instagram: 15, tiktok: 15 }
     },
@@ -161,7 +161,7 @@ const CreateCampaignJapan = () => {
       label: '상급 크리에이터 패키지', 
       price: 400000,
       priceWithVat: 440000,
-      rewardYen: 24000,
+      rewardYen: 60,
       description: '팔로워 20만 이상 (인스타 기준)',
       expectedApplicants: { youtube: 15, instagram: 25, tiktok: 20 }
     },
@@ -170,7 +170,7 @@ const CreateCampaignJapan = () => {
       label: '4주 챌린지 프로그램', 
       price: 600000,
       priceWithVat: 660000,
-      rewardYen: 36000,
+      rewardYen: 90,
       description: '4주간 지속적인 콘텐츠 제작',
       expectedApplicants: { youtube: 8, instagram: 15, tiktok: 12 }
     }
@@ -200,7 +200,7 @@ const CreateCampaignJapan = () => {
         ...prev,
         package_type: value,
         estimated_cost: finalCost,
-        reward_amount: selectedPackage.rewardYen,  // 엔화 보상 자동 설정
+        reward_amount: selectedPackage.rewardYen,  // 달러 보상 자동 설정
         max_participants: prev.total_slots
       }))
     }
@@ -242,7 +242,7 @@ const CreateCampaignJapan = () => {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `다음 한국어 텍스트를 일본어로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n${text}` 
+                text: `다음 한국어 텍스트를 미국어로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n${text}` 
               }] 
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
@@ -254,7 +254,7 @@ const CreateCampaignJapan = () => {
 
       const data = await response.json()
       const translatedText = data.candidates[0]?.content?.parts[0]?.text || '번역 실패'
-      setJapaneseText(translatedText.trim())
+      setUSeseText(translatedText.trim())
     } catch (error) {
       console.error('번역 오류:', error)
       setTranslationError(error.message || '번역 중 오류가 발생했습니다.')
@@ -301,7 +301,7 @@ const CreateCampaignJapan = () => {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `다음 한국어 캠페인 정보를 일본어로 자연스럽게 번역해주세요. 각 필드별로 [제목], [브랜드], [설명], [참가조건], [질문1], [질문2], [질문3], [질문4], [오프라인방문] 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
+                text: `다음 한국어 캠페인 정보를 미국어로 자연스럽게 번역해주세요. 각 필드별로 [제목], [브랜드], [설명], [참가조건], [질문1], [질문2], [질문3], [질문4], [오프라인방문] 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
               }] 
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
@@ -318,7 +318,7 @@ const CreateCampaignJapan = () => {
       console.log('원본:', textToTranslate)
       console.log('번역:', translatedText)
 
-      // 번역 결과 파싱 (한국어/일본어 레이블 모두 처리, 볼드 마크다운 제거)
+      // 번역 결과 파싱 (한국어/미국어 레이블 모두 처리, 볼드 마크다운 제거)
       const cleanText = translatedText.replace(/\*\*/g, '') // 볼드 마크다운 제거
       
       const titleMatch = cleanText.match(/\[(제목|タイトル)\]\s*([\s\S]*?)(?=\n\[|$)/)
@@ -497,7 +497,7 @@ const CreateCampaignJapan = () => {
         setSuccess('임시저장되었습니다!')
         
         setTimeout(() => {
-          navigate(`/company/campaigns/create/japan?id=${data[0].id}`)
+          navigate(`/company/campaigns/create/us?id=${data[0].id}`)
         }, 1500)
       }
     } catch (err) {
@@ -560,7 +560,7 @@ const CreateCampaignJapan = () => {
         requirements: campaignForm.requirements || '',
         category: campaignForm.category,
         image_url: campaignForm.image_url || '',
-        reward_amount: campaignForm.reward_amount,  // 엔화 보상
+        reward_amount: campaignForm.reward_amount,  // 달러 보상
         max_participants: campaignForm.total_slots,
         application_deadline: campaignForm.application_deadline,
         start_date: campaignForm.start_date,
@@ -596,7 +596,7 @@ const CreateCampaignJapan = () => {
         setSuccess('캠페인이 수정되었습니다!')
         
         setTimeout(() => {
-          navigate(`/company/campaigns/guide/japan?id=${editId}`)
+          navigate(`/company/campaigns/guide/us?id=${editId}`)
         }, 1500)
         return
       } else {
@@ -640,7 +640,7 @@ const CreateCampaignJapan = () => {
               company_id: companyData.id,
               amount: -finalCost,
               type: 'campaign_creation',
-              description: `일본 캠페인 생성: ${campaignForm.title}`,
+              description: `미국 캠페인 생성: ${campaignForm.title}`,
               campaign_id: data[0].id
             }])
 
@@ -653,7 +653,7 @@ const CreateCampaignJapan = () => {
           
           setTimeout(() => {
             if (data && data[0]) {
-              navigate(`/company/campaigns/guide/japan?id=${data[0].id}`)
+              navigate(`/company/campaigns/guide/us?id=${data[0].id}`)
             } else {
               navigate('/company/campaigns')
             }
@@ -705,7 +705,7 @@ const CreateCampaignJapan = () => {
           setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
           
           setTimeout(() => {
-            navigate(`/company/campaigns/guide/japan?id=${campaignId}`)
+            navigate(`/company/campaigns/guide/us?id=${campaignId}`)
           }, 1500)
           return
         }
@@ -732,7 +732,7 @@ const CreateCampaignJapan = () => {
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">🇯🇵 {editId ? '캠페인 수정' : '일본 캠페인 생성'}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">🇯🇵 {editId ? '캠페인 수정' : '미국 캠페인 생성'}</h1>
           <p className="text-gray-600 mt-2">왼쪽에서 캠페인 정보를 입력하고, 오른쪽 번역기를 활용하세요.</p>
         </div>
 
@@ -1223,7 +1223,7 @@ const CreateCampaignJapan = () => {
 
           {/* 오른쪽: 번역기 */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-xl font-semibold mb-6 text-gray-900">🌐 한국어 → 일본어 번역기</h2>
+            <h2 className="text-xl font-semibold mb-6 text-gray-900">🌐 한국어 → 미국어 번역기</h2>
             
             <div className="space-y-4">
               {/* 한국어 입력 */}
@@ -1278,31 +1278,31 @@ const CreateCampaignJapan = () => {
                 </div>
               )}
 
-              {/* 일본어 결과 */}
+              {/* 미국어 결과 */}
               <div>
-                <Label htmlFor="japaneseText">🇯🇵 일본어 번역 결과</Label>
+                <Label htmlFor="useseText">🇯🇵 미국어 번역 결과</Label>
                 <div className="relative">
                   <Textarea
-                    id="japaneseText"
-                    value={japaneseText}
-                    onChange={(e) => setJapaneseText(e.target.value)}
+                    id="useseText"
+                    value={useseText}
+                    onChange={(e) => setUSeseText(e.target.value)}
                     rows={6}
                     className="bg-green-50 border-green-300"
                     placeholder="번역 결과가 여기에 표시됩니다..."
                   />
-                  {japaneseText && (
+                  {useseText && (
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(japaneseText)}
+                      onClick={() => copyToClipboard(useseText)}
                       className="absolute top-2 right-2 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
                     >
                       📋 복사
                     </button>
                   )}
                 </div>
-                {japaneseText && (
+                {useseText && (
                   <div className="text-sm text-gray-500 mt-1">
-                    {japaneseText.length}자
+                    {useseText.length}자
                   </div>
                 )}
               </div>
@@ -1324,4 +1324,4 @@ const CreateCampaignJapan = () => {
   )
 }
 
-export default CreateCampaignJapan
+export default CreateCampaignUS

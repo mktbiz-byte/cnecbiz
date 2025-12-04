@@ -2,6 +2,7 @@ import { useSearchParams, useParams, Navigate } from 'react-router-dom'
 import CreateCampaignKorea from './CreateCampaignKorea'
 import CreateCampaign from './CreateCampaign'
 import CreateCampaignJapan from './CreateCampaignJapan'
+import CreateCampaignUS from './CreateCampaignUS'
 
 export default function CreateCampaignRouter() {
   const [searchParams] = useSearchParams()
@@ -16,8 +17,10 @@ export default function CreateCampaignRouter() {
       // 일본은 전용 컴포넌트 사용
       return <CreateCampaignJapan />
     case 'us':
+      // 미국은 전용 컴포넌트 사용
+      return <CreateCampaignUS />
     case 'taiwan':
-      // 미국, 대만은 기존 CreateCampaign 사용
+      // 대만은 기존 CreateCampaign 사용
       return <CreateCampaign />
     default:
       // region이 없으면 캠페인 목록으로 리다이렉트
