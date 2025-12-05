@@ -551,8 +551,9 @@ const CreateCampaignUS = () => {
         throw new Error('모집 발표일은 촬영 마감일보다 이전이어야 합니다.')
       }
 
-      // SNS 플랫폼 검증
-      const hasSelectedPlatform = Object.values(campaignForm.target_platforms).some(Boolean)
+      // SNS 플랫폼 검증 - DOM에서 직접 읽기
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]')
+      const hasSelectedPlatform = Array.from(checkboxes).some(cb => cb.checked)
       if (!hasSelectedPlatform) {
         throw new Error('최소 하나의 SNS 플랫폼을 선택해주세요.')
       }
