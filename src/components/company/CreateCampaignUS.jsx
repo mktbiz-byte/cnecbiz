@@ -521,13 +521,17 @@ const CreateCampaignUS = () => {
       const startDateValue = document.getElementById('start_date')?.value || ''
       const endDateValue = document.getElementById('end_date')?.value || ''
 
-      // 날짜 값으로 campaignForm 업데이트
+      // 모든 필드를 DOM에서 직접 읽기
       const updatedForm = {
         ...campaignForm,
+        title: document.getElementById('title')?.value || campaignForm.title,
+        brand: document.getElementById('brand')?.value || campaignForm.brand,
+        description: document.getElementById('description')?.value || campaignForm.description,
+        requirements: document.getElementById('requirements')?.value || campaignForm.requirements,
         application_deadline: appDeadlineValue,
         start_date: startDateValue,
         end_date: endDateValue,
-        target_platforms: campaignForm.target_platforms  // SNS 플랫폼은 state에서 가져오기
+        target_platforms: campaignForm.target_platforms
       }
 
       // 필수 필드 검증
