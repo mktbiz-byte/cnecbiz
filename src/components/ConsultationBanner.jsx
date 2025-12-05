@@ -116,6 +116,18 @@ export default function ConsultationBanner() {
       })
 
       if (naverWorksResponse.ok || emailResponse.ok) {
+        // Google Tag Manager - 상담 신청 완료 이벤트
+        if (window.dataLayer) {
+          window.dataLayer.push({
+            'event': 'consultation_complete',
+            'consultation_name': formData.name,
+            'consultation_email': formData.email,
+            'consultation_phone': formData.phone,
+            'consultation_brand': formData.brandName,
+            'consultation_services': servicesList
+          })
+        }
+
         alert('상담 신청이 완료되었습니다!\n빠른 시일 내에 연락드리겠습니다. 😊')
         setIsModalOpen(false)
         setFormData({
