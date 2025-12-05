@@ -337,6 +337,53 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Portfolio Section */}
+      <section id="portfolio" className="py-20 bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+              성공 사례 <span className="text-blue-600">포트폴리오</span>
+            </h2>
+            <p className="text-xl text-slate-600">
+              실제 캠페인 영상을 확인하고 CNEC BIZ의 품질을 경험하세요
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {videos.map((video) => (
+              <div
+                key={video.id}
+                className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
+              >
+                {video.url ? (
+                  <iframe
+                    src={video.url}
+                    title={video.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : video.thumbnail_url ? (
+                  <img
+                    src={video.thumbnail_url}
+                    alt={video.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-xl transition-all inline-flex items-center space-x-2">
+              <span>더 많은 포트폴리오 보기</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+
       {/* 한국 캠페인 소개 배너 */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-3xl p-8 md:p-12">
@@ -455,52 +502,6 @@ export default function LandingPage() {
                 <p className="text-slate-600 leading-relaxed">{feature.description}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Portfolio Section */}
-      <section id="portfolio" className="py-20 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
-              성공 사례 <span className="text-blue-600">포트폴리오</span>
-            </h2>
-            <p className="text-xl text-slate-600">
-              실제 캠페인 영상을 확인하고 CNEC BIZ의 품질을 경험하세요
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {videos.map((video) => (
-              <div
-                key={video.id}
-                className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
-              >
-                {video.url ? (
-                  <iframe
-                    src={video.url}
-                    title={video.title}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                ) : video.thumbnail_url ? (
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-12">
-            <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-xl transition-all inline-flex items-center space-x-2">
-              <span>더 많은 포트폴리오 보기</span>
-              <ArrowRight className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </section>
