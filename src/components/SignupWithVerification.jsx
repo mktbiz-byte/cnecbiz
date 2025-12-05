@@ -233,6 +233,14 @@ export default function SignupWithVerification() {
         return
       }
 
+      // Meta Pixel - CompleteRegistration 이벤트
+      if (window.fbq) {
+        window.fbq('track', 'CompleteRegistration', {
+          content_name: 'Company Signup',
+          status: 'completed'
+        })
+      }
+
       alert('회원가입이 완료되었습니다! 프로필을 작성해주세요.')
       navigate('/company/profile-setup')
 
