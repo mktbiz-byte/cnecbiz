@@ -128,6 +128,16 @@ export default function ConsultationBanner() {
           })
         }
 
+        // Meta Pixel - Lead 이벤트
+        if (window.fbq) {
+          window.fbq('track', 'Lead', {
+            content_name: 'Consultation Request',
+            content_category: 'Consultation',
+            value: servicesList,
+            currency: 'KRW'
+          })
+        }
+
         alert('상담 신청이 완료되었습니다!\n빠른 시일 내에 연락드리겠습니다. 😊')
         setIsModalOpen(false)
         setFormData({
