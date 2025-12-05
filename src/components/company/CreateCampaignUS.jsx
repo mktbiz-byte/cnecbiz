@@ -446,8 +446,8 @@ const CreateCampaignUS = () => {
       }
 
       const campaignData = {
-        title: campaignForm.title,
-        brand: campaignForm.brand,
+        title: updatedForm.title,
+        brand: updatedForm.brand,
         description: campaignForm.description || '',
         requirements: campaignForm.requirements || '',
         category: campaignForm.category,
@@ -467,13 +467,13 @@ const CreateCampaignUS = () => {
         question2_options: campaignForm.question2_options || '',
         question3: campaignForm.question3 || '',
         question3_type: campaignForm.question3_type || 'short',
-        question3_options: campaignForm.question3_options || '',
-        question4: campaignForm.question4 || '',
-        question4_type: campaignForm.question4_type || 'short',
-        question4_options: campaignForm.question4_options || '',
-        age_requirement: campaignForm.age_requirement || '',
-        skin_type_requirement: campaignForm.skin_type_requirement || '',
-        offline_visit_requirement: campaignForm.offline_visit_requirement || ''
+        question3_options: updatedForm.question3_options || '',
+        question4: updatedForm.question4 || '',
+        question4_type: updatedForm.question4_type || 'short',
+        question4_options: updatedForm.question4_options || '',
+        age_requirement: updatedForm.age_requirement || '',
+        skin_type_requirement: updatedForm.skin_type_requirement || '',
+        offline_visit_requirement: updatedForm.offline_visit_requirement || ''
         // company_email 제거: 미국 캠페인 DB 스키마에 없음
       }
 
@@ -516,19 +516,32 @@ const CreateCampaignUS = () => {
     setSuccess('')
 
     try {
+      // DOM에서 직접 날짜 값 읽기 (React state 동기화 문제 해결)
+      const appDeadlineValue = document.getElementById('application_deadline')?.value || ''
+      const startDateValue = document.getElementById('start_date')?.value || ''
+      const endDateValue = document.getElementById('end_date')?.value || ''
+
+      // 날짜 값으로 campaignForm 업데이트
+      const updatedForm = {
+        ...campaignForm,
+        application_deadline: appDeadlineValue,
+        start_date: startDateValue,
+        end_date: endDateValue
+      }
+
       // 필수 필드 검증
-      if (!campaignForm.title || !campaignForm.brand || !campaignForm.requirements) {
+      if (!updatedForm.title || !updatedForm.brand || !updatedForm.requirements) {
         throw new Error('제목, 브랜드, 참가조건은 필수 입력 항목입니다.')
       }
 
-      if (!campaignForm.application_deadline || !campaignForm.start_date || !campaignForm.end_date) {
+      if (!updatedForm.application_deadline || !updatedForm.start_date || !updatedForm.end_date) {
         throw new Error('모집 마감일, 모집 발표일, 촬영 마감일을 모두 입력해주세요.')
       }
 
       // 날짜 논리 검증
-      const applicationDeadline = new Date(campaignForm.application_deadline)
-      const startDate = new Date(campaignForm.start_date)
-      const endDate = new Date(campaignForm.end_date)
+      const applicationDeadline = new Date(updatedForm.application_deadline)
+      const startDate = new Date(updatedForm.start_date)
+      const endDate = new Date(updatedForm.end_date)
 
       if (applicationDeadline >= startDate) {
         throw new Error('모집 마감일은 모집 발표일보다 이전이어야 합니다.')
@@ -554,34 +567,34 @@ const CreateCampaignUS = () => {
       }
 
       const campaignData = {
-        title: campaignForm.title,
-        brand: campaignForm.brand,
-        description: campaignForm.description || '',
-        requirements: campaignForm.requirements || '',
-        category: campaignForm.category,
-        image_url: campaignForm.image_url || '',
-        reward_amount: campaignForm.reward_amount,  // 달러 보상
-        max_participants: campaignForm.total_slots,
-        application_deadline: campaignForm.application_deadline,
-        start_date: campaignForm.start_date,
-        end_date: campaignForm.end_date,
-        status: campaignForm.status,
-        target_platforms: campaignForm.target_platforms,
-        question1: campaignForm.question1 || '',
-        question1_type: campaignForm.question1_type || 'short',
-        question1_options: campaignForm.question1_options || '',
-        question2: campaignForm.question2 || '',
-        question2_type: campaignForm.question2_type || 'short',
-        question2_options: campaignForm.question2_options || '',
-        question3: campaignForm.question3 || '',
-        question3_type: campaignForm.question3_type || 'short',
-        question3_options: campaignForm.question3_options || '',
-        question4: campaignForm.question4 || '',
-        question4_type: campaignForm.question4_type || 'short',
-        question4_options: campaignForm.question4_options || '',
-        age_requirement: campaignForm.age_requirement || '',
-        skin_type_requirement: campaignForm.skin_type_requirement || '',
-        offline_visit_requirement: campaignForm.offline_visit_requirement || ''
+        title: updatedForm.title,
+        brand: updatedForm.brand,
+        description: updatedForm.description || '',
+        requirements: updatedForm.requirements || '',
+        category: updatedForm.category,
+        image_url: updatedForm.image_url || '',
+        reward_amount: updatedForm.reward_amount,  // 달러 보상
+        max_participants: updatedForm.total_slots,
+        application_deadline: updatedForm.application_deadline,
+        start_date: updatedForm.start_date,
+        end_date: updatedForm.end_date,
+        status: updatedForm.status,
+        target_platforms: updatedForm.target_platforms,
+        question1: updatedForm.question1 || '',
+        question1_type: updatedForm.question1_type || 'short',
+        question1_options: updatedForm.question1_options || '',
+        question2: updatedForm.question2 || '',
+        question2_type: updatedForm.question2_type || 'short',
+        question2_options: updatedForm.question2_options || '',
+        question3: updatedForm.question3 || '',
+        question3_type: updatedForm.question3_type || 'short',
+        question3_options: updatedForm.question3_options || '',
+        question4: updatedForm.question4 || '',
+        question4_type: updatedForm.question4_type || 'short',
+        question4_options: updatedForm.question4_options || '',
+        age_requirement: updatedForm.age_requirement || '',
+        skin_type_requirement: updatedForm.skin_type_requirement || '',
+        offline_visit_requirement: updatedForm.offline_visit_requirement || ''
         // company_email 제거: 미국 캠페인 DB 스키마에 없음
       }
 
