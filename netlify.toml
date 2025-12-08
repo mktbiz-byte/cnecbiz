@@ -16,6 +16,9 @@
 [functions."scheduled-creator-monitoring"]
   schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9)
 
+[functions."scheduled-daily-report"]
+  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9)
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
