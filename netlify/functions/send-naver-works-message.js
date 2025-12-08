@@ -9,7 +9,8 @@ const crypto = require('crypto');
  * - NAVER_WORKS_CLIENT_ID: Client ID
  * - NAVER_WORKS_CLIENT_SECRET: Client Secret
  * - NAVER_WORKS_BOT_ID: Bot ID
- * - NAVER_WORKS_CHANNEL_ID: 메시지방 채널 ID
+ * - NAVER_WORKS_CHANNEL_ID: 메시지방 채널 ID (크리에이터 추천 알림용)
+ * - NAVER_WORKS_CONSULTATION_CHANNEL_ID: 상담신청 전용 채널 ID (선택사항)
  */
 
 // Private Key (환경 변수 크기 제한으로 코드에 포함)
@@ -204,7 +205,12 @@ exports.handler = async (event, context) => {
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
     const botId = process.env.NAVER_WORKS_BOT_ID;
-    const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
+    
+    // 상담신청 알림은 별도 채널로 전송 (설정되어 있으면)
+    const channelId = isAdminNotification 
+      ? (process.env.NAVER_WORKS_CONSULTATION_CHANNEL_ID || process.env.NAVER_WORKS_CHANNEL_ID)
+      : process.env.NAVER_WORKS_CHANNEL_ID;
+    
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
 
     if (!clientId || !clientSecret || !botId || !channelId) {
