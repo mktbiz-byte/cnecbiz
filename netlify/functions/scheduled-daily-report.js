@@ -343,13 +343,13 @@ exports.handler = async (event, context) => {
 
     const newCreatorApplications = newCreatorApps?.length || 0;
 
-    // 신규 승인 (전날)
+    // 신규 승인 (전날) - updated_at 사용
     const { data: approvedCreators, error: approvedCreatorsError } = await supabaseAdmin
       .from('featured_creator_applications')
       .select('id')
       .eq('status', 'approved')
-      .gte('approved_at', start)
-      .lte('approved_at', end);
+      .gte('updated_at', start)
+      .lte('updated_at', end);
 
     if (approvedCreatorsError) throw approvedCreatorsError;
 
