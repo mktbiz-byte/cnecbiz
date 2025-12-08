@@ -675,13 +675,13 @@ export default function MyCampaigns() {
                   return (
                     <div 
                       key={campaign.id}
-                      className="border rounded-lg p-5 hover:shadow-md transition-shadow cursor-pointer"
+                      className="border rounded-lg p-3 md:p-5 hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)}
                     >
                       {/* Header */}
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
                             {getRegionBadge(campaign.region)}
                             {getCampaignTypeBadge(campaign.campaign_type)}
                             {getPaymentStatusBadge(campaign.payment_status, campaign.is_cancelled)}
@@ -693,14 +693,14 @@ export default function MyCampaigns() {
                               campaign.is_cancelled
                             )}
                           </div>
-                          <h3 className="font-bold text-xl mb-1">{campaign.title}</h3>
-                          <p className="text-sm text-gray-600">
+                          <h3 className="font-bold text-lg md:text-xl mb-1 break-words">{campaign.title}</h3>
+                          <p className="text-xs md:text-sm text-gray-600 break-words">
                             {campaign.brand} • {campaign.product_name}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-600 mb-1">결제 예상 금액</div>
-                          <div className="text-2xl font-bold text-blue-600">
+                        <div className="text-right sm:text-right w-full sm:w-auto">
+                          <div className="text-xs md:text-sm text-gray-600 mb-1">결제 예상 금액</div>
+                          <div className="text-xl md:text-2xl font-bold text-blue-600">
                             ₩{totalCost.toLocaleString()}
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
@@ -710,31 +710,31 @@ export default function MyCampaigns() {
                       </div>
 
                       {/* Stats Grid */}
-                      <div className="grid grid-cols-3 gap-3 mb-4">
-                        <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="grid grid-cols-3 gap-2 md:gap-3 mb-4">
+                        <div className="bg-blue-50 p-2 md:p-3 rounded-lg">
                           <div className="flex items-center gap-2 mb-1">
                             <Users className="w-4 h-4 text-blue-600" />
-                            <span className="text-xs text-gray-600">모집 인원</span>
+                            <span className="text-[10px] md:text-xs text-gray-600 whitespace-nowrap">모집 인원</span>
                           </div>
-                          <div className="text-2xl font-bold text-blue-600">
+                          <div className="text-base md:text-2xl font-bold text-blue-600">
                             {campaign.total_slots || 0}명
                           </div>
                         </div>
-                        <div className="bg-green-50 p-3 rounded-lg">
+                        <div className="bg-green-50 p-2 md:p-3 rounded-lg">
                           <div className="flex items-center gap-2 mb-1">
                             <UserCheck className="w-4 h-4 text-green-600" />
-                            <span className="text-xs text-gray-600">지원 크리에이터</span>
+                            <span className="text-[10px] md:text-xs text-gray-600 whitespace-nowrap">지원 크리에이터</span>
                           </div>
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-base md:text-2xl font-bold text-green-600">
                             {participantInfo.total}명
                           </div>
                         </div>
-                        <div className="bg-purple-50 p-3 rounded-lg">
+                        <div className="bg-purple-50 p-2 md:p-3 rounded-lg">
                           <div className="flex items-center gap-2 mb-1">
                             <CheckCircle className="w-4 h-4 text-purple-600" />
-                            <span className="text-xs text-gray-600">확정 크리에이터</span>
+                            <span className="text-[10px] md:text-xs text-gray-600 whitespace-nowrap">확정 크리에이터</span>
                           </div>
-                          <div className="text-2xl font-bold text-purple-600">
+                          <div className="text-base md:text-2xl font-bold text-purple-600">
                             {participantInfo.selected}명
                           </div>
                         </div>
@@ -763,8 +763,8 @@ export default function MyCampaigns() {
                       )}
 
                       {/* Deadlines */}
-                      <div className="flex items-center justify-between text-sm border-t pt-3">
-                        <div className="flex items-center gap-6">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs md:text-sm border-t pt-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-6">
                           {recruitmentDays !== null && (
                             <div className="flex items-center gap-2">
                               <Clock className="w-4 h-4 text-gray-500" />

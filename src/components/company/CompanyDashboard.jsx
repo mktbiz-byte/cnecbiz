@@ -300,7 +300,7 @@ export default function CompanyDashboard() {
       <CompanyNavigation />
       <div className="min-h-screen bg-gray-50 lg:ml-64">
         {/* Main Content */}
-        <main className="p-8">
+        <main className="p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -399,16 +399,16 @@ export default function CompanyDashboard() {
                     return (
                       <div 
                         key={campaign.id}
-                        className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                        className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                         onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
                       >
-                        <div className="flex items-start justify-between mb-3">
+                        <div className="flex flex-col sm:flex-row items-start justify-between mb-3 gap-2">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-lg">{campaign.title}</h3>
+                              <h3 className="font-semibold text-base md:text-lg break-words">{campaign.title}</h3>
                               {getCampaignTypeBadge(campaign.campaign_type)}
                             </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm text-gray-600">
                               {getRegionBadge(campaign.region)}
                               <span>•</span>
                               <span>{campaign.package_type}</span>
@@ -416,37 +416,37 @@ export default function CompanyDashboard() {
                               {getProgressStatusBadge(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-blue-600">
+                          <div className="text-right sm:text-right w-full sm:w-auto">
+                            <div className="text-xl md:text-2xl font-bold text-blue-600">
                               {totalCost.toLocaleString()}원
                             </div>
                             {getPaymentStatusBadge(campaign.payment_status, campaign.is_cancelled)}
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4 mb-3">
-                          <div className="bg-blue-50 p-3 rounded-lg">
-                            <div className="text-xs text-gray-600 mb-1">모집 인원</div>
-                            <div className="text-xl font-bold text-blue-600">
+                        <div className="grid grid-cols-3 gap-2 md:gap-4 mb-3">
+                          <div className="bg-blue-50 p-2 md:p-3 rounded-lg">
+                            <div className="text-[10px] md:text-xs text-gray-600 mb-1">모집 인원</div>
+                            <div className="text-base md:text-xl font-bold text-blue-600">
                               {campaign.total_slots || 0}명
                             </div>
                           </div>
-                          <div className="bg-green-50 p-3 rounded-lg">
-                            <div className="text-xs text-gray-600 mb-1">지원자</div>
-                            <div className="text-xl font-bold text-green-600">
+                          <div className="bg-green-50 p-2 md:p-3 rounded-lg">
+                            <div className="text-[10px] md:text-xs text-gray-600 mb-1">지원자</div>
+                            <div className="text-base md:text-xl font-bold text-green-600">
                               {participantInfo.total}명
                             </div>
                           </div>
-                          <div className="bg-purple-50 p-3 rounded-lg">
-                            <div className="text-xs text-gray-600 mb-1">확정 크리에이터</div>
-                            <div className="text-xl font-bold text-purple-600">
+                          <div className="bg-purple-50 p-2 md:p-3 rounded-lg">
+                            <div className="text-[10px] md:text-xs text-gray-600 mb-1 whitespace-nowrap">확정 크리에이터</div>
+                            <div className="text-base md:text-xl font-bold text-purple-600">
                               {participantInfo.selected}명
                             </div>
                           </div>
                         </div>
 
-                        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="mb-3 p-2 md:p-3 bg-gray-50 rounded-lg">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 text-xs md:text-sm">
                             <div>
                               <div className="text-gray-500 mb-1">모집 마감일</div>
                               <div className="font-medium">
@@ -473,7 +473,7 @@ export default function CompanyDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-sm">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs md:text-sm">
                           <div className="flex items-center gap-4">
                             {submissionDays !== null && (
                               <div className="flex items-center gap-1">
