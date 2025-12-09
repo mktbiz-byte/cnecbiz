@@ -50,10 +50,12 @@ const TossPaymentWidget = ({
       }
 
       try {
+        // 금액 설정
+        await paymentWidget.setAmount({ currency: 'KRW', value: Number(amount) });
+        
         // 결제 UI 렌더링
         await paymentWidget.renderPaymentMethods(
           '#payment-method',
-          { value: Number(amount), currency: 'KRW' },
           { variantKey: 'DEFAULT' }
         );
 
