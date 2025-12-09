@@ -594,62 +594,6 @@ const CampaignCreationKorea = () => {
           </Button>
         </div>
 
-        {/* 캠페인 타입 소개 배너 */}
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6">
-          <h2 className="text-2xl font-bold text-center mb-6">캠페인 생성 가이드</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            {/* 기획형 캠페인 */}
-            <div 
-              className="bg-white p-4 rounded-lg border-2 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer"
-              onClick={() => window.open('/campaigns/intro/regular', '_blank')}
-            >
-              <div className="text-3xl mb-2">📝</div>
-              <h3 className="font-bold text-lg mb-2">기획형 캠페인 가이드</h3>
-              <p className="text-sm text-gray-600 mb-2">초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</p>
-              <ul className="text-xs text-gray-500 space-y-1">
-                <li>• 대사 + 촬영장면 개별 제공</li>
-                <li>• 크리에이터 SNS 업로드 + 1년간 초상권 사용</li>
-              </ul>
-              <div className="mt-3 text-blue-600 text-sm font-medium hover:underline">
-                자세히 보기 →
-              </div>
-            </div>
-
-            {/* 올영세일 캠페인 */}
-            <div 
-              className="bg-white p-4 rounded-lg border-2 border-pink-200 hover:border-pink-400 hover:shadow-lg transition-all cursor-pointer"
-              onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
-            >
-              <div className="text-3xl mb-2">🌸</div>
-              <h3 className="font-bold text-lg mb-2">올영세일 캠페인 가이드</h3>
-              <p className="text-sm text-gray-600 mb-2">스탠다드 30만원 / 프리미엄 40만원</p>
-              <ul className="text-xs text-gray-500 space-y-1">
-                <li>• 3단계 콘텐츠 (릴스 2 + 스토리 1)</li>
-              </ul>
-              <div className="mt-3 text-pink-600 text-sm font-medium hover:underline">
-                자세히 보기 →
-              </div>
-            </div>
-
-            {/* 4주 챌린지 */}
-            <div 
-              className="bg-white p-4 rounded-lg border-2 border-purple-200 hover:border-purple-400 hover:shadow-lg transition-all cursor-pointer"
-              onClick={() => window.open('/campaigns/intro/4week', '_blank')}
-            >
-              <div className="text-3xl mb-2">🏆</div>
-              <h3 className="font-bold text-lg mb-2">4주 챌린지 가이드</h3>
-              <p className="text-sm text-gray-600 mb-2">60만원</p>
-              <ul className="text-xs text-gray-500 space-y-1">
-                <li>• 주차별 통합 가이드 4개</li>
-                <li>• 4주 연속 콘텐츠</li>
-                <li>• 4개의 미션 가이드를 통한 SNS 4주간 리뷰</li>
-              </ul>
-              <div className="mt-3 text-purple-600 text-sm font-medium hover:underline">
-                자세히 보기 →
-              </div>
-            </div>
-          </div>
-        </div>
 
         <Card>
           <CardHeader>
@@ -662,11 +606,18 @@ const CampaignCreationKorea = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               
               {/* 1. 캠페인 타입 선택 */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">🎯 캠페인 타입 선택 *</h3>
-                <div className="space-y-3">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl">
+                <h3 className="text-xl font-bold mb-6 text-gray-800">🎯 캠페인 타입 선택 *</h3>
+                <div className="space-y-4">
                   {/* 기획형 캠페인 */}
-                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}>
+                  <div 
+                    className={`flex items-start gap-4 p-5 bg-white rounded-xl border-2 transition-all cursor-pointer ${
+                      campaignForm.campaign_type === 'planned' 
+                        ? 'border-blue-500 shadow-lg' 
+                        : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+                    }`}
+                    onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}
+                  >
                     <input
                       type="radio"
                       id="campaign_type_regular"
@@ -674,30 +625,38 @@ const CampaignCreationKorea = () => {
                       value="planned"
                       checked={campaignForm.campaign_type === 'planned'}
                       onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}
-                      className="w-5 h-5 mt-1 text-blue-600"
+                      className="w-5 h-5 mt-1 text-blue-600 cursor-pointer"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="campaign_type_regular" className="text-base font-semibold cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="campaign_type_regular" className="text-lg font-bold cursor-pointer text-gray-800">
                           📝 기획형 캠페인
                         </Label>
                         <a 
                           href="/campaigns/intro/regular" 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium underline"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          자세히 보기
+                          상세보기 →
                         </a>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">가격: 베이직 20만원 / 스탠다드 30만원 / 프리미엄 40만원 / 프로페셔널 60만원 / 엔터프라이즈 100만원</p>
-                      <p className="text-xs text-gray-500 mt-1">대사 + 촬영장면 개별 제공, SNS URL 1개 제출</p>
+                      <p className="text-sm text-gray-700 font-medium mb-2">💰 베이직 20만원 | 스탠다드 30만원 | 프리미엄 40만원 | 프로페셔널 60만원 | 엔터프라이즈 100만원</p>
+                      <p className="text-sm text-gray-600">• 대사 + 촬영장면 개별 제공</p>
+                      <p className="text-sm text-gray-600">• SNS URL 1개 제출</p>
                     </div>
                   </div>
 
                   {/* 올영세일 캠페인 */}
-                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-pink-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}>
+                  <div 
+                    className={`flex items-start gap-4 p-5 bg-white rounded-xl border-2 transition-all cursor-pointer ${
+                      campaignForm.campaign_type === 'oliveyoung' 
+                        ? 'border-pink-500 shadow-lg' 
+                        : 'border-gray-200 hover:border-pink-300 hover:shadow-md'
+                    }`}
+                    onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}
+                  >
                     <input
                       type="radio"
                       id="campaign_type_oliveyoung"
@@ -705,30 +664,38 @@ const CampaignCreationKorea = () => {
                       value="oliveyoung"
                       checked={campaignForm.campaign_type === 'oliveyoung'}
                       onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}
-                      className="w-5 h-5 mt-1 text-pink-600"
+                      className="w-5 h-5 mt-1 text-pink-600 cursor-pointer"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="campaign_type_oliveyoung" className="text-base font-semibold cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="campaign_type_oliveyoung" className="text-lg font-bold cursor-pointer text-gray-800">
                           🌸 올영세일 캠페인
                         </Label>
                         <a 
                           href="/campaigns/intro/oliveyoung" 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-xs text-pink-600 hover:text-pink-800 underline"
+                          className="text-sm text-pink-600 hover:text-pink-800 font-medium underline"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          자세히 보기
+                          상세보기 →
                         </a>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">가격: 스탠다드 40만원 / 프리미엄 50만원 / 프로페셔널 60만원</p>
-                      <p className="text-xs text-gray-500 mt-1">통합 가이드, 2단계 콘텐츠 (릴스 2건), URL 3개 + 영상 폴더 2개 제출</p>
+                      <p className="text-sm text-gray-700 font-medium mb-2">💰 스탠다드 40만원 | 프리미엄 50만원 | 프로페셔널 60만원</p>
+                      <p className="text-sm text-gray-600">• 통합 가이드, 2단계 콘텐츠 (릴스 2건)</p>
+                      <p className="text-sm text-gray-600">• URL 3개 + 영상 폴더 2개 제출</p>
                     </div>
                   </div>
 
                   {/* 4주 챌린지 */}
-                  <div className="flex items-start gap-3 p-4 border rounded-lg cursor-pointer hover:bg-purple-50" onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: '4week_challenge', is_oliveyoung_sale: false }))}>
+                  <div 
+                    className={`flex items-start gap-4 p-5 bg-white rounded-xl border-2 transition-all cursor-pointer ${
+                      campaignForm.campaign_type === '4week_challenge' 
+                        ? 'border-purple-500 shadow-lg' 
+                        : 'border-gray-200 hover:border-purple-300 hover:shadow-md'
+                    }`}
+                    onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: '4week_challenge', is_oliveyoung_sale: false }))}
+                  >
                     <input
                       type="radio"
                       id="campaign_type_4week"
@@ -736,25 +703,26 @@ const CampaignCreationKorea = () => {
                       value="4week_challenge"
                       checked={campaignForm.campaign_type === '4week_challenge'}
                       onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: '4week_challenge', is_oliveyoung_sale: false }))}
-                      className="w-5 h-5 mt-1 text-purple-600"
+                      className="w-5 h-5 mt-1 text-purple-600 cursor-pointer"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="campaign_type_4week" className="text-base font-semibold cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="campaign_type_4week" className="text-lg font-bold cursor-pointer text-gray-800">
                           🏆 4주 챌린지
                         </Label>
                         <a 
                           href="/campaigns/intro/4week" 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-xs text-purple-600 hover:text-purple-800 underline"
+                          className="text-sm text-purple-600 hover:text-purple-800 font-medium underline"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          자세히 보기
+                          상세보기 →
                         </a>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">가격: 스탠다드 60만원 / 프리미엄 70만원 / 프로페셔널 80만원 / 엔터프라이즈 100만원</p>
-                      <p className="text-xs text-gray-500 mt-1">주차별 통합 가이드 4개, 4주 콘텐츠, 4개의 미션 가이드를 통한 SNS 4주간 리뷰</p>
+                      <p className="text-sm text-gray-700 font-medium mb-2">💰 스탠다드 60만원 | 프리미엄 70만원 | 프로페셔널 80만원 | 엔터프라이즈 100만원</p>
+                      <p className="text-sm text-gray-600">• 주차별 통합 가이드 4개, 4주 콘텐츠</p>
+                      <p className="text-sm text-gray-600">• 4개의 미션 가이드를 통한 SNS 4주간 리뷰</p>
                     </div>
                   </div>
                 </div>
