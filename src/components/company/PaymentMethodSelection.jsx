@@ -93,32 +93,8 @@ const PaymentMethodSelection = () => {
     );
   }
 
-  // 금액 계산 로직 (InvoicePage와 동일)
-  const packagePrices = {
-    'junior': 200000,
-    'intermediate': 300000,
-    'senior': 400000,
-    '4week_challenge': 600000,
-    'oliveyoung': 200000,
-    '올영 20만원': 200000,
-    'premium': 300000,
-    '프리미엄 30만원': 300000,
-    '4주챌린지 60만원': 600000
-  };
-
-  const packagePrice = packagePrices[campaign.package_type] || 200000;
-  const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0;
-  
-  // 할인 계산 (1천만원 이상만 5% 할인)
-  const subtotal = packagePrice * recruitmentCount;
-  let discountRate = 0;
-  if (subtotal >= 10000000) {
-    discountRate = 0.05; // 5% 할인
-  }
-  const discountAmount = Math.floor(subtotal * discountRate);
-  const afterDiscount = subtotal - discountAmount;
-  const vat = Math.floor(afterDiscount * 0.1); // 부가세 10%
-  const totalAmount = afterDiscount + vat;
+  // 데이터베이스의 estimated_cost를 직접 사용
+  const totalAmount = campaign.estimated_cost || 0;
 
   return (
     <div className="min-h-screen bg-gray-50">

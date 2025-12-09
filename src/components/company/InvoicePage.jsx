@@ -413,31 +413,12 @@ const InvoicePage = () => {
     )
   }
 
-  const packagePrices = {
-    'junior': 200000,
-    'intermediate': 300000,
-    'senior': 400000,
-    '4week_challenge': 600000,
-    'oliveyoung': 200000,
-    '올영 20만원': 200000,
-    'premium': 300000,
-    '프리미엄 30만원': 300000,
-    '4주챌린지 60만원': 600000
-  }
-
-  const packagePrice = packagePrices[campaign.package_type] || 200000
-  const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0
-  
-  // 할인 계산 (1천만원 이상만 5% 할인)
+  // estimated_cost로부터 패키지 단가 역산
+  const totalCost = campaign.estimated_cost || 0
+  const recruitmentCount = campaign.total_slots || 0
+  const packagePrice = recruitmentCount > 0 ? Math.floor(totalCost / (recruitmentCount * 1.1)) : 0
   const subtotal = packagePrice * recruitmentCount
-  let discountRate = 0
-  if (subtotal >= 10000000) {
-    discountRate = 0.05 // 5% 할인
-  }
-  const discountAmount = Math.floor(subtotal * discountRate)
-  const afterDiscount = subtotal - discountAmount
-  const vat = Math.floor(afterDiscount * 0.1) // 부가세 10%
-  const totalCost = afterDiscount + vat
+  const vat = totalCost - subtotal
   
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
 
@@ -487,8 +468,8 @@ const InvoicePage = () => {
                     <th className="px-4 py-3 text-right text-sm font-semibold">금액</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
-                  <tr>
+                <tbody className="divide-y divide-gray-200">
+                  <tr className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm">
                       <div className="font-medium">{campaign.package_type}</div>
                       <div className="text-gray-600 text-xs mt-1">{campaign.title}</div>
@@ -503,16 +484,6 @@ const InvoicePage = () => {
                       {subtotal.toLocaleString()}원
                     </td>
                   </tr>
-                  {discountRate > 0 && (
-                    <tr className="bg-green-50">
-                      <td colSpan="3" className="px-4 py-3 text-sm text-right text-green-700 font-medium">
-                        할인 ({discountRate * 100}%)
-                      </td>
-                      <td className="px-4 py-3 text-sm text-right text-green-700 font-medium">
-                        -{discountAmount.toLocaleString()}원
-                      </td>
-                    </tr>
-                  )}
                   <tr className="bg-gray-50">
                     <td colSpan="3" className="px-4 py-3 text-sm text-right text-gray-700 font-medium">
                       부가세 (10%)
