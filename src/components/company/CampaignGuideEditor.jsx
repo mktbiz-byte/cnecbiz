@@ -346,7 +346,8 @@ const CampaignGuideEditor = () => {
   return (
     <>
       <CompanyNavigation />
-      <div className="cont      <Card className="max-w-5xl mx-auto border-2 shadow-lg">
+      <div className="container mx-auto p-6">
+        <Card className="max-w-5xl mx-auto border-2 shadow-lg">
         <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 border-b-2">
           <div className="flex items-center justify-between">
             <div>
