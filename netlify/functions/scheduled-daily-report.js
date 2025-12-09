@@ -53,26 +53,26 @@ const createRegionClients = () => {
   const clients = {};
   
   // Korea
-  if (process.env.VITE_SUPABASE_KOREA_URL && process.env.VITE_SUPABASE_KOREA_SERVICE_KEY) {
+  if (process.env.VITE_SUPABASE_KOREA_URL && process.env.VITE_SUPABASE_KOREA_ANON_KEY) {
     clients.korea = createClient(
       process.env.VITE_SUPABASE_KOREA_URL,
-      process.env.VITE_SUPABASE_KOREA_SERVICE_KEY
+      process.env.VITE_SUPABASE_KOREA_ANON_KEY
     );
   }
   
   // Japan
-  if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY) {
+  if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_ANON_KEY) {
     clients.japan = createClient(
       process.env.VITE_SUPABASE_JAPAN_URL,
-      process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY
+      process.env.VITE_SUPABASE_JAPAN_ANON_KEY
     );
   }
   
   // US
-  if (process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_SERVICE_KEY) {
+  if (process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_ANON_KEY) {
     clients.us = createClient(
       process.env.VITE_SUPABASE_US_URL,
-      process.env.VITE_SUPABASE_US_SERVICE_KEY
+      process.env.VITE_SUPABASE_US_ANON_KEY
     );
   }
   
