@@ -448,11 +448,11 @@ const InvoicePage = () => {
       <div className="container mx-auto p-6 max-w-4xl">
       <Button
         variant="ghost"
-        onClick={() => navigate(`/company/campaigns/${id}/order-confirmation`)}
+        onClick={() => navigate(`/company/campaigns/payment?id=${id}&region=${region}`)}
         className="mb-4 no-print"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        주문서로 돌아가기
+        결제 방법 선택으로 돌아가기
       </Button>
 
       <Card className="printable-area">
