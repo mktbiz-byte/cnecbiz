@@ -10,16 +10,13 @@
  * 3. 매출 현황 (나라별 일일/누적)
  * 4. 포인트 충전 현황
  * 5. 크리에이터 현황
+ * 
+ * Multi-region 지원: Korea, Japan, US (각각 별도의 Supabase 프로젝트)
  */
 
 const { createClient } = require('@supabase/supabase-js');
 const https = require('https');
 const crypto = require('crypto');
-
-// Supabase 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 // 네이버 웍스 Private Key
 const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
@@ -51,11 +48,63 @@ h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
 skmeYX6UpJwnuTP2xN5NDDI=
 -----END PRIVATE KEY-----`;
 
-console.log('Scheduled function: daily-report initialized');
+// Supabase 클라이언트 초기화 (각 지역별)
+const createRegionClients = () => {
+  const clients = {};
+  
+  // Korea
+  if (process.env.VITE_SUPABASE_KOREA_URL && process.env.VITE_SUPABASE_KOREA_SERVICE_KEY) {
+    clients.korea = createClient(
+      process.env.VITE_SUPABASE_KOREA_URL,
+      process.env.VITE_SUPABASE_KOREA_SERVICE_KEY
+    );
+  }
+  
+  // Japan
+  if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY) {
+    clients.japan = createClient(
+      process.env.VITE_SUPABASE_JAPAN_URL,
+      process.env.VITE_SUPABASE_JAPAN_SERVICE_KEY
+    );
+  }
+  
+  // US
+  if (process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_SERVICE_KEY) {
+    clients.us = createClient(
+      process.env.VITE_SUPABASE_US_URL,
+      process.env.VITE_SUPABASE_US_SERVICE_KEY
+    );
+  }
+  
+  // BIZ (중앙 관리 - 포인트 충전 등)
+  if (process.env.VITE_SUPABASE_BIZ_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    clients.biz = createClient(
+      process.env.VITE_SUPABASE_BIZ_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+  }
+  
+  return clients;
+};
 
-/**
- * JWT 생성
- */
+// 전날 범위 계산
+const getYesterdayRange = () => {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  
+  const start = `${year}-${month}-${day}T00:00:00`;
+  const end = `${year}-${month}-${day}T23:59:59`;
+  const dateStr = `${year}년 ${month}월 ${day}일`;
+  
+  return { start, end, dateStr };
+};
+
+// JWT 생성
 function generateJWT(clientId, serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
   
@@ -77,13 +126,10 @@ function generateJWT(clientId, serviceAccount) {
   return `${signatureInput}.${base64Signature}`;
 }
 
-/**
- * Access Token 발급
- */
+// Access Token 발급
 async function getAccessToken(clientId, clientSecret, serviceAccount) {
   return new Promise((resolve, reject) => {
     const jwt = generateJWT(clientId, serviceAccount);
-    
     const postData = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
       assertion: jwt,
@@ -107,8 +153,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
         if (res.statusCode === 200) {
-          const response = JSON.parse(data);
-          resolve(response.access_token);
+          resolve(JSON.parse(data).access_token);
         } else {
           reject(new Error(`Failed to get access token: ${res.statusCode} ${data}`));
         }
@@ -121,18 +166,13 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
   });
 }
 
-/**
- * 네이버 웍스 메시지 전송
- */
+// 네이버 웍스 메시지 전송
 async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
   return new Promise((resolve, reject) => {
     const postData = JSON.stringify({
-      content: {
-        type: 'text',
-        text: message
-      }
+      content: { type: 'text', text: message }
     });
-
+    
     const options = {
       hostname: 'www.worksapis.com',
       path: `/v1.0/bots/${botId}/channels/${channelId}/messages`,
@@ -143,7 +183,7 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
         'Content-Length': Buffer.byteLength(postData)
       }
     };
-
+    
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -155,48 +195,23 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
         }
       });
     });
-
+    
     req.on('error', reject);
     req.write(postData);
     req.end();
   });
 }
 
-/**
- * 날짜 범위 계산 (전날 00:00 ~ 23:59)
- */
-function getYesterdayRange() {
-  const now = new Date();
-  const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  
-  // 전날 00:00
-  const yesterday = new Date(koreaTime);
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
-  
-  // 전날 23:59
-  const yesterdayEnd = new Date(yesterday);
-  yesterdayEnd.setHours(23, 59, 59, 999);
-  
-  return {
-    start: yesterday.toISOString(),
-    end: yesterdayEnd.toISOString(),
-    dateStr: yesterday.toLocaleDateString('ko-KR', { 
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  };
-}
-
-/**
- * 메인 핸들러
- */
+// 메인 핸들러
 exports.handler = async (event, context) => {
-  console.log('🔔 [DAILY-REPORT] 일일 보고서 생성 시작');
-
+  console.log('🚀 일일 보고서 생성 시작');
+  
   try {
-    // 한국시간
+    const clients = createRegionClients();
+    const regions = ['korea', 'japan', 'us'];
+    
+    console.log('📊 사용 가능한 클라이언트:', Object.keys(clients));
+    
     const now = new Date();
     const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
     const koreanDateTime = koreaTime.toLocaleString('ko-KR', { 
@@ -207,239 +222,201 @@ exports.handler = async (event, context) => {
       hour: '2-digit',
       minute: '2-digit'
     });
-
-    // 전날 범위
+    
     const { start, end, dateStr } = getYesterdayRange();
     console.log(`📅 집계 기간: ${start} ~ ${end}`);
-
-    // ━━━━━━━━━━━━━━━━━━━━━━
-    // 1. 회원 현황
-    // ━━━━━━━━━━━━━━━━━━━━━━
     
-    // 신규 가입 (전날)
-    const { data: newCompanies, error: newCompaniesError } = await supabaseAdmin
-      .from('companies')
-      .select('region')
-      .gte('created_at', start)
-      .lte('created_at', end);
-
-    if (newCompaniesError) throw newCompaniesError;
-
-    const newByRegion = {
-      korea: newCompanies?.filter(c => c.region === 'korea').length || 0,
-      japan: newCompanies?.filter(c => c.region === 'japan').length || 0,
-      us: newCompanies?.filter(c => c.region === 'us').length || 0
+    // 데이터 수집
+    const stats = {
+      companies: { new: {}, total: {} },
+      campaigns: { new: {}, total: 0, byStatus: {} },
+      revenue: { daily: {}, total: {} },
+      points: { count: 0, amount: 0 },
+      creators: { newApps: 0, newApprovals: 0, total: 0 }
     };
-    const newTotal = (newCompanies?.length || 0);
-
-    // 누적 회원
-    const { data: allCompanies, error: allCompaniesError } = await supabaseAdmin
-      .from('companies')
-      .select('region');
-
-    if (allCompaniesError) throw allCompaniesError;
-
-    const totalByRegion = {
-      korea: allCompanies?.filter(c => c.region === 'korea').length || 0,
-      japan: allCompanies?.filter(c => c.region === 'japan').length || 0,
-      us: allCompanies?.filter(c => c.region === 'us').length || 0
-    };
-    const totalCompanies = (allCompanies?.length || 0);
-
-    // ━━━━━━━━━━━━━━━━━━━━━━
-    // 2. 캠페인 현황
-    // ━━━━━━━━━━━━━━━━━━━━━━
-
-    // 신규 캠페인 (전날)
-    const { data: newCampaigns, error: newCampaignsError } = await supabaseAdmin
-      .from('campaigns')
-      .select('region')
-      .gte('created_at', start)
-      .lte('created_at', end);
-
-    if (newCampaignsError) throw newCampaignsError;
-
-    const newCampaignsByRegion = {
-      korea: newCampaigns?.filter(c => c.region === 'korea').length || 0,
-      japan: newCampaigns?.filter(c => c.region === 'japan').length || 0,
-      us: newCampaigns?.filter(c => c.region === 'us').length || 0
-    };
-    const newCampaignsTotal = (newCampaigns?.length || 0);
-
-    // 상태별 캠페인
-    const { data: allCampaigns, error: allCampaignsError } = await supabaseAdmin
-      .from('campaigns')
-      .select('status');
-
-    if (allCampaignsError) throw allCampaignsError;
-
-    const campaignsByStatus = {
-      recruiting: allCampaigns?.filter(c => c.status === 'recruiting').length || 0,
-      active: allCampaigns?.filter(c => c.status === 'active').length || 0,
-      completed: allCampaigns?.filter(c => c.status === 'completed').length || 0
-    };
-
-    // ━━━━━━━━━━━━━━━━━━━━━━
-    // 3. 매출 현황
-    // ━━━━━━━━━━━━━━━━━━━━━━
-
-    // 일일 매출 (전날 생성된 캠페인의 estimated_cost 합계)
-    const { data: yesterdayCampaigns, error: yesterdayCampaignsError } = await supabaseAdmin
-      .from('campaigns')
-      .select('region, estimated_cost')
-      .gte('created_at', start)
-      .lte('created_at', end);
-
-    if (yesterdayCampaignsError) throw yesterdayCampaignsError;
-
-    const dailyRevenue = {
-      korea: yesterdayCampaigns?.filter(c => c.region === 'korea').reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0,
-      japan: yesterdayCampaigns?.filter(c => c.region === 'japan').reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0,
-      us: yesterdayCampaigns?.filter(c => c.region === 'us').reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0
-    };
-
-    // 누적 매출
-    const { data: allRevenueCampaigns, error: allRevenueCampaignsError } = await supabaseAdmin
-      .from('campaigns')
-      .select('region, estimated_cost');
-
-    if (allRevenueCampaignsError) throw allRevenueCampaignsError;
-
-    const totalRevenue = {
-      korea: allRevenueCampaigns?.filter(c => c.region === 'korea').reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0,
-      japan: allRevenueCampaigns?.filter(c => c.region === 'japan').reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0,
-      us: allRevenueCampaigns?.filter(c => c.region === 'us').reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0
-    };
-
-    // ━━━━━━━━━━━━━━━━━━━━━━
-    // 4. 포인트 충전 현황
-    // ━━━━━━━━━━━━━━━━━━━━━━
-
-    const { data: pointsCharges, error: pointsChargesError } = await supabaseAdmin
-      .from('points_charges')
-      .select('amount')
-      .eq('status', 'completed')
-      .gte('created_at', start)
-      .lte('created_at', end);
-
-    if (pointsChargesError) throw pointsChargesError;
-
-    const pointsCount = pointsCharges?.length || 0;
-    const pointsAmount = pointsCharges?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
-    const pointsAvg = pointsCount > 0 ? Math.round(pointsAmount / pointsCount) : 0;
-
-    // ━━━━━━━━━━━━━━━━━━━━━━
-    // 5. 크리에이터 현황
-    // ━━━━━━━━━━━━━━━━━━━━━━
-
-    // 신규 신청 (전날)
-    const { data: newCreatorApps, error: newCreatorAppsError } = await supabaseAdmin
-      .from('featured_creator_applications')
-      .select('id')
-      .gte('created_at', start)
-      .lte('created_at', end);
-
-    if (newCreatorAppsError) throw newCreatorAppsError;
-
-    const newCreatorApplications = newCreatorApps?.length || 0;
-
-    // 신규 승인 (전날) - updated_at 사용
-    const { data: approvedCreators, error: approvedCreatorsError } = await supabaseAdmin
-      .from('featured_creator_applications')
-      .select('id')
-      .eq('status', 'approved')
-      .gte('updated_at', start)
-      .lte('updated_at', end);
-
-    if (approvedCreatorsError) throw approvedCreatorsError;
-
-    const newCreatorApprovals = approvedCreators?.length || 0;
-
-    // 총 크리에이터
-    const { data: allCreators, error: allCreatorsError } = await supabaseAdmin
-      .from('featured_creators')
-      .select('id');
-
-    if (allCreatorsError) throw allCreatorsError;
-
-    const totalCreators = allCreators?.length || 0;
-
-    // ━━━━━━━━━━━━━━━━━━━━━━
+    
+    // 각 지역별 데이터 수집
+    for (const region of regions) {
+      const client = clients[region];
+      if (!client) {
+        console.warn(`⚠️ ${region} 클라이언트 없음`);
+        continue;
+      }
+      
+      try {
+        // 1. 회원 현황
+        const { data: newCompanies } = await client
+          .from('companies')
+          .select('id')
+          .gte('created_at', start)
+          .lte('created_at', end);
+        
+        const { data: allCompanies } = await client
+          .from('companies')
+          .select('id');
+        
+        stats.companies.new[region] = newCompanies?.length || 0;
+        stats.companies.total[region] = allCompanies?.length || 0;
+        
+        // 2. 캠페인 현황
+        const { data: newCampaigns } = await client
+          .from('campaigns')
+          .select('id, estimated_cost')
+          .gte('created_at', start)
+          .lte('created_at', end);
+        
+        const { data: allCampaigns } = await client
+          .from('campaigns')
+          .select('status, estimated_cost');
+        
+        stats.campaigns.new[region] = newCampaigns?.length || 0;
+        
+        // 상태별 캠페인 (전체 지역 합산)
+        if (allCampaigns) {
+          allCampaigns.forEach(c => {
+            const status = c.status || 'pending';
+            stats.campaigns.byStatus[status] = (stats.campaigns.byStatus[status] || 0) + 1;
+          });
+          stats.campaigns.total += allCampaigns.length;
+        }
+        
+        // 3. 매출 현황
+        const dailyRev = newCampaigns?.reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0;
+        const totalRev = allCampaigns?.reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0;
+        
+        stats.revenue.daily[region] = dailyRev;
+        stats.revenue.total[region] = totalRev;
+        
+        console.log(`✅ ${region} 데이터 수집 완료`);
+      } catch (error) {
+        console.error(`❌ ${region} 데이터 수집 실패:`, error.message);
+      }
+    }
+    
+    // 4. 포인트 충전 (BIZ 프로젝트에서)
+    if (clients.biz) {
+      try {
+        const { data: pointsCharges } = await clients.biz
+          .from('points_charges')
+          .select('amount')
+          .eq('status', 'completed')
+          .gte('created_at', start)
+          .lte('created_at', end);
+        
+        stats.points.count = pointsCharges?.length || 0;
+        stats.points.amount = pointsCharges?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+      } catch (error) {
+        console.error('❌ 포인트 데이터 수집 실패:', error.message);
+      }
+    }
+    
+    // 5. 크리에이터 (Korea 프로젝트에서만 - 추천 크리에이터 기능)
+    if (clients.korea) {
+      try {
+        const { data: newApps } = await clients.korea
+          .from('featured_creator_applications')
+          .select('id')
+          .gte('created_at', start)
+          .lte('created_at', end);
+        
+        const { data: approvedCreators } = await clients.korea
+          .from('featured_creator_applications')
+          .select('id')
+          .eq('status', 'approved')
+          .gte('updated_at', start)
+          .lte('updated_at', end);
+        
+        const { data: allCreators } = await clients.korea
+          .from('featured_creators')
+          .select('id');
+        
+        stats.creators.newApps = newApps?.length || 0;
+        stats.creators.newApprovals = approvedCreators?.length || 0;
+        stats.creators.total = allCreators?.length || 0;
+      } catch (error) {
+        console.error('❌ 크리에이터 데이터 수집 실패:', error.message);
+      }
+    }
+    
     // 메시지 작성
-    // ━━━━━━━━━━━━━━━━━━━━━━
-
     let message = `📊 CNEC BIZ 일일 보고서\n`;
     message += `📅 ${koreanDateTime}\n\n`;
     message += `집계 기간: ${dateStr} 00:00 ~ 23:59\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
+    
     // 회원 현황
+    const newTotal = (stats.companies.new.korea || 0) + (stats.companies.new.japan || 0) + (stats.companies.new.us || 0);
+    const totalCompanies = (stats.companies.total.korea || 0) + (stats.companies.total.japan || 0) + (stats.companies.total.us || 0);
+    
     message += `👥 회원 현황\n\n`;
     message += `【신규 가입】\n`;
-    message += `🇰🇷 한국: ${newByRegion.korea}개 기업\n`;
-    message += `🇯🇵 일본: ${newByRegion.japan}개 기업\n`;
-    message += `🇺🇸 미국: ${newByRegion.us}개 기업\n`;
+    message += `🇰🇷 한국: ${stats.companies.new.korea || 0}개 기업\n`;
+    message += `🇯🇵 일본: ${stats.companies.new.japan || 0}개 기업\n`;
+    message += `🇺🇸 미국: ${stats.companies.new.us || 0}개 기업\n`;
     message += `📊 전체: ${newTotal}개 기업\n\n`;
     
     message += `【누적 회원】\n`;
-    message += `🇰🇷 한국: ${totalByRegion.korea}개\n`;
-    message += `🇯🇵 일본: ${totalByRegion.japan}개\n`;
-    message += `🇺🇸 미국: ${totalByRegion.us}개\n`;
+    message += `🇰🇷 한국: ${stats.companies.total.korea || 0}개\n`;
+    message += `🇯🇵 일본: ${stats.companies.total.japan || 0}개\n`;
+    message += `🇺🇸 미국: ${stats.companies.total.us || 0}개\n`;
     message += `📊 전체: ${totalCompanies}개\n\n`;
-    
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
+    
     // 캠페인 현황
+    const newCampaignsTotal = (stats.campaigns.new.korea || 0) + (stats.campaigns.new.japan || 0) + (stats.campaigns.new.us || 0);
+    
     message += `📢 캠페인 현황\n\n`;
     message += `【신규 캠페인】\n`;
-    message += `🇰🇷 한국: ${newCampaignsByRegion.korea}개\n`;
-    message += `🇯🇵 일본: ${newCampaignsByRegion.japan}개\n`;
-    message += `🇺🇸 미국: ${newCampaignsByRegion.us}개\n`;
+    message += `🇰🇷 한국: ${stats.campaigns.new.korea || 0}개\n`;
+    message += `🇯🇵 일본: ${stats.campaigns.new.japan || 0}개\n`;
+    message += `🇺🇸 미국: ${stats.campaigns.new.us || 0}개\n`;
     message += `📊 전체: ${newCampaignsTotal}개\n\n`;
     
     message += `【상태별 현황】\n`;
-    message += `⏳ 모집 중: ${campaignsByStatus.recruiting}개\n`;
-    message += `🎬 진행 중: ${campaignsByStatus.active}개\n`;
-    message += `✅ 완료: ${campaignsByStatus.completed}개\n\n`;
-    
+    message += `⏳ 모집 중: ${stats.campaigns.byStatus.recruiting || 0}개\n`;
+    message += `🎬 진행 중: ${stats.campaigns.byStatus.active || 0}개\n`;
+    message += `✅ 완료: ${stats.campaigns.byStatus.completed || 0}개\n`;
+    message += `📊 전체: ${stats.campaigns.total}개\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
+    
     // 매출 현황
+    const dailyTotal = (stats.revenue.daily.korea || 0) + 
+                      ((stats.revenue.daily.japan || 0) * 10) + 
+                      ((stats.revenue.daily.us || 0) * 1400);
+    const revenueTotal = (stats.revenue.total.korea || 0) + 
+                        ((stats.revenue.total.japan || 0) * 10) + 
+                        ((stats.revenue.total.us || 0) * 1400);
+    
     message += `💰 매출 현황\n\n`;
     message += `【일일 매출】\n`;
-    message += `🇰🇷 한국: ₩${dailyRevenue.korea.toLocaleString()}\n`;
-    message += `🇯🇵 일본: ¥${dailyRevenue.japan.toLocaleString()} (₩${(dailyRevenue.japan * 10).toLocaleString()})\n`;
-    message += `🇺🇸 미국: $${dailyRevenue.us.toLocaleString()} (₩${(dailyRevenue.us * 1400).toLocaleString()})\n`;
-    const dailyTotal = dailyRevenue.korea + (dailyRevenue.japan * 10) + (dailyRevenue.us * 1400);
+    message += `🇰🇷 한국: ₩${(stats.revenue.daily.korea || 0).toLocaleString()}\n`;
+    message += `🇯🇵 일본: ¥${(stats.revenue.daily.japan || 0).toLocaleString()} (₩${((stats.revenue.daily.japan || 0) * 10).toLocaleString()})\n`;
+    message += `🇺🇸 미국: $${(stats.revenue.daily.us || 0).toLocaleString()} (₩${((stats.revenue.daily.us || 0) * 1400).toLocaleString()})\n`;
     message += `📊 전체: ₩${Math.round(dailyTotal).toLocaleString()}\n\n`;
     
     message += `【누적 매출】\n`;
-    message += `🇰🇷 한국: ₩${totalRevenue.korea.toLocaleString()}\n`;
-    message += `🇯🇵 일본: ₩${(totalRevenue.japan * 10).toLocaleString()}\n`;
-    message += `🇺🇸 미국: ₩${(totalRevenue.us * 1400).toLocaleString()}\n`;
-    const revenueTotal = totalRevenue.korea + (totalRevenue.japan * 10) + (totalRevenue.us * 1400);
+    message += `🇰🇷 한국: ₩${(stats.revenue.total.korea || 0).toLocaleString()}\n`;
+    message += `🇯🇵 일본: ₩${((stats.revenue.total.japan || 0) * 10).toLocaleString()}\n`;
+    message += `🇺🇸 미국: ₩${((stats.revenue.total.us || 0) * 1400).toLocaleString()}\n`;
     message += `📊 전체: ₩${Math.round(revenueTotal).toLocaleString()}\n\n`;
-    
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
+    
     // 포인트 충전
+    const pointsAvg = stats.points.count > 0 ? Math.round(stats.points.amount / stats.points.count) : 0;
     message += `💳 포인트 충전\n\n`;
-    message += `충전 건수: ${pointsCount}건\n`;
-    message += `충전 금액: ₩${pointsAmount.toLocaleString()}\n`;
+    message += `충전 건수: ${stats.points.count}건\n`;
+    message += `충전 금액: ₩${stats.points.amount.toLocaleString()}\n`;
     message += `평균 금액: ₩${pointsAvg.toLocaleString()}\n\n`;
-    
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
+    
     // 크리에이터
     message += `🎨 크리에이터\n\n`;
-    message += `신규 신청: ${newCreatorApplications}명\n`;
-    message += `신규 승인: ${newCreatorApprovals}명\n`;
-    message += `총 크리에이터: ${totalCreators}명\n\n`;
-    
+    message += `신규 신청: ${stats.creators.newApps}명\n`;
+    message += `신규 승인: ${stats.creators.newApprovals}명\n`;
+    message += `총 크리에이터: ${stats.creators.total}명\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
     message += `📈 관리자 페이지:\nhttps://cnecbiz.com/admin`;
-
+    
     // 네이버 웍스 메시지 전송
     try {
       const clientId = process.env.NAVER_WORKS_CLIENT_ID;
@@ -447,16 +424,16 @@ exports.handler = async (event, context) => {
       const botId = process.env.NAVER_WORKS_BOT_ID;
       const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
       const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
-
+      
       const accessToken = await getAccessToken(clientId, clientSecret, serviceAccount);
       await sendNaverWorksMessage(accessToken, botId, channelId, message);
       console.log('✅ 네이버 웍스 메시지 전송 완료');
     } catch (naverError) {
       console.error('❌ 네이버 웍스 전송 실패:', naverError);
     }
-
+    
     console.log('🎉 일일 보고서 생성 완료');
-
+    
     return {
       statusCode: 200,
       body: JSON.stringify({
@@ -466,11 +443,11 @@ exports.handler = async (event, context) => {
           newCompanies: newTotal,
           newCampaigns: newCampaignsTotal,
           dailyRevenue: Math.round(dailyTotal),
-          pointsCharges: pointsCount
+          pointsCharges: stats.points.count
         }
       })
     };
-
+    
   } catch (error) {
     console.error('❌ 예상치 못한 오류:', error);
     return {
