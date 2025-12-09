@@ -39,6 +39,10 @@ import PointsChargePage from './components/company/PointsChargePage'
 import CompanyProfileSetup from './components/company/CompanyProfileSetup'
 import CompanyProfileEdit from './components/company/CompanyProfileEdit'
 import PaymentHistory from './components/company/PaymentHistory'
+import PaymentMethodSelection from './components/company/PaymentMethodSelection'
+import TossPaymentWidget from './components/payment/TossPaymentWidget'
+import PaymentSuccess from './components/payment/PaymentSuccess'
+import PaymentFail from './components/payment/PaymentFail'
 import Translator from './components/company/Translator'
 import AdminDashboard from './components/admin/AdminDashboard'
 import AdminLogin from './components/admin/AdminLogin'
@@ -152,6 +156,9 @@ function App() {
         <Route path="/company/profile-setup" element={<CompanyProfileSetup />} />
         <Route path="/company/profile-edit" element={<CompanyProfileEdit />} />
         <Route path="/company/payments" element={<PaymentHistory />} />
+        <Route path="/company/campaigns/payment" element={<PaymentMethodSelection />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/payment/fail" element={<PaymentFail />} />
         <Route path="/featured-creators" element={<FeaturedCreatorsPage />} />
         <Route path="/featured-creators/:id" element={<FeaturedCreatorProfile />} />
         <Route path="/company/creators/:id/profile" element={<CreatorProfilePage />} />

@@ -208,7 +208,7 @@ JSON 형식으로 응답해주세요:
       if (finalUpdateError) throw finalUpdateError
 
       alert('올영세일 가이드가 생성되었습니다! 가이드 리뷰 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/guide/oliveyoung/review`)
+      navigate(`/company/campaigns/payment?id=${id}&region=korea`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)

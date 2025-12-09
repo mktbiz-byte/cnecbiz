@@ -297,8 +297,8 @@ const CampaignGuideEditor = () => {
 
       if (saveError) throw saveError
 
-      // 2. 리뷰 페이지로 이동 (AI 생성은 리뷰 페이지에서 수행)
-      navigate(`/company/campaigns/${campaignId}/review`)
+      // 2. 결제 방법 선택 페이지로 이동
+      navigate(`/company/campaigns/payment?id=${campaignId}&region=korea`)
     } catch (err) {
       console.error('가이드 생성 실패:', err)
       setError('가이드 생성에 실패했습니다: ' + err.message)

@@ -43,6 +43,7 @@
     "@stripe/stripe-js": "^8.1.0",
     "@supabase/supabase-js": "^2.75.0",
     "@tailwindcss/vite": "^4.1.7",
+    "@tosspayments/tosspayments-sdk": "^2.5.0",
     "axios": "^1.12.2",
     "cheerio": "^1.1.2",
     "class-variance-authority": "^0.7.1",

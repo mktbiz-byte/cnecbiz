@@ -372,7 +372,7 @@ JSON 형식으로 작성해주세요.`
       if (aiUpdateError) throw aiUpdateError
 
       alert('4주 챌린지 가이드가 생성되었습니다! 가이드를 확인하고 결제를 진행하세요.')
-      navigate(`/company/campaigns/${id}/guide/4week/review`)
+      navigate(`/company/campaigns/payment?id=${id}&region=korea`)
     } catch (error) {
       console.error('Error completing guide:', error)
       alert('가이드 완성 중 오류가 발생했습니다: ' + error.message)
