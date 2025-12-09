@@ -54,13 +54,14 @@ const TossPaymentWidget = ({
         await paymentWidget.setAmount({ currency: 'KRW', value: Number(amount) });
         
         // 결제 UI 렌더링
-        await paymentWidget.renderPaymentMethods(
-          '#payment-method',
-          { variantKey: 'DEFAULT' }
-        );
+        await paymentWidget.renderPaymentMethods({
+          selector: '#payment-method',
+          variantKey: 'DEFAULT'
+        });
 
         // 이용약관 UI 렌더링
-        await paymentWidget.renderAgreement('#agreement', {
+        await paymentWidget.renderAgreement({
+          selector: '#agreement',
           variantKey: 'AGREEMENT'
         });
       } catch (err) {
