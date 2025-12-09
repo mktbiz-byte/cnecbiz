@@ -729,8 +729,8 @@ const CampaignCreationKorea = () => {
               </div>
 
               {/* 2. 패키지 선택 */}
-              <div className="border-t pt-6 mt-6">
-                <Label htmlFor="package_type">패키지 선택 *</Label>
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl mt-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">📦 패키지 선택 *</h3>
                 {campaignForm.campaign_type === '4week_challenge' ? (
                   <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
                     <SelectTrigger className="bg-white mt-2">
@@ -815,7 +815,9 @@ const CampaignCreationKorea = () => {
               </div>
 
               {/* 3. 모집 인원 및 결제 예상 금액 */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white p-6 rounded-xl border-2 border-gray-200 mt-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">👥 모집 인원 및 결제 정보</h3>
+                <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="total_slots">모집 인원 *</Label>
                   <Input
@@ -884,11 +886,14 @@ const CampaignCreationKorea = () => {
                     )
                   })()}
                 </div>
+                </div>
               </div>
 
               {/* 4. 브랜드명 */}
-              <div>
-                <Label htmlFor="brand">브랜드명 *</Label>
+              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-xl mt-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">🏢 브랜드 정보</h3>
+                <div>
+                <Label htmlFor="brand" className="text-sm font-semibold">브랜드명 *</Label>
                 <Input
                   id="brand"
                   value={campaignForm.brand}
@@ -898,21 +903,22 @@ const CampaignCreationKorea = () => {
                 />
               </div>
 
-              {/* 5. 참여 조건 */}
-              <div>
-                <Label htmlFor="requirements">참여 조건</Label>
+                <Label htmlFor="requirements" className="text-sm font-semibold mt-4 block">참여 조건</Label>
                 <Textarea
                   id="requirements"
                   value={campaignForm.requirements}
                   onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
                   placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
                   rows={3}
+                  className="mt-2"
                 />
+                </div>
               </div>
 
               {/* 6. 모집 채널 (카테고리) */}
-              <div>
-                <Label>모집 채널 * (여러 개 선택 가능)</Label>
+              <div className="bg-gradient-to-r from-green-50 to-teal-50 p-6 rounded-xl mt-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">📱 모집 채널 선택</h3>
+                <Label className="text-sm font-semibold">모집 채널 * (여러 개 선택 가능)</Label>
                 <div className="flex gap-4 mt-2">
                   {categoryOptions.map(opt => (
                     <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
@@ -932,8 +938,8 @@ const CampaignCreationKorea = () => {
               </div>
 
               {/* 7. 스케줄 설정 */}
-              <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">📅 스케줄 설정</h3>
+              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl mt-6">
+                <h3 className="text-xl font-bold mb-6 text-gray-800">📅 스케줄 설정</h3>
                 
                 {/* 모집 마감일 */}
                 <div className="mb-4">
@@ -976,8 +982,8 @@ const CampaignCreationKorea = () => {
 
               {/* 올영세일 캠페인 상세 설정 */}
               {campaignForm.campaign_type === 'oliveyoung' && (
-                <div className="border-t pt-6 mt-6">
-                  <h3 className="text-lg font-semibold mb-4">🌸 올리브영 캠페인 상세 설정</h3>
+                <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-xl mt-6">
+                  <h3 className="text-xl font-bold mb-6 text-gray-800">🌸 올리브영 캠페인 상세 설정</h3>
                   <div className="space-y-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
                     {/* 올영 패키지 타입 선택 */}
                     <div>
@@ -1128,8 +1134,8 @@ const CampaignCreationKorea = () => {
 
               {/* 4주 챌린지 상세 설정 */}
               {campaignForm.campaign_type === '4week_challenge' && (
-                <div className="border-t pt-6 mt-6">
-                  <h3 className="text-lg font-semibold mb-4">🏆 4주 챌린지 상세 설정</h3>
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl mt-6">
+                  <h3 className="text-xl font-bold mb-6 text-gray-800">🏆 4주 챌린지 상세 설정</h3>
                   <div className="space-y-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
                     {/* 4주 마감일 */}
                     <div>
@@ -1190,8 +1196,9 @@ const CampaignCreationKorea = () => {
               )}
 
               {/* 캠페인 썸네일 */}
-              <div className="border-t pt-6 mt-6">
-                <Label>캠페인 썸네일</Label>
+              <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 rounded-xl mt-6">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">🖼️ 캠페인 썸네일</h3>
+                <Label className="text-sm text-gray-600">
                 <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
                 <input
                   ref={thumbnailInputRef}
@@ -1218,8 +1225,8 @@ const CampaignCreationKorea = () => {
               </div>
 
               {/* 상품 상세 정보 */}
-              <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">📦 상품 상세 정보</h3>
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-xl mt-6">
+                <h3 className="text-xl font-bold mb-6 text-gray-800">📦 상품 상세 정보</h3>
                 
                 <div className="space-y-4">
                   {/* 상품명 */}
@@ -1302,9 +1309,9 @@ const CampaignCreationKorea = () => {
               </div>
 
               {/* 질문 섹션 */}
-              <div className="border-t pt-6 mt-6">
+              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl mt-6">
                 <div className="flex items-center justify-between mb-4">
-                  <Label className="text-lg font-semibold">지원자 질문 (선택사항)</Label>
+                  <h3 className="text-xl font-bold text-gray-800">❓ 지원자 질문 (선택사항)</h3>
                   {questionCount < 4 && (
                     <Button
                       type="button"
@@ -1390,15 +1397,20 @@ const CampaignCreationKorea = () => {
               )}
 
               {/* 버튼 */}
-              <div className="flex gap-4">
+              <div className="flex gap-4 mt-8">
                 <Button 
                   type="submit" 
                   disabled={processing || campaignForm.category.length === 0} 
-                  className="flex-1"
+                  className="flex-1 h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 >
-                  {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
+                  {processing ? '저장 중...' : (editId ? '✅ 수정하기' : '➡️ 다음단계')}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => navigate('/company/campaigns')}
+                  className="h-12 px-8 text-lg font-semibold"
+                >
                   취소
                 </Button>
               </div>
