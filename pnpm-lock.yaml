@@ -107,6 +107,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.1.7
         version: 4.1.7(vite@6.3.5(@types/node@24.8.1)(jiti@2.4.2)(lightningcss@1.30.1))
+      '@tosspayments/tosspayments-sdk':
+        specifier: ^2.5.0
+        version: 2.5.0
       axios:
         specifier: ^1.12.2
         version: 1.12.2
@@ -1468,6 +1471,9 @@ packages:
 
   '@tootallnate/quickjs-emscripten@0.23.0':
     resolution: {integrity: sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA==}
+
+  '@tosspayments/tosspayments-sdk@2.5.0':
+    resolution: {integrity: sha512-qapms+cTY5/4MBwcEegG1GkYBIWVjWv77yWnG2+CWXqdZOtGKLmqt0pb1lbrevBOF/uhO1f2Wtj+r/bggHwiHQ==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -4560,6 +4566,8 @@ snapshots:
 
   '@tootallnate/quickjs-emscripten@0.23.0': {}
 
+  '@tosspayments/tosspayments-sdk@2.5.0': {}
+
   '@types/babel__core@7.20.5':
     dependencies:
       '@babel/parser': 7.27.2
@@ -4926,6 +4934,7 @@ snapshots:
       '@stripe/stripe-js': 8.1.0
       '@supabase/supabase-js': 2.75.0
       '@tailwindcss/vite': 4.1.7(vite@6.3.5(@types/node@24.8.1)(jiti@2.4.2)(lightningcss@1.30.1))
+      '@tosspayments/tosspayments-sdk': 2.5.0
       axios: 1.12.2
       cheerio: 1.1.2
       class-variance-authority: 0.7.1
