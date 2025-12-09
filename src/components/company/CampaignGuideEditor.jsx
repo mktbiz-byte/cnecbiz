@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Checkbox } from '../ui/checkbox'
-import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 const CampaignGuideEditor = () => {
@@ -346,36 +346,25 @@ const CampaignGuideEditor = () => {
   return (
     <>
       <CompanyNavigation />
-      <div className="container mx-auto p-6">
-        <Card className="max-w-5xl mx-auto border-2 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 border-b-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-3xl flex items-center gap-2">
-                <FileText className="h-7 w-7 text-purple-600" />
-                크리에이터 가이드 작성
-              </CardTitle>
-              <p className="text-base text-gray-700 mt-2">
-                {campaignTitle && <span className="font-semibold text-purple-700">{campaignTitle}</span>}
-              </p>
-            </div>
-            {autoSaving && (
-              <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-full">
-                <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                <p className="text-sm text-blue-700 font-medium">자동 저장 중...</p>
-              </div>
-            )}
-          </div>
+      <div className="container mx-auto p-6 max-w-4xl">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">크리에이터 가이드 작성</CardTitle>
+          <p className="text-sm text-gray-600 mt-2">
+            {campaignTitle && <span className="font-semibold">{campaignTitle}</span>}
+          </p>
+          {autoSaving && (
+            <p className="text-xs text-blue-600 mt-1">자동 저장 중...</p>
+          )}
         </CardHeader>
 
         <CardContent className="space-y-6">
           {/* 안내사항 */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-5 flex items-start gap-3">
-            <Info className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-900">
-              <p className="font-bold text-base mb-2">안내사항</p>
-              <p className="leading-relaxed">촬영 장면 및 대사는 크리에이터 선정 후 해당 크리에이터에 맞게 작성됩니다.</p>
-              <p className="mt-2 leading-relaxed">현재 단계에서는 제품 정보를 먼저 입력해주세요.</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+            <div className="text-sm text-blue-800">
+              <p className="font-semibold mb-1">안내사항</p>
+              <p>촬영 장면 및 대사는 크리에이터 선정 후 해당 크리에이터에 맞게 작성됩니다.</p>
+              <p className="mt-1">현재 단계에서는 제품 정보를 먼저 입력해주세요.</p>
             </div>
           </div>
 
@@ -413,20 +402,11 @@ const CampaignGuideEditor = () => {
             </label>
           </div>
 
-          {/* 제품 기본 정보 섹션 */}
-          <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50/50 to-white">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Package className="h-5 w-5 text-purple-600" />
-                제품 기본 정보
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* 브랜드명 */}
-              <div>
-                <Label className="text-base font-semibold mb-2 block">
-                  브랜드명 <span className="text-red-500">*</span>
-                </Label>
+          {/* 브랜드명 */}
+          <div>
+            <Label className="text-base font-semibold mb-2 block">
+              브랜드명 <span className="text-red-500">*</span>
+            </Label>
             <Input
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
@@ -448,14 +428,11 @@ const CampaignGuideEditor = () => {
             />
           </div>
 
-              {/* 일정 정보 (읽기 전용) */}
-              <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-2 border-gray-300 rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                  <p className="text-base font-semibold text-gray-800">
-                    캠페인 일정 (읽기 전용)
-                  </p>
-                </div>
+          {/* 일정 정보 (읽기 전용) */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-3">
+              📅 다음 일정은 캠페인 생성 시 입력한 정보입니다.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-base font-semibold mb-2 block">
@@ -479,8 +456,8 @@ const CampaignGuideEditor = () => {
                   className="text-base bg-gray-100 cursor-not-allowed"
                 />
               </div>
-                </div>
-              </div>
+            </div>
+          </div>
 
           {/* 제품 특징 */}
           <div>
@@ -512,19 +489,8 @@ const CampaignGuideEditor = () => {
               placeholder="예:&#10;- 24시간 수분 지속력 강조&#10;- 끈적임 없는 텍스처 언급&#10;- 민감성 피부도 사용 가능하다는 점 강조&#10;- 브랜드 ABC의 신제품임을 명시"
               className="h-40 resize-none text-base"
             />
-              </div>
-            </CardContent>
-          </Card>
+          </div>
 
-          {/* 콘텐츠 제작 가이드 섹션 */}
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50/50 to-white">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Video className="h-5 w-5 text-blue-600" />
-                콘텐츠 제작 가이드
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
           {/* 필수 대사 */}
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -574,20 +540,11 @@ const CampaignGuideEditor = () => {
                   </Button>
                 )}
               </div>
-            </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
 
-          {/* 촬영 요구사항 섹션 */}
-          <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50/50 to-white">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Camera className="h-5 w-5 text-green-600" />
-                촬영 요구사항
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-          {/* 필수 촬영 장면 체크박스 */}         <div>
+          {/* 필수 촬영 장면 체크박스 */}
+          <div>
             <Label className="text-base font-semibold mb-3 block">필수 촬영 장면</Label>
             <p className="text-sm text-gray-600 mb-3">필요한 촬영 장면을 선택하세요</p>
             <div className="grid grid-cols-2 gap-3">
@@ -705,19 +662,8 @@ const CampaignGuideEditor = () => {
               rows={3}
               className="resize-none"
             />
-              </div>
-            </CardContent>
-          </Card>
+          </div>
 
-          {/* 영상 설정 섹션 */}
-          <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/50 to-white">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Zap className="h-5 w-5 text-amber-600" />
-                영상 설정 & 해시태그
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
           {/* 필수 해시태그 */}
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -802,21 +748,10 @@ const CampaignGuideEditor = () => {
               rows={5}
               className="resize-none"
             />
-              </div>
-            </CardContent>
-          </Card>
+          </div>
 
-          {/* 추가 옵션 섹션 */}
-          <Card className="border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-white">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-indigo-600" />
-                추가 옵션
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
           {/* 메타광고코드 발급 요청 */}
-          <div>
+          <div className="border-t pt-6">
             <div className="flex items-center space-x-2">
               <Checkbox 
                 id="meta-ad-code" 
@@ -878,55 +813,41 @@ const CampaignGuideEditor = () => {
                 레퍼런스 추가
               </Button>
             </div>
-              </div>
-            </CardContent>
-          </Card>
+          </div>
 
           {error && (
-            <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-red-700 text-sm font-medium">{error}</p>
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              {error}
             </div>
           )}
 
           {success && (
-            <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <p className="text-green-700 text-sm font-medium">{success}</p>
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+              {success}
             </div>
           )}
 
-          <div className="flex gap-4 pt-6 border-t-2">
+          <div className="flex gap-3 pt-4">
             <Button
               onClick={handleSave}
               disabled={processing}
               variant="outline"
-              size="lg"
-              className="flex-1 h-12 text-base font-semibold border-2"
+              className="flex-1"
             >
               {processing ? '저장 중...' : '임시 저장'}
             </Button>
             <Button
               onClick={handleGenerateGuide}
               disabled={processing}
-              size="lg"
-              className="flex-1 h-12 text-base font-bold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg"
+              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
             >
-              {processing ? '생성 중...' : (
-                <>
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  가이드 생성
-                </>
-              )}
+              {processing ? '생성 중...' : '🎉 가이드 생성'}
             </Button>
           </div>
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
-            <p className="text-sm text-gray-600 flex items-center justify-center gap-2">
-              <Info className="h-4 w-4" />
-              작성 중인 내용은 10초마다 자동으로 저장됩니다
-            </p>
-          </div>
+          <p className="text-xs text-gray-500 text-center">
+            작성 중인 내용은 10초마다 자동으로 저장됩니다
+          </p>
         </CardContent>
       </Card>
     </div>
