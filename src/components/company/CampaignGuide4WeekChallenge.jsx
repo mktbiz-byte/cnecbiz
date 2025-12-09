@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X } from 'lucide-react'
+import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X, Package, FileText, Info, Calendar, Sparkles } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 import { missionExamples } from './missionExamples'
 
@@ -411,28 +411,34 @@ JSON 형식으로 작성해주세요.`
       <CompanyNavigation />
       <div className="max-w-5xl mx-auto p-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-            🏆 4주 챌린지 가이드 작성
-          </h1>
-          <p className="text-gray-600">
-            캠페인: <span className="font-semibold">{campaign.title}</span>
-          </p>
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-6">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+              <Calendar className="h-8 w-8 text-purple-600" />
+              4주 챌린지 캠페인 가이드 작성
+            </h1>
+            <p className="text-gray-700 text-base">
+              캠페인: <span className="font-semibold text-purple-700">{campaign.title}</span>
+            </p>
+          </div>
         </div>
 
         {/* 안내 메시지 */}
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-purple-800">
-            <p className="font-semibold mb-1">4주 챌린지 안내</p>
-            <p>제품 정보 + 주의사항 + 주차별 미션 가이드를 작성해주세요.</p>
-            <p className="mt-1">2~4주차 가이드는 캠페인 진행 중 생성 가능합니다.</p>
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-5 mb-6 flex items-start gap-3">
+          <Info className="w-6 h-6 text-purple-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-purple-900">
+            <p className="font-bold text-base mb-2">4주 챌린지 안내</p>
+            <p className="leading-relaxed">제품 정보 + 주의사항 + 주차별 미션 가이드를 작성해주세요.</p>
+            <p className="mt-2 font-semibold">2~4주차 가이드는 캠페인 진행 중 생성 가능합니다.</p>
           </div>
         </div>
 
         <div className="space-y-6">
           {/* 제품 기본 정보 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-xl font-semibold mb-4">📦 제품 기본 정보</h3>
+          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-6">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Package className="h-6 w-6 text-purple-600" />
+              제품 기본 정보
+            </h3>
             
             <div className="space-y-4">
               {/* 브랜드명 */}
@@ -626,11 +632,13 @@ JSON 형식으로 작성해주세요.`
           })}
 
           {/* 액션 버튼 */}
-          <div className="flex gap-3 justify-end sticky bottom-6 bg-white p-4 rounded-lg border shadow-lg">
+          <div className="flex gap-4 justify-end sticky bottom-6 bg-gradient-to-r from-white to-purple-50 p-5 rounded-lg border-2 border-purple-200 shadow-xl">
             <Button
               onClick={handleSave}
               variant="outline"
+              size="lg"
               disabled={loading}
+              className="h-12 text-base font-semibold border-2"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               임시 저장
@@ -638,9 +646,10 @@ JSON 형식으로 작성해주세요.`
             <Button
               onClick={handleComplete}
               disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700"
+              size="lg"
+              className="h-12 text-base font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
               가이드 완성 및 견적서 확인
             </Button>
           </div>
