@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, Sparkles } from 'lucide-react'
+import { Loader2, AlertCircle, Sparkles, Package, FileText, Info, CheckCircle2 } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 export default function CampaignGuideOliveYoung() {
@@ -230,28 +230,34 @@ JSON 형식으로 응답해주세요:
       <CompanyNavigation />
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-            🌸 올영세일 캠페인 가이드 작성
-          </h1>
-          <p className="text-gray-600">
-            캠페인: <span className="font-semibold">{campaign.title}</span>
-          </p>
+          <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 rounded-lg p-6">
+            <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+              <FileText className="h-8 w-8 text-pink-600" />
+              올영세일 캠페인 가이드 작성
+            </h1>
+            <p className="text-gray-700 text-base">
+              캠페인: <span className="font-semibold text-pink-700">{campaign.title}</span>
+            </p>
+          </div>
         </div>
 
         {/* 안내 메시지 */}
-        <div className="bg-pink-50 border border-pink-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-pink-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-pink-800">
-            <p className="font-semibold mb-1">올영세일 캠페인 안내</p>
-            <p>3단계 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.</p>
-            <p className="mt-1">STEP 1: 상품 리뷰 → STEP 2: 세일 홍보 → STEP 3: 세일 당일 스토리</p>
+        <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 rounded-lg p-5 mb-6 flex items-start gap-3">
+          <Info className="w-6 h-6 text-pink-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-pink-900">
+            <p className="font-bold text-base mb-2">올영세일 캠페인 안내</p>
+            <p className="leading-relaxed">3단계 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.</p>
+            <p className="mt-2 font-semibold">STEP 1: 상품 리뷰 → STEP 2: 세일 홍보 → STEP 3: 세일 당일 스토리</p>
           </div>
         </div>
 
         <div className="space-y-6">
           {/* 제품 기본 정보 */}
-          <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-xl font-semibold mb-4">📦 제품 기본 정보</h3>
+          <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-lg border-2 border-purple-200 p-6">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Package className="h-6 w-6 text-purple-600" />
+              제품 기본 정보
+            </h3>
             
             <div className="space-y-4">
               {/* 브랜드명 */}
@@ -477,13 +483,14 @@ JSON 형식으로 응답해주세요:
         </div>
 
         {/* 버튼 */}
-        <div className="flex gap-4 mt-8">
+        <div className="flex gap-4 mt-8 pt-6 border-t-2">
           <Button
             type="button"
             onClick={handleSaveDraft}
             variant="outline"
+            size="lg"
             disabled={loading || generating}
-            className="flex-1"
+            className="flex-1 h-12 text-base font-semibold border-2"
           >
             {loading ? (
               <>
@@ -499,7 +506,8 @@ JSON 형식으로 응답해주세요:
             type="button"
             onClick={handleGenerateGuide}
             disabled={loading || generating}
-            className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700"
+            size="lg"
+            className="flex-1 h-12 text-base font-bold bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 shadow-lg"
           >
             {generating ? (
               <>
