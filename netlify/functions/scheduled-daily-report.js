@@ -297,7 +297,7 @@ exports.handler = async (event, context) => {
     if (clients.biz) {
       try {
         const { data: pointsCharges } = await clients.biz
-          .from('points_charges')
+          .from('points_charge_requests')
           .select('amount')
           .eq('status', 'completed')
           .gte('created_at', start)
@@ -310,31 +310,59 @@ exports.handler = async (event, context) => {
       }
     }
     
-    // 5. 크리에이터 (Korea 프로젝트에서만 - 추천 크리에이터 기능)
-    if (clients.korea) {
+    // 5. 크리에이터 (각 지역별 user_profiles)
+    let totalCreators = 0;
+    let newCreators = 0;
+    
+    for (const region of regions) {
+      const client = clients[region];
+      if (!client) continue;
+      
       try {
-        const { data: newApps } = await clients.korea
+        const { data: allProfiles } = await client
+          .from('user_profiles')
+          .select('id');
+        
+        const { data: newProfiles } = await client
+          .from('user_profiles')
+          .select('id')
+          .gte('created_at', start)
+          .lte('created_at', end);
+        
+        totalCreators += (allProfiles?.length || 0);
+        newCreators += (newProfiles?.length || 0);
+      } catch (error) {
+        console.error(`❌ ${region} 크리에이터 데이터 수집 실패:`, error.message);
+      }
+    }
+    
+    // 추천 크리에이터 (BIZ 프로젝트)
+    if (clients.biz) {
+      try {
+        const { data: newApps } = await clients.biz
           .from('featured_creator_applications')
           .select('id')
           .gte('created_at', start)
           .lte('created_at', end);
         
-        const { data: approvedCreators } = await clients.korea
+        const { data: approvedCreators } = await clients.biz
           .from('featured_creator_applications')
           .select('id')
           .eq('status', 'approved')
           .gte('updated_at', start)
           .lte('updated_at', end);
         
-        const { data: allCreators } = await clients.korea
+        const { data: featuredCreators } = await clients.biz
           .from('featured_creators')
           .select('id');
         
         stats.creators.newApps = newApps?.length || 0;
         stats.creators.newApprovals = approvedCreators?.length || 0;
-        stats.creators.total = allCreators?.length || 0;
+        stats.creators.total = totalCreators;
+        stats.creators.featured = featuredCreators?.length || 0;
+        stats.creators.new = newCreators;
       } catch (error) {
-        console.error('❌ 크리에이터 데이터 수집 실패:', error.message);
+        console.error('❌ 추천 크리에이터 데이터 수집 실패:', error.message);
       }
     }
     
@@ -411,9 +439,12 @@ exports.handler = async (event, context) => {
     
     // 크리에이터
     message += `🎨 크리에이터\n\n`;
-    message += `신규 신청: ${stats.creators.newApps}명\n`;
-    message += `신규 승인: ${stats.creators.newApprovals}명\n`;
+    message += `신규 가입: ${stats.creators.new || 0}명\n`;
     message += `총 크리에이터: ${stats.creators.total}명\n\n`;
+    message += `[추천 크리에이터]\n`;
+    message += `신규 신청: ${stats.creators.newApps || 0}명\n`;
+    message += `신규 승인: ${stats.creators.newApprovals || 0}명\n`;
+    message += `총 추천: ${stats.creators.featured || 0}명\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `📈 관리자 페이지:\nhttps://cnecbiz.com/admin`;
     
