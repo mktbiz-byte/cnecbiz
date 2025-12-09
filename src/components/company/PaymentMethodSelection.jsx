@@ -93,6 +93,33 @@ const PaymentMethodSelection = () => {
     );
   }
 
+  // 금액 계산 로직 (InvoicePage와 동일)
+  const packagePrices = {
+    'junior': 200000,
+    'intermediate': 300000,
+    'senior': 400000,
+    '4week_challenge': 600000,
+    'oliveyoung': 200000,
+    '올영 20만원': 200000,
+    'premium': 300000,
+    '프리미엄 30만원': 300000,
+    '4주챌린지 60만원': 600000
+  };
+
+  const packagePrice = packagePrices[campaign.package_type] || 200000;
+  const recruitmentCount = campaign.recruitment_count || campaign.total_slots || 0;
+  
+  // 할인 계산 (1천만원 이상만 5% 할인)
+  const subtotal = packagePrice * recruitmentCount;
+  let discountRate = 0;
+  if (subtotal >= 10000000) {
+    discountRate = 0.05; // 5% 할인
+  }
+  const discountAmount = Math.floor(subtotal * discountRate);
+  const afterDiscount = subtotal - discountAmount;
+  const vat = Math.floor(afterDiscount * 0.1); // 부가세 10%
+  const totalAmount = afterDiscount + vat;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
@@ -118,7 +145,7 @@ const PaymentMethodSelection = () => {
               <div className="flex justify-between items-center pt-3 border-t-2 border-blue-200">
                 <span className="text-base font-semibold text-gray-700">예상 결제 금액</span>
                 <span className="text-3xl font-bold text-blue-600">
-                  ₩{(campaign.estimated_cost || 0).toLocaleString()}
+                  ₩{totalAmount.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -179,7 +206,7 @@ const PaymentMethodSelection = () => {
                 </Button>
                 
                 <TossPaymentWidget
-                  amount={campaign.estimated_cost || 0}
+                  amount={totalAmount}
                   orderId={`campaign_${campaignId}_${Date.now()}`}
                   orderName={campaign.title}
                   customerEmail={campaign.company_email || ''}
