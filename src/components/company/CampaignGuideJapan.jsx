@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Checkbox } from '../ui/checkbox'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles, Globe } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 const CampaignGuideJapan = () => {
@@ -555,15 +555,25 @@ const CampaignGuideJapan = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 왼쪽: 한국어 입력 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">크리에이터 가이드 작성 (한국어)</CardTitle>
-              <p className="text-sm text-gray-600 mt-2">
-                {campaignTitle && <span className="font-semibold">{campaignTitle}</span>}
-              </p>
-              {autoSaving && (
-                <p className="text-xs text-blue-600 mt-1">자동 저장 중...</p>
-              )}
+          <Card className="border-2 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    <FileText className="h-6 w-6 text-blue-600" />
+                    크리에이터 가이드 작성 (한국어)
+                  </CardTitle>
+                  <p className="text-sm text-gray-700 mt-2">
+                    {campaignTitle && <span className="font-semibold text-blue-700">{campaignTitle}</span>}
+                  </p>
+                </div>
+                {autoSaving && (
+                  <div className="flex items-center gap-2 bg-blue-100 px-3 py-1.5 rounded-full">
+                    <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                    <p className="text-xs text-blue-700 font-medium">자동 저장 중...</p>
+                  </div>
+                )}
+              </div>
             </CardHeader>
 
         <CardContent className="space-y-6">
@@ -959,9 +969,12 @@ const CampaignGuideJapan = () => {
       </Card>
 
       {/* 오른쪽: 일본어 번역 미리보기 */}
-      <Card className="bg-white shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-          <CardTitle className="text-3xl font-bold">🎬 クリエイターガイド</CardTitle>
+      <Card className="bg-white shadow-lg border-2">
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
+          <div className="flex items-center gap-2">
+            <Globe className="h-7 w-7" />
+            <CardTitle className="text-3xl font-bold">クリエイターガイド</CardTitle>
+          </div>
           <p className="text-sm text-blue-100 mt-2">
             {campaignTitle || 'キャンペーンタイトル'}
           </p>
