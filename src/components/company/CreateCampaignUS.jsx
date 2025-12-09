@@ -777,8 +777,8 @@ const CreateCampaignUS = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               
               {/* 패키지 선택 */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">📦 패키지 선택 *</h3>
+              <div>
+                <Label htmlFor="package_type">패키지 선택 *</Label>
                 <select
                   id="package_type"
                   value={campaignForm.package_type}
@@ -797,9 +797,8 @@ const CreateCampaignUS = () => {
               </div>
 
               {/* 모집 인원 */}
-              <div className="bg-white p-6 rounded-xl border-2 border-gray-200">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">👥 모집 인원 *</h3>
-                <Label htmlFor="total_slots" className="text-sm font-semibold">
+              <div>
+                <Label htmlFor="total_slots">모집 인원 *</Label>
                 <Input
                   id="total_slots"
                   type="number"
@@ -814,9 +813,8 @@ const CreateCampaignUS = () => {
               </div>
 
               {/* 캠페인 제목 */}
-              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">🏢 기본 정보</h3>
-                <Label htmlFor="title" className="text-sm font-semibold">캠페인 제목 *</Label>
+              <div>
+                <Label htmlFor="title">캠페인 제목 *</Label>
                 <Input
                   id="title"
                   value={campaignForm.title}
@@ -826,42 +824,21 @@ const CreateCampaignUS = () => {
                 />
               </div>
 
-                <Label htmlFor="brand" className="text-sm font-semibold mt-4 block">브랜드 *</Label>
+              {/* 브랜드 */}
+              <div>
+                <Label htmlFor="brand">브랜드 *</Label>
                 <Input
                   id="brand"
                   value={campaignForm.brand}
                   onChange={(e) => setCampaignForm({...campaignForm, brand: e.target.value})}
                   placeholder="브랜드명을 입력하세요"
                   required
-                  className="mt-2"
-                />
-
-                <Label htmlFor="description" className="text-sm font-semibold mt-4 block">캠페인 설명</Label>
-                <Textarea
-                  id="description"
-                  value={campaignForm.description}
-                  onChange={(e) => setCampaignForm({...campaignForm, description: e.target.value})}
-                  rows={3}
-                  placeholder="캠페인 설명을 입력하세요"
-                  className="mt-2"
-                />
-
-                <Label htmlFor="requirements" className="text-sm font-semibold mt-4 block">참가조건 *</Label>
-                <Textarea
-                  id="requirements"
-                  value={campaignForm.requirements}
-                  onChange={(e) => setCampaignForm({...campaignForm, requirements: e.target.value})}
-                  rows={3}
-                  placeholder="참가 조건을 입력하세요"
-                  required
-                  className="mt-2"
                 />
               </div>
 
               {/* 썸네일 이미지 */}
-              <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">🖼️ 썸네일 이미지</h3>
-                <Label htmlFor="thumbnail" className="text-sm text-gray-600">
+              <div>
+                <Label htmlFor="thumbnail">썸네일 이미지</Label>
                 <input
                   type="file"
                   ref={thumbnailInputRef}
@@ -885,9 +862,34 @@ const CreateCampaignUS = () => {
                 <p className="text-xs text-gray-500 mt-1">최대 5MB. 형식: JPG, PNG, WEBP</p>
               </div>
 
+              {/* 캠페인 설명 */}
+              <div>
+                <Label htmlFor="description">캠페인 설명</Label>
+                <Textarea
+                  id="description"
+                  value={campaignForm.description}
+                  onChange={(e) => setCampaignForm({...campaignForm, description: e.target.value})}
+                  rows={3}
+                  placeholder="캠페인 설명을 입력하세요"
+                />
+              </div>
+
+              {/* 참가조건 */}
+              <div>
+                <Label htmlFor="requirements">참가조건 *</Label>
+                <Textarea
+                  id="requirements"
+                  value={campaignForm.requirements}
+                  onChange={(e) => setCampaignForm({...campaignForm, requirements: e.target.value})}
+                  rows={3}
+                  placeholder="참가 조건을 입력하세요"
+                  required
+                />
+              </div>
+
               {/* 일정 설정 */}
-              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-6 text-gray-800">📅 일정 설정</h3>
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 border-b pb-2">📅 일정 설정</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -932,9 +934,8 @@ const CreateCampaignUS = () => {
               </div>
 
               {/* SNS 플랫폼 선택 */}
-              <div className="bg-gradient-to-r from-green-50 to-teal-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">📱 대상 SNS 플랫폼 *</h3>
-                <Label className="mb-3 text-sm font-semibold">
+              <div>
+                <Label className="mb-3">대상 SNS 플랫폼 *</Label>
                 <div className="space-y-2">
                   <label className="flex items-center">
                     <input
@@ -985,9 +986,7 @@ const CreateCampaignUS = () => {
               </div>
 
               {/* 연령 및 피부타입 */}
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">🎯 참가 요건</h3>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="age_requirement">연령 조건</Label>
                   <Input
@@ -1014,7 +1013,7 @@ const CreateCampaignUS = () => {
                     <option value="모든타입">모든타입</option>
                   </select>
                 </div>
-                </div>
+              </div>
 
               {/* 오프라인 방문 조건 */}
               {campaignForm.offline_visit_requirement !== null && (
@@ -1054,12 +1053,9 @@ const CreateCampaignUS = () => {
                 </div>
               )}
 
-                </div>
-              </div>
-
               {/* 질문 4가지 */}
-              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-6 text-gray-800">❓ 지원자 질문</h3>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">질문</h3>
                 
                 <div className="space-y-6">
                   {/* 질문 1 */}
@@ -1229,29 +1225,14 @@ const CreateCampaignUS = () => {
               </div>
 
               {/* 제출 버튼 */}
-              <div className="flex gap-4 mt-8">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={handleSaveDraft} 
-                  disabled={processing} 
-                  className="flex-1 h-12 text-lg font-semibold"
-                >
-                  {processing ? '처리 중...' : '💾 임시저장'}
+              <div className="flex gap-4">
+                <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={processing} className="flex-1">
+                  {processing ? '처리 중...' : '임시저장'}
                 </Button>
-                <Button 
-                  type="submit" 
-                  disabled={processing} 
-                  className="flex-1 h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                >
-                  {processing ? '처리 중...' : (editId ? '✅ 수정' : '➡️ 생성')}
+                <Button type="submit" disabled={processing} className="flex-1">
+                  {processing ? '처리 중...' : (editId ? '수정' : '생성')}
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => navigate('/company/campaigns')}
-                  className="h-12 px-8 text-lg font-semibold"
-                >
+                <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
                   취소
                 </Button>
               </div>
