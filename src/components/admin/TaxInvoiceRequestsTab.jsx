@@ -374,49 +374,49 @@ const TaxInvoiceRequestsTab = () => {
                       <div>
                         <p className="text-sm text-gray-600">회사명</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.company_name || '-'}
+                          {selectedRequest.tax_invoice_info.company_name || selectedRequest.companies.company_name || '-'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">사업자등록번호</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.business_number || '-'}
+                          {selectedRequest.tax_invoice_info.business_number || selectedRequest.companies.business_registration_number || '-'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">대표자명</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.representative || '-'}
+                          {selectedRequest.tax_invoice_info.representative || selectedRequest.companies.ceo_name || '-'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">연락처</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.contact || '-'}
+                          {selectedRequest.tax_invoice_info.contact || selectedRequest.companies.phone || '-'}
                         </p>
                       </div>
                       <div className="col-span-2">
                         <p className="text-sm text-gray-600">이메일</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.email || '-'}
+                          {selectedRequest.tax_invoice_info.email || selectedRequest.companies.email || '-'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">업태</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.business_type || '-'}
+                          {selectedRequest.tax_invoice_info.business_type || selectedRequest.companies.business_type || '-'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">업종</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.business_category || '-'}
+                          {selectedRequest.tax_invoice_info.business_category || selectedRequest.companies.business_category || '-'}
                         </p>
                       </div>
                       <div className="col-span-2">
                         <p className="text-sm text-gray-600">주소</p>
                         <p className="text-sm font-medium text-gray-900">
-                          {selectedRequest.tax_invoice_info.address || '-'}
+                          {selectedRequest.tax_invoice_info.address || selectedRequest.companies.company_address || '-'}
                         </p>
                       </div>
                       {selectedRequest.tax_invoice_info.memo && (

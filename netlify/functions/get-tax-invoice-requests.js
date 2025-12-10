@@ -75,7 +75,7 @@ exports.handler = async (event, context) => {
     // companies 테이블에서 회사 정보 조회 (user_id로 조회)
     const { data: companies, error: companiesError } = await supabaseAdmin
       .from('companies')
-      .select('id, user_id, company_name, email')
+      .select('id, user_id, company_name, email, ceo_name, business_registration_number, phone, company_address, business_type, business_category')
       .in('user_id', userIds);
     
     if (companiesError) {
