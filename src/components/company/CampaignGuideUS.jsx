@@ -411,7 +411,7 @@ const CampaignGuideUS = () => {
               parts: [{ 
                 text: `Please translate the following Korean campaign guide information into natural English. Maintain the format like [Required Dialogue 1], [Required Scene 1], [Required Hashtag 1] for each field, and output only the translation results:
 
-${textToTranslate}`}` 
+${textToTranslate}` 
               }] 
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }

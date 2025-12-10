@@ -23,6 +23,10 @@ export default function CampaignGuide() {
   const [creatorAutonomy, setCreatorAutonomy] = useState(false)
 
   useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
+  useEffect(() => {
     loadCampaign()
   }, [id])
 

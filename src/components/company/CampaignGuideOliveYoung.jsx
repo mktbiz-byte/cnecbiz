@@ -26,6 +26,10 @@ export default function CampaignGuideOliveYoung() {
   const [step3Guide, setStep3Guide] = useState('')
 
   useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
+  useEffect(() => {
     loadCampaign()
   }, [id])
 

@@ -50,6 +50,10 @@ export default function CampaignGuide4WeekChallenge() {
   })
 
   useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
+  useEffect(() => {
     loadCampaign()
   }, [id])
 
