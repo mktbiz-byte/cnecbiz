@@ -496,20 +496,9 @@ const CampaignCreationKorea = () => {
         }
       }
 
-      // Get company_id from companies table
+      // Get user ID for company_id
       const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
       if (!currentUser) throw new Error('로그인이 필요합니다')
-      
-      // companies 테이블에서 실제 company_id 조회
-      const { data: companyData, error: companyError } = await supabaseBiz
-        .from('companies')
-        .select('id')
-        .eq('user_id', currentUser.id)
-        .single()
-      
-      if (companyError || !companyData) {
-        throw new Error('회사 정보를 찾을 수 없습니다. 프로필 설정을 완료해주세요.')
-      }
       
       const campaignData = {
         ...restForm,
@@ -519,7 +508,7 @@ const CampaignCreationKorea = () => {
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
         target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
-        company_id: companyData.id,  // companies 테이블의 실제 ID 사용
+        company_id: currentUser.id,  // user_id 저장
         company_email: userEmail,  // 회사 이메일 저장
         // 빈 문자열인 날짜 필드를 null로 변환
         application_deadline: campaignForm.application_deadline || null,
