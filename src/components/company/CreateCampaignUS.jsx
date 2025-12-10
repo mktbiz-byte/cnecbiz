@@ -662,8 +662,8 @@ const CreateCampaignUS = () => {
 
         // 포인트 시스템 제거 - 바로 캠페인 생성 후 결제 페이지로
         if (true) {
-          // company_id 추가
-          campaignData.company_id = companyData.id
+          // company_id에 user.id (UUID) 저장 (권한 체크와 일치)
+          campaignData.company_id = user.id
           campaignData.status = 'draft' // 결제 전이므로 draft 상태
           
           console.log('[DEBUG] 캠페인 생성 시도')
