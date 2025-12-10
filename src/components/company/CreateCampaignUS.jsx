@@ -578,9 +578,11 @@ const CreateCampaignUS = () => {
       console.log('[DEBUG] 모든 검증 통과')
 
       // 로그인 정보 가져오기
+      console.log('[DEBUG] 로그인 정보 가져오기 시작')
       let userEmail = null
       try {
         const { data: { user } } = await supabaseBiz.auth.getUser()
+        console.log('[DEBUG] supabaseBiz.auth.getUser() 결과:', user)
         if (user) userEmail = user.email
       } catch (authError) {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
@@ -615,8 +617,11 @@ const CreateCampaignUS = () => {
         age_requirement: updatedForm.age_requirement || '',
         skin_type_requirement: updatedForm.skin_type_requirement || '',
         offline_visit_requirement: updatedForm.offline_visit_requirement || ''
-        // company_email 제거: 미국 캠페인 DB 스키마에 없음
+        // company_email 제거: 미국 캐페인 DB 스키마에 없음
       }
+
+      console.log('[DEBUG] campaignData 생성 완료')
+      console.log('[DEBUG] editId:', editId)
 
       if (editId) {
         // 수정 모드
@@ -634,9 +639,13 @@ const CreateCampaignUS = () => {
         return
       } else {
         // 신규 생성: 포인트 차감 또는 견적서 발행
+        console.log('[DEBUG] 신규 캐페인 생성 분기')
         const finalCost = campaignForm.estimated_cost
+        console.log('[DEBUG] finalCost:', finalCost)
         
+        console.log('[DEBUG] supabaseBiz.auth.getUser() 호출')
         const { data: { user } } = await supabaseBiz.auth.getUser()
+        console.log('[DEBUG] user:', user)
         if (!user) throw new Error('로그인이 필요합니다')
 
         const { data: companyData } = await supabaseBiz
