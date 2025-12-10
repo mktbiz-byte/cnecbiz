@@ -666,12 +666,6 @@ const CreateCampaignUS = () => {
           campaignData.company_id = user.id
           campaignData.status = 'draft' // 결제 전이므로 draft 상태
           
-          // 패키지 라벨 생성
-          const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
-          if (selectedPackage) {
-            campaignData.package_label = `${selectedPackage.label} - ₩${selectedPackage.priceWithVat.toLocaleString()} (VAT 포함)`
-          }
-          
           console.log('[DEBUG] 캠페인 생성 시도')
           console.log('[DEBUG] campaignData:', JSON.stringify(campaignData, null, 2))
           

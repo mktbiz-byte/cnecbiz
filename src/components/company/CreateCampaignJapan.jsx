@@ -477,12 +477,6 @@ const CreateCampaignJapan = () => {
         company_email: userEmail  // 회사 이메일 추가
       }
       
-      // 패키지 라벨 생성
-      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
-      if (selectedPackage) {
-        campaignData.package_label = `${selectedPackage.label} - ₩${selectedPackage.priceWithVat.toLocaleString()} (VAT 포함)`
-      }
-
       if (editId) {
         // 수정 모드
         const { error } = await supabase
@@ -591,12 +585,6 @@ const CreateCampaignJapan = () => {
         company_email: userEmail  // 회사 이메일 추가
       }
       
-      // 패키지 라벨 생성
-      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
-      if (selectedPackage) {
-        campaignData.package_label = `${selectedPackage.label} - ₩${selectedPackage.priceWithVat.toLocaleString()} (VAT 포함)`
-      }
-
       if (editId) {
         // 수정 모드
         const { error } = await supabase
