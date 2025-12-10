@@ -156,60 +156,27 @@ export default function CampaignDetail() {
   
   // Check authorization after user, isAdmin, and campaign are loaded
   useEffect(() => {
-    const checkPermission = async () => {
-      if (campaign) {
-        // Block if not logged in
-        if (!user) {
-          alert('로그인이 필요합니다.')
-          navigate('/login')
-          return
-        }
-        
-        // Admin은 모든 캠페인 접근 가능
-        if (isAdmin) {
-          return
-        }
-        
-        // Block if campaign has no owner (data error)
-        if (!campaign.company_id) {
-          console.warn('[CampaignDetail] 캠페인에 company_id가 없음')
-          // company_id가 없어도 일단 허용 (기존 동작 유지)
-          return
-        }
-        
-        // Get company_id from companies table
-        try {
-          const { data: companyData, error: companyError } = await supabaseBiz
-            .from('companies')
-            .select('id')
-            .eq('user_id', user.id)
-            .single()
-          
-          if (companyError) {
-            console.error('[CampaignDetail] companies 조회 오류:', companyError)
-            // 오류 발생 시 일단 허용 (기존 동작 유지)
-            return
-          }
-          
-          if (!companyData) {
-            console.error('[CampaignDetail] companyData가 없음')
-            // 데이터 없어도 일단 허용
-            return
-          }
-          
-          // Check permission: must be campaign owner
-          if (campaign.company_id !== companyData.id) {
-            console.warn('[CampaignDetail] 권한 없음 - campaign.company_id:', campaign.company_id, 'user company_id:', companyData.id)
-            alert('이 캠페인에 접근할 권한이 없습니다.')
-            navigate('/company/campaigns')
-          }
-        } catch (err) {
-          console.error('[CampaignDetail] 권한 체크 중 예외 발생:', err)
-          // 예외 발생 시 일단 허용
-        }
+    if (campaign) {
+      // Block if not logged in
+      if (!user) {
+        alert('로그인이 필요합니다.')
+        navigate('/login')
+        return
+      }
+      
+      // Block if campaign has no owner (data error)
+      if (!campaign.company_id) {
+        alert('잘못된 캠페인 데이터입니다.')
+        navigate('/company/campaigns')
+        return
+      }
+      
+      // Check permission: must be campaign owner or admin
+      if (campaign.company_id !== user.id && !isAdmin) {
+        alert('이 캠페인에 접근할 권한이 없습니다.')
+        navigate('/company/campaigns')
       }
     }
-    checkPermission()
   }, [campaign, user, isAdmin])
   
   // AI 추천은 campaign이 로드된 후에 실행
