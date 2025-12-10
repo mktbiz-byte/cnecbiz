@@ -523,7 +523,6 @@ const CampaignCreationKorea = () => {
         target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
         company_id: currentUser.id,  // user_id 저장
         company_email: userEmail,  // 회사 이메일 저장
-        package_label: packageLabel,  // 패키지 라벨 저장
         // 빈 문자열인 날짜 필드를 null로 변환
         application_deadline: campaignForm.application_deadline || null,
         start_date: campaignForm.start_date || null,
