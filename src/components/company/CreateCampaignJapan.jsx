@@ -438,9 +438,13 @@ const CreateCampaignJapan = () => {
 
       // 로그인 정보 가져오기
       let userEmail = null
+      let userId = null
       try {
         const { data: { user } } = await supabaseBiz.auth.getUser()
-        if (user) userEmail = user.email
+        if (user) {
+          userEmail = user.email
+          userId = user.id
+        }
       } catch (authError) {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
       }
@@ -474,7 +478,8 @@ const CreateCampaignJapan = () => {
         age_requirement: campaignForm.age_requirement || '',
         skin_type_requirement: campaignForm.skin_type_requirement || '',
         offline_visit_requirement: campaignForm.offline_visit_requirement || '',
-        company_email: userEmail  // 회사 이메일 추가
+        company_email: userEmail,  // 회사 이메일 추가
+        company_id: userId  // 권한 체크를 위한 user.id 추가
       }
 
       if (editId) {
@@ -546,9 +551,13 @@ const CreateCampaignJapan = () => {
 
       // 로그인 정보 가져오기
       let userEmail = null
+      let userId = null
       try {
         const { data: { user } } = await supabaseBiz.auth.getUser()
-        if (user) userEmail = user.email
+        if (user) {
+          userEmail = user.email
+          userId = user.id
+        }
       } catch (authError) {
         console.warn('로그인 정보를 가져올 수 없습니다:', authError)
       }
@@ -582,7 +591,8 @@ const CreateCampaignJapan = () => {
         age_requirement: campaignForm.age_requirement || '',
         skin_type_requirement: campaignForm.skin_type_requirement || '',
         offline_visit_requirement: campaignForm.offline_visit_requirement || '',
-        company_email: userEmail  // 회사 이메일 추가
+        company_email: userEmail,  // 회사 이메일 추가
+        company_id: userId  // 권한 체크를 위한 user.id 추가
       }
 
       if (editId) {
