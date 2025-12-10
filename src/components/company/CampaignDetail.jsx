@@ -33,7 +33,11 @@ export default function CampaignDetail() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const region = searchParams.get('region') || 'korea'
-  const supabase = region === 'japan' ? getSupabaseClient('japan') : supabaseKorea
+  const supabase = region === 'japan' 
+    ? getSupabaseClient('japan') 
+    : region === 'us'
+      ? getSupabaseClient('us')
+      : supabaseKorea
   const [campaign, setCampaign] = useState(null)
   const [applications, setApplications] = useState([])
   const [participants, setParticipants] = useState([])
