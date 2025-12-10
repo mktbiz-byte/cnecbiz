@@ -2777,15 +2777,9 @@ export default function CampaignDetail() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">패키지</p>
+                  <p className="text-sm text-gray-600">패키지 금액</p>
                   <p className="text-2xl font-bold mt-2">
-                    {campaign.package_type === 'junior' && '초급'}
-                    {campaign.package_type === 'intermediate' && '스탠다드'}
-                    {campaign.package_type === 'senior' && '프리미엄'}
-                    {campaign.package_type === 'oliveyoung' && '올영 패키지'}
-                    {campaign.package_type === 'premium' && '프리미엄 패키지'}
-                    {campaign.package_type === '4week_challenge' && '4주 챌린지'}
-                    {!['junior', 'intermediate', 'senior', 'oliveyoung', 'premium', '4week_challenge'].includes(campaign.package_type) && campaign.package_type}
+                    {campaign.estimated_cost ? `₩${campaign.estimated_cost.toLocaleString()}` : '-'}
                   </p>
                 </div>
               </div>
