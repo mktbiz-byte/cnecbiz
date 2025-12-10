@@ -712,11 +712,16 @@ const CreateCampaignUS = () => {
           return
         } else {
           // 포인트 부족: 캐페인 생성 + 견적서 발행
+          console.log('[DEBUG] 포인트 부족 분기 진입')
+          console.log('[DEBUG] currentPoints:', currentPoints, 'finalCost:', finalCost)
           const neededPoints = finalCost - currentPoints
+          console.log('[DEBUG] neededPoints:', neededPoints)
           
           // company_id 추가
           campaignData.company_id = companyData.id
+          console.log('[DEBUG] campaignData.company_id 설정:', companyData.id)
           
+          console.log('[DEBUG] campaigns 테이블에 INSERT 시도 (status: draft)')
           const { data, error } = await supabase
             .from('campaigns')
             .insert([{
@@ -724,12 +729,15 @@ const CreateCampaignUS = () => {
               status: 'draft'
             }])
             .select()
+          console.log('[DEBUG] INSERT 결과 - data:', data, 'error:', error)
 
           if (error) throw error
 
           const campaignId = data[0].id
+          console.log('[DEBUG] campaignId:', campaignId)
           
           // 견적서 데이터 저장
+          console.log('[DEBUG] points_charge_requests에 견적서 삽입 시도')
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert({
@@ -750,6 +758,7 @@ const CreateCampaignUS = () => {
             })
             .select()
             .single()
+          console.log('[DEBUG] 견적서 삽입 결과 - quoteData:', quoteData, 'quoteError:', quoteError)
 
           if (quoteError) {
             console.error('Charge request error:', quoteError)
