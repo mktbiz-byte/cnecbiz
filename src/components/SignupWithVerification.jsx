@@ -3,26 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building, User, Phone, Mail, Lock, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { Building, User, Phone, Mail, Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import InAppBrowserWarning from './InAppBrowserWarning'
 
 export default function SignupWithVerification() {
   const navigate = useNavigate()
   
-  // 단계 관리
-  const [step, setStep] = useState(1) // 1: 기업정보, 2: 담당자정보, 3: 계정생성
-  
-  // Step 1: 기업 정보
-  const [businessNumber, setBusinessNumber] = useState('')
+  // 기본 정보
   const [companyName, setCompanyName] = useState('')
-  const [ceoName, setCeoName] = useState('')
-  const [verifiedBizInfo, setVerifiedBizInfo] = useState(null)
-  const [bizCheckLoading, setBizCheckLoading] = useState(false)
-  const [bizCheckError, setBizCheckError] = useState('')
-  
-  // Step 2: 담당자 정보 및 SMS 인증
   const [contactPerson, setContactPerson] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  
+  // SMS 인증
   const [contactPhone, setContactPhone] = useState('')
   const [smsCode, setSmsCode] = useState('')
   const [smsSent, setSmsSent] = useState(false)
@@ -31,10 +26,7 @@ export default function SignupWithVerification() {
   const [smsError, setSmsError] = useState('')
   const [smsTimer, setSmsTimer] = useState(0)
   
-  // Step 3: 계정 생성
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [passwordConfirm, setPasswordConfirm] = useState('')
+  // 가입 처리
   const [signupLoading, setSignupLoading] = useState(false)
   const [signupError, setSignupError] = useState('')
 
@@ -46,57 +38,21 @@ export default function SignupWithVerification() {
     }
   }, [smsTimer])
 
-  // Step 1: 기업 정보 확인
-  const handleCheckBusinessInfo = async () => {
-    setBizCheckError('')
-    
-    if (!businessNumber || !companyName || !ceoName) {
-      setBizCheckError('사업자번호, 회사명, 대표자명을 모두 입력해주세요.')
-      return
-    }
-
-    setBizCheckLoading(true)
-
-    try {
-      const response = await fetch('/.netlify/functions/check-business-info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessNumber: businessNumber.replace(/[^0-9]/g, ''),
-          ceoName: ceoName.trim(),
-          companyName: companyName.trim()
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok || !data.success) {
-        setBizCheckError(data.error || '기업 정보 확인 실패')
-        return
-      }
-
-      // 검증 성공 - 사용자 입력값 포함
-      setVerifiedBizInfo({
-        ...data.data,
-        corpName: companyName,
-        ceoName: ceoName
-      })
-      setStep(2)
-      
-    } catch (error) {
-      console.error('기업 정보 확인 오류:', error)
-      setBizCheckError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
-    } finally {
-      setBizCheckLoading(false)
-    }
-  }
-
-  // Step 2: SMS 인증번호 발송
+  // SMS 인증번호 발송
   const handleSendSMS = async () => {
     setSmsError('')
     
     if (!contactPhone) {
       setSmsError('핸드폰 번호를 입력해주세요.')
+      return
+    }
+
+    // 핸드폰 번호 형식 검증
+    const phoneRegex = /^01[0-9]{8,9}$/
+    const cleanPhone = contactPhone.replace(/[^0-9]/g, '')
+    
+    if (!phoneRegex.test(cleanPhone)) {
+      setSmsError('올바른 핸드폰 번호 형식이 아닙니다.')
       return
     }
 
@@ -106,22 +62,19 @@ export default function SignupWithVerification() {
       const response = await fetch('/.netlify/functions/send-sms-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: contactPhone.replace(/[^0-9]/g, ''),
-          name: contactPerson
-        })
+        body: JSON.stringify({ phone: cleanPhone })
       })
 
       const data = await response.json()
 
-      if (!data.success) {
+      if (!response.ok || !data.success) {
         setSmsError(data.error || 'SMS 발송 실패')
         return
       }
 
       setSmsSent(true)
       setSmsTimer(600) // 10분
-      alert('인증번호가 발송되었습니다. (10분 이내 입력)')
+      alert('인증번호가 발송되었습니다.')
       
     } catch (error) {
       console.error('SMS 발송 오류:', error)
@@ -131,7 +84,7 @@ export default function SignupWithVerification() {
     }
   }
 
-  // Step 2: SMS 인증번호 확인
+  // SMS 인증번호 확인
   const handleVerifySMS = async () => {
     setSmsError('')
     
@@ -154,13 +107,14 @@ export default function SignupWithVerification() {
 
       const data = await response.json()
 
-      if (!data.success || !data.verified) {
-        setSmsError(data.message || '인증번호가 일치하지 않습니다.')
+      if (!response.ok || !data.success) {
+        setSmsError(data.error || '인증번호가 일치하지 않습니다.')
         return
       }
 
       setSmsVerified(true)
-      setStep(3)
+      setSmsTimer(0)
+      alert('핸드폰 인증이 완료되었습니다!')
       
     } catch (error) {
       console.error('SMS 인증 오류:', error)
@@ -170,13 +124,19 @@ export default function SignupWithVerification() {
     }
   }
 
-  // Step 3: 회원가입
-  const handleSignup = async () => {
+  // 회원가입 처리
+  const handleSignup = async (e) => {
+    e.preventDefault()
     setSignupError('')
 
     // 유효성 검사
-    if (!email || !password || !passwordConfirm) {
+    if (!companyName || !contactPerson || !email || !password || !passwordConfirm) {
       setSignupError('모든 필드를 입력해주세요.')
+      return
+    }
+
+    if (!smsVerified) {
+      setSignupError('핸드폰 인증을 완료해주세요.')
       return
     }
 
@@ -185,378 +145,266 @@ export default function SignupWithVerification() {
       return
     }
 
-    if (password.length < 6) {
-      setSignupError('비밀번호는 최소 6자 이상이어야 합니다.')
-      return
-    }
-
-    if (!smsVerified) {
-      setSignupError('SMS 인증을 먼저 완료해주세요.')
+    if (password.length < 8) {
+      setSignupError('비밀번호는 8자 이상이어야 합니다.')
       return
     }
 
     setSignupLoading(true)
 
     try {
-      // Netlify Function API 호출
-      const response = await fetch('/.netlify/functions/complete-signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          businessNumber,
-          ceoName,
-          companyName,
-          phoneNumber: contactPhone.replace(/[^0-9]/g, ''),
-          smsCode,
-          email,
-          password
-        })
+      // 1. Supabase Auth 계정 생성 (이메일 인증 없이)
+      const { data: authData, error: authError } = await supabaseBiz.auth.signUp({
+        email: email.trim(),
+        password: password,
+        options: {
+          data: {
+            company_name: companyName.trim(),
+            contact_person: contactPerson.trim(),
+            phone: contactPhone.replace(/[^0-9]/g, '')
+          }
+        }
       })
 
-      const result = await response.json()
+      if (authError) throw authError
 
-      if (!result.success) {
-        throw new Error(result.error || '회원가입에 실패했습니다.')
-      }
+      // 2. Companies 테이블에 저장
+      const { error: companyError } = await supabaseBiz
+        .from('companies')
+        .insert([{
+          user_id: authData.user.id,
+          company_name: companyName.trim(),
+          contact_person: contactPerson.trim(),
+          email: email.trim(),
+          phone: contactPhone.replace(/[^0-9]/g, ''),
+          profile_completed: false,
+          status: 'active',
+          points_balance: 0
+        }])
 
-      // 회원가입 성공 - 로그인 후 프로필 작성 페이지로 이동
-      const { error: loginError } = await supabaseBiz.auth.signInWithPassword({
-        email,
-        password
+      if (companyError) throw companyError
+
+      // 3. 자동 로그인
+      const { error: signInError } = await supabaseBiz.auth.signInWithPassword({
+        email: email.trim(),
+        password: password
       })
 
-      if (loginError) {
-        alert('회원가입은 성공했으나 로그인에 실패했습니다. 로그인 페이지에서 다시 시도해주세요.')
-        navigate('/login')
-        return
-      }
+      if (signInError) throw signInError
 
-      // Meta Pixel - CompleteRegistration 이벤트
-      if (window.fbq) {
-        window.fbq('track', 'CompleteRegistration', {
-          content_name: 'Company Signup',
-          status: 'completed'
-        })
-      }
-
-      alert('회원가입이 완료되었습니다! 프로필을 작성해주세요.')
+      // 4. 성공 메시지 및 리다이렉트
+      alert('가입이 완료되었습니다! 프로필을 설정해주세요.')
       navigate('/company/profile-setup')
 
     } catch (error) {
-      console.error('회원가입 오류:', error)
-      setSignupError(error.message || '회원가입 중 오류가 발생했습니다.')
+      console.error('가입 오류:', error)
+      setSignupError(error.message || '가입 중 오류가 발생했습니다.')
     } finally {
       setSignupLoading(false)
     }
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <InAppBrowserWarning />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-6 pb-32 md:pb-6">
-        <Card className="w-full max-w-2xl shadow-2xl border-none">
-          <CardHeader className="space-y-4 text-center pb-8">
-            <div className="flex justify-center">
-              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
-                <Building className="w-8 h-8 text-white" />
+      
+      <Card className="w-full max-w-2xl shadow-xl">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-3xl font-bold text-center text-gray-800">
+            회원가입
+          </CardTitle>
+          <p className="text-center text-gray-600">
+            크넥 비즈니스 플랫폼에 오신 것을 환영합니다
+          </p>
+        </CardHeader>
+
+        <CardContent>
+          <form onSubmit={handleSignup} className="space-y-6">
+            {/* 기본 정보 */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <Building className="w-5 h-5" />
+                기본 정보
+              </h3>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  회사명 *
+                </label>
+                <Input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="회사명을 입력하세요"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  담당자명 *
+                </label>
+                <Input
+                  type="text"
+                  value={contactPerson}
+                  onChange={(e) => setContactPerson(e.target.value)}
+                  placeholder="담당자명을 입력하세요"
+                  required
+                />
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              기업 회원가입
-            </CardTitle>
-            
-            {/* 진행 단계 표시 */}
-            <div className="flex items-center justify-center gap-4 pt-4">
-              <div className={`flex items-center gap-2 ${step >= 1 ? 'text-blue-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  1
-                </div>
-                <span className="text-sm font-medium">기업정보</span>
+
+            {/* 계정 정보 */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                계정 정보
+              </h3>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  이메일 *
+                </label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="이메일을 입력하세요"
+                  required
+                />
               </div>
-              <div className="w-8 h-0.5 bg-gray-300"></div>
-              <div className={`flex items-center gap-2 ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  2
-                </div>
-                <span className="text-sm font-medium">담당자정보</span>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  비밀번호 * (8자 이상)
+                </label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호를 입력하세요"
+                  required
+                  minLength={8}
+                />
               </div>
-              <div className="w-8 h-0.5 bg-gray-300"></div>
-              <div className={`flex items-center gap-2 ${step >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                  3
-                </div>
-                <span className="text-sm font-medium">계정생성</span>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  비밀번호 확인 *
+                </label>
+                <Input
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  placeholder="비밀번호를 다시 입력하세요"
+                  required
+                  minLength={8}
+                />
               </div>
             </div>
-          </CardHeader>
 
-          <CardContent className="space-y-6">
-            {/* Step 1: 기업 정보 확인 */}
-            {step === 1 && (
-              <div className="space-y-6">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
-                    <AlertCircle className="w-4 h-4 inline mr-2" />
-                    사업자등록정보와 대조하여 본인 확인을 진행합니다.
-                  </p>
-                </div>
+            {/* 핸드폰 인증 */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                핸드폰 인증 *
+              </h3>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      사업자번호 *
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="10자리 숫자 (- 제외)"
-                      value={businessNumber}
-                      onChange={(e) => setBusinessNumber(e.target.value)}
-                      maxLength={12}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      회사명 *
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="회사명을 입력하세요"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      대표자명 *
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="사업자등록증상의 대표자명"
-                      value={ceoName}
-                      onChange={(e) => setCeoName(e.target.value)}
-                    />
-                  </div>
-
-                  {bizCheckError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-sm text-red-800">{bizCheckError}</p>
-                    </div>
-                  )}
-
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  핸드폰 번호
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="01012345678"
+                    disabled={smsVerified}
+                    required
+                  />
                   <Button
-                    onClick={handleCheckBusinessInfo}
-                    disabled={bizCheckLoading}
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600"
+                    type="button"
+                    onClick={handleSendSMS}
+                    disabled={smsLoading || smsVerified || smsTimer > 0}
+                    className="whitespace-nowrap"
                   >
-                    {bizCheckLoading ? '확인 중...' : '기업 정보 확인'}
+                    {smsTimer > 0 ? `${Math.floor(smsTimer / 60)}:${String(smsTimer % 60).padStart(2, '0')}` : '인증번호 발송'}
                   </Button>
                 </div>
               </div>
-            )}
 
-            {/* Step 2: 담당자 정보 및 SMS 인증 */}
-            {step === 2 && (
-              <div className="space-y-6">
-                {/* 검증된 기업 정보 표시 */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="font-semibold text-green-800">기업 정보 확인 완료</span>
-                  </div>
-                  <div className="text-sm text-green-700 space-y-1">
-                    <p>회사명: {verifiedBizInfo?.corpName}</p>
-                    <p>대표자: {verifiedBizInfo?.ceoName}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      담당자명 *
-                    </label>
+              {smsSent && !smsVerified && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    인증번호
+                  </label>
+                  <div className="flex gap-2">
                     <Input
                       type="text"
-                      placeholder="담당자 이름"
-                      value={contactPerson}
-                      onChange={(e) => setContactPerson(e.target.value)}
+                      value={smsCode}
+                      onChange={(e) => setSmsCode(e.target.value)}
+                      placeholder="인증번호 6자리"
+                      maxLength={6}
                     />
+                    <Button
+                      type="button"
+                      onClick={handleVerifySMS}
+                      disabled={smsLoading}
+                      className="whitespace-nowrap"
+                    >
+                      확인
+                    </Button>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      담당자 핸드폰 *
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="tel"
-                        placeholder="010-1234-5678"
-                        value={contactPhone}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9]/g, '')
-                          let formatted = value
-                          if (value.length <= 3) {
-                            formatted = value
-                          } else if (value.length <= 7) {
-                            formatted = value.slice(0, 3) + '-' + value.slice(3)
-                          } else if (value.length <= 11) {
-                            formatted = value.slice(0, 3) + '-' + value.slice(3, 7) + '-' + value.slice(7)
-                          } else {
-                            formatted = value.slice(0, 3) + '-' + value.slice(3, 7) + '-' + value.slice(7, 11)
-                          }
-                          setContactPhone(formatted)
-                        }}
-                        disabled={smsSent && smsTimer > 0}
-                        maxLength={13}
-                      />
-                      <Button
-                        onClick={handleSendSMS}
-                        disabled={smsLoading || (smsSent && smsTimer > 0)}
-                        className="whitespace-nowrap"
-                      >
-                        {smsLoading ? '발송 중...' : smsSent ? '재발송' : '인증번호 발송'}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {smsSent && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        인증번호 *
-                        {smsTimer > 0 && (
-                          <span className="text-blue-600 ml-2">
-                            <Clock className="w-4 h-4 inline mr-1" />
-                            {Math.floor(smsTimer / 60)}:{String(smsTimer % 60).padStart(2, '0')}
-                          </span>
-                        )}
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="text"
-                          placeholder="6자리 숫자"
-                          value={smsCode}
-                          onChange={(e) => setSmsCode(e.target.value)}
-                          maxLength={6}
-                        />
-                        <Button
-                          onClick={handleVerifySMS}
-                          disabled={smsLoading}
-                        >
-                          {smsLoading ? '확인 중...' : '확인'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {smsError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-sm text-red-800">{smsError}</p>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={() => setStep(1)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    이전 단계로
-                  </Button>
                 </div>
+              )}
+
+              {smsVerified && (
+                <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-medium">핸드폰 인증 완료</span>
+                </div>
+              )}
+
+              {smsError && (
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>{smsError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* 오류 메시지 */}
+            {signupError && (
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
+                <AlertCircle className="w-5 h-5" />
+                <span>{signupError}</span>
               </div>
             )}
 
-            {/* Step 3: 계정 생성 */}
-            {step === 3 && (
-              <div className="space-y-6">
-                {/* SMS 인증 완료 표시 */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="font-semibold text-green-800">SMS 인증 완료</span>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      이메일 (로그인 ID) *
-                    </label>
-                    <Input
-                      type="email"
-                      placeholder="example@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      비밀번호 *
-                    </label>
-                    <Input
-                      type="password"
-                      placeholder="최소 6자 이상"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      비밀번호 확인 *
-                    </label>
-                    <Input
-                      type="password"
-                      placeholder="비밀번호 재입력"
-                      value={passwordConfirm}
-                      onChange={(e) => setPasswordConfirm(e.target.value)}
-                    />
-                  </div>
-
-                  {signupError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-sm text-red-800">{signupError}</p>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={handleSignup}
-                    disabled={signupLoading}
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600"
-                  >
-                    {signupLoading ? '가입 중...' : '회원가입 완료'}
-                  </Button>
-
-                  <Button
-                    onClick={() => setStep(2)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    이전 단계로
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* 가입 버튼 */}
+            <Button
+              type="submit"
+              className="w-full h-12 text-lg"
+              disabled={signupLoading || !smsVerified}
+            >
+              {signupLoading ? '가입 중...' : '가입하기'}
+            </Button>
 
             {/* 로그인 링크 */}
-            <div className="text-center pt-4 border-t">
-              <p className="text-sm text-gray-600">
-                이미 계정이 있으신가요?{' '}
-                <button
-                  onClick={() => navigate('/login')}
-                  className="text-blue-600 font-medium hover:underline"
-                >
-                  로그인
-                </button>
-              </p>
+            <div className="text-center text-sm text-gray-600">
+              이미 계정이 있으신가요?{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="text-blue-600 hover:underline font-medium"
+              >
+                로그인
+              </button>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
-
