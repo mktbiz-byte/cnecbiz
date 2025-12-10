@@ -164,15 +164,20 @@ export default function CampaignDetail() {
         return
       }
       
-      // Block if campaign has no owner (data error)
-      if (!campaign.company_id) {
-        alert('잘못된 캠페인 데이터입니다.')
-        navigate('/company/campaigns')
-        return
+      // Check permission based on region
+      let hasPermission = isAdmin
+      
+      if (!hasPermission) {
+        // Japan campaigns use company_email
+        if (region === 'japan') {
+          hasPermission = campaign.company_email === user.email
+        } else {
+          // Korea and US campaigns use company_id
+          hasPermission = campaign.company_id === user.id
+        }
       }
       
-      // Check permission: must be campaign owner or admin
-      if (campaign.company_id !== user.id && !isAdmin) {
+      if (!hasPermission) {
         alert('이 캠페인에 접근할 권한이 없습니다.')
         navigate('/company/campaigns')
       }
