@@ -301,7 +301,9 @@ const CreateCampaignUS = () => {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `다음 한국어 캠페인 정보를 미국어로 자연스럽게 번역해주세요. 각 필드별로 [제목], [브랜드], [설명], [참가조건], [질문1], [질문2], [질문3], [질문4], [오프라인방문] 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
+                  text: `Please translate the following Korean campaign information into natural English. Maintain the format for each field like [Title], [Brand], [Description], [Requirements], [Question1], [Question2], [Question3], [Question4], [Offline Visit], and output only the translation results:
+
+${textToTranslate}` 
               }] 
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
@@ -318,18 +320,18 @@ const CreateCampaignUS = () => {
       console.log('원본:', textToTranslate)
       console.log('번역:', translatedText)
 
-      // 번역 결과 파싱 (한국어/미국어 레이블 모두 처리, 볼드 마크다운 제거)
-      const cleanText = translatedText.replace(/\*\*/g, '') // 볼드 마크다운 제거
+      // Parse translation results (support Korean/English labels, remove bold markdown)
+      const cleanText = translatedText.replace(/\*\*/g, '') // Remove bold markdown
       
-      const titleMatch = cleanText.match(/\[(제목|タイトル)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const brandMatch = cleanText.match(/\[(브랜드|ブランド)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const descMatch = cleanText.match(/\[(설명|説明)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const reqMatch = cleanText.match(/\[(참가조건|参加条件)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const q1Match = cleanText.match(/\[(질문1|質問1)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const q2Match = cleanText.match(/\[(질문2|質問2)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const q3Match = cleanText.match(/\[(질문3|質問3)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const q4Match = cleanText.match(/\[(질문4|質問4)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const offlineMatch = cleanText.match(/\[(오프라인방문|オフライン訪問)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const titleMatch = cleanText.match(/\[(제목|Title)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const brandMatch = cleanText.match(/\[(브랜드|Brand)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const descMatch = cleanText.match(/\[(설명|Description)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const reqMatch = cleanText.match(/\[(참가조건|Requirements)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const q1Match = cleanText.match(/\[(질문1|Question1)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const q2Match = cleanText.match(/\[(질문2|Question2)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const q3Match = cleanText.match(/\[(질문3|Question3)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const q4Match = cleanText.match(/\[(질문4|Question4)\]\s*([\s\S]*?)(?=\n\[|$)/i)
+      const offlineMatch = cleanText.match(/\[(오프라인방문|Offline Visit)\]\s*([\s\S]*?)(?=\n\[|$)/i)
 
       console.log('파싱 결과:')
       console.log('- 제목:', titleMatch ? titleMatch[2].trim() : 'null')
@@ -713,7 +715,7 @@ const CreateCampaignUS = () => {
         </div>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">🇯🇵 {editId ? '캠페인 수정' : '미국 캠페인 생성'}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">🇺🇸 {editId ? '미국 캠페인 수정' : '미국 캠페인 생성'}</h1>
           <p className="text-gray-600 mt-2">왼쪽에서 캠페인 정보를 입력하고, 오른쪽 번역기를 활용하세요.</p>
         </div>
 
