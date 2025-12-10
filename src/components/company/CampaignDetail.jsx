@@ -156,27 +156,48 @@ export default function CampaignDetail() {
   
   // Check authorization after user, isAdmin, and campaign are loaded
   useEffect(() => {
-    if (campaign) {
-      // Block if not logged in
-      if (!user) {
-        alert('로그인이 필요합니다.')
-        navigate('/login')
-        return
-      }
-      
-      // Block if campaign has no owner (data error)
-      if (!campaign.company_id) {
-        alert('잘못된 캠페인 데이터입니다.')
-        navigate('/company/campaigns')
-        return
-      }
-      
-      // Check permission: must be campaign owner or admin
-      if (campaign.company_id !== user.id && !isAdmin) {
-        alert('이 캠페인에 접근할 권한이 없습니다.')
-        navigate('/company/campaigns')
+    const checkPermission = async () => {
+      if (campaign) {
+        // Block if not logged in
+        if (!user) {
+          alert('로그인이 필요합니다.')
+          navigate('/login')
+          return
+        }
+        
+        // Block if campaign has no owner (data error)
+        if (!campaign.company_id) {
+          alert('잘못된 캠페인 데이터입니다.')
+          navigate('/company/campaigns')
+          return
+        }
+        
+        // Admin은 모든 캠페인 접근 가능
+        if (isAdmin) {
+          return
+        }
+        
+        // Get company_id from companies table
+        const { data: companyData, error: companyError } = await supabaseBiz
+          .from('companies')
+          .select('id')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (companyError || !companyData) {
+          alert('회사 정보를 찾을 수 없습니다.')
+          navigate('/company/campaigns')
+          return
+        }
+        
+        // Check permission: must be campaign owner
+        if (campaign.company_id !== companyData.id) {
+          alert('이 캠페인에 접근할 권한이 없습니다.')
+          navigate('/company/campaigns')
+        }
       }
     }
+    checkPermission()
   }, [campaign, user, isAdmin])
   
   // AI 추천은 campaign이 로드된 후에 실행
