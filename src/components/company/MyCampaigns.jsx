@@ -76,13 +76,13 @@ export default function MyCampaigns() {
     }
     
     // 회사 정보가 없어도 캠페인은 조회
-    fetchCampaigns(user.email)
+    fetchCampaigns(user.email, companyData?.id)
   }
 
-  const fetchCampaigns = async (userEmail) => {
+  const fetchCampaigns = async (userEmail, companyId) => {
     setLoading(true)
     try {
-      console.log('[MyCampaigns] Fetching campaigns for email:', userEmail)
+      console.log('[MyCampaigns] Fetching campaigns for email:', userEmail, 'companyId:', companyId)
       
       // 한국 지역 캠페인 가져오기 (company_email 기준)
       const { data: koreaCampaigns, error: koreaError } = await supabaseKorea
@@ -103,13 +103,20 @@ export default function MyCampaigns() {
       
       console.log('[MyCampaigns] Japan campaigns result:', { japanCampaigns, japanError })
 
-      // 미국 지역 캠페인 가져오기 (company_email 기준)
+      // 미국 지역 캠페인 가져오기 (company_id 기준 - US는 company_email 컴럼이 없음)
       const supabaseUS = getSupabaseClient('us')
-      const { data: usCampaigns, error: usError } = await supabaseUS
-        .from('campaigns')
-        .select('*')
-        .eq('company_email', userEmail)
-        .order('created_at', { ascending: false })
+      let usCampaigns = null
+      let usError = null
+      
+      if (companyId) {
+        const result = await supabaseUS
+          .from('campaigns')
+          .select('*')
+          .eq('company_id', companyId)
+          .order('created_at', { ascending: false })
+        usCampaigns = result.data
+        usError = result.error
+      }
       
       console.log('[MyCampaigns] US campaigns result:', { usCampaigns, usError })
 
