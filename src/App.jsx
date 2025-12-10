@@ -22,6 +22,7 @@ import OliveYoungInvoice from './components/company/OliveYoungInvoice'
 import FourWeekChallengeInvoice from './components/company/FourWeekChallengeInvoice'
 import CampaignGuideEditor from './components/company/CampaignGuideEditor'
 import CampaignGuideJapan from './components/company/CampaignGuideJapan'
+import CampaignGuideUS from './components/company/CampaignGuideUS'
 import AdvancedGuideJapan from './components/company/AdvancedGuideJapan'
 import GuideReview from './components/company/GuideReview'
 import CampaignGuideReview from './components/company/CampaignGuideReview'
@@ -129,6 +130,7 @@ function App() {
         <Route path="/company/campaigns/create/:region" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/guide" element={<CampaignGuideEditor />} />
         <Route path="/company/campaigns/guide/japan" element={<CampaignGuideJapan />} />
+        <Route path="/company/campaigns/guide/us" element={<CampaignGuideUS />} />
         <Route path="/company/campaigns/guide/japan/advanced" element={<AdvancedGuideJapan />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns/guide/oliveyoung" element={<CampaignGuideOliveYoung />} />
