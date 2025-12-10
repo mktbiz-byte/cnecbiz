@@ -679,7 +679,7 @@ const CreateCampaignJapan = () => {
           const { data: quoteData, error: quoteError } = await supabaseBiz
             .from('points_charge_requests')
             .insert({
-              company_id: user.id,
+              company_id: companyData.id,
               amount: finalCost,
               original_amount: finalCost,
               discount_rate: 0,
