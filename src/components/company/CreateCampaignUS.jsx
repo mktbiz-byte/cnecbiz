@@ -473,8 +473,9 @@ const CreateCampaignUS = () => {
         question4_options: updatedForm.question4_options || '',
         age_requirement: updatedForm.age_requirement || '',
         skin_type_requirement: updatedForm.skin_type_requirement || '',
-        offline_visit_requirement: updatedForm.offline_visit_requirement || ''
-        // company_email 제거: 미국 캠페인 DB 스키마에 없음
+        offline_visit_requirement: updatedForm.offline_visit_requirement || '',
+        company_id: null  // 생성 시 설정됨
+        // company_email 제거: 미국 캐페인 DB 스키마에 없음
       }
 
       if (editId) {
@@ -643,7 +644,10 @@ const CreateCampaignUS = () => {
         const currentPoints = companyData.points_balance || 0
 
         if (currentPoints >= finalCost) {
-          // 포인트 충분: 캠페인 생성 + 포인트 차감
+          // 포인트 충분: 캐페인 생성 + 포인트 차감
+          // company_id 추가
+          campaignData.company_id = companyData.id
+          
           const { data, error } = await supabase
             .from('campaigns')
             .insert([campaignData])
@@ -686,8 +690,11 @@ const CreateCampaignUS = () => {
           }, 1500)
           return
         } else {
-          // 포인트 부족: 캠페인 생성 + 견적서 발행
+          // 포인트 부족: 캐페인 생성 + 견적서 발행
           const neededPoints = finalCost - currentPoints
+          
+          // company_id 추가
+          campaignData.company_id = companyData.id
           
           const { data, error } = await supabase
             .from('campaigns')
