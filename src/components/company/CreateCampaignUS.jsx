@@ -767,8 +767,11 @@ const CreateCampaignUS = () => {
         navigate('/company/campaigns')
       }, 1500)
     } catch (err) {
-      console.error('캠페인 저장 실패:', err)
-      setError('캠페인 저장에 실패했습니다: ' + err.message)
+      console.error('[DEBUG] catch 블록 - 오류 발생:', err)
+      console.error('[DEBUG] 오류 메시지:', err.message)
+      console.error('[DEBUG] 오류 스택:', err.stack)
+      alert('오류 발생: ' + err.message)
+      setError('캐페인 저장에 실패했습니다: ' + err.message)
     } finally {
       setProcessing(false)
     }
