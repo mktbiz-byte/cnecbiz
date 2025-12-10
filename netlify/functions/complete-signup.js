@@ -1,29 +1,9 @@
 /**
- * 회원가입 완료 API
- * 팝빌 기업정보 조회 → SMS 인증 확인 → Supabase Auth 계정 생성 → companies 테이블 insert
+ * 회원가입 완료 API (간소화 버전)
+ * SMS 인증 확인 → Supabase Auth 계정 생성 (Admin API) → companies 테이블 insert
  */
 
 const { createClient } = require('@supabase/supabase-js')
-const popbill = require('popbill')
-
-// 팝빌 전역 설정
-popbill.config({
-  LinkID: (process.env.POPBILL_LINK_ID || 'HOWLAB').trim(),
-  SecretKey: (process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=').trim(),
-  IsTest: process.env.POPBILL_TEST_MODE === 'true',
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true,
-  defaultErrorHandler: function (Error) {
-    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
-  }
-});
-
-// 팝빌 서비스 객체 생성
-const bizInfoCheckService = popbill.BizInfoCheckService();
-const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
-
-console.log('Popbill service initialized');
 
 // Supabase Admin 클라이언트 초기화 (Service Role Key 사용 - RLS 우회)
 const supabaseAdmin = createClient(
@@ -32,25 +12,6 @@ const supabaseAdmin = createClient(
 );
 
 console.log('Supabase admin client initialized');
-
-/**
- * 팝빌 기업정보 조회 API 호출
- */
-async function checkBizInfo(checkCorpNum) {
-  return new Promise((resolve, reject) => {
-    bizInfoCheckService.checkBizInfo(
-      POPBILL_CORP_NUM,
-      checkCorpNum,
-      (error, result) => {
-        if (error) {
-          reject(error)
-        } else {
-          resolve(result)
-        }
-      }
-    )
-  })
-}
 
 /**
  * SMS 인증 확인
@@ -72,7 +33,6 @@ async function verifySMSCode(phoneNumber, code) {
   if (error || !data) {
     console.log('[verifySMSCode] No matching verification found')
     console.log('[verifySMSCode] Error:', error)
-    console.log('[verifySMSCode] Searching with phone:', phoneNumber, 'code:', code)
     return false
   }
 
@@ -91,7 +51,7 @@ async function verifySMSCode(phoneNumber, code) {
 }
 
 exports.handler = async (event, context) => {
-  console.log('Complete signup function invoked')
+  console.log('Complete signup function invoked (simplified version)')
   
   // CORS 헤더
   const headers = {
@@ -121,9 +81,8 @@ exports.handler = async (event, context) => {
 
   try {
     const {
-      businessNumber,
-      ceoName,
       companyName,
+      contactPerson,
       email,
       password,
       phoneNumber,
@@ -131,7 +90,7 @@ exports.handler = async (event, context) => {
     } = JSON.parse(event.body)
 
     // 입력 검증
-    if (!businessNumber || !ceoName || !companyName || !email || !password || !phoneNumber || !smsCode) {
+    if (!companyName || !contactPerson || !email || !password || !phoneNumber || !smsCode) {
       return {
         statusCode: 400,
         headers,
@@ -142,22 +101,9 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 사업자번호 형식 검증
-    const cleanBusinessNumber = businessNumber.replace(/[^0-9]/g, '')
-    if (cleanBusinessNumber.length !== 10) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '올바른 사업자번호를 입력해주세요.'
-        })
-      }
-    }
-
     console.log('[complete-signup] Step 1: Checking for existing email')
     
-    // 이메일 중복 체크 (사업자번호는 중복 허용)
+    // 이메일 중복 체크
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
     const emailExists = existingUser?.users?.some(u => u.email === email)
     if (emailExists) {
@@ -188,16 +134,17 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Step 1, 2에서 이미 사업자번호와 대표자명 검증 완료
-    console.log('[complete-signup] Step 3: Business verification already completed in Step 1')
-
-    // Supabase Auth 계정 생성
-    console.log('[complete-signup] Step 4: Creating auth user:', email)
-    console.log('[complete-signup] Creating auth user:', email)
+    // Supabase Auth 계정 생성 (Admin API - 이메일 인증 없이)
+    console.log('[complete-signup] Step 3: Creating auth user:', email)
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true
+      email_confirm: true, // 이메일 인증 없이 즉시 확인 처리
+      user_metadata: {
+        company_name: companyName,
+        contact_person: contactPerson,
+        phone: phoneNumber
+      }
     })
 
     if (authError) {
@@ -226,17 +173,15 @@ exports.handler = async (event, context) => {
       }
     }
     console.log('[complete-signup] Auth user created:', authData.user.id)
-    console.log('[complete-signup] Auth user created:', authData.user.id)
 
     // companies 테이블에 기업 정보 저장
-    console.log('[complete-signup] Step 5: Inserting company data')
+    console.log('[complete-signup] Step 4: Inserting company data')
     const { data: companyData, error: companyError } = await supabaseAdmin
       .from('companies')
       .insert([{
         user_id: authData.user.id,
         company_name: companyName,
-        business_registration_number: cleanBusinessNumber,
-        ceo_name: ceoName,
+        contact_person: contactPerson,
         email,
         phone: phoneNumber.replace(/[^0-9]/g, ''),
         status: 'active',
@@ -253,7 +198,6 @@ exports.handler = async (event, context) => {
       // Auth 계정 롤백
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       
-      
       return {
         statusCode: 500,
         headers,
@@ -265,7 +209,7 @@ exports.handler = async (event, context) => {
       }
     }
     console.log('[complete-signup] Company data saved:', companyData.id)
-    console.log('[complete-signup] 회원가입 알림은 프로필 설정 완료 후 발송됩니다.')
+    console.log('[complete-signup] 회원가입 완료 - 프로필 설정 필요')
 
     return {
       statusCode: 200,
@@ -296,4 +240,3 @@ exports.handler = async (event, context) => {
     }
   }
 }
-

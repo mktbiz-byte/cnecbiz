@@ -153,38 +153,27 @@ export default function SignupWithVerification() {
     setSignupLoading(true)
 
     try {
-      // 1. Supabase Auth 계정 생성 (이메일 인증 없이)
-      const { data: authData, error: authError } = await supabaseBiz.auth.signUp({
-        email: email.trim(),
-        password: password,
-        options: {
-          data: {
-            company_name: companyName.trim(),
-            contact_person: contactPerson.trim(),
-            phone: contactPhone.replace(/[^0-9]/g, '')
-          }
-        }
+      // 백엔드 Function을 통해 가입 처리 (이메일 인증 없이)
+      const response = await fetch('/.netlify/functions/complete-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: companyName.trim(),
+          contactPerson: contactPerson.trim(),
+          email: email.trim(),
+          password: password,
+          phoneNumber: contactPhone.replace(/[^0-9]/g, ''),
+          smsCode: smsCode
+        })
       })
 
-      if (authError) throw authError
+      const data = await response.json()
 
-      // 2. Companies 테이블에 저장
-      const { error: companyError } = await supabaseBiz
-        .from('companies')
-        .insert([{
-          user_id: authData.user.id,
-          company_name: companyName.trim(),
-          contact_person: contactPerson.trim(),
-          email: email.trim(),
-          phone: contactPhone.replace(/[^0-9]/g, ''),
-          profile_completed: false,
-          status: 'active',
-          points_balance: 0
-        }])
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || '가입 중 오류가 발생했습니다.')
+      }
 
-      if (companyError) throw companyError
-
-      // 3. 자동 로그인
+      // 자동 로그인
       const { error: signInError } = await supabaseBiz.auth.signInWithPassword({
         email: email.trim(),
         password: password
@@ -192,7 +181,7 @@ export default function SignupWithVerification() {
 
       if (signInError) throw signInError
 
-      // 4. 성공 메시지 및 리다이렉트
+      // 성공 메시지 및 리다이렉트
       alert('가입이 완료되었습니다! 프로필을 설정해주세요.')
       navigate('/company/profile-setup')
 
