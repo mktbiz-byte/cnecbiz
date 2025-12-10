@@ -587,15 +587,20 @@ const CreateCampaignJapan = () => {
       
       if (editId) {
         // 수정 모드
+        console.log('[DEBUG] 수정 모드 실행 (Japan)')
         const { error } = await supabase
           .from('campaigns')
           .update(campaignData)
           .eq('id', editId)
 
+        console.log('[DEBUG] UPDATE 결과 - error:', error)
         if (error) throw error
+        
+        console.log('[DEBUG] 수정 성공, 가이드 페이지로 이동 예정 (Japan)')
         setSuccess('캠페인이 수정되었습니다!')
         
         setTimeout(() => {
+          console.log('[DEBUG] navigate 실행 (Japan):', `/company/campaigns/guide/japan?id=${editId}`)
           navigate(`/company/campaigns/guide/japan?id=${editId}`)
         }, 1500)
         return
