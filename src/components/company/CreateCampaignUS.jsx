@@ -648,11 +648,13 @@ const CreateCampaignUS = () => {
         console.log('[DEBUG] user:', user)
         if (!user) throw new Error('로그인이 필요합니다')
 
+        console.log('[DEBUG] companyData 가져오기 시작, user.id:', user.id)
         const { data: companyData } = await supabaseBiz
           .from('companies')
           .select('id, points_balance')
           .eq('user_id', user.id)
           .single()
+        console.log('[DEBUG] companyData 결과:', companyData)
 
         if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다')
 
