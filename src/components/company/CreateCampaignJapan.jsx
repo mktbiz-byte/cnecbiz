@@ -476,6 +476,12 @@ const CreateCampaignJapan = () => {
         offline_visit_requirement: campaignForm.offline_visit_requirement || '',
         company_email: userEmail  // 회사 이메일 추가
       }
+      
+      // 패키지 라벨 생성
+      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+      if (selectedPackage) {
+        campaignData.package_label = `${selectedPackage.label} - ₩${selectedPackage.priceWithVat.toLocaleString()} (VAT 포함)`
+      }
 
       if (editId) {
         // 수정 모드
@@ -583,6 +589,12 @@ const CreateCampaignJapan = () => {
         skin_type_requirement: campaignForm.skin_type_requirement || '',
         offline_visit_requirement: campaignForm.offline_visit_requirement || '',
         company_email: userEmail  // 회사 이메일 추가
+      }
+      
+      // 패키지 라벨 생성
+      const selectedPackage = packageOptions.find(p => p.value === campaignForm.package_type)
+      if (selectedPackage) {
+        campaignData.package_label = `${selectedPackage.label} - ₩${selectedPackage.priceWithVat.toLocaleString()} (VAT 포함)`
       }
 
       if (editId) {

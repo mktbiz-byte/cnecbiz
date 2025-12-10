@@ -500,6 +500,19 @@ const CampaignCreationKorea = () => {
       const { data: { user: currentUser } } = await supabaseBiz.auth.getUser()
       if (!currentUser) throw new Error('로그인이 필요합니다')
       
+      // 패키지 라벨 생성
+      let packageLabel = ''
+      if (campaignForm.campaign_type === '4week_challenge') {
+        const pkg = fourWeekPackageOptions.find(p => p.value === campaignForm.package_type)
+        if (pkg) packageLabel = `${pkg.label} - ₩${pkg.price.toLocaleString()}`
+      } else if (campaignForm.campaign_type === 'oliveyoung') {
+        const pkg = oliveyoungPackageOptions.find(p => p.value === campaignForm.package_type)
+        if (pkg) packageLabel = `${pkg.label} - ₩${pkg.price.toLocaleString()}`
+      } else {
+        const pkg = packageOptions.find(p => p.value === campaignForm.package_type)
+        if (pkg) packageLabel = `${pkg.label} - ₩${pkg.price.toLocaleString()} (VAT 별도)`
+      }
+
       const campaignData = {
         ...restForm,
         title: autoTitle,
@@ -510,6 +523,7 @@ const CampaignCreationKorea = () => {
         target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
         company_id: currentUser.id,  // user_id 저장
         company_email: userEmail,  // 회사 이메일 저장
+        package_label: packageLabel,  // 패키지 라벨 저장
         // 빈 문자열인 날짜 필드를 null로 변환
         application_deadline: campaignForm.application_deadline || null,
         start_date: campaignForm.start_date || null,
