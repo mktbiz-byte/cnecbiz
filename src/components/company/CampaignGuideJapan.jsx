@@ -75,6 +75,11 @@ const CampaignGuideJapan = () => {
   const [isTranslating, setIsTranslating] = useState(false)
   const [translationError, setTranslationError] = useState('')
 
+  // Scroll to top on page load
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   // 캠페인 정보 및 가이드 로드
   useEffect(() => {
     if (campaignId) {
