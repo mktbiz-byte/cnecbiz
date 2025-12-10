@@ -260,12 +260,12 @@ export default function FourWeekChallengeInvoice() {
           tax_invoice_info: needsTaxInvoice ? {
             company_name: companyName,
             business_number: businessNumber,
-            representative_name: representativeName,
+            representative: representativeName,
             contact: contact,
             email: email,
             business_type: businessType,
             business_category: businessCategory,
-            company_address: companyAddress,
+            address: companyAddress,
             memo: memo
           } : null,
           related_campaign_id: id, // 입금 확인 시 이 캠페인을 자동 승인 요청

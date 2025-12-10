@@ -213,14 +213,14 @@ const InvoicePage = () => {
       const invoiceData = {
         depositor_name: depositorName,
         tax_invoice_info: {
-          business_registration_number: company.business_registration_number,
+          business_number: company.business_registration_number,
           company_name: company.company_name,
-          ceo_name: company.ceo_name,
+          representative: company.ceo_name,
+          contact: company.phone,
+          email: company.email,
           business_type: company.business_type,
           business_category: company.business_category,
-          company_address: company.company_address,
-          email: company.email,
-          phone: company.phone
+          address: company.company_address
         },
         tax_invoice_file_url: taxInvoiceFileUrl,
         payment_account: paymentAccount,
