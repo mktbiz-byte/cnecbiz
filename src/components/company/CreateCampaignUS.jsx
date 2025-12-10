@@ -522,6 +522,14 @@ const CreateCampaignUS = () => {
       const endDateValue = document.getElementById('end_date')?.value || ''
 
       // 모든 필드를 DOM에서 직접 읽기
+      // SNS 플랫폼 체크박스 상태를 DOM에서 직접 읽기
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]')
+      const target_platforms = {
+        instagram: checkboxes[0]?.checked || false,
+        youtube: checkboxes[1]?.checked || false,
+        tiktok: checkboxes[2]?.checked || false
+      }
+
       const updatedForm = {
         ...campaignForm,
         title: document.getElementById('title')?.value || campaignForm.title,
@@ -531,7 +539,7 @@ const CreateCampaignUS = () => {
         application_deadline: appDeadlineValue,
         start_date: startDateValue,
         end_date: endDateValue,
-        target_platforms: campaignForm.target_platforms
+        target_platforms: target_platforms
       }
 
       // 필수 필드 검증
