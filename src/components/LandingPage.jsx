@@ -38,7 +38,7 @@ export default function LandingPage() {
         .from('admin_users')
         .select('role')
         .eq('email', session.user.email)
-        .single()
+        .maybeSingle()
       
       if (adminData) {
         setUserRole('admin')

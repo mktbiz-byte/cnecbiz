@@ -105,7 +105,7 @@ export default function CreatorsManagement() {
       .from('admin_users')
       .select('*')
       .eq('email', user.email)
-      .single()
+      .maybeSingle()
 
     if (!adminData) {
       navigate('/company/dashboard')

@@ -400,7 +400,7 @@ export default function SiteManagement() {
       const { data, error } = await supabaseBiz
         .from('seo_settings')
         .select('*')
-        .single()
+        .maybeSingle()
 
       if (error && error.code !== 'PGRST116') throw error
       if (data) setSeoSettings(data)

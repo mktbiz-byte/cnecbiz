@@ -61,7 +61,7 @@ export default function AdminCampaignEdit() {
         .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .single()
+        .maybeSingle()
 
       if (adminError || !adminData) {
         console.error('Admin user not found:', adminError)

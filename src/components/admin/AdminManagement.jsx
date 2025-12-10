@@ -35,7 +35,7 @@ export default function AdminManagement() {
       .select('*')
       .eq('email', user.email)
       .eq('role', 'super_admin')
-      .single()
+      .maybeSingle()
 
     if (!adminData) {
       navigate('/admin/dashboard')

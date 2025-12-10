@@ -36,7 +36,7 @@ export default function FAQManagement() {
       .from('admin_users')
       .select('*')
       .eq('email', user.email)
-      .single()
+      .maybeSingle()
 
     if (!adminData) {
       navigate('/admin/dashboard')

@@ -66,7 +66,7 @@ export default function AdminCampaignDetail() {
         .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .single()
+        .maybeSingle()
       
       if (!adminData || adminData.role !== 'super_admin') {
         alert('슈퍼 관리자 권한이 필요합니다.')
@@ -87,7 +87,7 @@ export default function AdminCampaignDetail() {
         .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .single()
+        .maybeSingle()
 
       if (adminError || !adminData) return
 

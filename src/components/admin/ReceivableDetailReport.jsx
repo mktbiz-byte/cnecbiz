@@ -83,7 +83,7 @@ export default function ReceivableDetailReport() {
         .from('financial_records')
         .select('*')
         .eq('id', id)
-        .single()
+        .maybeSingle()
       
       if (recordError) throw recordError
       setFinancialRecord(recordData)

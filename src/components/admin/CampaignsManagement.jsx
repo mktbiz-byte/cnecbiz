@@ -93,7 +93,7 @@ export default function CampaignsManagement() {
         .from('admin_users')
         .select('*')
         .eq('email', user.email)
-        .single()
+        .maybeSingle()
 
       if (adminError) {
         console.error('[CampaignsManagement] Admin data error:', adminError)
