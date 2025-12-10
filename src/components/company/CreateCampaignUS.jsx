@@ -509,12 +509,14 @@ const CreateCampaignUS = () => {
     }
   }
 
-  // 캠페인 저장
+  // 캐페인 저장
   const handleSubmit = async (e) => {
     e.preventDefault()
     setProcessing(true)
     setError('')
     setSuccess('')
+
+    console.log('[DEBUG] handleSubmit 시작')
 
     try {
       // DOM에서 직접 날짜 값 읽기 (React state 동기화 문제 해결)
@@ -566,10 +568,14 @@ const CreateCampaignUS = () => {
       }
 
       // SNS 플랫폼 검증 - updatedForm에서 확인
+      console.log('[DEBUG] target_platforms:', updatedForm.target_platforms)
       const hasSelectedPlatform = Object.values(updatedForm.target_platforms).some(Boolean)
+      console.log('[DEBUG] hasSelectedPlatform:', hasSelectedPlatform)
       if (!hasSelectedPlatform) {
         throw new Error('최소 하나의 SNS 플랫폼을 선택해주세요.')
       }
+      
+      console.log('[DEBUG] 모든 검증 통과')
 
       // 로그인 정보 가져오기
       let userEmail = null
@@ -648,11 +654,15 @@ const CreateCampaignUS = () => {
           // company_id 추가
           campaignData.company_id = companyData.id
           
+          console.log('[DEBUG] 포인트 충분, 캐페인 생성 시도')
+          console.log('[DEBUG] campaignData:', JSON.stringify(campaignData, null, 2))
+          
           const { data, error } = await supabase
             .from('campaigns')
             .insert([campaignData])
             .select()
 
+          console.log('[DEBUG] INSERT 결과 - data:', data, 'error:', error)
           if (error) throw error
 
           // 포인트 차감
