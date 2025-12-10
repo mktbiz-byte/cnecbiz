@@ -651,21 +651,20 @@ const CreateCampaignUS = () => {
         console.log('[DEBUG] companyData 가져오기 시작, user.id:', user.id)
         const { data: companyData } = await supabaseBiz
           .from('companies')
-          .select('id, points_balance')
+          .select('id')
           .eq('user_id', user.id)
           .single()
         console.log('[DEBUG] companyData 결과:', companyData)
 
         if (!companyData) throw new Error('회사 정보를 찾을 수 없습니다')
 
-        const currentPoints = companyData.points_balance || 0
-
-        if (currentPoints >= finalCost) {
-          // 포인트 충분: 캐페인 생성 + 포인트 차감
+        // 포인트 시스템 제거 - 바로 캠페인 생성 후 결제 페이지로
+        if (true) {
           // company_id 추가
           campaignData.company_id = companyData.id
+          campaignData.status = 'draft' // 결제 전이므로 draft 상태
           
-          console.log('[DEBUG] 포인트 충분, 캐페인 생성 시도')
+          console.log('[DEBUG] 캠페인 생성 시도')
           console.log('[DEBUG] campaignData:', JSON.stringify(campaignData, null, 2))
           
           const { data, error } = await supabase
@@ -676,107 +675,16 @@ const CreateCampaignUS = () => {
           console.log('[DEBUG] INSERT 결과 - data:', data, 'error:', error)
           if (error) throw error
 
-          // 포인트 차감
-          const { error: pointsError } = await supabaseBiz
-            .from('companies')
-            .update({ points_balance: currentPoints - finalCost })
-            .eq('id', companyData.id)
-
-          if (pointsError) throw pointsError
-
-          // 포인트 거래 기록 (RLS 정책으로 인한 오류 무시)
-          const { error: transactionError } = await supabaseBiz
-            .from('points_transactions')
-            .insert([{
-              company_id: companyData.id,
-              amount: -finalCost,
-              type: 'campaign_creation',
-              description: `미국 캠페인 생성: ${campaignForm.title}`,
-              campaign_id: data[0].id
-            }])
-
-          if (transactionError) {
-            console.error('[오류] 포인트 거래 기록 실패:', transactionError)
-            // RLS 정책 오류는 무시하고 계속 진행
-          }
-
-          setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
-          
-          setTimeout(() => {
-            if (data && data[0]) {
-              navigate(`/company/campaigns/guide/us?id=${data[0].id}`)
-            } else {
-              navigate('/company/campaigns')
-            }
-          }, 1500)
-          return
-        } else {
-          // 포인트 부족: 캐페인 생성 + 견적서 발행
-          console.log('[DEBUG] 포인트 부족 분기 진입')
-          console.log('[DEBUG] currentPoints:', currentPoints, 'finalCost:', finalCost)
-          const neededPoints = finalCost - currentPoints
-          console.log('[DEBUG] neededPoints:', neededPoints)
-          
-          // company_id 추가
-          campaignData.company_id = companyData.id
-          console.log('[DEBUG] campaignData.company_id 설정:', companyData.id)
-          
-          console.log('[DEBUG] campaigns 테이블에 INSERT 시도 (status: draft)')
-          const { data, error } = await supabase
-            .from('campaigns')
-            .insert([{
-              ...campaignData,
-              status: 'draft'
-            }])
-            .select()
-          console.log('[DEBUG] INSERT 결과 - data:', data, 'error:', error)
-
-          if (error) throw error
-
           const campaignId = data[0].id
-          console.log('[DEBUG] campaignId:', campaignId)
-          
-          // 견적서 데이터 저장
-          console.log('[DEBUG] points_charge_requests에 견적서 삽입 시도')
-          const { data: quoteData, error: quoteError } = await supabaseBiz
-            .from('points_charge_requests')
-            .insert({
-              company_id: user.id,
-              amount: finalCost,
-              original_amount: finalCost,
-              discount_rate: 0,
-              payment_method: 'bank_transfer',
-              status: 'pending',
-              bank_transfer_info: {
-                campaign_id: campaignId,
-                campaign_title: campaignForm.title,
-                campaign_cost: finalCost,
-                current_points: currentPoints,
-                needed_points: neededPoints,
-                reason: 'campaign_creation'
-              }
-            })
-            .select()
-            .single()
-          console.log('[DEBUG] 견적서 삽입 결과 - quoteData:', quoteData, 'quoteError:', quoteError)
 
-          if (quoteError) {
-            console.error('Charge request error:', quoteError)
-            throw quoteError
-          }
-
-          setSuccess(`캠페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)
+          setSuccess(`캠페인이 생성되었습니다! 결제 페이지로 이동합니다.`)
           
           setTimeout(() => {
-            navigate(`/company/campaigns/guide/us?id=${campaignId}`)
+            navigate(`/company/campaigns/invoice/us?id=${campaignId}`)
           }, 1500)
           return
         }
       }
-
-      setTimeout(() => {
-        navigate('/company/campaigns')
-      }, 1500)
     } catch (err) {
       console.error('[DEBUG] catch 블록 - 오류 발생:', err)
       console.error('[DEBUG] 오류 메시지:', err.message)

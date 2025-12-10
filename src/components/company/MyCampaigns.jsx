@@ -103,6 +103,16 @@ export default function MyCampaigns() {
       
       console.log('[MyCampaigns] Japan campaigns result:', { japanCampaigns, japanError })
 
+      // 미국 지역 캠페인 가져오기 (company_email 기준)
+      const supabaseUS = getSupabaseClient('us')
+      const { data: usCampaigns, error: usError } = await supabaseUS
+        .from('campaigns')
+        .select('*')
+        .eq('company_email', userEmail)
+        .order('created_at', { ascending: false })
+      
+      console.log('[MyCampaigns] US campaigns result:', { usCampaigns, usError })
+
       // 지역 표시를 위해 region 필드 추가
       const koreaCampaignsWithRegion = (koreaCampaigns || []).map(c => ({
         ...c,
@@ -114,8 +124,13 @@ export default function MyCampaigns() {
         region: 'japan'
       }))
 
-      // 한국 + 일본 캠페인 합치기
-      const campaignsWithRegion = [...koreaCampaignsWithRegion, ...japanCampaignsWithRegion]
+      const usCampaignsWithRegion = (usCampaigns || []).map(c => ({
+        ...c,
+        region: 'us'
+      }))
+
+      // 한국 + 일본 + 미국 캠페인 합치기
+      const campaignsWithRegion = [...koreaCampaignsWithRegion, ...japanCampaignsWithRegion, ...usCampaignsWithRegion]
 
       // 취소된 캠페인은 하단으로 정렬
       const sortedCampaigns = campaignsWithRegion.sort((a, b) => {
@@ -131,7 +146,7 @@ export default function MyCampaigns() {
       // 각 캠페인의 참여자 정보 가져오기
       const participantsData = {}
       for (const campaign of campaignsWithRegion) {
-        const supabaseClient = campaign.region === 'korea' ? supabaseKorea : getSupabaseClient('japan')
+        const supabaseClient = campaign.region === 'korea' ? supabaseKorea : campaign.region === 'japan' ? getSupabaseClient('japan') : getSupabaseClient('us')
         const { data } = await supabaseClient
           .from('applications')
           .select('*')
