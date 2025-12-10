@@ -474,8 +474,10 @@ const CreateCampaignUS = () => {
         age_requirement: updatedForm.age_requirement || '',
         skin_type_requirement: updatedForm.skin_type_requirement || '',
         offline_visit_requirement: updatedForm.offline_visit_requirement || '',
+        package_type: campaignForm.package_type || 'junior',  // 패키지 타입 저장
+        estimated_cost: campaignForm.estimated_cost || 0,  // 예상 비용 저장
         company_id: null  // 생성 시 설정됨
-        // company_email 제거: 미국 캐페인 DB 스키마에 없음
+        // company_email 제거: 미국 쫠페인 DB 스키마에 없음
       }
 
       if (editId) {

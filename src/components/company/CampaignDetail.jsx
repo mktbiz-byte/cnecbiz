@@ -2700,9 +2700,14 @@ export default function CampaignDetail() {
               <Button 
                 variant="outline"
                 onClick={() => {
-                  const editPath = region === 'japan' 
-                    ? `/company/campaigns/create/japan?id=${id}`
-                    : `/company/campaigns/create/korea?edit=${id}`
+                  let editPath
+                  if (region === 'japan') {
+                    editPath = `/company/campaigns/create/japan?id=${id}`
+                  } else if (region === 'us') {
+                    editPath = `/company/campaigns/create/us?id=${id}`
+                  } else {
+                    editPath = `/company/campaigns/create/korea?edit=${id}`
+                  }
                   navigate(editPath)
                 }}
               >
