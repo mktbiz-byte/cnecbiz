@@ -2811,11 +2811,14 @@ export default function CampaignDetail() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">결제 예상 금액 <span className="text-xs text-gray-500">(VAT 별도)</span></p>
+                  <p className="text-sm text-gray-600">결제 예상 금액 <span className="text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-2xl font-bold mt-2">
                     {campaign.estimated_cost ? 
-                      `₩${Math.round(campaign.estimated_cost / 1.1).toLocaleString()}` 
-                      : '-'
+                      `₩${campaign.estimated_cost.toLocaleString()}` 
+                      : (campaign.package_type && campaign.total_slots ? 
+                        `₩${(getPackagePrice(campaign.package_type) * campaign.total_slots * 1.1).toLocaleString()}` 
+                        : '-'
+                      )
                     }
                   </p>
                 </div>
