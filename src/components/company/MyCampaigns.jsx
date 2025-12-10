@@ -76,10 +76,10 @@ export default function MyCampaigns() {
     }
     
     // 회사 정보가 없어도 캠페인은 조회
-    fetchCampaigns(user.email, companyData?.id)
+    fetchCampaigns(user.email, companyData?.id, user.id)
   }
 
-  const fetchCampaigns = async (userEmail, companyId) => {
+  const fetchCampaigns = async (userEmail, companyId, userId) => {
     setLoading(true)
     try {
       console.log('[MyCampaigns] Fetching campaigns for email:', userEmail, 'companyId:', companyId)
@@ -103,16 +103,16 @@ export default function MyCampaigns() {
       
       console.log('[MyCampaigns] Japan campaigns result:', { japanCampaigns, japanError })
 
-      // 미국 지역 캠페인 가져오기 (company_id 기준 - US는 company_email 컴럼이 없음)
+      // 미국 지역 캠페인 가져오기 (company_id에 user_id 저장됨)
       const supabaseUS = getSupabaseClient('us')
       let usCampaigns = null
       let usError = null
       
-      if (companyId) {
+      if (userId) {
         const result = await supabaseUS
           .from('campaigns')
           .select('*')
-          .eq('company_id', companyId)
+          .eq('company_id', userId)
           .order('created_at', { ascending: false })
         usCampaigns = result.data
         usError = result.error

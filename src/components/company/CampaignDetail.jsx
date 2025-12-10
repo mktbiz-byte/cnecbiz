@@ -2779,7 +2779,15 @@ export default function CampaignDetail() {
                 <div>
                   <p className="text-sm text-gray-600">패키지</p>
                   <p className="text-2xl font-bold mt-2">
-                    {campaign.package_label || '-'}
+                    {campaign.package_label ? campaign.package_label : (
+                      campaign.package_type === 'junior' ? '초급' :
+                      campaign.package_type === 'intermediate' ? '스탠다드' :
+                      campaign.package_type === 'senior' ? '프리미엄' :
+                      campaign.package_type === 'oliveyoung' ? '올영 패키지' :
+                      campaign.package_type === 'premium' ? '프리미엄 패키지' :
+                      campaign.package_type === '4week_challenge' ? '4주 챌린지' :
+                      campaign.package_type || '-'
+                    )}
                   </p>
                 </div>
               </div>
