@@ -139,7 +139,7 @@ export default function CompanyDashboard() {
       const completed = activeCampaigns.filter(c => c.status === 'completed').length
       const totalSpent = activeCampaigns.reduce((sum, c) => {
         const packagePrice = getPackagePrice(c.package_type, c.campaign_type)
-        const count = c.total_slots || 0
+        const count = c.max_participants || c.total_slots || 0
         const subtotal = packagePrice * count
         const vat = Math.floor(subtotal * 0.1)
         return sum + (subtotal + vat)
@@ -435,7 +435,7 @@ export default function CompanyDashboard() {
                           <div className="bg-blue-50 p-2 md:p-3 rounded-lg">
                             <div className="text-[10px] md:text-xs text-gray-600 mb-1">모집 인원</div>
                             <div className="text-base md:text-xl font-bold text-blue-600">
-                              {campaign.total_slots || 0}명
+                              {campaign.max_participants || campaign.total_slots || 0}명
                             </div>
                           </div>
                           <div className="bg-green-50 p-2 md:p-3 rounded-lg">
