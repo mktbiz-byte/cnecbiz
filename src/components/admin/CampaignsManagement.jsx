@@ -257,11 +257,7 @@ export default function CampaignsManagement() {
       }
       
       if (newStatus === 'active') {
-        updateData.approval_status = 'approved'
         updateData.approved_at = new Date().toISOString()
-      } else if (newStatus === 'paused') {
-        // 중단 시 pending_approval로 변경하여 승인요청중 탭으로 이동
-        updateData.approval_status = 'pending_approval'
       }
 
       const { error } = await supabaseClient
@@ -430,16 +426,16 @@ export default function CampaignsManagement() {
     if (selectedStatus !== 'all') {
       switch (selectedStatus) {
         case 'draft':
-          matchesStatus = campaign.status === 'draft' || campaign.approval_status === 'draft'
+          matchesStatus = campaign.status === 'draft' || campaign.status === 'draft'
           break
         case 'pending_payment':
-          matchesStatus = campaign.approval_status === 'pending_payment'
+          matchesStatus = campaign.status === 'pending_payment'
           break
         case 'pending':
-          matchesStatus = campaign.approval_status === 'pending' || campaign.approval_status === 'pending_approval'
+          matchesStatus = campaign.status === 'pending' || campaign.status === 'pending_approval'
           break
         case 'recruiting':
-          matchesStatus = campaign.approval_status === 'approved' && campaign.status !== 'completed'
+          matchesStatus = campaign.status === 'approved' && campaign.status !== 'completed'
           break
         case 'guide_review':
           matchesStatus = campaign.status === 'guide_review'
@@ -447,16 +443,16 @@ export default function CampaignsManagement() {
         case 'in_progress':
           // active 상태이지만 approval_status가 pending_approval이 아닌 경우만 촬영중으로 분류
           matchesStatus = (campaign.status === 'in_progress') || 
-                         (campaign.status === 'active' && campaign.approval_status !== 'pending_approval')
+                         (campaign.status === 'active' && campaign.status !== 'pending_approval')
           break
         case 'revision':
-          matchesStatus = campaign.approval_status === 'rejected' || campaign.status === 'revision'
+          matchesStatus = campaign.status === 'rejected' || campaign.status === 'revision'
           break
         case 'completed':
           matchesStatus = campaign.status === 'completed'
           break
         case 'cancelled':
-          matchesStatus = campaign.approval_status === 'cancelled' || campaign.status === 'cancelled'
+          matchesStatus = campaign.status === 'cancelled' || campaign.status === 'cancelled'
           break
         default:
           matchesStatus = true
@@ -549,8 +545,8 @@ export default function CampaignsManagement() {
 
   const stats = {
     total: campaigns.length,
-    pending: campaigns.filter(c => c.status === 'pending' || c.approval_status === 'pending').length,
-    active: campaigns.filter(c => c.status === 'active' || c.approval_status === 'approved').length,
+    pending: campaigns.filter(c => c.status === 'pending' || c.status === 'pending').length,
+    active: campaigns.filter(c => c.status === 'active' || c.status === 'approved').length,
     completed: campaigns.filter(c => c.status === 'completed').length
   }
 
@@ -659,7 +655,7 @@ export default function CampaignsManagement() {
                           <h3 className="text-lg font-bold">{campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}</h3>
                           {getCampaignTypeBadge(campaign.campaign_type)}
                           {getRegionBadge(campaign.region)}
-                          {getStatusBadge(campaign.approval_status || campaign.status)}
+                          {getStatusBadge(campaign.status || campaign.status)}
                         </div>
                         <p className="text-sm text-gray-600 mb-3">
                           {campaign.description || '설명 없음'}
@@ -784,7 +780,7 @@ export default function CampaignsManagement() {
                             입금 확인
                           </Button>
                         )}
-                        {campaign.approval_status === 'pending' && (
+                        {campaign.status === 'pending' && (
                           <Button
                             variant="default"
                             size="sm"
