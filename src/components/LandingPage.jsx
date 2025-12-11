@@ -288,25 +288,42 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-cyan-50 to-slate-50 opacity-50" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center space-x-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full mb-8">
-              <Star className="w-4 h-4" />
-              <span className="text-sm font-medium">글로벌 인플루언서 마케팅 플랫폼</span>
+            <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-5 py-2.5 rounded-full mb-8 shadow-lg">
+              <Award className="w-5 h-5" />
+              <span className="text-sm font-semibold">1:1 전담 매니저가 관리해드립니다</span>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-              {pageContent.hero_title}
+            <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 leading-tight">
+              14일 완성
               <br />
               <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                {pageContent.hero_subtitle}
+                K뷰티 글로벌 숏폼
               </span>
+              <br />
+              마케팅 플랫폼
             </h1>
-            <p className="text-xl text-slate-600 mb-12 leading-relaxed">
-              {pageContent.about_text.split('\n').map((line, i) => (
-                <React.Fragment key={i}>
-                  {line}
-                  {i < pageContent.about_text.split('\n').length - 1 && <br />}
-                </React.Fragment>
-              ))}
+            <p className="text-xl text-slate-600 mb-8 leading-relaxed">
+              AI 기획부터 빠른 수정요청까지, 한국·미국·일본 크리에이터와 쉽고 빠르게
             </p>
+            
+            {/* Key Features Pills */}
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
+              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <Zap className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-slate-700">AI 자동 기획</span>
+              </div>
+              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <Target className="w-4 h-4 text-purple-600" />
+                <span className="text-sm font-medium text-slate-700">실시간 관리 대시보드</span>
+              </div>
+              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <Globe className="w-4 h-4 text-orange-600" />
+                <span className="text-sm font-medium text-slate-700">한국·미국·일본 동시 진행</span>
+              </div>
+              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-slate-700">빠른 수정요청 원스톱</span>
+              </div>
+            </div>
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
               <button
                 onClick={() => navigate('/signup')}
@@ -333,6 +350,78 @@ export default function LandingPage() {
                 <div className="text-sm text-slate-600">{stat.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Key Features Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+              주요 <span className="text-blue-600">기능</span>
+            </h2>
+            <p className="text-xl text-slate-600">
+              CNEC BIZ만의 차별화된 글로벌 마케팅 솔루션
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Feature 1: AI 자동 기획 */}
+            <div className="group relative bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-blue-100">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+              <div className="relative">
+                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 mb-6">
+                  <Zap className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">AI 자동 기획</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  캠페인 목표를 입력하면 AI가 자동으로 최적의 기획안을 생성합니다. 시간과 비용을 절약하며 전문가 수준의 기획을 받아보세요.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature 2: 실시간 관리 대시보드 */}
+            <div className="group relative bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-purple-100">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+              <div className="relative">
+                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 mb-6">
+                  <Target className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">실시간 관리 대시보드</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  모든 캠페인을 한 곳에서 효율적으로 관리하세요. 크리에이터 현황, 영상 제작 진행도, 성과 분석까지 실시간으로 확인할 수 있습니다.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature 3: 3개국 동시 진행 */}
+            <div className="group relative bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-orange-100">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/20 to-red-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+              <div className="relative">
+                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 mb-6">
+                  <Globe className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">한국·미국·일본 동시 진행</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  하나의 플랫폼에서 3개국 캠페인을 동시에 관리하세요. 각 국가별 특성에 맞춰 최적화된 크리에이터와 매칭됩니다.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature 4: 빠른 수정요청 */}
+            <div className="group relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-green-100">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+              <div className="relative">
+                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 mb-6">
+                  <CheckCircle2 className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">빠른 수정요청 원스톱</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  클릭 한 번으로 수정 요청부터 크리에이터 전달, 재제작까지 모든 과정이 자동화됩니다. 빠르고 정확한 피드백으로 완벽한 결과물을 받아보세요.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
