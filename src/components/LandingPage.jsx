@@ -332,7 +332,7 @@ export default function LandingPage() {
             </div>
             
             <p className="text-xl text-slate-600 mb-8 leading-relaxed">
-              AI 기획부터 빠른 수정요청까지, 한국xb7미국xb7일본 크리에이터와 쉽고 빠르게
+              AI 기획부터 빠른 수정요청까지, 한국·미국·일본 크리에이터와 쉽고 빠르게
             </p>
             
             {/* Key Features Pills */}
