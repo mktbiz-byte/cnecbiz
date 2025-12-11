@@ -639,12 +639,14 @@ ${textToTranslate}`
       if (editId) {
         // 수정 모드
         console.log('[DEBUG] 수정 모드 실행')
-        const { error } = await supabase
+         const { data, error, count } = await supabase
           .from('campaigns')
           .update(campaignData)
           .eq('id', editId)
-
+          .select()
         console.log('[DEBUG] UPDATE 결과 - error:', error)
+        console.log('[DEBUG] UPDATE 결과 - data:', data)
+        console.log('[DEBUG] UPDATE 결과 - count:', count)
         if (error) throw error
         
         console.log('[DEBUG] 수정 성공, 가이드 페이지로 이동 예정')
