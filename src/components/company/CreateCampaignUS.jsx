@@ -541,6 +541,12 @@ ${textToTranslate}`
 
       const updatedForm = {
         ...campaignForm,
+        title: document.getElementById('title')?.value || campaignForm.title,
+        brand: document.getElementById('brand')?.value || campaignForm.brand,
+        description: document.getElementById('description')?.value || campaignForm.description,
+        requirements: document.getElementById('requirements')?.value || campaignForm.requirements,
+        package_type: document.getElementById('package_type')?.value || campaignForm.package_type,
+        total_slots: parseInt(document.getElementById('total_slots')?.value) || campaignForm.total_slots,
         application_deadline: appDeadlineValue,
         start_date: startDateValue,
         end_date: endDateValue,
