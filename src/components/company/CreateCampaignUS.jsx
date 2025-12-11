@@ -456,6 +456,8 @@ ${textToTranslate}`
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,
         max_participants: campaignForm.total_slots,
+        total_slots: campaignForm.total_slots,
+        remaining_slots: campaignForm.total_slots,
         application_deadline: campaignForm.application_deadline || null,
         start_date: campaignForm.start_date || null,
         end_date: campaignForm.end_date || null,
@@ -601,6 +603,8 @@ ${textToTranslate}`
         image_url: updatedForm.image_url || '',
         reward_amount: updatedForm.reward_amount,  // 달러 보상
         max_participants: updatedForm.total_slots,
+        total_slots: updatedForm.total_slots,
+        remaining_slots: updatedForm.total_slots,
         application_deadline: updatedForm.application_deadline,
         start_date: updatedForm.start_date,
         end_date: updatedForm.end_date,
