@@ -113,8 +113,8 @@ const CreateCampaignUS = () => {
           skin_type_requirement: data.skin_type_requirement || '',
           offline_visit_requirement: data.offline_visit_requirement || '',
           package_type: data.package_type || 'junior',
-          total_slots: data.max_participants || data.total_slots || 10,
-          remaining_slots: data.max_participants || data.remaining_slots || 10,
+          total_slots: data.total_slots || data.max_participants || 10,
+          remaining_slots: data.remaining_slots || data.total_slots || 10,
           estimated_cost: data.estimated_cost || 0
         })
         
@@ -122,7 +122,7 @@ const CreateCampaignUS = () => {
         setTimeout(() => {
           const selectedPackage = packageOptions.find(p => p.value === (data.package_type || 'junior'))
           if (selectedPackage) {
-            const slots = data.max_participants || data.total_slots || 10
+            const slots = data.total_slots || data.max_participants || 10
             const finalCost = calculateFinalCost(selectedPackage.price, slots)
             setCampaignForm(prev => ({ ...prev, estimated_cost: finalCost }))
           }
