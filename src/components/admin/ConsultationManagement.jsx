@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { MessageCircle, CheckCircle, Clock, Mail, Phone, Building, Calendar, FileText } from 'lucide-react'
+import AdminNavigation from './AdminNavigation'
 
 export default function ConsultationManagement() {
   const [consultations, setConsultations] = useState([])
@@ -84,7 +85,9 @@ export default function ConsultationManagement() {
   }
 
   return (
-    <div className="p-8">
+    <>
+      <AdminNavigation />
+      <div className="p-8">
       {/* 헤더 */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">상담 관리</h1>
@@ -137,7 +140,7 @@ export default function ConsultationManagement() {
           <p className="text-gray-600">상담 신청이 없습니다</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -330,6 +333,7 @@ export default function ConsultationManagement() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )
 }
