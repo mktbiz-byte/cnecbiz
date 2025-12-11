@@ -324,8 +324,8 @@ export default function LandingPage() {
                 <span className="text-sm font-medium text-slate-700">Reels</span>
               </div>
               <div className="flex items-center space-x-2">
-                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="#000000">
-                  <path d="M12.53.02C1.84-.12-3.53 8.66 1.03 18.82c.59 1.31 1.35 2.53 2.26 3.64l.12.15c.42.52.86 1.02 1.33 1.49 3.68 3.68 9.38 4.32 13.65 1.53 4.27-2.79 6.28-8.24 4.81-13.09C21.77 6.32 17.42 1.96 12.53.02zm2.43 7.78l-3.53 2.04c-.37.21-.83-.05-.83-.47V5.83c0-.42.46-.68.83-.47l3.53 2.04c.37.21.37.73 0 .94z"/>
+                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
                 </svg>
                 <span className="text-sm font-medium text-slate-700">TikTok</span>
               </div>
