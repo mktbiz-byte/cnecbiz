@@ -15,7 +15,7 @@ export default function LandingPage() {
     hero_title: 'K-뷰티를 세계로,',
     hero_subtitle: '14일 만에 완성하는 숏폼',
     about_text: '일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼.\n검증된 크리에이터와 함께 진정성 있는 콘텐츠로 글로벌 성공을 만들어갑니다.',
-    cta_button_text: '무료로 시작하기',
+    cta_button_text: '캠페인 시작하기',
     stats_campaigns: '4,562+',
     stats_creators: '21,580+',
     stats_countries: '4개국',
@@ -128,7 +128,7 @@ export default function LandingPage() {
           hero_title: data.hero_title || 'K-뷰티를 세계로,',
           hero_subtitle: data.hero_subtitle || '14일 만에 완성하는 숏폼',
           about_text: data.about_text || '일본, 미국, 대만 시장 진출을 위한 전문 인플루언서 마케팅 플랫폼.\n검증된 크리에이터와 함께 진정성 있는 콘텐츠로 글로벌 성공을 만들어갑니다.',
-          cta_button_text: data.cta_button_text || '무료로 시작하기',
+          cta_button_text: data.cta_button_text || '캠페인 시작하기',
           stats_campaigns: data.stats_campaigns || '4,562+',
           stats_creators: data.stats_creators || '21,580+',
           stats_countries: data.stats_countries || '4개국',
@@ -375,9 +375,12 @@ export default function LandingPage() {
                   <Zap className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-3">AI 자동 기획</h3>
-                <p className="text-slate-600 leading-relaxed">
+                <p className="text-slate-600 leading-relaxed mb-6">
                   캠페인 목표를 입력하면 AI가 자동으로 최적의 기획안을 생성합니다. 시간과 비용을 절약하며 전문가 수준의 기획을 받아보세요.
                 </p>
+                <div className="mt-4 rounded-xl overflow-hidden border-2 border-blue-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                  <img src="/campaign-create-screenshot.webp" alt="AI 캠페인 기획" className="w-full h-auto" />
+                </div>
               </div>
             </div>
 
@@ -389,9 +392,12 @@ export default function LandingPage() {
                   <Target className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-3">실시간 관리 대시보드</h3>
-                <p className="text-slate-600 leading-relaxed">
+                <p className="text-slate-600 leading-relaxed mb-6">
                   모든 캠페인을 한 곳에서 효율적으로 관리하세요. 크리에이터 현황, 영상 제작 진행도, 성과 분석까지 실시간으로 확인할 수 있습니다.
                 </p>
+                <div className="mt-4 rounded-xl overflow-hidden border-2 border-purple-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                  <img src="/dashboard-screenshot.webp" alt="대시보드" className="w-full h-auto" />
+                </div>
               </div>
             </div>
 
@@ -403,9 +409,12 @@ export default function LandingPage() {
                   <Globe className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-3">한국·미국·일본 동시 진행</h3>
-                <p className="text-slate-600 leading-relaxed">
+                <p className="text-slate-600 leading-relaxed mb-6">
                   하나의 플랫폼에서 3개국 캠페인을 동시에 관리하세요. 각 국가별 특성에 맞춰 최적화된 크리에이터와 매칭됩니다.
                 </p>
+                <div className="mt-4 rounded-xl overflow-hidden border-2 border-orange-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                  <img src="/campaigns-list-screenshot.webp" alt="3개국 캠페인 관리" className="w-full h-auto" />
+                </div>
               </div>
             </div>
 
@@ -417,9 +426,12 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-3">빠른 수정요청 원스톱</h3>
-                <p className="text-slate-600 leading-relaxed">
+                <p className="text-slate-600 leading-relaxed mb-6">
                   클릭 한 번으로 수정 요청부터 크리에이터 전달, 재제작까지 모든 과정이 자동화됩니다. 빠르고 정확한 피드백으로 완벽한 결과물을 받아보세요.
                 </p>
+                <div className="mt-4 rounded-xl overflow-hidden border-2 border-green-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                  <img src="/dashboard-screenshot.webp" alt="수정요청 관리" className="w-full h-auto" />
+                </div>
               </div>
             </div>
           </div>
@@ -792,7 +804,7 @@ export default function LandingPage() {
               onClick={() => navigate('/signup')}
               className="px-10 py-5 bg-white text-blue-600 rounded-xl hover:shadow-2xl transition-all text-lg font-bold"
             >
-              무료로 시작하기
+              캠페인 시작하기
             </button>
             <button 
               onClick={() => window.dispatchEvent(new CustomEvent('openConsultationModal'))}
