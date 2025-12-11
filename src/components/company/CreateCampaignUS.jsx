@@ -552,6 +552,7 @@ ${textToTranslate}`
         end_date: endDateValue,
         target_platforms: target_platforms
       }
+      console.log('[DEBUG] updatedForm:', updatedForm)
 
       // 필수 필드 검증
       if (!updatedForm.title || !updatedForm.brand || !updatedForm.requirements) {
@@ -632,6 +633,7 @@ ${textToTranslate}`
       }
 
       console.log('[DEBUG] campaignData 생성 완료')
+      console.log('[DEBUG] campaignData:', JSON.stringify({title: campaignData.title, package_type: campaignData.package_type, total_slots: campaignData.total_slots}))
       console.log('[DEBUG] editId:', editId)
 
       if (editId) {
