@@ -541,10 +541,6 @@ ${textToTranslate}`
 
       const updatedForm = {
         ...campaignForm,
-        title: document.getElementById('title')?.value || campaignForm.title,
-        brand: document.getElementById('brand')?.value || campaignForm.brand,
-        description: document.getElementById('description')?.value || campaignForm.description,
-        requirements: document.getElementById('requirements')?.value || campaignForm.requirements,
         application_deadline: appDeadlineValue,
         start_date: startDateValue,
         end_date: endDateValue,
