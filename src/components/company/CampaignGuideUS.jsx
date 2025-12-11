@@ -209,6 +209,7 @@ const CampaignGuideUS = () => {
       const updateData = {
         brand_name: brandName,
         product_name: productName,
+        product_description: productDescription,
         product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
@@ -268,6 +269,7 @@ const CampaignGuideUS = () => {
       const updateData = {
         brand_name: brandName,
         product_name: productName,
+        product_description: productDescription,
         product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),

@@ -596,6 +596,7 @@ ${textToTranslate}`
         description: updatedForm.description || '',
         requirements: updatedForm.requirements || '',
         category: updatedForm.category,
+        package_type: updatedForm.package_type,
         image_url: updatedForm.image_url || '',
         reward_amount: updatedForm.reward_amount,  // 달러 보상
         max_participants: updatedForm.total_slots,

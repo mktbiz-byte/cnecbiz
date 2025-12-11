@@ -163,7 +163,9 @@ const CampaignGuideJapan = () => {
         setVideoDuration(data.video_duration || '')
         setVideoTempo(data.video_tempo || '')
         setVideoTone(data.video_tone || '')
-        setAdditionalDetails(data.additional_details || '')
+        // [object Object] 문자열 방어
+        const safeAdditionalDetails = (typeof data.additional_details === 'string' && data.additional_details !== '[object Object]') ? data.additional_details : ''
+        setAdditionalDetails(safeAdditionalDetails)
         setShootingScenes({
           baPhoto: data.shooting_scenes_ba_photo || false,
           noMakeup: data.shooting_scenes_no_makeup || false,
@@ -176,7 +178,9 @@ const CampaignGuideJapan = () => {
           troubledSkin: data.shooting_scenes_troubled_skin || false,
           wrinkles: data.shooting_scenes_wrinkles || false
         })
-        setAdditionalShootingRequests(data.additional_shooting_requests || '')
+        // [object Object] 문자열 방어
+        const safeShootingRequests = (typeof data.additional_shooting_requests === 'string' && data.additional_shooting_requests !== '[object Object]') ? data.additional_shooting_requests : ''
+        setAdditionalShootingRequests(safeShootingRequests)
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
         
         // 일본어 번역 데이터 로드 (저장된 경우에만)
