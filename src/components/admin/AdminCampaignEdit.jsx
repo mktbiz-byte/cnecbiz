@@ -123,6 +123,8 @@ export default function AdminCampaignEdit() {
         requirements: campaign.requirements,
         category: campaign.category,
         max_participants: campaign.max_participants,
+        total_slots: campaign.max_participants,
+        remaining_slots: campaign.max_participants,
         application_deadline: campaign.application_deadline,
         start_date: campaign.start_date,
         end_date: campaign.end_date,
