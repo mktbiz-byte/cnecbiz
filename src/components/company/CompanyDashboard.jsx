@@ -388,10 +388,17 @@ export default function CompanyDashboard() {
               ) : (
                 <div className="space-y-4">
                   {campaigns.map((campaign) => {
-                    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
-                    const subtotal = packagePrice * (campaign.total_slots || 0)
-                    const vat = Math.floor(subtotal * 0.1)
-                    const totalCost = subtotal + vat
+                    // Use estimated_cost if available, otherwise calculate from max_participants
+                    let totalCost
+                    if (campaign.estimated_cost) {
+                      totalCost = campaign.estimated_cost
+                    } else {
+                      const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+                      const slots = campaign.max_participants || campaign.total_slots || 0
+                      const subtotal = packagePrice * slots
+                      const vat = Math.floor(subtotal * 0.1)
+                      totalCost = subtotal + vat
+                    }
                     const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
                     const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
                     const submissionDays = getDaysRemaining(campaign.content_submission_deadline)
