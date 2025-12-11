@@ -454,6 +454,8 @@ const CreateCampaignJapan = () => {
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,
         max_participants: campaignForm.total_slots,
+        total_slots: campaignForm.total_slots,
+        remaining_slots: campaignForm.total_slots,
         application_deadline: campaignForm.application_deadline || null,
         start_date: campaignForm.start_date || null,
         end_date: campaignForm.end_date || null,
@@ -562,6 +564,8 @@ const CreateCampaignJapan = () => {
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,  // 엔화 보상
         max_participants: campaignForm.total_slots,
+        total_slots: campaignForm.total_slots,
+        remaining_slots: campaignForm.total_slots,
         application_deadline: campaignForm.application_deadline,
         start_date: campaignForm.start_date,
         end_date: campaignForm.end_date,
