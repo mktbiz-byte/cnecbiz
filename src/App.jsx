@@ -55,6 +55,7 @@ import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import WithdrawalManagement from './components/admin/WithdrawalManagement'
 import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
+import ConsultationManagement from './components/admin/ConsultationManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
@@ -180,6 +181,7 @@ function App() {
         <Route path="/admin/tax-feedback" element={<TaxFeedbackManagement />} />
         <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
+        <Route path="/admin/consultations" element={<ConsultationManagement />} />
         <Route path="/admin/campaigns" element={<CampaignsManagement />} />
         <Route path="/admin/campaigns/:id" element={<AdminCampaignDetail />} />
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />

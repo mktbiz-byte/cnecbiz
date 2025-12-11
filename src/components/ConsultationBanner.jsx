@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, MessageCircle, Mail, Phone } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
+import { supabaseBiz } from '../lib/supabaseClients'
 
 export default function ConsultationBanner() {
   const location = useLocation()
@@ -60,6 +61,22 @@ export default function ConsultationBanner() {
         }
         return s
       }).join(', ')
+
+      // Supabase에 상담 신청 저장
+      const { error: dbError } = await supabaseBiz
+        .from('consultation_requests')
+        .insert({
+          company_name: formData.name,
+          contact_name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: `브랜드명: ${formData.brandName || '미입력'}\n신청 서비스: ${servicesList}`,
+          status: 'pending'
+        })
+
+      if (dbError) {
+        console.error('Supabase 저장 오류:', dbError)
+      }
 
       // 네이버 웍스 메시지 전송
       const naverWorksResponse = await fetch('/.netlify/functions/send-naver-works-message', {

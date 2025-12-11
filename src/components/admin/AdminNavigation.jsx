@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   Shield, Building2, TrendingUp, Users, Edit, Video, 
-  HelpCircle, CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings, FileSignature 
+  HelpCircle, CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings, FileSignature, MessageCircle 
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -23,6 +23,7 @@ export default function AdminNavigation() {
   const menuItems = [
     { path: '/admin/dashboard', icon: Shield, label: '대시보드' },
     { path: '/admin/companies', icon: Building2, label: '기업 관리' },
+    { path: '/admin/consultations', icon: MessageCircle, label: '상담 관리' },
     { path: '/admin/campaigns', icon: TrendingUp, label: '캠페인 관리' },
     { path: '/admin/featured-creators', icon: Users, label: '추천 크리에이터' },
     { path: '/admin/creators', icon: Users, label: '소속 크리에이터 & 채널' },
