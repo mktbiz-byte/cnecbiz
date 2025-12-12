@@ -109,7 +109,8 @@ const CampaignGuideJapan = () => {
           title,
           brand_name,
           product_name,
-          description,
+          product_description,
+          product_features,
           required_dialogues, 
           required_scenes, 
           required_hashtags, 
@@ -126,8 +127,20 @@ const CampaignGuideJapan = () => {
           shooting_scenes_child,
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
+          additional_shooting_requests,
           meta_ad_code_requested,
-          additional_details_en
+          brand_name_en,
+          product_name_en,
+          product_description_en,
+          product_features_en,
+          required_dialogues_en,
+          required_scenes_en,
+          required_hashtags_en,
+          video_duration_en,
+          video_tempo_en,
+          video_tone_en,
+          shooting_scenes_en,
+          additional_shooting_requests_en
         `)
         .eq('id', campaignId)
         .single()
@@ -139,8 +152,7 @@ const CampaignGuideJapan = () => {
         // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
         if (data.brand_name) setBrandName(data.brand_name)
         if (data.product_name) setProductName(data.product_name)
-        // description은 캠페인 설명이므로 제품 설명으로 사용하지 않음
-        // if (data.description) setProductDescription(data.description)
+        if (data.product_description) setProductDescription(data.product_description)
         if (data.product_features && data.product_features.length > 0) setProductFeatures(data.product_features)
         setRequiredDialogues(data.required_dialogues || [''])
         setRequiredScenes(data.required_scenes || [''])
@@ -168,21 +180,19 @@ const CampaignGuideJapan = () => {
         setAdditionalShootingRequests(safeShootingRequests)
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
         
-        // 일본어 번역 데이터 로드 (저장된 경우에만)
-        // Translation columns disabled - not in DB schema (except additional_details_en)
-        // if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
-        // if (data.product_name_en) setTranslatedProductName(data.product_name_en)
-        // if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
-        // if (data.product_features_en && data.product_features_en.length > 0) setTranslatedProductFeatures(data.product_features_en)
-        // setTranslatedDialogues(data.required_dialogues_en || [])
-        // setTranslatedScenes(data.required_scenes_en || [])
-        // setTranslatedHashtags(data.required_hashtags_en || [])
-        // setTranslatedDuration(data.video_duration_en || '')
-        // setTranslatedTempo(data.video_tempo_en || '')
-        // setTranslatedTone(data.video_tone_en || '')
-        setTranslatedAdditionalDetails(data.additional_details_en || '')
-        // setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
-        // setTranslatedShootingScenes(data.shooting_scenes_en || [])
+        // 영어 번역 데이터 로드 (저장된 경우에만)
+        if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
+        if (data.product_name_en) setTranslatedProductName(data.product_name_en)
+        if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
+        if (data.product_features_en && data.product_features_en.length > 0) setTranslatedProductFeatures(data.product_features_en)
+        setTranslatedDialogues(data.required_dialogues_en || [])
+        setTranslatedScenes(data.required_scenes_en || [])
+        setTranslatedHashtags(data.required_hashtags_en || [])
+        setTranslatedDuration(data.video_duration_en || '')
+        setTranslatedTempo(data.video_tempo_en || '')
+        setTranslatedTone(data.video_tone_en || '')
+        setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
+        setTranslatedShootingScenes(data.shooting_scenes_en || [])
         
         // 데이터 로드 완료
         setDataLoaded(true)
