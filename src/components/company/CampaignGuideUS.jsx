@@ -529,7 +529,7 @@ const CampaignGuideJapan = () => {
           <div className="flex items-center justify-between">
             <div className="text-white">
               <h3 className="text-lg font-bold mb-1">🌏 自動翻訳 (Auto Translation)</h3>
-              <p className="text-sm text-pink-100">左側に韓国語で入力し、ボタンをクリックして日本語に翻訳</p>
+              <p className="text-sm text-pink-100">Enter in Korean on the left, then click the button to translate to English</p>
             </div>
             <Button 
               onClick={handleBatchTranslate} 
@@ -968,10 +968,10 @@ const CampaignGuideJapan = () => {
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
           <div className="flex items-center gap-2">
             <Globe className="h-7 w-7" />
-            <CardTitle className="text-3xl font-bold">クリエイターガイド</CardTitle>
+            <CardTitle className="text-3xl font-bold">Creator Guide</CardTitle>
           </div>
           <p className="text-sm text-blue-100 mt-2">
-            {campaignTitle || 'キャンペーンタイトル'}
+            {campaignTitle || 'Campaign Title'}
           </p>
         </CardHeader>
 
@@ -1260,8 +1260,8 @@ const CampaignGuideJapan = () => {
           {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
-              <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
-              <p className="text-sm text-gray-400">左側に韓国語で入力し、「今翻訳」ボタンをクリックしてください</p>
+              <p className="text-lg text-gray-500 mb-2">Please create a guide</p>
+              <p className="text-sm text-gray-400">Enter content in Korean on the left, then click "Translate Now" button</p>
             </div>
           )}
         </CardContent>
