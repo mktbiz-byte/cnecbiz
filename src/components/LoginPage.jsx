@@ -92,32 +92,33 @@ const LoginPage = () => {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
-            <Globe className="h-8 w-8 text-orange-500" />
-            <h1 className="text-2xl font-bold text-gray-900">CNEC</h1>
+            <Globe className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">CNEC</h1>
           </div>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            홈으로
+          <Button variant="outline" size="sm" onClick={() => navigate('/')} className="text-sm">
+            <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">홈으로</span>
+            <span className="sm:hidden">홈</span>
           </Button>
         </div>
       </header>
 
       {/* Login Form */}
-      <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-3xl">로그인</CardTitle>
-            <CardDescription>
+      <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-20">
+        <Card className="shadow-lg">
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-xl sm:text-3xl">로그인</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
               CNEC 계정으로 로그인하세요
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="email" className="text-sm sm:text-base">이메일</Label>
                 <Input
                   id="email"
                   name="email"
@@ -125,7 +126,7 @@ const LoginPage = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="contact@company.com"
-                  className={errors.email ? 'border-red-500' : ''}
+                  className={`h-11 sm:h-12 ${errors.email ? 'border-red-500' : ''}`}
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email}</p>
@@ -133,8 +134,8 @@ const LoginPage = () => {
               </div>
 
               {/* Password */}
-              <div className="space-y-2">
-                <Label htmlFor="password">비밀번호</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="password" className="text-sm sm:text-base">비밀번호</Label>
                 <Input
                   id="password"
                   name="password"
@@ -142,7 +143,7 @@ const LoginPage = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className={errors.password ? 'border-red-500' : ''}
+                  className={`h-11 sm:h-12 ${errors.password ? 'border-red-500' : ''}`}
                 />
                 {errors.password && (
                   <p className="text-sm text-red-500">{errors.password}</p>
@@ -150,17 +151,17 @@ const LoginPage = () => {
               </div>
 
               {/* Submit Button */}
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full py-3 sm:py-4 text-base sm:text-lg" size="lg" disabled={loading}>
                 {loading ? '로그인 중...' : '로그인'}
               </Button>
 
               {/* Signup Link */}
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-center text-sm sm:text-base text-gray-600 pt-2">
                 계정이 없으신가요?{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/signup')}
-                  className="text-blue-600 hover:underline"
+                  className="text-blue-600 hover:underline font-medium"
                 >
                   회원가입
                 </button>

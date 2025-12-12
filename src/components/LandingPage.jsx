@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown } from 'lucide-react'
+import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
 // ContentEditor removed - use Site Management page instead
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
   const [videos, setVideos] = useState([])
   const [user, setUser] = useState(null)
@@ -238,27 +239,32 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            {/* Logo */}
             <div className="flex items-center space-x-2">
-              <Globe className="w-8 h-8 text-orange-500" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+              <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-orange-500" />
+              <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
                 CNEC
               </span>
             </div>
-            <nav className="hidden md:flex items-center space-x-8">
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-8">
               <a href="#features" className="text-slate-600 hover:text-blue-600 transition-colors">서비스</a>
               <a href="#portfolio" className="text-slate-600 hover:text-blue-600 transition-colors">포트폴리오</a>
               <a href="#process" className="text-slate-600 hover:text-blue-600 transition-colors">프로세스</a>
               <a href="#voucher" className="text-slate-600 hover:text-blue-600 transition-colors">수출바우처</a>
               <a href="#faq" className="text-slate-600 hover:text-blue-600 transition-colors">FAQ</a>
             </nav>
-            <div className="flex items-center space-x-3">
+
+            {/* Desktop Auth Buttons */}
+            <div className="hidden sm:flex items-center space-x-2 sm:space-x-3">
               {user ? (
                 <button
                   onClick={handleDashboardClick}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm sm:text-base rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
                 >
                   대시보드 바로가기
                 </button>
@@ -266,52 +272,103 @@ export default function LandingPage() {
                 <>
                   <button
                     onClick={() => navigate('/login')}
-                    className="px-4 py-2 text-slate-600 hover:text-blue-600 transition-colors"
+                    className="px-3 sm:px-4 py-2 text-sm sm:text-base text-slate-600 hover:text-blue-600 transition-colors"
                   >
                     로그인
                   </button>
                   <button
                     onClick={() => navigate('/signup')}
-                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all"
+                    className="px-4 sm:px-6 py-2 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all"
                   >
                     시작하기
                   </button>
                 </>
               )}
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              {mobileMenuOpen ? (
+                <X className="w-6 h-6 text-slate-700" />
+              ) : (
+                <Menu className="w-6 h-6 text-slate-700" />
+              )}
+            </button>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="sm:hidden border-t border-slate-200 py-4 bg-white">
+              <nav className="flex flex-col space-y-3 mb-4">
+                <a href="#features" onClick={() => setMobileMenuOpen(false)} className="px-2 py-2 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors">서비스</a>
+                <a href="#portfolio" onClick={() => setMobileMenuOpen(false)} className="px-2 py-2 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors">포트폴리오</a>
+                <a href="#process" onClick={() => setMobileMenuOpen(false)} className="px-2 py-2 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors">프로세스</a>
+                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="px-2 py-2 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors">수출바우처</a>
+                <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="px-2 py-2 text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded-lg transition-colors">FAQ</a>
+              </nav>
+              <div className="flex flex-col space-y-2 pt-4 border-t border-slate-100">
+                {user ? (
+                  <button
+                    onClick={() => { handleDashboardClick(); setMobileMenuOpen(false); }}
+                    className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium"
+                  >
+                    대시보드 바로가기
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { navigate('/login'); setMobileMenuOpen(false); }}
+                      className="w-full px-4 py-3 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50"
+                    >
+                      로그인
+                    </button>
+                    <button
+                      onClick={() => { navigate('/signup'); setMobileMenuOpen(false); }}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-medium"
+                    >
+                      시작하기
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-20 pb-32 overflow-hidden">
+      <section className="relative pt-8 sm:pt-12 md:pt-20 pb-16 sm:pb-24 md:pb-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-cyan-50 to-slate-50 opacity-50" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-5 py-2.5 rounded-full mb-8 shadow-lg">
-              <Award className="w-5 h-5" />
-              <span className="text-sm font-semibold">1:1 전담 매니저가 관리해드립니다</span>
+            {/* Badge */}
+            <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-full mb-4 sm:mb-8 shadow-lg">
+              <Award className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-xs sm:text-sm font-semibold">1:1 전담 매니저가 관리해드립니다</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 leading-tight">
-              14일 완성
-              <br />
+
+            {/* Main Title - Responsive sizes */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
+              <span className="block sm:inline">크리에이터 협업</span>
+              <br className="hidden sm:block" />
               <span className="bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                K뷰티 글로벌 숏폼
+                플랫폼
               </span>
-              <br />
-              크리에이터 협업 플랫폼
             </h1>
-            
-            {/* Platform Logos */}
-            <div className="flex items-center justify-center gap-6 mb-8">
-              <div className="flex items-center space-x-2">
-                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="#FF0000">
+
+            {/* Platform Logos - Responsive */}
+            <div className="flex items-center justify-center gap-3 sm:gap-6 mb-4 sm:mb-8">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="#FF0000">
                   <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                 </svg>
-                <span className="text-sm font-medium text-slate-700">YouTube Shorts</span>
+                <span className="text-xs sm:text-sm font-medium text-slate-700">YouTube Shorts</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="url(#instagram-gradient)">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="url(#instagram-gradient)">
                   <defs>
                     <linearGradient id="instagram-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" style={{stopColor: '#833AB4'}} />
@@ -321,63 +378,71 @@ export default function LandingPage() {
                   </defs>
                   <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                 </svg>
-                <span className="text-sm font-medium text-slate-700">Reels</span>
+                <span className="text-xs sm:text-sm font-medium text-slate-700">Reels</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
                 </svg>
-                <span className="text-sm font-medium text-slate-700">TikTok</span>
+                <span className="text-xs sm:text-sm font-medium text-slate-700">TikTok</span>
               </div>
             </div>
-            
-            <p className="text-xl text-slate-600 mb-8 leading-relaxed">
+
+            {/* Subtitle */}
+            <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-6 sm:mb-8 leading-relaxed px-2">
               AI 기획부터 빠른 수정요청까지, 한국·미국·일본 크리에이터와 쉽고 빠르게
             </p>
-            
-            {/* Key Features Pills */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
-              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
-                <Zap className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-slate-700">AI 자동 기획</span>
+
+            {/* Key Features Pills - Responsive grid */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 sm:gap-3 mb-8 sm:mb-12 px-2">
+              <div className="flex items-center justify-center space-x-1 sm:space-x-2 bg-white px-3 sm:px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-slate-700">AI 자동 기획</span>
               </div>
-              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
-                <Target className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-slate-700">실시간 관리 대시보드</span>
+              <div className="flex items-center justify-center space-x-1 sm:space-x-2 bg-white px-3 sm:px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <Target className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">실시간 대시보드</span>
               </div>
-              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
-                <Globe className="w-4 h-4 text-orange-600" />
-                <span className="text-sm font-medium text-slate-700">한국·미국·일본 동시 진행</span>
+              <div className="flex items-center justify-center space-x-1 sm:space-x-2 bg-white px-3 sm:px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <Globe className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">3개국 동시 진행</span>
               </div>
-              <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full shadow-md border border-slate-200">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-slate-700">빠른 수정요청 원스톱</span>
+              <div className="flex items-center justify-center space-x-1 sm:space-x-2 bg-white px-3 sm:px-4 py-2 rounded-full shadow-md border border-slate-200">
+                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-slate-700 whitespace-nowrap">빠른 수정요청</span>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+
+            {/* CTA Buttons - Responsive */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4 sm:px-0">
               <button
                 onClick={() => navigate('/signup')}
-                className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-2xl transition-all flex items-center space-x-2 text-lg font-medium"
+                className="w-full sm:w-auto group px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-2xl transition-all flex items-center justify-center space-x-2 text-base sm:text-lg font-medium"
               >
                 <span>{pageContent.cta_button_text}</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              <button onClick={() => window.dispatchEvent(new CustomEvent("openConsultationModal"))} className="px-8 py-4 bg-white text-slate-700 rounded-xl border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 transition-all flex items-center space-x-2 text-lg font-medium">
-                <MessageCircle className="w-5 h-5" />
-                <span>상담 신청</span>
-              </button>
+              <a
+                href="https://pf.kakao.com/_xgNdxlG"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-[#FEE500] text-[#3C1E1E] rounded-xl hover:shadow-lg transition-all flex items-center justify-center space-x-2 text-base sm:text-lg font-medium"
+              >
+                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>상담 신청하기</span>
+              </a>
             </div>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mt-10 sm:mt-20">
             {stats.map((stat, index) => (
-              <div key={index} className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                <div className={`inline-flex p-3 rounded-xl bg-gradient-to-br ${stat.color} mb-4`}>
-                  <stat.icon className="w-6 h-6 text-white" />
+              <div key={index} className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow">
+                <div className={`inline-flex p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br ${stat.color} mb-2 sm:mb-4`}>
+                  <stat.icon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <div className="text-3xl font-bold text-slate-900 mb-1">{stat.value}</div>
-                <div className="text-sm text-slate-600">{stat.label}</div>
+                <div className="text-xl sm:text-3xl font-bold text-slate-900 mb-0.5 sm:mb-1">{stat.value}</div>
+                <div className="text-xs sm:text-sm text-slate-600">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -385,81 +450,81 @@ export default function LandingPage() {
       </section>
 
       {/* Key Features Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 sm:mb-4">
               주요 <span className="text-blue-600">기능</span>
             </h2>
-            <p className="text-xl text-slate-600">
+            <p className="text-base sm:text-xl text-slate-600">
               CNEC만의 차별화된 글로벌 마케팅 솔루션
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
             {/* Feature 1: AI 자동 기획 */}
-            <div className="group relative bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-blue-100">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+            <div className="group relative bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:shadow-2xl transition-all duration-300 border border-blue-100">
+              <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
               <div className="relative">
-                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 mb-6">
-                  <Zap className="w-8 h-8 text-white" />
+                <div className="inline-flex p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 mb-4 sm:mb-6">
+                  <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">AI 자동 기획</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
-                  캠페인 목표를 입력하면 AI가 자동으로 최적의 기획안을 생성합니다. 시간과 비용을 절약하며 전문가 수준의 기획을 받아보세요.
+                <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">AI 자동 기획</h3>
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-4 sm:mb-6">
+                  캠페인 목표를 입력하면 AI가 자동으로 최적의 기획안을 생성합니다.
                 </p>
-                <div className="mt-4 rounded-xl overflow-hidden border-2 border-blue-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                <div className="hidden sm:block mt-4 rounded-xl overflow-hidden border-2 border-blue-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
                   <img src="/campaign-create-screenshot.webp" alt="AI 캠페인 기획" className="w-full h-auto" />
                 </div>
               </div>
             </div>
 
             {/* Feature 2: 실시간 관리 대시보드 */}
-            <div className="group relative bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-purple-100">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+            <div className="group relative bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:shadow-2xl transition-all duration-300 border border-purple-100">
+              <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
               <div className="relative">
-                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 mb-6">
-                  <Target className="w-8 h-8 text-white" />
+                <div className="inline-flex p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 mb-4 sm:mb-6">
+                  <Target className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">실시간 관리 대시보드</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
-                  모든 캠페인을 한 곳에서 효율적으로 관리하세요. 크리에이터 현황, 영상 제작 진행도, 성과 분석까지 실시간으로 확인할 수 있습니다.
+                <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">실시간 대시보드</h3>
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-4 sm:mb-6">
+                  크리에이터 현황, 영상 제작 진행도를 실시간으로 확인하세요.
                 </p>
-                <div className="mt-4 rounded-xl overflow-hidden border-2 border-purple-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                <div className="hidden sm:block mt-4 rounded-xl overflow-hidden border-2 border-purple-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
                   <img src="/dashboard-screenshot.webp" alt="대시보드" className="w-full h-auto" />
                 </div>
               </div>
             </div>
 
             {/* Feature 3: 3개국 동시 진행 */}
-            <div className="group relative bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-orange-100">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-400/20 to-red-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+            <div className="group relative bg-gradient-to-br from-orange-50 to-red-50 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:shadow-2xl transition-all duration-300 border border-orange-100">
+              <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-orange-400/20 to-red-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
               <div className="relative">
-                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 mb-6">
-                  <Globe className="w-8 h-8 text-white" />
+                <div className="inline-flex p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-orange-500 to-red-500 mb-4 sm:mb-6">
+                  <Globe className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">한국·미국·일본 동시 진행</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
-                  하나의 플랫폼에서 3개국 캠페인을 동시에 관리하세요. 각 국가별 특성에 맞춰 최적화된 크리에이터와 매칭됩니다.
+                <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">3개국 동시 진행</h3>
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-4 sm:mb-6">
+                  하나의 플랫폼에서 한국·미국·일본 캠페인을 동시에 관리하세요.
                 </p>
-                <div className="mt-4 rounded-xl overflow-hidden border-2 border-orange-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                <div className="hidden sm:block mt-4 rounded-xl overflow-hidden border-2 border-orange-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
                   <img src="/campaigns-list-screenshot.webp" alt="3개국 캠페인 관리" className="w-full h-auto" />
                 </div>
               </div>
             </div>
 
             {/* Feature 4: 빠른 수정요청 */}
-            <div className="group relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-8 hover:shadow-2xl transition-all duration-300 border border-green-100">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
+            <div className="group relative bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:shadow-2xl transition-all duration-300 border border-green-100">
+              <div className="absolute top-0 right-0 w-24 sm:w-32 h-24 sm:h-32 bg-gradient-to-br from-green-400/20 to-emerald-400/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500" />
               <div className="relative">
-                <div className="inline-flex p-4 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 mb-6">
-                  <CheckCircle2 className="w-8 h-8 text-white" />
+                <div className="inline-flex p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 mb-4 sm:mb-6">
+                  <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-3">빠른 수정요청 원스톱</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
-                  클릭 한 번으로 수정 요청부터 크리에이터 전달, 재제작까지 모든 과정이 자동화됩니다. 빠르고 정확한 피드백으로 완벽한 결과물을 받아보세요.
+                <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mb-2 sm:mb-3">빠른 수정요청</h3>
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed mb-4 sm:mb-6">
+                  클릭 한 번으로 수정 요청부터 재제작까지 자동화됩니다.
                 </p>
-                <div className="mt-4 rounded-xl overflow-hidden border-2 border-green-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                <div className="hidden sm:block mt-4 rounded-xl overflow-hidden border-2 border-green-200 shadow-lg group-hover:scale-105 transition-transform duration-300">
                   <img src="/dashboard-screenshot.webp" alt="수정요청 관리" className="w-full h-auto" />
                 </div>
               </div>
@@ -469,22 +534,22 @@ export default function LandingPage() {
       </section>
 
       {/* Portfolio Section */}
-      <section id="portfolio" className="py-20 bg-gradient-to-b from-slate-50 to-white">
+      <section id="portfolio" className="py-12 sm:py-20 bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 sm:mb-4">
               성공 사례 <span className="text-blue-600">포트폴리오</span>
             </h2>
-            <p className="text-xl text-slate-600">
+            <p className="text-base sm:text-xl text-slate-600">
               실제 캠페인 영상을 확인하고 CNEC의 품질을 경험하세요
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-4">
             {videos.map((video) => (
               <div
                 key={video.id}
-                className="relative aspect-[9/16] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
+                className="relative aspect-[9/16] rounded-xl sm:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
               >
                 {video.url ? (
                   <iframe
@@ -505,10 +570,10 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="text-center mt-12">
-            <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-xl transition-all inline-flex items-center space-x-2">
+          <div className="text-center mt-8 sm:mt-12">
+            <button className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-xl transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base">
               <span>더 많은 포트폴리오 보기</span>
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -516,92 +581,92 @@ export default function LandingPage() {
 
 
       {/* 한국 캠페인 소개 배너 */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-3xl p-8 md:p-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">한국 캠페인 타입</h2>
-          <p className="text-center text-slate-600 mb-10">브랜드에 맞는 캠페인을 선택하세요</p>
-          <div className="grid md:grid-cols-3 gap-6">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-12">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-2 sm:mb-4">한국 캠페인 타입</h2>
+          <p className="text-center text-sm sm:text-base text-slate-600 mb-6 sm:mb-10">브랜드에 맞는 캠페인을 선택하세요</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
             {/* 기획형 캠페인 */}
-            <div 
-              className="bg-white p-6 rounded-2xl border-2 border-transparent hover:border-blue-400 hover:shadow-2xl transition-all cursor-pointer group"
+            <div
+              className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border-2 border-transparent hover:border-blue-400 hover:shadow-2xl transition-all cursor-pointer group"
               onClick={() => window.open('/campaigns/intro/regular', '_blank')}
             >
-              <div className="text-5xl mb-4">📝</div>
-              <h3 className="text-2xl font-bold mb-3 group-hover:text-blue-600 transition-colors">기획형 캠페인</h3>
-              <p className="text-lg text-slate-700 font-semibold mb-3">초급 20만원 / 스탠다드 30만원 / 프리미엄 40만원</p>
-              <ul className="space-y-2 mb-4">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-4">📝</div>
+              <h3 className="text-lg sm:text-2xl font-bold mb-2 sm:mb-3 group-hover:text-blue-600 transition-colors">기획형 캠페인</h3>
+              <p className="text-sm sm:text-lg text-slate-700 font-semibold mb-2 sm:mb-3">초급 20만 / 스탠다드 30만 / 프리미엄 40만</p>
+              <ul className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4 text-sm sm:text-base">
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0"></div>
                   대사 + 촬영장면 개별 제공
                 </li>
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0"></div>
                   SNS URL 1개 제출
                 </li>
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0"></div>
                   인스타그램 1만~30만명
                 </li>
               </ul>
-              <div className="flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
+              <div className="flex items-center text-blue-600 font-semibold text-sm sm:text-base group-hover:gap-2 transition-all">
                 자세히 보기
-                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
 
             {/* 올영세일 캠페인 */}
-            <div 
-              className="bg-white p-6 rounded-2xl border-2 border-pink-200 hover:border-pink-400 hover:shadow-2xl transition-all cursor-pointer group"
+            <div
+              className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border-2 border-pink-200 hover:border-pink-400 hover:shadow-2xl transition-all cursor-pointer group"
               onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
             >
-              <div className="text-5xl mb-4">🌸</div>
-              <h3 className="text-2xl font-bold mb-3 group-hover:text-pink-600 transition-colors">올영세일 캠페인</h3>
-              <p className="text-lg text-slate-700 font-semibold mb-3">스탠다드 30만원 / 프리미엄 40만원</p>
-              <ul className="space-y-2 mb-4">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-4">🌸</div>
+              <h3 className="text-lg sm:text-2xl font-bold mb-2 sm:mb-3 group-hover:text-pink-600 transition-colors">올영세일 캠페인</h3>
+              <p className="text-sm sm:text-lg text-slate-700 font-semibold mb-2 sm:mb-3">스탠다드 30만 / 프리미엄 40만</p>
+              <ul className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4 text-sm sm:text-base">
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600 flex-shrink-0"></div>
                   3단계 콘텐츠 (릴스 2 + 스토리 1)
                 </li>
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600 flex-shrink-0"></div>
                   URL 3개 + 영상 폴더 2개
                 </li>
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-pink-600 flex-shrink-0"></div>
                   통합 가이드 제공
                 </li>
               </ul>
-              <div className="flex items-center text-pink-600 font-semibold group-hover:gap-2 transition-all">
+              <div className="flex items-center text-pink-600 font-semibold text-sm sm:text-base group-hover:gap-2 transition-all">
                 자세히 보기
-                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
 
             {/* 4주 챌린지 */}
-            <div 
-              className="bg-white p-6 rounded-2xl border-2 border-purple-200 hover:border-purple-400 hover:shadow-2xl transition-all cursor-pointer group"
+            <div
+              className="bg-white p-4 sm:p-6 rounded-xl sm:rounded-2xl border-2 border-purple-200 hover:border-purple-400 hover:shadow-2xl transition-all cursor-pointer group sm:col-span-2 md:col-span-1"
               onClick={() => window.open('/campaigns/intro/4week', '_blank')}
             >
-              <div className="text-5xl mb-4">🏆</div>
-              <h3 className="text-2xl font-bold mb-3 group-hover:text-purple-600 transition-colors">4주 챌린지</h3>
-              <p className="text-lg text-slate-700 font-semibold mb-3">60만원</p>
-              <ul className="space-y-2 mb-4">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-4">🏆</div>
+              <h3 className="text-lg sm:text-2xl font-bold mb-2 sm:mb-3 group-hover:text-purple-600 transition-colors">4주 챌린지</h3>
+              <p className="text-sm sm:text-lg text-slate-700 font-semibold mb-2 sm:mb-3">60만원</p>
+              <ul className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4 text-sm sm:text-base">
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600 flex-shrink-0"></div>
                   주차별 통합 가이드 4개
                 </li>
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600 flex-shrink-0"></div>
                   4주 연속 콘텐츠
                 </li>
                 <li className="flex items-center gap-2 text-slate-600">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-600 flex-shrink-0"></div>
                   URL 4개 + 영상 4개 제출
                 </li>
               </ul>
-              <div className="flex items-center text-purple-600 font-semibold group-hover:gap-2 transition-all">
+              <div className="flex items-center text-purple-600 font-semibold text-sm sm:text-base group-hover:gap-2 transition-all">
                 자세히 보기
-                <ArrowRight className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           </div>
@@ -609,28 +674,28 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-white">
+      <section id="features" className="py-12 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 sm:mb-4">
               CNEC만의 <span className="text-blue-600">특별함</span>
             </h2>
-            <p className="text-xl text-slate-600">
+            <p className="text-base sm:text-xl text-slate-600">
               검증된 시스템과 전문성으로 브랜드의 글로벌 성공을 지원합니다
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {features.map((feature, index) => (
               <div
                 key={index}
-                className={`${feature.color} border-2 rounded-2xl p-8 hover:shadow-xl transition-all group`}
+                className={`${feature.color} border-2 rounded-xl sm:rounded-2xl p-4 sm:p-8 hover:shadow-xl transition-all group`}
               >
-                <div className="inline-flex p-4 bg-white rounded-xl shadow-md mb-6 group-hover:scale-110 transition-transform">
-                  <feature.icon className="w-8 h-8 text-blue-600" />
+                <div className="inline-flex p-2 sm:p-4 bg-white rounded-lg sm:rounded-xl shadow-md mb-3 sm:mb-6 group-hover:scale-110 transition-transform">
+                  <feature.icon className="w-5 h-5 sm:w-8 sm:h-8 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                <p className="text-slate-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-sm sm:text-xl font-bold text-slate-900 mb-2 sm:mb-3">{feature.title}</h3>
+                <p className="text-xs sm:text-base text-slate-600 leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -638,24 +703,24 @@ export default function LandingPage() {
       </section>
 
       {/* Process Section */}
-      <section id="process" className="py-20 bg-white">
+      <section id="process" className="py-12 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 sm:mb-4">
               간단한 <span className="text-blue-600">6단계 프로세스</span>
             </h2>
-            <p className="text-xl text-slate-600">
+            <p className="text-base sm:text-xl text-slate-600">
               상담부터 성과 분석까지, 체계적인 프로세스로 성공을 보장합니다
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
             {process.map((item, index) => (
               <div key={index} className="relative">
-                <div className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 rounded-2xl p-8 hover:border-blue-600 hover:shadow-xl transition-all">
-                  <div className="text-6xl font-bold text-blue-100 mb-4">{item.step}</div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-3">{item.title}</h3>
-                  <p className="text-slate-600 leading-relaxed">{item.description}</p>
+                <div className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-4 sm:p-8 hover:border-blue-600 hover:shadow-xl transition-all h-full">
+                  <div className="text-3xl sm:text-6xl font-bold text-blue-100 mb-2 sm:mb-4">{item.step}</div>
+                  <h3 className="text-base sm:text-2xl font-bold text-slate-900 mb-1 sm:mb-3">{item.title}</h3>
+                  <p className="text-xs sm:text-base text-slate-600 leading-relaxed">{item.description}</p>
                 </div>
                 {index < process.length - 1 && index % 3 !== 2 && (
                   <div className="hidden lg:block absolute top-1/2 -right-4 transform -translate-y-1/2">
@@ -669,101 +734,106 @@ export default function LandingPage() {
       </section>
 
       {/* Voucher Section */}
-      <section id="voucher" className="py-20 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
+      <section id="voucher" className="py-12 sm:py-20 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 sm:mb-4">
               수출바우처로 <span className="text-cyan-200">최대 80% 지원</span>
             </h2>
-            <p className="text-xl text-blue-100">
+            <p className="text-sm sm:text-xl text-blue-100">
               중소벤처기업부 공식 수행기관으로 등록되어 있어 바우처 활용이 가능합니다
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 mb-12">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-              <div className="text-5xl font-bold mb-2">80%</div>
-              <div className="text-blue-100 mb-4">정부 지원금</div>
-              <p className="text-sm text-blue-100">최대 5,000만원까지 지원 가능</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-8 mb-8 sm:mb-12">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-8 border border-white/20 text-center">
+              <div className="text-2xl sm:text-5xl font-bold mb-1 sm:mb-2">80%</div>
+              <div className="text-blue-100 text-xs sm:text-base mb-1 sm:mb-4">정부 지원금</div>
+              <p className="text-xs text-blue-100 hidden sm:block">최대 5,000만원까지 지원 가능</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-              <div className="text-5xl font-bold mb-2">20%</div>
-              <div className="text-blue-100 mb-4">기업 부담금</div>
-              <p className="text-sm text-blue-100">200만원 패키지 → 40만원 부담</p>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-8 border border-white/20 text-center">
+              <div className="text-2xl sm:text-5xl font-bold mb-1 sm:mb-2">20%</div>
+              <div className="text-blue-100 text-xs sm:text-base mb-1 sm:mb-4">기업 부담금</div>
+              <p className="text-xs text-blue-100 hidden sm:block">200만원 패키지 → 40만원 부담</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-              <div className="text-5xl font-bold mb-2">100%</div>
-              <div className="text-blue-100 mb-4">신청 지원</div>
-              <p className="text-sm text-blue-100">서류 작성부터 정산까지 전담 지원</p>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-8 border border-white/20 text-center">
+              <div className="text-2xl sm:text-5xl font-bold mb-1 sm:mb-2">100%</div>
+              <div className="text-blue-100 text-xs sm:text-base mb-1 sm:mb-4">신청 지원</div>
+              <p className="text-xs text-blue-100 hidden sm:block">서류 작성부터 정산까지 전담 지원</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-8 md:p-12">
-            <h3 className="text-2xl font-bold text-slate-900 mb-6">수출바우처 신청 절차</h3>
-            <div className="grid md:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-8 md:p-12">
+            <h3 className="text-lg sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 text-center sm:text-left">수출바우처 신청 절차</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-blue-600">1</span>
+                <div className="w-10 h-10 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-4">
+                  <span className="text-lg sm:text-2xl font-bold text-blue-600">1</span>
                 </div>
-                <h4 className="font-bold text-slate-900 mb-2">자격 확인</h4>
-                <p className="text-sm text-slate-600">중소기업 확인서 발급</p>
+                <h4 className="font-bold text-slate-900 mb-1 sm:mb-2 text-sm sm:text-base">자격 확인</h4>
+                <p className="text-xs sm:text-sm text-slate-600">중소기업 확인서 발급</p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-blue-600">2</span>
+                <div className="w-10 h-10 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-4">
+                  <span className="text-lg sm:text-2xl font-bold text-blue-600">2</span>
                 </div>
-                <h4 className="font-bold text-slate-900 mb-2">온라인 신청</h4>
-                <p className="text-sm text-slate-600">수출바우처 홈페이지 접수</p>
+                <h4 className="font-bold text-slate-900 mb-1 sm:mb-2 text-sm sm:text-base">온라인 신청</h4>
+                <p className="text-xs sm:text-sm text-slate-600">수출바우처 홈페이지 접수</p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-blue-600">3</span>
+                <div className="w-10 h-10 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-4">
+                  <span className="text-lg sm:text-2xl font-bold text-blue-600">3</span>
                 </div>
-                <h4 className="font-bold text-slate-900 mb-2">승인 대기</h4>
-                <p className="text-sm text-slate-600">약 2주 소요</p>
+                <h4 className="font-bold text-slate-900 mb-1 sm:mb-2 text-sm sm:text-base">승인 대기</h4>
+                <p className="text-xs sm:text-sm text-slate-600">약 2주 소요</p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-blue-600">4</span>
+                <div className="w-10 h-10 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-4">
+                  <span className="text-lg sm:text-2xl font-bold text-blue-600">4</span>
                 </div>
-                <h4 className="font-bold text-slate-900 mb-2">서비스 이용</h4>
-                <p className="text-sm text-slate-600">CNEC 캠페인 진행</p>
+                <h4 className="font-bold text-slate-900 mb-1 sm:mb-2 text-sm sm:text-base">서비스 이용</h4>
+                <p className="text-xs sm:text-sm text-slate-600">CNEC 캠페인 진행</p>
               </div>
             </div>
-            <div className="mt-8 text-center">
-              <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-xl transition-all inline-flex items-center space-x-2">
+            <div className="mt-6 sm:mt-8 text-center">
+              <a
+                href="https://pf.kakao.com/_xgNdxlG"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:shadow-xl transition-all inline-flex items-center justify-center space-x-2 text-sm sm:text-base"
+              >
                 <span>수출바우처 상담 신청</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </a>
             </div>
           </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 sm:mb-4">
               고객 <span className="text-blue-600">성공 스토리</span>
             </h2>
-            <p className="text-xl text-slate-600">
+            <p className="text-base sm:text-xl text-slate-600">
               CNEC과 함께한 브랜드들의 실제 후기를 확인하세요
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8">
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 rounded-2xl p-8 hover:border-blue-600 hover:shadow-xl transition-all">
-                <div className="flex items-center space-x-1 mb-4">
+              <div key={index} className="bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:border-blue-600 hover:shadow-xl transition-all">
+                <div className="flex items-center space-x-1 mb-3 sm:mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    <Star key={i} className="w-4 h-4 sm:w-5 sm:h-5 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
-                <p className="text-slate-700 mb-6 leading-relaxed">"{testimonial.text}"</p>
-                <div className="border-t border-slate-200 pt-4">
-                  <div className="font-bold text-slate-900 mb-1">{testimonial.company}</div>
-                  <div className="text-sm text-blue-600 font-medium">{testimonial.result}</div>
+                <p className="text-sm sm:text-base text-slate-700 mb-4 sm:mb-6 leading-relaxed">"{testimonial.text}"</p>
+                <div className="border-t border-slate-200 pt-3 sm:pt-4">
+                  <div className="font-bold text-slate-900 mb-1 text-sm sm:text-base">{testimonial.company}</div>
+                  <div className="text-xs sm:text-sm text-blue-600 font-medium">{testimonial.result}</div>
                 </div>
               </div>
             ))}
@@ -772,25 +842,25 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 bg-gradient-to-b from-slate-50 to-white">
+      <section id="faq" className="py-12 sm:py-20 bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 sm:mb-4">
               자주 묻는 <span className="text-blue-600">질문</span>
             </h2>
-            <p className="text-xl text-slate-600">
+            <p className="text-base sm:text-xl text-slate-600">
               궁금하신 점이 있으신가요? 여기서 답을 찾아보세요
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {faqs.map((faq, index) => (
-              <details key={faq.id || index} className="group bg-white rounded-2xl border-2 border-slate-200 hover:border-blue-600 transition-all">
-                <summary className="flex items-center justify-between cursor-pointer p-6">
-                  <span className="text-lg font-bold text-slate-900">{faq.question || faq.q}</span>
-                  <ChevronDown className="w-6 h-6 text-blue-600 group-open:rotate-180 transition-transform" />
+              <details key={faq.id || index} className="group bg-white rounded-xl sm:rounded-2xl border-2 border-slate-200 hover:border-blue-600 transition-all">
+                <summary className="flex items-center justify-between cursor-pointer p-4 sm:p-6">
+                  <span className="text-sm sm:text-lg font-bold text-slate-900 pr-4">{faq.question || faq.q}</span>
+                  <ChevronDown className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 group-open:rotate-180 transition-transform flex-shrink-0" />
                 </summary>
-                <div className="px-6 pb-6 text-slate-600 leading-relaxed">
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6 text-sm sm:text-base text-slate-600 leading-relaxed">
                   {faq.answer || faq.a}
                 </div>
               </details>
@@ -799,18 +869,18 @@ export default function LandingPage() {
         </div>
       </section>
       {/* Partner Brands Section */}
-      <section className="py-20 bg-gradient-to-br from-slate-50 to-blue-50">
+      <section className="py-12 sm:py-20 bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">
+          <div className="text-center mb-8 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-2 sm:mb-4">
               함께 하는 <span className="text-blue-600">브랜드</span>
             </h2>
-            <p className="text-xl text-slate-600">
+            <p className="text-base sm:text-xl text-slate-600">
               다양한 브랜드들이 CNEC과 함께 성장하고 있습니다
             </p>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-8 md:p-12">
             <img
               src="/brands.png"
               alt="함께 하는 브랜드"
@@ -821,27 +891,30 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
+      <section className="py-12 sm:py-20 bg-gradient-to-br from-blue-600 to-cyan-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6">
             지금 바로 시작하세요
           </h2>
-          <p className="text-xl text-blue-100 mb-12">
+          <p className="text-sm sm:text-xl text-blue-100 mb-8 sm:mb-12">
             14일 만에 완성되는 글로벌 마케팅, CNEC과 함께라면 가능합니다
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <button
               onClick={() => navigate('/signup')}
-              className="px-10 py-5 bg-white text-blue-600 rounded-xl hover:shadow-2xl transition-all text-lg font-bold"
+              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-white text-blue-600 rounded-xl hover:shadow-2xl transition-all text-base sm:text-lg font-bold"
             >
               캠페인 시작하기
             </button>
-            <button 
-              onClick={() => window.dispatchEvent(new CustomEvent('openConsultationModal'))}
-              className="px-10 py-5 bg-white/10 backdrop-blur-sm border-2 border-white text-white rounded-xl hover:bg-white/20 transition-all text-lg font-bold"
+            <a
+              href="https://pf.kakao.com/_xgNdxlG"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto px-8 sm:px-10 py-4 sm:py-5 bg-[#FEE500] text-[#3C1E1E] rounded-xl hover:shadow-2xl transition-all text-base sm:text-lg font-bold flex items-center justify-center gap-2"
             >
+              <MessageCircle className="w-5 h-5" />
               상담 신청하기
-            </button>
+            </a>
           </div>
         </div>
       </section>
