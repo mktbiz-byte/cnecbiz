@@ -195,14 +195,16 @@ const CreateCampaignJapan = () => {
   const handlePackageChange = (value) => {
     const selectedPackage = packageOptions.find(p => p.value === value)
     if (selectedPackage) {
-      const finalCost = calculateFinalCost(selectedPackage.price, campaignForm.total_slots)
-      setCampaignForm(prev => ({
-        ...prev,
-        package_type: value,
-        estimated_cost: finalCost,
-        reward_amount: selectedPackage.rewardYen,  // 엔화 보상 자동 설정
-        max_participants: prev.total_slots
-      }))
+      setCampaignForm(prev => {
+        const finalCost = calculateFinalCost(selectedPackage.price, prev.total_slots)
+        return {
+          ...prev,
+          package_type: value,
+          estimated_cost: finalCost,
+          reward_amount: selectedPackage.rewardYen,  // 엔화 보상 자동 설정
+          max_participants: prev.total_slots
+        }
+      })
     }
   }
 
