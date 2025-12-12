@@ -419,6 +419,8 @@ const InvoicePage = () => {
   // VAT 제외 금액 = 총액 / 1.1
   const subtotal = Math.round(totalCost / 1.1)
   const vat = totalCost - subtotal
+  // 할인 금액 (현재는 0)
+  const discountAmount = 0
   // 단가 = VAT 제외 금액 / 모집인원
   const packagePrice = recruitmentCount > 0 ? Math.round(subtotal / recruitmentCount) : 0
   
