@@ -177,7 +177,7 @@ export default function MyCampaigns() {
     try {
       // 캐페인 금액 계산
       const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
-      const recruitmentCount = campaign.total_slots || campaign.recruitment_count || 1
+      const recruitmentCount = campaign.max_participants || campaign.total_slots || campaign.recruitment_count || 1
       const totalCost = packagePrice * recruitmentCount
 
       // 회사 포인트 잔액 확인
@@ -338,7 +338,7 @@ export default function MyCampaigns() {
 
       // 금액 계산
       const packagePrice = getPackagePrice(campaign.package_type)
-      const totalSlots = campaign.total_slots || 0
+      const totalSlots = campaign.max_participants || campaign.total_slots || 0
       const subtotal = packagePrice * totalSlots
       const vat = Math.floor(subtotal * 0.1)
       const total = subtotal + vat
@@ -687,7 +687,7 @@ export default function MyCampaigns() {
                   // 4주 챌린지는 60만원 고정, 나머지는 패키지 가격 사용
                   let packagePrice
                   packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
-                  const subtotal = packagePrice * (campaign.total_slots || 0)
+                  const subtotal = packagePrice * (campaign.max_participants || campaign.total_slots || 0)
                   const vat = Math.floor(subtotal * 0.1)
                   const totalCost = subtotal + vat
                   const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
@@ -739,7 +739,7 @@ export default function MyCampaigns() {
                             <span className="text-[10px] md:text-xs text-gray-600 whitespace-nowrap">모집 인원</span>
                           </div>
                           <div className="text-base md:text-2xl font-bold text-blue-600">
-                            {campaign.total_slots || 0}명
+                            {campaign.max_participants || campaign.total_slots || 0}명
                           </div>
                         </div>
                         <div className="bg-green-50 p-2 md:p-3 rounded-lg">
