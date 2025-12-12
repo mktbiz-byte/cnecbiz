@@ -524,16 +524,22 @@ const CampaignGuideJapan = () => {
     <>
       <CompanyNavigation />
       <div className="container mx-auto p-6 max-w-7xl">
-        {/* 일괄 번역 버튼 */}
-        <div className="mb-4 flex justify-end">
-          <Button 
-            onClick={handleBatchTranslate} 
-            disabled={isTranslating}
-            variant="outline"
-            className="bg-blue-50 hover:bg-blue-100"
-          >
-            {isTranslating ? '번역 중...' : '일괄 번역 (한국어 → 일본어)'}
-          </Button>
+        {/* 일괄 번역 버튼 - 더 눈에 띄게 */}
+        <div className="mb-6 p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="text-white">
+              <h3 className="text-lg font-bold mb-1">🌏 自動翻訳 (Auto Translation)</h3>
+              <p className="text-sm text-pink-100">左側に韓国語で入力し、ボタンをクリックして日本語に翻訳</p>
+            </div>
+            <Button 
+              onClick={handleBatchTranslate} 
+              disabled={isTranslating}
+              size="lg"
+              className="bg-white text-pink-600 hover:bg-pink-50 font-bold px-8 py-6 text-lg shadow-xl"
+            >
+              {isTranslating ? '⏳ 번역 중...' : '🔄 지금 번역'}
+            </Button>
+          </div>
         </div>
 
         {translationError && (
@@ -1255,7 +1261,7 @@ const CampaignGuideJapan = () => {
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
               <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
-              <p className="text-sm text-gray-400">左側に韓国語で入力後、「一括翻訳」ボタンをクリックしてください</p>
+              <p className="text-sm text-gray-400">左側に韓国語で入力し、「今翻訳」ボタンをクリックしてください</p>
             </div>
           )}
         </CardContent>

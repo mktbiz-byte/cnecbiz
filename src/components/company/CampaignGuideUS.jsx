@@ -215,18 +215,18 @@ const CampaignGuideUS = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // Add English translation if exists
-      if (translatedBrandName) updateData.brand_name_en = translatedBrandName
-      if (translatedProductName) updateData.product_name_en = translatedProductName
-      if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
-      if (translatedDuration) updateData.video_duration_en = translatedDuration
-      if (translatedTempo) updateData.video_tempo_en = translatedTempo
-      if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      // Add English translation if exists - DISABLED: columns don't exist in DB
+      // if (translatedBrandName) updateData.brand_name_en = translatedBrandName
+      // if (translatedProductName) updateData.product_name_en = translatedProductName
+      // if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
+      // if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
+      // if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
+      // if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
+      // if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
+      // if (translatedDuration) updateData.video_duration_en = translatedDuration
+      // if (translatedTempo) updateData.video_tempo_en = translatedTempo
+      // if (translatedTone) updateData.video_tone_en = translatedTone
+      // if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
@@ -271,18 +271,18 @@ const CampaignGuideUS = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // Add English translation if exists
-      if (translatedBrandName) updateData.brand_name_en = translatedBrandName
-      if (translatedProductName) updateData.product_name_en = translatedProductName
-      if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
-      if (translatedDuration) updateData.video_duration_en = translatedDuration
-      if (translatedTempo) updateData.video_tempo_en = translatedTempo
-      if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      // Add English translation if exists - DISABLED: columns don't exist in DB
+      // if (translatedBrandName) updateData.brand_name_en = translatedBrandName
+      // if (translatedProductName) updateData.product_name_en = translatedProductName
+      // if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
+      // if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
+      // if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
+      // if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
+      // if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
+      // if (translatedDuration) updateData.video_duration_en = translatedDuration
+      // if (translatedTempo) updateData.video_tempo_en = translatedTempo
+      // if (translatedTone) updateData.video_tone_en = translatedTone
+      // if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
@@ -521,16 +521,22 @@ ${textToTranslate}`
     <>
       <CompanyNavigation />
       <div className="container mx-auto p-6 max-w-7xl">
-        {/* 일괄 번역 버튼 */}
-        <div className="mb-4 flex justify-end">
-          <Button 
-            onClick={handleBatchTranslate} 
-            disabled={isTranslating}
-            variant="outline"
-            className="bg-blue-50 hover:bg-blue-100"
-          >
-            {isTranslating ? 'Translating...' : 'Batch Translate (Korean → English)'}
-          </Button>
+        {/* 일괄 번역 버튼 - 더 눈에 띄게 */}
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="text-white">
+              <h3 className="text-lg font-bold mb-1">🌐 Auto Translation</h3>
+              <p className="text-sm text-blue-100">Fill in Korean on the left, then click the button to translate to English</p>
+            </div>
+            <Button 
+              onClick={handleBatchTranslate} 
+              disabled={isTranslating}
+              size="lg"
+              className="bg-white text-blue-600 hover:bg-blue-50 font-bold px-8 py-6 text-lg shadow-xl"
+            >
+              {isTranslating ? '⏳ Translating...' : '🔄 Translate Now'}
+            </Button>
+          </div>
         </div>
 
         {translationError && (
@@ -1251,8 +1257,8 @@ ${textToTranslate}`
           {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
-              <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
-              <p className="text-sm text-gray-400">左側に韓国語で入力後、「一括翻訳」ボタンをクリックしてください</p>
+              <p className="text-lg text-gray-500 mb-2">Please create a guide</p>
+              <p className="text-sm text-gray-400">Enter content in Korean on the left, then click "Translate Now" button</p>
             </div>
           )}
         </CardContent>
