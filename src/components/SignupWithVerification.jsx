@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building, User, Phone, Mail, Lock, CheckCircle, AlertCircle } from 'lucide-react'
+import { Building, User, Phone, Mail, Lock, CheckCircle, AlertCircle, Globe, ArrowLeft } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import InAppBrowserWarning from './InAppBrowserWarning'
 
@@ -194,206 +194,231 @@ export default function SignupWithVerification() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <InAppBrowserWarning />
-      
-      <Card className="w-full max-w-2xl shadow-xl">
-        <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-3xl font-bold text-center text-gray-800">
-            회원가입
-          </CardTitle>
-          <p className="text-center text-gray-600">
-            크넥 비즈니스 플랫폼에 오신 것을 환영합니다
-          </p>
-        </CardHeader>
 
-        <CardContent>
-          <form onSubmit={handleSignup} className="space-y-6">
-            {/* 기본 정보 */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                <Building className="w-5 h-5" />
-                기본 정보
-              </h3>
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
+            <Globe className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">CNEC</h1>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => navigate('/')} className="text-sm">
+            <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">홈으로</span>
+            <span className="sm:hidden">홈</span>
+          </Button>
+        </div>
+      </header>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  회사명 *
-                </label>
-                <Input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="회사명을 입력하세요"
-                  required
-                />
-              </div>
+      {/* Signup Form */}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+        <Card className="shadow-lg">
+          <CardHeader className="space-y-1 pb-4 sm:pb-6">
+            <CardTitle className="text-xl sm:text-3xl font-bold text-center text-gray-800">
+              회원가입
+            </CardTitle>
+            <p className="text-center text-sm sm:text-base text-gray-600">
+              크넥 비즈니스 플랫폼에 오신 것을 환영합니다
+            </p>
+          </CardHeader>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  담당자명 *
-                </label>
-                <Input
-                  type="text"
-                  value={contactPerson}
-                  onChange={(e) => setContactPerson(e.target.value)}
-                  placeholder="담당자명을 입력하세요"
-                  required
-                />
-              </div>
-            </div>
+          <CardContent>
+            <form onSubmit={handleSignup} className="space-y-4 sm:space-y-6">
+              {/* 기본 정보 */}
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-700 flex items-center gap-2">
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5" />
+                  기본 정보
+                </h3>
 
-            {/* 계정 정보 */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                <Mail className="w-5 h-5" />
-                계정 정보
-              </h3>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  이메일 *
-                </label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="이메일을 입력하세요"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  비밀번호 * (8자 이상)
-                </label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="비밀번호를 입력하세요"
-                  required
-                  minLength={8}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  비밀번호 확인 *
-                </label>
-                <Input
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
-                  placeholder="비밀번호를 다시 입력하세요"
-                  required
-                  minLength={8}
-                />
-              </div>
-            </div>
-
-            {/* 핸드폰 인증 */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                <Phone className="w-5 h-5" />
-                핸드폰 인증 *
-              </h3>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  핸드폰 번호
-                </label>
-                <div className="flex gap-2">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    회사명 *
+                  </label>
                   <Input
-                    type="tel"
-                    value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
-                    placeholder="01012345678"
-                    disabled={smsVerified}
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="회사명을 입력하세요"
+                    className="h-11 sm:h-12"
                     required
                   />
-                  <Button
-                    type="button"
-                    onClick={handleSendSMS}
-                    disabled={smsLoading || smsVerified || smsTimer > 0}
-                    className="whitespace-nowrap"
-                  >
-                    {smsTimer > 0 ? `${Math.floor(smsTimer / 60)}:${String(smsTimer % 60).padStart(2, '0')}` : '인증번호 발송'}
-                  </Button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    담당자명 *
+                  </label>
+                  <Input
+                    type="text"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    placeholder="담당자명을 입력하세요"
+                    className="h-11 sm:h-12"
+                    required
+                  />
                 </div>
               </div>
 
-              {smsSent && !smsVerified && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    인증번호
+              {/* 계정 정보 */}
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-700 flex items-center gap-2">
+                  <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+                  계정 정보
+                </h3>
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    이메일 *
+                  </label>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="이메일을 입력하세요"
+                    className="h-11 sm:h-12"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    비밀번호 * (8자 이상)
+                  </label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="비밀번호를 입력하세요"
+                    className="h-11 sm:h-12"
+                    required
+                    minLength={8}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    비밀번호 확인 *
+                  </label>
+                  <Input
+                    type="password"
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    placeholder="비밀번호를 다시 입력하세요"
+                    className="h-11 sm:h-12"
+                    required
+                    minLength={8}
+                  />
+                </div>
+              </div>
+
+              {/* 핸드폰 인증 */}
+              <div className="space-y-3 sm:space-y-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-700 flex items-center gap-2">
+                  <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
+                  핸드폰 인증 *
+                </h3>
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-gray-700">
+                    핸드폰 번호
                   </label>
                   <div className="flex gap-2">
                     <Input
-                      type="text"
-                      value={smsCode}
-                      onChange={(e) => setSmsCode(e.target.value)}
-                      placeholder="인증번호 6자리"
-                      maxLength={6}
+                      type="tel"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value)}
+                      placeholder="01012345678"
+                      disabled={smsVerified}
+                      className="h-11 sm:h-12 flex-1"
+                      required
                     />
                     <Button
                       type="button"
-                      onClick={handleVerifySMS}
-                      disabled={smsLoading}
-                      className="whitespace-nowrap"
+                      onClick={handleSendSMS}
+                      disabled={smsLoading || smsVerified || smsTimer > 0}
+                      className="whitespace-nowrap h-11 sm:h-12 px-3 sm:px-4 text-sm"
                     >
-                      확인
+                      {smsTimer > 0 ? `${Math.floor(smsTimer / 60)}:${String(smsTimer % 60).padStart(2, '0')}` : '인증번호 발송'}
                     </Button>
                   </div>
                 </div>
-              )}
 
-              {smsVerified && (
-                <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="font-medium">핸드폰 인증 완료</span>
-                </div>
-              )}
+                {smsSent && !smsVerified && (
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-gray-700">
+                      인증번호
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={smsCode}
+                        onChange={(e) => setSmsCode(e.target.value)}
+                        placeholder="인증번호 6자리"
+                        maxLength={6}
+                        className="h-11 sm:h-12 flex-1"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleVerifySMS}
+                        disabled={smsLoading}
+                        className="whitespace-nowrap h-11 sm:h-12 px-4 sm:px-6"
+                      >
+                        확인
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-              {smsError && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
-                  <AlertCircle className="w-5 h-5" />
-                  <span>{smsError}</span>
-                </div>
-              )}
-            </div>
+                {smsVerified && (
+                  <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg text-sm sm:text-base">
+                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span className="font-medium">핸드폰 인증 완료</span>
+                  </div>
+                )}
 
-            {/* 오류 메시지 */}
-            {signupError && (
-              <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
-                <AlertCircle className="w-5 h-5" />
-                <span>{signupError}</span>
+                {smsError && (
+                  <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                    <span>{smsError}</span>
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* 가입 버튼 */}
-            <Button
-              type="submit"
-              className="w-full h-12 text-lg"
-              disabled={signupLoading || !smsVerified}
-            >
-              {signupLoading ? '가입 중...' : '가입하기'}
-            </Button>
+              {/* 오류 메시지 */}
+              {signupError && (
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span>{signupError}</span>
+                </div>
+              )}
 
-            {/* 로그인 링크 */}
-            <div className="text-center text-sm text-gray-600">
-              이미 계정이 있으신가요?{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
-                className="text-blue-600 hover:underline font-medium"
+              {/* 가입 버튼 */}
+              <Button
+                type="submit"
+                className="w-full h-12 sm:h-14 text-base sm:text-lg"
+                disabled={signupLoading || !smsVerified}
               >
-                로그인
-              </button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                {signupLoading ? '가입 중...' : '가입하기'}
+              </Button>
+
+              {/* 로그인 링크 */}
+              <div className="text-center text-sm sm:text-base text-gray-600 pt-2">
+                이미 계정이 있으신가요?{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  로그인
+                </button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
