@@ -63,44 +63,85 @@ export default function AllCreatorsPage() {
   const fetchAllCreators = async () => {
     setLoading(true)
     try {
+      let koreaData = []
+      let japanData = []
+      let usData = []
+      let taiwanData = []
+
       // 한국 크리에이터
-      const { data: koreaData } = await supabaseKorea
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
+      if (supabaseKorea) {
+        try {
+          const { data, error } = await supabaseKorea
+            .from('user_profiles')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (!error) koreaData = data || []
+          else console.warn('한국 DB 조회 오류:', error.message)
+        } catch (e) {
+          console.warn('한국 DB 연결 오류:', e.message)
+        }
+      }
 
       // 일본 크리에이터
-      const { data: japanData } = await supabaseJapan
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
+      if (supabaseJapan) {
+        try {
+          const { data, error } = await supabaseJapan
+            .from('user_profiles')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (!error) japanData = data || []
+          else console.warn('일본 DB 조회 오류:', error.message)
+        } catch (e) {
+          console.warn('일본 DB 연결 오류:', e.message)
+        }
+      } else {
+        console.warn('일본 Supabase 클라이언트가 설정되지 않았습니다.')
+      }
 
       // 미국 크리에이터
-      const { data: usData } = await supabaseUS
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
+      if (supabaseUS) {
+        try {
+          const { data, error } = await supabaseUS
+            .from('user_profiles')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (!error) usData = data || []
+          else console.warn('미국 DB 조회 오류:', error.message)
+        } catch (e) {
+          console.warn('미국 DB 연결 오류:', e.message)
+        }
+      } else {
+        console.warn('미국 Supabase 클라이언트가 설정되지 않았습니다.')
+      }
 
-      // 대만 크리에이터 (한국 DB에서 region 필터)
-      const { data: taiwanData } = await supabaseBiz
-        .from('user_profiles')
-        .select('*')
-        .eq('region', 'taiwan')
-        .order('created_at', { ascending: false })
+      // 대만 크리에이터 (BIZ DB에서 region 필터)
+      if (supabaseBiz) {
+        try {
+          const { data, error } = await supabaseBiz
+            .from('user_profiles')
+            .select('*')
+            .eq('region', 'taiwan')
+            .order('created_at', { ascending: false })
+          if (!error) taiwanData = data || []
+          else console.warn('대만 DB 조회 오류:', error.message)
+        } catch (e) {
+          console.warn('대만 DB 연결 오류:', e.message)
+        }
+      }
 
       setCreators({
-        korea: koreaData || [],
-        japan: japanData || [],
-        us: usData || [],
-        taiwan: taiwanData || []
+        korea: koreaData,
+        japan: japanData,
+        us: usData,
+        taiwan: taiwanData
       })
 
       setStats({
-        korea: koreaData?.length || 0,
-        japan: japanData?.length || 0,
-        us: usData?.length || 0,
-        taiwan: taiwanData?.length || 0,
-        total: (koreaData?.length || 0) + (japanData?.length || 0) + (usData?.length || 0) + (taiwanData?.length || 0)
+        korea: koreaData.length,
+        japan: japanData.length,
+        us: usData.length,
+        taiwan: taiwanData.length,
+        total: koreaData.length + japanData.length + usData.length + taiwanData.length
       })
     } catch (error) {
       console.error('크리에이터 조회 오류:', error)
@@ -151,16 +192,21 @@ export default function AllCreatorsPage() {
         supabaseClient = supabaseBiz
       }
 
+      if (!supabaseClient) {
+        alert('해당 지역의 데이터베이스에 연결할 수 없습니다.')
+        return
+      }
+
       const { error } = await supabaseClient
         .from('user_profiles')
-        .update({ 
+        .update({
           rating: newRating,
           review_updated_at: new Date().toISOString()
         })
         .eq('id', creatorId)
 
       if (error) throw error
-      
+
       // 데이터 새로고침
       await fetchAllCreators()
       alert('별점이 업데이트되었습니다.')
@@ -193,6 +239,12 @@ export default function AllCreatorsPage() {
         supabaseClient = supabaseUS
       } else {
         supabaseClient = supabaseBiz
+      }
+
+      if (!supabaseClient) {
+        alert('해당 지역의 데이터베이스에 연결할 수 없습니다.')
+        setSaving(false)
+        return
       }
 
       const { error } = await supabaseClient
@@ -408,9 +460,9 @@ export default function AllCreatorsPage() {
     return (
       <>
         <AdminNavigation />
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 lg:ml-64 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 lg:ml-64 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
             <p className="text-gray-600">크리에이터 정보를 불러오는 중...</p>
           </div>
         </div>
@@ -421,13 +473,13 @@ export default function AllCreatorsPage() {
   return (
     <>
       <AdminNavigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 lg:ml-64">
+      <div className="min-h-screen bg-gray-50 lg:ml-64">
         <div className="max-w-7xl mx-auto p-6">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-gray-900">
               전체 크리에이터 현황
             </h1>
-            <p className="text-gray-600 mt-1">국가별 크리에이터 가입 현황 (별점 및 후기는 기업 전용 내부 평가)</p>
+            <p className="text-gray-500 mt-1">국가별 크리에이터 가입 현황 (별점 및 후기는 기업 전용 내부 평가)</p>
           </div>
 
           {/* 통계 카드 */}
@@ -694,7 +746,7 @@ export default function AllCreatorsPage() {
             <Button
               onClick={handleSaveReview}
               disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-orange-500 hover:bg-orange-600"
             >
               {saving ? '저장 중...' : '저장'}
             </Button>
