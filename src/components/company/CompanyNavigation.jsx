@@ -118,12 +118,15 @@ export default function CompanyNavigation() {
                 <Settings className="w-4 h-4" />
                 <span className="text-sm">프로필 설정</span>
               </button>
-              <button
+              <a
+                href="https://pf.kakao.com/_xgNdxlG"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
               >
                 <HelpCircle className="w-4 h-4" />
-                <span className="text-sm">도움말</span>
-              </button>
+                <span className="text-sm">실시간 상담요청</span>
+              </a>
             </div>
           </nav>
 

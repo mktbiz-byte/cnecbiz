@@ -11,7 +11,7 @@ import { Checkbox } from '../ui/checkbox'
 import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles, Globe } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
-const CampaignGuideJapan = () => {
+const CampaignGuideUS = () => {
   const supabase = getSupabaseClient('us')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -58,7 +58,7 @@ const CampaignGuideJapan = () => {
   // 메타광고코드 발급 요청
   const [metaAdCodeRequested, setMetaAdCodeRequested] = useState(false)
 
-  // 일본어 번역 미리보기
+  // 영어 번역 미리보기
   const [translatedBrandName, setTranslatedBrandName] = useState('')
   const [translatedProductName, setTranslatedProductName] = useState('')
   const [translatedProductDesc, setTranslatedProductDesc] = useState('')
@@ -475,10 +475,16 @@ const CampaignGuideJapan = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ 
-              parts: [{ 
-                text: `다음 한국어 캠페인 가이드 정보를 영어로 자연스럽게 번역해주세요. 각 필드별로 [필수대사1], [필수장면1], [필수해시태그1] 등의 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
-              }] 
+            contents: [{
+              parts: [{
+                text: `다음 한국어 캠페인 가이드 정보를 영어(미국)로 자연스럽게 번역해주세요.
+중요: 각 필드의 한국어 라벨([브랜드명], [제품명], [제품설명], [제품특징1], [필수대사1], [필수장면1], [필수해시태그1], [영상시간], [영상템포], [영상톤], [추가전달사항], [추가촬영요청], [필수촬영장면] 등)은 반드시 그대로 유지하고, 라벨 다음의 내용만 영어로 번역하세요.
+예시:
+[브랜드명]
+Apple
+
+번역 결과만 출력하세요:\n\n${textToTranslate}`
+              }]
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
           })
@@ -496,65 +502,65 @@ const CampaignGuideJapan = () => {
 
       // 번역 결과 파싱
       const cleanText = translatedText.replace(/\*\*/g, '')
-      
-      // 제품 정보 파싱
-      const brandNameMatch = cleanText.match(/\[(브랜드명|ブランド名)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const productNameMatch = cleanText.match(/\[(제품명|製品名)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const productDescMatch = cleanText.match(/\[(제품설명|製品説明)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      
-      setTranslatedBrandName(brandNameMatch ? brandNameMatch[2].trim() : '')
-      setTranslatedProductName(productNameMatch ? productNameMatch[2].trim() : '')
-      setTranslatedProductDesc(productDescMatch ? productDescMatch[2].trim() : '')
-      
+
+      // 제품 정보 파싱 (한국어 라벨만 검색)
+      const brandNameMatch = cleanText.match(/\[브랜드명\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const productNameMatch = cleanText.match(/\[제품명\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const productDescMatch = cleanText.match(/\[제품설명\]\s*([\s\S]*?)(?=\n\[|$)/)
+
+      setTranslatedBrandName(brandNameMatch ? brandNameMatch[1].trim() : '')
+      setTranslatedProductName(productNameMatch ? productNameMatch[1].trim() : '')
+      setTranslatedProductDesc(productDescMatch ? productDescMatch[1].trim() : '')
+
       // 제품 특징 파싱
       const newTranslatedFeatures = []
       productFeatures.forEach((_, idx) => {
-        const match = cleanText.match(new RegExp(`\\[(제품특징${idx + 1}|製品特徴${idx + 1})\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-        if (match) newTranslatedFeatures.push(match[2].trim())
+        const match = cleanText.match(new RegExp(`\\[제품특징${idx + 1}\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
+        if (match) newTranslatedFeatures.push(match[1].trim())
       })
       setTranslatedProductFeatures(newTranslatedFeatures)
-      
+
       // 필수 대사 파싱
       const newTranslatedDialogues = []
       requiredDialogues.forEach((_, idx) => {
-        const match = cleanText.match(new RegExp(`\\[(필수대사${idx + 1}|必須セリフ${idx + 1})\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-        if (match) newTranslatedDialogues.push(match[2].trim())
+        const match = cleanText.match(new RegExp(`\\[필수대사${idx + 1}\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
+        if (match) newTranslatedDialogues.push(match[1].trim())
       })
-      
+
       // 필수 장면 파싱
       const newTranslatedScenes = []
       requiredScenes.forEach((_, idx) => {
-        const match = cleanText.match(new RegExp(`\\[(필수장면${idx + 1}|必須シーン${idx + 1})\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-        if (match) newTranslatedScenes.push(match[2].trim())
+        const match = cleanText.match(new RegExp(`\\[필수장면${idx + 1}\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
+        if (match) newTranslatedScenes.push(match[1].trim())
       })
-      
+
       // 필수 해시태그 파싱
       const newTranslatedHashtags = []
       requiredHashtags.forEach((_, idx) => {
-        const match = cleanText.match(new RegExp(`\\[(필수해시태그${idx + 1}|必須ハッシュタグ${idx + 1})\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
-        if (match) newTranslatedHashtags.push(match[2].trim())
+        const match = cleanText.match(new RegExp(`\\[필수해시태그${idx + 1}\\]\\s*([\\s\\S]*?)(?=\\n\\[|$)`))
+        if (match) newTranslatedHashtags.push(match[1].trim())
       })
-      
+
       // 기타 필드 파싱
-      const durationMatch = cleanText.match(/\[(영상시간|希望動画時間)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const tempoMatch = cleanText.match(/\[(영상템포|動画テンポ)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const toneMatch = cleanText.match(/\[(영상톤|動画トーン)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const additionalMatch = cleanText.match(/\[(추가전달사항|追加伝達事項)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const shootingMatch = cleanText.match(/\[(추가촬영요청|追加撮影リクエスト)\]\s*([\s\S]*?)(?=\n\[|$)/)
-      const shootingScenesMatch = cleanText.match(/\[(필수촬영장면|必須撮影シーン)\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const durationMatch = cleanText.match(/\[영상시간\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const tempoMatch = cleanText.match(/\[영상템포\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const toneMatch = cleanText.match(/\[영상톤\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const additionalMatch = cleanText.match(/\[추가전달사항\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const shootingMatch = cleanText.match(/\[추가촬영요청\]\s*([\s\S]*?)(?=\n\[|$)/)
+      const shootingScenesMatch = cleanText.match(/\[필수촬영장면\]\s*([\s\S]*?)(?=\n\[|$)/)
 
       setTranslatedDialogues(newTranslatedDialogues)
       setTranslatedScenes(newTranslatedScenes)
       setTranslatedHashtags(newTranslatedHashtags)
-      setTranslatedDuration(durationMatch ? durationMatch[2].trim() : '')
-      setTranslatedTempo(tempoMatch ? tempoMatch[2].trim() : '')
-      setTranslatedTone(toneMatch ? toneMatch[2].trim() : '')
-      setTranslatedAdditionalDetails(additionalMatch ? additionalMatch[2].trim() : '')
-      setTranslatedShootingRequests(shootingMatch ? shootingMatch[2].trim() : '')
-      
+      setTranslatedDuration(durationMatch ? durationMatch[1].trim() : '')
+      setTranslatedTempo(tempoMatch ? tempoMatch[1].trim() : '')
+      setTranslatedTone(toneMatch ? toneMatch[1].trim() : '')
+      setTranslatedAdditionalDetails(additionalMatch ? additionalMatch[1].trim() : '')
+      setTranslatedShootingRequests(shootingMatch ? shootingMatch[1].trim() : '')
+
       // 촬영 장면을 배열로 변환
       if (shootingScenesMatch) {
-        const scenesText = shootingScenesMatch[2].trim()
+        const scenesText = shootingScenesMatch[1].trim()
         const scenesArray = scenesText.split(/[,、]/).map(s => s.trim()).filter(s => s)
         setTranslatedShootingScenes(scenesArray)
       } else {
@@ -608,24 +614,6 @@ const CampaignGuideJapan = () => {
     <>
       <CompanyNavigation />
       <div className="container mx-auto p-6 max-w-7xl">
-        {/* 일괄 번역 버튼 - 더 눈에 띄게 */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="text-white">
-              <h3 className="text-lg font-bold mb-1">🌏 自動翻訳 (Auto Translation)</h3>
-              <p className="text-sm text-pink-100">Enter in Korean on the left, then click the button to translate to English</p>
-            </div>
-            <Button 
-              onClick={handleBatchTranslate} 
-              disabled={isTranslating}
-              size="lg"
-              className="bg-white text-pink-600 hover:bg-pink-50 font-bold px-8 py-6 text-lg shadow-xl"
-            >
-              {isTranslating ? '⏳ 번역 중...' : '🔄 지금 번역'}
-            </Button>
-          </div>
-        </div>
-
         {translationError && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {translationError}
@@ -1012,6 +1000,29 @@ const CampaignGuideJapan = () => {
             </div>
           </div>
 
+          {/* 영어 번역 기능 */}
+          <div className="border-t pt-6 mt-6">
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3 mb-3">
+                <Globe className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-base font-bold text-blue-900">영어 번역 기능</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    위에서 작성한 한국어 가이드를 영어로 자동 번역합니다.
+                    번역된 내용은 오른쪽 미리보기에 표시되며, 미국 크리에이터에게 전달됩니다.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleBatchTranslate}
+                disabled={isTranslating}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3"
+              >
+                {isTranslating ? '⏳ 번역 중...' : '🌐 영어로 번역하기'}
+              </Button>
+            </div>
+          </div>
+
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {error}
@@ -1047,7 +1058,7 @@ const CampaignGuideJapan = () => {
         </CardContent>
       </Card>
 
-      {/* 오른쪽: 일본어 번역 미리보기 */}
+      {/* 오른쪽: 영어 번역 미리보기 */}
       <Card className="bg-white shadow-lg border-2">
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
           <div className="flex items-center gap-2">
@@ -1055,7 +1066,7 @@ const CampaignGuideJapan = () => {
             <CardTitle className="text-3xl font-bold">Creator Guide</CardTitle>
           </div>
           <p className="text-sm text-blue-100 mt-2">
-            {campaignTitle || 'Campaign Title'}
+            {campaignTitle || 'Campaign Title'} - English Preview
           </p>
         </CardHeader>
 
@@ -1065,12 +1076,12 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-indigo-500 pl-4">
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-2xl">📦</span>
-                <Label className="text-xl font-bold text-gray-800">製品情報</Label>
+                <Label className="text-xl font-bold text-gray-800">Product Information</Label>
               </div>
               <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 space-y-4">
                 {translatedBrandName && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">ブランド名</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">Brand Name</Label>
                     <Input
                       value={translatedBrandName}
                       onChange={(e) => setTranslatedBrandName(e.target.value)}
@@ -1080,7 +1091,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductName && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品名</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">Product Name</Label>
                     <Input
                       value={translatedProductName}
                       onChange={(e) => setTranslatedProductName(e.target.value)}
@@ -1090,7 +1101,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedProductDesc && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-1">製品説明</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-1">Product Description</Label>
                     <Textarea
                       value={translatedProductDesc}
                       onChange={(e) => setTranslatedProductDesc(e.target.value)}
@@ -1101,7 +1112,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {Array.isArray(translatedProductFeatures) && translatedProductFeatures.length > 0 && (
                   <div>
-                    <Label className="text-xs font-semibold text-indigo-600 mb-2">製品特徴</Label>
+                    <Label className="text-xs font-semibold text-indigo-600 mb-2">Product Features</Label>
                     <div className="space-y-2">
                       {translatedProductFeatures.map((feature, index) => (
                         <div key={index} className="flex items-start gap-2">
@@ -1129,7 +1140,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-blue-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">💬</span>
-                <Label className="text-xl font-bold text-gray-800">必須セリフ</Label>
+                <Label className="text-xl font-bold text-gray-800">Required Lines</Label>
               </div>
               <div className="space-y-3">
                 {translatedDialogues.map((dialogue, index) => (
@@ -1158,7 +1169,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-green-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">🎥</span>
-                <Label className="text-xl font-bold text-gray-800">必須シーン</Label>
+                <Label className="text-xl font-bold text-gray-800">Required Scenes</Label>
               </div>
               <div className="space-y-3">
                 {translatedScenes.map((scene, index) => (
@@ -1187,7 +1198,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-purple-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">#️⃣</span>
-                <Label className="text-xl font-bold text-gray-800">必須ハッシュタグ</Label>
+                <Label className="text-xl font-bold text-gray-800">Required Hashtags</Label>
               </div>
               <div className="space-y-2">
                 {translatedHashtags.map((hashtag, index) => (
@@ -1213,7 +1224,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-teal-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📷</span>
-                <Label className="text-xl font-bold text-gray-800">必須撮影シーン</Label>
+                <Label className="text-xl font-bold text-gray-800">Required Shooting Scenes</Label>
               </div>
               <div className="space-y-2">
                 {translatedShootingScenes.map((scene, index) => (
@@ -1239,12 +1250,12 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-orange-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">🎬</span>
-                <Label className="text-xl font-bold text-gray-800">動画仕様</Label>
+                <Label className="text-xl font-bold text-gray-800">Video Specifications</Label>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {translatedDuration && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">希望時間</Label>
+                    <Label className="text-xs text-gray-600 mb-2">Duration</Label>
                     <Input
                       value={translatedDuration}
                       onChange={(e) => setTranslatedDuration(e.target.value)}
@@ -1254,7 +1265,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedTempo && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">テンポ</Label>
+                    <Label className="text-xs text-gray-600 mb-2">Tempo</Label>
                     <Input
                       value={translatedTempo}
                       onChange={(e) => setTranslatedTempo(e.target.value)}
@@ -1264,7 +1275,7 @@ const CampaignGuideJapan = () => {
                 )}
                 {translatedTone && (
                   <div className="p-3 bg-orange-50 rounded-lg">
-                    <Label className="text-xs text-gray-600 mb-2">トーン</Label>
+                    <Label className="text-xs text-gray-600 mb-2">Tone</Label>
                     <Input
                       value={translatedTone}
                       onChange={(e) => setTranslatedTone(e.target.value)}
@@ -1281,7 +1292,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-yellow-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📝</span>
-                <Label className="text-xl font-bold text-gray-800">追加伝達事項</Label>
+                <Label className="text-xl font-bold text-gray-800">Additional Notes</Label>
               </div>
               <Textarea
                 value={translatedAdditionalDetails}
@@ -1297,7 +1308,7 @@ const CampaignGuideJapan = () => {
             <div className="border-l-4 border-red-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📸</span>
-                <Label className="text-xl font-bold text-gray-800">追加撮影リクエスト</Label>
+                <Label className="text-xl font-bold text-gray-800">Additional Shooting Requests</Label>
               </div>
               <Textarea
                 value={translatedShootingRequests}
@@ -1317,24 +1328,24 @@ const CampaignGuideJapan = () => {
                     <span className="text-white text-xs">✓</span>
                   </div>
                   <label className="text-base font-bold text-purple-900">
-                    📱 Meta広告コード発行リクエスト
+                    📱 Meta Ad Code Request
                   </label>
                 </div>
                 <p className="text-sm text-purple-700 mb-4 ml-8">
-                  Meta(Facebook/Instagram)広告コードを発行いたします
+                  Meta (Facebook/Instagram) ad code will be issued.
                 </p>
-                
+
                 {/* 발급 방법 안내 */}
                 <div className="ml-8 mt-4 p-3 bg-white border border-purple-100 rounded-lg">
-                  <p className="text-xs font-bold text-purple-900 mb-2">📝 発行方法</p>
+                  <p className="text-xs font-bold text-purple-900 mb-2">📝 How to Get the Code</p>
                   <ol className="text-xs text-gray-700 space-y-1.5 list-decimal list-inside">
-                    <li>プロフィール→「プロフェッショナルダッシュボード」→「ブランデッドコンテンツ」で使用設定</li>
-                    <li>投稿の「…」ボタン→「パートナーシップラベルと広告」選択</li>
-                    <li>「パートナーシップ広告コードを取得」トグルON</li>
-                    <li>「コピー」ボタンでコードをコピーして企業に提供</li>
+                    <li>Go to Profile → "Professional Dashboard" → Enable "Branded Content"</li>
+                    <li>On your post, tap "..." → Select "Partnership label and ads"</li>
+                    <li>Toggle ON "Get partnership ad code"</li>
+                    <li>Tap "Copy" to copy the code and share with the brand</li>
                   </ol>
                   <p className="text-xs text-red-600 mt-3 font-semibold">
-                    ⚠️ 注意：Instagram内蔵音楽の使用は不可（外部編集で著作権フリー音源を使用）
+                    ⚠️ Note: Do not use Instagram's built-in music (use royalty-free music in external editing)
                   </p>
                 </div>
               </div>
@@ -1343,11 +1354,12 @@ const CampaignGuideJapan = () => {
 
           {(!Array.isArray(translatedDialogues) || translatedDialogues.length === 0) &&
            (!Array.isArray(translatedScenes) || translatedScenes.length === 0) &&
-           !translatedDuration && (
+           !translatedDuration && !translatedBrandName && !translatedProductName && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
-              <p className="text-lg text-gray-500 mb-2">Please create a guide</p>
-              <p className="text-sm text-gray-400">Enter content in Korean on the left, then click "Translate Now" button</p>
+              <p className="text-lg text-gray-500 mb-2">영어 번역 미리보기</p>
+              <p className="text-sm text-gray-400">왼쪽에서 가이드를 작성한 후, "영어로 번역하기" 버튼을 클릭하세요</p>
+              <p className="text-xs text-gray-300 mt-2">The English translation will appear here after you click the translate button</p>
             </div>
           )}
         </CardContent>
@@ -1358,4 +1370,4 @@ const CampaignGuideJapan = () => {
   )
 }
 
-export default CampaignGuideJapan
+export default CampaignGuideUS

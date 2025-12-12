@@ -562,24 +562,6 @@ const CampaignGuideJapan = () => {
     <>
       <CompanyNavigation />
       <div className="container mx-auto p-6 max-w-7xl">
-        {/* 일괄 번역 버튼 - 더 눈에 띄게 */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg shadow-lg">
-          <div className="flex items-center justify-between">
-            <div className="text-white">
-              <h3 className="text-lg font-bold mb-1">🌏 自動翻訳 (Auto Translation)</h3>
-              <p className="text-sm text-pink-100">左側に韓国語で入力し、ボタンをクリックして日本語に翻訳</p>
-            </div>
-            <Button 
-              onClick={handleBatchTranslate} 
-              disabled={isTranslating}
-              size="lg"
-              className="bg-white text-pink-600 hover:bg-pink-50 font-bold px-8 py-6 text-lg shadow-xl"
-            >
-              {isTranslating ? '⏳ 번역 중...' : '🔄 지금 번역'}
-            </Button>
-          </div>
-        </div>
-
         {translationError && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {translationError}
@@ -950,8 +932,8 @@ const CampaignGuideJapan = () => {
           <div className="border-t pt-6 mt-6">
             <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
               <div className="flex items-center space-x-3">
-                <Checkbox 
-                  id="meta-ad-code" 
+                <Checkbox
+                  id="meta-ad-code"
                   checked={metaAdCodeRequested}
                   onCheckedChange={setMetaAdCodeRequested}
                   className="w-5 h-5"
@@ -963,6 +945,29 @@ const CampaignGuideJapan = () => {
               <p className="text-sm text-purple-700 mt-2 ml-8">
                 체크하시면 메타(Facebook/Instagram) 광고 코드를 발급해드립니다
               </p>
+            </div>
+          </div>
+
+          {/* 일본어 번역 기능 */}
+          <div className="border-t pt-6 mt-6">
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-3 mb-3">
+                <Globe className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-base font-bold text-blue-900">일본어 번역 기능</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    위에서 작성한 한국어 가이드를 일본어로 자동 번역합니다.
+                    번역된 내용은 오른쪽 미리보기에 표시되며, 일본 크리에이터에게 전달됩니다.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleBatchTranslate}
+                disabled={isTranslating}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3"
+              >
+                {isTranslating ? '⏳ 번역 중...' : '🌐 일본어로 번역하기'}
+              </Button>
             </div>
           </div>
 
