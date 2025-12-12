@@ -11,7 +11,7 @@ import { Checkbox } from '../ui/checkbox'
 import { X, Plus, Package, FileText, Video, Hash, Clock, Zap, Palette, Camera, Link, AlertCircle, CheckCircle2, Info, Calendar, Sparkles, Globe } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
-const CampaignGuideUS = () => {
+const CampaignGuideJapan = () => {
   const supabase = getSupabaseClient('us')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -58,7 +58,7 @@ const CampaignGuideUS = () => {
   // 메타광고코드 발급 요청
   const [metaAdCodeRequested, setMetaAdCodeRequested] = useState(false)
 
-  // English translation preview
+  // 일본어 번역 미리보기
   const [translatedBrandName, setTranslatedBrandName] = useState('')
   const [translatedProductName, setTranslatedProductName] = useState('')
   const [translatedProductDesc, setTranslatedProductDesc] = useState('')
@@ -90,23 +90,15 @@ const CampaignGuideUS = () => {
   // 데이터 로드 완료 여부
   const [dataLoaded, setDataLoaded] = useState(false)
 
-  // 자동 저장 (10초마다, 데이터 로드 후에만) - Debounce pattern
+  // 자동 저장 (10초마다, 데이터 로드 후에만)
   useEffect(() => {
-    if (!campaignId || !dataLoaded) {
-      console.log('자동 저장 비활성화:', { campaignId, dataLoaded })
-      return
-    }
+    if (!campaignId || !dataLoaded) return
 
-    console.log('자동 저장 타이머 시작 (10초)')
     const timer = setTimeout(() => {
-      console.log('자동 저장 실행')
       autoSaveGuide()
     }, 10000)
 
-    return () => {
-      console.log('자동 저장 타이머 취소')
-      clearTimeout(timer)
-    }
+    return () => clearTimeout(timer)
   }, [brandName, productName, productDescription, productFeatures, requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId, dataLoaded])
 
   const loadCampaignGuide = async () => {
@@ -134,7 +126,8 @@ const CampaignGuideUS = () => {
           shooting_scenes_child,
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
-          meta_ad_code_requested
+          meta_ad_code_requested,
+          additional_details_ja
         `)
         .eq('id', campaignId)
         .single()
@@ -155,7 +148,9 @@ const CampaignGuideUS = () => {
         setVideoDuration(data.video_duration || '')
         setVideoTempo(data.video_tempo || '')
         setVideoTone(data.video_tone || '')
-        setAdditionalDetails(data.additional_details || '')
+        // [object Object] 문자열 방어
+        const safeAdditionalDetails = (typeof data.additional_details === 'string' && data.additional_details !== '[object Object]') ? data.additional_details : ''
+        setAdditionalDetails(safeAdditionalDetails)
         setShootingScenes({
           baPhoto: data.shooting_scenes_ba_photo || false,
           noMakeup: data.shooting_scenes_no_makeup || false,
@@ -168,33 +163,33 @@ const CampaignGuideUS = () => {
           troubledSkin: data.shooting_scenes_troubled_skin || false,
           wrinkles: data.shooting_scenes_wrinkles || false
         })
-        setAdditionalShootingRequests(data.additional_shooting_requests || '')
+        // [object Object] 문자열 방어
+        const safeShootingRequests = (typeof data.additional_shooting_requests === 'string' && data.additional_shooting_requests !== '[object Object]') ? data.additional_shooting_requests : ''
+        setAdditionalShootingRequests(safeShootingRequests)
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
         
-        // Load English translation data (if saved)
-        // Translation columns disabled - not in DB schema
-        // if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
-        // if (data.product_name_en) setTranslatedProductName(data.product_name_en)
-        // if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
-        // if (data.product_features_en && data.product_features_en.length > 0) setTranslatedProductFeatures(data.product_features_en)
-        // setTranslatedDialogues(data.required_dialogues_en || [])
-        // setTranslatedScenes(data.required_scenes_en || [])
-        // setTranslatedHashtags(data.required_hashtags_en || [])
-        // setTranslatedDuration(data.video_duration_en || '')
-        // setTranslatedTempo(data.video_tempo_en || '')
-        // setTranslatedTone(data.video_tone_en || '')
-        // setTranslatedAdditionalDetails(data.additional_details_en || '')
-        // setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
-        // setTranslatedShootingScenes(data.shooting_scenes_en || [])
+        // 일본어 번역 데이터 로드 (저장된 경우에만)
+        // Translation columns disabled - not in DB schema (except additional_details_ja)
+        // if (data.brand_name_ja) setTranslatedBrandName(data.brand_name_ja)
+        // if (data.product_name_ja) setTranslatedProductName(data.product_name_ja)
+        // if (data.product_description_ja) setTranslatedProductDesc(data.product_description_ja)
+        // if (data.product_features_ja && data.product_features_ja.length > 0) setTranslatedProductFeatures(data.product_features_ja)
+        // setTranslatedDialogues(data.required_dialogues_ja || [])
+        // setTranslatedScenes(data.required_scenes_ja || [])
+        // setTranslatedHashtags(data.required_hashtags_ja || [])
+        // setTranslatedDuration(data.video_duration_ja || '')
+        // setTranslatedTempo(data.video_tempo_ja || '')
+        // setTranslatedTone(data.video_tone_ja || '')
+        setTranslatedAdditionalDetails(data.additional_details_ja || '')
+        // setTranslatedShootingRequests(data.additional_shooting_requests_ja || '')
+        // setTranslatedShootingScenes(data.shooting_scenes_ja || [])
+        
+        // 데이터 로드 완료
+        setDataLoaded(true)
       }
-      
-      // 데이터 로드 완료 (데이터가 있든 없든 항상 true로 설정)
-      setDataLoaded(true)
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
       setError('캠페인 정보를 불러오는데 실패했습니다.')
-      // 에러가 발생해도 dataLoaded는 true로 설정 (자동 저장 활성화)
-      setDataLoaded(true)
     }
   }
 
@@ -225,18 +220,18 @@ const CampaignGuideUS = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // Add English translation if exists - DISABLED: columns don't exist in DB
-      // if (translatedBrandName) updateData.brand_name_en = translatedBrandName
-      // if (translatedProductName) updateData.product_name_en = translatedProductName
-      // if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
-      // if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
-      // if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
-      // if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
-      // if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
-      // if (translatedDuration) updateData.video_duration_en = translatedDuration
-      // if (translatedTempo) updateData.video_tempo_en = translatedTempo
-      // if (translatedTone) updateData.video_tone_en = translatedTone
-      // if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      // 일본어 번역이 있으면 추가
+      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
+      if (translatedProductName) updateData.product_name_ja = translatedProductName
+      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_ja = translatedDuration
+      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
+      if (translatedTone) updateData.video_tone_ja = translatedTone
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
@@ -281,18 +276,18 @@ const CampaignGuideUS = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // Add English translation if exists - DISABLED: columns don't exist in DB
-      // if (translatedBrandName) updateData.brand_name_en = translatedBrandName
-      // if (translatedProductName) updateData.product_name_en = translatedProductName
-      // if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
-      // if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
-      // if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
-      // if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
-      // if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
-      // if (translatedDuration) updateData.video_duration_en = translatedDuration
-      // if (translatedTempo) updateData.video_tempo_en = translatedTempo
-      // if (translatedTone) updateData.video_tone_en = translatedTone
-      // if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      // 일본어 번역이 있으면 추가
+      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
+      if (translatedProductName) updateData.product_name_ja = translatedProductName
+      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_ja = translatedDuration
+      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
+      if (translatedTone) updateData.video_tone_ja = translatedTone
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
@@ -301,9 +296,9 @@ const CampaignGuideUS = () => {
 
       if (error) throw error
 
-      setSuccess('Creator guide has been saved!')
+      setSuccess('크리에이터 가이드가 저장되었습니다!')
       setTimeout(() => {
-        navigate(`/company/campaigns/${campaignId}/invoice`)
+        navigate(`/company/campaigns/payment?id=${campaignId}&region=japan`)
       }, 1500)
     } catch (err) {
       console.error('가이드 저장 실패:', err)
@@ -398,9 +393,7 @@ const CampaignGuideUS = () => {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `Please translate the following Korean campaign guide information into natural English. Maintain the format like [Required Dialogue 1], [Required Scene 1], [Required Hashtag 1] for each field, and output only the translation results:
-
-${textToTranslate}` 
+                text: `다음 한국어 캠페인 가이드 정보를 일본어로 자연스럽게 번역해주세요. 각 필드별로 [필수대사1], [필수장면1], [필수해시태그1] 등의 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
               }] 
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
@@ -532,19 +525,19 @@ ${textToTranslate}`
       <CompanyNavigation />
       <div className="container mx-auto p-6 max-w-7xl">
         {/* 일괄 번역 버튼 - 더 눈에 띄게 */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg">
+        <div className="mb-6 p-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg shadow-lg">
           <div className="flex items-center justify-between">
             <div className="text-white">
-              <h3 className="text-lg font-bold mb-1">🌐 Auto Translation</h3>
-              <p className="text-sm text-blue-100">Fill in Korean on the left, then click the button to translate to English</p>
+              <h3 className="text-lg font-bold mb-1">🌏 自動翻訳 (Auto Translation)</h3>
+              <p className="text-sm text-pink-100">左側に韓国語で入力し、ボタンをクリックして日本語に翻訳</p>
             </div>
             <Button 
               onClick={handleBatchTranslate} 
               disabled={isTranslating}
               size="lg"
-              className="bg-white text-blue-600 hover:bg-blue-50 font-bold px-8 py-6 text-lg shadow-xl"
+              className="bg-white text-pink-600 hover:bg-pink-50 font-bold px-8 py-6 text-lg shadow-xl"
             >
-              {isTranslating ? '⏳ Translating...' : '🔄 Translate Now'}
+              {isTranslating ? '⏳ 번역 중...' : '🔄 지금 번역'}
             </Button>
           </div>
         </div>
@@ -970,15 +963,15 @@ ${textToTranslate}`
         </CardContent>
       </Card>
 
-      {/* Right: English translation preview */}
+      {/* 오른쪽: 일본어 번역 미리보기 */}
       <Card className="bg-white shadow-lg border-2">
         <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b-2">
           <div className="flex items-center gap-2">
             <Globe className="h-7 w-7" />
-            <CardTitle className="text-3xl font-bold">Creator Guide</CardTitle>
+            <CardTitle className="text-3xl font-bold">クリエイターガイド</CardTitle>
           </div>
           <p className="text-sm text-blue-100 mt-2">
-            {campaignTitle || 'Campaign Title'}
+            {campaignTitle || 'キャンペーンタイトル'}
           </p>
         </CardHeader>
 
@@ -1267,8 +1260,8 @@ ${textToTranslate}`
           {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
-              <p className="text-lg text-gray-500 mb-2">Please create a guide</p>
-              <p className="text-sm text-gray-400">Enter content in Korean on the left, then click "Translate Now" button</p>
+              <p className="text-lg text-gray-500 mb-2">ガイドを作成してください</p>
+              <p className="text-sm text-gray-400">左側に韓国語で入力し、「今翻訳」ボタンをクリックしてください</p>
             </div>
           )}
         </CardContent>
@@ -1279,4 +1272,4 @@ ${textToTranslate}`
   )
 }
 
-export default CampaignGuideUS
+export default CampaignGuideJapan
