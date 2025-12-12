@@ -63,12 +63,12 @@ export default function CompanyNavigation() {
           {/* Logo */}
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-lg">H</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-md">
+                <span className="text-white font-bold text-lg">C</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">HOWPAPA</h1>
-                <p className="text-xs text-gray-500">Project Manager</p>
+                <h1 className="text-lg font-bold text-gray-900">CNEC</h1>
+                <p className="text-xs text-gray-500">글로벌 인플루언서 마케팅</p>
               </div>
             </div>
           </div>
@@ -109,14 +109,14 @@ export default function CompanyNavigation() {
             {/* Secondary Menu */}
             <div className="space-y-1">
               <p className="px-4 text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-                개인 업무
+                설정
               </p>
               <button
                 onClick={() => navigate('/company/profile-edit')}
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
               >
                 <Settings className="w-4 h-4" />
-                <span className="text-sm">설정</span>
+                <span className="text-sm">프로필 설정</span>
               </button>
               <button
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"

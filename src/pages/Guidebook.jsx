@@ -70,8 +70,8 @@ export default function Guidebook() {
                 <BookOpen className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  CNEC BIZ 가이드북
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+                  CNEC 가이드북
                 </h1>
                 <p className="text-sm text-gray-600">글로벌 인플루언서 마케팅 통합 관리 플랫폼</p>
               </div>
@@ -145,7 +145,7 @@ export default function Guidebook() {
       <footer className="bg-gray-900 text-white py-12 px-4">
         <div className="max-w-6xl mx-auto text-center">
           <div className="mb-6">
-            <h3 className="text-2xl font-bold mb-2">CNEC BIZ</h3>
+            <h3 className="text-2xl font-bold mb-2">CNEC</h3>
             <p className="text-gray-400">글로벌 인플루언서 마케팅 통합 관리 플랫폼</p>
           </div>
           <div className="text-gray-500 text-sm">

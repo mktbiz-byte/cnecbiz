@@ -94,8 +94,8 @@ const LoginPage = () => {
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
-            <Globe className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">CNEC BIZ</h1>
+            <Globe className="h-8 w-8 text-orange-500" />
+            <h1 className="text-2xl font-bold text-gray-900">CNEC</h1>
           </div>
           <Button variant="outline" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -110,7 +110,7 @@ const LoginPage = () => {
           <CardHeader>
             <CardTitle className="text-3xl">로그인</CardTitle>
             <CardDescription>
-              CNEC BIZ 계정으로 로그인하세요
+              CNEC 계정으로 로그인하세요
             </CardDescription>
           </CardHeader>
           <CardContent>

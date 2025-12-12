@@ -90,7 +90,7 @@ export default function LandingPage() {
         setFaqs([
           {
             question: '수출바우처란 무엇인가요?',
-            answer: '중소벤처기업부에서 지원하는 수출 지원 사업으로, 해외 마케팅 비용의 최대 80%를 지원받을 수 있습니다. CNEC BIZ는 공식 수행기관으로 등록되어 있어 바우처 활용이 가능합니다.'
+            answer: '중소벤처기업부에서 지원하는 수출 지원 사업으로, 해외 마케팅 비용의 최대 80%를 지원받을 수 있습니다. CNEC은 공식 수행기관으로 등록되어 있어 바우처 활용이 가능합니다.'
           },
           {
             question: '어떤 국가를 지원하나요?',
@@ -217,7 +217,7 @@ export default function LandingPage() {
   const testimonials = [
     {
       company: '뷰티 브랜드 A사',
-      text: 'CNEC BIZ를 통해 일본 시장 진출에 성공했습니다. 현지 인플루언서들의 진정성 있는 리뷰로 브랜드 인지도가 3배 상승했어요.',
+      text: 'CNEC을 통해 일본 시장 진출에 성공했습니다. 현지 인플루언서들의 진정성 있는 리뷰로 브랜드 인지도가 3배 상승했어요.',
       rating: 5,
       result: '매출 250% 증가'
     },
@@ -242,9 +242,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <Globe className="w-8 h-8 text-blue-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                CNEC BIZ
+              <Globe className="w-8 h-8 text-orange-500" />
+              <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+                CNEC
               </span>
             </div>
             <nav className="hidden md:flex items-center space-x-8">
@@ -392,7 +392,7 @@ export default function LandingPage() {
               주요 <span className="text-blue-600">기능</span>
             </h2>
             <p className="text-xl text-slate-600">
-              CNEC BIZ만의 차별화된 글로벌 마케팅 솔루션
+              CNEC만의 차별화된 글로벌 마케팅 솔루션
             </p>
           </div>
 
@@ -476,7 +476,7 @@ export default function LandingPage() {
               성공 사례 <span className="text-blue-600">포트폴리오</span>
             </h2>
             <p className="text-xl text-slate-600">
-              실제 캠페인 영상을 확인하고 CNEC BIZ의 품질을 경험하세요
+              실제 캠페인 영상을 확인하고 CNEC의 품질을 경험하세요
             </p>
           </div>
 
@@ -613,7 +613,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-900 mb-4">
-              CNEC BIZ만의 <span className="text-blue-600">특별함</span>
+              CNEC만의 <span className="text-blue-600">특별함</span>
             </h2>
             <p className="text-xl text-slate-600">
               검증된 시스템과 전문성으로 브랜드의 글로벌 성공을 지원합니다
@@ -727,7 +727,7 @@ export default function LandingPage() {
                   <span className="text-2xl font-bold text-blue-600">4</span>
                 </div>
                 <h4 className="font-bold text-slate-900 mb-2">서비스 이용</h4>
-                <p className="text-sm text-slate-600">CNEC BIZ 캠페인 진행</p>
+                <p className="text-sm text-slate-600">CNEC 캠페인 진행</p>
               </div>
             </div>
             <div className="mt-8 text-center">
@@ -748,7 +748,7 @@ export default function LandingPage() {
               고객 <span className="text-blue-600">성공 스토리</span>
             </h2>
             <p className="text-xl text-slate-600">
-              CNEC BIZ와 함께한 브랜드들의 실제 후기를 확인하세요
+              CNEC과 함께한 브랜드들의 실제 후기를 확인하세요
             </p>
           </div>
 
@@ -806,7 +806,7 @@ export default function LandingPage() {
               함께 하는 <span className="text-blue-600">브랜드</span>
             </h2>
             <p className="text-xl text-slate-600">
-              다양한 브랜드들이 CNEC BIZ와 함께 성장하고 있습니다
+              다양한 브랜드들이 CNEC과 함께 성장하고 있습니다
             </p>
           </div>
 
@@ -827,7 +827,7 @@ export default function LandingPage() {
             지금 바로 시작하세요
           </h2>
           <p className="text-xl text-blue-100 mb-12">
-            14일 만에 완성되는 글로벌 마케팅, CNEC BIZ와 함께라면 가능합니다
+            14일 만에 완성되는 글로벌 마케팅, CNEC과 함께라면 가능합니다
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
             <button
