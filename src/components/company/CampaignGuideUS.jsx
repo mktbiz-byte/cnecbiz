@@ -178,13 +178,15 @@ const CampaignGuideUS = () => {
         // setTranslatedAdditionalDetails(data.additional_details_en || '')
         // setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
         // setTranslatedShootingScenes(data.shooting_scenes_en || [])
-        
-        // 데이터 로드 완료
-        setDataLoaded(true)
       }
+      
+      // 데이터 로드 완료 (데이터가 있든 없든 항상 true로 설정)
+      setDataLoaded(true)
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
       setError('캠페인 정보를 불러오는데 실패했습니다.')
+      // 에러가 발생해도 dataLoaded는 true로 설정 (자동 저장 활성화)
+      setDataLoaded(true)
     }
   }
 
