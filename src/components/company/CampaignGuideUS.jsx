@@ -126,17 +126,7 @@ const CampaignGuideUS = () => {
           shooting_scenes_child,
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
-          meta_ad_code_requested,
-          brand_name_en,
-          product_name_en,
-          product_description_en,
-          required_dialogues_en,
-          required_scenes_en,
-          required_hashtags_en,
-          video_duration_en,
-          video_tempo_en,
-          video_tone_en,
-          shooting_scenes_en
+          meta_ad_code_requested
         `)
         .eq('id', campaignId)
         .single()
@@ -174,19 +164,20 @@ const CampaignGuideUS = () => {
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
         
         // Load English translation data (if saved)
-        if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
-        if (data.product_name_en) setTranslatedProductName(data.product_name_en)
-        if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
-        if (data.product_features_en && data.product_features_en.length > 0) setTranslatedProductFeatures(data.product_features_en)
-        setTranslatedDialogues(data.required_dialogues_en || [])
-        setTranslatedScenes(data.required_scenes_en || [])
-        setTranslatedHashtags(data.required_hashtags_en || [])
-        setTranslatedDuration(data.video_duration_en || '')
-        setTranslatedTempo(data.video_tempo_en || '')
-        setTranslatedTone(data.video_tone_en || '')
-        setTranslatedAdditionalDetails(data.additional_details_en || '')
-        setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
-        setTranslatedShootingScenes(data.shooting_scenes_en || [])
+        // Translation columns disabled - not in DB schema
+        // if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
+        // if (data.product_name_en) setTranslatedProductName(data.product_name_en)
+        // if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
+        // if (data.product_features_en && data.product_features_en.length > 0) setTranslatedProductFeatures(data.product_features_en)
+        // setTranslatedDialogues(data.required_dialogues_en || [])
+        // setTranslatedScenes(data.required_scenes_en || [])
+        // setTranslatedHashtags(data.required_hashtags_en || [])
+        // setTranslatedDuration(data.video_duration_en || '')
+        // setTranslatedTempo(data.video_tempo_en || '')
+        // setTranslatedTone(data.video_tone_en || '')
+        // setTranslatedAdditionalDetails(data.additional_details_en || '')
+        // setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
+        // setTranslatedShootingScenes(data.shooting_scenes_en || [])
         
         // 데이터 로드 완료
         setDataLoaded(true)

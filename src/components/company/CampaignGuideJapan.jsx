@@ -127,16 +127,7 @@ const CampaignGuideJapan = () => {
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
           meta_ad_code_requested,
-          brand_name_ja,
-          product_name_ja,
-          product_description_ja,
-          required_dialogues_ja,
-          required_scenes_ja,
-          required_hashtags_ja,
-          video_duration_ja,
-          video_tempo_ja,
-          video_tone_ja,
-          shooting_scenes_ja
+          additional_details_ja
         `)
         .eq('id', campaignId)
         .single()
@@ -178,19 +169,20 @@ const CampaignGuideJapan = () => {
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
         
         // 일본어 번역 데이터 로드 (저장된 경우에만)
-        if (data.brand_name_ja) setTranslatedBrandName(data.brand_name_ja)
-        if (data.product_name_ja) setTranslatedProductName(data.product_name_ja)
-        if (data.product_description_ja) setTranslatedProductDesc(data.product_description_ja)
-        if (data.product_features_ja && data.product_features_ja.length > 0) setTranslatedProductFeatures(data.product_features_ja)
-        setTranslatedDialogues(data.required_dialogues_ja || [])
-        setTranslatedScenes(data.required_scenes_ja || [])
-        setTranslatedHashtags(data.required_hashtags_ja || [])
-        setTranslatedDuration(data.video_duration_ja || '')
-        setTranslatedTempo(data.video_tempo_ja || '')
-        setTranslatedTone(data.video_tone_ja || '')
+        // Translation columns disabled - not in DB schema (except additional_details_ja)
+        // if (data.brand_name_ja) setTranslatedBrandName(data.brand_name_ja)
+        // if (data.product_name_ja) setTranslatedProductName(data.product_name_ja)
+        // if (data.product_description_ja) setTranslatedProductDesc(data.product_description_ja)
+        // if (data.product_features_ja && data.product_features_ja.length > 0) setTranslatedProductFeatures(data.product_features_ja)
+        // setTranslatedDialogues(data.required_dialogues_ja || [])
+        // setTranslatedScenes(data.required_scenes_ja || [])
+        // setTranslatedHashtags(data.required_hashtags_ja || [])
+        // setTranslatedDuration(data.video_duration_ja || '')
+        // setTranslatedTempo(data.video_tempo_ja || '')
+        // setTranslatedTone(data.video_tone_ja || '')
         setTranslatedAdditionalDetails(data.additional_details_ja || '')
-        setTranslatedShootingRequests(data.additional_shooting_requests_ja || '')
-        setTranslatedShootingScenes(data.shooting_scenes_ja || [])
+        // setTranslatedShootingRequests(data.additional_shooting_requests_ja || '')
+        // setTranslatedShootingScenes(data.shooting_scenes_ja || [])
         
         // 데이터 로드 완료
         setDataLoaded(true)
