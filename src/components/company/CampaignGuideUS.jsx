@@ -127,7 +127,7 @@ const CampaignGuideJapan = () => {
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
           meta_ad_code_requested,
-          additional_details_ja
+          additional_details_en
         `)
         .eq('id', campaignId)
         .single()
@@ -169,20 +169,20 @@ const CampaignGuideJapan = () => {
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
         
         // 일본어 번역 데이터 로드 (저장된 경우에만)
-        // Translation columns disabled - not in DB schema (except additional_details_ja)
-        // if (data.brand_name_ja) setTranslatedBrandName(data.brand_name_ja)
-        // if (data.product_name_ja) setTranslatedProductName(data.product_name_ja)
-        // if (data.product_description_ja) setTranslatedProductDesc(data.product_description_ja)
-        // if (data.product_features_ja && data.product_features_ja.length > 0) setTranslatedProductFeatures(data.product_features_ja)
-        // setTranslatedDialogues(data.required_dialogues_ja || [])
-        // setTranslatedScenes(data.required_scenes_ja || [])
-        // setTranslatedHashtags(data.required_hashtags_ja || [])
-        // setTranslatedDuration(data.video_duration_ja || '')
-        // setTranslatedTempo(data.video_tempo_ja || '')
-        // setTranslatedTone(data.video_tone_ja || '')
-        setTranslatedAdditionalDetails(data.additional_details_ja || '')
-        // setTranslatedShootingRequests(data.additional_shooting_requests_ja || '')
-        // setTranslatedShootingScenes(data.shooting_scenes_ja || [])
+        // Translation columns disabled - not in DB schema (except additional_details_en)
+        // if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
+        // if (data.product_name_en) setTranslatedProductName(data.product_name_en)
+        // if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
+        // if (data.product_features_en && data.product_features_en.length > 0) setTranslatedProductFeatures(data.product_features_en)
+        // setTranslatedDialogues(data.required_dialogues_en || [])
+        // setTranslatedScenes(data.required_scenes_en || [])
+        // setTranslatedHashtags(data.required_hashtags_en || [])
+        // setTranslatedDuration(data.video_duration_en || '')
+        // setTranslatedTempo(data.video_tempo_en || '')
+        // setTranslatedTone(data.video_tone_en || '')
+        setTranslatedAdditionalDetails(data.additional_details_en || '')
+        // setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
+        // setTranslatedShootingScenes(data.shooting_scenes_en || [])
         
         // 데이터 로드 완료
         setDataLoaded(true)
@@ -221,17 +221,17 @@ const CampaignGuideJapan = () => {
       }
 
       // 일본어 번역이 있으면 추가
-      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
-      if (translatedProductName) updateData.product_name_ja = translatedProductName
-      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
-      if (translatedDuration) updateData.video_duration_ja = translatedDuration
-      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
-      if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
+      if (translatedBrandName) updateData.brand_name_en = translatedBrandName
+      if (translatedProductName) updateData.product_name_en = translatedProductName
+      if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_en = translatedDuration
+      if (translatedTempo) updateData.video_tempo_en = translatedTempo
+      if (translatedTone) updateData.video_tone_en = translatedTone
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
@@ -277,17 +277,17 @@ const CampaignGuideJapan = () => {
       }
 
       // 일본어 번역이 있으면 추가
-      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
-      if (translatedProductName) updateData.product_name_ja = translatedProductName
-      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
-      if (translatedDuration) updateData.video_duration_ja = translatedDuration
-      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
-      if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
+      if (translatedBrandName) updateData.brand_name_en = translatedBrandName
+      if (translatedProductName) updateData.product_name_en = translatedProductName
+      if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_en = translatedDuration
+      if (translatedTempo) updateData.video_tempo_en = translatedTempo
+      if (translatedTone) updateData.video_tone_en = translatedTone
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
@@ -393,7 +393,7 @@ const CampaignGuideJapan = () => {
           body: JSON.stringify({
             contents: [{ 
               parts: [{ 
-                text: `다음 한국어 캠페인 가이드 정보를 일본어로 자연스럽게 번역해주세요. 각 필드별로 [필수대사1], [필수장면1], [필수해시태그1] 등의 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
+                text: `다음 한국어 캠페인 가이드 정보를 영어로 자연스럽게 번역해주세요. 각 필드별로 [필수대사1], [필수장면1], [필수해시태그1] 등의 형식을 유지하고, 번역 결과만 출력하세요:\n\n${textToTranslate}` 
               }] 
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
