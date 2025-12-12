@@ -413,12 +413,14 @@ const InvoicePage = () => {
     )
   }
 
-  // estimated_cost로부터 패키지 단가 역산
+  // estimated_cost는 VAT 포함 총액
   const totalCost = campaign.estimated_cost || 0
   const recruitmentCount = campaign.total_slots || 0
-  const packagePrice = recruitmentCount > 0 ? Math.floor(totalCost / (recruitmentCount * 1.1)) : 0
-  const subtotal = packagePrice * recruitmentCount
+  // VAT 제외 금액 = 총액 / 1.1
+  const subtotal = Math.round(totalCost / 1.1)
   const vat = totalCost - subtotal
+  // 단가 = VAT 제외 금액 / 모집인원
+  const packagePrice = recruitmentCount > 0 ? Math.round(subtotal / recruitmentCount) : 0
   
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
 

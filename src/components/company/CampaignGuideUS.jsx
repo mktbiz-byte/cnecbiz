@@ -227,10 +227,11 @@ const CampaignGuideJapan = () => {
         shooting_scenes_child: shootingScenes.child,
         shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
         shooting_scenes_wrinkles: shootingScenes.wrinkles,
+        additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 일본어 번역이 있으면 추가
+      // 영어 번역이 있으면 추가
       if (translatedBrandName) updateData.brand_name_en = translatedBrandName
       if (translatedProductName) updateData.product_name_en = translatedProductName
       if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
@@ -242,6 +243,7 @@ const CampaignGuideJapan = () => {
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
 
       const { error } = await supabase
         .from('campaigns')
@@ -283,10 +285,11 @@ const CampaignGuideJapan = () => {
         shooting_scenes_child: shootingScenes.child,
         shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
         shooting_scenes_wrinkles: shootingScenes.wrinkles,
+        additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 일본어 번역이 있으면 추가
+      // 영어 번역이 있으면 추가
       if (translatedBrandName) updateData.brand_name_en = translatedBrandName
       if (translatedProductName) updateData.product_name_en = translatedProductName
       if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
@@ -298,6 +301,7 @@ const CampaignGuideJapan = () => {
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
 
       const { error } = await supabase
         .from('campaigns')
