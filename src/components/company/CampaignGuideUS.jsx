@@ -159,6 +159,9 @@ const CampaignGuideUS = () => {
         console.log('[DEBUG loadGuide] 데이터 로드 성공, title:', data.title)
         console.log('[DEBUG loadGuide] brand_name:', data.brand_name)
         console.log('[DEBUG loadGuide] product_name:', data.product_name)
+        console.log('[DEBUG loadGuide] product_features:', data.product_features)
+        console.log('[DEBUG loadGuide] product_features type:', typeof data.product_features)
+        console.log('[DEBUG loadGuide] product_features isArray:', Array.isArray(data.product_features))
         setCampaignTitle(data.title || '')
         // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
         if (data.brand_name) setBrandName(data.brand_name)
@@ -166,7 +169,10 @@ const CampaignGuideUS = () => {
         if (data.product_description) setProductDescription(data.product_description)
         // Array.isArray로 배열 체크
         if (Array.isArray(data.product_features) && data.product_features.length > 0) {
+          console.log('[DEBUG loadGuide] product_features 설정:', data.product_features)
           setProductFeatures(data.product_features)
+        } else {
+          console.log('[DEBUG loadGuide] product_features가 비어있거나 배열이 아님, 기본값 유지')
         }
         setRequiredDialogues(Array.isArray(data.required_dialogues) && data.required_dialogues.length > 0 ? data.required_dialogues : [''])
         setRequiredScenes(Array.isArray(data.required_scenes) && data.required_scenes.length > 0 ? data.required_scenes : [''])
@@ -330,6 +336,8 @@ const CampaignGuideUS = () => {
 
       console.log('[DEBUG] 가이드 저장 시작')
       console.log('[DEBUG] campaignId:', campaignId)
+      console.log('[DEBUG] productFeatures 현재 값:', productFeatures)
+      console.log('[DEBUG] productFeatures 필터 후:', (productFeatures || []).filter(f => f && f.trim()))
       console.log('[DEBUG] updateData:', JSON.stringify(updateData, null, 2))
 
       // 먼저 현재 로그인한 사용자 확인
@@ -370,6 +378,9 @@ const CampaignGuideUS = () => {
       console.log('[DEBUG] 저장 결과 - data:', data)
       console.log('[DEBUG] 저장 결과 - error:', error)
       console.log('[DEBUG] 저장 결과 - count:', count)
+      if (data && data[0]) {
+        console.log('[DEBUG] 저장된 product_features:', data[0].product_features)
+      }
 
       if (error) throw error
 
