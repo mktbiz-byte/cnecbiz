@@ -196,11 +196,10 @@ const CampaignGuideJapan = () => {
   const autoSaveGuide = async () => {
     setAutoSaving(true)
     try {
+      // 일본 DB에 존재하는 컬럼만 업데이트 (product_description, product_features 컬럼 없음)
       const updateData = {
         brand_name: brandName,
         product_name: productName,
-        product_description: productDescription,
-        product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
         required_hashtags: requiredHashtags.filter(h => h.trim()),
@@ -220,18 +219,8 @@ const CampaignGuideJapan = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 일본어 번역이 있으면 추가
-      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
-      if (translatedProductName) updateData.product_name_ja = translatedProductName
-      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
-      if (translatedDuration) updateData.video_duration_ja = translatedDuration
-      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
-      if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
+      // 일본어 번역이 있으면 추가 (additional_details_ja만 일본 DB에 존재)
+      if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
 
       const { error } = await supabase
         .from('campaigns')
@@ -252,11 +241,10 @@ const CampaignGuideJapan = () => {
     setSuccess('')
 
     try {
+      // 일본 DB에 존재하는 컬럼만 업데이트 (product_description, product_features 컬럼 없음)
       const updateData = {
         brand_name: brandName,
         product_name: productName,
-        product_description: productDescription,
-        product_features: productFeatures.filter(f => f.trim()),
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
         required_hashtags: requiredHashtags.filter(h => h.trim()),
@@ -276,18 +264,8 @@ const CampaignGuideJapan = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 일본어 번역이 있으면 추가
-      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
-      if (translatedProductName) updateData.product_name_ja = translatedProductName
-      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
-      if (translatedDuration) updateData.video_duration_ja = translatedDuration
-      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
-      if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
+      // 일본어 번역이 있으면 추가 (additional_details_ja만 일본 DB에 존재)
+      if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
 
       const { error } = await supabase
         .from('campaigns')
