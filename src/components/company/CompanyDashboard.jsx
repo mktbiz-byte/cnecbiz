@@ -162,7 +162,7 @@ export default function CompanyDashboard() {
     const generalPrices = {
       'junior': 200000,
       'intermediate': 300000,
-      'senior': 500000,
+      'senior': 400000,
       'basic': 200000,
       'standard': 300000,
       'premium': 400000,

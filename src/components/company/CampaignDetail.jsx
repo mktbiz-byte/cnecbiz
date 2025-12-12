@@ -2519,7 +2519,7 @@ export default function CampaignDetail() {
     const prices = {
       'junior': 200000,
       'intermediate': 300000,
-      'senior': 500000,
+      'senior': 400000,
       'oliveyoung': 200000,
       '올영 20만원': 200000,
       'premium': 300000,
