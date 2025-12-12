@@ -82,7 +82,7 @@ export default function CompanyProfileEdit() {
           businessCategory: companyData.business_category || '',
           companyPostalCode: companyData.company_postal_code || '',
           companyAddress: companyData.company_address || '',
-          companyAddressDetail: '',
+          companyAddressDetail: companyData.company_address_detail || '',
           notificationContactPerson: companyData.notification_contact_person || companyData.contact_person || '',
           notificationEmail: companyData.notification_email || companyData.email || '',
           notificationPhone: companyData.notification_phone || companyData.phone || '',
@@ -125,11 +125,14 @@ export default function CompanyProfileEdit() {
       const { error: updateError } = await supabaseBiz
         .from('companies')
         .update({
+          business_registration_number: formData.businessNumber,
+          contact_person: formData.contactPerson,
           ceo_name: formData.ceoName,
           business_type: formData.businessType,
           business_category: formData.businessCategory,
           company_postal_code: formData.companyPostalCode,
-          company_address: fullAddress,
+          company_address: formData.companyAddress,
+          company_address_detail: formData.companyAddressDetail,
           notification_contact_person: formData.notificationContactPerson,
           notification_email: formData.notificationEmail,
           notification_phone: formData.notificationPhone,
@@ -227,24 +230,40 @@ export default function CompanyProfileEdit() {
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* 기본 정보 */}
               <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h3 className="font-semibold text-blue-900 mb-2">회원가입 시 입력한 정보</h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">회사명:</span>
-                        <span className="ml-2 font-medium">{formData.companyName}</span>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="font-semibold text-blue-900 mb-4">회원가입 시 입력한 정보</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">회사명</label>
+                        <div className="text-sm font-medium text-gray-900 p-3 bg-white rounded-md border">{formData.companyName}</div>
                       </div>
-                      <div>
-                        <span className="text-gray-600">사업자등록번호:</span>
-                        <span className="ml-2 font-medium">{formData.businessNumber || '미입력'}</span>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">사업자등록번호 *</label>
+                        <Input
+                          type="text"
+                          name="businessNumber"
+                          placeholder="123-45-67890"
+                          value={formData.businessNumber}
+                          onChange={handleChange}
+                          className="h-12"
+                          required
+                        />
                       </div>
-                      <div>
-                        <span className="text-gray-600">담당자:</span>
-                        <span className="ml-2 font-medium">{formData.contactPerson}</span>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">담당자 *</label>
+                        <Input
+                          type="text"
+                          name="contactPerson"
+                          placeholder="홍길동"
+                          value={formData.contactPerson}
+                          onChange={handleChange}
+                          className="h-12"
+                          required
+                        />
                       </div>
-                      <div>
-                        <span className="text-gray-600">이메일:</span>
-                        <span className="ml-2 font-medium">{formData.email}</span>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">이메일</label>
+                        <div className="text-sm font-medium text-gray-900 p-3 bg-white rounded-md border">{formData.email}</div>
                       </div>
                     </div>
                   </div>
