@@ -308,7 +308,7 @@ const CampaignGuideJapan = () => {
 
       setSuccess('크리에이터 가이드가 저장되었습니다!')
       setTimeout(() => {
-        navigate(`/company/campaigns/payment?id=${campaignId}&region=japan`)
+        navigate(`/company/campaigns/payment?id=${campaignId}&region=us`)
       }, 1500)
     } catch (err) {
       console.error('가이드 저장 실패:', err)
