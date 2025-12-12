@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getSupabaseClient } from '../../lib/supabaseClients'
+import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
@@ -327,6 +327,35 @@ const CampaignGuideJapan = () => {
       console.log('[DEBUG] campaignId:', campaignId)
       console.log('[DEBUG] updateData:', JSON.stringify(updateData, null, 2))
 
+      // 먼저 현재 로그인한 사용자 확인
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      console.log('[DEBUG] 현재 사용자:', user?.id)
+
+      if (!user) {
+        throw new Error('로그인이 필요합니다.')
+      }
+
+      // 캠페인이 존재하고 현재 사용자의 캠페인인지 확인
+      const { data: campaignCheck, error: checkError } = await supabase
+        .from('campaigns')
+        .select('id, company_id, title')
+        .eq('id', campaignId)
+        .single()
+
+      console.log('[DEBUG] 캠페인 확인 결과:', campaignCheck)
+      console.log('[DEBUG] 캠페인 확인 오류:', checkError)
+
+      if (checkError || !campaignCheck) {
+        throw new Error('캠페인을 찾을 수 없습니다. 캠페인 ID: ' + campaignId)
+      }
+
+      // company_id가 현재 사용자와 일치하는지 확인
+      if (campaignCheck.company_id && campaignCheck.company_id !== user.id) {
+        console.error('[DEBUG] 권한 없음 - company_id:', campaignCheck.company_id, '현재 user.id:', user.id)
+        throw new Error('이 캠페인을 수정할 권한이 없습니다.')
+      }
+
+      // RLS를 우회하기 위해 company_id 조건도 추가
       const { data, error, count } = await supabase
         .from('campaigns')
         .update(updateData)
@@ -340,8 +369,10 @@ const CampaignGuideJapan = () => {
       if (error) throw error
 
       if (!data || data.length === 0) {
-        console.error('[DEBUG] UPDATE가 어떤 행도 업데이트하지 못함')
-        throw new Error('캠페인을 찾을 수 없거나 업데이트 권한이 없습니다. 캠페인 ID: ' + campaignId)
+        // RLS 문제일 가능성이 높음 - US DB의 RLS 정책 확인 필요
+        console.error('[DEBUG] UPDATE가 어떤 행도 업데이트하지 못함 - RLS 정책 문제일 수 있음')
+        console.error('[DEBUG] US DB에서 campaigns 테이블의 RLS UPDATE 정책을 확인하세요')
+        throw new Error('캠페인 업데이트 실패. 데이터베이스 권한 설정을 확인해주세요. (RLS policy)')
       }
 
       setSuccess('크리에이터 가이드가 저장되었습니다!')
