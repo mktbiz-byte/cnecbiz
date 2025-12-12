@@ -737,7 +737,7 @@ export default function MyCampaigns() {
                             <span className="text-[10px] md:text-xs text-gray-600 whitespace-nowrap">모집 인원</span>
                           </div>
                           <div className="text-base md:text-2xl font-bold text-blue-600">
-                            {campaign.max_participants || campaign.total_slots || 0}명
+                            {campaign.total_slots || 0}명
                           </div>
                         </div>
                         <div className="bg-green-50 p-2 md:p-3 rounded-lg">
