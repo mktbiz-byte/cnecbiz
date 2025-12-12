@@ -159,15 +159,18 @@ const CampaignGuideJapan = () => {
         console.log('[DEBUG loadGuide] 데이터 로드 성공, title:', data.title)
         console.log('[DEBUG loadGuide] brand_name:', data.brand_name)
         console.log('[DEBUG loadGuide] product_name:', data.product_name)
-        setCampaignTitle(data.title)
+        setCampaignTitle(data.title || '')
         // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
         if (data.brand_name) setBrandName(data.brand_name)
         if (data.product_name) setProductName(data.product_name)
         if (data.product_description) setProductDescription(data.product_description)
-        if (data.product_features && data.product_features.length > 0) setProductFeatures(data.product_features)
-        setRequiredDialogues(data.required_dialogues || [''])
-        setRequiredScenes(data.required_scenes || [''])
-        setRequiredHashtags(data.required_hashtags || [''])
+        // Array.isArray로 배열 체크
+        if (Array.isArray(data.product_features) && data.product_features.length > 0) {
+          setProductFeatures(data.product_features)
+        }
+        setRequiredDialogues(Array.isArray(data.required_dialogues) && data.required_dialogues.length > 0 ? data.required_dialogues : [''])
+        setRequiredScenes(Array.isArray(data.required_scenes) && data.required_scenes.length > 0 ? data.required_scenes : [''])
+        setRequiredHashtags(Array.isArray(data.required_hashtags) && data.required_hashtags.length > 0 ? data.required_hashtags : [''])
         setVideoDuration(data.video_duration || '')
         setVideoTempo(data.video_tempo || '')
         setVideoTone(data.video_tone || '')
@@ -190,22 +193,24 @@ const CampaignGuideJapan = () => {
         const safeShootingRequests = (typeof data.additional_shooting_requests === 'string' && data.additional_shooting_requests !== '[object Object]') ? data.additional_shooting_requests : ''
         setAdditionalShootingRequests(safeShootingRequests)
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
-        
-        // 영어 번역 데이터 로드 (저장된 경우에만)
+
+        // 영어 번역 데이터 로드 (저장된 경우에만) - Array.isArray로 배열 체크
         if (data.brand_name_en) setTranslatedBrandName(data.brand_name_en)
         if (data.product_name_en) setTranslatedProductName(data.product_name_en)
         if (data.product_description_en) setTranslatedProductDesc(data.product_description_en)
-        if (data.product_features_en && data.product_features_en.length > 0) setTranslatedProductFeatures(data.product_features_en)
-        setTranslatedDialogues(data.required_dialogues_en || [])
-        setTranslatedScenes(data.required_scenes_en || [])
-        setTranslatedHashtags(data.required_hashtags_en || [])
+        if (Array.isArray(data.product_features_en) && data.product_features_en.length > 0) {
+          setTranslatedProductFeatures(data.product_features_en)
+        }
+        setTranslatedDialogues(Array.isArray(data.required_dialogues_en) ? data.required_dialogues_en : [])
+        setTranslatedScenes(Array.isArray(data.required_scenes_en) ? data.required_scenes_en : [])
+        setTranslatedHashtags(Array.isArray(data.required_hashtags_en) ? data.required_hashtags_en : [])
         setTranslatedDuration(data.video_duration_en || '')
         setTranslatedTempo(data.video_tempo_en || '')
         setTranslatedTone(data.video_tone_en || '')
         setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
-        setTranslatedShootingScenes(data.shooting_scenes_en || [])
+        setTranslatedShootingScenes(Array.isArray(data.shooting_scenes_en) ? data.shooting_scenes_en : [])
         if (data.additional_details_en) setTranslatedAdditionalDetails(data.additional_details_en)
-        
+
         // 데이터 로드 완료
         setDataLoaded(true)
       }
@@ -226,40 +231,40 @@ const CampaignGuideJapan = () => {
         brand_name: brandName,
         product_name: productName,
         product_description: productDescription,
-        product_features: productFeatures.filter(f => f.trim()),
-        required_dialogues: requiredDialogues.filter(d => d.trim()),
-        required_scenes: requiredScenes.filter(s => s.trim()),
-        required_hashtags: requiredHashtags.filter(h => h.trim()),
+        product_features: (productFeatures || []).filter(f => f && f.trim()),
+        required_dialogues: (requiredDialogues || []).filter(d => d && d.trim()),
+        required_scenes: (requiredScenes || []).filter(s => s && s.trim()),
+        required_hashtags: (requiredHashtags || []).filter(h => h && h.trim()),
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
         additional_details: additionalDetails,
-        shooting_scenes_ba_photo: shootingScenes.baPhoto,
-        shooting_scenes_no_makeup: shootingScenes.noMakeup,
-        shooting_scenes_closeup: shootingScenes.closeup,
-        shooting_scenes_product_closeup: shootingScenes.productCloseup,
-        shooting_scenes_product_texture: shootingScenes.productTexture,
-        shooting_scenes_outdoor: shootingScenes.outdoor,
-        shooting_scenes_couple: shootingScenes.couple,
-        shooting_scenes_child: shootingScenes.child,
-        shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
-        shooting_scenes_wrinkles: shootingScenes.wrinkles,
+        shooting_scenes_ba_photo: shootingScenes?.baPhoto || false,
+        shooting_scenes_no_makeup: shootingScenes?.noMakeup || false,
+        shooting_scenes_closeup: shootingScenes?.closeup || false,
+        shooting_scenes_product_closeup: shootingScenes?.productCloseup || false,
+        shooting_scenes_product_texture: shootingScenes?.productTexture || false,
+        shooting_scenes_outdoor: shootingScenes?.outdoor || false,
+        shooting_scenes_couple: shootingScenes?.couple || false,
+        shooting_scenes_child: shootingScenes?.child || false,
+        shooting_scenes_troubled_skin: shootingScenes?.troubledSkin || false,
+        shooting_scenes_wrinkles: shootingScenes?.wrinkles || false,
         additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 영어 번역이 있으면 추가
+      // 영어 번역이 있으면 추가 - null safety 체크
       if (translatedBrandName) updateData.brand_name_en = translatedBrandName
       if (translatedProductName) updateData.product_name_en = translatedProductName
       if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
+      if (Array.isArray(translatedProductFeatures) && translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f && f.trim())
+      if (Array.isArray(translatedDialogues) && translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d && d.trim())
+      if (Array.isArray(translatedScenes) && translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s && s.trim())
+      if (Array.isArray(translatedHashtags) && translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h && h.trim())
       if (translatedDuration) updateData.video_duration_en = translatedDuration
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      if (Array.isArray(translatedShootingScenes) && translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s && s.trim())
       if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
       if (translatedAdditionalDetails) updateData.additional_details_en = translatedAdditionalDetails
 
@@ -286,40 +291,40 @@ const CampaignGuideJapan = () => {
         brand_name: brandName,
         product_name: productName,
         product_description: productDescription,
-        product_features: productFeatures.filter(f => f.trim()),
-        required_dialogues: requiredDialogues.filter(d => d.trim()),
-        required_scenes: requiredScenes.filter(s => s.trim()),
-        required_hashtags: requiredHashtags.filter(h => h.trim()),
+        product_features: (productFeatures || []).filter(f => f && f.trim()),
+        required_dialogues: (requiredDialogues || []).filter(d => d && d.trim()),
+        required_scenes: (requiredScenes || []).filter(s => s && s.trim()),
+        required_hashtags: (requiredHashtags || []).filter(h => h && h.trim()),
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
         additional_details: additionalDetails,
-        shooting_scenes_ba_photo: shootingScenes.baPhoto,
-        shooting_scenes_no_makeup: shootingScenes.noMakeup,
-        shooting_scenes_closeup: shootingScenes.closeup,
-        shooting_scenes_product_closeup: shootingScenes.productCloseup,
-        shooting_scenes_product_texture: shootingScenes.productTexture,
-        shooting_scenes_outdoor: shootingScenes.outdoor,
-        shooting_scenes_couple: shootingScenes.couple,
-        shooting_scenes_child: shootingScenes.child,
-        shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
-        shooting_scenes_wrinkles: shootingScenes.wrinkles,
+        shooting_scenes_ba_photo: shootingScenes?.baPhoto || false,
+        shooting_scenes_no_makeup: shootingScenes?.noMakeup || false,
+        shooting_scenes_closeup: shootingScenes?.closeup || false,
+        shooting_scenes_product_closeup: shootingScenes?.productCloseup || false,
+        shooting_scenes_product_texture: shootingScenes?.productTexture || false,
+        shooting_scenes_outdoor: shootingScenes?.outdoor || false,
+        shooting_scenes_couple: shootingScenes?.couple || false,
+        shooting_scenes_child: shootingScenes?.child || false,
+        shooting_scenes_troubled_skin: shootingScenes?.troubledSkin || false,
+        shooting_scenes_wrinkles: shootingScenes?.wrinkles || false,
         additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 영어 번역이 있으면 추가
+      // 영어 번역이 있으면 추가 - null safety 체크
       if (translatedBrandName) updateData.brand_name_en = translatedBrandName
       if (translatedProductName) updateData.product_name_en = translatedProductName
       if (translatedProductDesc) updateData.product_description_en = translatedProductDesc
-      if (translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f.trim())
-      if (translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d.trim())
-      if (translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s.trim())
-      if (translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h.trim())
+      if (Array.isArray(translatedProductFeatures) && translatedProductFeatures.length > 0) updateData.product_features_en = translatedProductFeatures.filter(f => f && f.trim())
+      if (Array.isArray(translatedDialogues) && translatedDialogues.length > 0) updateData.required_dialogues_en = translatedDialogues.filter(d => d && d.trim())
+      if (Array.isArray(translatedScenes) && translatedScenes.length > 0) updateData.required_scenes_en = translatedScenes.filter(s => s && s.trim())
+      if (Array.isArray(translatedHashtags) && translatedHashtags.length > 0) updateData.required_hashtags_en = translatedHashtags.filter(h => h && h.trim())
       if (translatedDuration) updateData.video_duration_en = translatedDuration
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
+      if (Array.isArray(translatedShootingScenes) && translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s && s.trim())
       if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
       if (translatedAdditionalDetails) updateData.additional_details_en = translatedAdditionalDetails
 
@@ -697,25 +702,25 @@ const CampaignGuideJapan = () => {
                     <Plus className="w-4 h-4 mr-1" /> 추가
                   </Button>
                 </div>
-                {productFeatures.map((feature, index) => (
+                {(productFeatures || []).map((feature, index) => (
                   <div key={index} className="flex gap-2 mb-2">
                     <Input
-                      value={feature}
+                      value={feature || ''}
                       onChange={(e) => {
-                        const newFeatures = [...productFeatures]
+                        const newFeatures = [...(productFeatures || [])]
                         newFeatures[index] = e.target.value
                         setProductFeatures(newFeatures)
                       }}
                       placeholder={`특징 ${index + 1} (예: 저자극, 보습력 우수)`}
                       className="bg-white"
                     />
-                    {productFeatures.length > 1 && (
+                    {(productFeatures || []).length > 1 && (
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          const newFeatures = productFeatures.filter((_, i) => i !== index)
+                          const newFeatures = (productFeatures || []).filter((_, i) => i !== index)
                           setProductFeatures(newFeatures)
                         }}
                       >
@@ -737,15 +742,15 @@ const CampaignGuideJapan = () => {
               </Button>
             </div>
             <p className="text-sm text-gray-600 mb-3">크리에이터가 꼭 말해야 하는 대사를 입력하세요</p>
-            {requiredDialogues.map((dialogue, index) => (
+            {(requiredDialogues || []).map((dialogue, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <Input
-                  value={dialogue}
+                  value={dialogue || ''}
                   onChange={(e) => updateDialogue(index, e.target.value)}
                   placeholder={`필수 대사 ${index + 1}`}
                   className="flex-1"
                 />
-                {requiredDialogues.length > 1 && (
+                {(requiredDialogues || []).length > 1 && (
                   <Button type="button" size="icon" variant="ghost" onClick={() => removeDialogue(index)}>
                     <X className="w-4 h-4" />
                   </Button>
@@ -763,15 +768,15 @@ const CampaignGuideJapan = () => {
               </Button>
             </div>
             <p className="text-sm text-gray-600 mb-3">영상에 꼭 포함되어야 하는 장면을 설명하세요</p>
-            {requiredScenes.map((scene, index) => (
+            {(requiredScenes || []).map((scene, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <Input
-                  value={scene}
+                  value={scene || ''}
                   onChange={(e) => updateScene(index, e.target.value)}
                   placeholder={`필수 장면 ${index + 1} (예: 제품 클로즈업 촬영)`}
                   className="flex-1"
                 />
-                {requiredScenes.length > 1 && (
+                {(requiredScenes || []).length > 1 && (
                   <Button type="button" size="icon" variant="ghost" onClick={() => removeScene(index)}>
                     <X className="w-4 h-4" />
                   </Button>
@@ -910,15 +915,15 @@ const CampaignGuideJapan = () => {
               </Button>
             </div>
             <p className="text-sm text-gray-600 mb-3">게시물에 꼭 포함해야 하는 해시태그를 입력하세요</p>
-            {requiredHashtags.map((hashtag, index) => (
+            {(requiredHashtags || []).map((hashtag, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <Input
-                  value={hashtag}
+                  value={hashtag || ''}
                   onChange={(e) => updateHashtag(index, e.target.value)}
                   placeholder={`#해시태그${index + 1}`}
                   className="flex-1"
                 />
-                {requiredHashtags.length > 1 && (
+                {(requiredHashtags || []).length > 1 && (
                   <Button type="button" size="icon" variant="ghost" onClick={() => removeHashtag(index)}>
                     <X className="w-4 h-4" />
                   </Button>
@@ -1094,7 +1099,7 @@ const CampaignGuideJapan = () => {
                     />
                   </div>
                 )}
-                {translatedProductFeatures.length > 0 && (
+                {Array.isArray(translatedProductFeatures) && translatedProductFeatures.length > 0 && (
                   <div>
                     <Label className="text-xs font-semibold text-indigo-600 mb-2">製品特徴</Label>
                     <div className="space-y-2">
@@ -1102,9 +1107,9 @@ const CampaignGuideJapan = () => {
                         <div key={index} className="flex items-start gap-2">
                           <span className="flex-shrink-0 w-5 h-5 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">✓</span>
                           <Input
-                            value={feature}
+                            value={feature || ''}
                             onChange={(e) => {
-                              const newFeatures = [...translatedProductFeatures]
+                              const newFeatures = [...(translatedProductFeatures || [])]
                               newFeatures[index] = e.target.value
                               setTranslatedProductFeatures(newFeatures)
                             }}
@@ -1120,7 +1125,7 @@ const CampaignGuideJapan = () => {
           )}
 
           {/* 필수 대사 미리보기 */}
-          {translatedDialogues.length > 0 && (
+          {Array.isArray(translatedDialogues) && translatedDialogues.length > 0 && (
             <div className="border-l-4 border-blue-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">💬</span>
@@ -1132,9 +1137,9 @@ const CampaignGuideJapan = () => {
                     <div className="flex items-start gap-3">
                       <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
                       <Textarea
-                        value={dialogue}
+                        value={dialogue || ''}
                         onChange={(e) => {
-                          const newDialogues = [...translatedDialogues]
+                          const newDialogues = [...(translatedDialogues || [])]
                           newDialogues[index] = e.target.value
                           setTranslatedDialogues(newDialogues)
                         }}
@@ -1149,7 +1154,7 @@ const CampaignGuideJapan = () => {
           )}
 
           {/* 필수 장면 미리보기 */}
-          {translatedScenes.length > 0 && (
+          {Array.isArray(translatedScenes) && translatedScenes.length > 0 && (
             <div className="border-l-4 border-green-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">🎥</span>
@@ -1161,9 +1166,9 @@ const CampaignGuideJapan = () => {
                     <div className="flex items-start gap-3">
                       <span className="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
                       <Textarea
-                        value={scene}
+                        value={scene || ''}
                         onChange={(e) => {
-                          const newScenes = [...translatedScenes]
+                          const newScenes = [...(translatedScenes || [])]
                           newScenes[index] = e.target.value
                           setTranslatedScenes(newScenes)
                         }}
@@ -1178,7 +1183,7 @@ const CampaignGuideJapan = () => {
           )}
 
           {/* 필수 해시태그 미리보기 */}
-          {translatedHashtags.length > 0 && (
+          {Array.isArray(translatedHashtags) && translatedHashtags.length > 0 && (
             <div className="border-l-4 border-purple-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">#️⃣</span>
@@ -1189,9 +1194,9 @@ const CampaignGuideJapan = () => {
                   <div key={index} className="flex items-center gap-2">
                     <span className="text-purple-500 font-bold">#</span>
                     <Input
-                      value={hashtag}
+                      value={hashtag || ''}
                       onChange={(e) => {
-                        const newHashtags = [...translatedHashtags]
+                        const newHashtags = [...(translatedHashtags || [])]
                         newHashtags[index] = e.target.value
                         setTranslatedHashtags(newHashtags)
                       }}
@@ -1204,7 +1209,7 @@ const CampaignGuideJapan = () => {
           )}
 
           {/* 필수 촬영 장면 미리보기 */}
-          {translatedShootingScenes.length > 0 && (
+          {Array.isArray(translatedShootingScenes) && translatedShootingScenes.length > 0 && (
             <div className="border-l-4 border-teal-500 pl-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-2xl">📷</span>
@@ -1215,9 +1220,9 @@ const CampaignGuideJapan = () => {
                   <div key={index} className="flex items-center gap-2">
                     <span className="text-teal-600 font-bold">✓</span>
                     <Input
-                      value={scene}
+                      value={scene || ''}
                       onChange={(e) => {
-                        const newScenes = [...translatedShootingScenes]
+                        const newScenes = [...(translatedShootingScenes || [])]
                         newScenes[index] = e.target.value
                         setTranslatedShootingScenes(newScenes)
                       }}
@@ -1336,7 +1341,9 @@ const CampaignGuideJapan = () => {
             </div>
           )}
 
-          {translatedDialogues.length === 0 && translatedScenes.length === 0 && !translatedDuration && (
+          {(!Array.isArray(translatedDialogues) || translatedDialogues.length === 0) &&
+           (!Array.isArray(translatedScenes) || translatedScenes.length === 0) &&
+           !translatedDuration && (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📝</div>
               <p className="text-lg text-gray-500 mb-2">Please create a guide</p>
