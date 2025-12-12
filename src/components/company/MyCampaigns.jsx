@@ -687,9 +687,7 @@ export default function MyCampaigns() {
                   // 4주 챌린지는 60만원 고정, 나머지는 패키지 가격 사용
                   let packagePrice
                   packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
-                  const subtotal = packagePrice * (campaign.max_participants || campaign.total_slots || 0)
-                  const vat = Math.floor(subtotal * 0.1)
-                  const totalCost = subtotal + vat
+                  const totalCost = Math.floor(packagePrice * (campaign.total_slots || 0) * 1.1)
                   const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
                   const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
                   const submissionDays = getDaysRemaining(campaign.content_submission_deadline)

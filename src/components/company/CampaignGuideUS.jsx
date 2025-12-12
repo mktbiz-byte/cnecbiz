@@ -126,7 +126,6 @@ const CampaignGuideUS = () => {
           shooting_scenes_child,
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
-          additional_shooting_requests,
           meta_ad_code_requested,
           brand_name_en,
           product_name_en,
@@ -137,7 +136,6 @@ const CampaignGuideUS = () => {
           video_duration_en,
           video_tempo_en,
           video_tone_en,
-          additional_shooting_requests_en,
           shooting_scenes_en
         `)
         .eq('id', campaignId)
@@ -223,7 +221,6 @@ const CampaignGuideUS = () => {
         shooting_scenes_child: shootingScenes.child,
         shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
         shooting_scenes_wrinkles: shootingScenes.wrinkles,
-        additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
@@ -238,7 +235,6 @@ const CampaignGuideUS = () => {
       if (translatedDuration) updateData.video_duration_en = translatedDuration
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
@@ -281,7 +277,6 @@ const CampaignGuideUS = () => {
         shooting_scenes_child: shootingScenes.child,
         shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
         shooting_scenes_wrinkles: shootingScenes.wrinkles,
-        additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
@@ -296,7 +291,6 @@ const CampaignGuideUS = () => {
       if (translatedDuration) updateData.video_duration_en = translatedDuration
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase

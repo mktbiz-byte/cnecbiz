@@ -126,7 +126,6 @@ const CampaignGuideJapan = () => {
           shooting_scenes_child,
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
-          additional_shooting_requests,
           meta_ad_code_requested,
           brand_name_ja,
           product_name_ja,
@@ -137,7 +136,6 @@ const CampaignGuideJapan = () => {
           video_duration_ja,
           video_tempo_ja,
           video_tone_ja,
-          additional_shooting_requests_ja,
           shooting_scenes_ja
         `)
         .eq('id', campaignId)
@@ -227,7 +225,6 @@ const CampaignGuideJapan = () => {
         shooting_scenes_child: shootingScenes.child,
         shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
         shooting_scenes_wrinkles: shootingScenes.wrinkles,
-        additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
@@ -242,7 +239,6 @@ const CampaignGuideJapan = () => {
       if (translatedDuration) updateData.video_duration_ja = translatedDuration
       if (translatedTempo) updateData.video_tempo_ja = translatedTempo
       if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
@@ -285,7 +281,6 @@ const CampaignGuideJapan = () => {
         shooting_scenes_child: shootingScenes.child,
         shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
         shooting_scenes_wrinkles: shootingScenes.wrinkles,
-        additional_shooting_requests: additionalShootingRequests,
         meta_ad_code_requested: metaAdCodeRequested
       }
 
@@ -300,7 +295,6 @@ const CampaignGuideJapan = () => {
       if (translatedDuration) updateData.video_duration_ja = translatedDuration
       if (translatedTempo) updateData.video_tempo_ja = translatedTempo
       if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
