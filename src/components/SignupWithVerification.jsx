@@ -199,16 +199,21 @@ export default function SignupWithVerification() {
 
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
-            <Globe className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">CNEC</h1>
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div
+            className="flex items-center gap-2 cursor-pointer flex-shrink-0"
+            onClick={() => navigate('/')}
+          >
+            <Globe className="w-6 h-6 text-orange-500" />
+            <span className="text-lg font-bold text-gray-900">CNEC</span>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate('/')} className="text-sm">
-            <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">홈으로</span>
-            <span className="sm:hidden">홈</span>
-          </Button>
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>홈</span>
+          </button>
         </div>
       </header>
 
