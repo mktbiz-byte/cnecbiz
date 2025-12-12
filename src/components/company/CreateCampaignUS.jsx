@@ -195,14 +195,16 @@ const CreateCampaignUS = () => {
   const handlePackageChange = (value) => {
     const selectedPackage = packageOptions.find(p => p.value === value)
     if (selectedPackage) {
-      const finalCost = calculateFinalCost(selectedPackage.price, campaignForm.total_slots)
-      setCampaignForm(prev => ({
+      setCampaignForm(prev => {
+        const finalCost = calculateFinalCost(selectedPackage.price, prev.total_slots)
+        return {
         ...prev,
         package_type: value,
         estimated_cost: finalCost,
         reward_amount: selectedPackage.rewardYen,  // 달러 보상 자동 설정
         max_participants: prev.total_slots
-      }))
+      }
+      })
     }
   }
 
@@ -458,6 +460,7 @@ ${textToTranslate}`
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
+        estimated_cost: campaignForm.estimated_cost,
         application_deadline: campaignForm.application_deadline || null,
         start_date: campaignForm.start_date || null,
         end_date: campaignForm.end_date || null,
@@ -590,6 +593,7 @@ ${textToTranslate}`
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
+        estimated_cost: campaignForm.estimated_cost,
         application_deadline: campaignForm.application_deadline,
         start_date: campaignForm.start_date,
         end_date: campaignForm.end_date,
