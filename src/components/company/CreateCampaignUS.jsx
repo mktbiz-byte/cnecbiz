@@ -539,34 +539,19 @@ ${textToTranslate}`
         tiktok: checkboxes[2]?.checked || false
       }
 
-      const updatedForm = {
-        ...campaignForm,
-        title: document.getElementById('title')?.value || campaignForm.title,
-        brand: document.getElementById('brand')?.value || campaignForm.brand,
-        description: document.getElementById('description')?.value || campaignForm.description,
-        requirements: document.getElementById('requirements')?.value || campaignForm.requirements,
-        package_type: document.getElementById('package_type')?.value || campaignForm.package_type,
-        total_slots: parseInt(document.getElementById('total_slots')?.value) || campaignForm.total_slots,
-        application_deadline: appDeadlineValue,
-        start_date: startDateValue,
-        end_date: endDateValue,
-        target_platforms: target_platforms
-      }
-      console.log('[DEBUG] updatedForm:', updatedForm)
-
       // 필수 필드 검증
-      if (!updatedForm.title || !updatedForm.brand || !updatedForm.requirements) {
+      if (!campaignForm.title || !campaignForm.brand || !campaignForm.requirements) {
         throw new Error('제목, 브랜드, 참가조건은 필수 입력 항목입니다.')
       }
 
-      if (!updatedForm.application_deadline || !updatedForm.start_date || !updatedForm.end_date) {
+      if (!campaignForm.application_deadline || !campaignForm.start_date || !campaignForm.end_date) {
         throw new Error('모집 마감일, 모집 발표일, 촬영 마감일을 모두 입력해주세요.')
       }
 
       // 날짜 논리 검증
-      const applicationDeadline = new Date(updatedForm.application_deadline)
-      const startDate = new Date(updatedForm.start_date)
-      const endDate = new Date(updatedForm.end_date)
+      const applicationDeadline = new Date(campaignForm.application_deadline)
+      const startDate = new Date(campaignForm.start_date)
+      const endDate = new Date(campaignForm.end_date)
 
       if (applicationDeadline >= startDate) {
         throw new Error('모집 마감일은 모집 발표일보다 이전이어야 합니다.')
@@ -576,15 +561,11 @@ ${textToTranslate}`
         throw new Error('모집 발표일은 촬영 마감일보다 이전이어야 합니다.')
       }
 
-      // SNS 플랫폼 검증 - updatedForm에서 확인
-      console.log('[DEBUG] target_platforms:', updatedForm.target_platforms)
-      const hasSelectedPlatform = Object.values(updatedForm.target_platforms).some(Boolean)
-      console.log('[DEBUG] hasSelectedPlatform:', hasSelectedPlatform)
+      // SNS 플랫폼 검증
+      const hasSelectedPlatform = Object.values(campaignForm.target_platforms).some(Boolean)
       if (!hasSelectedPlatform) {
         throw new Error('최소 하나의 SNS 플랫폼을 선택해주세요.')
       }
-      
-      console.log('[DEBUG] 모든 검증 통과')
 
       // 로그인 정보 가져오기
       console.log('[DEBUG] 로그인 정보 가져오기 시작')
@@ -598,37 +579,37 @@ ${textToTranslate}`
       }
 
       const campaignData = {
-        title: updatedForm.title,
-        brand: updatedForm.brand,
-        description: updatedForm.description || '',
-        requirements: updatedForm.requirements || '',
-        category: updatedForm.category,
-        package_type: updatedForm.package_type,
-        image_url: updatedForm.image_url || '',
-        reward_amount: updatedForm.reward_amount,  // 달러 보상
-        max_participants: updatedForm.total_slots,
-        total_slots: updatedForm.total_slots,
-        remaining_slots: updatedForm.total_slots,
-        application_deadline: updatedForm.application_deadline,
-        start_date: updatedForm.start_date,
-        end_date: updatedForm.end_date,
-        status: updatedForm.status,
-        target_platforms: updatedForm.target_platforms,
-        question1: updatedForm.question1 || '',
-        question1_type: updatedForm.question1_type || 'short',
-        question1_options: updatedForm.question1_options || '',
-        question2: updatedForm.question2 || '',
-        question2_type: updatedForm.question2_type || 'short',
-        question2_options: updatedForm.question2_options || '',
-        question3: updatedForm.question3 || '',
-        question3_type: updatedForm.question3_type || 'short',
-        question3_options: updatedForm.question3_options || '',
-        question4: updatedForm.question4 || '',
-        question4_type: updatedForm.question4_type || 'short',
-        question4_options: updatedForm.question4_options || '',
-        age_requirement: updatedForm.age_requirement || '',
-        skin_type_requirement: updatedForm.skin_type_requirement || '',
-        offline_visit_requirement: updatedForm.offline_visit_requirement || ''
+        title: campaignForm.title,
+        brand: campaignForm.brand,
+        description: campaignForm.description || '',
+        requirements: campaignForm.requirements || '',
+        category: campaignForm.category,
+        package_type: campaignForm.package_type,
+        image_url: campaignForm.image_url || '',
+        reward_amount: campaignForm.reward_amount,  // 달러 보상
+        max_participants: campaignForm.total_slots,
+        total_slots: campaignForm.total_slots,
+        remaining_slots: campaignForm.total_slots,
+        application_deadline: campaignForm.application_deadline,
+        start_date: campaignForm.start_date,
+        end_date: campaignForm.end_date,
+        status: campaignForm.status,
+        target_platforms: campaignForm.target_platforms,
+        question1: campaignForm.question1 || '',
+        question1_type: campaignForm.question1_type || 'short',
+        question1_options: campaignForm.question1_options || '',
+        question2: campaignForm.question2 || '',
+        question2_type: campaignForm.question2_type || 'short',
+        question2_options: campaignForm.question2_options || '',
+        question3: campaignForm.question3 || '',
+        question3_type: campaignForm.question3_type || 'short',
+        question3_options: campaignForm.question3_options || '',
+        question4: campaignForm.question4 || '',
+        question4_type: campaignForm.question4_type || 'short',
+        question4_options: campaignForm.question4_options || '',
+        age_requirement: campaignForm.age_requirement || '',
+        skin_type_requirement: campaignForm.skin_type_requirement || '',
+        offline_visit_requirement: campaignForm.offline_visit_requirement || ''
         // company_email 제거: 미국 캐페인 DB 스키마에 없음
       }
 
