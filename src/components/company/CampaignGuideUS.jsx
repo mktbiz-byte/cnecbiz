@@ -90,15 +90,23 @@ const CampaignGuideUS = () => {
   // 데이터 로드 완료 여부
   const [dataLoaded, setDataLoaded] = useState(false)
 
-  // 자동 저장 (10초마다, 데이터 로드 후에만)
+  // 자동 저장 (10초마다, 데이터 로드 후에만) - Debounce pattern
   useEffect(() => {
-    if (!campaignId || !dataLoaded) return
+    if (!campaignId || !dataLoaded) {
+      console.log('자동 저장 비활성화:', { campaignId, dataLoaded })
+      return
+    }
 
+    console.log('자동 저장 타이머 시작 (10초)')
     const timer = setTimeout(() => {
+      console.log('자동 저장 실행')
       autoSaveGuide()
     }, 10000)
 
-    return () => clearTimeout(timer)
+    return () => {
+      console.log('자동 저장 타이머 취소')
+      clearTimeout(timer)
+    }
   }, [brandName, productName, productDescription, productFeatures, requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId, dataLoaded])
 
   const loadCampaignGuide = async () => {
