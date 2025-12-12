@@ -256,7 +256,8 @@ export default function CampaignsManagement() {
         updated_at: new Date().toISOString()
       }
       
-      if (newStatus === 'active') {
+      // approved_at은 한국 캠페인에만 존재
+      if (newStatus === 'active' && region === 'korea') {
         updateData.approved_at = new Date().toISOString()
       }
 

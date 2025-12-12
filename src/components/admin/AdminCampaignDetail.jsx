@@ -124,7 +124,7 @@ export default function AdminCampaignDetail() {
           ? data.reward_amount * data.max_participants 
           : data.budget || 0),
         // 크리에이터 수
-        creator_count: data.total_slots || data.max_participants || data.creator_count || 0,
+        creator_count: data.max_participants || data.total_slots || data.creator_count || 0,
         // 날짜 필드 통일
         application_deadline: data.application_deadline || data.recruitment_deadline,
         // 통화 단위
