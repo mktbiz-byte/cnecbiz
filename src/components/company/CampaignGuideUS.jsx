@@ -140,7 +140,9 @@ const CampaignGuideJapan = () => {
           video_tempo_en,
           video_tone_en,
           shooting_scenes_en,
-          additional_shooting_requests_en
+          additional_shooting_requests_en,
+          additional_details,
+          additional_details_en
         `)
         .eq('id', campaignId)
         .single()
@@ -193,6 +195,7 @@ const CampaignGuideJapan = () => {
         setTranslatedTone(data.video_tone_en || '')
         setTranslatedShootingRequests(data.additional_shooting_requests_en || '')
         setTranslatedShootingScenes(data.shooting_scenes_en || [])
+        if (data.additional_details_en) setTranslatedAdditionalDetails(data.additional_details_en)
         
         // 데이터 로드 완료
         setDataLoaded(true)
@@ -217,6 +220,7 @@ const CampaignGuideJapan = () => {
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
+        additional_details: additionalDetails,
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -244,6 +248,7 @@ const CampaignGuideJapan = () => {
       if (translatedTone) updateData.video_tone_en = translatedTone
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
       if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
+      if (translatedAdditionalDetails) updateData.additional_details_en = translatedAdditionalDetails
 
       const { error } = await supabase
         .from('campaigns')
@@ -275,6 +280,7 @@ const CampaignGuideJapan = () => {
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
+        additional_details: additionalDetails,
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -302,6 +308,7 @@ const CampaignGuideJapan = () => {
       if (translatedTone) updateData.video_tone_en = translatedTone
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
       if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
+      if (translatedAdditionalDetails) updateData.additional_details_en = translatedAdditionalDetails
 
       const { error } = await supabase
         .from('campaigns')
