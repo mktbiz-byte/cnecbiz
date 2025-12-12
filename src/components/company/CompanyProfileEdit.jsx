@@ -82,7 +82,7 @@ export default function CompanyProfileEdit() {
           businessCategory: companyData.business_category || '',
           companyPostalCode: companyData.company_postal_code || '',
           companyAddress: companyData.company_address || '',
-          companyAddressDetail: companyData.company_address_detail || '',
+          companyAddressDetail: '',  // 상세주소는 매번 입력
           notificationContactPerson: companyData.notification_contact_person || companyData.contact_person || '',
           notificationEmail: companyData.notification_email || companyData.email || '',
           notificationPhone: companyData.notification_phone || companyData.phone || '',
@@ -125,14 +125,14 @@ export default function CompanyProfileEdit() {
       const { error: updateError } = await supabaseBiz
         .from('companies')
         .update({
+          company_name: formData.companyName,
           business_registration_number: formData.businessNumber,
           contact_person: formData.contactPerson,
           ceo_name: formData.ceoName,
           business_type: formData.businessType,
           business_category: formData.businessCategory,
           company_postal_code: formData.companyPostalCode,
-          company_address: formData.companyAddress,
-          company_address_detail: formData.companyAddressDetail,
+          company_address: fullAddress,  // 기본주소 + 상세주소 합쳐서 저장
           notification_contact_person: formData.notificationContactPerson,
           notification_email: formData.notificationEmail,
           notification_phone: formData.notificationPhone,
@@ -234,8 +234,16 @@ export default function CompanyProfileEdit() {
                     <h3 className="font-semibold text-blue-900 mb-4">회원가입 시 입력한 정보</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">회사명</label>
-                        <div className="text-sm font-medium text-gray-900 p-3 bg-white rounded-md border">{formData.companyName}</div>
+                        <label className="text-sm font-medium text-gray-700">회사명 *</label>
+                        <Input
+                          type="text"
+                          name="companyName"
+                          placeholder="회사명을 입력하세요"
+                          value={formData.companyName}
+                          onChange={handleChange}
+                          className="h-12"
+                          required
+                        />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">사업자등록번호 *</label>
