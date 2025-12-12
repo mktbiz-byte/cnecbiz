@@ -241,9 +241,9 @@ export default function LandingPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 sm:h-16">
+          <div className="flex justify-between items-center h-14 sm:h-16 gap-4">
             {/* Logo */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-shrink-0">
               <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-orange-500" />
               <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
                 CNEC
@@ -260,7 +260,7 @@ export default function LandingPage() {
             </nav>
 
             {/* Desktop Auth Buttons */}
-            <div className="hidden sm:flex items-center space-x-2 sm:space-x-3">
+            <div className="hidden sm:flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
               {user ? (
                 <button
                   onClick={handleDashboardClick}
@@ -289,7 +289,7 @@ export default function LandingPage() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              className="sm:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors flex-shrink-0"
             >
               {mobileMenuOpen ? (
                 <X className="w-6 h-6 text-slate-700" />

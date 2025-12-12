@@ -331,20 +331,22 @@ export default function SignupWithVerification() {
                     핸드폰 번호
                   </label>
                   <div className="flex gap-2">
-                    <Input
-                      type="tel"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="01012345678"
-                      disabled={smsVerified}
-                      className="h-11 sm:h-12 flex-1"
-                      required
-                    />
+                    <div className="flex-1 min-w-0">
+                      <Input
+                        type="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        placeholder="01012345678"
+                        disabled={smsVerified}
+                        className="h-11 sm:h-12"
+                        required
+                      />
+                    </div>
                     <Button
                       type="button"
                       onClick={handleSendSMS}
                       disabled={smsLoading || smsVerified || smsTimer > 0}
-                      className="whitespace-nowrap h-11 sm:h-12 px-3 sm:px-4 text-sm"
+                      className="whitespace-nowrap h-11 sm:h-12 px-3 sm:px-4 text-sm flex-shrink-0"
                     >
                       {smsTimer > 0 ? `${Math.floor(smsTimer / 60)}:${String(smsTimer % 60).padStart(2, '0')}` : '인증번호 발송'}
                     </Button>
@@ -357,19 +359,21 @@ export default function SignupWithVerification() {
                       인증번호
                     </label>
                     <div className="flex gap-2">
-                      <Input
-                        type="text"
-                        value={smsCode}
-                        onChange={(e) => setSmsCode(e.target.value)}
-                        placeholder="인증번호 6자리"
-                        maxLength={6}
-                        className="h-11 sm:h-12 flex-1"
-                      />
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          type="text"
+                          value={smsCode}
+                          onChange={(e) => setSmsCode(e.target.value)}
+                          placeholder="인증번호 6자리"
+                          maxLength={6}
+                          className="h-11 sm:h-12"
+                        />
+                      </div>
                       <Button
                         type="button"
                         onClick={handleVerifySMS}
                         disabled={smsLoading}
-                        className="whitespace-nowrap h-11 sm:h-12 px-4 sm:px-6"
+                        className="whitespace-nowrap h-11 sm:h-12 px-4 sm:px-6 flex-shrink-0"
                       >
                         확인
                       </Button>
