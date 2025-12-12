@@ -682,9 +682,9 @@ ${textToTranslate}`
           const campaignId = data[0].id
 
           setSuccess(`캠페인이 생성되었습니다! 결제 페이지로 이동합니다.`)
-          
+
           setTimeout(() => {
-            navigate(`/company/campaigns/invoice/us?id=${campaignId}`)
+            navigate(`/company/campaigns/${campaignId}/invoice?region=us`)
           }, 1500)
           return
         }
