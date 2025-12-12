@@ -1860,8 +1860,8 @@ export default function CampaignDetail() {
     const packagePrice = getPackagePrice(campaign.package_type)
     const additionalCost = packagePrice * additionalCount
     if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원`)) {
-      // 견적서 페이지로 이동 (추가 인원 정보 포함)
-      navigate(`/company/campaigns/${id}/invoice?additional=${additionalCount}`)
+      // 견적서 페이지로 이동 (추가 인원 정보 포함, region 파라미터 유지)
+      navigate(`/company/campaigns/${id}/invoice?additional=${additionalCount}&region=${region}`)
     }
   }
 
@@ -2701,13 +2701,13 @@ export default function CampaignDetail() {
             {/* 결제 요청 버튼: draft 또는 pending_payment 상태에서만 표시 */}
             {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
               <Button onClick={() => {
-                // 캠페인 타입에 따라 Invoice 페이지로 이동
+                // 캠페인 타입에 따라 Invoice 페이지로 이동 (region 파라미터 유지)
                 if (campaign.campaign_type === 'oliveyoung') {
-                  navigate(`/company/campaigns/${id}/invoice/oliveyoung`)
+                  navigate(`/company/campaigns/${id}/invoice/oliveyoung?region=${region}`)
                 } else if (campaign.campaign_type === '4week' || campaign.campaign_type === '4week_challenge') {
-                  navigate(`/company/campaigns/${id}/invoice/4week`)
+                  navigate(`/company/campaigns/${id}/invoice/4week?region=${region}`)
                 } else {
-                  navigate(`/company/campaigns/${id}/invoice`)
+                  navigate(`/company/campaigns/${id}/invoice?region=${region}`)
                 }
               }} className="bg-blue-600">
                 <Send className="w-4 h-4 mr-2" />

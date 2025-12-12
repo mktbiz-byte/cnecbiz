@@ -1,7 +1,7 @@
 export default function HomePageSimple() {
   return (
     <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif' }}>
-      <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>CNEC BIZ - 글로벌 인플루언서 마케팅 플랫폼</h1>
+      <h1 style={{ fontSize: '32px', marginBottom: '20px' }}>CNEC - 글로벌 인플루언서 마케팅 플랫폼</h1>
       <p style={{ fontSize: '18px', marginBottom: '30px' }}>
         일본, 미국, 대만 등 전 세계 인플루언서 마케팅을 한 곳에서 관리하세요.
       </p>
@@ -95,7 +95,7 @@ export default function HomePageSimple() {
       
       <div style={{ marginTop: '60px', padding: '20px', backgroundColor: '#f3f4f6', borderRadius: '8px' }}>
         <p style={{ fontSize: '14px', color: '#6b7280', textAlign: 'center' }}>
-          © 2025 CNEC BIZ. All rights reserved.
+          © 2025 CNEC. All rights reserved.
         </p>
       </div>
     </div>

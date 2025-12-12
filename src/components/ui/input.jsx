@@ -12,9 +12,24 @@ function Input({
       type={type}
       data-slot="input"
       className={cn(
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        // Base styles - height 48px (h-12), rounded corners, light border
+        "flex h-12 w-full min-w-0 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm",
+        // Placeholder styling
+        "placeholder:text-gray-400",
+        // Selection styling
+        "selection:bg-orange-100 selection:text-orange-900",
+        // File input styling
+        "file:text-foreground file:inline-flex file:h-8 file:border-0 file:bg-transparent file:text-sm file:font-medium",
+        // Transition
+        "transition-all duration-200 outline-none",
+        // Focus state - Orange highlight
+        "focus:border-orange-400 focus:ring-2 focus:ring-orange-100",
+        // Disabled state
+        "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50",
+        // Error state
+        "aria-invalid:ring-red-100 aria-invalid:border-red-400",
+        // Dark mode
+        "dark:bg-input/30 dark:border-gray-700 dark:placeholder:text-gray-500",
         className
       )}
       {...props} />

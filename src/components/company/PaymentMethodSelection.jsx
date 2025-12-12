@@ -57,13 +57,13 @@ const PaymentMethodSelection = () => {
   }, [campaignId, region]);
 
   const handleBankTransfer = () => {
-    // 무통장 입금 선택 시 기존 세금계산서 신청 페이지로 이동
+    // 무통장 입금 선택 시 기존 세금계산서 신청 페이지로 이동 (region 파라미터 전달)
     if (campaign.campaign_type === 'oliveyoung') {
-      navigate(`/company/campaigns/${campaignId}/invoice/oliveyoung`);
+      navigate(`/company/campaigns/${campaignId}/invoice/oliveyoung?region=${region}`);
     } else if (campaign.campaign_type === '4week_challenge') {
-      navigate(`/company/campaigns/${campaignId}/invoice/4week`);
+      navigate(`/company/campaigns/${campaignId}/invoice/4week?region=${region}`);
     } else {
-      navigate(`/company/campaigns/${campaignId}/invoice`);
+      navigate(`/company/campaigns/${campaignId}/invoice?region=${region}`);
     }
   };
 

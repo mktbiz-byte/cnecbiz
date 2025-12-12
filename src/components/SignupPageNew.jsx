@@ -178,13 +178,13 @@ export default function SignupPageNew() {
       <Card className="w-full max-w-2xl shadow-2xl border-none">
         <CardHeader className="space-y-4 text-center pb-8">
           <div className="flex justify-center">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center">
               <Globe className="w-10 h-10 text-white" />
             </div>
           </div>
           <CardTitle className="text-3xl font-bold">
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              CNEC BIZ
+            <span className="bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+              CNEC
             </span>
           </CardTitle>
           <CardDescription className="text-base">

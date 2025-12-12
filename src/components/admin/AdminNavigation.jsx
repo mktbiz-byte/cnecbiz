@@ -42,13 +42,14 @@ export default function AdminNavigation() {
       {/* Sidebar */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-white border-r transition-all duration-300 overflow-hidden flex flex-col fixed left-0 top-0 h-full z-50`}>
         <div className="p-6 flex-1 overflow-y-auto">
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-r from-red-600 to-orange-600 rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
+              <span className="text-white font-bold text-lg">C</span>
             </div>
-            <span className="font-bold text-xl">
-              CNEC Biz
-            </span>
+            <div>
+              <span className="font-bold text-lg text-gray-900">CNEC</span>
+              <p className="text-xs text-gray-500">관리자</p>
+            </div>
           </div>
 
           <nav className="space-y-2">
@@ -56,10 +57,10 @@ export default function AdminNavigation() {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                   isActive(item.path)
-                    ? 'bg-red-50 text-red-600 font-medium'
-                    : 'hover:bg-gray-50 text-gray-700'
+                    ? 'bg-orange-50 text-orange-600 font-medium'
+                    : 'hover:bg-gray-50 text-gray-600 hover:text-gray-900'
                 }`}
               >
                 <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -77,10 +78,10 @@ export default function AdminNavigation() {
           </nav>
         </div>
 
-        <div className="p-6 lg:ml-64 border-t mt-auto">
+        <div className="p-4 border-t mt-auto">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-50 text-red-600 font-medium"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-500 font-medium transition-colors"
           >
             <LogOut className="w-5 h-5" />
             로그아웃

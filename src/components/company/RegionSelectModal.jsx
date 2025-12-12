@@ -1,14 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { X, AlertCircle } from 'lucide-react'
+import { X, Globe, ChevronRight, AlertTriangle } from 'lucide-react'
 
 export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegion }) {
   const navigate = useNavigate()
   // isOpen이나 open 중 하나라도 명시적으로 전달되면 그 값을 사용, 아니면 true (조건부 렌더링으로 이미 제어됨)
   const shouldShow = isOpen !== undefined ? isOpen : (open !== undefined ? open : true)
   if (!shouldShow) return null
-  
+
   const handleSelectRegion = (regionId) => {
     if (onSelectRegion) {
       onSelectRegion(regionId)
@@ -24,84 +23,126 @@ export default function RegionSelectModal({ isOpen, open, onClose, onSelectRegio
       id: 'korea',
       name: '대한민국',
       flag: '🇰🇷',
-      description: '',
-      color: 'bg-blue-50 hover:bg-blue-100 border-blue-200'
+      description: '바로 캠페인 생성 가능',
+      gradientFrom: 'from-blue-500',
+      gradientTo: 'to-indigo-600',
+      bgColor: 'bg-blue-50',
+      hoverBg: 'hover:bg-blue-100',
+      borderColor: 'border-blue-200',
+      textColor: 'text-blue-700'
     },
     {
       id: 'japan',
       name: '일본',
       flag: '🇯🇵',
-      description: '신청 전 카카오톡 채널 @크넥 으로 상담 후 진행해 주세요.',
-      color: 'bg-red-50 hover:bg-red-100 border-red-200',
+      description: '카카오톡 @크넥 상담 후 진행',
+      gradientFrom: 'from-red-500',
+      gradientTo: 'to-pink-600',
+      bgColor: 'bg-red-50',
+      hoverBg: 'hover:bg-red-100',
+      borderColor: 'border-red-200',
+      textColor: 'text-red-700',
       requiresConsultation: true
     },
     {
       id: 'us',
       name: '미국',
       flag: '🇺🇸',
-      description: '신청 전 카카오톡 채널 @크넥 으로 상담 후 진행해 주세요.',
-      color: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
+      description: '카카오톡 @크넥 상담 후 진행',
+      gradientFrom: 'from-indigo-500',
+      gradientTo: 'to-purple-600',
+      bgColor: 'bg-indigo-50',
+      hoverBg: 'hover:bg-indigo-100',
+      borderColor: 'border-indigo-200',
+      textColor: 'text-indigo-700',
       requiresConsultation: true
     },
     {
       id: 'taiwan',
       name: '대만',
       flag: '🇹🇼',
-      description: '',
-      color: 'bg-green-50 hover:bg-green-100 border-green-200',
-      disabled: true,
-      disabledMessage: '서비스 준비 중입니다'
+      description: '서비스 준비 중',
+      gradientFrom: 'from-green-500',
+      gradientTo: 'to-teal-600',
+      bgColor: 'bg-gray-50',
+      hoverBg: '',
+      borderColor: 'border-gray-200',
+      textColor: 'text-gray-400',
+      disabled: true
     }
   ]
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-bold">캠페인을 생성할 나라를 선택하세요</h2>
-          <Button variant="ghost" size="sm" onClick={() => onClose && onClose()}>
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-        
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {regions.map((region) => (
-              <Card
-                key={region.id}
-                className={`transition-all border-2 ${
-                  region.disabled 
-                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-60' 
-                    : `cursor-pointer ${region.color}`
-                }`}
-                onClick={() => !region.disabled && handleSelectRegion(region.id)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="text-5xl">{region.flag}</div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold mb-1">{region.name}</h3>
-                      {region.disabled && (
-                        <p className="text-sm text-gray-600">
-                          {region.disabledMessage}
-                        </p>
-                      )}
-                      {!region.disabled && region.description && (
-                        <p className="text-sm text-orange-600 font-medium">
-                          {region.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+        style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center">
+              <Globe className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">캠페인 지역 선택</h2>
+              <p className="text-sm text-gray-500">캠페인을 진행할 국가를 선택해주세요</p>
+            </div>
           </div>
+          <button
+            onClick={() => onClose && onClose()}
+            className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
         </div>
 
-        <div className="p-6 border-t bg-gray-50">
-          <p className="text-sm text-gray-600 text-center">
-            선택한 나라에 캠페인을 생성해 보세요.
+        {/* Region Cards */}
+        <div className="p-6 space-y-3">
+          {regions.map((region) => (
+            <button
+              key={region.id}
+              disabled={region.disabled}
+              onClick={() => !region.disabled && handleSelectRegion(region.id)}
+              className={`
+                w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200
+                ${region.disabled
+                  ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+                  : `${region.bgColor} ${region.borderColor} ${region.hoverBg} cursor-pointer hover:shadow-md hover:-translate-y-0.5`
+                }
+              `}
+            >
+              {/* Flag */}
+              <div className="text-4xl flex-shrink-0">{region.flag}</div>
+
+              {/* Content */}
+              <div className="flex-1 text-left">
+                <h3 className={`text-base font-semibold ${region.disabled ? 'text-gray-400' : 'text-gray-900'}`}>
+                  {region.name}
+                </h3>
+                <p className={`text-sm ${region.disabled ? 'text-gray-400' : region.textColor}`}>
+                  {region.description}
+                </p>
+                {region.requiresConsultation && (
+                  <div className="flex items-center gap-1 mt-1">
+                    <AlertTriangle className="w-3 h-3 text-orange-500" />
+                    <span className="text-xs text-orange-600">상담 필요</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Arrow */}
+              {!region.disabled && (
+                <ChevronRight className={`w-5 h-5 ${region.textColor} flex-shrink-0`} />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+          <p className="text-xs text-gray-500 text-center">
+            해외 캠페인의 경우 상담 후 진행됩니다
           </p>
         </div>
       </div>

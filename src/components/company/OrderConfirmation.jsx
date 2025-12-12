@@ -65,12 +65,8 @@ const OrderConfirmation = () => {
   // handlePayWithPoints 함수 제거됨 - 포인트 결제 시스템 제거
 
   const handlePayAdditional = () => {
-    // 견적서 페이지로 이동 (입금 계좌 정보 확인)
-    if (region === 'japan') {
-      navigate(`/company/campaigns/${id}/invoice?region=japan`)
-    } else {
-      navigate(`/company/campaigns/${id}/invoice`)
-    }
+    // 견적서 페이지로 이동 (입금 계좌 정보 확인, region 파라미터 유지)
+    navigate(`/company/campaigns/${id}/invoice?region=${region}`)
   }
 
   if (loading) {

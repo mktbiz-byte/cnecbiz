@@ -134,32 +134,33 @@ const SignupPage = () => {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => navigate('/')}>
-            <Globe className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">CNEC BIZ</h1>
+            <Globe className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">CNEC BIZ</h1>
           </div>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            홈으로
+          <Button variant="outline" size="sm" onClick={() => navigate('/')} className="text-sm">
+            <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">홈으로</span>
+            <span className="sm:hidden">홈</span>
           </Button>
         </div>
       </header>
 
       {/* Signup Form */}
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-3xl">기업 회원가입</CardTitle>
-            <CardDescription>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
+        <Card className="shadow-lg">
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="text-xl sm:text-3xl">기업 회원가입</CardTitle>
+            <CardDescription className="text-sm sm:text-base">
               CNEC BIZ에서 글로벌 인플루언서 마케팅을 시작하세요
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Company Name */}
-              <div className="space-y-2">
-                <Label htmlFor="company_name">회사명 *</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="company_name" className="text-sm sm:text-base">회사명 *</Label>
                 <Input
                   id="company_name"
                   name="company_name"
@@ -273,17 +274,17 @@ const SignupPage = () => {
               </div>
 
               {/* Submit Button */}
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full py-3 sm:py-4 text-base sm:text-lg" size="lg" disabled={loading}>
                 {loading ? '처리 중...' : '회원가입'}
               </Button>
 
               {/* Login Link */}
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-center text-sm sm:text-base text-gray-600 pt-2">
                 이미 계정이 있으신가요?{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="text-blue-600 hover:underline"
+                  className="text-blue-600 hover:underline font-medium"
                 >
                   로그인
                 </button>
