@@ -102,6 +102,9 @@ const CampaignGuideJapan = () => {
   }, [brandName, productName, productDescription, productFeatures, requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, campaignId, dataLoaded])
 
   const loadCampaignGuide = async () => {
+    console.log('[DEBUG loadGuide] 캠페인 가이드 로드 시작')
+    console.log('[DEBUG loadGuide] campaignId:', campaignId)
+    console.log('[DEBUG loadGuide] supabase client:', supabase ? 'exists' : 'null')
     try {
       const { data, error } = await supabase
         .from('campaigns')
@@ -147,9 +150,15 @@ const CampaignGuideJapan = () => {
         .eq('id', campaignId)
         .single()
 
+      console.log('[DEBUG loadGuide] SELECT 결과 - data:', data)
+      console.log('[DEBUG loadGuide] SELECT 결과 - error:', error)
+
       if (error) throw error
 
       if (data) {
+        console.log('[DEBUG loadGuide] 데이터 로드 성공, title:', data.title)
+        console.log('[DEBUG loadGuide] brand_name:', data.brand_name)
+        console.log('[DEBUG loadGuide] product_name:', data.product_name)
         setCampaignTitle(data.title)
         // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
         if (data.brand_name) setBrandName(data.brand_name)
@@ -207,6 +216,10 @@ const CampaignGuideJapan = () => {
   }
 
   const autoSaveGuide = async () => {
+    if (!campaignId) {
+      console.error('[DEBUG autoSave] campaignId가 없음')
+      return
+    }
     setAutoSaving(true)
     try {
       const updateData = {
@@ -310,12 +323,26 @@ const CampaignGuideJapan = () => {
       if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
       if (translatedAdditionalDetails) updateData.additional_details_en = translatedAdditionalDetails
 
-      const { error } = await supabase
+      console.log('[DEBUG] 가이드 저장 시작')
+      console.log('[DEBUG] campaignId:', campaignId)
+      console.log('[DEBUG] updateData:', JSON.stringify(updateData, null, 2))
+
+      const { data, error, count } = await supabase
         .from('campaigns')
         .update(updateData)
         .eq('id', campaignId)
+        .select()
+
+      console.log('[DEBUG] 저장 결과 - data:', data)
+      console.log('[DEBUG] 저장 결과 - error:', error)
+      console.log('[DEBUG] 저장 결과 - count:', count)
 
       if (error) throw error
+
+      if (!data || data.length === 0) {
+        console.error('[DEBUG] UPDATE가 어떤 행도 업데이트하지 못함')
+        throw new Error('캠페인을 찾을 수 없거나 업데이트 권한이 없습니다. 캠페인 ID: ' + campaignId)
+      }
 
       setSuccess('크리에이터 가이드가 저장되었습니다!')
       setTimeout(() => {
