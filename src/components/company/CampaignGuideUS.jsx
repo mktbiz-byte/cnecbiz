@@ -217,7 +217,6 @@ const CampaignGuideUS = () => {
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
-        additional_details: additionalDetails,
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -243,7 +242,6 @@ const CampaignGuideUS = () => {
       if (translatedDuration) updateData.video_duration_en = translatedDuration
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedAdditionalDetails) updateData.additional_details_en = translatedAdditionalDetails
       if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 
@@ -277,7 +275,6 @@ const CampaignGuideUS = () => {
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
-        additional_details: additionalDetails,
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -303,7 +300,6 @@ const CampaignGuideUS = () => {
       if (translatedDuration) updateData.video_duration_en = translatedDuration
       if (translatedTempo) updateData.video_tempo_en = translatedTempo
       if (translatedTone) updateData.video_tone_en = translatedTone
-      if (translatedAdditionalDetails) updateData.additional_details_en = translatedAdditionalDetails
       if (translatedShootingRequests) updateData.additional_shooting_requests_en = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_en = translatedShootingScenes.filter(s => s.trim())
 

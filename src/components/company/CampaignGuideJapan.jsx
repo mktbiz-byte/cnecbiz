@@ -221,7 +221,6 @@ const CampaignGuideJapan = () => {
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
-        additional_details: additionalDetails,
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -247,7 +246,6 @@ const CampaignGuideJapan = () => {
       if (translatedDuration) updateData.video_duration_ja = translatedDuration
       if (translatedTempo) updateData.video_tempo_ja = translatedTempo
       if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
       if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
@@ -281,7 +279,6 @@ const CampaignGuideJapan = () => {
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
-        additional_details: additionalDetails,
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -307,7 +304,6 @@ const CampaignGuideJapan = () => {
       if (translatedDuration) updateData.video_duration_ja = translatedDuration
       if (translatedTempo) updateData.video_tempo_ja = translatedTempo
       if (translatedTone) updateData.video_tone_ja = translatedTone
-      if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
       if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
       if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
