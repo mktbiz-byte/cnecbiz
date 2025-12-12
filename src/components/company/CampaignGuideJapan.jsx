@@ -103,18 +103,23 @@ const CampaignGuideJapan = () => {
 
   const loadCampaignGuide = async () => {
     try {
+      // 모든 가이드 관련 컬럼 조회 (마이그레이션 적용 후 모든 필드 지원)
       const { data, error } = await supabase
         .from('campaigns')
         .select(`
           title,
           brand_name,
           product_name,
+          product_description,
+          product_features,
           description,
-          required_dialogues, 
-          required_scenes, 
-          required_hashtags, 
-          video_duration, 
-          video_tempo, 
+          additional_details,
+          additional_shooting_requests,
+          required_dialogues,
+          required_scenes,
+          required_hashtags,
+          video_duration,
+          video_tempo,
           video_tone,
           shooting_scenes_ba_photo,
           shooting_scenes_no_makeup,
@@ -127,7 +132,19 @@ const CampaignGuideJapan = () => {
           shooting_scenes_troubled_skin,
           shooting_scenes_wrinkles,
           meta_ad_code_requested,
-          additional_details_ja
+          brand_name_ja,
+          product_name_ja,
+          product_description_ja,
+          product_features_ja,
+          required_dialogues_ja,
+          required_scenes_ja,
+          required_hashtags_ja,
+          video_duration_ja,
+          video_tempo_ja,
+          video_tone_ja,
+          additional_details_ja,
+          additional_shooting_requests_ja,
+          shooting_scenes_ja
         `)
         .eq('id', campaignId)
         .single()
@@ -136,21 +153,25 @@ const CampaignGuideJapan = () => {
 
       if (data) {
         setCampaignTitle(data.title)
-        // 제품 정보 - 저장된 데이터가 있으면 로드, 없으면 빈 상태
+        // 제품 정보
         if (data.brand_name) setBrandName(data.brand_name)
         if (data.product_name) setProductName(data.product_name)
-        // description은 캠페인 설명이므로 제품 설명으로 사용하지 않음
-        // if (data.description) setProductDescription(data.description)
+        if (data.product_description) setProductDescription(data.product_description)
         if (data.product_features && data.product_features.length > 0) setProductFeatures(data.product_features)
+
+        // 가이드 필드
         setRequiredDialogues(data.required_dialogues || [''])
         setRequiredScenes(data.required_scenes || [''])
         setRequiredHashtags(data.required_hashtags || [''])
         setVideoDuration(data.video_duration || '')
         setVideoTempo(data.video_tempo || '')
         setVideoTone(data.video_tone || '')
+
         // [object Object] 문자열 방어
         const safeAdditionalDetails = (typeof data.additional_details === 'string' && data.additional_details !== '[object Object]') ? data.additional_details : ''
         setAdditionalDetails(safeAdditionalDetails)
+
+        // 촬영 장면 체크박스
         setShootingScenes({
           baPhoto: data.shooting_scenes_ba_photo || false,
           noMakeup: data.shooting_scenes_no_makeup || false,
@@ -163,27 +184,28 @@ const CampaignGuideJapan = () => {
           troubledSkin: data.shooting_scenes_troubled_skin || false,
           wrinkles: data.shooting_scenes_wrinkles || false
         })
+
         // [object Object] 문자열 방어
         const safeShootingRequests = (typeof data.additional_shooting_requests === 'string' && data.additional_shooting_requests !== '[object Object]') ? data.additional_shooting_requests : ''
         setAdditionalShootingRequests(safeShootingRequests)
         setMetaAdCodeRequested(data.meta_ad_code_requested || false)
-        
-        // 일본어 번역 데이터 로드 (저장된 경우에만)
-        // Translation columns disabled - not in DB schema (except additional_details_ja)
-        // if (data.brand_name_ja) setTranslatedBrandName(data.brand_name_ja)
-        // if (data.product_name_ja) setTranslatedProductName(data.product_name_ja)
-        // if (data.product_description_ja) setTranslatedProductDesc(data.product_description_ja)
-        // if (data.product_features_ja && data.product_features_ja.length > 0) setTranslatedProductFeatures(data.product_features_ja)
-        // setTranslatedDialogues(data.required_dialogues_ja || [])
-        // setTranslatedScenes(data.required_scenes_ja || [])
-        // setTranslatedHashtags(data.required_hashtags_ja || [])
-        // setTranslatedDuration(data.video_duration_ja || '')
-        // setTranslatedTempo(data.video_tempo_ja || '')
-        // setTranslatedTone(data.video_tone_ja || '')
+
+        // 일본어 번역 데이터 로드
+        if (data.brand_name_ja) setTranslatedBrandName(data.brand_name_ja)
+        if (data.product_name_ja) setTranslatedProductName(data.product_name_ja)
+        if (data.product_description_ja) setTranslatedProductDesc(data.product_description_ja)
+        if (data.product_features_ja && data.product_features_ja.length > 0) setTranslatedProductFeatures(data.product_features_ja)
+        setTranslatedDialogues(data.required_dialogues_ja || [])
+        setTranslatedScenes(data.required_scenes_ja || [])
+        setTranslatedHashtags(data.required_hashtags_ja || [])
+        setTranslatedDuration(data.video_duration_ja || '')
+        setTranslatedTempo(data.video_tempo_ja || '')
+        setTranslatedTone(data.video_tone_ja || '')
         setTranslatedAdditionalDetails(data.additional_details_ja || '')
-        // setTranslatedShootingRequests(data.additional_shooting_requests_ja || '')
-        // setTranslatedShootingScenes(data.shooting_scenes_ja || [])
-        
+        const safeTranslatedShootingRequests = (typeof data.additional_shooting_requests_ja === 'string' && data.additional_shooting_requests_ja !== '[object Object]') ? data.additional_shooting_requests_ja : ''
+        setTranslatedShootingRequests(safeTranslatedShootingRequests)
+        setTranslatedShootingScenes(data.shooting_scenes_ja || [])
+
         // 데이터 로드 완료
         setDataLoaded(true)
       }
@@ -196,16 +218,23 @@ const CampaignGuideJapan = () => {
   const autoSaveGuide = async () => {
     setAutoSaving(true)
     try {
-      // 일본 DB에 존재하는 컬럼만 업데이트 (product_description, product_features 컬럼 없음)
+      // 모든 가이드 필드 업데이트 (마이그레이션 적용 후 모든 필드 지원)
       const updateData = {
+        // 제품 정보
         brand_name: brandName,
         product_name: productName,
+        product_description: productDescription,
+        product_features: productFeatures.filter(f => f.trim()),
+        // 가이드 필드
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
         required_hashtags: requiredHashtags.filter(h => h.trim()),
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
+        additional_details: additionalDetails,
+        additional_shooting_requests: additionalShootingRequests,
+        // 촬영 장면 체크박스
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -219,8 +248,20 @@ const CampaignGuideJapan = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 일본어 번역이 있으면 추가 (additional_details_ja만 일본 DB에 존재)
+      // 일본어 번역이 있으면 추가
+      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
+      if (translatedProductName) updateData.product_name_ja = translatedProductName
+      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_ja = translatedDuration
+      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
+      if (translatedTone) updateData.video_tone_ja = translatedTone
       if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
+      if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
@@ -241,16 +282,23 @@ const CampaignGuideJapan = () => {
     setSuccess('')
 
     try {
-      // 일본 DB에 존재하는 컬럼만 업데이트 (product_description, product_features 컬럼 없음)
+      // 모든 가이드 필드 업데이트 (마이그레이션 적용 후 모든 필드 지원)
       const updateData = {
+        // 제품 정보
         brand_name: brandName,
         product_name: productName,
+        product_description: productDescription,
+        product_features: productFeatures.filter(f => f.trim()),
+        // 가이드 필드
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
         required_hashtags: requiredHashtags.filter(h => h.trim()),
         video_duration: videoDuration,
         video_tempo: videoTempo,
         video_tone: videoTone,
+        additional_details: additionalDetails,
+        additional_shooting_requests: additionalShootingRequests,
+        // 촬영 장면 체크박스
         shooting_scenes_ba_photo: shootingScenes.baPhoto,
         shooting_scenes_no_makeup: shootingScenes.noMakeup,
         shooting_scenes_closeup: shootingScenes.closeup,
@@ -264,8 +312,20 @@ const CampaignGuideJapan = () => {
         meta_ad_code_requested: metaAdCodeRequested
       }
 
-      // 일본어 번역이 있으면 추가 (additional_details_ja만 일본 DB에 존재)
+      // 일본어 번역이 있으면 추가
+      if (translatedBrandName) updateData.brand_name_ja = translatedBrandName
+      if (translatedProductName) updateData.product_name_ja = translatedProductName
+      if (translatedProductDesc) updateData.product_description_ja = translatedProductDesc
+      if (translatedProductFeatures.length > 0) updateData.product_features_ja = translatedProductFeatures.filter(f => f.trim())
+      if (translatedDialogues.length > 0) updateData.required_dialogues_ja = translatedDialogues.filter(d => d.trim())
+      if (translatedScenes.length > 0) updateData.required_scenes_ja = translatedScenes.filter(s => s.trim())
+      if (translatedHashtags.length > 0) updateData.required_hashtags_ja = translatedHashtags.filter(h => h.trim())
+      if (translatedDuration) updateData.video_duration_ja = translatedDuration
+      if (translatedTempo) updateData.video_tempo_ja = translatedTempo
+      if (translatedTone) updateData.video_tone_ja = translatedTone
       if (translatedAdditionalDetails) updateData.additional_details_ja = translatedAdditionalDetails
+      if (translatedShootingRequests) updateData.additional_shooting_requests_ja = translatedShootingRequests
+      if (translatedShootingScenes.length > 0) updateData.shooting_scenes_ja = translatedShootingScenes.filter(s => s.trim())
 
       const { error } = await supabase
         .from('campaigns')
