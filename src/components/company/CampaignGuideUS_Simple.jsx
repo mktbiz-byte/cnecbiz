@@ -68,7 +68,7 @@ const CampaignGuideUSSimple = () => {
 
       setSuccess('가이드가 저장되었습니다!')
       setTimeout(() => {
-        navigate(`/company/campaigns/${campaignId}/invoice`)
+        navigate(`/company/campaigns/${campaignId}/invoice?region=us`)
       }, 1000)
     } catch (err) {
       console.error('저장 실패:', err)

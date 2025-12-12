@@ -150,7 +150,7 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
       if (guideError) throw guideError
 
       alert('가이드가 생성되었습니다! 결제 페이지로 이동합니다.')
-      navigate(`/company/campaigns/${id}/invoice`)
+      navigate(`/company/campaigns/${id}/invoice?region=korea`)
     } catch (error) {
       console.error('Error generating guide:', error)
       alert('가이드 생성 중 오류가 발생했습니다: ' + error.message)
