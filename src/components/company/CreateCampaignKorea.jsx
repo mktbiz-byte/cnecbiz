@@ -1948,151 +1948,269 @@ const CampaignCreationKorea = () => {
               {/* 올영세일 캠페인 상세 설정 */}
               {campaignForm.campaign_type === 'oliveyoung' && (
                 <div className="border-t pt-6 mt-6">
-                  <h3 className="text-lg font-semibold mb-4">🌸 올리브영 캠페인 상세 설정</h3>
-                  <div className="space-y-4 p-4 bg-pink-50 rounded-lg border border-pink-200">
-                    {/* 올영 패키지 타입 선택 */}
-                    <div>
-                      <Label className="block mb-3">올리브영 패키지 타입 *</Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            id="subtype_pick"
-                            name="oliveyoung_subtype"
-                            value="pick"
-                            checked={campaignForm.oliveyoung_subtype === 'pick'}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
-                            className="w-4 h-4 text-pink-600"
-                          />
-                          <Label htmlFor="subtype_pick" className="cursor-pointer">
-                            🌟 올영픽 (Olive Young Pick)
-                          </Label>
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <span className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center text-white text-sm">🌸</span>
+                    올리브영 캠페인 상세 설정
+                  </h3>
+
+                  {/* 패키지 타입 카드 선택 */}
+                  <div className="mb-8">
+                    <Label className="block mb-3 font-semibold text-gray-700">패키지 타입 선택 *</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* 올영픽 카드 */}
+                      <div
+                        onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'pick' }))}
+                        className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${
+                          campaignForm.oliveyoung_subtype === 'pick'
+                            ? 'border-amber-400 bg-gradient-to-br from-amber-50 to-yellow-50 shadow-lg ring-2 ring-amber-200'
+                            : 'border-gray-200 bg-white hover:border-amber-300'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
+                            <span className="text-2xl">⭐</span>
+                          </div>
+                          <h4 className="font-bold text-gray-900 mb-1">올영픽</h4>
+                          <p className="text-xs text-gray-500 mb-3">Olive Young Pick</p>
+                          <div className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full inline-block">
+                            인기 상품 추천
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            id="subtype_sale"
-                            name="oliveyoung_subtype"
-                            value="sale"
-                            checked={campaignForm.oliveyoung_subtype === 'sale'}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
-                            className="w-4 h-4 text-pink-600"
-                          />
-                          <Label htmlFor="subtype_sale" className="cursor-pointer">
-                            🌸 올영세일 (Olive Young Sale)
-                          </Label>
+                        {campaignForm.oliveyoung_subtype === 'pick' && (
+                          <div className="absolute top-3 right-3 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 올영세일 카드 */}
+                      <div
+                        onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'sale' }))}
+                        className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${
+                          campaignForm.oliveyoung_subtype === 'sale'
+                            ? 'border-pink-400 bg-gradient-to-br from-pink-50 to-rose-50 shadow-lg ring-2 ring-pink-200'
+                            : 'border-gray-200 bg-white hover:border-pink-300'
+                        }`}
+                      >
+                        <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                          <span className="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                            BEST
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            id="subtype_special"
-                            name="oliveyoung_subtype"
-                            value="special"
-                            checked={campaignForm.oliveyoung_subtype === 'special'}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: e.target.value }))}
-                            className="w-4 h-4 text-pink-600"
-                          />
-                          <Label htmlFor="subtype_special" className="cursor-pointer">
-                            🔥 오특 (오늘의 특가)
-                          </Label>
+                        <div className="text-center pt-2">
+                          <div className="w-14 h-14 bg-gradient-to-br from-pink-400 to-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
+                            <span className="text-2xl">🌸</span>
+                          </div>
+                          <h4 className="font-bold text-gray-900 mb-1">올영세일</h4>
+                          <p className="text-xs text-gray-500 mb-3">Olive Young Sale</p>
+                          <div className="bg-pink-100 text-pink-700 text-xs font-semibold px-3 py-1 rounded-full inline-block">
+                            세일 기간 집중
+                          </div>
                         </div>
+                        {campaignForm.oliveyoung_subtype === 'sale' && (
+                          <div className="absolute top-3 right-3 w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 오특 카드 */}
+                      <div
+                        onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'special' }))}
+                        className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${
+                          campaignForm.oliveyoung_subtype === 'special'
+                            ? 'border-orange-400 bg-gradient-to-br from-orange-50 to-red-50 shadow-lg ring-2 ring-orange-200'
+                            : 'border-gray-200 bg-white hover:border-orange-300'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
+                            <span className="text-2xl">🔥</span>
+                          </div>
+                          <h4 className="font-bold text-gray-900 mb-1">오특</h4>
+                          <p className="text-xs text-gray-500 mb-3">오늘의 특가</p>
+                          <div className="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full inline-block">
+                            핫딜 프로모션
+                          </div>
+                        </div>
+                        {campaignForm.oliveyoung_subtype === 'special' && (
+                          <div className="absolute top-3 right-3 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 모집 인원 & 영상 옵션 */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-white p-5 rounded-xl border border-gray-200">
+                      <Label className="block mb-3 font-semibold text-gray-700">모집 인원 *</Label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: Math.max(1, (prev.oliveyoung_recruit_count || 1) - 1) }))}
+                          className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-gray-600 font-bold text-xl transition-colors"
+                        >
+                          -
+                        </button>
+                        <div className="flex-1 text-center">
+                          <span className="text-3xl font-bold text-pink-600">{campaignForm.oliveyoung_recruit_count || 1}</span>
+                          <span className="text-gray-500 ml-1">명</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: (prev.oliveyoung_recruit_count || 1) + 1 }))}
+                          className="w-10 h-10 bg-pink-100 hover:bg-pink-200 rounded-lg flex items-center justify-center text-pink-600 font-bold text-xl transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2 text-center">1인당 ₩400,000</p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-xl border border-gray-200">
+                      <Label className="block mb-3 font-semibold text-gray-700">콘텐츠 타입 *</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setCampaignForm(prev => ({ ...prev, content_type: 'store_visit' }))}
+                          className={`p-3 rounded-lg border-2 transition-all text-sm ${
+                            campaignForm.content_type === 'store_visit'
+                              ? 'border-pink-400 bg-pink-50 text-pink-700'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          🏪 매장 방문형
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCampaignForm(prev => ({ ...prev, content_type: 'product_only' }))}
+                          className={`p-3 rounded-lg border-2 transition-all text-sm ${
+                            campaignForm.content_type === 'product_only'
+                              ? 'border-pink-400 bg-pink-50 text-pink-700'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          📦 제품 소개형
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 타임라인 자동화 섹션 */}
+                  <div className="bg-gradient-to-br from-pink-50 via-white to-rose-50 p-6 rounded-2xl border border-pink-200 mb-8">
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
+                        <span className="text-white text-lg">📅</span>
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">스마트 타임라인</h4>
+                        <p className="text-xs text-gray-500">세일 시작일만 입력하면 모든 일정이 자동으로 설정됩니다</p>
                       </div>
                     </div>
 
-                    {/* 세일 시즌 선택 (올영세일일 경우만) */}
-                    {campaignForm.oliveyoung_subtype === 'sale' && (
-                      <div>
-                        <Label htmlFor="sale_season">세일 시즌 *</Label>
-                      <Select 
-                        value={campaignForm.sale_season} 
-                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, sale_season: value }))}
-                      >
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="세일 시즌 선택" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectItem value="spring" className="bg-white hover:bg-gray-100">🌸 봄 세일 (3월 1~7일)</SelectItem>
-                          <SelectItem value="summer" className="bg-white hover:bg-gray-100">☀️ 여름 세일 (5월 31일~6월 6일)</SelectItem>
-                          <SelectItem value="fall" className="bg-white hover:bg-gray-100">🍂 가을 세일 (8월 30일~9월 5일)</SelectItem>
-                          <SelectItem value="winter" className="bg-white hover:bg-gray-100">❄️ 겨울 세일 (12월 초)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="mb-6">
+                      <Label className="block mb-2 font-semibold text-gray-700">세일 시작일 *</Label>
+                      <Input
+                        type="date"
+                        value={campaignForm.sale_start_date || ''}
+                        onChange={(e) => {
+                          const startDate = new Date(e.target.value)
+                          const step1 = new Date(startDate)
+                          step1.setDate(step1.getDate() - 7)
+                          const step2 = new Date(startDate)
+                          step2.setDate(step2.getDate() - 1)
+                          const step3 = new Date(startDate)
+
+                          setCampaignForm(prev => ({
+                            ...prev,
+                            sale_start_date: e.target.value,
+                            step1_deadline: step1.toISOString().split('T')[0],
+                            step2_deadline: step2.toISOString().split('T')[0],
+                            step3_deadline: step3.toISOString().split('T')[0]
+                          }))
+                        }}
+                        className="bg-white text-lg py-3"
+                      />
+                    </div>
+
+                    {/* 비주얼 타임라인 */}
+                    {campaignForm.sale_start_date && (
+                      <div className="relative">
+                        {/* 타임라인 연결선 */}
+                        <div className="absolute top-8 left-8 right-8 h-1 bg-gradient-to-r from-pink-300 via-rose-300 to-red-300 rounded-full"></div>
+
+                        <div className="grid grid-cols-3 gap-4 relative">
+                          {/* Step 1 */}
+                          <div className="text-center">
+                            <div className="w-16 h-16 bg-white border-4 border-pink-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg relative z-10">
+                              <span className="text-2xl">📝</span>
+                            </div>
+                            <div className="bg-white rounded-xl p-4 shadow-sm border border-pink-100">
+                              <span className="text-xs font-bold text-pink-600 bg-pink-100 px-2 py-1 rounded-full">STEP 1</span>
+                              <h5 className="font-bold text-gray-900 mt-2 text-sm">상품 리뷰</h5>
+                              <p className="text-lg font-bold text-pink-600 mt-1">
+                                {campaignForm.step1_deadline ? new Date(campaignForm.step1_deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '-'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">D-7</p>
+                            </div>
+                          </div>
+
+                          {/* Step 2 */}
+                          <div className="text-center">
+                            <div className="w-16 h-16 bg-white border-4 border-rose-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg relative z-10">
+                              <span className="text-2xl">📢</span>
+                            </div>
+                            <div className="bg-white rounded-xl p-4 shadow-sm border border-rose-100">
+                              <span className="text-xs font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded-full">STEP 2</span>
+                              <h5 className="font-bold text-gray-900 mt-2 text-sm">세일 홍보</h5>
+                              <p className="text-lg font-bold text-rose-600 mt-1">
+                                {campaignForm.step2_deadline ? new Date(campaignForm.step2_deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '-'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">D-1</p>
+                            </div>
+                          </div>
+
+                          {/* Step 3 */}
+                          <div className="text-center">
+                            <div className="w-16 h-16 bg-white border-4 border-red-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg relative z-10">
+                              <span className="text-2xl">🎯</span>
+                            </div>
+                            <div className="bg-white rounded-xl p-4 shadow-sm border border-red-100">
+                              <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded-full">STEP 3</span>
+                              <h5 className="font-bold text-gray-900 mt-2 text-sm">D-Day 스토리</h5>
+                              <p className="text-lg font-bold text-red-600 mt-1">
+                                {campaignForm.step3_deadline ? new Date(campaignForm.step3_deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '-'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">세일 당일</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
+                  </div>
 
-                    {/* 콘텐츠 타입 선택 */}
-                    <div>
-                      <Label htmlFor="content_type">콘텐츠 타입 *</Label>
-                      <Select 
-                        value={campaignForm.content_type} 
-                        onValueChange={(value) => setCampaignForm(prev => ({ ...prev, content_type: value }))}
-                      >
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="콘텐츠 타입 선택" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white">
-                          <SelectItem value="store_visit" className="bg-white hover:bg-gray-100">🏪 매장 방문형 (진정성 강조)</SelectItem>
-                          <SelectItem value="product_only" className="bg-white hover:bg-gray-100">📦 제품 소개형 (빠른 제작)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* 앰블럼 삽입 여부 */}
-                    <div className="flex items-center gap-2">
+                  {/* 앰블럼 & 추가 옵션 */}
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                    <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
-                        id="emblem_required"
                         checked={campaignForm.emblem_required}
                         onChange={(e) => setCampaignForm(prev => ({ ...prev, emblem_required: e.target.checked }))}
-                        className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                        className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
                       />
-                      <Label htmlFor="emblem_required" className="cursor-pointer">
-                        올영세일 앰블럼 삽입
-                      </Label>
-                    </div>
-
-                    {/* 3단계 스케줄 */}
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-semibold mb-3">📅 3단계 콘텐츠 업로드 스케줄</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <Label htmlFor="step1_deadline">STEP 1: 상품 리뷰 마감일 *</Label>
-                          <Input
-                            id="step1_deadline"
-                            type="date"
-                            value={campaignForm.step1_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
-                            required={campaignForm.is_oliveyoung_sale}
-                            className="bg-white"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">상품 리뷰 콘텐츠 제작 및 업로드</p>
-                        </div>
-                        <div>
-                          <Label htmlFor="step2_deadline">STEP 2: 세일 홍보 마감일 *</Label>
-                          <Input
-                            id="step2_deadline"
-                            type="date"
-                            value={campaignForm.step2_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_deadline: e.target.value }))}
-                            required={campaignForm.is_oliveyoung_sale}
-                            className="bg-white"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">세일 홍보 콘텐츠 제작 및 업로드</p>
-                        </div>
-                        <div>
-                          <Label htmlFor="step3_deadline">STEP 3: 세일 당일 스토리 마감일 *</Label>
-                          <Input
-                            id="step3_deadline"
-                            type="date"
-                            value={campaignForm.step3_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, step3_deadline: e.target.value }))}
-                            required={campaignForm.is_oliveyoung_sale}
-                            className="bg-white"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">본 영상은 STEP 2의 영상이 업로드 + URL이 삽입됩니다</p>
-                        </div>
+                      <div>
+                        <span className="font-medium text-gray-900">올영세일 앰블럼 삽입</span>
+                        <p className="text-xs text-gray-500">영상에 올리브영 세일 로고를 포함합니다</p>
                       </div>
-                    </div>
+                    </label>
                   </div>
                 </div>
               )}
