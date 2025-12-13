@@ -337,40 +337,60 @@ const CampaignCreationKorea = () => {
   ]
 
   const packageOptions = [
-    { 
-      value: 'basic', 
-      label: '베이직', 
-      price: 200000, 
+    {
+      value: 'basic',
+      label: '베이직',
+      price: 200000,
       description: '인스타그램 기준: 1만~3만명',
-      expectedApplicants: { instagram: '10~15', youtube: '5~8', tiktok: '5~8' }
+      expectedApplicants: { instagram: '10~15', youtube: '5~8', tiktok: '5~8' },
+      followerRange: '1만~3만',
+      creatorLevel: '신규 크리에이터',
+      qualityLevel: 1,
+      characteristics: ['성장 중인 크리에이터', '가성비 좋은 노출']
     },
-    { 
-      value: 'standard', 
-      label: '스탠다드', 
-      price: 300000, 
+    {
+      value: 'standard',
+      label: '스탠다드',
+      price: 300000,
       description: '인스타그램 기준: 3만~10만명',
-      expectedApplicants: { instagram: '15~20', youtube: '8~12', tiktok: '8~12' }
+      expectedApplicants: { instagram: '15~20', youtube: '8~12', tiktok: '8~12' },
+      followerRange: '3만~10만',
+      creatorLevel: '중급 크리에이터',
+      qualityLevel: 2,
+      characteristics: ['안정적인 팔로워층', '기획형 숏폼 제작']
     },
-    { 
-      value: 'premium', 
-      label: '프리미엄', 
-      price: 400000, 
+    {
+      value: 'premium',
+      label: '프리미엄',
+      price: 400000,
       description: '인스타그램 기준: 10만~30만명',
-      expectedApplicants: { instagram: '20~40', youtube: '10~20', tiktok: '10~20' }
+      expectedApplicants: { instagram: '20~40', youtube: '10~20', tiktok: '10~20' },
+      followerRange: '10만~30만',
+      creatorLevel: '인기 크리에이터',
+      qualityLevel: 3,
+      characteristics: ['높은 영향력', '구매 전환 유도']
     },
-    { 
-      value: 'professional', 
-      label: '프로페셔널', 
-      price: 600000, 
+    {
+      value: 'professional',
+      label: '프로페셔널',
+      price: 600000,
       description: '인스타그램 기준: 30만~50만명',
-      expectedApplicants: { instagram: '40~60', youtube: '20~30', tiktok: '20~30' }
+      expectedApplicants: { instagram: '40~60', youtube: '20~30', tiktok: '20~30' },
+      followerRange: '30만~50만',
+      creatorLevel: '탑티어 크리에이터',
+      qualityLevel: 4,
+      characteristics: ['프리미엄 영상미', '높은 팬 충성도']
     },
-    { 
-      value: 'enterprise', 
-      label: '엔터프라이즈', 
-      price: 1000000, 
+    {
+      value: 'enterprise',
+      label: '엔터프라이즈',
+      price: 1000000,
       description: '인스타그램 기준: 50만명 이상',
-      expectedApplicants: { instagram: '60~100', youtube: '30~50', tiktok: '30~50' }
+      expectedApplicants: { instagram: '60~100', youtube: '30~50', tiktok: '30~50' },
+      followerRange: '50만 이상',
+      creatorLevel: '메가 인플루언서',
+      qualityLevel: 5,
+      characteristics: ['TVC급 영상미', '강력한 바이럴 효과']
     }
   ]
 
@@ -1775,7 +1795,7 @@ const CampaignCreationKorea = () => {
                           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-lg flex-shrink-0">
                             ✨
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <div className="text-indigo-300 text-xs font-medium mb-1">AI 지원율 예측</div>
                             <div className="text-sm leading-relaxed">
                               선택하신 단가로는
@@ -1786,6 +1806,42 @@ const CampaignCreationKorea = () => {
                             </div>
                           </div>
                         </div>
+
+                        {/* 크리에이터 특성 표시 */}
+                        {(() => {
+                          const selectedPkg = packageOptions.find(p => p.value === campaignForm.package_type)
+                          if (!selectedPkg) return null
+                          return (
+                            <div className="mt-3 pt-3 border-t border-slate-700">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs text-gray-400">예상 크리에이터 수준</span>
+                                <div className="flex gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((level) => (
+                                    <div
+                                      key={level}
+                                      className={`w-2 h-2 rounded-full ${
+                                        level <= selectedPkg.qualityLevel
+                                          ? 'bg-gradient-to-r from-indigo-400 to-purple-400'
+                                          : 'bg-slate-600'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                <span className="text-xs px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded">
+                                  팔로워 {selectedPkg.followerRange}
+                                </span>
+                                {selectedPkg.characteristics.map((char, idx) => (
+                                  <span key={idx} className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded">
+                                    {char}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })()}
+
                         <div className="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
