@@ -159,7 +159,8 @@ const CampaignCreationKorea = () => {
 
       const result = await response.json()
 
-      if (result.success && result.data) {
+      // 데이터가 있으면 적용 (success가 false여도 부분 데이터가 있을 수 있음)
+      if (result.data) {
         setCampaignForm(prev => ({
           ...prev,
           product_name: result.data.product_name || prev.product_name,
@@ -168,12 +169,17 @@ const CampaignCreationKorea = () => {
           image_url: result.data.thumbnail_url || prev.image_url,
           product_description: result.data.product_description || prev.product_description,
         }))
-      } else {
-        setCrawlError(result.error || '정보를 가져오는데 실패했습니다')
+      }
+
+      // 메시지나 에러가 있으면 표시
+      if (result.message) {
+        setCrawlError(result.message)
+      } else if (!result.success && result.error) {
+        setCrawlError(result.error)
       }
     } catch (error) {
       console.error('Crawl error:', error)
-      setCrawlError('네트워크 오류가 발생했습니다')
+      setCrawlError('네트워크 오류가 발생했습니다. 상품 정보를 수동으로 입력해주세요.')
     } finally {
       setIsCrawling(false)
     }
@@ -1409,7 +1415,9 @@ const CampaignCreationKorea = () => {
                           </Button>
                         </div>
                         {crawlError && (
-                          <p className="text-xs text-red-500 mt-2">❌ {crawlError}</p>
+                          <p className={`text-xs mt-2 ${crawlError.includes('수동으로') ? 'text-amber-600' : 'text-red-500'}`}>
+                            {crawlError.includes('수동으로') ? '⚠️' : '❌'} {crawlError}
+                          </p>
                         )}
                         <p className="text-xs text-gray-500 mt-2">💡 올리브영, 쿠팡, 네이버 스마트스토어, 자사몰 URL 지원</p>
                       </div>
