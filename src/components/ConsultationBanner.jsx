@@ -173,8 +173,8 @@ export default function ConsultationBanner() {
 
   return (
     <>
-      {/* 플로팅 상담 버튼 - 눈에 띄는 디자인 */}
-      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 ${
+      {/* 플로팅 상담 버튼 - 우측 하단 */}
+      <div className={`fixed bottom-6 right-6 z-50 ${
         isMainPage ? '' : 'hidden md:block'
       }`}>
         <button
