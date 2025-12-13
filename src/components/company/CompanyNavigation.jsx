@@ -26,6 +26,7 @@ export default function CompanyNavigation() {
   const menuItems = [
     { icon: LayoutDashboard, label: '대시보드', path: '/company/dashboard' },
     { icon: TrendingUp, label: '내 캠페인', path: '/company/campaigns' },
+    { icon: Users, label: '크리에이터 현황', path: '/company/creators' },
     { icon: Receipt, label: '내 결제내역', path: '/company/payments' },
     { icon: User, label: '프로필 수정', path: '/company/profile-edit' },
   ]
