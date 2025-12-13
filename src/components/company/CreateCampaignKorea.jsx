@@ -25,7 +25,7 @@ const CampaignCreationKorea = () => {
     product_description: '',
     product_link: '',
     category: [],
-    total_slots: 10,
+    total_slots: 1,
     remaining_slots: 10,
     application_deadline: '',
     shipping_date: '',
@@ -88,7 +88,7 @@ const CampaignCreationKorea = () => {
     try {
       const { data, error } = await supabaseBiz
         .from('campaigns')
-        .select('id, brand_name, product_name, image_url, created_at')
+        .select('id, brand, product_name, image_url, created_at')
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -115,7 +115,7 @@ const CampaignCreationKorea = () => {
       if (data) {
         setCampaignForm(prev => ({
           ...prev,
-          brand: data.brand_name || prev.brand,
+          brand: data.brand || prev.brand,
           product_name: data.product_name || prev.product_name,
           product_description: data.product_description || prev.product_description,
           image_url: data.image_url || prev.image_url,
@@ -1106,31 +1106,6 @@ const CampaignCreationKorea = () => {
                         ))}
                       </div>
 
-                      {/* AI 예상 지원자 수 배너 */}
-                      <div className="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-700">
-                            <span className="font-semibold text-indigo-600">AI 예측:</span>{' '}
-                            현재 설정하신 단가와 인원이라면, 약{' '}
-                            <span className="font-bold text-indigo-700">
-                              {campaignForm.package_type === 'basic' && '5~10명'}
-                              {campaignForm.package_type === 'standard' && '15~25명'}
-                              {campaignForm.package_type === 'premium' && '25~40명'}
-                              {campaignForm.package_type === 'professional' && '40~60명'}
-                              {campaignForm.package_type === 'enterprise' && '60~100명'}
-                              {!campaignForm.package_type && '10~20명'}
-                              {' '}이상의 크리에이터
-                            </span>
-                            가 지원할 것으로 예상됩니다.
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            (지원율 매우 높음)
-                          </p>
-                        </div>
-                      </div>
                     </div>
 
                     {/* 모집 인원 슬라이더 */}
@@ -1170,6 +1145,32 @@ const CampaignCreationKorea = () => {
                           >
                             +
                           </button>
+                        </div>
+                      </div>
+
+                      {/* AI 예상 지원자 수 배너 */}
+                      <div className="mt-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            <span className="font-semibold text-indigo-600">AI 예측:</span>{' '}
+                            현재 설정하신 단가와 인원이라면, 약{' '}
+                            <span className="font-bold text-indigo-700">
+                              {campaignForm.package_type === 'basic' && '5~10명'}
+                              {campaignForm.package_type === 'standard' && '15~25명'}
+                              {campaignForm.package_type === 'premium' && '25~40명'}
+                              {campaignForm.package_type === 'professional' && '40~60명'}
+                              {campaignForm.package_type === 'enterprise' && '60~100명'}
+                              {!campaignForm.package_type && '10~20명'}
+                              {' '}이상의 크리에이터
+                            </span>
+                            가 지원할 것으로 예상됩니다.
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            (지원율 매우 높음)
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1234,7 +1235,7 @@ const CampaignCreationKorea = () => {
                                     )}
                                     <div className="flex-1 min-w-0">
                                       <p className="font-medium text-gray-900 truncate">{campaign.product_name || '제품명 없음'}</p>
-                                      <p className="text-sm text-gray-500 truncate">{campaign.brand_name || '브랜드 없음'}</p>
+                                      <p className="text-sm text-gray-500 truncate">{campaign.brand || '브랜드 없음'}</p>
                                     </div>
                                     <span className="text-xs text-gray-400">
                                       {new Date(campaign.created_at).toLocaleDateString('ko-KR')}
@@ -2379,23 +2380,6 @@ const CampaignCreationKorea = () => {
         </div>
       </div>
 
-      {/* 우측 하단 도움말 플로팅 버튼 */}
-      <div className="fixed bottom-24 right-6 z-50">
-        <button
-          type="button"
-          onClick={() => window.open('https://pf.kakao.com/_xnxfxhxj', '_blank')}
-          className="group flex items-center gap-2 bg-white border border-gray-200 shadow-lg rounded-full pl-4 pr-5 py-2.5 hover:shadow-xl transition-all"
-        >
-          <span className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-bold">?</span>
-          </span>
-          <div className="text-left">
-            <p className="text-sm font-medium text-gray-800">도움이 필요하신가요?</p>
-            <p className="text-xs text-gray-500">전문 매니저가 상담해드립니다.</p>
-          </div>
-        </button>
-      </div>
-
       {/* 하단 고정 네비게이션 바 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-4 py-3">
@@ -2446,6 +2430,20 @@ const CampaignCreationKorea = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Button>
+
+              {/* 도움말 버튼 */}
+              <button
+                type="button"
+                onClick={() => window.open('https://pf.kakao.com/_xnxfxhxj', '_blank')}
+                className="flex items-center gap-2 bg-white border border-gray-200 shadow-sm rounded-full pl-3 pr-4 py-2 hover:shadow-md transition-all ml-4"
+              >
+                <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
+                  <span className="text-purple-600 text-sm font-bold">?</span>
+                </span>
+                <div className="text-left hidden sm:block">
+                  <p className="text-xs font-medium text-gray-700">도움이 필요하신가요?</p>
+                </div>
+              </button>
             </div>
           </div>
         </div>
