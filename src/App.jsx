@@ -11,6 +11,7 @@ import ResetPasswordPage from './components/ResetPasswordPage'
 import CompanyDashboard from './components/company/CompanyDashboard'
 import CreateCampaign from './components/company/CreateCampaign'
 import CreateCampaignRouter from './components/company/CreateCampaignRouter'
+import CampaignWizard from './components/company/CampaignWizard'
 import CampaignGuide from './components/company/CampaignGuide'
 import CampaignGuideOliveYoung from './components/company/CampaignGuideOliveYoung'
 import OliveYoungGuideViewer from './components/company/OliveYoungGuideViewer'
@@ -129,6 +130,7 @@ function App() {
         <Route path="/company/dashboard" element={<CompanyDashboard />} />
         <Route path="/company/campaigns/new" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/create/:region" element={<CreateCampaignRouter />} />
+        <Route path="/company/campaigns/wizard" element={<CampaignWizard />} />
         <Route path="/company/campaigns/guide" element={<CampaignGuideEditor />} />
         <Route path="/company/campaigns/guide/japan" element={<CampaignGuideJapan />} />
         <Route path="/company/campaigns/guide/us" element={<CampaignGuideUS />} />
