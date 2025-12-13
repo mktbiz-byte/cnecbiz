@@ -102,54 +102,60 @@ export default function CreatorManagement() {
   }
 
   const fetchSavedCreators = async () => {
-    // 저장한 크리에이터 목록 (데모 데이터)
-    setCreators([
-      {
-        id: '1',
-        name: '박혜민',
-        handle: '@hyemin_09',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-        followers: 65000,
-        selectedCount: 0,
-        applyingCount: 0,
-        isRecommended: true,
-        isNewbie: false,
-        isSaved: true,
-        instagram: 'https://instagram.com/hyemin_09',
-        youtube: null,
-        tiktok: null
-      },
-      {
-        id: '2',
-        name: '이송희',
-        handle: '@jei2y',
-        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-        followers: 91202,
-        selectedCount: 1,
-        applyingCount: 0,
-        isRecommended: true,
-        isNewbie: false,
-        isSaved: true,
-        instagram: 'https://instagram.com/jei2y',
-        youtube: 'https://youtube.com/@jei2y',
-        tiktok: null
-      },
-      {
-        id: '3',
-        name: '김나연',
-        handle: '@nayeon_kim',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        followers: 128000,
-        selectedCount: 2,
-        applyingCount: 1,
-        isRecommended: false,
-        isNewbie: true,
-        isSaved: true,
-        instagram: 'https://instagram.com/nayeon_kim',
-        youtube: null,
-        tiktok: 'https://tiktok.com/@nayeon_kim'
+    // 통합관리자에서 등록한 추천 크리에이터 목록 가져오기
+    try {
+      const { data: featuredCreators, error } = await supabaseBiz
+        .from('featured_creators')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      if (featuredCreators && featuredCreators.length > 0) {
+        const formattedCreators = featuredCreators.map(creator => ({
+          id: creator.id,
+          name: creator.name || creator.creator_name || '이름 없음',
+          handle: creator.instagram_handle ? `@${creator.instagram_handle}` : '',
+          avatar: creator.profile_image || creator.thumbnail_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+          followers: creator.followers || 0,
+          selectedCount: creator.collaboration_count || 0,
+          applyingCount: 0,
+          isRecommended: creator.featured_type === 'ai_recommended' || creator.is_featured === true,
+          isNewbie: creator.is_new || false,
+          isSaved: false,
+          instagram: creator.instagram_handle ? `https://instagram.com/${creator.instagram_handle}` : null,
+          youtube: creator.youtube_handle ? `https://youtube.com/@${creator.youtube_handle}` : null,
+          tiktok: creator.tiktok_handle ? `https://tiktok.com/@${creator.tiktok_handle}` : null,
+          evaluationScore: creator.evaluation_score,
+          categories: creator.categories || [],
+          regions: creator.regions || []
+        }))
+        setCreators(formattedCreators)
+      } else {
+        // 데이터가 없을 경우 데모 데이터 표시
+        setCreators([
+          {
+            id: 'demo-1',
+            name: '크넥 추천 크리에이터',
+            handle: '@cnec_creator',
+            avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+            followers: 50000,
+            selectedCount: 0,
+            applyingCount: 0,
+            isRecommended: true,
+            isNewbie: false,
+            isSaved: false,
+            instagram: null,
+            youtube: null,
+            tiktok: null
+          }
+        ])
       }
-    ])
+    } catch (error) {
+      console.error('Error fetching featured creators:', error)
+      setCreators([])
+    }
   }
 
   const fetchAppliedCreators = async () => {
@@ -285,8 +291,8 @@ export default function CreatorManagement() {
   }
 
   const tabs = [
-    { id: 'saved', label: '저장해둔 인플루언서', icon: Bookmark },
-    { id: 'applied', label: '지원한 인플루언서', icon: UserCheck },
+    { id: 'saved', label: '크넥 추천 크리에이터', icon: Star },
+    { id: 'applied', label: '지원한 크리에이터', icon: UserCheck },
     { id: 'campaign', label: '캠페인별 보기', icon: FolderOpen }
   ]
 
@@ -410,7 +416,7 @@ export default function CreatorManagement() {
                     onChange={(e) => setFilters(prev => ({ ...prev, recommended: e.target.checked }))}
                     className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
                   />
-                  <span className="text-sm text-gray-700">추천 인플루언서</span>
+                  <span className="text-sm text-gray-700">크넥 추천</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -419,7 +425,7 @@ export default function CreatorManagement() {
                     onChange={(e) => setFilters(prev => ({ ...prev, newbie: e.target.checked }))}
                     className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
                   />
-                  <span className="text-sm text-gray-700">신입 인플루언서</span>
+                  <span className="text-sm text-gray-700">신규 크리에이터</span>
                 </label>
               </div>
 
@@ -428,9 +434,9 @@ export default function CreatorManagement() {
                 <span className="text-sm text-gray-500">정렬</span>
                 <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                   {[
-                    { id: 'saved', label: '저장순' },
+                    { id: 'saved', label: '최신순' },
                     { id: 'followers', label: '팔로워순' },
-                    { id: 'selected', label: '선정 많은 순' }
+                    { id: 'selected', label: '협업 많은 순' }
                   ].map(sort => (
                     <button
                       key={sort.id}
@@ -507,14 +513,14 @@ function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
         {creator.isRecommended && (
           <span className="absolute top-3 left-3 px-2.5 py-1 bg-indigo-500 text-white text-xs font-medium rounded-full flex items-center gap-1">
             <Star className="w-3 h-3" />
-            CNEC 추천
+            크넥 추천
           </span>
         )}
 
-        {/* 신입 배지 */}
+        {/* 신규 배지 */}
         {creator.isNewbie && (
           <span className="absolute top-3 left-3 px-2.5 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
-            신입
+            신규
           </span>
         )}
 
@@ -583,14 +589,14 @@ function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
             <span className="font-medium text-gray-900">{formatFollowers(creator.followers)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">우리가 선정한 적 있음</span>
+            <span className="text-gray-500">협업 횟수</span>
             <span className={`font-medium ${creator.selectedCount > 0 ? 'text-indigo-600' : 'text-gray-900'}`}>
-              {creator.selectedCount}
+              {creator.selectedCount}회
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">우리 캠페인에 지원 중</span>
-            <span className="font-medium text-gray-900">{creator.applyingCount}</span>
+            <span className="text-gray-500">지원 중인 캠페인</span>
+            <span className="font-medium text-gray-900">{creator.applyingCount}건</span>
           </div>
         </div>
 
@@ -619,18 +625,18 @@ function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
             {creator.isSaved ? (
               <>
                 <BookmarkCheck className="w-4 h-4" />
-                저장했음
+                관심 크리에이터
               </>
             ) : (
               <>
                 <Bookmark className="w-4 h-4" />
-                저장해두기
+                관심 등록
               </>
             )}
           </button>
 
           <button className="w-full text-sm text-indigo-600 hover:text-indigo-700 py-2">
-            우리 캠페인에 지원해 달라고 부탁하기
+            캠페인 참여 요청하기
           </button>
         </div>
       </div>
