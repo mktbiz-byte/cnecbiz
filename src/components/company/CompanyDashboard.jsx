@@ -418,90 +418,8 @@ export default function CompanyDashboard() {
               </button>
             </div>
 
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Upcoming Schedules - 2 columns */}
-              <div className="lg:col-span-2">
-                <div className="dashboard-card">
-                  <div className="section-header px-1">
-                    <Bell className="w-5 h-5 text-gray-600" />
-                    <h2 className="section-title">다가오는 일정</h2>
-                    <span className="section-count">({upcomingDeadlines.length}개)</span>
-                  </div>
-
-                  {upcomingDeadlines.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                      <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p className="text-sm">다가오는 일정이 없습니다</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {upcomingDeadlines.map((item, index) => (
-                        <div
-                          key={`${item.id}-${index}`}
-                          className="schedule-item"
-                          onClick={() => navigate(`/company/campaigns/${item.id}`)}
-                        >
-                          <div className={`schedule-item-dot ${item.type.dotColor}`} />
-                          <div className="schedule-item-content">
-                            <span className={`schedule-item-badge ${item.type.color}`}>
-                              {item.type.label}
-                            </span>
-                            <p className="schedule-item-title">{item.title}</p>
-                            <p className="schedule-item-subtitle">{item.subtitle}</p>
-                            <div className="schedule-item-date">
-                              <span>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })}</span>
-                              <span className={`schedule-item-dday ${item.daysLeft <= 3 ? 'bg-red-100 text-red-700' : ''}`}>
-                                D-{item.daysLeft}
-                              </span>
-                            </div>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Delayed Items - 1 column */}
-              <div className="lg:col-span-1">
-                <div className="warning-card">
-                  <div className="warning-card-header">
-                    <AlertCircle className="w-5 h-5" />
-                    <span>지연된 일정</span>
-                  </div>
-
-                  {delayedItems.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
-                      <p className="text-sm text-gray-600">지연된 일정이 없습니다</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {delayedItems.map((item, index) => (
-                        <div
-                          key={`delayed-${item.id}-${index}`}
-                          className="flex items-start gap-3 p-3 bg-white rounded-lg cursor-pointer hover:shadow-sm transition-shadow"
-                          onClick={() => navigate(`/company/campaigns/${item.id}`)}
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                            <Calendar className="w-4 h-4 text-red-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                            <p className="text-xs text-red-600">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
             {/* Recent Campaigns */}
-            <div className="mt-6">
+            <div className="mb-6">
               <div className="dashboard-card">
                 <div className="flex items-center justify-between mb-4 px-1">
                   <div className="flex items-center gap-3">
@@ -646,6 +564,88 @@ export default function CompanyDashboard() {
                     })}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Upcoming Schedules - 2 columns */}
+              <div className="lg:col-span-2">
+                <div className="dashboard-card">
+                  <div className="section-header px-1">
+                    <Bell className="w-5 h-5 text-gray-600" />
+                    <h2 className="section-title">다가오는 일정</h2>
+                    <span className="section-count">({upcomingDeadlines.length}개)</span>
+                  </div>
+
+                  {upcomingDeadlines.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-sm">다가오는 일정이 없습니다</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {upcomingDeadlines.map((item, index) => (
+                        <div
+                          key={`${item.id}-${index}`}
+                          className="schedule-item"
+                          onClick={() => navigate(`/company/campaigns/${item.id}`)}
+                        >
+                          <div className={`schedule-item-dot ${item.type.dotColor}`} />
+                          <div className="schedule-item-content">
+                            <span className={`schedule-item-badge ${item.type.color}`}>
+                              {item.type.label}
+                            </span>
+                            <p className="schedule-item-title">{item.title}</p>
+                            <p className="schedule-item-subtitle">{item.subtitle}</p>
+                            <div className="schedule-item-date">
+                              <span>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' })}</span>
+                              <span className={`schedule-item-dday ${item.daysLeft <= 3 ? 'bg-red-100 text-red-700' : ''}`}>
+                                D-{item.daysLeft}
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Delayed Items - 1 column */}
+              <div className="lg:col-span-1">
+                <div className="warning-card">
+                  <div className="warning-card-header">
+                    <AlertCircle className="w-5 h-5" />
+                    <span>지연된 일정</span>
+                  </div>
+
+                  {delayedItems.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-300" />
+                      <p className="text-sm text-gray-600">지연된 일정이 없습니다</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {delayedItems.map((item, index) => (
+                        <div
+                          key={`delayed-${item.id}-${index}`}
+                          className="flex items-start gap-3 p-3 bg-white rounded-lg cursor-pointer hover:shadow-sm transition-shadow"
+                          onClick={() => navigate(`/company/campaigns/${item.id}`)}
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <Calendar className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
+                            <p className="text-xs text-red-600">마감: {new Date(item.date).toLocaleDateString('ko-KR')}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
