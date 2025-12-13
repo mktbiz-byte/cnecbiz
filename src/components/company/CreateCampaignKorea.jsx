@@ -936,8 +936,8 @@ const CampaignCreationKorea = () => {
 
         {/* 타이틀 */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">가장 합리적인 캠페인을 선택하세요</h1>
-          <p className="text-gray-500 text-sm lg:text-base">복잡한 옵션은 빼고, 꼭 필요한 기능만 담았습니다.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">뷰티 브랜드를 위한 3가지 캠페인</h1>
+          <p className="text-gray-500 text-sm lg:text-base">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
         </div>
 
         {/* 캠페인 타입 카드들 */}
@@ -975,7 +975,7 @@ const CampaignCreationKorea = () => {
               <ul className="space-y-2 text-sm flex-1">
                 <li className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-pink-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                  <span>티징 + 본편 (총 2편 제작)</span>
+                  <span>3단계 콘텐츠 (리뷰→홍보→당일)</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-pink-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
@@ -991,12 +991,12 @@ const CampaignCreationKorea = () => {
                 </li>
                 <li className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-pink-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                  <span>기본 성과 리포트</span>
+                  <span>2차 활용 및 파트너코드</span>
                 </li>
               </ul>
             </div>
 
-            {/* 기획형 캠페인 - 가운데 MOST POPULAR */}
+            {/* 기획형 캠페인 - 가운데 인기 */}
             <div
               className={`relative bg-white rounded-xl border-2 p-5 lg:p-6 transition-all cursor-pointer flex flex-col ${
                 campaignForm.campaign_type === 'planned'
@@ -1005,10 +1005,10 @@ const CampaignCreationKorea = () => {
               }`}
               onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}
             >
-              {/* MOST POPULAR 배지 */}
+              {/* 인기 배지 */}
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
-                  <span>✨</span> MOST POPULAR
+                  <span>✨</span> 인기
                 </span>
               </div>
 
@@ -1043,15 +1043,15 @@ const CampaignCreationKorea = () => {
                 </li>
                 <li className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                  <span>AI 크리에이터 매칭</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
                   <span>SNS 업로드 URL 1개</span>
                 </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-                  <span>2차 활용 라이선스</span>
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
-                  <span>심층 성과 분석 리포트</span>
+                <li className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                  <span>2차 활용 및 파트너코드</span>
                 </li>
               </ul>
             </div>
@@ -1096,15 +1096,11 @@ const CampaignCreationKorea = () => {
                 </li>
                 <li className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                  <span>SNS 업로드 URL 무제한</span>
+                  <span>SNS 업로드 URL 4개</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                  <span>2차 활용 라이선스 포함</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
-                  <span>심층 성과 분석 리포트</span>
+                  <span>2차 활용 및 파트너코드</span>
                 </li>
               </ul>
             </div>
