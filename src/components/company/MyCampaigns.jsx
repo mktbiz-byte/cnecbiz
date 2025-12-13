@@ -402,14 +402,14 @@ export default function MyCampaigns() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center">
                   <TrendingUp className="w-5 h-5 text-white" />
                 </div>
                 내 캠페인
               </h1>
               <p className="text-gray-500 mt-1 ml-13">생성한 캠페인을 관리하세요</p>
             </div>
-            <Button onClick={() => setShowRegionModal(true)} className="bg-orange-500 hover:bg-orange-600">
+            <Button onClick={() => setShowRegionModal(true)} className="bg-indigo-500 hover:bg-indigo-600">
               <Plus className="w-4 h-4 mr-2" />
               새 캠페인 만들기
             </Button>
@@ -429,11 +429,11 @@ export default function MyCampaigns() {
             <div className="stats-card">
               <div className="stats-card-header">
                 <span className="stats-card-title">승인 대기</span>
-                <div className="stats-card-icon bg-orange-50">
-                  <Clock className="w-5 h-5 text-orange-500" />
+                <div className="stats-card-icon bg-yellow-50">
+                  <Clock className="w-5 h-5 text-yellow-500" />
                 </div>
               </div>
-              <div className="stats-card-value text-orange-500">
+              <div className="stats-card-value text-yellow-500">
                 {activeCampaigns.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length}
               </div>
             </div>
@@ -521,7 +521,7 @@ export default function MyCampaigns() {
 
             {loading ? (
               <div className="text-center py-16 text-gray-500">
-                <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <p>캠페인을 불러오는 중...</p>
               </div>
             ) : filteredCampaigns.length === 0 ? (
@@ -534,7 +534,7 @@ export default function MyCampaigns() {
                   {campaigns.length === 0 ? '첫 번째 캠페인을 만들어보세요' : '다른 검색어나 필터를 시도해보세요'}
                 </p>
                 {campaigns.length === 0 && (
-                  <Button onClick={() => setShowRegionModal(true)} className="bg-orange-500 hover:bg-orange-600">
+                  <Button onClick={() => setShowRegionModal(true)} className="bg-indigo-500 hover:bg-indigo-600">
                     <Plus className="w-4 h-4 mr-2" />
                     첫 캠페인 만들기
                   </Button>
@@ -559,7 +559,7 @@ export default function MyCampaigns() {
                   return (
                     <div
                       key={campaign.id}
-                      className="border border-gray-100 rounded-xl p-4 md:p-5 hover:border-orange-200 hover:shadow-md cursor-pointer transition-all bg-white"
+                      className="border border-gray-100 rounded-xl p-4 md:p-5 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white"
                       onClick={() => navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)}
                     >
                       {/* Header */}
@@ -590,7 +590,7 @@ export default function MyCampaigns() {
                         {/* Price */}
                         <div className="text-right flex-shrink-0">
                           <div className="text-xs text-gray-500 mb-1">결제 예상 금액</div>
-                          <div className="text-xl font-bold text-orange-500">
+                          <div className="text-xl font-bold text-indigo-500">
                             {totalCost.toLocaleString()}원
                           </div>
                           <div className="text-xs text-gray-400">{campaign.package_type}</div>
@@ -660,7 +660,7 @@ export default function MyCampaigns() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+                          className="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50"
                           onClick={(e) => {
                             e.stopPropagation()
                             navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
