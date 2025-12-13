@@ -60,17 +60,20 @@ export default function CompanyNavigation() {
         style={{ boxShadow: '4px 0 24px rgba(0, 0, 0, 0.06)' }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
+          {/* Logo - 클릭 시 대시보드로 이동 */}
           <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-lg">C</span>
+            <button
+              onClick={() => navigate('/company/dashboard')}
+              className="flex items-center gap-3 w-full hover:opacity-80 transition-opacity"
+            >
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 flex items-center justify-center shadow-md">
+                <span className="text-white font-bold text-xl">C</span>
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900">CNEC</h1>
+              <div className="text-left">
+                <h1 className="text-xl font-bold text-gray-900">CNEC</h1>
                 <p className="text-xs text-gray-500">글로벌 인플루언서 마케팅</p>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Menu Items */}
@@ -90,14 +93,14 @@ export default function CompanyNavigation() {
                     className={`
                       w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                       ${active
-                        ? 'bg-orange-50 text-orange-600 font-medium'
+                        ? 'bg-indigo-50 text-indigo-600 font-medium'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       }
                     `}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-orange-500' : ''}`} />
+                    <Icon className={`w-5 h-5 ${active ? 'text-indigo-500' : ''}`} />
                     <span className="flex-1 text-left">{item.label}</span>
-                    {active && <ChevronRight className="w-4 h-4 text-orange-400" />}
+                    {active && <ChevronRight className="w-4 h-4 text-indigo-400" />}
                   </button>
                 )
               })}
