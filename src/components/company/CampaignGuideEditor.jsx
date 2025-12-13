@@ -7,6 +7,7 @@ import { Input } from '../ui/input'
 import { Card, CardContent } from '../ui/card'
 import { Label } from '../ui/label'
 import { Checkbox } from '../ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import CompanyNavigation from './CompanyNavigation'
 
 const CampaignGuideEditor = () => {
@@ -61,6 +62,90 @@ const CampaignGuideEditor = () => {
   // 템플릿 저장 상태
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [savedTemplates, setSavedTemplates] = useState([])
+
+  // 카테고리별 추천 설정
+  const categoryPresets = {
+    skincare: {
+      name: '스킨케어',
+      videoLength: '30sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: true, productCloseup: true, productTexture: true, storeVisit: false, weeklyReview: true, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: true
+    },
+    makeup: {
+      name: '메이크업',
+      videoLength: '45sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: true, productCloseup: true, productTexture: true, storeVisit: false, weeklyReview: false, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: false, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: true
+    },
+    haircare: {
+      name: '헤어케어',
+      videoLength: '30sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: true, productCloseup: true, productTexture: true, storeVisit: false, weeklyReview: true, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: true
+    },
+    cleansing: {
+      name: '클렌징',
+      videoLength: '30sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: true, productCloseup: true, productTexture: true, storeVisit: false, weeklyReview: false, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: false
+    },
+    maskpack: {
+      name: '마스크팩',
+      videoLength: '45sec',
+      videoTempo: 'slow',
+      missions: { beforeAfter: true, productCloseup: true, productTexture: false, storeVisit: false, weeklyReview: true, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: true
+    },
+    device: {
+      name: '디바이스',
+      videoLength: '60sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: true, productCloseup: true, productTexture: false, storeVisit: false, weeklyReview: true, priceInfo: true, purchaseLink: true },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: true, negativeExpression: false, other: false },
+      hasNarration: true
+    },
+    bodycare: {
+      name: '바디케어',
+      videoLength: '30sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: false, productCloseup: true, productTexture: true, storeVisit: false, weeklyReview: true, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: false
+    },
+    supplement: {
+      name: '건기식',
+      videoLength: '45sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: false, productCloseup: true, productTexture: false, storeVisit: false, weeklyReview: true, priceInfo: true, purchaseLink: true },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: true, negativeExpression: false, other: false },
+      hasNarration: true
+    },
+    suncare: {
+      name: '선케어',
+      videoLength: '30sec',
+      videoTempo: 'fast',
+      missions: { beforeAfter: false, productCloseup: true, productTexture: true, storeVisit: false, weeklyReview: false, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: true, medicalMisrepresentation: true, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: false
+    },
+    nail: {
+      name: '네일',
+      videoLength: '45sec',
+      videoTempo: 'normal',
+      missions: { beforeAfter: true, productCloseup: true, productTexture: true, storeVisit: false, weeklyReview: false, priceInfo: false, purchaseLink: false },
+      prohibitions: { competitorMention: true, exaggeratedClaims: false, medicalMisrepresentation: false, priceOutOfSale: false, negativeExpression: false, other: false },
+      hasNarration: false
+    }
+  }
 
   // 캠페인 정보 로드
   useEffect(() => {
@@ -179,53 +264,18 @@ const CampaignGuideEditor = () => {
     setHashtags(newHashtags)
   }
 
-  // AI 가이드 생성
-  const handleAIGuideGenerate = () => {
-    const message = coreMessage.toLowerCase()
-    const newMissions = { ...missions }
-    let checkedCount = 0
+  // 추천 설정 적용
+  const applyPreset = (categoryKey) => {
+    const preset = categoryPresets[categoryKey]
+    if (!preset) return
 
-    if ((message.includes('비포') || message.includes('애프터') || message.includes('변화') || message.includes('효과')) && checkedCount < 3) {
-      newMissions.beforeAfter = true
-      checkedCount++
-    }
-    if ((message.includes('클로즈업') || message.includes('사용') || message.includes('바르') || message.includes('적용')) && checkedCount < 3) {
-      newMissions.productCloseup = true
-      checkedCount++
-    }
-    if ((message.includes('텍스처') || message.includes('제형') || message.includes('발림') || message.includes('흡수')) && checkedCount < 3) {
-      newMissions.productTexture = true
-      checkedCount++
-    }
-    if ((message.includes('올리브영') || message.includes('매장') || message.includes('구매')) && checkedCount < 3) {
-      newMissions.storeVisit = true
-      checkedCount++
-    }
-    if ((message.includes('일주일') || message.includes('7일') || message.includes('후기') || message.includes('경험')) && checkedCount < 3) {
-      newMissions.weeklyReview = true
-      checkedCount++
-    }
-    if ((message.includes('가격') || message.includes('혜택') || message.includes('할인') || message.includes('세일')) && checkedCount < 3) {
-      newMissions.priceInfo = true
-      checkedCount++
-    }
-    if ((message.includes('링크') || message.includes('구매') || message.includes('주문')) && checkedCount < 3) {
-      newMissions.purchaseLink = true
-      checkedCount++
-    }
+    setVideoLength(preset.videoLength)
+    setVideoTempo(preset.videoTempo)
+    setMissions(preset.missions)
+    setProhibitions(preset.prohibitions)
+    setHasNarration(preset.hasNarration)
 
-    if (checkedCount < 3) {
-      if (!newMissions.beforeAfter) { newMissions.beforeAfter = true; checkedCount++ }
-    }
-    if (checkedCount < 3) {
-      if (!newMissions.productCloseup) { newMissions.productCloseup = true; checkedCount++ }
-    }
-    if (checkedCount < 3) {
-      if (!newMissions.productTexture) { newMissions.productTexture = true; checkedCount++ }
-    }
-
-    setMissions(newMissions)
-    setSuccess('AI가 핵심 메시지를 분석하여 필수 미션을 추천했습니다!')
+    setSuccess(`${preset.name} 카테고리 추천 설정이 적용되었습니다!`)
     setTimeout(() => setSuccess(''), 3000)
   }
 
@@ -359,13 +409,28 @@ const CampaignGuideEditor = () => {
               )}
             </div>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={handleAIGuideGenerate}
-                className="border-amber-300 text-amber-700 hover:bg-amber-50"
-              >
-                <span className="mr-2">🤖</span> AI 가이드 생성
-              </Button>
+              {/* 추천 설정 드롭다운 */}
+              <Select onValueChange={applyPreset}>
+                <SelectTrigger className="w-44 border-amber-300 text-amber-700 hover:bg-amber-50 bg-white">
+                  <span className="flex items-center gap-2">
+                    <span>🤖</span>
+                    <SelectValue placeholder="추천 설정" />
+                  </span>
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="skincare">스킨케어</SelectItem>
+                  <SelectItem value="makeup">메이크업</SelectItem>
+                  <SelectItem value="haircare">헤어케어</SelectItem>
+                  <SelectItem value="cleansing">클렌징</SelectItem>
+                  <SelectItem value="maskpack">마스크팩</SelectItem>
+                  <SelectItem value="device">디바이스</SelectItem>
+                  <SelectItem value="bodycare">바디케어</SelectItem>
+                  <SelectItem value="supplement">건기식</SelectItem>
+                  <SelectItem value="suncare">선케어</SelectItem>
+                  <SelectItem value="nail">네일</SelectItem>
+                </SelectContent>
+              </Select>
+
               <Button
                 variant="outline"
                 onClick={() => setShowTemplateModal(true)}
@@ -707,21 +772,24 @@ const CampaignGuideEditor = () => {
         </div>
       </div>
 
-      {/* 우측 하단 도움말 플로팅 버튼 */}
+      {/* 우측 끝 도움말 플로팅 버튼 (문의하기 버튼 포함) */}
       <div className="fixed bottom-24 right-6 z-50">
-        <button
-          type="button"
-          onClick={() => window.open('https://pf.kakao.com/_xnxfxhxj', '_blank')}
-          className="group flex items-center gap-2 bg-white border border-gray-200 shadow-lg rounded-full pl-4 pr-5 py-2.5 hover:shadow-xl transition-all"
-        >
-          <span className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-bold">?</span>
-          </span>
+        <div className="flex items-center gap-3 bg-white border border-gray-200 shadow-lg rounded-full pl-4 pr-2 py-2">
+          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+            <span className="text-purple-600 text-lg font-bold">?</span>
+          </div>
           <div className="text-left">
             <p className="text-sm font-medium text-gray-800">도움이 필요하신가요?</p>
             <p className="text-xs text-gray-500">전문 매니저가 상담해드립니다.</p>
           </div>
-        </button>
+          <button
+            type="button"
+            onClick={() => window.open('https://pf.kakao.com/_xnxfxhxj', '_blank')}
+            className="ml-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-full transition-colors"
+          >
+            문의하기
+          </button>
+        </div>
       </div>
 
       {/* 하단 고정 네비게이션 바 */}
