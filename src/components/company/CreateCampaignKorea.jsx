@@ -1850,8 +1850,410 @@ const CampaignCreationKorea = () => {
               </div>
             )}
 
-            {/* 4주 챌린지 및 올리브영 캠페인은 기존 레이아웃 유지 */}
-            {(campaignForm.campaign_type === '4week_challenge' || campaignForm.campaign_type === 'oliveyoung') && (
+            {/* 올리브영 캠페인 - 2컬럼 레이아웃 (기획형과 동일한 스타일) */}
+            {campaignForm.campaign_type === 'oliveyoung' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 왼쪽: 모든 폼 필드 */}
+                <div className="lg:col-span-2 space-y-8">
+                  {/* 패키지 선택 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
+                    <p className="text-gray-500 mb-6">올리브영 캠페인 타입과 모집 인원을 선택하세요.</p>
+
+                    {/* 올리브영 패키지 타입 선택 */}
+                    <div className="mb-8">
+                      <Label className="text-sm font-semibold text-gray-700 mb-4 block">패키지 타입 선택</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* 올영픽 */}
+                        <div
+                          onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'pick' }))}
+                          className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            campaignForm.oliveyoung_subtype === 'pick'
+                              ? 'border-amber-500 bg-amber-50 shadow-md'
+                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className={`text-sm font-medium mb-1 ${campaignForm.oliveyoung_subtype === 'pick' ? 'text-amber-600' : 'text-gray-600'}`}>
+                            올영픽
+                          </div>
+                          <div className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
+                            400,000원
+                          </div>
+                          <div className="space-y-1 text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                              <span>인기 상품 추천</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 올영세일 */}
+                        <div
+                          onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'sale' }))}
+                          className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            campaignForm.oliveyoung_subtype === 'sale'
+                              ? 'border-pink-500 bg-pink-50 shadow-md'
+                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <span className="absolute -top-2.5 right-3 bg-pink-500 text-white text-xs font-bold px-2 py-0.5 rounded">BEST</span>
+                          <div className={`text-sm font-medium mb-1 ${campaignForm.oliveyoung_subtype === 'sale' ? 'text-pink-600' : 'text-gray-600'}`}>
+                            올영세일
+                          </div>
+                          <div className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
+                            400,000원
+                          </div>
+                          <div className="space-y-1 text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                              <span>세일 기간 집중</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                              <span>3단계 콘텐츠</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 오특 */}
+                        <div
+                          onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'special' }))}
+                          className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            campaignForm.oliveyoung_subtype === 'special'
+                              ? 'border-orange-500 bg-orange-50 shadow-md'
+                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className={`text-sm font-medium mb-1 ${campaignForm.oliveyoung_subtype === 'special' ? 'text-orange-600' : 'text-gray-600'}`}>
+                            오특
+                          </div>
+                          <div className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
+                            400,000원
+                          </div>
+                          <div className="space-y-1 text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                              <span>핫딜 프로모션</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 모집 인원 슬라이더 */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-semibold text-gray-700">모집 인원 (명)</Label>
+                        <span className="text-pink-600 font-bold text-lg">{campaignForm.oliveyoung_recruit_count || 1}명</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min="1"
+                          max="50"
+                          value={campaignForm.oliveyoung_recruit_count || 1}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: parseInt(e.target.value), total_slots: parseInt(e.target.value), remaining_slots: parseInt(e.target.value) }))}
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-pink-600"
+                        />
+                        <div className="flex items-center border rounded-lg bg-white">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newVal = Math.max(1, (campaignForm.oliveyoung_recruit_count || 1) - 1)
+                              setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: newVal, total_slots: newVal, remaining_slots: newVal }))
+                            }}
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg text-lg"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={campaignForm.oliveyoung_recruit_count || 1}
+                            onChange={(e) => {
+                              const newVal = parseInt(e.target.value) || 1
+                              setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: newVal, total_slots: newVal, remaining_slots: newVal }))
+                            }}
+                            className="w-16 text-center border-x py-2"
+                            min="1"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newVal = (campaignForm.oliveyoung_recruit_count || 1) + 1
+                              setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: newVal, total_slots: newVal, remaining_slots: newVal }))
+                            }}
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg text-lg"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      {/* AI 예측 */}
+                      <div className="mt-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">⚡</span>
+                          <span className="text-sm">
+                            <span className="font-semibold text-indigo-600">AI 예측:</span>{' '}
+                            현재 설정하신 단가와 인원이라면, 약{' '}
+                            <span className="font-bold text-indigo-600">
+                              {Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 1.5)}~{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 2.5)}명 이상의 크리에이터
+                            </span>
+                            가 지원할 것으로 예상됩니다.
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 ml-7">(지원율 매우 높음)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 스케줄 설정 - 기획형과 동일한 스타일 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+                        <span className="text-white text-lg">📅</span>
+                      </div>
+                      <h2 className="text-xl font-bold text-gray-900">스케줄 설정</h2>
+                    </div>
+
+                    {/* 자동 추천 안내 */}
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-6">
+                      <p className="text-sm text-emerald-700">
+                        <span className="font-semibold">ℹ️ 스케줄 자동 추천:</span> 모집 마감일만 입력하면 나머지 일정이 자동으로 계산됩니다. (수정 가능)
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* 모집 마감일 */}
+                      <div>
+                        <Label className="font-semibold text-gray-700">모집 마감일 *</Label>
+                        <Input
+                          type="date"
+                          value={campaignForm.application_deadline}
+                          onChange={(e) => {
+                            const deadline = new Date(e.target.value)
+                            // 자동 계산: 제품 발송일 = 모집 마감일 + 2일
+                            const shipping = new Date(deadline)
+                            shipping.setDate(shipping.getDate() + 2)
+                            // 촬영 마감일 = 발송일 + 10일
+                            const shooting = new Date(shipping)
+                            shooting.setDate(shooting.getDate() + 10)
+                            // SNS 업로드일 = 촬영 마감일 + 2일
+                            const upload = new Date(shooting)
+                            upload.setDate(upload.getDate() + 2)
+
+                            setCampaignForm(prev => ({
+                              ...prev,
+                              application_deadline: e.target.value,
+                              start_date: shooting.toISOString().split('T')[0],
+                              end_date: upload.toISOString().split('T')[0],
+                              step1_deadline: shipping.toISOString().split('T')[0]
+                            }))
+                          }}
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+
+                      {/* 제품 발송 예정일 */}
+                      <div>
+                        <Label className="text-gray-700">
+                          제품 발송 예정일 <span className="text-emerald-600 text-sm">(모집 마감일 +2일)</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          value={campaignForm.step1_deadline}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
+                          className="mt-1 bg-gray-50"
+                        />
+                      </div>
+
+                      {/* 촬영 & 업로드 마감일 / SNS 업로드일 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-gray-700">
+                            촬영&업로드 마감일 * <span className="text-emerald-600 text-sm">(발송일 +10일)</span>
+                          </Label>
+                          <Input
+                            type="date"
+                            value={campaignForm.start_date}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                            className="mt-1 bg-gray-50"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-gray-700">
+                            SNS 업로드일 * <span className="text-emerald-600 text-sm">(촬영마감 +2일)</span>
+                          </Label>
+                          <Input
+                            type="date"
+                            value={campaignForm.end_date}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
+                            className="mt-1 bg-gray-50"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* 일정 요약 */}
+                      {campaignForm.application_deadline && (
+                        <div className="bg-gray-50 rounded-lg p-4 mt-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm">📋</span>
+                            <span className="font-semibold text-gray-700">일정 요약</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                              모집 마감: {campaignForm.application_deadline}
+                            </span>
+                            <span className="text-gray-300">→</span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                              제품 발송: {campaignForm.step1_deadline}
+                            </span>
+                            <span className="text-gray-300">→</span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              촬영 마감: {campaignForm.start_date}
+                            </span>
+                            <span className="text-gray-300">→</span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                              SNS 업로드: {campaignForm.end_date}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 브랜드 정보 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">브랜드 정보</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="brand_oly">브랜드명 *</Label>
+                        <Input
+                          id="brand_oly"
+                          value={campaignForm.brand}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
+                          placeholder="예: 에이블씨엔씨"
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label>모집 채널 * (여러 개 선택 가능)</Label>
+                        <div className="flex gap-4 mt-2">
+                          {categoryOptions.map(opt => (
+                            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={campaignForm.category.includes(opt.value)}
+                                onChange={() => handleCategoryToggle(opt.value)}
+                                className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
+                              />
+                              <span className="text-sm">{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 오른쪽: 예상 견적서 (Sticky) - 다크 테마 */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-6">
+                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span className="text-xl">📋</span> 예상 견적서
+                      </h3>
+
+                      {/* AI 지원율 예측 */}
+                      <div className="bg-slate-800 rounded-xl p-4 mb-5">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center text-lg flex-shrink-0">
+                            ✨
+                          </div>
+                          <div>
+                            <div className="text-pink-300 text-xs font-medium mb-1">AI 지원율 예측</div>
+                            <div className="text-sm leading-relaxed">
+                              선택하신 단가로는
+                              <br />
+                              평균 <span className="text-pink-400 font-bold text-lg">{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 1.5)}~{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 2.5)}명+</span>의 크리에이터가
+                              <br />
+                              지원할 것으로 예상됩니다.
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-500"
+                            style={{ width: '70%' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* 견적 상세 */}
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">단가 ({campaignForm.oliveyoung_subtype === 'pick' ? '올영픽' : campaignForm.oliveyoung_subtype === 'sale' ? '올영세일' : '오특'})</span>
+                          <span>400,000원</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">인원</span>
+                          <span>x {campaignForm.oliveyoung_recruit_count || 1}명</span>
+                        </div>
+                        <div className="border-t border-slate-700 pt-3">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">공급가액</span>
+                            <span>{(400000 * (campaignForm.oliveyoung_recruit_count || 1)).toLocaleString()}원</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">부가세 (10%)</span>
+                          <span>{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 0.1).toLocaleString()}원</span>
+                        </div>
+                      </div>
+
+                      {/* 총 결제 금액 */}
+                      <div className="mt-5 pt-4 border-t border-slate-700">
+                        <div className="flex justify-between items-end mb-1">
+                          <span className="text-gray-400">총 결제 금액</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-4xl font-bold">{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 1.1).toLocaleString()}</span>
+                          <span className="text-xl ml-1">원</span>
+                        </div>
+                      </div>
+
+                      {/* 버튼 */}
+                      <div className="hidden lg:block mt-6 space-y-3">
+                        <Button
+                          type="submit"
+                          disabled={processing || campaignForm.category.length === 0}
+                          className="w-full py-6 text-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold"
+                        >
+                          {processing ? '저장 중...' : (editId ? '수정하기' : '캠페인 시작하기')}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')} className="w-full py-4 bg-transparent border-slate-600 text-gray-300 hover:bg-slate-800">
+                          취소
+                        </Button>
+                      </div>
+
+                      <p className="text-xs text-gray-500 mt-4 text-center">
+                        * 세금계산서 발행 가능 / 카드 결제 지원
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4주 챌린지만 기존 레이아웃 유지 */}
+            {campaignForm.campaign_type === '4week_challenge' && (
               <Card className="shadow-lg max-w-4xl mx-auto">
                 <CardHeader>
                   <CardTitle>{editId ? '캠페인 수정' : '캠페인 상세 설정'}</CardTitle>
@@ -1944,352 +2346,6 @@ const CampaignCreationKorea = () => {
                   </div>
                 )}
               </div>
-
-              {/* 올영세일 캠페인 상세 설정 - 2컬럼 레이아웃 */}
-              {campaignForm.campaign_type === 'oliveyoung' && (
-                <div className="border-t pt-6 mt-6">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <span className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center text-white text-sm">🌸</span>
-                    올리브영 캠페인 상세 설정
-                  </h3>
-
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    {/* 왼쪽: 폼 영역 */}
-                    <div className="flex-1">
-                      {/* 패키지 타입 카드 선택 */}
-                      <div className="mb-8">
-                    <Label className="block mb-3 font-semibold text-gray-700">패키지 타입 선택 *</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* 올영픽 카드 */}
-                      <div
-                        onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'pick' }))}
-                        className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${
-                          campaignForm.oliveyoung_subtype === 'pick'
-                            ? 'border-amber-400 bg-gradient-to-br from-amber-50 to-yellow-50 shadow-lg ring-2 ring-amber-200'
-                            : 'border-gray-200 bg-white hover:border-amber-300'
-                        }`}
-                      >
-                        <div className="text-center">
-                          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
-                            <span className="text-2xl">⭐</span>
-                          </div>
-                          <h4 className="font-bold text-gray-900 mb-1">올영픽</h4>
-                          <p className="text-xs text-gray-500 mb-3">Olive Young Pick</p>
-                          <div className="bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full inline-block">
-                            인기 상품 추천
-                          </div>
-                        </div>
-                        {campaignForm.oliveyoung_subtype === 'pick' && (
-                          <div className="absolute top-3 right-3 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 올영세일 카드 */}
-                      <div
-                        onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'sale' }))}
-                        className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${
-                          campaignForm.oliveyoung_subtype === 'sale'
-                            ? 'border-pink-400 bg-gradient-to-br from-pink-50 to-rose-50 shadow-lg ring-2 ring-pink-200'
-                            : 'border-gray-200 bg-white hover:border-pink-300'
-                        }`}
-                      >
-                        <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                          <span className="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                            BEST
-                          </span>
-                        </div>
-                        <div className="text-center pt-2">
-                          <div className="w-14 h-14 bg-gradient-to-br from-pink-400 to-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
-                            <span className="text-2xl">🌸</span>
-                          </div>
-                          <h4 className="font-bold text-gray-900 mb-1">올영세일</h4>
-                          <p className="text-xs text-gray-500 mb-3">Olive Young Sale</p>
-                          <div className="bg-pink-100 text-pink-700 text-xs font-semibold px-3 py-1 rounded-full inline-block">
-                            세일 기간 집중
-                          </div>
-                        </div>
-                        {campaignForm.oliveyoung_subtype === 'sale' && (
-                          <div className="absolute top-3 right-3 w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 오특 카드 */}
-                      <div
-                        onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_subtype: 'special' }))}
-                        className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all hover:shadow-lg ${
-                          campaignForm.oliveyoung_subtype === 'special'
-                            ? 'border-orange-400 bg-gradient-to-br from-orange-50 to-red-50 shadow-lg ring-2 ring-orange-200'
-                            : 'border-gray-200 bg-white hover:border-orange-300'
-                        }`}
-                      >
-                        <div className="text-center">
-                          <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
-                            <span className="text-2xl">🔥</span>
-                          </div>
-                          <h4 className="font-bold text-gray-900 mb-1">오특</h4>
-                          <p className="text-xs text-gray-500 mb-3">오늘의 특가</p>
-                          <div className="bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full inline-block">
-                            핫딜 프로모션
-                          </div>
-                        </div>
-                        {campaignForm.oliveyoung_subtype === 'special' && (
-                          <div className="absolute top-3 right-3 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 모집 인원 & 영상 옵션 */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div className="bg-white p-5 rounded-xl border border-gray-200">
-                      <Label className="block mb-3 font-semibold text-gray-700">모집 인원 *</Label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: Math.max(1, (prev.oliveyoung_recruit_count || 1) - 1) }))}
-                          className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-gray-600 font-bold text-xl transition-colors"
-                        >
-                          -
-                        </button>
-                        <div className="flex-1 text-center">
-                          <span className="text-3xl font-bold text-pink-600">{campaignForm.oliveyoung_recruit_count || 1}</span>
-                          <span className="text-gray-500 ml-1">명</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setCampaignForm(prev => ({ ...prev, oliveyoung_recruit_count: (prev.oliveyoung_recruit_count || 1) + 1 }))}
-                          className="w-10 h-10 bg-pink-100 hover:bg-pink-200 rounded-lg flex items-center justify-center text-pink-600 font-bold text-xl transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2 text-center">1인당 ₩400,000</p>
-                    </div>
-
-                    <div className="bg-white p-5 rounded-xl border border-gray-200">
-                      <Label className="block mb-3 font-semibold text-gray-700">콘텐츠 타입 *</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setCampaignForm(prev => ({ ...prev, content_type: 'store_visit' }))}
-                          className={`p-3 rounded-lg border-2 transition-all text-sm ${
-                            campaignForm.content_type === 'store_visit'
-                              ? 'border-pink-400 bg-pink-50 text-pink-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          🏪 매장 방문형
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCampaignForm(prev => ({ ...prev, content_type: 'product_only' }))}
-                          className={`p-3 rounded-lg border-2 transition-all text-sm ${
-                            campaignForm.content_type === 'product_only'
-                              ? 'border-pink-400 bg-pink-50 text-pink-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          📦 제품 소개형
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 타임라인 자동화 섹션 */}
-                  <div className="bg-gradient-to-br from-pink-50 via-white to-rose-50 p-6 rounded-2xl border border-pink-200 mb-8">
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
-                        <span className="text-white text-lg">📅</span>
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-900">스마트 타임라인</h4>
-                        <p className="text-xs text-gray-500">세일 시작일만 입력하면 모든 일정이 자동으로 설정됩니다</p>
-                      </div>
-                    </div>
-
-                    <div className="mb-6">
-                      <Label className="block mb-2 font-semibold text-gray-700">세일 시작일 *</Label>
-                      <Input
-                        type="date"
-                        value={campaignForm.sale_start_date || ''}
-                        onChange={(e) => {
-                          const startDate = new Date(e.target.value)
-                          const step1 = new Date(startDate)
-                          step1.setDate(step1.getDate() - 7)
-                          const step2 = new Date(startDate)
-                          step2.setDate(step2.getDate() - 1)
-                          const step3 = new Date(startDate)
-
-                          setCampaignForm(prev => ({
-                            ...prev,
-                            sale_start_date: e.target.value,
-                            step1_deadline: step1.toISOString().split('T')[0],
-                            step2_deadline: step2.toISOString().split('T')[0],
-                            step3_deadline: step3.toISOString().split('T')[0]
-                          }))
-                        }}
-                        className="bg-white text-lg py-3"
-                      />
-                    </div>
-
-                    {/* 비주얼 타임라인 */}
-                    {campaignForm.sale_start_date && (
-                      <div className="relative">
-                        {/* 타임라인 연결선 */}
-                        <div className="absolute top-8 left-8 right-8 h-1 bg-gradient-to-r from-pink-300 via-rose-300 to-red-300 rounded-full"></div>
-
-                        <div className="grid grid-cols-3 gap-4 relative">
-                          {/* Step 1 */}
-                          <div className="text-center">
-                            <div className="w-16 h-16 bg-white border-4 border-pink-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg relative z-10">
-                              <span className="text-2xl">📝</span>
-                            </div>
-                            <div className="bg-white rounded-xl p-4 shadow-sm border border-pink-100">
-                              <span className="text-xs font-bold text-pink-600 bg-pink-100 px-2 py-1 rounded-full">STEP 1</span>
-                              <h5 className="font-bold text-gray-900 mt-2 text-sm">상품 리뷰</h5>
-                              <p className="text-lg font-bold text-pink-600 mt-1">
-                                {campaignForm.step1_deadline ? new Date(campaignForm.step1_deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '-'}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">D-7</p>
-                            </div>
-                          </div>
-
-                          {/* Step 2 */}
-                          <div className="text-center">
-                            <div className="w-16 h-16 bg-white border-4 border-rose-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg relative z-10">
-                              <span className="text-2xl">📢</span>
-                            </div>
-                            <div className="bg-white rounded-xl p-4 shadow-sm border border-rose-100">
-                              <span className="text-xs font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded-full">STEP 2</span>
-                              <h5 className="font-bold text-gray-900 mt-2 text-sm">세일 홍보</h5>
-                              <p className="text-lg font-bold text-rose-600 mt-1">
-                                {campaignForm.step2_deadline ? new Date(campaignForm.step2_deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '-'}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">D-1</p>
-                            </div>
-                          </div>
-
-                          {/* Step 3 */}
-                          <div className="text-center">
-                            <div className="w-16 h-16 bg-white border-4 border-red-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg relative z-10">
-                              <span className="text-2xl">🎯</span>
-                            </div>
-                            <div className="bg-white rounded-xl p-4 shadow-sm border border-red-100">
-                              <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded-full">STEP 3</span>
-                              <h5 className="font-bold text-gray-900 mt-2 text-sm">D-Day 스토리</h5>
-                              <p className="text-lg font-bold text-red-600 mt-1">
-                                {campaignForm.step3_deadline ? new Date(campaignForm.step3_deadline).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '-'}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">세일 당일</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                      {/* 앰블럼 & 추가 옵션 */}
-                      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={campaignForm.emblem_required}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, emblem_required: e.target.checked }))}
-                            className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
-                          />
-                          <div>
-                            <span className="font-medium text-gray-900">올영세일 앰블럼 삽입</span>
-                            <p className="text-xs text-gray-500">영상에 올리브영 세일 로고를 포함합니다</p>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* 오른쪽: Sticky 견적서 */}
-                    <div className="lg:w-80">
-                      <div className="sticky top-6">
-                        <div className="bg-white rounded-2xl border-2 border-pink-200 p-6 shadow-lg">
-                          <h4 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <span className="text-xl">📋</span> 실시간 견적서
-                          </h4>
-
-                          {/* 선택 요약 */}
-                          <div className="space-y-3 mb-4 pb-4 border-b">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">패키지</span>
-                              <span className="font-medium">
-                                {campaignForm.oliveyoung_subtype === 'pick' ? '올영픽' :
-                                 campaignForm.oliveyoung_subtype === 'sale' ? '올영세일' : '오특'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">모집 인원</span>
-                              <span className="font-medium">{campaignForm.oliveyoung_recruit_count || 1}명</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">단가</span>
-                              <span className="font-medium">₩400,000</span>
-                            </div>
-                          </div>
-
-                          {/* 금액 계산 */}
-                          <div className="space-y-2 mb-4">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">소계</span>
-                              <span>₩{(400000 * (campaignForm.oliveyoung_recruit_count || 1)).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-600">부가세 (10%)</span>
-                              <span>₩{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 0.1).toLocaleString()}</span>
-                            </div>
-                          </div>
-
-                          {/* 총액 */}
-                          <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl p-4 mb-4">
-                            <div className="text-sm opacity-90">예상 결제 금액</div>
-                            <div className="text-2xl font-bold">
-                              ₩{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 1.1).toLocaleString()}
-                            </div>
-                          </div>
-
-                          {/* AI 예측 배너 */}
-                          <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200 mb-4">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm">🤖</span>
-                              <span className="text-sm font-semibold text-indigo-800">AI 예측</span>
-                            </div>
-                            <p className="text-sm text-gray-700">
-                              예상 지원자:{' '}
-                              <span className="font-bold text-indigo-600">
-                                {Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 1.5)}~{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 2.5)}명
-                              </span>
-                            </p>
-                          </div>
-
-                          {/* 포함 내용 */}
-                          <div className="text-xs text-gray-500 space-y-1">
-                            <p>* 3단계 콘텐츠 (릴스 2건 + 스토리 1건)</p>
-                            <p>* 크리에이터 SNS 업로드 포함</p>
-                            <p>* 통합 가이드 제공</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* 4주 챌린지 상세 설정 */}
               {campaignForm.campaign_type === '4week_challenge' && (
