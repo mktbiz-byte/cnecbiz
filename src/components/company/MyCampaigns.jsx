@@ -19,7 +19,8 @@ import {
   Search,
   FolderOpen,
   Filter,
-  ChevronRight
+  ChevronRight,
+  X
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import RegionSelectModal from './RegionSelectModal'
@@ -35,6 +36,7 @@ export default function MyCampaigns() {
   const [selectedRegion, setSelectedRegion] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [statsFilter, setStatsFilter] = useState(null) // 상태 카드 클릭 필터: null, 'all', 'pending', 'active', 'completed'
 
   useEffect(() => {
     checkAuth()
@@ -368,8 +370,21 @@ export default function MyCampaigns() {
       return false
     }
 
-    // Status filter
-    if (selectedStatus !== 'all') {
+    // Stats card filter (우선 적용)
+    if (statsFilter && statsFilter !== 'all') {
+      if (statsFilter === 'pending') {
+        return campaign.approval_status === 'draft' || campaign.approval_status === 'pending' || campaign.approval_status === 'pending_payment'
+      }
+      if (statsFilter === 'active') {
+        return campaign.approval_status === 'approved' && campaign.status !== 'completed'
+      }
+      if (statsFilter === 'completed') {
+        return campaign.status === 'completed'
+      }
+    }
+
+    // Status filter (칩 필터)
+    if (selectedStatus !== 'all' && !statsFilter) {
       switch (selectedStatus) {
         case 'draft':
           return campaign.status === 'draft' || campaign.approval_status === 'draft'
@@ -415,9 +430,12 @@ export default function MyCampaigns() {
             </Button>
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - 클릭으로 필터링 */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="stats-card">
+            <button
+              onClick={() => setStatsFilter(statsFilter === 'all' ? null : 'all')}
+              className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statsFilter === 'all' ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
+            >
               <div className="stats-card-header">
                 <span className="stats-card-title">전체</span>
                 <div className="stats-card-icon bg-blue-50">
@@ -425,40 +443,49 @@ export default function MyCampaigns() {
                 </div>
               </div>
               <div className="stats-card-value">{activeCampaigns.length}</div>
-            </div>
-            <div className="stats-card">
+            </button>
+            <button
+              onClick={() => setStatsFilter(statsFilter === 'pending' ? null : 'pending')}
+              className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statsFilter === 'pending' ? 'ring-2 ring-yellow-400 ring-offset-2' : ''}`}
+            >
               <div className="stats-card-header">
                 <span className="stats-card-title">승인 대기</span>
                 <div className="stats-card-icon bg-yellow-50">
                   <Clock className="w-5 h-5 text-yellow-500" />
                 </div>
               </div>
-              <div className="stats-card-value text-yellow-500">
-                {activeCampaigns.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending').length}
+              <div className="stats-card-value text-yellow-600">
+                {activeCampaigns.filter(c => c.approval_status === 'draft' || c.approval_status === 'pending' || c.approval_status === 'pending_payment').length}
               </div>
-            </div>
-            <div className="stats-card">
+            </button>
+            <button
+              onClick={() => setStatsFilter(statsFilter === 'active' ? null : 'active')}
+              className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statsFilter === 'active' ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
+            >
               <div className="stats-card-header">
                 <span className="stats-card-title">진행중</span>
-                <div className="stats-card-icon bg-blue-50">
-                  <Users className="w-5 h-5 text-blue-500" />
+                <div className="stats-card-icon bg-indigo-50">
+                  <Users className="w-5 h-5 text-indigo-500" />
                 </div>
               </div>
-              <div className="stats-card-value text-blue-500">
+              <div className="stats-card-value text-indigo-600">
                 {activeCampaigns.filter(c => c.approval_status === 'approved' && c.status !== 'completed').length}
               </div>
-            </div>
-            <div className="stats-card">
+            </button>
+            <button
+              onClick={() => setStatsFilter(statsFilter === 'completed' ? null : 'completed')}
+              className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statsFilter === 'completed' ? 'ring-2 ring-green-400 ring-offset-2' : ''}`}
+            >
               <div className="stats-card-header">
                 <span className="stats-card-title">완료</span>
                 <div className="stats-card-icon bg-green-50">
                   <CheckCircle className="w-5 h-5 text-green-500" />
                 </div>
               </div>
-              <div className="stats-card-value text-green-500">
+              <div className="stats-card-value text-green-600">
                 {activeCampaigns.filter(c => c.status === 'completed').length}
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Search & Filters */}
@@ -513,10 +540,27 @@ export default function MyCampaigns() {
 
           {/* Campaigns List */}
           <div className="dashboard-card">
-            <div className="section-header px-1 mb-4">
-              <FolderOpen className="w-5 h-5 text-gray-600" />
-              <h2 className="section-title">캠페인 목록</h2>
-              <span className="section-count">({filteredCampaigns.length}개)</span>
+            <div className="flex items-center justify-between px-1 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="section-header !mb-0">
+                  <FolderOpen className="w-5 h-5 text-gray-600" />
+                  <h2 className="section-title">캠페인 목록</h2>
+                  <span className="section-count">({filteredCampaigns.length}개)</span>
+                </div>
+                {/* 필터 표시 및 리셋 */}
+                {statsFilter && (
+                  <button
+                    onClick={() => setStatsFilter(null)}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium hover:bg-indigo-100 transition-colors"
+                  >
+                    {statsFilter === 'all' && '전체'}
+                    {statsFilter === 'pending' && '승인 대기'}
+                    {statsFilter === 'active' && '진행중'}
+                    {statsFilter === 'completed' && '완료'}
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {loading ? (
@@ -597,70 +641,60 @@ export default function MyCampaigns() {
                         </div>
                       </div>
 
-                      {/* Stats */}
-                      <div className="grid grid-cols-3 gap-3 mb-4">
-                        <div className="bg-blue-50 p-3 rounded-xl">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Users className="w-4 h-4 text-blue-500" />
-                            <span className="text-xs text-gray-600">모집 인원</span>
-                          </div>
-                          <div className="text-lg font-bold text-blue-600">{campaign.total_slots || 0}명</div>
-                        </div>
-                        <div className="bg-green-50 p-3 rounded-xl">
-                          <div className="flex items-center gap-2 mb-1">
-                            <UserCheck className="w-4 h-4 text-green-500" />
-                            <span className="text-xs text-gray-600">지원자</span>
-                          </div>
-                          <div className="text-lg font-bold text-green-600">{participantInfo.total}명</div>
-                        </div>
-                        <div className="bg-purple-50 p-3 rounded-xl">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle className="w-4 h-4 text-purple-500" />
-                            <span className="text-xs text-gray-600">확정</span>
-                          </div>
-                          <div className="text-lg font-bold text-purple-600">{participantInfo.selected}명</div>
-                        </div>
+                      {/* Stats - Inline */}
+                      <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-lg">
+                          <Users className="w-4 h-4 text-blue-500" />
+                          <span className="text-gray-600">모집</span>
+                          <span className="font-semibold text-blue-600">{campaign.total_slots || 0}명</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 rounded-lg">
+                          <UserCheck className="w-4 h-4 text-green-500" />
+                          <span className="text-gray-600">지원</span>
+                          <span className="font-semibold text-green-600">{participantInfo.total}명</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 rounded-lg">
+                          <CheckCircle className="w-4 h-4 text-purple-500" />
+                          <span className="text-gray-600">확정</span>
+                          <span className="font-semibold text-purple-600">{participantInfo.selected}명</span>
+                        </span>
+                        {recruitmentDays !== null && recruitmentDays >= 0 && (
+                          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${recruitmentDays <= 3 ? 'bg-red-50' : 'bg-gray-50'}`}>
+                            <Clock className={`w-4 h-4 ${recruitmentDays <= 3 ? 'text-red-500' : 'text-gray-500'}`} />
+                            <span className={`font-semibold ${recruitmentDays <= 3 ? 'text-red-600' : 'text-gray-600'}`}>
+                              D-{recruitmentDays}
+                            </span>
+                          </span>
+                        )}
                       </div>
 
-                      {/* Deposit Request Alert */}
+                      {/* Deposit Request Alert - Slim */}
                       {campaign.payment_status === 'pending' && !campaign.is_cancelled && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
-                          <p className="text-sm text-yellow-800 mb-2 flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4" />
-                            입금 후 10분이 지났으나, 입금 확인이 안되실 경우 버튼을 눌러 주세요.
+                        <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 mb-3">
+                          <p className="text-sm text-yellow-700 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">입금 확인이 안되실 경우 버튼을 눌러 주세요</span>
                           </p>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full border-yellow-400 text-yellow-800 hover:bg-yellow-100"
+                            className="ml-3 flex-shrink-0 border-yellow-400 text-yellow-700 hover:bg-yellow-100 text-xs h-7"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleDepositConfirmationRequest(campaign)
                             }}
                           >
-                            <AlertCircle className="w-4 h-4 mr-2" />
                             입금 확인 요청
                           </Button>
                         </div>
                       )}
 
                       {/* Footer */}
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          {recruitmentDays !== null && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              모집 마감:
-                              <span className={`font-medium ${recruitmentDays <= 3 ? 'text-red-600' : recruitmentDays <= 7 ? 'text-orange-600' : 'text-gray-700'}`}>
-                                {recruitmentDays > 0 ? `D-${recruitmentDays}` : '마감'}
-                              </span>
-                            </span>
-                          )}
-                        </div>
+                      <div className="flex items-center justify-end pt-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50"
+                          className="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 -mr-2"
                           onClick={(e) => {
                             e.stopPropagation()
                             navigate(`/company/campaigns/${campaign.id}${campaign.region ? `?region=${campaign.region}` : ''}`)
