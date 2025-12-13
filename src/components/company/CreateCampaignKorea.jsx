@@ -2378,6 +2378,23 @@ const CampaignCreationKorea = () => {
         </div>
       </div>
 
+      {/* 우측 하단 도움말 플로팅 버튼 */}
+      <div className="fixed bottom-24 right-6 z-50">
+        <button
+          type="button"
+          onClick={() => window.open('https://pf.kakao.com/_xnxfxhxj', '_blank')}
+          className="group flex items-center gap-2 bg-white border border-gray-200 shadow-lg rounded-full pl-4 pr-5 py-2.5 hover:shadow-xl transition-all"
+        >
+          <span className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
+            <span className="text-white text-sm font-bold">?</span>
+          </span>
+          <div className="text-left">
+            <p className="text-sm font-medium text-gray-800">도움이 필요하신가요?</p>
+            <p className="text-xs text-gray-500">전문 매니저가 상담해드립니다.</p>
+          </div>
+        </button>
+      </div>
+
       {/* 하단 고정 네비게이션 바 */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
         <div className="max-w-7xl mx-auto px-4 py-3">
@@ -2403,19 +2420,6 @@ const CampaignCreationKorea = () => {
 
             {/* 오른쪽: 버튼들 */}
             <div className="flex items-center gap-3">
-              {/* 도움이 필요하신가요 */}
-              <button
-                type="button"
-                onClick={() => window.open('https://pf.kakao.com/_xnxfxhxj', '_blank')}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">?</span>
-                </span>
-                <span>도움이 필요하신가요?</span>
-                <span className="text-xs text-gray-400">전문 매니저가 상담해드립니다.</span>
-              </button>
-
               {/* 이전 단계 버튼 */}
               <Button
                 type="button"
