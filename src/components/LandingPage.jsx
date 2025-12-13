@@ -506,9 +506,46 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Basic */}
+            {/* 올영세일 패키지 - 왼쪽 */}
             <div className="bg-gray-800 rounded-3xl p-8 border border-gray-700 hover:border-gray-600 transition-colors">
-              <h3 className="text-lg font-medium text-gray-400 mb-2">기획형 캠페인</h3>
+              <h3 className="text-lg font-medium text-gray-400 mb-2">올영세일 패키지</h3>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-bold text-white">₩400,000</span>
+                <span className="text-gray-500">/건</span>
+              </div>
+              <p className="text-gray-500 text-sm mb-6">세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지</p>
+              <button
+                onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
+                className="w-full py-3 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-colors mb-6"
+              >
+                가이드 보기
+              </button>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-center gap-2 text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  티징 + 본편 (총 영상 2개 제작)
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  구매 전환 유도형 기획
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  SNS 업로드 URL 3개
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  원본 영상 파일 제공
+                </li>
+              </ul>
+            </div>
+
+            {/* 기획형 캠페인 - 가운데 MOST POPULAR */}
+            <div className="bg-gray-800 rounded-3xl p-8 border-2 border-purple-500 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-xs font-semibold text-white">
+                MOST POPULAR
+              </div>
+              <h3 className="text-lg font-medium text-purple-400 mb-2">기획형 캠페인</h3>
               <div className="flex items-baseline gap-1 mb-4">
                 <span className="text-4xl font-bold text-white">₩200,000</span>
                 <span className="text-gray-500">/건</span>
@@ -516,9 +553,9 @@ export default function LandingPage() {
               <p className="text-gray-500 text-sm mb-6">합리적인 비용으로 전문적인 숏폼 기획을 시작하고 싶은 브랜드</p>
               <button
                 onClick={() => window.open('/campaigns/intro/regular', '_blank')}
-                className="w-full py-3 bg-white text-gray-900 rounded-xl font-medium hover:bg-gray-100 transition-colors mb-6"
+                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity mb-6"
               >
-                선택하기
+                가이드 보기
               </button>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-center gap-2 text-gray-400">
@@ -536,44 +573,7 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            {/* Popular */}
-            <div className="bg-gray-800 rounded-3xl p-8 border-2 border-purple-500 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-xs font-semibold text-white">
-                MOST POPULAR
-              </div>
-              <h3 className="text-lg font-medium text-purple-400 mb-2">올영세일 패키지</h3>
-              <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-4xl font-bold text-white">₩400,000</span>
-                <span className="text-gray-500">/건</span>
-              </div>
-              <p className="text-gray-500 text-sm mb-6">세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지</p>
-              <button
-                onClick={() => window.open('/campaigns/intro/oliveyoung', '_blank')}
-                className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity mb-6"
-              >
-                선택하기
-              </button>
-              <ul className="space-y-3 text-sm">
-                <li className="flex items-center gap-2 text-gray-400">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  티징 + 본편 (2단계 구성)
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  구매 전환 유도형 기획
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  SNS 업로드 URL 3개
-                </li>
-                <li className="flex items-center gap-2 text-gray-400">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  원본 영상 파일 제공
-                </li>
-              </ul>
-            </div>
-
-            {/* Premium */}
+            {/* 4주 챌린지 - 오른쪽 */}
             <div className="bg-gray-800 rounded-3xl p-8 border border-gray-700 hover:border-gray-600 transition-colors">
               <h3 className="text-lg font-medium text-gray-400 mb-2">4주 챌린지</h3>
               <div className="flex items-baseline gap-1 mb-4">
@@ -585,7 +585,7 @@ export default function LandingPage() {
                 onClick={() => window.open('/campaigns/intro/4week', '_blank')}
                 className="w-full py-3 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition-colors mb-6"
               >
-                선택하기
+                가이드 보기
               </button>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-center gap-2 text-gray-400">
