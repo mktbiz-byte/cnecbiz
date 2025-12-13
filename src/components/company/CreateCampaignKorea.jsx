@@ -618,125 +618,178 @@ const CampaignCreationKorea = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               
-              {/* 1. 캠페인 타입 선택 */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl">
-                <h3 className="text-xl font-bold mb-6 text-gray-800">🎯 캠페인 타입 선택 *</h3>
-                <div className="space-y-4">
+              {/* 1. 캠페인 타입 선택 - 가격 카드 스타일 */}
+              <div className="py-8">
+                <div className="text-center mb-8">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">가장 합리적인 캠페인을 선택하세요</h2>
+                  <p className="text-gray-500">복잡한 옵션은 빼고, 꼭 필요한 기능만 담았습니다.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                   {/* 기획형 캠페인 */}
-                  <div 
-                    className={`flex items-start gap-4 p-5 bg-white rounded-xl border-2 transition-all cursor-pointer ${
-                      campaignForm.campaign_type === 'planned' 
-                        ? 'border-blue-500 shadow-lg' 
-                        : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+                  <div
+                    className={`relative bg-white rounded-2xl border-2 p-6 transition-all cursor-pointer ${
+                      campaignForm.campaign_type === 'planned'
+                        ? 'border-blue-500 shadow-xl ring-2 ring-blue-200'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-lg'
                     }`}
                     onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}
                   >
-                    <input
-                      type="radio"
-                      id="campaign_type_regular"
-                      name="campaign_type"
-                      value="planned"
-                      checked={campaignForm.campaign_type === 'planned'}
-                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'planned', is_oliveyoung_sale: false }))}
-                      className="w-5 h-5 mt-1 text-blue-600 cursor-pointer"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="campaign_type_regular" className="text-lg font-bold cursor-pointer text-gray-800">
-                          📝 기획형 캠페인
-                        </Label>
-                        <a 
-                          href="/campaigns/intro/regular" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:text-blue-800 font-medium underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          상세보기 →
-                        </a>
+                    <div className="mb-6">
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">기획형 캠페인</h3>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-gray-900">₩200,000</span>
+                        <span className="text-gray-500">/건</span>
                       </div>
-                      <p className="text-sm text-gray-700 font-medium mb-2">💰 베이직 20만원 | 스탠다드 30만원 | 프리미엄 40만원 | 프로페셔널 60만원 | 엔터프라이즈 100만원</p>
-                      <p className="text-sm text-gray-600">• 대사 + 촬영장면 개별 제공</p>
-                      <p className="text-sm text-gray-600">• SNS URL 1개 제출</p>
+                      <p className="text-sm text-gray-500 mt-2">합리적인 비용으로 전문적인 숏폼 기획을 시작하고 싶은 브랜드</p>
                     </div>
+
+                    <button
+                      type="button"
+                      className={`w-full py-3 rounded-lg font-semibold transition-all mb-6 ${
+                        campaignForm.campaign_type === 'planned'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      선택하기
+                    </button>
+
+                    <ul className="space-y-3 text-sm">
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>브랜드 맞춤 시나리오 기획</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>촬영 가이드라인 제공</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>SNS 업로드 URL 1개</span>
+                      </li>
+                      <li className="flex items-center gap-2 text-gray-400">
+                        <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                        <span>2차 활용 라이선스</span>
+                      </li>
+                      <li className="flex items-center gap-2 text-gray-400">
+                        <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                        <span>심층 성과 분석 리포트</span>
+                      </li>
+                    </ul>
                   </div>
 
-                  {/* 올영세일 캠페인 */}
-                  <div 
-                    className={`flex items-start gap-4 p-5 bg-white rounded-xl border-2 transition-all cursor-pointer ${
-                      campaignForm.campaign_type === 'oliveyoung' 
-                        ? 'border-pink-500 shadow-lg' 
-                        : 'border-gray-200 hover:border-pink-300 hover:shadow-md'
+                  {/* 올영세일 캠페인 - MOST POPULAR */}
+                  <div
+                    className={`relative bg-white rounded-2xl border-2 p-6 transition-all cursor-pointer ${
+                      campaignForm.campaign_type === 'oliveyoung'
+                        ? 'border-indigo-600 shadow-xl ring-2 ring-indigo-200'
+                        : 'border-indigo-600 hover:shadow-xl'
                     }`}
                     onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}
                   >
-                    <input
-                      type="radio"
-                      id="campaign_type_oliveyoung"
-                      name="campaign_type"
-                      value="oliveyoung"
-                      checked={campaignForm.campaign_type === 'oliveyoung'}
-                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: 'oliveyoung', is_oliveyoung_sale: true }))}
-                      className="w-5 h-5 mt-1 text-pink-600 cursor-pointer"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="campaign_type_oliveyoung" className="text-lg font-bold cursor-pointer text-gray-800">
-                          🌸 올영세일 캠페인
-                        </Label>
-                        <a 
-                          href="/campaigns/intro/oliveyoung" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-pink-600 hover:text-pink-800 font-medium underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          상세보기 →
-                        </a>
-                      </div>
-                      <p className="text-sm text-gray-700 font-medium mb-2">💰 스탠다드 40만원 | 프리미엄 50만원 | 프로페셔널 60만원</p>
-                      <p className="text-sm text-gray-600">• 통합 가이드, 2단계 콘텐츠 (릴스 2건)</p>
-                      <p className="text-sm text-gray-600">• URL 3개 + 영상 폴더 2개 제출</p>
+                    {/* MOST POPULAR 배지 */}
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <span className="bg-indigo-600 text-white text-xs font-bold px-4 py-1.5 rounded-full flex items-center gap-1">
+                        <span>✨</span> MOST POPULAR
+                      </span>
                     </div>
+
+                    <div className="mb-6 pt-2">
+                      <h3 className="text-lg font-bold text-indigo-600 mb-1">올영세일 패키지</h3>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-gray-900">₩400,000</span>
+                        <span className="text-gray-500">/건</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-2">세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`w-full py-3 rounded-lg font-semibold transition-all mb-6 ${
+                        campaignForm.campaign_type === 'oliveyoung'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      }`}
+                    >
+                      선택하기
+                    </button>
+
+                    <ul className="space-y-3 text-sm">
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>티징 + 본편 (2단계 구성)</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>구매 전환 유도형 기획</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>SNS 업로드 URL 3개</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>원본 영상 파일 제공</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-indigo-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>기본 성과 리포트</span>
+                      </li>
+                    </ul>
                   </div>
 
                   {/* 4주 챌린지 */}
-                  <div 
-                    className={`flex items-start gap-4 p-5 bg-white rounded-xl border-2 transition-all cursor-pointer ${
-                      campaignForm.campaign_type === '4week_challenge' 
-                        ? 'border-purple-500 shadow-lg' 
-                        : 'border-gray-200 hover:border-purple-300 hover:shadow-md'
+                  <div
+                    className={`relative bg-white rounded-2xl border-2 p-6 transition-all cursor-pointer ${
+                      campaignForm.campaign_type === '4week_challenge'
+                        ? 'border-purple-500 shadow-xl ring-2 ring-purple-200'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-lg'
                     }`}
                     onClick={() => setCampaignForm(prev => ({ ...prev, campaign_type: '4week_challenge', is_oliveyoung_sale: false }))}
                   >
-                    <input
-                      type="radio"
-                      id="campaign_type_4week"
-                      name="campaign_type"
-                      value="4week_challenge"
-                      checked={campaignForm.campaign_type === '4week_challenge'}
-                      onChange={() => setCampaignForm(prev => ({ ...prev, campaign_type: '4week_challenge', is_oliveyoung_sale: false }))}
-                      className="w-5 h-5 mt-1 text-purple-600 cursor-pointer"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="campaign_type_4week" className="text-lg font-bold cursor-pointer text-gray-800">
-                          🏆 4주 챌린지
-                        </Label>
-                        <a 
-                          href="/campaigns/intro/4week" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-purple-600 hover:text-purple-800 font-medium underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          상세보기 →
-                        </a>
+                    <div className="mb-6">
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">4주 챌린지</h3>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-4xl font-bold text-gray-900">₩600,000</span>
+                        <span className="text-gray-500">/건</span>
                       </div>
-                      <p className="text-sm text-gray-700 font-medium mb-2">💰 스탠다드 60만원 | 프리미엄 70만원 | 프로페셔널 80만원 | 엔터프라이즈 100만원</p>
-                      <p className="text-sm text-gray-600">• 주차별 통합 가이드 4개, 4주 콘텐츠</p>
-                      <p className="text-sm text-gray-600">• 4개의 미션 가이드를 통한 SNS 4주간 리뷰</p>
+                      <p className="text-sm text-gray-500 mt-2">진정성 있는 리뷰와 장기적인 바이럴 효과를 위한 프리미엄 플랜</p>
                     </div>
+
+                    <button
+                      type="button"
+                      className={`w-full py-3 rounded-lg font-semibold transition-all mb-6 ${
+                        campaignForm.campaign_type === '4week_challenge'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      선택하기
+                    </button>
+
+                    <ul className="space-y-3 text-sm">
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>주차별 미션 (총 4편 제작)</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>Before & After 변화 기록</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>SNS 업로드 URL 무제한</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>2차 활용 라이선스 포함</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/></svg>
+                        <span>심층 성과 분석 리포트</span>
+                      </li>
+                    </ul>
                   </div>
                 </div>
               </div>
