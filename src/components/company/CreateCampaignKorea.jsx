@@ -851,6 +851,32 @@ const CampaignCreationKorea = () => {
                           </div>
                         ))}
                       </div>
+
+                      {/* AI 예상 지원자 수 배너 */}
+                      <div className="mt-6 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            <span className="font-semibold text-indigo-600">AI 예측:</span>{' '}
+                            현재 설정하신 단가와 인원이라면, 약{' '}
+                            <span className="font-bold text-indigo-700">
+                              {campaignForm.package_type === 'basic' && '5~10명'}
+                              {campaignForm.package_type === 'standard' && '15~25명'}
+                              {campaignForm.package_type === 'premium' && '25~40명'}
+                              {campaignForm.package_type === 'professional' && '40~60명'}
+                              {campaignForm.package_type === 'enterprise' && '60~100명'}
+                              {!campaignForm.package_type && '10~20명'}
+                              {' '}이상의 크리에이터
+                            </span>
+                            가 지원할 것으로 예상됩니다.
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            (지원율 매우 높음)
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* 모집 인원 슬라이더 */}
