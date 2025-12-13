@@ -159,8 +159,8 @@ const CampaignCreationKorea = () => {
 
       const result = await response.json()
 
-      // 데이터가 있으면 적용 (success가 false여도 부분 데이터가 있을 수 있음)
-      if (result.data) {
+      // 성공하고 데이터가 있으면 적용
+      if (result.success && result.data) {
         setCampaignForm(prev => ({
           ...prev,
           product_name: result.data.product_name || prev.product_name,
@@ -174,8 +174,8 @@ const CampaignCreationKorea = () => {
       // 메시지나 에러가 있으면 표시
       if (result.message) {
         setCrawlError(result.message)
-      } else if (!result.success && result.error) {
-        setCrawlError(result.error)
+      } else if (!result.success) {
+        setCrawlError(result.error || '상품 정보를 가져올 수 없습니다. 수동으로 입력해주세요.')
       }
     } catch (error) {
       console.error('Crawl error:', error)

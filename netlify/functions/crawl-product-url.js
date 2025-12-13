@@ -94,18 +94,23 @@ exports.handler = async (event) => {
       }
     }
 
-    // 크롤링 실패 시 URL에서 기본 정보 추출 시도
+    // 크롤링 실패 시
     if (!fetchSuccess || !html) {
-      // URL에서 상품 번호나 이름 추출 시도
-      const urlInfo = extractInfoFromUrl(url)
+      // 사이트별 안내 메시지
+      let siteMessage = '해당 사이트에서 상품 정보를 자동으로 가져올 수 없습니다.'
+      if (url.includes('oliveyoung.co.kr')) {
+        siteMessage = '올리브영은 보안 정책으로 자동 수집이 제한됩니다.'
+      } else if (url.includes('coupang.com')) {
+        siteMessage = '쿠팡은 보안 정책으로 자동 수집이 제한됩니다.'
+      }
 
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
-          success: true,
-          data: urlInfo,
-          message: '일부 사이트는 직접 접근이 제한됩니다. 상품 정보를 수동으로 입력해주세요.'
+          success: false,
+          data: null,
+          message: `${siteMessage} 상품 페이지에서 정보를 복사하여 직접 입력해주세요.`
         })
       }
     }
@@ -185,9 +190,10 @@ exports.handler = async (event) => {
   }
 }
 
-// URL에서 기본 정보 추출
+// URL에서 기본 정보 추출 - 차단된 경우 빈 데이터 반환 (잘못된 정보 표시 방지)
 function extractInfoFromUrl(url) {
-  const result = {
+  // 차단된 경우 빈 데이터 반환 - 잘못된 정보를 보여주지 않음
+  return {
     product_name: '',
     brand_name: '',
     product_price: '',
@@ -195,38 +201,6 @@ function extractInfoFromUrl(url) {
     product_description: '',
     keywords: []
   }
-
-  try {
-    const urlObj = new URL(url)
-
-    // 올리브영 URL 패턴에서 상품번호 추출
-    if (url.includes('oliveyoung.co.kr')) {
-      result.brand_name = '올리브영'
-      const goodsNoMatch = url.match(/goodsNo=([A-Z0-9]+)/)
-      if (goodsNoMatch) {
-        result.product_name = `올리브영 상품 (${goodsNoMatch[1]})`
-      }
-    }
-    // 쿠팡 URL에서 정보 추출
-    else if (url.includes('coupang.com')) {
-      result.brand_name = '쿠팡'
-      const productIdMatch = url.match(/products\/(\d+)/)
-      if (productIdMatch) {
-        result.product_name = `쿠팡 상품 (${productIdMatch[1]})`
-      }
-    }
-    // 네이버 스마트스토어
-    else if (url.includes('smartstore.naver.com')) {
-      const storeMatch = url.match(/smartstore\.naver\.com\/([^\/]+)/)
-      if (storeMatch) {
-        result.brand_name = storeMatch[1]
-      }
-    }
-  } catch (e) {
-    console.log('[crawl-product-url] URL parsing error:', e)
-  }
-
-  return result
 }
 
 // 올리브영 파싱
