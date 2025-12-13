@@ -54,7 +54,8 @@ const CampaignCreationKorea = () => {
     week1_deadline: '',
     week2_deadline: '',
     week3_deadline: '',
-    week4_deadline: ''
+    week4_deadline: '',
+    bonus_amount: 0  // 지원율 높이기 추가 금액
   })
 
   const [processing, setProcessing] = useState(false)
@@ -1989,24 +1990,58 @@ const CampaignCreationKorea = () => {
                         </div>
                       </div>
                       {/* AI 예측 */}
-                      <div className="mt-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
-                        <div className="flex items-center gap-2">
+                      <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                        <div className="flex items-center gap-2 mb-3">
                           <span className="text-lg">⚡</span>
                           <span className="text-sm">
-                            <span className="font-semibold text-indigo-600">AI 예측:</span>{' '}
-                            현재 설정하신 단가와 인원이라면, 약{' '}
+                            <span className="font-semibold text-indigo-600">AI 지원율 예측:</span>{' '}
+                            이 캠페인은 평균{' '}
                             <span className="font-bold text-indigo-600">
-                              {Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 1.5)}~{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 2.5)}명 이상의 크리에이터
+                              {10 + Math.floor((campaignForm.bonus_amount || 0) / 100000) * 5}-{20 + Math.floor((campaignForm.bonus_amount || 0) / 100000) * 10}명
                             </span>
-                            가 지원할 것으로 예상됩니다.
+                            의 크리에이터가 지원합니다.
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1 ml-7">(지원율 매우 높음)</p>
+
+                        {/* 지원율 높이기 옵션 */}
+                        <div className="bg-white/70 rounded-lg p-3 mt-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-700">지원율 높이기</span>
+                            {campaignForm.bonus_amount > 0 && (
+                              <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                                +{((campaignForm.bonus_amount / 100000) * 5)}-{((campaignForm.bonus_amount / 100000) * 10)}명 증가 예상
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCampaignForm(prev => ({ ...prev, bonus_amount: Math.max(0, (prev.bonus_amount || 0) - 100000) }))}
+                              className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100"
+                              disabled={campaignForm.bonus_amount <= 0}
+                            >
+                              -
+                            </button>
+                            <div className="flex-1 text-center">
+                              <span className="text-lg font-bold text-indigo-600">
+                                +{(campaignForm.bonus_amount || 0).toLocaleString()}원
+                              </span>
+                              <p className="text-xs text-gray-500">10만원 단위</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setCampaignForm(prev => ({ ...prev, bonus_amount: (prev.bonus_amount || 0) + 100000 }))}
+                              className="w-10 h-10 flex items-center justify-center border border-indigo-400 rounded-lg text-indigo-600 hover:bg-indigo-50"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* 스케줄 설정 - 기획형과 동일한 스타일 */}
+                  {/* 스케줄 설정 - 3단계 콘텐츠 업로드 */}
                   <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
@@ -2018,7 +2053,7 @@ const CampaignCreationKorea = () => {
                     {/* 자동 추천 안내 */}
                     <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-6">
                       <p className="text-sm text-emerald-700">
-                        <span className="font-semibold">ℹ️ 스케줄 자동 추천:</span> 모집 마감일만 입력하면 나머지 일정이 자동으로 계산됩니다. (수정 가능)
+                        <span className="font-semibold">ℹ️ 스케줄 자동 추천:</span> 제품 발송 예정일을 입력하면 3단계 콘텐츠 업로드 일정이 자동으로 계산됩니다. (수정 가능)
                       </p>
                     </div>
 
@@ -2029,26 +2064,7 @@ const CampaignCreationKorea = () => {
                         <Input
                           type="date"
                           value={campaignForm.application_deadline}
-                          onChange={(e) => {
-                            const deadline = new Date(e.target.value)
-                            // 자동 계산: 제품 발송일 = 모집 마감일 + 2일
-                            const shipping = new Date(deadline)
-                            shipping.setDate(shipping.getDate() + 2)
-                            // 촬영 마감일 = 발송일 + 10일
-                            const shooting = new Date(shipping)
-                            shooting.setDate(shooting.getDate() + 10)
-                            // SNS 업로드일 = 촬영 마감일 + 2일
-                            const upload = new Date(shooting)
-                            upload.setDate(upload.getDate() + 2)
-
-                            setCampaignForm(prev => ({
-                              ...prev,
-                              application_deadline: e.target.value,
-                              start_date: shooting.toISOString().split('T')[0],
-                              end_date: upload.toISOString().split('T')[0],
-                              step1_deadline: shipping.toISOString().split('T')[0]
-                            }))
-                          }}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
                           className="mt-1"
                           required
                         />
@@ -2056,72 +2072,144 @@ const CampaignCreationKorea = () => {
 
                       {/* 제품 발송 예정일 */}
                       <div>
-                        <Label className="text-gray-700">
-                          제품 발송 예정일 <span className="text-emerald-600 text-sm">(모집 마감일 +2일)</span>
-                        </Label>
+                        <Label className="font-semibold text-gray-700">제품 발송 예정일 *</Label>
                         <Input
                           type="date"
-                          value={campaignForm.step1_deadline}
-                          onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
-                          className="mt-1 bg-gray-50"
+                          value={campaignForm.shipping_date}
+                          onChange={(e) => {
+                            const shippingDate = new Date(e.target.value)
+                            // STEP 1: 제품 발송 후 7일 (상품 리뷰 영상)
+                            const step1 = new Date(shippingDate)
+                            step1.setDate(step1.getDate() + 7)
+                            // STEP 2: STEP 1 후 5일 (프로모션 홍보 영상)
+                            const step2 = new Date(step1)
+                            step2.setDate(step2.getDate() + 5)
+                            // STEP 3: STEP 2 후 3일 (프로모션 당일 스토리)
+                            const step3 = new Date(step2)
+                            step3.setDate(step3.getDate() + 3)
+
+                            setCampaignForm(prev => ({
+                              ...prev,
+                              shipping_date: e.target.value,
+                              step1_deadline: step1.toISOString().split('T')[0],
+                              step2_deadline: step2.toISOString().split('T')[0],
+                              step3_deadline: step3.toISOString().split('T')[0]
+                            }))
+                          }}
+                          className="mt-1"
+                          required
                         />
                       </div>
 
-                      {/* 촬영 & 업로드 마감일 / SNS 업로드일 */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-gray-700">
-                            촬영&업로드 마감일 * <span className="text-emerald-600 text-sm">(발송일 +10일)</span>
-                          </Label>
-                          <Input
-                            type="date"
-                            value={campaignForm.start_date}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                            className="mt-1 bg-gray-50"
-                            required
-                          />
+                      {/* 3단계 콘텐츠 업로드 스케줄 */}
+                      <div className="mt-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="text-lg">🎬</span>
+                          <span className="font-semibold text-gray-700">3단계 콘텐츠 업로드 스케줄</span>
                         </div>
-                        <div>
-                          <Label className="text-gray-700">
-                            SNS 업로드일 * <span className="text-emerald-600 text-sm">(촬영마감 +2일)</span>
-                          </Label>
-                          <Input
-                            type="date"
-                            value={campaignForm.end_date}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
-                            className="mt-1 bg-gray-50"
-                            required
-                          />
+
+                        <div className="space-y-4">
+                          {/* STEP 1 */}
+                          <div className="border border-pink-200 rounded-xl p-4 bg-pink-50/50">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-pink-500 text-white rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                1
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-semibold text-gray-800">상품 리뷰 영상 업로드</span>
+                                  <span className="text-xs text-pink-600 bg-pink-100 px-2 py-0.5 rounded">발송일 +7일</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mb-2">상품 리뷰에 대한 콘텐츠</p>
+                                <Input
+                                  type="date"
+                                  value={campaignForm.step1_deadline}
+                                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
+                                  className="mt-1 bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* STEP 2 */}
+                          <div className="border border-purple-200 rounded-xl p-4 bg-purple-50/50">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-purple-500 text-white rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                2
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-semibold text-gray-800">프로모션 홍보 영상 업로드</span>
+                                  <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded">STEP1 +5일</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mb-2">사용 후 프로모션 정보 제공</p>
+                                <Input
+                                  type="date"
+                                  value={campaignForm.step2_deadline}
+                                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_deadline: e.target.value }))}
+                                  className="mt-1 bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* STEP 3 */}
+                          <div className="border border-emerald-200 rounded-xl p-4 bg-emerald-50/50">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                3
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-semibold text-gray-800">프로모션 당일 스토리 업로드</span>
+                                  <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">STEP2 +3일</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mb-2">스토리를 통한 프로모션 링크 삽입</p>
+                                <Input
+                                  type="date"
+                                  value={campaignForm.step3_deadline}
+                                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step3_deadline: e.target.value }))}
+                                  className="mt-1 bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
                       {/* 일정 요약 */}
-                      {campaignForm.application_deadline && (
+                      {campaignForm.application_deadline && campaignForm.shipping_date && (
                         <div className="bg-gray-50 rounded-lg p-4 mt-4">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-3">
                             <span className="text-sm">📋</span>
                             <span className="font-semibold text-gray-700">일정 요약</span>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="flex items-center gap-1">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center gap-2">
                               <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                              모집 마감: {campaignForm.application_deadline}
-                            </span>
-                            <span className="text-gray-300">→</span>
-                            <span className="flex items-center gap-1">
+                              <span className="text-gray-600">모집 마감:</span>
+                              <span className="font-medium">{campaignForm.application_deadline}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                              제품 발송: {campaignForm.step1_deadline}
-                            </span>
-                            <span className="text-gray-300">→</span>
-                            <span className="flex items-center gap-1">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                              촬영 마감: {campaignForm.start_date}
-                            </span>
-                            <span className="text-gray-300">→</span>
-                            <span className="flex items-center gap-1">
+                              <span className="text-gray-600">제품 발송:</span>
+                              <span className="font-medium">{campaignForm.shipping_date}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-pink-500"></span>
+                              <span className="text-gray-600">STEP 1 (상품 리뷰):</span>
+                              <span className="font-medium">{campaignForm.step1_deadline}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                              SNS 업로드: {campaignForm.end_date}
-                            </span>
+                              <span className="text-gray-600">STEP 2 (프로모션 홍보):</span>
+                              <span className="font-medium">{campaignForm.step2_deadline}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              <span className="text-gray-600">STEP 3 (당일 스토리):</span>
+                              <span className="font-medium">{campaignForm.step3_deadline}</span>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -2180,20 +2268,25 @@ const CampaignCreationKorea = () => {
                           <div>
                             <div className="text-pink-300 text-xs font-medium mb-1">AI 지원율 예측</div>
                             <div className="text-sm leading-relaxed">
-                              선택하신 단가로는
-                              <br />
-                              평균 <span className="text-pink-400 font-bold text-lg">{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 1.5)}~{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 2.5)}명+</span>의 크리에이터가
-                              <br />
-                              지원할 것으로 예상됩니다.
+                              이 캠페인은 평균{' '}
+                              <span className="text-pink-400 font-bold text-lg">
+                                {10 + Math.floor((campaignForm.bonus_amount || 0) / 100000) * 5}-{20 + Math.floor((campaignForm.bonus_amount || 0) / 100000) * 10}명
+                              </span>
+                              의 크리에이터가 지원합니다.
                             </div>
                           </div>
                         </div>
                         <div className="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-500"
-                            style={{ width: '70%' }}
+                            style={{ width: `${Math.min(100, 50 + ((campaignForm.bonus_amount || 0) / 100000) * 10)}%` }}
                           />
                         </div>
+                        {campaignForm.bonus_amount > 0 && (
+                          <div className="mt-2 text-xs text-green-400">
+                            +{((campaignForm.bonus_amount / 100000) * 5)}-{((campaignForm.bonus_amount / 100000) * 10)}명 지원율 증가 중
+                          </div>
+                        )}
                       </div>
 
                       {/* 견적 상세 */}
@@ -2206,15 +2299,21 @@ const CampaignCreationKorea = () => {
                           <span className="text-gray-400">인원</span>
                           <span>x {campaignForm.oliveyoung_recruit_count || 1}명</span>
                         </div>
+                        {campaignForm.bonus_amount > 0 && (
+                          <div className="flex justify-between text-green-400">
+                            <span>지원율 높이기</span>
+                            <span>+{(campaignForm.bonus_amount).toLocaleString()}원</span>
+                          </div>
+                        )}
                         <div className="border-t border-slate-700 pt-3">
                           <div className="flex justify-between">
                             <span className="text-gray-400">공급가액</span>
-                            <span>{(400000 * (campaignForm.oliveyoung_recruit_count || 1)).toLocaleString()}원</span>
+                            <span>{(400000 * (campaignForm.oliveyoung_recruit_count || 1) + (campaignForm.bonus_amount || 0)).toLocaleString()}원</span>
                           </div>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">부가세 (10%)</span>
-                          <span>{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 0.1).toLocaleString()}원</span>
+                          <span>{Math.round((400000 * (campaignForm.oliveyoung_recruit_count || 1) + (campaignForm.bonus_amount || 0)) * 0.1).toLocaleString()}원</span>
                         </div>
                       </div>
 
@@ -2224,7 +2323,7 @@ const CampaignCreationKorea = () => {
                           <span className="text-gray-400">총 결제 금액</span>
                         </div>
                         <div className="text-right">
-                          <span className="text-4xl font-bold">{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 1.1).toLocaleString()}</span>
+                          <span className="text-4xl font-bold">{Math.round((400000 * (campaignForm.oliveyoung_recruit_count || 1) + (campaignForm.bonus_amount || 0)) * 1.1).toLocaleString()}</span>
                           <span className="text-xl ml-1">원</span>
                         </div>
                       </div>
