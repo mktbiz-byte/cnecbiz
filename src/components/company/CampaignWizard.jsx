@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
-import { Check, ChevronRight, ChevronLeft, Save, Clock, Package, Calendar, FileText, CheckCircle } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, Save, Clock, Package, Calendar, FileText, CheckCircle, Eye, Loader2, Sparkles, Search, X, History } from 'lucide-react'
 
 // 단계 정의
 const STEPS = [
@@ -89,6 +89,15 @@ const PROHIBITION_OPTIONS = [
   { id: 'negative', label: '부정적 표현 사용 금지' },
 ]
 
+// 추천 키워드 태그 (카테고리별)
+const KEYWORD_CATEGORIES = {
+  '효과': ['수분폭탄', '즉각보습', '피부진정', '트러블케어', '미백', '주름개선', '탄력', '윤기', '촉촉', '광채'],
+  '사용감': ['산뜻', '촉촉', '무거움없이', '흡수빠름', '끈적임없이', '가벼운', '부드러운', '쫀쫀한'],
+  '기간': ['7일변화', '즉효', '하루종일', '밤사이', '일주일', '한달', '꾸준히'],
+  '상황': ['데일리', '출근전', '자기전', '메이크업전', '세안후', '여행필수', '환절기'],
+  '감성': ['인생템', '추천템', '찐리뷰', '솔직후기', '갓성비', '럭셔리', '프리미엄', '가성비'],
+}
+
 // 채널 옵션
 const CHANNEL_OPTIONS = [
   { value: 'youtube', label: '유튜브', emoji: '🎬' },
@@ -107,6 +116,25 @@ export default function CampaignWizard() {
   // 자동저장 상태
   const [lastSaved, setLastSaved] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  // 이전 캠페인 불러오기
+  const [previousCampaigns, setPreviousCampaigns] = useState([])
+  const [showPreviousCampaigns, setShowPreviousCampaigns] = useState(false)
+  const [loadingPrevious, setLoadingPrevious] = useState(false)
+
+  // URL 크롤링 상태
+  const [isCrawling, setIsCrawling] = useState(false)
+  const [crawlError, setCrawlError] = useState(null)
+
+  // AI 추천 상태
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [aiRecommendations, setAiRecommendations] = useState(null)
+
+  // 크리에이터 미리보기 모달
+  const [showPreview, setShowPreview] = useState(false)
+
+  // 키워드 선택 모달
+  const [showKeywordPicker, setShowKeywordPicker] = useState(false)
 
   // 폼 데이터
   const [formData, setFormData] = useState({
@@ -200,6 +228,147 @@ export default function CampaignWizard() {
     const timer = setTimeout(autoSave, 2000)
     return () => clearTimeout(timer)
   }, [formData, autoSave])
+
+  // 이전 캠페인 목록 불러오기
+  const loadPreviousCampaigns = async () => {
+    setLoadingPrevious(true)
+    try {
+      const { data, error } = await supabaseBiz
+        .from('campaigns')
+        .select('id, brand_name, product_name, thumbnail_url, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (error) throw error
+      setPreviousCampaigns(data || [])
+    } catch (error) {
+      console.error('Failed to load previous campaigns:', error)
+    } finally {
+      setLoadingPrevious(false)
+    }
+  }
+
+  // 이전 캠페인에서 정보 불러오기
+  const loadFromPreviousCampaign = async (campaignId) => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setFormData(prev => ({
+          ...prev,
+          brand_name: data.brand_name || prev.brand_name,
+          product_name: data.product_name || prev.product_name,
+          product_price: data.product_price || prev.product_price,
+          thumbnail_url: data.thumbnail_url || prev.thumbnail_url,
+          product_description: data.product_description || prev.product_description,
+        }))
+        setShowPreviousCampaigns(false)
+      }
+    } catch (error) {
+      console.error('Failed to load campaign:', error)
+    }
+  }
+
+  // URL 크롤링
+  const crawlProductUrl = async () => {
+    if (!formData.product_url) return
+
+    setIsCrawling(true)
+    setCrawlError(null)
+
+    try {
+      const response = await fetch('/.netlify/functions/crawl-product-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: formData.product_url })
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setFormData(prev => ({
+          ...prev,
+          product_name: result.data.product_name || prev.product_name,
+          brand_name: result.data.brand_name || prev.brand_name,
+          product_price: result.data.product_price || prev.product_price,
+          thumbnail_url: result.data.thumbnail_url || prev.thumbnail_url,
+          product_description: result.data.product_description || prev.product_description,
+          product_keywords: result.data.keywords || prev.product_keywords,
+        }))
+      } else {
+        setCrawlError(result.error || '정보를 가져오는데 실패했습니다')
+      }
+    } catch (error) {
+      console.error('Crawl error:', error)
+      setCrawlError('네트워크 오류가 발생했습니다')
+    } finally {
+      setIsCrawling(false)
+    }
+  }
+
+  // AI 키워드 & 가이드 추천
+  const generateAIRecommendations = async () => {
+    if (!formData.product_name) {
+      alert('먼저 상품명을 입력해주세요')
+      return
+    }
+
+    setIsGeneratingAI(true)
+
+    try {
+      const response = await fetch('/.netlify/functions/recommend-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_name: formData.product_name,
+          brand_name: formData.brand_name,
+          product_description: formData.product_description,
+          campaign_type: formData.campaign_type
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setAiRecommendations(result.data)
+        // 추천 결과를 폼에 자동 적용
+        setFormData(prev => ({
+          ...prev,
+          hooking_point: result.data.hooking_point || prev.hooking_point,
+          core_message: result.data.core_message || prev.core_message,
+          required_missions: result.data.recommended_missions || prev.required_missions,
+          required_hashtags: [...new Set([...prev.required_hashtags, ...(result.data.keywords || [])])].slice(0, 10),
+          video_duration: result.data.video_style?.duration || prev.video_duration,
+          video_tempo: result.data.video_style?.tempo || prev.video_tempo,
+          tone_and_manner: result.data.video_style?.tone || prev.tone_and_manner,
+        }))
+      }
+    } catch (error) {
+      console.error('AI recommendation error:', error)
+      alert('AI 추천 생성에 실패했습니다')
+    } finally {
+      setIsGeneratingAI(false)
+    }
+  }
+
+  // 키워드 태그 토글
+  const toggleKeywordTag = (keyword) => {
+    setFormData(prev => {
+      const current = prev.required_hashtags
+      if (current.includes(keyword)) {
+        return { ...prev, required_hashtags: current.filter(k => k !== keyword) }
+      } else if (current.length < 10) {
+        return { ...prev, required_hashtags: [...current, keyword] }
+      }
+      return prev
+    })
+  }
 
   // 스케줄 자동 추천
   const autoCalculateSchedule = (shippingDate) => {
@@ -553,10 +722,73 @@ export default function CampaignWizard() {
   // Step 2: 상품 정보
   const renderStep2 = () => (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">상품 정보 입력</h1>
-        <p className="text-gray-500">URL만 입력하면 상품 정보를 자동으로 가져옵니다</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">상품 정보 입력</h1>
+          <p className="text-gray-500">URL만 입력하면 상품 정보를 자동으로 가져옵니다</p>
+        </div>
+        {/* 이전 캠페인 불러오기 버튼 */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setShowPreviousCampaigns(true)
+            loadPreviousCampaigns()
+          }}
+          className="flex items-center gap-2"
+        >
+          <History className="w-4 h-4" />
+          이전 캠페인에서 불러오기
+        </Button>
       </div>
+
+      {/* 이전 캠페인 선택 모달 */}
+      {showPreviousCampaigns && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[70vh] overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">이전 캠페인에서 불러오기</h3>
+              <button onClick={() => setShowPreviousCampaigns(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[50vh]">
+              {loadingPrevious ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                </div>
+              ) : previousCampaigns.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">이전 캠페인이 없습니다</p>
+              ) : (
+                <div className="space-y-2">
+                  {previousCampaigns.map(campaign => (
+                    <button
+                      key={campaign.id}
+                      onClick={() => loadFromPreviousCampaign(campaign.id)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left"
+                    >
+                      {campaign.thumbnail_url ? (
+                        <img src={campaign.thumbnail_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                          <Package className="w-6 h-6 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{campaign.product_name || '제품명 없음'}</p>
+                        <p className="text-sm text-gray-500 truncate">{campaign.brand_name || '브랜드 없음'}</p>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {new Date(campaign.created_at).toLocaleDateString('ko-KR')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* URL 입력 */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -570,14 +802,55 @@ export default function CampaignWizard() {
             placeholder="https://www.oliveyoung.co.kr/store/goods/..."
             className="flex-1"
           />
-          <Button variant="outline" className="whitespace-nowrap">
-            🔍 정보 가져오기
+          <Button
+            variant="outline"
+            className="whitespace-nowrap"
+            onClick={crawlProductUrl}
+            disabled={isCrawling || !formData.product_url}
+          >
+            {isCrawling ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                가져오는 중...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                정보 가져오기
+              </>
+            )}
           </Button>
         </div>
+        {crawlError && (
+          <p className="text-xs text-red-500 mt-2">❌ {crawlError}</p>
+        )}
         <p className="text-xs text-gray-500 mt-2">
           💡 올리브영, 쿠팡, 네이버 스마트스토어, 자사몰 URL 지원
         </p>
       </div>
+
+      {/* 썸네일 미리보기 */}
+      {formData.thumbnail_url && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <Label className="text-sm font-semibold text-gray-700 mb-2 block">📷 상품 이미지</Label>
+          <div className="flex items-center gap-4">
+            <img
+              src={formData.thumbnail_url}
+              alt="상품 썸네일"
+              className="w-24 h-24 rounded-lg object-cover border"
+            />
+            <div className="flex-1">
+              <p className="text-sm text-gray-600">URL에서 자동으로 가져온 이미지입니다</p>
+              <button
+                onClick={() => setFormData(prev => ({ ...prev, thumbnail_url: '' }))}
+                className="text-sm text-red-500 hover:underline mt-1"
+              >
+                이미지 삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 브랜드/상품 정보 */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
@@ -816,14 +1089,47 @@ export default function CampaignWizard() {
           <p className="text-gray-500">크리에이터가 영상 제작 시 참고할 가이드입니다</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            🤖 AI 가이드 생성
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generateAIRecommendations}
+            disabled={isGeneratingAI}
+            className="flex items-center gap-2"
+          >
+            {isGeneratingAI ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                생성 중...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                AI 가이드 생성
+              </>
+            )}
           </Button>
-          <Button variant="outline" size="sm">
-            📂 템플릿
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreview(true)}
+            className="flex items-center gap-2"
+          >
+            <Eye className="w-4 h-4" />
+            미리보기
           </Button>
         </div>
       </div>
+
+      {/* AI 추천 결과 배너 */}
+      {aiRecommendations && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            <span className="font-semibold text-purple-800">AI가 추천한 가이드가 적용되었습니다!</span>
+          </div>
+          <p className="text-sm text-purple-600">아래 내용을 확인하고 필요한 부분을 수정해주세요.</p>
+        </div>
+      )}
 
       {/* 필수 입력 */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
@@ -935,9 +1241,19 @@ export default function CampaignWizard() {
 
         {/* 필수 해시태그 */}
         <div>
-          <Label className="text-sm font-medium text-gray-700 mb-2 block">
-            # 필수 해시태그 *
-          </Label>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-sm font-medium text-gray-700">
+              # 필수 해시태그 *
+            </Label>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowKeywordPicker(true)}
+              className="text-indigo-600 text-sm"
+            >
+              + 추천 키워드에서 선택
+            </Button>
+          </div>
           <Input
             placeholder="해시태그를 입력하고 Enter를 누르세요"
             onKeyDown={(e) => {
@@ -951,24 +1267,71 @@ export default function CampaignWizard() {
               }
             }}
           />
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-3">
             {formData.required_hashtags.map((tag, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium"
               >
                 #{tag}
                 <button
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, required_hashtags: prev.required_hashtags.filter((_, i) => i !== idx) }))}
-                  className="hover:text-indigo-900"
-                >×</button>
+                  className="hover:text-indigo-900 ml-1"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </span>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-1">{formData.required_hashtags.length}/10개</p>
+          <p className="text-xs text-gray-400 mt-2">{formData.required_hashtags.length}/10개</p>
         </div>
       </div>
+
+      {/* 키워드 선택 모달 */}
+      {showKeywordPicker && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">추천 키워드 선택</h3>
+              <button onClick={() => setShowKeywordPicker(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              {Object.entries(KEYWORD_CATEGORIES).map(([category, keywords]) => (
+                <div key={category} className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">{category}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {keywords.map(keyword => (
+                      <button
+                        key={keyword}
+                        type="button"
+                        onClick={() => toggleKeywordTag(keyword)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                          formData.required_hashtags.includes(keyword)
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        #{keyword}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+              <span className="text-sm text-gray-500">
+                {formData.required_hashtags.length}/10개 선택됨
+              </span>
+              <Button onClick={() => setShowKeywordPicker(false)}>
+                완료
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 영상 스타일 (접힘) */}
       <details className="bg-white rounded-xl border border-gray-200">
@@ -1177,8 +1540,110 @@ export default function CampaignWizard() {
     }
   }
 
+  // 크리에이터 미리보기 렌더링
+  const renderCreatorPreview = () => (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 rounded-2xl max-w-sm w-full max-h-[90vh] overflow-hidden shadow-2xl">
+        {/* 폰 프레임 */}
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-medium">크리에이터에게 보이는 화면</h3>
+            <button onClick={() => setShowPreview(false)} className="text-gray-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 앱 화면 미리보기 */}
+          <div className="bg-white rounded-xl overflow-hidden">
+            {/* 상품 이미지 */}
+            <div className="aspect-square bg-gray-100 relative">
+              {formData.thumbnail_url ? (
+                <img src={formData.thumbnail_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Package className="w-16 h-16 text-gray-300" />
+                </div>
+              )}
+              <div className="absolute top-3 left-3">
+                <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded">
+                  {CAMPAIGN_TYPES.find(t => t.id === formData.campaign_type)?.name}
+                </span>
+              </div>
+            </div>
+
+            {/* 캠페인 정보 */}
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                  {formData.brand_name || '브랜드명'}
+                </span>
+              </div>
+              <h2 className="font-bold text-gray-900 mb-2">
+                {formData.product_name || '상품명을 입력해주세요'}
+              </h2>
+
+              {/* 리워드 정보 */}
+              <div className="bg-indigo-50 rounded-lg p-3 mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-indigo-600">크리에이터 리워드</span>
+                  <span className="font-bold text-indigo-700">
+                    {(PACKAGE_OPTIONS.find(p => p.value === formData.package_type)?.price || 0).toLocaleString()}원
+                  </span>
+                </div>
+              </div>
+
+              {/* 일정 */}
+              {formData.recruitment_deadline && (
+                <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+                  <Calendar className="w-4 h-4" />
+                  <span>모집마감: {formData.recruitment_deadline}</span>
+                </div>
+              )}
+
+              {/* 미션 */}
+              {formData.required_missions.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs font-medium text-gray-500 mb-2">필수 미션</p>
+                  <div className="flex flex-wrap gap-1">
+                    {formData.required_missions.slice(0, 3).map(missionId => (
+                      <span key={missionId} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        {MISSION_OPTIONS.find(m => m.id === missionId)?.label}
+                      </span>
+                    ))}
+                    {formData.required_missions.length > 3 && (
+                      <span className="text-xs text-gray-400">+{formData.required_missions.length - 3}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 해시태그 */}
+              {formData.required_hashtags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {formData.required_hashtags.slice(0, 5).map((tag, idx) => (
+                    <span key={idx} className="text-xs text-indigo-600">#{tag}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 지원 버튼 */}
+            <div className="p-4 border-t">
+              <button className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold">
+                캠페인 지원하기
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* 크리에이터 미리보기 모달 */}
+      {showPreview && renderCreatorPreview()}
+
       {/* 프로그레스 바 */}
       {renderProgressBar()}
 
