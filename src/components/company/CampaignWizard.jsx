@@ -22,27 +22,27 @@ const CAMPAIGN_TYPES = [
     id: 'planned',
     name: '기획형 캠페인',
     price: 200000,
+    badge: '✨ 인기',
     description: '합리적인 비용으로 전문적인 숏폼 기획을 시작하고 싶은 브랜드',
     features: [
       { text: '브랜드 맞춤 시나리오 기획', included: true },
       { text: '촬영 가이드라인 제공', included: true },
+      { text: 'AI 크리에이터 매칭', included: true },
       { text: 'SNS 업로드 URL 1개', included: true },
-      { text: '2차 활용 라이선스', included: false },
-      { text: '심층 성과 분석 리포트', included: false },
+      { text: '2차 활용 및 파트너코드', included: true },
     ]
   },
   {
     id: 'oliveyoung',
     name: '올영세일 패키지',
     price: 400000,
-    badge: 'MOST POPULAR',
     description: '세일 기간 집중 트래픽과 구매 전환을 유도하는 실속형 패키지',
     features: [
-      { text: '티징 + 본편 (2단계 구성)', included: true },
+      { text: '3단계 콘텐츠 (리뷰→홍보→당일)', included: true },
       { text: '구매 전환 유도형 기획', included: true },
       { text: 'SNS 업로드 URL 3개', included: true },
       { text: '원본 영상 파일 제공', included: true },
-      { text: '기본 성과 리포트', included: true },
+      { text: '2차 활용 및 파트너코드', included: true },
     ]
   },
   {
@@ -53,9 +53,8 @@ const CAMPAIGN_TYPES = [
     features: [
       { text: '주차별 미션 (총 4편 제작)', included: true },
       { text: 'Before & After 변화 기록', included: true },
-      { text: 'SNS 업로드 URL 무제한', included: true },
-      { text: '2차 활용 라이선스 포함', included: true },
-      { text: '심층 성과 분석 리포트', included: true },
+      { text: 'SNS 업로드 URL 4개', included: true },
+      { text: '2차 활용 및 파트너코드', included: true },
     ]
   }
 ]
@@ -474,8 +473,8 @@ export default function CampaignWizard() {
     <div className="space-y-8">
       {/* 타이틀 */}
       <div className="text-center">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">가장 합리적인 캠페인을 선택하세요</h1>
-        <p className="text-gray-500">복잡한 옵션은 빼고, 꼭 필요한 기능만 담았습니다.</p>
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">뷰티 브랜드를 위한 3가지 캠페인</h1>
+        <p className="text-gray-500">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
       </div>
 
       {/* 캠페인 타입 카드 */}

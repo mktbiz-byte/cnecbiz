@@ -187,6 +187,7 @@ exports.handler = async (event, context) => {
         status: 'active',
         points_balance: 0,
         profile_completed: false,
+        is_approved: false,  // 승인 대기 상태로 시작
         created_at: new Date().toISOString()
       }])
       .select()
@@ -209,18 +210,83 @@ exports.handler = async (event, context) => {
       }
     }
     console.log('[complete-signup] Company data saved:', companyData.id)
-    console.log('[complete-signup] 회원가입 완료 - 프로필 설정 필요')
+    console.log('[complete-signup] 회원가입 완료 - 승인 대기')
+
+    // Step 5: 관리자에게 알림 발송 (네이버웍스)
+    console.log('[complete-signup] Step 5: Sending admin notification')
+    try {
+      const koreanDate = new Date().toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+
+      const adminMessage = `🆕 신규 브랜드 가입 승인 요청
+
+회사명: ${companyName}
+담당자: ${contactPerson}
+이메일: ${email}
+연락처: ${phoneNumber}
+
+가입일시: ${koreanDate}
+
+⚠️ 상담 완료 후 승인 처리가 필요합니다.
+관리자 페이지에서 승인해 주세요.`
+
+      // 네이버웍스로 알림 전송 (내부 호출)
+      const https = require('https')
+      const notifyData = JSON.stringify({
+        isAdminNotification: true,
+        message: adminMessage
+      })
+
+      // 같은 도메인의 netlify function 호출 (환경에 따라 다름)
+      const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
+      const notifyUrl = new URL('/.netlify/functions/send-naver-works-message', baseUrl)
+
+      await new Promise((resolve, reject) => {
+        const protocol = notifyUrl.protocol === 'https:' ? https : require('http')
+        const req = protocol.request({
+          hostname: notifyUrl.hostname,
+          port: notifyUrl.port || (notifyUrl.protocol === 'https:' ? 443 : 80),
+          path: notifyUrl.pathname,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(notifyData)
+          }
+        }, (res) => {
+          res.on('data', () => {})
+          res.on('end', () => resolve())
+        })
+        req.on('error', (err) => {
+          console.error('[complete-signup] Admin notification failed:', err.message)
+          resolve() // 알림 실패해도 가입은 완료
+        })
+        req.write(notifyData)
+        req.end()
+      })
+
+      console.log('[complete-signup] Admin notification sent')
+    } catch (notifyError) {
+      console.error('[complete-signup] Admin notification error:', notifyError.message)
+      // 알림 실패해도 가입은 완료 처리
+    }
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        message: '회원가입이 완료되었습니다.',
+        message: '회원가입이 완료되었습니다. 승인 후 서비스 이용이 가능합니다.',
         data: {
           userId: authData.user.id,
           email: authData.user.email,
-          companyName: companyData.company_name
+          companyName: companyData.company_name,
+          isApproved: false
         }
       })
     }

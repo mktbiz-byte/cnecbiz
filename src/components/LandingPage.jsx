@@ -124,7 +124,7 @@ export default function LandingPage() {
     stats_campaigns: '4,562+',
     stats_creators: '21,580+',
     stats_countries: '4개국',
-    stats_success: '1억+'
+    stats_success: '5억회'
   })
 
   // 비디오 카테고리 정의 (DB 영상을 분배해서 사용)
@@ -254,7 +254,7 @@ export default function LandingPage() {
           stats_campaigns: data.stats_campaigns || '4,562+',
           stats_creators: data.stats_creators || '21,580+',
           stats_countries: data.stats_countries || '4개국',
-          stats_success: data.stats_success || '50만+'
+          stats_success: data.stats_success || '5억회'
         })
       }
     } catch (error) {
