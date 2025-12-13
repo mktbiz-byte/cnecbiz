@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Building, User, Phone, Mail, Lock, CheckCircle, AlertCircle, Globe, ArrowLeft, Sparkles } from 'lucide-react'
+import { Building, User, Phone, Mail, Lock, CheckCircle, AlertCircle, Globe, ArrowLeft, Sparkles, Clock, MessageSquare } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import InAppBrowserWarning from './InAppBrowserWarning'
 
@@ -28,6 +28,7 @@ export default function SignupWithVerification() {
   // 가입 처리
   const [signupLoading, setSignupLoading] = useState(false)
   const [signupError, setSignupError] = useState('')
+  const [signupComplete, setSignupComplete] = useState(false)
 
   // SMS 타이머
   useEffect(() => {
@@ -172,17 +173,8 @@ export default function SignupWithVerification() {
         throw new Error(data.error || '가입 중 오류가 발생했습니다.')
       }
 
-      // 자동 로그인
-      const { error: signInError } = await supabaseBiz.auth.signInWithPassword({
-        email: email.trim(),
-        password: password
-      })
-
-      if (signInError) throw signInError
-
-      // 성공 메시지 및 리다이렉트
-      alert('가입이 완료되었습니다! 프로필을 설정해주세요.')
-      navigate('/company/profile-setup')
+      // 가입 완료 화면 표시 (자동 로그인 제거 - 승인 필요)
+      setSignupComplete(true)
 
     } catch (error) {
       console.error('가입 오류:', error)
@@ -190,6 +182,104 @@ export default function SignupWithVerification() {
     } finally {
       setSignupLoading(false)
     }
+  }
+
+  // 가입 완료 화면
+  if (signupComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <InAppBrowserWarning />
+
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-sm border-b border-gray-100 sticky top-0 z-10">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+            <div
+              className="flex items-center gap-2 cursor-pointer flex-shrink-0"
+              onClick={() => navigate('/')}
+            >
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Globe className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-lg font-bold text-gray-900">CNEC</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Success Content */}
+        <div className="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-20">
+          <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 border border-gray-100 p-8 sm:p-10 text-center">
+            {/* Success Icon */}
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full mb-6 shadow-lg shadow-green-500/25">
+              <CheckCircle className="w-10 h-10 text-white" />
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+              가입 신청이 완료되었습니다
+            </h1>
+
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              크넥 비즈니스 플랫폼에 관심을 가져주셔서 감사합니다.
+            </p>
+
+            {/* Info Box */}
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 mb-8 text-left border border-indigo-100">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">승인 절차 안내</h3>
+                  <p className="text-sm text-gray-600">
+                    사전 상담을 완료하신 브랜드에 한해 계정이 승인됩니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <MessageSquare className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-1">상담 신청</h3>
+                  <p className="text-sm text-gray-600">
+                    아직 상담 전이시라면, 담당자 연결 후 빠르게 안내해 드리겠습니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Notice */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8">
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">승인 완료 시</span> 등록하신 이메일과 휴대폰으로 안내 드립니다.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => navigate('/')}
+                variant="outline"
+                className="flex-1 h-12 rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                홈으로 돌아가기
+              </Button>
+              <Button
+                onClick={() => window.open('https://cnec.kr', '_blank')}
+                className="flex-1 h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25"
+              >
+                상담 신청하기
+              </Button>
+            </div>
+
+            {/* Contact */}
+            <p className="text-sm text-gray-500 mt-6">
+              문의사항이 있으시면 <span className="font-medium text-indigo-600">1833-6025</span>로 연락해 주세요.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
