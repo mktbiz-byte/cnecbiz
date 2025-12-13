@@ -385,7 +385,7 @@ const CampaignGuideEditor = () => {
 
       if (error) throw error
 
-      navigate(`/company/campaigns/payment?id=${campaignId}&region=korea`)
+      navigate(`/company/campaigns/confirmation?id=${campaignId}&region=korea`)
     } catch (err) {
       console.error('저장 실패:', err)
       setError('저장에 실패했습니다: ' + err.message)
