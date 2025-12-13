@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, MessageCircle, Mail, Phone } from 'lucide-react'
+import { X, MessageCircle, Sparkles, ArrowRight, CheckCircle2, Phone, Mail, Building2 } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { supabaseBiz } from '../lib/supabaseClients'
 
@@ -7,6 +7,7 @@ export default function ConsultationBanner() {
   const location = useLocation()
   const isMainPage = location.pathname === '/'
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
 
   // Listen for custom event from other components
   useEffect(() => {
@@ -14,6 +15,7 @@ export default function ConsultationBanner() {
     window.addEventListener('openConsultationModal', handleOpenModal)
     return () => window.removeEventListener('openConsultationModal', handleOpenModal)
   }, [])
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -40,8 +42,7 @@ export default function ConsultationBanner() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    // 필수 입력 검증
+
     if (!formData.name || !formData.email || !formData.phone) {
       alert('필수 항목을 모두 입력해주세요.')
       return
@@ -62,7 +63,6 @@ export default function ConsultationBanner() {
         return s
       }).join(', ')
 
-      // Supabase에 상담 신청 저장
       const { error: dbError } = await supabaseBiz
         .from('consultation_requests')
         .insert({
@@ -78,7 +78,6 @@ export default function ConsultationBanner() {
         console.error('Supabase 저장 오류:', dbError)
       }
 
-      // 네이버 웍스 메시지 전송
       const naverWorksResponse = await fetch('/.netlify/functions/send-naver-works-message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,7 +93,6 @@ export default function ConsultationBanner() {
         })
       })
 
-      // 이메일 전송
       const emailResponse = await fetch('/api/send-consultation-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -125,15 +123,11 @@ export default function ConsultationBanner() {
                 <td style="padding: 12px; border: 1px solid #dee2e6;">${servicesList}</td>
               </tr>
             </table>
-            <p style="margin-top: 20px; color: #6c757d; font-size: 14px;">
-              이 메일은 CNEC 상담 신청 시스템에서 자동으로 발송되었습니다.
-            </p>
           `
         })
       })
 
       if (naverWorksResponse.ok || emailResponse.ok) {
-        // Google Tag Manager - 상담 신청 완료 이벤트
         if (window.dataLayer) {
           window.dataLayer.push({
             'event': 'consultation_complete',
@@ -145,20 +139,17 @@ export default function ConsultationBanner() {
           })
         }
 
-        // Meta Pixel - CompleteRegistration 이벤트 (상담 신청 완료)
         if (window.fbq) {
           window.fbq('track', 'CompleteRegistration')
         }
 
-        alert('상담 신청이 완료되었습니다!\n빠른 시일 내에 연락드리겠습니다. 😊')
+        alert('상담 신청이 완료되었습니다!\n빠른 시일 내에 연락드리겠습니다.')
         setIsModalOpen(false)
         setFormData({
           name: '',
-          birthYear: '',
-          birthMonth: '',
-          birthDay: '',
+          phone: '',
           email: '',
-          channelUrl: '',
+          brandName: '',
           services: [],
           otherService: ''
         })
@@ -173,68 +164,116 @@ export default function ConsultationBanner() {
     }
   }
 
+  const services = [
+    { id: 'shorts', label: '기획 숏츠 (릴스/틱톡/쇼츠)', desc: '추천 크리에이터 매칭' },
+    { id: '4week', label: '4주 챌린지', desc: '리뷰 후기 4회 업로드' },
+    { id: 'oliveyoung', label: '올영세일 패키지', desc: '세일 기간 집중 마케팅' },
+    { id: 'voucher', label: '수출바우처', desc: '미국/일본 시장 진출' },
+  ]
+
   return (
     <>
-      {/* 하단 고정 문의 배너 - 심플한 바 스타일 */}
-      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 ${
+      {/* 플로팅 상담 버튼 - 우측 하단 (하단 바 위로 위치) */}
+      <div className={`fixed bottom-24 right-6 z-50 ${
         isMainPage ? '' : 'hidden md:block'
       }`}>
-        <div className="bg-white rounded-full shadow-lg border border-gray-100 px-5 py-3 flex items-center gap-4">
-          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-green-600 text-lg">?</span>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          className="group relative"
+        >
+          {/* 글로우 효과 */}
+          <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-full blur-lg opacity-60 group-hover:opacity-80 transition-opacity" />
+
+          {/* 메인 버튼 */}
+          <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full px-6 py-3.5 flex items-center gap-3 shadow-2xl hover:shadow-violet-500/25 transition-all duration-300 hover:scale-105">
+            <div className="relative">
+              <Sparkles className="w-5 h-5" />
+              {/* 펄스 애니메이션 */}
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold">30초 만에 견적받기</p>
+              <p className="text-xs text-violet-200">전담 매니저가 즉시 연락드려요</p>
+            </div>
+            <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900">도움이 필요하신가요?</p>
-            <p className="text-xs text-gray-500">전문 매니저가 상담해드립니다.</p>
-          </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors whitespace-nowrap"
-          >
-            문의하기
-          </button>
-        </div>
+        </button>
       </div>
 
-      {/* 상담 신청서 모달 */}
+      {/* 상담 신청 모달 - 프리미엄 디자인 */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* 헤더 */}
-            <div className="sticky top-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 rounded-t-2xl flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold mb-1">💬 상담 신청하기</h2>
-                <p className="text-purple-100 text-sm">정보를 입력해주시면 빠르게 연락드리겠습니다</p>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
+            {/* 헤더 - 그라데이션 */}
+            <div className="relative bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 text-white p-8">
+              {/* 배경 패턴 */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-4 right-4 w-32 h-32 border border-white/30 rounded-full" />
+                <div className="absolute bottom-4 left-4 w-24 h-24 border border-white/20 rounded-full" />
               </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-2 hover:bg-white/20 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5" />
+                    </div>
+                    <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full">무료 상담</span>
+                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <h2 className="text-2xl font-bold mb-2">맞춤 캠페인 상담받기</h2>
+                <p className="text-violet-200 text-sm">정보를 입력하시면 1시간 내 연락드립니다</p>
+              </div>
             </div>
 
-            {/* 폼 내용 */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              {/* 상호명 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  상호명 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  placeholder="회사명 또는 이름을 입력하세요"
-                />
+            {/* 폼 */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+              {/* 상호명 & 브랜드명 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
+                    <Building2 className="w-4 h-4 text-violet-500" />
+                    상호명 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-violet-500 focus:bg-white transition-all text-sm"
+                    placeholder="회사명"
+                  />
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
+                    <Sparkles className="w-4 h-4 text-violet-500" />
+                    브랜드명 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="brandName"
+                    value={formData.brandName}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-violet-500 focus:bg-white transition-all text-sm"
+                    placeholder="브랜드명"
+                  />
+                </div>
               </div>
 
               {/* 연락처 */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
+                  <Phone className="w-4 h-4 text-violet-500" />
                   연락처 <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -243,15 +282,16 @@ export default function ConsultationBanner() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  placeholder="010-1234-5678"
+                  className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-violet-500 focus:bg-white transition-all text-sm"
+                  placeholder="010-0000-0000"
                 />
               </div>
 
-              {/* 메일주소 */}
+              {/* 이메일 */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  메일주소 <span className="text-red-500">*</span>
+                <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
+                  <Mail className="w-4 h-4 text-violet-500" />
+                  이메일 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -259,93 +299,98 @@ export default function ConsultationBanner() {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  placeholder="example@company.com"
+                  className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-violet-500 focus:bg-white transition-all text-sm"
+                  placeholder="email@company.com"
                 />
               </div>
 
-              {/* 브랜드명 */}
+              {/* 서비스 선택 */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  브랜드명 <span className="text-red-500">*</span>
+                <label className="text-sm font-semibold text-gray-700 mb-3 block">
+                  관심 서비스 <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  name="brandName"
-                  value={formData.brandName}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                  placeholder="브랜드명을 입력하세요"
-                />
-              </div>
-
-              {/* 신청 서비스 */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  신청 서비스 <span className="text-red-500">*</span>
-                </label>
-                <div className="space-y-2">
-                  {[
-                    '기획 숏츠 (릴스/틱톡/쇼츠) +추천 크리에이터',
-                    '4주 챌린지 (리뷰 후기 4회 업로드)',
-                    '[올영세일] 패키지',
-                    '수출바우처 (미국/일본)',
-                  ].map((service) => (
-                    <label key={service} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors">
+                <div className="grid grid-cols-2 gap-2">
+                  {services.map((service) => (
+                    <label
+                      key={service.id}
+                      className={`relative flex flex-col p-3 rounded-xl cursor-pointer transition-all ${
+                        formData.services.includes(service.label)
+                          ? 'bg-violet-50 border-2 border-violet-500'
+                          : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                      }`}
+                    >
                       <input
                         type="checkbox"
-                        checked={formData.services.includes(service)}
-                        onChange={() => handleServiceChange(service)}
-                        className="w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                        checked={formData.services.includes(service.label)}
+                        onChange={() => handleServiceChange(service.label)}
+                        className="sr-only"
                       />
-                      <span className="text-gray-700">{service}</span>
+                      {formData.services.includes(service.label) && (
+                        <CheckCircle2 className="absolute top-2 right-2 w-4 h-4 text-violet-600" />
+                      )}
+                      <span className="text-sm font-medium text-gray-900">{service.label}</span>
+                      <span className="text-xs text-gray-500 mt-0.5">{service.desc}</span>
                     </label>
                   ))}
-                  
-                  {/* 기타 옵션 */}
-                  <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-purple-50 cursor-pointer transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={formData.services.includes('기타')}
-                      onChange={() => handleServiceChange('기타')}
-                      className="w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500 mt-1"
-                    />
-                    <div className="flex-1">
-                      <span className="text-gray-700">기타:</span>
-                      {formData.services.includes('기타') && (
-                        <input
-                          type="text"
-                          name="otherService"
-                          value={formData.otherService}
-                          onChange={handleInputChange}
-                          placeholder="직접 입력"
-                          className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        />
-                      )}
-                    </div>
-                  </label>
                 </div>
+
+                {/* 기타 옵션 */}
+                <label
+                  className={`mt-2 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                    formData.services.includes('기타')
+                      ? 'bg-violet-50 border-2 border-violet-500'
+                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.services.includes('기타')}
+                    onChange={() => handleServiceChange('기타')}
+                    className="sr-only"
+                  />
+                  {formData.services.includes('기타') && (
+                    <CheckCircle2 className="w-4 h-4 text-violet-600 flex-shrink-0" />
+                  )}
+                  <span className="text-sm font-medium text-gray-900">기타</span>
+                  {formData.services.includes('기타') && (
+                    <input
+                      type="text"
+                      name="otherService"
+                      value={formData.otherService}
+                      onChange={handleInputChange}
+                      placeholder="직접 입력"
+                      className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    />
+                  )}
+                </label>
               </div>
 
-              {/* 버튼 그룹 */}
-              <div className="flex gap-3 pt-4">
+              {/* 버튼 */}
+              <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-semibold hover:shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-violet-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? '전송 중...' : '📝 상담 신청'}
+                  {isSubmitting ? '전송 중...' : '무료 상담 신청하기'}
                 </button>
                 <a
                   href="https://pf.kakao.com/_xgNdxlG"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 bg-yellow-400 text-gray-900 py-4 rounded-lg font-semibold hover:bg-yellow-500 hover:shadow-lg hover:scale-[1.02] transition-all text-center"
+                  className="flex items-center justify-center gap-2 px-6 bg-[#FEE500] text-gray-900 py-4 rounded-xl font-bold text-sm hover:bg-[#FDD835] transition-all"
                 >
-                  💬 카카오톡 채널 추가
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 3C6.48 3 2 6.58 2 11c0 2.8 1.86 5.25 4.64 6.7-.2.73-.73 2.64-.84 3.06-.13.52.19.51.4.37.17-.11 2.67-1.81 3.75-2.54.68.1 1.38.15 2.05.15 5.52 0 10-3.58 10-8 0-4.42-4.48-8-10-8z"/>
+                  </svg>
+                  카톡 상담
                 </a>
               </div>
+
+              {/* 안내 문구 */}
+              <p className="text-center text-xs text-gray-400 pt-2">
+                입력하신 정보는 상담 목적으로만 사용됩니다
+              </p>
             </form>
           </div>
         </div>

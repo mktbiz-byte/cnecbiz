@@ -28,6 +28,7 @@ import CampaignGuideUS from './components/company/CampaignGuideUS'
 import AdvancedGuideJapan from './components/company/AdvancedGuideJapan'
 import GuideReview from './components/company/GuideReview'
 import CampaignGuideReview from './components/company/CampaignGuideReview'
+import CreatorManagement from './components/company/CreatorManagement'
 import OrderConfirmation from './components/company/OrderConfirmation'
 import InvoicePage from './components/company/InvoicePage'
 import MyCampaigns from './components/company/MyCampaigns'
@@ -152,6 +153,7 @@ function App() {
         <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/company/campaigns/:id/invoice" element={<InvoicePage />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
+        <Route path="/company/creators" element={<CreatorManagement />} />
         <Route path="/company/campaigns/:id/edit" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/video-review/:submissionId" element={<VideoReview />} />

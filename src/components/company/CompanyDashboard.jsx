@@ -49,6 +49,7 @@ export default function CompanyDashboard() {
   const [selectedRegion, setSelectedRegion] = useState('korea')
   const [showRegionModal, setShowRegionModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState(null) // 상태 필터: null, 'all', 'completed', 'active', 'pending'
 
   useEffect(() => {
     checkAuth()
@@ -345,10 +346,13 @@ export default function CompanyDashboard() {
               <p className="text-gray-500 mt-1">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님!</p>
             </div>
 
-            {/* Stats Cards Grid - Like reference design */}
+            {/* Stats Cards Grid - 클릭으로 필터링 가능 */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
               {/* Total Campaigns */}
-              <div className="stats-card">
+              <button
+                onClick={() => setStatusFilter(statusFilter === 'all' ? null : 'all')}
+                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'all' ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
+              >
                 <div className="stats-card-header">
                   <span className="stats-card-title">전체 캠페인</span>
                   <div className="stats-card-icon bg-blue-50">
@@ -356,10 +360,13 @@ export default function CompanyDashboard() {
                   </div>
                 </div>
                 <div className="stats-card-value">{stats.total}</div>
-              </div>
+              </button>
 
               {/* Completed */}
-              <div className="stats-card">
+              <button
+                onClick={() => setStatusFilter(statusFilter === 'completed' ? null : 'completed')}
+                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'completed' ? 'ring-2 ring-green-400 ring-offset-2' : ''}`}
+              >
                 <div className="stats-card-header">
                   <span className="stats-card-title">완료</span>
                   <div className="stats-card-icon bg-green-50">
@@ -380,10 +387,13 @@ export default function CompanyDashboard() {
                     </span>
                   </>
                 )}
-              </div>
+              </button>
 
               {/* In Progress */}
-              <div className="stats-card">
+              <button
+                onClick={() => setStatusFilter(statusFilter === 'active' ? null : 'active')}
+                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'active' ? 'ring-2 ring-yellow-400 ring-offset-2' : ''}`}
+              >
                 <div className="stats-card-header">
                   <span className="stats-card-title">진행중</span>
                   <div className="stats-card-icon bg-yellow-50">
@@ -391,22 +401,169 @@ export default function CompanyDashboard() {
                   </div>
                 </div>
                 <div className="stats-card-value">{stats.active}</div>
-              </div>
+              </button>
 
-              {/* Budget Used */}
-              <div className="stats-card">
+              {/* Pending */}
+              <button
+                onClick={() => setStatusFilter(statusFilter === 'pending' ? null : 'pending')}
+                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'pending' ? 'ring-2 ring-orange-400 ring-offset-2' : ''}`}
+              >
                 <div className="stats-card-header">
-                  <span className="stats-card-title">예산 사용</span>
+                  <span className="stats-card-title">대기중</span>
                   <div className="stats-card-icon bg-orange-50">
-                    <Wallet className="w-5 h-5 text-orange-500" />
+                    <AlertCircle className="w-5 h-5 text-orange-500" />
                   </div>
                 </div>
-                <div className="stats-card-value text-2xl">
-                  {stats.totalSpent > 0 ? `${(stats.totalSpent / 10000).toFixed(0)}만` : '0'}
+                <div className="stats-card-value">{stats.pending}</div>
+              </button>
+            </div>
+
+            {/* Recent Campaigns */}
+            <div className="mb-6">
+              <div className="dashboard-card">
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <div className="flex items-center gap-3">
+                    <div className="section-header !mb-0">
+                      <TrendingUp className="w-5 h-5 text-gray-600" />
+                      <h2 className="section-title">최근 캠페인</h2>
+                    </div>
+                    {/* 필터 표시 및 리셋 */}
+                    {statusFilter && (
+                      <button
+                        onClick={() => setStatusFilter(null)}
+                        className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-medium hover:bg-indigo-100 transition-colors"
+                      >
+                        {statusFilter === 'all' && '전체'}
+                        {statusFilter === 'completed' && '완료'}
+                        {statusFilter === 'active' && '진행중'}
+                        {statusFilter === 'pending' && '대기중'}
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate('/company/campaigns')}
+                      className="text-gray-600 border-gray-200"
+                    >
+                      전체보기
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setShowRegionModal(true)}
+                      className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      새 캠페인
+                    </Button>
+                  </div>
                 </div>
-                <span className="text-xs text-gray-500 mt-1">
-                  총: {stats.totalSpent.toLocaleString()}원
-                </span>
+
+                {campaigns.length === 0 ? (
+                  <div className="text-center py-16 text-gray-500">
+                    <FolderOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium text-gray-600 mb-2">아직 생성된 캠페인이 없습니다</p>
+                    <p className="text-sm text-gray-500 mb-6">첫 번째 캠페인을 만들어 크리에이터들과 협업해보세요</p>
+                    <Button
+                      onClick={() => setShowRegionModal(true)}
+                      className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      첫 캠페인 만들기
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {campaigns
+                      .filter((campaign) => {
+                        // 상태 필터 적용
+                        if (!statusFilter || statusFilter === 'all') return true
+
+                        const status = campaign.progress_status || campaign.approval_status
+                        if (statusFilter === 'completed') {
+                          return status === 'completed'
+                        }
+                        if (statusFilter === 'active') {
+                          return ['recruiting', 'guide_review', 'in_progress', 'revision', 'guide_confirmation', 'filming', 'editing', 'approved'].includes(status) && campaign.approval_status !== 'pending_approval'
+                        }
+                        if (statusFilter === 'pending') {
+                          return ['draft', 'pending', 'pending_payment'].includes(status) || campaign.approval_status === 'pending_approval'
+                        }
+                        return true
+                      })
+                      .map((campaign) => {
+                      // Use estimated_cost if available, otherwise calculate from max_participants
+                      let totalCost
+                      if (campaign.estimated_cost) {
+                        totalCost = campaign.estimated_cost
+                      } else {
+                        const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+                        const slots = campaign.max_participants || campaign.total_slots || 0
+                        const subtotal = packagePrice * slots
+                        const vat = Math.floor(subtotal * 0.1)
+                        totalCost = subtotal + vat
+                      }
+                      const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
+                      const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
+                      const statusInfo = getProgressStatusInfo(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)
+                      const typeInfo = getCampaignTypeBadge(campaign.campaign_type)
+
+                      return (
+                        <div
+                          key={campaign.id}
+                          className="border border-gray-100 rounded-xl p-4 hover:border-indigo-200 hover:shadow-md cursor-pointer transition-all bg-white"
+                          onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
+                        >
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              {/* Badges */}
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${typeInfo.dotColor}`}></span>
+                                  {typeInfo.label}
+                                </span>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`}></span>
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+
+                              {/* Title */}
+                              <h3 className="font-semibold text-gray-900 text-base truncate mb-1">{campaign.title}</h3>
+
+                              {/* Meta info */}
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Users className="w-4 h-4" />
+                                  {participantInfo.total}/{campaign.max_participants || campaign.total_slots || 0}명
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <UserCheck className="w-4 h-4" />
+                                  확정 {participantInfo.selected}명
+                                </span>
+                                {recruitmentDays !== null && recruitmentDays >= 0 && (
+                                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded ${recruitmentDays <= 3 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'} text-xs font-medium`}>
+                                    D-{recruitmentDays}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Price */}
+                            <div className="text-right sm:text-right flex-shrink-0">
+                              <div className="text-xl font-bold text-indigo-500">
+                                {totalCost.toLocaleString()}원
+                              </div>
+                              <span className="text-xs text-gray-400">{campaign.package_type}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -489,123 +646,6 @@ export default function CompanyDashboard() {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
-
-            {/* Recent Campaigns */}
-            <div className="mt-6">
-              <div className="dashboard-card">
-                <div className="flex items-center justify-between mb-4 px-1">
-                  <div className="section-header !mb-0">
-                    <TrendingUp className="w-5 h-5 text-gray-600" />
-                    <h2 className="section-title">최근 캠페인</h2>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate('/company/campaigns')}
-                      className="text-gray-600 border-gray-200"
-                    >
-                      전체보기
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setShowRegionModal(true)}
-                      className="bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      <Plus className="w-4 h-4 mr-1" />
-                      새 캠페인
-                    </Button>
-                  </div>
-                </div>
-
-                {campaigns.length === 0 ? (
-                  <div className="text-center py-16 text-gray-500">
-                    <FolderOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium text-gray-600 mb-2">아직 생성된 캠페인이 없습니다</p>
-                    <p className="text-sm text-gray-500 mb-6">첫 번째 캠페인을 만들어 크리에이터들과 협업해보세요</p>
-                    <Button
-                      onClick={() => setShowRegionModal(true)}
-                      className="bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      첫 캠페인 만들기
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {campaigns.map((campaign) => {
-                      // Use estimated_cost if available, otherwise calculate from max_participants
-                      let totalCost
-                      if (campaign.estimated_cost) {
-                        totalCost = campaign.estimated_cost
-                      } else {
-                        const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
-                        const slots = campaign.max_participants || campaign.total_slots || 0
-                        const subtotal = packagePrice * slots
-                        const vat = Math.floor(subtotal * 0.1)
-                        totalCost = subtotal + vat
-                      }
-                      const participantInfo = participants[campaign.id] || { total: 0, selected: 0, guideConfirmed: 0 }
-                      const recruitmentDays = getDaysRemaining(campaign.recruitment_deadline)
-                      const statusInfo = getProgressStatusInfo(campaign.progress_status || campaign.approval_status, campaign.is_cancelled)
-                      const typeInfo = getCampaignTypeBadge(campaign.campaign_type)
-
-                      return (
-                        <div
-                          key={campaign.id}
-                          className="border border-gray-100 rounded-xl p-4 hover:border-orange-200 hover:shadow-md cursor-pointer transition-all bg-white"
-                          onClick={() => navigate(`/company/campaigns/${campaign.id}`)}
-                        >
-                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              {/* Badges */}
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${typeInfo.dotColor}`}></span>
-                                  {typeInfo.label}
-                                </span>
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotColor}`}></span>
-                                  {statusInfo.label}
-                                </span>
-                              </div>
-
-                              {/* Title */}
-                              <h3 className="font-semibold text-gray-900 text-base truncate mb-1">{campaign.title}</h3>
-
-                              {/* Meta info */}
-                              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" />
-                                  {participantInfo.total}/{campaign.max_participants || campaign.total_slots || 0}명
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <UserCheck className="w-4 h-4" />
-                                  확정 {participantInfo.selected}명
-                                </span>
-                                {recruitmentDays !== null && recruitmentDays >= 0 && (
-                                  <span className={`flex items-center gap-1 px-2 py-0.5 rounded ${recruitmentDays <= 3 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'} text-xs font-medium`}>
-                                    D-{recruitmentDays}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Price */}
-                            <div className="text-right sm:text-right flex-shrink-0">
-                              <div className="text-xl font-bold text-orange-500">
-                                {totalCost.toLocaleString()}원
-                              </div>
-                              <span className="text-xs text-gray-400">{campaign.package_type}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
               </div>
             </div>
           </div>

@@ -8,6 +8,23 @@ import { supabaseBiz as supabase } from '@/lib/supabaseClients'
 export default function RegularCampaignIntro() {
   const navigate = useNavigate()
   const [referenceVideos, setReferenceVideos] = useState([])
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    checkUser()
+  }, [])
+
+  const handleCreateCampaign = () => {
+    if (user) {
+      navigate('/company/campaigns/create/korea')
+    } else {
+      navigate('/signup')
+    }
+  }
 
   useEffect(() => {
     fetchReferenceVideos()
@@ -50,8 +67,8 @@ export default function RegularCampaignIntro() {
           <p className="text-xl text-gray-600 mb-8">
             대사부터 촬영 장면까지, 체계적인 가이드로 브랜드 메시지를 정확하게 전달합니다
           </p>
-          <Button 
-            onClick={() => navigate('/company/campaigns/create/korea')}
+          <Button
+            onClick={handleCreateCampaign}
             size="lg"
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
           >
@@ -334,8 +351,8 @@ export default function RegularCampaignIntro() {
           <p className="text-xl mb-8 opacity-90">
             전문 기획으로 완성되는 프리미엄 인플루언서 마케팅
           </p>
-          <Button 
-            onClick={() => navigate('/company/campaigns/create/korea')}
+          <Button
+            onClick={handleCreateCampaign}
             size="lg"
             className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-6 text-lg"
           >

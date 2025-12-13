@@ -8,6 +8,23 @@ import { supabaseBiz as supabase } from '@/lib/supabaseClients'
 export default function FourWeekChallengeCampaignIntro() {
   const navigate = useNavigate()
   const [referenceVideos, setReferenceVideos] = useState([])
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    checkUser()
+  }, [])
+
+  const handleCreateCampaign = () => {
+    if (user) {
+      navigate('/company/campaigns/create/korea')
+    } else {
+      navigate('/signup')
+    }
+  }
 
   useEffect(() => {
     fetchReferenceVideos()
@@ -50,8 +67,8 @@ export default function FourWeekChallengeCampaignIntro() {
           <p className="text-xl text-gray-600 mb-8">
             4개의 미션 가이드로 4주간 연속 노출되는 프리미엄 장기 캠페인
           </p>
-          <Button 
-            onClick={() => navigate('/company/campaigns/create/korea')}
+          <Button
+            onClick={handleCreateCampaign}
             size="lg"
             className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-lg"
           >
@@ -302,8 +319,8 @@ export default function FourWeekChallengeCampaignIntro() {
           <p className="text-xl mb-8 opacity-90">
             4주간 지속되는 강력한 브랜드 각인 효과를 경험하세요
           </p>
-          <Button 
-            onClick={() => navigate('/company/campaigns/create/korea')}
+          <Button
+            onClick={handleCreateCampaign}
             size="lg"
             className="bg-white text-purple-600 hover:bg-gray-100 px-8 py-6 text-lg"
           >
