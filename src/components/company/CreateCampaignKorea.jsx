@@ -715,7 +715,8 @@ const CampaignCreationKorea = () => {
         campaignForm.question4
       ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
 
-      const { question1, question2, question3, question4, target_platforms, ...restForm } = campaignForm
+      // DB에 없는 필드 제외 (product_price, shipping_date 등)
+      const { question1, question2, question3, question4, target_platforms, product_price, shipping_date, ...restForm } = campaignForm
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
       const categoryNames = campaignForm.category
