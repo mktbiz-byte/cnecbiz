@@ -787,28 +787,24 @@ const CampaignCreationKorea = () => {
         </div>
       </div>
 
-      {/* 캠페인 상세 설정 폼 */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle>{editId ? '캠페인 수정' : '캠페인 상세 설정'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* 기획형 캠페인 - 새로운 패키지 선택 UI */}
-              {campaignForm.campaign_type === 'planned' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* 왼쪽: 패키지 선택 */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
-                      <p className="text-gray-500 text-sm">예산에 따라 지원하는 크리에이터의 퀄리티와 지원율이 달라집니다.</p>
-                    </div>
+      {/* 캠페인 상세 설정 폼 - 전체 너비 */}
+      <div className="bg-gray-50 py-12">
+        <div className="max-w-7xl mx-auto px-4 lg:px-12">
+          <form onSubmit={handleSubmit}>
+            {/* 기획형 캠페인 - 2컬럼 레이아웃 (폼 + 견적서) */}
+            {campaignForm.campaign_type === 'planned' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 왼쪽: 모든 폼 필드 */}
+                <div className="lg:col-span-2 space-y-8">
+                  {/* 패키지 선택 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">캠페인 옵션 선택</h2>
+                    <p className="text-gray-500 mb-6">예산에 따라 지원하는 크리에이터의 퀄리티와 지원율이 달라집니다.</p>
 
                     {/* 크리에이터 등급 (단가) */}
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700 mb-3 block">크리에이터 등급 (단가)</Label>
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="mb-8">
+                      <Label className="text-sm font-semibold text-gray-700 mb-4 block">크리에이터 등급 (단가)</Label>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                         {packageOptions.map((pkg) => (
                           <div
                             key={pkg.value}
@@ -825,7 +821,7 @@ const CampaignCreationKorea = () => {
                             <div className={`text-sm font-medium mb-1 ${campaignForm.package_type === pkg.value ? 'text-indigo-600' : 'text-gray-600'}`}>
                               {pkg.label}
                             </div>
-                            <div className="text-2xl font-bold text-gray-900 mb-2">
+                            <div className="text-xl lg:text-2xl font-bold text-gray-900 mb-2">
                               {pkg.price.toLocaleString()}원
                             </div>
                             <div className="space-y-1 text-xs text-gray-500">
@@ -861,7 +857,7 @@ const CampaignCreationKorea = () => {
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <Label className="text-sm font-semibold text-gray-700">모집 인원 (명)</Label>
-                        <span className="text-indigo-600 font-bold">{campaignForm.total_slots}명</span>
+                        <span className="text-indigo-600 font-bold text-lg">{campaignForm.total_slots}명</span>
                       </div>
                       <div className="flex items-center gap-4">
                         <input
@@ -872,11 +868,11 @@ const CampaignCreationKorea = () => {
                           onChange={(e) => handleSlotsChange(parseInt(e.target.value))}
                           className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                         />
-                        <div className="flex items-center border rounded-lg">
+                        <div className="flex items-center border rounded-lg bg-white">
                           <button
                             type="button"
                             onClick={() => handleSlotsChange(Math.max(1, campaignForm.total_slots - 1))}
-                            className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg"
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg text-lg"
                           >
                             -
                           </button>
@@ -884,13 +880,13 @@ const CampaignCreationKorea = () => {
                             type="number"
                             value={campaignForm.total_slots}
                             onChange={(e) => handleSlotsChange(parseInt(e.target.value) || 1)}
-                            className="w-14 text-center border-x py-2 text-sm"
+                            className="w-16 text-center border-x py-2"
                             min="1"
                           />
                           <button
                             type="button"
                             onClick={() => handleSlotsChange(campaignForm.total_slots + 1)}
-                            className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg"
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg text-lg"
                           >
                             +
                           </button>
@@ -899,9 +895,313 @@ const CampaignCreationKorea = () => {
                     </div>
                   </div>
 
-                  {/* 오른쪽: 예상 견적서 */}
-                  <div className="lg:col-span-1">
-                    <div className="bg-slate-900 rounded-2xl p-6 text-white sticky top-6">
+                  {/* 브랜드/참여조건 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
+                    <div>
+                      <Label htmlFor="brand" className="text-sm font-semibold text-gray-700">브랜드명 *</Label>
+                      <Input
+                        id="brand"
+                        value={campaignForm.brand}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
+                        placeholder="예: 에이블씨엔씨"
+                        required
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="requirements" className="text-sm font-semibold text-gray-700">참여 조건</Label>
+                      <Textarea
+                        id="requirements"
+                        value={campaignForm.requirements}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
+                        placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
+                        rows={3}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">모집 채널 * (여러 개 선택 가능)</Label>
+                      <div className="flex gap-6 mt-3">
+                        {categoryOptions.map(opt => (
+                          <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={campaignForm.category.includes(opt.value)}
+                              onChange={() => handleCategoryToggle(opt.value)}
+                              className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
+                            />
+                            <span className="text-base">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {campaignForm.category.length === 0 && (
+                        <p className="text-sm text-red-500 mt-2">최소 1개 이상 선택해주세요</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 스케줄 설정 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
+                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <span>📅</span> 스케줄 설정
+                    </h3>
+
+                    <div>
+                      <Label htmlFor="application_deadline" className="text-sm font-semibold text-gray-700">모집 마감일 *</Label>
+                      <Input
+                        id="application_deadline"
+                        type="date"
+                        value={campaignForm.application_deadline}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
+                        required
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="start_date" className="text-sm font-semibold text-gray-700">촬영 마감일 *</Label>
+                        <Input
+                          id="start_date"
+                          type="date"
+                          value={campaignForm.start_date}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                          required
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="end_date" className="text-sm font-semibold text-gray-700">SNS 업로드일 *</Label>
+                        <Input
+                          id="end_date"
+                          type="date"
+                          value={campaignForm.end_date}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
+                          required
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 캠페인 썸네일 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-4">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">캠페인 썸네일</Label>
+                      <p className="text-sm text-gray-500 mt-1">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
+                    </div>
+                    <input
+                      ref={thumbnailInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => thumbnailInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="w-full py-6 border-dashed border-2"
+                    >
+                      {uploadingImage ? '업로드 중...' : campaignForm.image_url ? '썸네일 변경' : '썸네일 업로드'}
+                    </Button>
+                    {campaignForm.image_url && (
+                      <div className="mt-4">
+                        <p className="text-sm text-green-600 mb-2">✓ 썸네일이 업로드되었습니다</p>
+                        <img src={campaignForm.image_url} alt="썸네일" className="w-full max-w-md rounded-lg border" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 상품 상세 정보 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
+                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                      <span>📦</span> 상품 상세 정보
+                    </h3>
+
+                    <div>
+                      <Label htmlFor="product_name" className="text-sm font-semibold text-gray-700">상품명</Label>
+                      <Input
+                        id="product_name"
+                        value={campaignForm.product_name}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                        placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="product_description" className="text-sm font-semibold text-gray-700">상품 설명</Label>
+                      <Textarea
+                        id="product_description"
+                        value={campaignForm.product_description}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
+                        placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
+                        rows={4}
+                        className="mt-2"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="product_link" className="text-sm font-semibold text-gray-700">상품 링크 (URL)</Label>
+                      <Input
+                        id="product_link"
+                        type="url"
+                        value={campaignForm.product_link}
+                        onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
+                        placeholder="https://example.com/product"
+                        className="mt-2"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">상품 상세 페이지 이미지</Label>
+                      <p className="text-sm text-gray-500 mt-1">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
+                      <input
+                        ref={detailImageInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProductDetailImageUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => detailImageInputRef.current?.click()}
+                        disabled={uploadingDetailImage}
+                        className="w-full mt-3 py-6 border-dashed border-2"
+                      >
+                        {uploadingDetailImage ? '업로드 중...' : campaignForm.product_detail_file_url ? '이미지 변경' : '이미지 업로드'}
+                      </Button>
+                      {campaignForm.product_detail_file_url && (
+                        <div className="mt-4">
+                          <p className="text-sm text-green-600 mb-2">✓ 상품 상세 이미지가 업로드되었습니다</p>
+                          <img
+                            src={campaignForm.product_detail_file_url}
+                            alt="상품 상세"
+                            className="max-w-full h-auto rounded-lg border"
+                            style={{ maxHeight: '400px' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 상태 안내 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-sm text-blue-800">
+                      📌 캠페인은 "<strong>임시저장</strong>" 상태로 저장됩니다.
+                      저장 후 캠페인 목록에서 <strong>"승인 요청하기"</strong>를 누르면 관리자가 검토합니다.
+                    </p>
+                  </div>
+
+                  {/* 질문 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-gray-900">지원자 질문 (선택사항)</h3>
+                      {questionCount < 4 && (
+                        <Button
+                          type="button"
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                          onClick={() => setQuestionCount(prev => Math.min(prev + 1, 4))}
+                        >
+                          + 질문 추가
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">지원자에게 물어볼 질문을 최대 4개까지 추가할 수 있습니다.</p>
+
+                    <div className="space-y-4">
+                      {questionCount >= 1 && (
+                        <div>
+                          <Label htmlFor="question1" className="text-sm font-semibold text-gray-700">질문 1</Label>
+                          <Textarea
+                            id="question1"
+                            value={campaignForm.question1}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, question1: e.target.value }))}
+                            placeholder="예: 본인의 피부 타입과 주요 피부 고민을 알려주세요."
+                            rows={2}
+                            className="mt-2"
+                          />
+                        </div>
+                      )}
+                      {questionCount >= 2 && (
+                        <div>
+                          <Label htmlFor="question2" className="text-sm font-semibold text-gray-700">질문 2</Label>
+                          <Textarea
+                            id="question2"
+                            value={campaignForm.question2}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, question2: e.target.value }))}
+                            placeholder="예: 평소 사용하는 스킨케어 제품을 알려주세요."
+                            rows={2}
+                            className="mt-2"
+                          />
+                        </div>
+                      )}
+                      {questionCount >= 3 && (
+                        <div>
+                          <Label htmlFor="question3" className="text-sm font-semibold text-gray-700">질문 3</Label>
+                          <Textarea
+                            id="question3"
+                            value={campaignForm.question3}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, question3: e.target.value }))}
+                            placeholder="예: 이 캠페인에 지원한 이유를 알려주세요."
+                            rows={2}
+                            className="mt-2"
+                          />
+                        </div>
+                      )}
+                      {questionCount >= 4 && (
+                        <div>
+                          <Label htmlFor="question4" className="text-sm font-semibold text-gray-700">질문 4</Label>
+                          <Textarea
+                            id="question4"
+                            value={campaignForm.question4}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, question4: e.target.value }))}
+                            placeholder="예: 콘텐츠 제작 시 중점적으로 다루고 싶은 부분이 있나요?"
+                            rows={2}
+                            className="mt-2"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 에러/성공 메시지 */}
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+                      {success}
+                    </div>
+                  )}
+
+                  {/* 버튼 - 모바일에서만 표시 */}
+                  <div className="flex gap-4 lg:hidden">
+                    <Button
+                      type="submit"
+                      disabled={processing || campaignForm.category.length === 0}
+                      className="flex-1 py-6 text-lg bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600"
+                    >
+                      {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')} className="py-6">
+                      취소
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 오른쪽: 예상 견적서 (Sticky) */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-6">
+                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <span className="text-xl">📋</span> 예상 견적서
                       </h3>
@@ -909,12 +1209,12 @@ const CampaignCreationKorea = () => {
                       {/* AI 지원율 예측 */}
                       <div className="bg-slate-800 rounded-xl p-4 mb-5">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-lg">
+                          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-lg flex-shrink-0">
                             ✨
                           </div>
                           <div>
                             <div className="text-indigo-300 text-xs font-medium mb-1">AI 지원율 예측</div>
-                            <div className="text-sm">
+                            <div className="text-sm leading-relaxed">
                               선택하신 단가로는
                               <br />
                               평균 <span className="text-indigo-400 font-bold text-lg">{packageOptions.find(p => p.value === campaignForm.package_type)?.expectedApplicants.instagram || '15~20'}명+</span>의 크리에이터가
@@ -955,13 +1255,27 @@ const CampaignCreationKorea = () => {
 
                       {/* 총 결제 금액 */}
                       <div className="mt-5 pt-4 border-t border-slate-700">
-                        <div className="flex justify-between items-end">
+                        <div className="flex justify-between items-end mb-1">
                           <span className="text-gray-400">총 결제 금액</span>
-                          <div className="text-right">
-                            <span className="text-3xl font-bold">{campaignForm.estimated_cost.toLocaleString()}</span>
-                            <span className="text-lg ml-1">원</span>
-                          </div>
                         </div>
+                        <div className="text-right">
+                          <span className="text-4xl font-bold">{campaignForm.estimated_cost.toLocaleString()}</span>
+                          <span className="text-xl ml-1">원</span>
+                        </div>
+                      </div>
+
+                      {/* 버튼 - 데스크탑에서만 표시 */}
+                      <div className="hidden lg:block mt-6 space-y-3">
+                        <Button
+                          type="submit"
+                          disabled={processing || campaignForm.category.length === 0}
+                          className="w-full py-6 text-lg bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white font-bold"
+                        >
+                          {processing ? '저장 중...' : (editId ? '수정하기' : '캠페인 시작하기')}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')} className="w-full py-4 bg-transparent border-slate-600 text-gray-300 hover:bg-slate-800">
+                          취소
+                        </Button>
                       </div>
 
                       {/* 안내 문구 */}
@@ -971,103 +1285,16 @@ const CampaignCreationKorea = () => {
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* 4주 챌린지 패키지 선택 */}
-              {campaignForm.campaign_type === '4week_challenge' && (
-                <div>
-                  <Label htmlFor="package_type">패키지 선택 *</Label>
-                  <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
-                    <SelectTrigger className="bg-white mt-2">
-                      <SelectValue placeholder="패키지 선택" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {fourWeekPackageOptions.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value} className="hover:bg-gray-100">
-                          <div className="flex flex-col">
-                            <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()}</span>
-                            <span className="text-xs text-gray-500">{opt.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* 모집 인원 및 결제 예상 금액 */}
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <Label htmlFor="total_slots">모집 인원 *</Label>
-                      <Input
-                        id="total_slots"
-                        type="number"
-                        value={campaignForm.total_slots || ''}
-                        onChange={(e) => handleSlotsChange(parseInt(e.target.value) || 1)}
-                        placeholder="10"
-                        required
-                        min="1"
-                      />
-                    </div>
-                    <div>
-                      <Label>결제 예상 금액 (VAT 포함)</Label>
-                      <Input
-                        type="text"
-                        value={`₩${campaignForm.estimated_cost.toLocaleString()}`}
-                        disabled
-                        className="bg-gray-100 font-semibold text-blue-600"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 올리브영 패키지 선택 */}
-              {campaignForm.campaign_type === 'oliveyoung' && (
-                <div>
-                  <Label htmlFor="package_type">패키지 선택 *</Label>
-                  <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
-                    <SelectTrigger className="bg-white mt-2">
-                      <SelectValue placeholder="패키지 선택" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {oliveyoungPackageOptions.map(opt => (
-                        <SelectItem key={opt.value} value={opt.value} className="hover:bg-gray-100">
-                          <div className="flex flex-col">
-                            <span className="font-semibold">{opt.label} - ₩{opt.price.toLocaleString()}</span>
-                            <span className="text-xs text-gray-500">{opt.description}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* 모집 인원 및 결제 예상 금액 */}
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <Label htmlFor="total_slots">모집 인원 *</Label>
-                      <Input
-                        id="total_slots"
-                        type="number"
-                        value={campaignForm.total_slots || ''}
-                        onChange={(e) => handleSlotsChange(parseInt(e.target.value) || 1)}
-                        placeholder="10"
-                        required
-                        min="1"
-                      />
-                    </div>
-                    <div>
-                      <Label>결제 예상 금액 (VAT 포함)</Label>
-                      <Input
-                        type="text"
-                        value={`₩${campaignForm.estimated_cost.toLocaleString()}`}
-                        disabled
-                        className="bg-gray-100 font-semibold text-blue-600"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* 브랜드명 */}
+            {/* 4주 챌린지 및 올리브영 캠페인은 기존 레이아웃 유지 */}
+            {(campaignForm.campaign_type === '4week_challenge' || campaignForm.campaign_type === 'oliveyoung') && (
+              <Card className="shadow-lg max-w-4xl mx-auto">
+                <CardHeader>
+                  <CardTitle>{editId ? '캠페인 수정' : '캠페인 상세 설정'}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
               <div>
                 <Label htmlFor="brand">브랜드명 *</Label>
                 <Input
@@ -1583,9 +1810,11 @@ const CampaignCreationKorea = () => {
                   취소
                 </Button>
               </div>
-            </form>
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            )}
+          </form>
+        </div>
       </div>
     </div>
   )
