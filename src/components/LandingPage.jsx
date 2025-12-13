@@ -241,7 +241,7 @@ export default function LandingPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 sm:h-16">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center h-14 sm:h-16 gap-4">
             {/* Logo */}
             <div className="flex items-center space-x-2">
               <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-orange-500" />
@@ -250,8 +250,8 @@ export default function LandingPage() {
               </span>
             </div>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-8">
+            {/* Desktop Navigation - Center */}
+            <nav className="hidden lg:flex items-center justify-center space-x-8">
               <a href="#features" className="text-slate-600 hover:text-blue-600 transition-colors">서비스</a>
               <a href="#portfolio" className="text-slate-600 hover:text-blue-600 transition-colors">포트폴리오</a>
               <a href="#process" className="text-slate-600 hover:text-blue-600 transition-colors">프로세스</a>
@@ -259,44 +259,50 @@ export default function LandingPage() {
               <a href="#faq" className="text-slate-600 hover:text-blue-600 transition-colors">FAQ</a>
             </nav>
 
-            {/* Desktop Auth Buttons */}
-            <div className="hidden sm:flex items-center space-x-2 sm:space-x-3">
-              {user ? (
-                <button
-                  onClick={handleDashboardClick}
-                  className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm sm:text-base rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
-                >
-                  대시보드 바로가기
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => navigate('/login')}
-                    className="px-3 sm:px-4 py-2 text-sm sm:text-base text-slate-600 hover:text-blue-600 transition-colors"
-                  >
-                    로그인
-                  </button>
-                  <button
-                    onClick={() => navigate('/signup')}
-                    className="px-4 sm:px-6 py-2 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all"
-                  >
-                    시작하기
-                  </button>
-                </>
-              )}
-            </div>
+            {/* Empty space on mobile/tablet */}
+            <div className="lg:hidden" />
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-6 h-6 text-slate-700" />
-              ) : (
-                <Menu className="w-6 h-6 text-slate-700" />
-              )}
-            </button>
+            {/* Right Side - Auth Buttons or Menu */}
+            <div className="flex items-center justify-end">
+              {/* Desktop Auth Buttons */}
+              <div className="hidden sm:flex items-center space-x-2 sm:space-x-3">
+                {user ? (
+                  <button
+                    onClick={handleDashboardClick}
+                    className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm sm:text-base rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    대시보드 바로가기
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="px-3 sm:px-4 py-2 text-sm sm:text-base text-slate-600 hover:text-blue-600 transition-colors"
+                    >
+                      로그인
+                    </button>
+                    <button
+                      onClick={() => navigate('/signup')}
+                      className="px-4 sm:px-6 py-2 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all"
+                    >
+                      시작하기
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="sm:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-6 h-6 text-slate-700" />
+                ) : (
+                  <Menu className="w-6 h-6 text-slate-700" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Mobile Menu */}

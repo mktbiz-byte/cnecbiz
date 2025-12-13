@@ -175,21 +175,25 @@ export default function ConsultationBanner() {
 
   return (
     <>
-      {/* 오른쪽 하단 따라다니는 배너 - 모바일에서는 메인 페이지에서만 표시 */}
-      <div className={`fixed bottom-8 right-8 z-50 ${
+      {/* 하단 고정 문의 배너 - 심플한 바 스타일 */}
+      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 ${
         isMainPage ? '' : 'hidden md:block'
       }`}>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex flex-col items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-2xl shadow-2xl hover:shadow-purple-500/50 hover:scale-105 transition-all duration-300 group"
-        >
-          <div className="flex items-center gap-2">
-            <Phone className="w-4 h-4 animate-pulse" />
-            <Mail className="w-4 h-4" />
-            <span className="text-xl">💬</span>
+        <div className="bg-white rounded-full shadow-lg border border-gray-100 px-5 py-3 flex items-center gap-4">
+          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-green-600 text-lg">?</span>
           </div>
-          <span className="font-semibold text-sm">상담 신청하기</span>
-        </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900">도움이 필요하신가요?</p>
+            <p className="text-xs text-gray-500">전문 매니저가 상담해드립니다.</p>
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-full transition-colors whitespace-nowrap"
+          >
+            문의하기
+          </button>
+        </div>
       </div>
 
       {/* 상담 신청서 모달 */}
