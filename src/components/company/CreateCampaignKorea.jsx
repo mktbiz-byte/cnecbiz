@@ -7,6 +7,7 @@ import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { History, X, Loader2, Package } from 'lucide-react'
 
 const CampaignCreationKorea = () => {
   const navigate = useNavigate()
@@ -61,10 +62,85 @@ const CampaignCreationKorea = () => {
   const [uploadingDetailImage, setUploadingDetailImage] = useState(false)
   const [questionCount, setQuestionCount] = useState(0)
 
+  // 이전 캠페인 불러오기 상태
+  const [previousCampaigns, setPreviousCampaigns] = useState([])
+  const [showPreviousCampaigns, setShowPreviousCampaigns] = useState(false)
+  const [loadingPrevious, setLoadingPrevious] = useState(false)
+
+  // 이전 캠페인 목록 불러오기
+  const loadPreviousCampaigns = async () => {
+    setLoadingPrevious(true)
+    try {
+      const { data, error } = await supabaseBiz
+        .from('campaigns')
+        .select('id, brand_name, product_name, image_url, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (error) throw error
+      setPreviousCampaigns(data || [])
+    } catch (error) {
+      console.error('Failed to load previous campaigns:', error)
+    } finally {
+      setLoadingPrevious(false)
+    }
+  }
+
+  // 이전 캠페인에서 정보 불러오기
+  const loadFromPreviousCampaign = async (campaignId) => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('campaigns')
+        .select('*')
+        .eq('id', campaignId)
+        .single()
+
+      if (error) throw error
+
+      if (data) {
+        setCampaignForm(prev => ({
+          ...prev,
+          brand: data.brand_name || prev.brand,
+          product_name: data.product_name || prev.product_name,
+          product_description: data.product_description || prev.product_description,
+          image_url: data.image_url || prev.image_url,
+          requirements: data.requirements || prev.requirements,
+        }))
+        setShowPreviousCampaigns(false)
+      }
+    } catch (error) {
+      console.error('Failed to load campaign:', error)
+    }
+  }
+
   const categoryOptions = [
-    { value: 'youtube', label: '🎥 유튜브' },
-    { value: 'instagram', label: '📸 인스타그램' },
-    { value: 'tiktok', label: '🎵 틱톡' }
+    {
+      value: 'instagram',
+      label: '릴스',
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+        </svg>
+      )
+    },
+    {
+      value: 'youtube',
+      label: '쇼츠',
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+        </svg>
+      )
+    },
+    {
+      value: 'tiktok',
+      label: '틱톡',
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+        </svg>
+      )
+    }
   ]
 
   // 4주 챌린지 패키지
@@ -923,12 +999,76 @@ const CampaignCreationKorea = () => {
 
                   {/* 브랜드/참여조건 섹션 */}
                   <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
-                      <span className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                      </span>
-                      브랜드 정보
-                    </h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <span className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                        </span>
+                        브랜드 정보
+                      </h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowPreviousCampaigns(true)
+                          loadPreviousCampaigns()
+                        }}
+                        className="flex items-center gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                      >
+                        <History className="w-4 h-4" />
+                        이전 캠페인에서 불러오기
+                      </Button>
+                    </div>
+
+                    {/* 이전 캠페인 선택 모달 */}
+                    {showPreviousCampaigns && (
+                      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl max-w-lg w-full max-h-[70vh] overflow-hidden shadow-xl">
+                          <div className="p-4 border-b flex items-center justify-between">
+                            <h3 className="font-semibold text-gray-900">이전 캠페인에서 불러오기</h3>
+                            <button type="button" onClick={() => setShowPreviousCampaigns(false)} className="text-gray-400 hover:text-gray-600">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                          <div className="p-4 overflow-y-auto max-h-[50vh]">
+                            {loadingPrevious ? (
+                              <div className="flex items-center justify-center py-8">
+                                <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                              </div>
+                            ) : previousCampaigns.length === 0 ? (
+                              <p className="text-center text-gray-500 py-8">이전 캠페인이 없습니다</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {previousCampaigns.map(campaign => (
+                                  <button
+                                    type="button"
+                                    key={campaign.id}
+                                    onClick={() => loadFromPreviousCampaign(campaign.id)}
+                                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left"
+                                  >
+                                    {campaign.image_url ? (
+                                      <img src={campaign.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                                        <Package className="w-6 h-6 text-gray-400" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-gray-900 truncate">{campaign.product_name || '제품명 없음'}</p>
+                                      <p className="text-sm text-gray-500 truncate">{campaign.brand_name || '브랜드 없음'}</p>
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                      {new Date(campaign.created_at).toLocaleDateString('ko-KR')}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-5">
                       <div>
@@ -961,7 +1101,7 @@ const CampaignCreationKorea = () => {
                           {categoryOptions.map(opt => (
                             <label
                               key={opt.value}
-                              className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
+                              className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 cursor-pointer transition-all ${
                                 campaignForm.category.includes(opt.value)
                                   ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                                   : 'border-gray-200 bg-white hover:border-gray-300 text-gray-700'
@@ -973,6 +1113,9 @@ const CampaignCreationKorea = () => {
                                 onChange={() => handleCategoryToggle(opt.value)}
                                 className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                               />
+                              <span className={campaignForm.category.includes(opt.value) ? 'text-indigo-600' : 'text-gray-500'}>
+                                {opt.icon}
+                              </span>
                               <span className="font-medium">{opt.label}</span>
                             </label>
                           ))}
@@ -1441,6 +1584,7 @@ const CampaignCreationKorea = () => {
                         onChange={() => handleCategoryToggle(opt.value)}
                         className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                       />
+                      <span className="text-gray-600">{opt.icon}</span>
                       <span className="text-sm">{opt.label}</span>
                     </label>
                   ))}
