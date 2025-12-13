@@ -495,60 +495,6 @@ const CampaignGuideEditor = () => {
             </CardContent>
           </Card>
 
-          {/* 영상 설정 섹션 */}
-          <Card className="mb-6 shadow-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <span className="text-xl">🎥</span>
-                <h2 className="text-lg font-semibold">영상 설정</h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* 영상 길이 */}
-                <div>
-                  <Label className="text-base font-semibold mb-3 block">영상 길이</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {videoLengthOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setVideoLength(option.value)}
-                        className={`p-3 rounded-lg border text-sm transition-colors ${
-                          videoLength === option.value
-                            ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
-                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 영상 속도 */}
-                <div>
-                  <Label className="text-base font-semibold mb-3 block">영상 속도</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {videoTempoOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setVideoTempo(option.value)}
-                        className={`p-3 rounded-lg border text-sm transition-colors ${
-                          videoTempo === option.value
-                            ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
-                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* 필수 미션 섹션 */}
           <Card className="mb-6 shadow-sm">
             <CardContent className="p-6">
@@ -682,8 +628,115 @@ const CampaignGuideEditor = () => {
                 <h2 className="text-lg font-semibold">추가 옵션</h2>
               </div>
 
+              {/* 영상 설정 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* 영상 길이 */}
+                <div>
+                  <Label className="text-base font-semibold mb-3 block">영상 길이</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {videoLengthOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setVideoLength(option.value)}
+                        className={`p-3 rounded-lg border text-sm transition-colors ${
+                          videoLength === option.value
+                            ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
+                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 영상 속도 */}
+                <div>
+                  <Label className="text-base font-semibold mb-3 block">영상 속도</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {videoTempoOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setVideoTempo(option.value)}
+                        className={`p-3 rounded-lg border text-sm transition-colors ${
+                          videoTempo === option.value
+                            ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
+                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 나레이션 여부 & 파트너십 광고 코드 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* 나레이션 여부 */}
+                <div>
+                  <Label className="text-base font-semibold mb-3 block">나레이션 여부</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setHasNarration(true)}
+                      className={`p-3 rounded-lg border text-sm transition-colors ${
+                        hasNarration === true
+                          ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
+                          : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      ⭕ 있음
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHasNarration(false)}
+                      className={`p-3 rounded-lg border text-sm transition-colors ${
+                        hasNarration === false
+                          ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
+                          : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      ❌ 없음
+                    </button>
+                  </div>
+                </div>
+
+                {/* 파트너십 광고 코드 발급 여부 */}
+                <div>
+                  <Label className="text-base font-semibold mb-3 block">파트너십 광고 코드 발급 여부</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNeedsPartnershipCode(true)}
+                      className={`p-3 rounded-lg border text-sm transition-colors ${
+                        needsPartnershipCode === true
+                          ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
+                          : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      ⭕ 필요
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNeedsPartnershipCode(false)}
+                      className={`p-3 rounded-lg border text-sm transition-colors ${
+                        needsPartnershipCode === false
+                          ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
+                          : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                      }`}
+                    >
+                      ❌ 불필요
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">체크하시면 메타(Facebook/Instagram) 광고 코드를 발급해드립니다</p>
+                </div>
+              </div>
+
               {/* 레퍼런스 URL */}
-              <div className="mb-6">
+              <div>
                 <Label className="text-base font-semibold mb-2 block">레퍼런스 URL</Label>
                 <p className="text-sm text-gray-600 mb-3">크리에이터가 참고할 영상 링크를 입력하세요</p>
                 <Input
@@ -692,68 +745,6 @@ const CampaignGuideEditor = () => {
                   placeholder="https://www.youtube.com/watch?v=..."
                   type="url"
                 />
-              </div>
-
-              {/* 나레이션 여부 */}
-              <div className="mb-6">
-                <Label className="text-base font-semibold mb-3 block">나레이션 여부</Label>
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setHasNarration(true)}
-                    className={`flex-1 p-4 rounded-lg border text-center transition-colors ${
-                      hasNarration === true
-                        ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
-                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-lg">⭕</span>
-                    <p className="mt-1">있음</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHasNarration(false)}
-                    className={`flex-1 p-4 rounded-lg border text-center transition-colors ${
-                      hasNarration === false
-                        ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
-                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-lg">❌</span>
-                    <p className="mt-1">없음</p>
-                  </button>
-                </div>
-              </div>
-
-              {/* 파트너십 광고 코드 발급 여부 */}
-              <div>
-                <Label className="text-base font-semibold mb-3 block">파트너십 광고 코드 발급 여부</Label>
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setNeedsPartnershipCode(true)}
-                    className={`flex-1 p-4 rounded-lg border text-center transition-colors ${
-                      needsPartnershipCode === true
-                        ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
-                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-lg">⭕</span>
-                    <p className="mt-1">필요</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNeedsPartnershipCode(false)}
-                    className={`flex-1 p-4 rounded-lg border text-center transition-colors ${
-                      needsPartnershipCode === false
-                        ? 'bg-purple-50 border-purple-300 text-purple-700 font-medium'
-                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-lg">❌</span>
-                    <p className="mt-1">불필요</p>
-                  </button>
-                </div>
               </div>
             </CardContent>
           </Card>
