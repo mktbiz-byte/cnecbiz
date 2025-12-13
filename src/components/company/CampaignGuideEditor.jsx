@@ -177,7 +177,7 @@ const CampaignGuideEditor = () => {
     try {
       const { data, error } = await supabase
         .from('campaigns')
-        .select('title, guide_hooking_point, guide_core_message, guide_missions, guide_prohibitions, guide_hashtags, video_duration, video_tempo, reference_links, has_narration, needs_partnership_code, guide_prohibition_other')
+        .select('title, guide_data')
         .eq('id', campaignId)
         .single()
 
@@ -185,20 +185,39 @@ const CampaignGuideEditor = () => {
 
       if (data) {
         setCampaignTitle(data.title)
-        setHookingPoint(data.guide_hooking_point || '')
-        setCoreMessage(data.guide_core_message || '')
-        if (data.guide_missions) setMissions(data.guide_missions)
-        if (data.guide_prohibitions) setProhibitions(data.guide_prohibitions)
-        if (data.guide_hashtags) setHashtags(data.guide_hashtags)
-        setVideoLength(data.video_duration || '')
-        setVideoTempo(data.video_tempo || '')
-        setReferenceUrl(data.reference_links?.[0] || '')
-        setHasNarration(data.has_narration)
-        setNeedsPartnershipCode(data.needs_partnership_code)
-        setProhibitionOtherText(data.guide_prohibition_other || '')
+
+        // guide_data JSON에서 데이터 로드
+        const guide = data.guide_data || {}
+        setHookingPoint(guide.hookingPoint || '')
+        setCoreMessage(guide.coreMessage || '')
+        if (guide.missions) setMissions(guide.missions)
+        if (guide.prohibitions) setProhibitions(guide.prohibitions)
+        if (guide.hashtags) setHashtags(guide.hashtags)
+        setVideoLength(guide.videoLength || '')
+        setVideoTempo(guide.videoTempo || '')
+        setReferenceUrl(guide.referenceUrl || '')
+        setHasNarration(guide.hasNarration ?? null)
+        setNeedsPartnershipCode(guide.needsPartnershipCode ?? null)
+        setProhibitionOtherText(guide.prohibitionOtherText || '')
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
+      // localStorage에서 백업 데이터 로드 시도
+      const backup = localStorage.getItem(`guide_draft_${campaignId}`)
+      if (backup) {
+        const guide = JSON.parse(backup)
+        setHookingPoint(guide.hookingPoint || '')
+        setCoreMessage(guide.coreMessage || '')
+        if (guide.missions) setMissions(guide.missions)
+        if (guide.prohibitions) setProhibitions(guide.prohibitions)
+        if (guide.hashtags) setHashtags(guide.hashtags)
+        setVideoLength(guide.videoLength || '')
+        setVideoTempo(guide.videoTempo || '')
+        setReferenceUrl(guide.referenceUrl || '')
+        setHasNarration(guide.hasNarration ?? null)
+        setNeedsPartnershipCode(guide.needsPartnershipCode ?? null)
+        setProhibitionOtherText(guide.prohibitionOtherText || '')
+      }
     }
   }
 
@@ -212,22 +231,28 @@ const CampaignGuideEditor = () => {
   const autoSaveGuide = async () => {
     if (!campaignId) return
     setAutoSaving(true)
+
+    const guideData = {
+      hookingPoint,
+      coreMessage,
+      missions,
+      prohibitions,
+      hashtags: hashtags.filter(h => h.trim()),
+      videoLength,
+      videoTempo,
+      referenceUrl,
+      hasNarration,
+      needsPartnershipCode,
+      prohibitionOtherText
+    }
+
+    // localStorage에 백업 저장
+    localStorage.setItem(`guide_draft_${campaignId}`, JSON.stringify(guideData))
+
     try {
       await supabase
         .from('campaigns')
-        .update({
-          guide_hooking_point: hookingPoint,
-          guide_core_message: coreMessage,
-          guide_missions: missions,
-          guide_prohibitions: prohibitions,
-          guide_hashtags: hashtags.filter(h => h.trim()),
-          video_duration: videoLength,
-          video_tempo: videoTempo,
-          reference_links: referenceUrl ? [referenceUrl] : [],
-          has_narration: hasNarration,
-          needs_partnership_code: needsPartnershipCode,
-          guide_prohibition_other: prohibitionOtherText
-        })
+        .update({ guide_data: guideData })
         .eq('id', campaignId)
     } catch (err) {
       console.error('자동 저장 실패:', err)
@@ -335,22 +360,27 @@ const CampaignGuideEditor = () => {
     setProcessing(true)
     setError('')
 
+    const guideData = {
+      hookingPoint,
+      coreMessage,
+      missions,
+      prohibitions,
+      hashtags: hashtags.filter(h => h.trim()),
+      videoLength,
+      videoTempo,
+      referenceUrl,
+      hasNarration,
+      needsPartnershipCode,
+      prohibitionOtherText
+    }
+
+    // localStorage에 백업 저장
+    localStorage.setItem(`guide_draft_${campaignId}`, JSON.stringify(guideData))
+
     try {
       const { error } = await supabase
         .from('campaigns')
-        .update({
-          guide_hooking_point: hookingPoint,
-          guide_core_message: coreMessage,
-          guide_missions: missions,
-          guide_prohibitions: prohibitions,
-          guide_hashtags: hashtags.filter(h => h.trim()),
-          video_duration: videoLength,
-          video_tempo: videoTempo,
-          reference_links: referenceUrl ? [referenceUrl] : [],
-          has_narration: hasNarration,
-          needs_partnership_code: needsPartnershipCode,
-          guide_prohibition_other: prohibitionOtherText
-        })
+        .update({ guide_data: guideData })
         .eq('id', campaignId)
 
       if (error) throw error
