@@ -101,7 +101,10 @@ export default function CreateCampaignRouter() {
           {/* Actions */}
           <div className="flex flex-col gap-3">
             <Button
-              onClick={() => window.open('https://cnec.kr', '_blank')}
+              onClick={() => {
+                navigate('/')
+                setTimeout(() => window.dispatchEvent(new Event('openConsultationModal')), 100)
+              }}
               className="w-full h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl shadow-lg shadow-indigo-500/25"
             >
               상담 신청하기
