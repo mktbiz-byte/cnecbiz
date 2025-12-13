@@ -27,6 +27,7 @@ const CampaignCreationKorea = () => {
     total_slots: 10,
     remaining_slots: 10,
     application_deadline: '',
+    shipping_date: '',
     start_date: '',
     end_date: '',
     reward_points: 0,
@@ -111,6 +112,30 @@ const CampaignCreationKorea = () => {
     } catch (error) {
       console.error('Failed to load campaign:', error)
     }
+  }
+
+  // 스케줄 자동 계산 함수
+  const autoCalculateSchedule = (recruitmentDeadline) => {
+    if (!recruitmentDeadline) return
+
+    const addDays = (dateString, days) => {
+      const date = new Date(dateString)
+      date.setDate(date.getDate() + days)
+      return date.toISOString().split('T')[0]
+    }
+
+    // 모집 마감일 기준으로 계산
+    const shippingDate = addDays(recruitmentDeadline, 2)      // 제품 발송 예정일: 모집마감 + 2일
+    const filmingDeadline = addDays(shippingDate, 10)         // 촬영 마감일: 발송 + 10일
+    const uploadDate = addDays(filmingDeadline, 2)            // SNS 업로드일: 촬영마감 + 2일
+
+    setCampaignForm(prev => ({
+      ...prev,
+      application_deadline: recruitmentDeadline,
+      shipping_date: shippingDate,
+      start_date: filmingDeadline,
+      end_date: uploadDate
+    }))
   }
 
   const categoryOptions = [
@@ -1132,29 +1157,63 @@ const CampaignCreationKorea = () => {
 
                   {/* 스케줄 설정 섹션 */}
                   <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </span>
                       스케줄 설정
                     </h3>
 
+                    {/* 자동 추천 안내 배너 */}
+                    <div className="mb-6 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <p className="text-sm text-emerald-700 flex items-center gap-2">
+                        <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <span><strong>스케줄 자동 추천:</strong> 모집 마감일만 입력하면 나머지 일정이 자동으로 계산됩니다. (수정 가능)</span>
+                      </p>
+                    </div>
+
                     <div className="space-y-5">
+                      {/* 모집 마감일 */}
                       <div>
                         <Label htmlFor="application_deadline" className="text-sm font-medium text-gray-700 mb-2 block">모집 마감일 <span className="text-red-500">*</span></Label>
                         <Input
                           id="application_deadline"
                           type="date"
                           value={campaignForm.application_deadline}
-                          onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
+                          onChange={(e) => autoCalculateSchedule(e.target.value)}
                           required
                           className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
                         />
                       </div>
 
+                      {/* 제품 발송 예정일 */}
+                      <div>
+                        <Label htmlFor="shipping_date" className="text-sm font-medium text-gray-700 mb-2 block">
+                          제품 발송 예정일
+                          {campaignForm.application_deadline && (
+                            <span className="ml-2 text-xs text-emerald-600 font-normal">(모집 마감일 +2일)</span>
+                          )}
+                        </Label>
+                        <Input
+                          id="shipping_date"
+                          type="date"
+                          value={campaignForm.shipping_date}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, shipping_date: e.target.value }))}
+                          className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                        />
+                      </div>
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* 촬영&업로드 마감일 */}
                         <div>
-                          <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">촬영 마감일 <span className="text-red-500">*</span></Label>
+                          <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">
+                            촬영&업로드 마감일 <span className="text-red-500">*</span>
+                            {campaignForm.shipping_date && (
+                              <span className="ml-2 text-xs text-emerald-600 font-normal">(발송일 +10일)</span>
+                            )}
+                          </Label>
                           <Input
                             id="start_date"
                             type="date"
@@ -1164,8 +1223,14 @@ const CampaignCreationKorea = () => {
                             className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
                           />
                         </div>
+                        {/* SNS 업로드일 */}
                         <div>
-                          <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">SNS 업로드일 <span className="text-red-500">*</span></Label>
+                          <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">
+                            SNS 업로드일 <span className="text-red-500">*</span>
+                            {campaignForm.start_date && (
+                              <span className="ml-2 text-xs text-emerald-600 font-normal">(촬영마감 +2일)</span>
+                            )}
+                          </Label>
                           <Input
                             id="end_date"
                             type="date"
@@ -1176,6 +1241,34 @@ const CampaignCreationKorea = () => {
                           />
                         </div>
                       </div>
+
+                      {/* 자동 계산된 일정 요약 */}
+                      {campaignForm.application_deadline && campaignForm.shipping_date && campaignForm.start_date && campaignForm.end_date && (
+                        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                          <p className="text-sm font-medium text-gray-700 mb-2">📅 일정 요약</p>
+                          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                              모집 마감: {campaignForm.application_deadline}
+                            </span>
+                            <span className="text-gray-300">→</span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                              제품 발송: {campaignForm.shipping_date}
+                            </span>
+                            <span className="text-gray-300">→</span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              촬영 마감: {campaignForm.start_date}
+                            </span>
+                            <span className="text-gray-300">→</span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                              SNS 업로드: {campaignForm.end_date}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
