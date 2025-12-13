@@ -501,8 +501,8 @@ export default function LandingPage() {
       <section id="pricing" className="py-16 sm:py-24 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white">가장 합리적인 캠페인을 선택하세요</h2>
-            <p className="text-gray-400 text-lg">복잡한 옵션은 빼고, 꼭 필요한 기능만 담았습니다.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white">뷰티 브랜드를 위한 3가지 캠페인</h2>
+            <p className="text-gray-400 text-lg">데이터 기반 AI 매칭으로 성과를 만들어드립니다.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
@@ -523,7 +523,7 @@ export default function LandingPage() {
               <ul className="space-y-3 text-sm">
                 <li className="flex items-center gap-2 text-gray-400">
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  티징 + 본편 (총 영상 2개 제작)
+                  3단계 콘텐츠 (리뷰→홍보→당일)
                 </li>
                 <li className="flex items-center gap-2 text-gray-400">
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
@@ -537,13 +537,17 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
                   원본 영상 파일 제공
                 </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  2차 활용 및 파트너코드
+                </li>
               </ul>
             </div>
 
-            {/* 기획형 캠페인 - 가운데 MOST POPULAR */}
+            {/* 기획형 캠페인 - 가운데 인기 */}
             <div className="bg-gray-800 rounded-3xl p-8 border-2 border-purple-500 relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-xs font-semibold text-white">
-                MOST POPULAR
+                ✨ 인기
               </div>
               <h3 className="text-lg font-medium text-purple-400 mb-2">기획형 캠페인</h3>
               <div className="flex items-baseline gap-1 mb-4">
@@ -568,7 +572,15 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2 text-gray-400">
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  AI 크리에이터 매칭
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
                   SNS 업로드 URL 1개
+                </li>
+                <li className="flex items-center gap-2 text-gray-400">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  2차 활용 및 파트너코드
                 </li>
               </ul>
             </div>
@@ -598,11 +610,11 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2 text-gray-400">
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  SNS 업로드 URL 무제한
+                  SNS 업로드 URL 4개
                 </li>
                 <li className="flex items-center gap-2 text-gray-400">
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  2차 활용 라이선스 포함
+                  2차 활용 및 파트너코드
                 </li>
               </ul>
             </div>
