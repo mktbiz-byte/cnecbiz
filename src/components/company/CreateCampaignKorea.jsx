@@ -781,21 +781,19 @@ const CampaignCreationKorea = () => {
                       </li>
                     </ul>
                   </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
+      </div>
 
-        {/* 캠페인 상세 설정 폼 */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle>{editId ? '캠페인 수정' : '캠페인 상세 설정'}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* 패키지 선택 */}
+      {/* 캠페인 상세 설정 폼 */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle>{editId ? '캠페인 수정' : '캠페인 상세 설정'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* 패키지 선택 */}
                 <div>
                   <Label htmlFor="package_type">패키지 선택 *</Label>
                 {campaignForm.campaign_type === '4week_challenge' ? (
