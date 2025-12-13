@@ -176,6 +176,9 @@ exports.handler = async (event, context) => {
 
     // companies 테이블에 기업 정보 저장
     console.log('[complete-signup] Step 4: Inserting company data')
+
+    // 회사 데이터 (is_approved는 DB에 컬럼 추가 후 활성화)
+    // ALTER TABLE companies ADD COLUMN is_approved BOOLEAN DEFAULT NULL;
     const { data: companyData, error: companyError } = await supabaseAdmin
       .from('companies')
       .insert([{
@@ -187,7 +190,6 @@ exports.handler = async (event, context) => {
         status: 'active',
         points_balance: 0,
         profile_completed: false,
-        is_approved: false,  // 승인 대기 상태로 시작
         created_at: new Date().toISOString()
       }])
       .select()
