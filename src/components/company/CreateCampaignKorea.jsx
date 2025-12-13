@@ -336,6 +336,31 @@ const CampaignCreationKorea = () => {
     { value: 'professional', label: '프로페셔널', price: 600000, description: '올리브영 전문가' }
   ]
 
+  // 올리브영 서브타입별 크리에이터 특성
+  const oliveyoungSubtypeCharacteristics = {
+    pick: {
+      label: '올영픽',
+      followerRange: '1만~5만',
+      qualityLevel: 2,
+      characteristics: ['뷰티 전문 크리에이터', '인기 상품 추천'],
+      expectedApplicants: '10~20'
+    },
+    sale: {
+      label: '올영세일',
+      followerRange: '3만~10만',
+      qualityLevel: 3,
+      characteristics: ['세일 기간 집중 홍보', '3단계 콘텐츠'],
+      expectedApplicants: '15~30'
+    },
+    special: {
+      label: '오특',
+      followerRange: '5만~15만',
+      qualityLevel: 4,
+      characteristics: ['핫딜 프로모션', '높은 구매 전환율'],
+      expectedApplicants: '20~40'
+    }
+  }
+
   const packageOptions = [
     {
       value: 'basic',
@@ -2526,7 +2551,7 @@ const CampaignCreationKorea = () => {
                           <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center text-lg flex-shrink-0">
                             ✨
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <div className="text-pink-300 text-xs font-medium mb-1">AI 지원율 예측</div>
                             <div className="text-sm leading-relaxed">
                               이 캠페인은 평균{' '}
@@ -2537,6 +2562,41 @@ const CampaignCreationKorea = () => {
                             </div>
                           </div>
                         </div>
+
+                        {/* 크리에이터 특성 표시 */}
+                        {(() => {
+                          const subtypeInfo = oliveyoungSubtypeCharacteristics[campaignForm.oliveyoung_subtype] || oliveyoungSubtypeCharacteristics.pick
+                          return (
+                            <div className="mt-3 pt-3 border-t border-slate-700">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs text-gray-400">예상 크리에이터 수준</span>
+                                <div className="flex gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((level) => (
+                                    <div
+                                      key={level}
+                                      className={`w-2 h-2 rounded-full ${
+                                        level <= subtypeInfo.qualityLevel
+                                          ? 'bg-gradient-to-r from-pink-400 to-rose-400'
+                                          : 'bg-slate-600'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                <span className="text-xs px-2 py-0.5 bg-pink-500/20 text-pink-300 rounded">
+                                  팔로워 {subtypeInfo.followerRange}
+                                </span>
+                                {subtypeInfo.characteristics.map((char, idx) => (
+                                  <span key={idx} className="text-xs px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded">
+                                    {char}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })()}
+
                         <div className="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-500"
