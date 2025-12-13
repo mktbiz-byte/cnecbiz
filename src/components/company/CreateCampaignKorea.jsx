@@ -1419,11 +1419,11 @@ const CampaignCreationKorea = () => {
                             {crawlError.includes('수동으로') ? '⚠️' : '❌'} {crawlError}
                           </p>
                         )}
-                        <p className="text-xs text-gray-500 mt-2">💡 올리브영, 쿠팡, 네이버 스마트스토어, 자사몰 URL 지원</p>
+                        <p className="text-xs text-gray-500 mt-2">💡 자사몰 url만 가능합니다.</p>
                       </div>
 
                       {/* 크롤링된 정보 표시 또는 수동 입력 */}
-                      {(campaignForm.product_name || campaignForm.brand || campaignForm.image_url) && (
+                      {(campaignForm.product_name || campaignForm.image_url) && (
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                           <div className="flex gap-4">
                             {/* 상품 이미지 */}
@@ -1438,9 +1438,6 @@ const CampaignCreationKorea = () => {
                             )}
                             {/* 상품 정보 */}
                             <div className="flex-1 space-y-1">
-                              {campaignForm.brand && (
-                                <p className="text-xs text-amber-600 font-medium">{campaignForm.brand}</p>
-                              )}
                               {campaignForm.product_name && (
                                 <p className="font-semibold text-gray-900">{campaignForm.product_name}</p>
                               )}
@@ -1452,15 +1449,15 @@ const CampaignCreationKorea = () => {
                         </div>
                       )}
 
-                      {/* 브랜드명 & 제품가격 */}
+                      {/* 제품명 & 제품가격 */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="brand" className="text-sm font-medium text-gray-700 mb-2 block">브랜드명</Label>
+                          <Label htmlFor="product_name" className="text-sm font-medium text-gray-700 mb-2 block">제품명</Label>
                           <Input
-                            id="brand"
-                            value={campaignForm.brand}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
-                            placeholder="예: 에이블씨엔씨"
+                            id="product_name"
+                            value={campaignForm.product_name}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                            placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
                             className="h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
                           />
                         </div>
@@ -1478,31 +1475,6 @@ const CampaignCreationKorea = () => {
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">원</span>
                           </div>
                         </div>
-                      </div>
-
-                      {/* 상품명 */}
-                      <div>
-                        <Label htmlFor="product_name" className="text-sm font-medium text-gray-700 mb-2 block">제품명</Label>
-                        <Input
-                          id="product_name"
-                          value={campaignForm.product_name}
-                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
-                          placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
-                          className="h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
-                        />
-                      </div>
-
-                      {/* 상품 설명 */}
-                      <div>
-                        <Label htmlFor="product_description" className="text-sm font-medium text-gray-700 mb-2 block">상품 설명</Label>
-                        <Textarea
-                          id="product_description"
-                          value={campaignForm.product_description}
-                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
-                          placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
-                          rows={3}
-                          className="border-gray-200 focus:border-amber-500 focus:ring-amber-500 resize-none"
-                        />
                       </div>
 
                       {/* 상품 상세 페이지 이미지 */}
