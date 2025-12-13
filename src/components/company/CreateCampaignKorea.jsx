@@ -770,8 +770,15 @@ const CampaignCreationKorea = () => {
         campaignForm.question4
       ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
 
-      // DB에 없는 필드 제외 (product_price, shipping_date, bonus_amount 등)
-      const { question1, question2, question3, question4, target_platforms, product_price, shipping_date, bonus_amount, oliveyoung_recruit_count, ...restForm } = campaignForm
+      // DB에 없는 필드 제외
+      const {
+        question1, question2, question3, question4,
+        target_platforms, product_price, shipping_date,
+        bonus_amount, oliveyoung_recruit_count,
+        sale_season, provide_logo, oliveyoung_logo_url,
+        content_type, emblem_required,
+        ...restForm
+      } = campaignForm
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
       const categoryNames = campaignForm.category
@@ -3002,32 +3009,45 @@ const CampaignCreationKorea = () => {
                         <p className="text-xs text-purple-600 mt-2">첫 번째 콘텐츠 업로드 마감</p>
                       </div>
 
-                      {/* Week 2~4 자동 계산 표시 */}
-                      {campaignForm.week1_deadline && (
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="w-5 h-5 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                              <span className="text-xs font-medium text-gray-600">Week 2</span>
-                            </div>
-                            <div className="text-sm font-semibold text-gray-800">{campaignForm.week2_deadline}</div>
+                      {/* Week 2~4 수정 가능 */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                            <span className="text-xs font-medium text-gray-600">Week 2</span>
                           </div>
-                          <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="w-5 h-5 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                              <span className="text-xs font-medium text-gray-600">Week 3</span>
-                            </div>
-                            <div className="text-sm font-semibold text-gray-800">{campaignForm.week3_deadline}</div>
-                          </div>
-                          <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="w-5 h-5 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
-                              <span className="text-xs font-medium text-gray-600">Week 4</span>
-                            </div>
-                            <div className="text-sm font-semibold text-gray-800">{campaignForm.week4_deadline}</div>
-                          </div>
+                          <Input
+                            type="date"
+                            value={campaignForm.week2_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week2_deadline: e.target.value }))}
+                            className="h-9 text-sm"
+                          />
                         </div>
-                      )}
+                        <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                            <span className="text-xs font-medium text-gray-600">Week 3</span>
+                          </div>
+                          <Input
+                            type="date"
+                            value={campaignForm.week3_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week3_deadline: e.target.value }))}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                            <span className="text-xs font-medium text-gray-600">Week 4</span>
+                          </div>
+                          <Input
+                            type="date"
+                            value={campaignForm.week4_deadline}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week4_deadline: e.target.value }))}
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -3095,10 +3115,10 @@ const CampaignCreationKorea = () => {
                           <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs text-gray-400">예상 크리에이터 수준</span>
                             <div className="flex gap-0.5">
-                              {[1, 2, 3, 4, 5].map((level) => {
-                                const currentLevel = campaignForm.bonus_amount >= 300000 ? 5 :
-                                                    campaignForm.bonus_amount >= 200000 ? 4 :
-                                                    campaignForm.bonus_amount >= 100000 ? 3 : 2
+                              {[1, 2, 3, 4].map((level) => {
+                                const currentLevel = campaignForm.bonus_amount >= 300000 ? 4 :
+                                                    campaignForm.bonus_amount >= 200000 ? 3 :
+                                                    campaignForm.bonus_amount >= 100000 ? 2 : 1
                                 return (
                                   <div
                                     key={level}
@@ -3126,11 +3146,6 @@ const CampaignCreationKorea = () => {
                                 높은 완주율
                               </span>
                             )}
-                            {campaignForm.bonus_amount >= 300000 && (
-                              <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded">
-                                탑티어 매칭
-                              </span>
-                            )}
                           </div>
                         </div>
 
@@ -3149,9 +3164,15 @@ const CampaignCreationKorea = () => {
 
                       {/* 견적 상세 */}
                       <div className="space-y-3 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">기본 단가 (4주 패키지)</span>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="text-gray-400">기본 단가</span>
+                            <span className="ml-2 text-xs px-1.5 py-0.5 bg-purple-500/30 text-purple-300 rounded">영상 4회</span>
+                          </div>
                           <span>600,000원</span>
+                        </div>
+                        <div className="text-xs text-gray-500 -mt-1 pl-1">
+                          → 회당 150,000원 (4주간 매주 1회 업로드)
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">모집 인원</span>
