@@ -1,5 +1,5 @@
 // AI 키워드 추천 API - 상품 정보 기반 키워드 & 가이드 추천
-const Anthropic = require('@anthropic-ai/sdk')
+// Using fetch API instead of SDK for simpler deployment
 
 exports.handler = async (event) => {
   const headers = {
@@ -34,12 +34,15 @@ exports.handler = async (event) => {
 
     console.log('[recommend-keywords] Processing:', { product_name, brand_name, campaign_type })
 
-    // Anthropic API 사용
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY
-    })
+    // API Key 확인
+    const apiKey = process.env.ANTHROPIC_API_KEY
 
-    const prompt = `당신은 한국의 뷰티/라이프스타일 인플루언서 마케팅 전문가입니다.
+    let recommendations
+
+    if (apiKey) {
+      // Anthropic API 호출 (fetch 사용)
+      try {
+        const prompt = `당신은 한국의 뷰티/라이프스타일 인플루언서 마케팅 전문가입니다.
 다음 상품 정보를 바탕으로 숏폼 콘텐츠용 추천 키워드와 가이드 요소를 제안해주세요.
 
 상품명: ${product_name}
@@ -47,60 +50,39 @@ exports.handler = async (event) => {
 상품 설명: ${product_description || '미입력'}
 캠페인 유형: ${campaign_type === 'oliveyoung' ? '올영세일' : campaign_type === '4week_challenge' ? '4주 챌린지' : '기획형 숏폼'}
 
-다음 JSON 형식으로만 응답해주세요 (다른 텍스트 없이):
-{
-  "keywords": ["키워드1", "키워드2", ...], // 10개 이내, 상품 특징을 담은 해시태그용 키워드
-  "hooking_point": "1초 후킹 포인트 예시 문장", // 50자 이내
-  "core_message": "핵심 메시지 예시", // 100자 이내
-  "recommended_missions": ["mission_id1", "mission_id2"], // 아래 미션 ID 중 선택
-  "video_style": {
-    "duration": "30s", // 15s, 30s, 60s 중 선택
-    "tempo": "normal", // fast, normal, slow 중 선택
-    "tone": "bright" // bright, calm, professional, humorous, asmr 중 선택
-  }
-}
+다음 JSON 형식으로만 응답해주세요:
+{"keywords":["키워드1","키워드2"],"hooking_point":"1초후킹예시","core_message":"핵심메시지","recommended_missions":["before_after","closeup"],"video_style":{"duration":"30s","tempo":"normal","tone":"bright"}}`
 
-사용 가능한 미션 ID:
-- before_after: Before & After 보여주기
-- closeup: 제품 사용 장면 클로즈업
-- texture: 제품 텍스처 보여주기
-- store_visit: 올리브영 매장 방문 인증
-- 7day_review: 7일 사용 후기 기록
-- price_info: 가격/혜택 정보 언급
-- purchase_link: 구매 링크 유도`
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        })
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }]
-    })
-
-    const aiResponse = response.content[0].text.trim()
-
-    // JSON 파싱
-    let recommendations
-    try {
-      // JSON 블록 추출 (```json ... ``` 형식 처리)
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        recommendations = JSON.parse(jsonMatch[0])
-      } else {
-        throw new Error('No JSON found in response')
-      }
-    } catch (parseError) {
-      console.error('[recommend-keywords] JSON parse error:', parseError)
-      // 파싱 실패시 기본값
-      recommendations = {
-        keywords: getDefaultKeywords(product_name),
-        hooking_point: `${product_name} 써봤는데 대박이에요`,
-        core_message: `${brand_name || '이 제품'}의 놀라운 효과를 직접 경험해보세요`,
-        recommended_missions: ['before_after', 'closeup'],
-        video_style: {
-          duration: '30s',
-          tempo: 'normal',
-          tone: 'bright'
+        if (response.ok) {
+          const result = await response.json()
+          const aiResponse = result.content[0].text.trim()
+          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            recommendations = JSON.parse(jsonMatch[0])
+          }
         }
+      } catch (apiError) {
+        console.error('[recommend-keywords] API error:', apiError)
       }
+    }
+
+    // API 실패 또는 API Key 없으면 스마트 기본값 생성
+    if (!recommendations) {
+      recommendations = generateSmartDefaults(product_name, brand_name, campaign_type)
     }
 
     console.log('[recommend-keywords] Recommendations:', recommendations)
@@ -127,16 +109,41 @@ exports.handler = async (event) => {
   }
 }
 
-// 기본 키워드 생성
-function getDefaultKeywords(productName) {
-  const baseKeywords = ['추천템', '인생템', '찐리뷰', '솔직리뷰', '데일리']
-
+// 스마트 기본값 생성
+function generateSmartDefaults(productName, brandName, campaignType) {
   // 상품명에서 키워드 추출
-  const words = productName
+  const productWords = productName
     .replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣]/g, ' ')
     .split(/\s+/)
     .filter(word => word.length > 1)
     .slice(0, 3)
 
-  return [...words, ...baseKeywords].slice(0, 8)
+  // 캠페인 타입별 키워드
+  const typeKeywords = {
+    'oliveyoung': ['올영픽', '올리브영추천', '뷰티템'],
+    '4week_challenge': ['4주챌린지', '변화일기', '꾸준히'],
+    'planned': ['추천템', '인생템', '찐리뷰']
+  }
+
+  const baseKeywords = typeKeywords[campaignType] || typeKeywords['planned']
+  const keywords = [...productWords, ...baseKeywords, '솔직후기', '데일리'].slice(0, 8)
+
+  // 캠페인 타입별 미션 추천
+  const typeMissions = {
+    'oliveyoung': ['store_visit', 'before_after', 'price_info'],
+    '4week_challenge': ['before_after', '7day_review'],
+    'planned': ['before_after', 'closeup', 'texture']
+  }
+
+  return {
+    keywords,
+    hooking_point: `${productName} 써봤는데 진짜 대박이에요!`,
+    core_message: `${brandName || '이 제품'}의 놀라운 효과를 직접 경험해보세요`,
+    recommended_missions: typeMissions[campaignType] || typeMissions['planned'],
+    video_style: {
+      duration: '30s',
+      tempo: 'normal',
+      tone: 'bright'
+    }
+  }
 }
