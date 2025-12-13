@@ -4,11 +4,9 @@ import { supabase } from '../../lib/supabaseKorea'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent } from '../ui/card'
 import { Label } from '../ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Checkbox } from '../ui/checkbox'
-import { X, Plus } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 const CampaignGuideEditor = () => {
@@ -22,56 +20,43 @@ const CampaignGuideEditor = () => {
   const [success, setSuccess] = useState('')
   const [autoSaving, setAutoSaving] = useState(false)
 
-  // 가이드 상세 필드
-  const [requiredDialogues, setRequiredDialogues] = useState([''])
-  const [requiredScenes, setRequiredScenes] = useState([''])
-  const [requiredHashtags, setRequiredHashtags] = useState([''])
-  const [videoDuration, setVideoDuration] = useState('')
-  const [videoTempo, setVideoTempo] = useState('')
-  const [videoTone, setVideoTone] = useState('')
-  const [additionalDetails, setAdditionalDetails] = useState('')
+  // 필수 입력 필드
+  const [hookingPoint, setHookingPoint] = useState('')
+  const [coreMessage, setCoreMessage] = useState('')
 
-  // 필수 촬영 장면 체크박스
-  const [shootingScenes, setShootingScenes] = useState({
-    baPhoto: false,
-    noMakeup: false,
-    closeup: false,
+  // 필수 미션 체크박스
+  const [missions, setMissions] = useState({
+    beforeAfter: false,
     productCloseup: false,
     productTexture: false,
-    outdoor: false,
-    couple: false,
-    child: false,
-    troubledSkin: false,
-    wrinkles: false
+    storeVisit: false,
+    weeklyReview: false,
+    priceInfo: false,
+    purchaseLink: false
   })
 
-  // 추가 요청사항
-  const [additionalShootingRequests, setAdditionalShootingRequests] = useState('')
+  // 금지 사항 체크박스 (기본 3개 체크)
+  const [prohibitions, setProhibitions] = useState({
+    competitorMention: true,
+    exaggeratedClaims: true,
+    medicalMisrepresentation: true,
+    priceOutOfSale: false,
+    negativeExpression: false
+  })
 
-  // 메타광고코드 발급 요청
-  const [metaAdCodeRequested, setMetaAdCodeRequested] = useState(false)
+  // 해시태그 (자동 생성)
+  const [hashtags, setHashtags] = useState(['', '', ''])
 
-  // 참고 레퍼런스 URL
-  const [referenceLinks, setReferenceLinks] = useState([''])
+  // 템플릿 저장 상태
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [savedTemplates, setSavedTemplates] = useState([])
 
-  // 제품 정보 필드
-  const [brand, setBrand] = useState('')
-  const [productName, setProductName] = useState('')
-  const [productFeatures, setProductFeatures] = useState('')
-  const [productKeyPoints, setProductKeyPoints] = useState('')
-  
-  // 크리에이터 자율성
-  const [creatorAutonomy, setCreatorAutonomy] = useState(false)
-  
-  // 날짜 필드 (start_date = 촬영 마감일, end_date = SNS 업로드일)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-
-  // 캠페인 정보 및 가이드 로드
+  // 캠페인 정보 로드
   useEffect(() => {
     if (campaignId) {
       loadCampaignGuide()
     }
+    loadTemplates()
   }, [campaignId])
 
   // 자동 저장 (10초마다)
@@ -83,44 +68,20 @@ const CampaignGuideEditor = () => {
     }, 10000)
 
     return () => clearTimeout(timer)
-  }, [requiredDialogues, requiredScenes, requiredHashtags, videoDuration, videoTempo, videoTone, additionalDetails, shootingScenes, additionalShootingRequests, metaAdCodeRequested, brand, productName, productFeatures, productKeyPoints, creatorAutonomy, campaignId])
+  }, [hookingPoint, coreMessage, missions, prohibitions, hashtags])
+
+  // 해시태그 자동 생성 (hookingPoint, coreMessage 변경시)
+  useEffect(() => {
+    if (hookingPoint || coreMessage) {
+      generateHashtags()
+    }
+  }, [hookingPoint, coreMessage])
 
   const loadCampaignGuide = async () => {
     try {
       const { data, error } = await supabase
         .from('campaigns')
-        .select(`
-          title, 
-          required_dialogues, 
-          required_scenes, 
-          required_hashtags, 
-          video_duration, 
-          video_tempo, 
-          video_tone, 
-          additional_details,
-          shooting_scenes_ba_photo,
-          shooting_scenes_no_makeup,
-          shooting_scenes_closeup,
-          shooting_scenes_product_closeup,
-          shooting_scenes_product_texture,
-          shooting_scenes_outdoor,
-          shooting_scenes_couple,
-          shooting_scenes_child,
-          shooting_scenes_troubled_skin,
-          shooting_scenes_wrinkles,
-          additional_shooting_requests,
-          meta_ad_code_requested,
-          brand,
-          product_name,
-          product_features,
-          product_key_points,
-          creator_autonomy,
-          guide_brand,
-          guide_product_name,
-          start_date,
-          end_date,
-          reference_links
-        `)
+        .select('title, guide_hooking_point, guide_core_message, guide_missions, guide_prohibitions, guide_hashtags')
         .eq('id', campaignId)
         .single()
 
@@ -128,78 +89,38 @@ const CampaignGuideEditor = () => {
 
       if (data) {
         setCampaignTitle(data.title)
-        setRequiredDialogues(data.required_dialogues || [''])
-        setRequiredScenes(data.required_scenes || [''])
-        setRequiredHashtags(data.required_hashtags || [''])
-        setVideoDuration(data.video_duration || '')
-        setVideoTempo(data.video_tempo || '')
-        setVideoTone(data.video_tone || '')
-        setAdditionalDetails(data.additional_details || '')
-        setShootingScenes({
-          baPhoto: data.shooting_scenes_ba_photo || false,
-          noMakeup: data.shooting_scenes_no_makeup || false,
-          closeup: data.shooting_scenes_closeup || false,
-          productCloseup: data.shooting_scenes_product_closeup || false,
-          productTexture: data.shooting_scenes_product_texture || false,
-          outdoor: data.shooting_scenes_outdoor || false,
-          couple: data.shooting_scenes_couple || false,
-          child: data.shooting_scenes_child || false,
-          troubledSkin: data.shooting_scenes_troubled_skin || false,
-          wrinkles: data.shooting_scenes_wrinkles || false
-        })
-        setAdditionalShootingRequests(data.additional_shooting_requests || '')
-        setMetaAdCodeRequested(data.meta_ad_code_requested || false)
-        // guide_brand와 guide_product_name 사용 (별도 컬럼), 없으면 캠페인 생성 시 입력한 값 사용
-        setBrand(data.guide_brand || data.brand || '')
-        setProductName(data.guide_product_name || data.product_name || '')
-        setProductFeatures(data.product_features || '')
-        setProductKeyPoints(data.product_key_points || '')
-        setCreatorAutonomy(data.creator_autonomy || false)
-        setStartDate(data.start_date || '')
-        setEndDate(data.end_date || '')
-        setReferenceLinks(data.reference_links || [''])
+        setHookingPoint(data.guide_hooking_point || '')
+        setCoreMessage(data.guide_core_message || '')
+        if (data.guide_missions) setMissions(data.guide_missions)
+        if (data.guide_prohibitions) setProhibitions(data.guide_prohibitions)
+        if (data.guide_hashtags) setHashtags(data.guide_hashtags)
       }
     } catch (err) {
       console.error('캠페인 정보 로드 실패:', err)
-      setError('캠페인 정보를 불러오는데 실패했습니다.')
+    }
+  }
+
+  const loadTemplates = () => {
+    const saved = localStorage.getItem('guide_templates')
+    if (saved) {
+      setSavedTemplates(JSON.parse(saved))
     }
   }
 
   const autoSaveGuide = async () => {
+    if (!campaignId) return
     setAutoSaving(true)
     try {
-      const { error } = await supabase
+      await supabase
         .from('campaigns')
         .update({
-          required_dialogues: requiredDialogues.filter(d => d.trim()),
-          required_scenes: requiredScenes.filter(s => s.trim()),
-          required_hashtags: requiredHashtags.filter(h => h.trim()),
-          video_duration: videoDuration,
-          video_tempo: videoTempo,
-          video_tone: videoTone,
-          additional_details: additionalDetails,
-          shooting_scenes_ba_photo: shootingScenes.baPhoto,
-          shooting_scenes_no_makeup: shootingScenes.noMakeup,
-          shooting_scenes_closeup: shootingScenes.closeup,
-          shooting_scenes_product_closeup: shootingScenes.productCloseup,
-          shooting_scenes_product_texture: shootingScenes.productTexture,
-          shooting_scenes_outdoor: shootingScenes.outdoor,
-          shooting_scenes_couple: shootingScenes.couple,
-          shooting_scenes_child: shootingScenes.child,
-          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
-          shooting_scenes_wrinkles: shootingScenes.wrinkles,
-          additional_shooting_requests: additionalShootingRequests,
-          meta_ad_code_requested: metaAdCodeRequested,
-          guide_brand: brand,
-          guide_product_name: productName,
-          product_features: productFeatures,
-          product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy,
-          reference_links: referenceLinks.filter(link => link.trim())
+          guide_hooking_point: hookingPoint,
+          guide_core_message: coreMessage,
+          guide_missions: missions,
+          guide_prohibitions: prohibitions,
+          guide_hashtags: hashtags.filter(h => h.trim())
         })
         .eq('id', campaignId)
-
-      if (error) throw error
     } catch (err) {
       console.error('자동 저장 실패:', err)
     } finally {
@@ -207,650 +128,430 @@ const CampaignGuideEditor = () => {
     }
   }
 
-  const handleSave = async () => {
-    // 임시 저장
+  // 해시태그 자동 생성
+  const generateHashtags = () => {
+    const keywords = []
+
+    // 후킹 포인트에서 키워드 추출
+    if (hookingPoint) {
+      const hookWords = hookingPoint.match(/[\uAC00-\uD7AF]+/g) || []
+      hookWords.forEach(word => {
+        if (word.length >= 2) keywords.push(word)
+      })
+    }
+
+    // 핵심 메시지에서 키워드 추출
+    if (coreMessage) {
+      const coreWords = coreMessage.match(/[\uAC00-\uD7AF]+/g) || []
+      coreWords.forEach(word => {
+        if (word.length >= 2) keywords.push(word)
+      })
+    }
+
+    // 중복 제거 및 상위 3개 선택
+    const uniqueKeywords = [...new Set(keywords)].slice(0, 3)
+    const newHashtags = uniqueKeywords.map(k => `#${k}`)
+
+    // 3개 미만이면 빈 문자열로 채우기
+    while (newHashtags.length < 3) {
+      newHashtags.push('')
+    }
+
+    setHashtags(newHashtags)
+  }
+
+  // AI 가이드 생성 (핵심 메시지 기반 미션 자동 체크)
+  const handleAIGuideGenerate = () => {
+    const message = coreMessage.toLowerCase()
+    const newMissions = { ...missions }
+    let checkedCount = 0
+
+    // 키워드 기반 미션 자동 체크
+    if ((message.includes('비포') || message.includes('애프터') || message.includes('변화') || message.includes('효과')) && checkedCount < 3) {
+      newMissions.beforeAfter = true
+      checkedCount++
+    }
+    if ((message.includes('클로즈업') || message.includes('사용') || message.includes('바르') || message.includes('적용')) && checkedCount < 3) {
+      newMissions.productCloseup = true
+      checkedCount++
+    }
+    if ((message.includes('텍스처') || message.includes('제형') || message.includes('발림') || message.includes('흡수')) && checkedCount < 3) {
+      newMissions.productTexture = true
+      checkedCount++
+    }
+    if ((message.includes('올리브영') || message.includes('매장') || message.includes('구매')) && checkedCount < 3) {
+      newMissions.storeVisit = true
+      checkedCount++
+    }
+    if ((message.includes('일주일') || message.includes('7일') || message.includes('후기') || message.includes('경험')) && checkedCount < 3) {
+      newMissions.weeklyReview = true
+      checkedCount++
+    }
+    if ((message.includes('가격') || message.includes('혜택') || message.includes('할인') || message.includes('세일')) && checkedCount < 3) {
+      newMissions.priceInfo = true
+      checkedCount++
+    }
+    if ((message.includes('링크') || message.includes('구매') || message.includes('주문')) && checkedCount < 3) {
+      newMissions.purchaseLink = true
+      checkedCount++
+    }
+
+    // 3개 미만이면 기본 미션 추가
+    if (checkedCount < 3) {
+      if (!newMissions.beforeAfter) { newMissions.beforeAfter = true; checkedCount++ }
+    }
+    if (checkedCount < 3) {
+      if (!newMissions.productCloseup) { newMissions.productCloseup = true; checkedCount++ }
+    }
+    if (checkedCount < 3) {
+      if (!newMissions.productTexture) { newMissions.productTexture = true; checkedCount++ }
+    }
+
+    setMissions(newMissions)
+    setSuccess('AI가 핵심 메시지를 분석하여 필수 미션을 추천했습니다!')
+    setTimeout(() => setSuccess(''), 3000)
+  }
+
+  // 템플릿 저장
+  const saveTemplate = () => {
+    const template = {
+      id: Date.now(),
+      name: `템플릿 ${savedTemplates.length + 1}`,
+      hookingPoint,
+      coreMessage,
+      missions,
+      prohibitions,
+      hashtags,
+      createdAt: new Date().toISOString()
+    }
+    const newTemplates = [...savedTemplates, template]
+    setSavedTemplates(newTemplates)
+    localStorage.setItem('guide_templates', JSON.stringify(newTemplates))
+    setSuccess('템플릿이 저장되었습니다!')
+    setTimeout(() => setSuccess(''), 3000)
+  }
+
+  // 템플릿 불러오기
+  const loadTemplate = (template) => {
+    setHookingPoint(template.hookingPoint || '')
+    setCoreMessage(template.coreMessage || '')
+    setMissions(template.missions || missions)
+    setProhibitions(template.prohibitions || prohibitions)
+    setHashtags(template.hashtags || ['', '', ''])
+    setShowTemplateModal(false)
+    setSuccess('템플릿을 불러왔습니다!')
+    setTimeout(() => setSuccess(''), 3000)
+  }
+
+  // 미션 체크 변경
+  const handleMissionChange = (key, checked) => {
+    setMissions(prev => ({ ...prev, [key]: checked }))
+  }
+
+  // 금지사항 체크 변경
+  const handleProhibitionChange = (key, checked) => {
+    setProhibitions(prev => ({ ...prev, [key]: checked }))
+  }
+
+  // 저장 및 다음 단계
+  const handleSaveAndContinue = async () => {
     setProcessing(true)
     setError('')
-    setSuccess('')
 
     try {
       const { error } = await supabase
         .from('campaigns')
         .update({
-          required_dialogues: requiredDialogues.filter(d => d.trim()),
-          required_scenes: requiredScenes.filter(s => s.trim()),
-          required_hashtags: requiredHashtags.filter(h => h.trim()),
-          video_duration: videoDuration,
-          video_tempo: videoTempo,
-          video_tone: videoTone,
-          additional_details: additionalDetails,
-          shooting_scenes_ba_photo: shootingScenes.baPhoto,
-          shooting_scenes_no_makeup: shootingScenes.noMakeup,
-          shooting_scenes_closeup: shootingScenes.closeup,
-          shooting_scenes_product_closeup: shootingScenes.productCloseup,
-          shooting_scenes_product_texture: shootingScenes.productTexture,
-          shooting_scenes_outdoor: shootingScenes.outdoor,
-          shooting_scenes_couple: shootingScenes.couple,
-          shooting_scenes_child: shootingScenes.child,
-          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
-          shooting_scenes_wrinkles: shootingScenes.wrinkles,
-          additional_shooting_requests: additionalShootingRequests,
-          meta_ad_code_requested: metaAdCodeRequested,
-          guide_brand: brand,
-          guide_product_name: productName,
-          product_features: productFeatures,
-          product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy,
-          reference_links: referenceLinks.filter(link => link.trim())
+          guide_hooking_point: hookingPoint,
+          guide_core_message: coreMessage,
+          guide_missions: missions,
+          guide_prohibitions: prohibitions,
+          guide_hashtags: hashtags.filter(h => h.trim())
         })
         .eq('id', campaignId)
 
       if (error) throw error
 
-      setSuccess('임시 저장되었습니다!')
+      // 결제 페이지로 이동
+      navigate(`/company/campaigns/payment?id=${campaignId}&region=korea`)
     } catch (err) {
       console.error('저장 실패:', err)
       setError('저장에 실패했습니다: ' + err.message)
-    } finally {
       setProcessing(false)
     }
   }
 
-  const handleGenerateGuide = async () => {
-    // 가이드 생성 (저장 + AI 생성 + 리뷰 페이지로 이동)
-    setProcessing(true)
-    setError('')
-    setSuccess('')
+  const missionOptions = [
+    { key: 'beforeAfter', label: 'Before & After 보여주기' },
+    { key: 'productCloseup', label: '제품 사용 장면 클로즈업' },
+    { key: 'productTexture', label: '제품 텍스처 보여주기' },
+    { key: 'storeVisit', label: '올리브영 매장 방문 인증' },
+    { key: 'weeklyReview', label: '7일 사용 후기 기록' },
+    { key: 'priceInfo', label: '가격/혜택 정보 언급' },
+    { key: 'purchaseLink', label: '구매 링크 유도' }
+  ]
 
-    try {
-      // 1. 먼저 저장
-      const { error: saveError } = await supabase
-        .from('campaigns')
-        .update({
-          required_dialogues: requiredDialogues.filter(d => d.trim()),
-          required_scenes: requiredScenes.filter(s => s.trim()),
-          required_hashtags: requiredHashtags.filter(h => h.trim()),
-          video_duration: videoDuration,
-          video_tempo: videoTempo,
-          video_tone: videoTone,
-          additional_details: additionalDetails,
-          shooting_scenes_ba_photo: shootingScenes.baPhoto,
-          shooting_scenes_no_makeup: shootingScenes.noMakeup,
-          shooting_scenes_closeup: shootingScenes.closeup,
-          shooting_scenes_product_closeup: shootingScenes.productCloseup,
-          shooting_scenes_product_texture: shootingScenes.productTexture,
-          shooting_scenes_outdoor: shootingScenes.outdoor,
-          shooting_scenes_couple: shootingScenes.couple,
-          shooting_scenes_child: shootingScenes.child,
-          shooting_scenes_troubled_skin: shootingScenes.troubledSkin,
-          shooting_scenes_wrinkles: shootingScenes.wrinkles,
-          additional_shooting_requests: additionalShootingRequests,
-          meta_ad_code_requested: metaAdCodeRequested,
-          guide_brand: brand,
-          guide_product_name: productName,
-          product_features: productFeatures,
-          product_key_points: productKeyPoints,
-          creator_autonomy: creatorAutonomy,
-          reference_links: referenceLinks.filter(link => link.trim())
-        })
-        .eq('id', campaignId)
-
-      if (saveError) throw saveError
-
-      // 2. 결제 방법 선택 페이지로 이동
-      navigate(`/company/campaigns/payment?id=${campaignId}&region=korea`)
-    } catch (err) {
-      console.error('가이드 생성 실패:', err)
-      setError('가이드 생성에 실패했습니다: ' + err.message)
-      setProcessing(false)
-    }
-  }
-
-  const handleSkip = () => {
-    navigate('/company/campaigns')
-  }
-
-  // 배열 필드 추가/삭제 함수
-  const addDialogue = () => setRequiredDialogues([...requiredDialogues, ''])
-  const removeDialogue = (index) => setRequiredDialogues(requiredDialogues.filter((_, i) => i !== index))
-  const updateDialogue = (index, value) => {
-    const newDialogues = [...requiredDialogues]
-    newDialogues[index] = value
-    setRequiredDialogues(newDialogues)
-  }
-
-  const addScene = () => setRequiredScenes([...requiredScenes, ''])
-  const removeScene = (index) => setRequiredScenes(requiredScenes.filter((_, i) => i !== index))
-  const updateScene = (index, value) => {
-    const newScenes = [...requiredScenes]
-    newScenes[index] = value
-    setRequiredScenes(newScenes)
-  }
-
-  const addHashtag = () => setRequiredHashtags([...requiredHashtags, ''])
-  const removeHashtag = (index) => setRequiredHashtags(requiredHashtags.filter((_, i) => i !== index))
-  const updateHashtag = (index, value) => {
-    const newHashtags = [...requiredHashtags]
-    newHashtags[index] = value
-    setRequiredHashtags(newHashtags)
-  }
-
-  // 촬영 장면 체크박스 변경 함수
-  const handleShootingSceneChange = (scene, checked) => {
-    setShootingScenes(prev => ({
-      ...prev,
-      [scene]: checked
-    }))
-  }
+  const prohibitionOptions = [
+    { key: 'competitorMention', label: '경쟁사 제품 언급 금지', default: true },
+    { key: 'exaggeratedClaims', label: '과장된 효능/효과 표현 금지', default: true },
+    { key: 'medicalMisrepresentation', label: '의약품 오인 표현 금지', default: true },
+    { key: 'priceOutOfSale', label: '세일 기간 외 가격 언급 금지', default: false },
+    { key: 'negativeExpression', label: '부정적 표현 사용 금지', default: false }
+  ]
 
   return (
     <>
       <CompanyNavigation />
-      <div className="container mx-auto p-6 max-w-4xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">크리에이터 가이드 작성</CardTitle>
-          <p className="text-sm text-gray-600 mt-2">
-            {campaignTitle && <span className="font-semibold">{campaignTitle}</span>}
-          </p>
-          {autoSaving && (
-            <p className="text-xs text-blue-600 mt-1">자동 저장 중...</p>
-          )}
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {/* 안내사항 */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-            <div className="text-sm text-blue-800">
-              <p className="font-semibold mb-1">안내사항</p>
-              <p>촬영 장면 및 대사는 크리에이터 선정 후 해당 크리에이터에 맞게 작성됩니다.</p>
-              <p className="mt-1">현재 단계에서는 제품 정보를 먼저 입력해주세요.</p>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4 max-w-4xl">
+          {/* 헤더 */}
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">크리에이터 가이드 작성</h1>
+              <p className="text-gray-600 mt-1">크리에이터가 영상 제작 시 참고할 가이드입니다</p>
+              {campaignTitle && (
+                <p className="text-sm text-gray-500 mt-2">{campaignTitle}</p>
+              )}
             </div>
-          </div>
-
-          {/* 크리에이터 자율성 체크박스 */}
-          <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={creatorAutonomy}
-                onChange={(e) => setCreatorAutonomy(e.target.checked)}
-                className="mt-1 w-5 h-5 text-red-600 border-red-300 rounded focus:ring-red-500"
-              />
-              <div>
-                <p className="text-base font-bold text-red-900">
-                  촬영 장면 및 대사는 크리에이터 자율로 하겠습니다
-                </p>
-                <div className="text-sm text-red-800 mt-2 space-y-1">
-                  <p className="font-semibold">
-                    ✓ 체크 시: 크리에이터가 제품 소개 방식을 자유롭게 결정합니다. (핵심 소구 포인트는 반드시 포함)
-                  </p>
-                  <p className="font-semibold text-blue-900">
-                    → 이 가이드가 통합가이드로 바로 전달됩니다.
-                  </p>
-                  <p className="font-semibold mt-2">
-                    ✗ 체크 해제 시: CNEC에서 촬영 장면 및 대사를 상세히 기획하여 제공합니다.
-                  </p>
-                  <p className="font-semibold text-blue-900">
-                    → 크리에이터 선정 후 → CNEC에서 가이드 1번 더 검토 → 크리에이터에게 제공됩니다.
-                  </p>
-                </div>
-                <p className="text-xs text-red-700 mt-3 font-medium">
-                  ⚠️ CNEC에서 촬영 가이드를 모두 기획하시길 원하시면 체크박스를 해제해주세요.
-                </p>
-              </div>
-            </label>
-          </div>
-
-          {/* 브랜드명 */}
-          <div>
-            <Label className="text-base font-semibold mb-2 block">
-              브랜드명 <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="예: ABC Beauty"
-              className="text-base"
-            />
-          </div>
-
-          {/* 제품명 */}
-          <div>
-            <Label className="text-base font-semibold mb-2 block">
-              제품명 <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="예: 히알루론산 수분 크림"
-              className="text-base"
-            />
-          </div>
-
-          {/* 일정 정보 (읽기 전용) */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-3">
-              📅 다음 일정은 캠페인 생성 시 입력한 정보입니다.
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-base font-semibold mb-2 block">
-                  촬영 마감일
-                </Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  disabled
-                  className="text-base bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <Label className="text-base font-semibold mb-2 block">
-                  SNS 업로드일
-                </Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  disabled
-                  className="text-base bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 제품 특징 */}
-          <div>
-            <Label className="text-base font-semibold mb-2 block">
-              제품 특징 <span className="text-red-500">*</span>
-            </Label>
-            <p className="text-sm text-gray-600 mb-3">
-              제품의 주요 성분, 효능, 특징 등을 상세히 작성해주세요.
-            </p>
-            <Textarea
-              value={productFeatures}
-              onChange={(e) => setProductFeatures(e.target.value)}
-              placeholder="예:&#10;- 주요 성분: 히알루론산, 세라마이드, 나이아신아마이드&#10;- 효능: 24시간 수분 지속, 피부 장벽 강화, 브라이트닝&#10;- 특징: 끈적임 없는 수분 제형, 민감성 피부 테스트 완료"
-              className="h-40 resize-none text-base"
-            />
-          </div>
-
-          {/* 영상에 꼭 들어갈 제품 소구 포인트 */}
-          <div>
-            <Label className="text-base font-semibold mb-2 block">
-              영상에 꼭 들어갈 제품 소구 포인트 <span className="text-red-500">*</span>
-            </Label>
-            <p className="text-sm text-gray-600 mb-3">
-              크리에이터가 영상에서 반드시 강조해야 할 핵심 메시지를 작성해주세요.
-            </p>
-            <Textarea
-              value={productKeyPoints}
-              onChange={(e) => setProductKeyPoints(e.target.value)}
-              placeholder="예:&#10;- 24시간 수분 지속력 강조&#10;- 끈적임 없는 텍스처 언급&#10;- 민감성 피부도 사용 가능하다는 점 강조&#10;- 브랜드 ABC의 신제품임을 명시"
-              className="h-40 resize-none text-base"
-            />
-          </div>
-
-          {/* 필수 대사 */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-base font-semibold">필수 대사</Label>
-              <Button type="button" size="sm" variant="outline" onClick={addDialogue}>
-                <Plus className="w-4 h-4 mr-1" /> 추가
-              </Button>
-            </div>
-            <p className="text-sm text-gray-600 mb-3">크리에이터가 꼭 말해야 하는 대사를 입력하세요</p>
-            {requiredDialogues.map((dialogue, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <Input
-                  value={dialogue}
-                  onChange={(e) => updateDialogue(index, e.target.value)}
-                  placeholder={`필수 대사 ${index + 1}`}
-                  className="flex-1"
-                />
-                {requiredDialogues.length > 1 && (
-                  <Button type="button" size="icon" variant="ghost" onClick={() => removeDialogue(index)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* 필수 장면 */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-base font-semibold">필수 장면</Label>
-              <Button type="button" size="sm" variant="outline" onClick={addScene}>
-                <Plus className="w-4 h-4 mr-1" /> 추가
-              </Button>
-            </div>
-            <p className="text-sm text-gray-600 mb-3">영상에 꼭 포함되어야 하는 장면을 설명하세요</p>
-            {requiredScenes.map((scene, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <Input
-                  value={scene}
-                  onChange={(e) => updateScene(index, e.target.value)}
-                  placeholder={`필수 장면 ${index + 1} (예: 제품 클로즈업 촬영)`}
-                  className="flex-1"
-                />
-                {requiredScenes.length > 1 && (
-                  <Button type="button" size="icon" variant="ghost" onClick={() => removeScene(index)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* 필수 촬영 장면 체크박스 */}
-          <div>
-            <Label className="text-base font-semibold mb-3 block">필수 촬영 장면</Label>
-            <p className="text-sm text-gray-600 mb-3">필요한 촬영 장면을 선택하세요</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="ba-photo" 
-                  checked={shootingScenes.baPhoto}
-                  onCheckedChange={(checked) => handleShootingSceneChange('baPhoto', checked)}
-                />
-                <label htmlFor="ba-photo" className="text-sm cursor-pointer">
-                  확실한 B&A 촬영
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="no-makeup" 
-                  checked={shootingScenes.noMakeup}
-                  onCheckedChange={(checked) => handleShootingSceneChange('noMakeup', checked)}
-                />
-                <label htmlFor="no-makeup" className="text-sm cursor-pointer">
-                  노메이크업
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="closeup" 
-                  checked={shootingScenes.closeup}
-                  onCheckedChange={(checked) => handleShootingSceneChange('closeup', checked)}
-                />
-                <label htmlFor="closeup" className="text-sm cursor-pointer">
-                  클로즈업
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="product-closeup" 
-                  checked={shootingScenes.productCloseup}
-                  onCheckedChange={(checked) => handleShootingSceneChange('productCloseup', checked)}
-                />
-                <label htmlFor="product-closeup" className="text-sm cursor-pointer">
-                  제품 클로즈업
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="product-texture" 
-                  checked={shootingScenes.productTexture}
-                  onCheckedChange={(checked) => handleShootingSceneChange('productTexture', checked)}
-                />
-                <label htmlFor="product-texture" className="text-sm cursor-pointer">
-                  제품 제형 클로즈업
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="outdoor" 
-                  checked={shootingScenes.outdoor}
-                  onCheckedChange={(checked) => handleShootingSceneChange('outdoor', checked)}
-                />
-                <label htmlFor="outdoor" className="text-sm cursor-pointer">
-                  외부촬영(카페, 외출 등)
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="couple" 
-                  checked={shootingScenes.couple}
-                  onCheckedChange={(checked) => handleShootingSceneChange('couple', checked)}
-                />
-                <label htmlFor="couple" className="text-sm cursor-pointer">
-                  커플출연
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="child" 
-                  checked={shootingScenes.child}
-                  onCheckedChange={(checked) => handleShootingSceneChange('child', checked)}
-                />
-                <label htmlFor="child" className="text-sm cursor-pointer">
-                  아이출연
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="troubled-skin" 
-                  checked={shootingScenes.troubledSkin}
-                  onCheckedChange={(checked) => handleShootingSceneChange('troubledSkin', checked)}
-                />
-                <label htmlFor="troubled-skin" className="text-sm cursor-pointer">
-                  트러블 피부 노출
-                </label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="wrinkles" 
-                  checked={shootingScenes.wrinkles}
-                  onCheckedChange={(checked) => handleShootingSceneChange('wrinkles', checked)}
-                />
-                <label htmlFor="wrinkles" className="text-sm cursor-pointer">
-                  피부 주름 노출
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* 추가 촬영 요청사항 */}
-          <div>
-            <Label className="text-base font-semibold">추가 촬영 요청사항</Label>
-            <p className="text-sm text-gray-600 mb-2">위 항목 외에 추가로 요청하고 싶은 촬영 장면이나 요구사항을 작성하세요</p>
-            <Textarea
-              value={additionalShootingRequests}
-              onChange={(e) => setAdditionalShootingRequests(e.target.value)}
-              placeholder="예: 자연광에서 촬영해주세요, 밝은 배경에서 촬영 부탁드립니다"
-              rows={3}
-              className="resize-none"
-            />
-          </div>
-
-          {/* 필수 해시태그 */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-base font-semibold">필수 해시태그</Label>
-              <Button type="button" size="sm" variant="outline" onClick={addHashtag}>
-                <Plus className="w-4 h-4 mr-1" /> 추가
-              </Button>
-            </div>
-            <p className="text-sm text-gray-600 mb-3">게시물에 꼭 포함해야 하는 해시태그를 입력하세요</p>
-            {requiredHashtags.map((hashtag, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <Input
-                  value={hashtag}
-                  onChange={(e) => updateHashtag(index, e.target.value)}
-                  placeholder={`#해시태그${index + 1}`}
-                  className="flex-1"
-                />
-                {requiredHashtags.length > 1 && (
-                  <Button type="button" size="icon" variant="ghost" onClick={() => removeHashtag(index)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* 원하는 영상 시간 */}
-          <div>
-            <Label className="text-base font-semibold">원하는 영상 시간</Label>
-            <Select value={videoDuration} onValueChange={setVideoDuration}>
-              <SelectTrigger className="mt-2 bg-white">
-                <SelectValue placeholder="영상 시간을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="15sec">15초</SelectItem>
-                <SelectItem value="30sec">30초</SelectItem>
-                <SelectItem value="45sec">45초</SelectItem>
-                <SelectItem value="1min">1분</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* 영상 템포 */}
-          <div>
-            <Label className="text-base font-semibold">영상 템포</Label>
-            <Select value={videoTempo} onValueChange={setVideoTempo}>
-              <SelectTrigger className="mt-2 bg-white">
-                <SelectValue placeholder="영상 템포를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="fast">빠름 (역동적, 빠른 편집)</SelectItem>
-                <SelectItem value="normal">보통 (자연스러운 속도)</SelectItem>
-                <SelectItem value="slow">느림 (차분하고 여유로운)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* 영상 톤앤매너 */}
-          <div>
-            <Label className="text-base font-semibold">영상 톤앤매너</Label>
-            <Select value={videoTone} onValueChange={setVideoTone}>
-              <SelectTrigger className="mt-2 bg-white">
-                <SelectValue placeholder="영상 분위기를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                <SelectItem value="bright">밝고 경쾌한</SelectItem>
-                <SelectItem value="calm">차분하고 진지한</SelectItem>
-                <SelectItem value="emotional">감성적인</SelectItem>
-                <SelectItem value="humorous">유머러스한</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* 기타 디테일 요청사항 */}
-          <div>
-            <Label className="text-base font-semibold">기타 디테일 요청사항</Label>
-            <p className="text-sm text-gray-600 mb-2">추가로 요청하고 싶은 사항을 자유롭게 작성하세요</p>
-            <Textarea
-              value={additionalDetails}
-              onChange={(e) => setAdditionalDetails(e.target.value)}
-              placeholder="예: 밝은 조명에서 촬영해주세요, 배경 음악은 경쾌한 느낌으로 부탁드립니다"
-              rows={5}
-              className="resize-none"
-            />
-          </div>
-
-          {/* 메타광고코드 발급 요청 */}
-          <div className="border-t pt-6">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="meta-ad-code" 
-                checked={metaAdCodeRequested}
-                onCheckedChange={setMetaAdCodeRequested}
-              />
-              <label htmlFor="meta-ad-code" className="text-base font-semibold cursor-pointer">
-                메타광고코드 발급 요청
-              </label>
-            </div>
-            <p className="text-sm text-gray-600 mt-2 ml-6">
-              체크하시면 메타(Facebook/Instagram) 광고 코드를 발급해드립니다
-            </p>
-          </div>
-
-          {/* 참고 레퍼런스 URL */}
-          <div className="border-t pt-6">
-            <Label className="text-base font-semibold">참고 레퍼런스 (선택)</Label>
-            <p className="text-sm text-gray-600 mt-1 mb-3">
-              크리에이터가 참고할 수 있는 영상/이미지 URL을 추가하세요 (예: YouTube, Instagram, 틱톡 링크)
-            </p>
-            <div className="space-y-2">
-              {referenceLinks.map((link, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    type="url"
-                    value={link}
-                    onChange={(e) => {
-                      const newLinks = [...referenceLinks]
-                      newLinks[index] = e.target.value
-                      setReferenceLinks(newLinks)
-                    }}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className="flex-1"
-                  />
-                  {referenceLinks.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const newLinks = referenceLinks.filter((_, i) => i !== index)
-                        setReferenceLinks(newLinks)
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+            <div className="flex gap-3">
               <Button
-                type="button"
                 variant="outline"
-                size="sm"
-                onClick={() => setReferenceLinks([...referenceLinks, ''])}
-                className="mt-2"
+                onClick={handleAIGuideGenerate}
+                className="border-amber-300 text-amber-700 hover:bg-amber-50"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                레퍼런스 추가
+                <span className="mr-2">🤖</span> AI 가이드 생성
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowTemplateModal(true)}
+                className="border-gray-300"
+              >
+                <span className="mr-2">📋</span> 템플릿
               </Button>
             </div>
           </div>
 
+          {/* 자동 저장 표시 */}
+          {autoSaving && (
+            <div className="mb-4 text-sm text-blue-600">자동 저장 중...</div>
+          )}
+
+          {/* 필수 입력 섹션 */}
+          <Card className="mb-6 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-xl">🎯</span>
+                <h2 className="text-lg font-semibold text-orange-600">필수 입력</h2>
+              </div>
+
+              {/* 1초 후킹 포인트 */}
+              <div className="mb-6">
+                <Label className="text-base font-semibold mb-2 flex items-center gap-2">
+                  <span>⚡</span> 1초 후킹 포인트 <span className="text-red-500">*</span>
+                </Label>
+                <p className="text-sm text-gray-600 mb-3">영상 시작 1초 안에 시청자를 사로잡을 핵심 포인트</p>
+                <Input
+                  value={hookingPoint}
+                  onChange={(e) => setHookingPoint(e.target.value.slice(0, 50))}
+                  placeholder="이거 바르고 피부결 미쳤어요"
+                  className="text-base"
+                  maxLength={50}
+                />
+                <div className="flex justify-between mt-2">
+                  <p className="text-xs text-gray-500">
+                    💡 예시: "3일만에 트러블 잡은 비결", "7일 후 피부가 달라졌다"
+                  </p>
+                  <span className="text-xs text-gray-400">{hookingPoint.length}/50자</span>
+                </div>
+              </div>
+
+              {/* 핵심 메시지 */}
+              <div>
+                <Label className="text-base font-semibold mb-2 flex items-center gap-2">
+                  <span>💬</span> 핵심 메시지 <span className="text-red-500">*</span>
+                </Label>
+                <p className="text-sm text-gray-600 mb-3">이 영상을 통해 전달하고 싶은 핵심 메시지 한 줄</p>
+                <Textarea
+                  value={coreMessage}
+                  onChange={(e) => setCoreMessage(e.target.value.slice(0, 100))}
+                  placeholder="수분 부족한 겨울철, 히알루론산 7중 콤플렉스로 속부터 차오르는 깊은 보습을 경험하세요"
+                  className="resize-none"
+                  rows={3}
+                  maxLength={100}
+                />
+                <div className="flex justify-end mt-2">
+                  <span className="text-xs text-gray-400">{coreMessage.length}/100자</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 필수 미션 섹션 */}
+          <Card className="mb-6 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl">🎬</span>
+                <h2 className="text-lg font-semibold">필수 미션 <span className="text-red-500">*</span></h2>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">크리에이터가 반드시 수행해야 할 미션을 선택하세요</p>
+
+              <div className="space-y-3">
+                {missionOptions.map((option) => (
+                  <div
+                    key={option.key}
+                    className={`flex items-center p-4 rounded-lg border transition-colors cursor-pointer ${
+                      missions[option.key]
+                        ? 'bg-amber-50 border-amber-300'
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => handleMissionChange(option.key, !missions[option.key])}
+                  >
+                    <Checkbox
+                      checked={missions[option.key]}
+                      onCheckedChange={(checked) => handleMissionChange(option.key, checked)}
+                      className="mr-3"
+                    />
+                    <span className="text-gray-800">{option.label}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 금지 사항 섹션 */}
+          <Card className="mb-6 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl">🚫</span>
+                <h2 className="text-lg font-semibold">금지 사항 <span className="text-red-500">*</span></h2>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">크리에이터가 절대 하면 안 되는 것들</p>
+
+              <div className="space-y-3">
+                {prohibitionOptions.map((option) => (
+                  <div
+                    key={option.key}
+                    className={`flex items-center p-4 rounded-lg border transition-colors cursor-pointer ${
+                      prohibitions[option.key]
+                        ? 'bg-red-50 border-red-300'
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => handleProhibitionChange(option.key, !prohibitions[option.key])}
+                  >
+                    <Checkbox
+                      checked={prohibitions[option.key]}
+                      onCheckedChange={(checked) => handleProhibitionChange(option.key, checked)}
+                      className={`mr-3 ${prohibitions[option.key] ? 'border-red-500 data-[state=checked]:bg-red-500' : ''}`}
+                    />
+                    <span className={prohibitions[option.key] ? 'text-red-800 font-medium' : 'text-gray-800'}>
+                      {option.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 자동 생성 해시태그 섹션 */}
+          <Card className="mb-6 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl">#️⃣</span>
+                <h2 className="text-lg font-semibold">자동 생성 해시태그</h2>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">1초 후킹 포인트와 핵심 메시지를 기반으로 자동 생성됩니다</p>
+
+              <div className="flex gap-3 flex-wrap">
+                {hashtags.map((tag, index) => (
+                  <Input
+                    key={index}
+                    value={tag}
+                    onChange={(e) => {
+                      const newTags = [...hashtags]
+                      newTags[index] = e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`
+                      setHashtags(newTags)
+                    }}
+                    placeholder={`#해시태그${index + 1}`}
+                    className="w-40"
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 에러/성공 메시지 */}
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {error}
             </div>
           )}
-
           {success && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm">
               {success}
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          {/* 하단 버튼 */}
+          <div className="flex gap-4">
             <Button
-              onClick={handleSave}
-              disabled={processing}
               variant="outline"
+              onClick={saveTemplate}
               className="flex-1"
             >
-              {processing ? '저장 중...' : '임시 저장'}
+              템플릿으로 저장
             </Button>
             <Button
-              onClick={handleGenerateGuide}
-              disabled={processing}
-              className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              onClick={handleSaveAndContinue}
+              disabled={processing || !hookingPoint || !coreMessage}
+              className="flex-1 bg-purple-600 hover:bg-purple-700"
             >
-              {processing ? '생성 중...' : '🎉 가이드 생성'}
+              {processing ? '저장 중...' : '저장 후 다음 단계'}
             </Button>
           </div>
+        </div>
+      </div>
 
-          <p className="text-xs text-gray-500 text-center">
-            작성 중인 내용은 10초마다 자동으로 저장됩니다
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+      {/* 템플릿 모달 */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">저장된 템플릿</h3>
+              <button onClick={() => setShowTemplateModal(false)} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+
+            {savedTemplates.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">저장된 템플릿이 없습니다</p>
+            ) : (
+              <div className="space-y-3">
+                {savedTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 cursor-pointer transition-colors"
+                    onClick={() => loadTemplate(template)}
+                  >
+                    <p className="font-medium">{template.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{template.hookingPoint || '후킹 포인트 없음'}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(template.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => setShowTemplateModal(false)}
+              className="w-full mt-4"
+            >
+              닫기
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   )
 }
