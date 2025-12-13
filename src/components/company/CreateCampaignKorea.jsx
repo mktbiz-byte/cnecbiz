@@ -336,28 +336,37 @@ const CampaignCreationKorea = () => {
     { value: 'professional', label: '프로페셔널', price: 600000, description: '올리브영 전문가' }
   ]
 
-  // 올리브영 서브타입별 크리에이터 특성
-  const oliveyoungSubtypeCharacteristics = {
-    pick: {
-      label: '올영픽',
-      followerRange: '1만~5만',
-      qualityLevel: 2,
-      characteristics: ['뷰티 전문 크리에이터', '인기 상품 추천'],
-      expectedApplicants: '10~20'
-    },
-    sale: {
-      label: '올영세일',
-      followerRange: '3만~10만',
-      qualityLevel: 3,
-      characteristics: ['세일 기간 집중 홍보', '3단계 콘텐츠'],
-      expectedApplicants: '15~30'
-    },
-    special: {
-      label: '오특',
-      followerRange: '5만~15만',
-      qualityLevel: 4,
-      characteristics: ['핫딜 프로모션', '높은 구매 전환율'],
-      expectedApplicants: '20~40'
+  // 올리브영 지원율 높이기 금액별 크리에이터 특성
+  const getOliveyoungCreatorLevel = (bonusAmount) => {
+    const bonus = bonusAmount || 0
+    if (bonus >= 300000) {
+      return {
+        followerRange: '10만~30만',
+        qualityLevel: 5,
+        characteristics: ['탑티어 뷰티 크리에이터', '강력한 구매 전환'],
+        expectedApplicants: '25~45'
+      }
+    } else if (bonus >= 200000) {
+      return {
+        followerRange: '7만~15만',
+        qualityLevel: 4,
+        characteristics: ['인기 뷰티 크리에이터', '높은 영향력'],
+        expectedApplicants: '20~35'
+      }
+    } else if (bonus >= 100000) {
+      return {
+        followerRange: '3만~10만',
+        qualityLevel: 3,
+        characteristics: ['중견 뷰티 크리에이터', '안정적 노출'],
+        expectedApplicants: '15~30'
+      }
+    } else {
+      return {
+        followerRange: '1만~5만',
+        qualityLevel: 2,
+        characteristics: ['뷰티 전문 크리에이터', '인기 상품 추천'],
+        expectedApplicants: '10~20'
+      }
     }
   }
 
@@ -2563,9 +2572,9 @@ const CampaignCreationKorea = () => {
                           </div>
                         </div>
 
-                        {/* 크리에이터 특성 표시 */}
+                        {/* 크리에이터 특성 표시 - 지원율 높이기 금액 기반 */}
                         {(() => {
-                          const subtypeInfo = oliveyoungSubtypeCharacteristics[campaignForm.oliveyoung_subtype] || oliveyoungSubtypeCharacteristics.pick
+                          const creatorLevel = getOliveyoungCreatorLevel(campaignForm.bonus_amount)
                           return (
                             <div className="mt-3 pt-3 border-t border-slate-700">
                               <div className="flex items-center gap-2 mb-2">
@@ -2575,7 +2584,7 @@ const CampaignCreationKorea = () => {
                                     <div
                                       key={level}
                                       className={`w-2 h-2 rounded-full ${
-                                        level <= subtypeInfo.qualityLevel
+                                        level <= creatorLevel.qualityLevel
                                           ? 'bg-gradient-to-r from-pink-400 to-rose-400'
                                           : 'bg-slate-600'
                                       }`}
@@ -2585,9 +2594,9 @@ const CampaignCreationKorea = () => {
                               </div>
                               <div className="flex flex-wrap gap-1.5">
                                 <span className="text-xs px-2 py-0.5 bg-pink-500/20 text-pink-300 rounded">
-                                  팔로워 {subtypeInfo.followerRange}
+                                  팔로워 {creatorLevel.followerRange}
                                 </span>
-                                {subtypeInfo.characteristics.map((char, idx) => (
+                                {creatorLevel.characteristics.map((char, idx) => (
                                   <span key={idx} className="text-xs px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded">
                                     {char}
                                   </span>
