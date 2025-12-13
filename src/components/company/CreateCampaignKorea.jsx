@@ -770,8 +770,8 @@ const CampaignCreationKorea = () => {
         campaignForm.question4
       ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
 
-      // DB에 없는 필드 제외 (product_price, shipping_date 등)
-      const { question1, question2, question3, question4, target_platforms, product_price, shipping_date, ...restForm } = campaignForm
+      // DB에 없는 필드 제외 (product_price, shipping_date, bonus_amount 등)
+      const { question1, question2, question3, question4, target_platforms, product_price, shipping_date, bonus_amount, oliveyoung_recruit_count, ...restForm } = campaignForm
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
       const categoryNames = campaignForm.category
@@ -1100,6 +1100,55 @@ const CampaignCreationKorea = () => {
       <div className="bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-4 lg:px-12">
           <form id="campaign-form" onSubmit={handleSubmit}>
+            {/* 이전 캠페인 선택 모달 - 모든 캠페인 타입에서 공통 사용 */}
+            {showPreviousCampaigns && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl max-w-lg w-full max-h-[70vh] overflow-hidden shadow-xl">
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900">이전 캠페인에서 불러오기</h3>
+                    <button type="button" onClick={() => setShowPreviousCampaigns(false)} className="text-gray-400 hover:text-gray-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="p-4 overflow-y-auto max-h-[50vh]">
+                    {loadingPrevious ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                      </div>
+                    ) : previousCampaigns.length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">이전 캠페인이 없습니다</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {previousCampaigns.map(campaign => (
+                          <button
+                            type="button"
+                            key={campaign.id}
+                            onClick={() => loadFromPreviousCampaign(campaign.id)}
+                            className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left"
+                          >
+                            {campaign.image_url ? (
+                              <img src={campaign.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                                <Package className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">{campaign.product_name || '제품명 없음'}</p>
+                              <p className="text-sm text-gray-500 truncate">{campaign.brand || '브랜드 없음'}</p>
+                            </div>
+                            <span className="text-xs text-gray-400">
+                              {new Date(campaign.created_at).toLocaleDateString('ko-KR')}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 기획형 캠페인 - 2컬럼 레이아웃 (폼 + 견적서) */}
             {campaignForm.campaign_type === 'planned' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1254,55 +1303,6 @@ const CampaignCreationKorea = () => {
                         이전 캠페인에서 불러오기
                       </Button>
                     </div>
-
-                    {/* 이전 캠페인 선택 모달 */}
-                    {showPreviousCampaigns && (
-                      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-xl max-w-lg w-full max-h-[70vh] overflow-hidden shadow-xl">
-                          <div className="p-4 border-b flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900">이전 캠페인에서 불러오기</h3>
-                            <button type="button" onClick={() => setShowPreviousCampaigns(false)} className="text-gray-400 hover:text-gray-600">
-                              <X className="w-5 h-5" />
-                            </button>
-                          </div>
-                          <div className="p-4 overflow-y-auto max-h-[50vh]">
-                            {loadingPrevious ? (
-                              <div className="flex items-center justify-center py-8">
-                                <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-                              </div>
-                            ) : previousCampaigns.length === 0 ? (
-                              <p className="text-center text-gray-500 py-8">이전 캠페인이 없습니다</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {previousCampaigns.map(campaign => (
-                                  <button
-                                    type="button"
-                                    key={campaign.id}
-                                    onClick={() => loadFromPreviousCampaign(campaign.id)}
-                                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left"
-                                  >
-                                    {campaign.image_url ? (
-                                      <img src={campaign.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                                    ) : (
-                                      <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
-                                        <Package className="w-6 h-6 text-gray-400" />
-                                      </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium text-gray-900 truncate">{campaign.product_name || '제품명 없음'}</p>
-                                      <p className="text-sm text-gray-500 truncate">{campaign.brand || '브랜드 없음'}</p>
-                                    </div>
-                                    <span className="text-xs text-gray-400">
-                                      {new Date(campaign.created_at).toLocaleDateString('ko-KR')}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
                     <div className="space-y-5">
                       <div>
