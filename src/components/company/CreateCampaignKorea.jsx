@@ -1945,7 +1945,7 @@ const CampaignCreationKorea = () => {
                 )}
               </div>
 
-              {/* 올영세일 캠페인 상세 설정 */}
+              {/* 올영세일 캠페인 상세 설정 - 2컬럼 레이아웃 */}
               {campaignForm.campaign_type === 'oliveyoung' && (
                 <div className="border-t pt-6 mt-6">
                   <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -1953,8 +1953,11 @@ const CampaignCreationKorea = () => {
                     올리브영 캠페인 상세 설정
                   </h3>
 
-                  {/* 패키지 타입 카드 선택 */}
-                  <div className="mb-8">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* 왼쪽: 폼 영역 */}
+                    <div className="flex-1">
+                      {/* 패키지 타입 카드 선택 */}
+                      <div className="mb-8">
                     <Label className="block mb-3 font-semibold text-gray-700">패키지 타입 선택 *</Label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* 올영픽 카드 */}
@@ -2197,20 +2200,93 @@ const CampaignCreationKorea = () => {
                     )}
                   </div>
 
-                  {/* 앰블럼 & 추가 옵션 */}
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={campaignForm.emblem_required}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, emblem_required: e.target.checked }))}
-                        className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
-                      />
-                      <div>
-                        <span className="font-medium text-gray-900">올영세일 앰블럼 삽입</span>
-                        <p className="text-xs text-gray-500">영상에 올리브영 세일 로고를 포함합니다</p>
+                      {/* 앰블럼 & 추가 옵션 */}
+                      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={campaignForm.emblem_required}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, emblem_required: e.target.checked }))}
+                            className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
+                          />
+                          <div>
+                            <span className="font-medium text-gray-900">올영세일 앰블럼 삽입</span>
+                            <p className="text-xs text-gray-500">영상에 올리브영 세일 로고를 포함합니다</p>
+                          </div>
+                        </label>
                       </div>
-                    </label>
+                    </div>
+
+                    {/* 오른쪽: Sticky 견적서 */}
+                    <div className="lg:w-80">
+                      <div className="sticky top-6">
+                        <div className="bg-white rounded-2xl border-2 border-pink-200 p-6 shadow-lg">
+                          <h4 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <span className="text-xl">📋</span> 실시간 견적서
+                          </h4>
+
+                          {/* 선택 요약 */}
+                          <div className="space-y-3 mb-4 pb-4 border-b">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">패키지</span>
+                              <span className="font-medium">
+                                {campaignForm.oliveyoung_subtype === 'pick' ? '올영픽' :
+                                 campaignForm.oliveyoung_subtype === 'sale' ? '올영세일' : '오특'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">모집 인원</span>
+                              <span className="font-medium">{campaignForm.oliveyoung_recruit_count || 1}명</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">단가</span>
+                              <span className="font-medium">₩400,000</span>
+                            </div>
+                          </div>
+
+                          {/* 금액 계산 */}
+                          <div className="space-y-2 mb-4">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">소계</span>
+                              <span>₩{(400000 * (campaignForm.oliveyoung_recruit_count || 1)).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">부가세 (10%)</span>
+                              <span>₩{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 0.1).toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          {/* 총액 */}
+                          <div className="bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl p-4 mb-4">
+                            <div className="text-sm opacity-90">예상 결제 금액</div>
+                            <div className="text-2xl font-bold">
+                              ₩{Math.round(400000 * (campaignForm.oliveyoung_recruit_count || 1) * 1.1).toLocaleString()}
+                            </div>
+                          </div>
+
+                          {/* AI 예측 배너 */}
+                          <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200 mb-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm">🤖</span>
+                              <span className="text-sm font-semibold text-indigo-800">AI 예측</span>
+                            </div>
+                            <p className="text-sm text-gray-700">
+                              예상 지원자:{' '}
+                              <span className="font-bold text-indigo-600">
+                                {Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 1.5)}~{Math.floor((campaignForm.oliveyoung_recruit_count || 1) * 2.5)}명
+                              </span>
+                            </p>
+                          </div>
+
+                          {/* 포함 내용 */}
+                          <div className="text-xs text-gray-500 space-y-1">
+                            <p>* 3단계 콘텐츠 (릴스 2건 + 스토리 1건)</p>
+                            <p>* 크리에이터 SNS 업로드 포함</p>
+                            <p>* 통합 가이드 제공</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
