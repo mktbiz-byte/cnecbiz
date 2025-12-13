@@ -73,6 +73,15 @@ const CampaignCreationKorea = () => {
   const [isCrawling, setIsCrawling] = useState(false)
   const [crawlError, setCrawlError] = useState(null)
 
+  // 자동 저장 상태
+  const [lastSaved, setLastSaved] = useState(null)
+  const [autoSaving, setAutoSaving] = useState(false)
+  const autoSaveTimeoutRef = useRef(null)
+
+  // 현재 단계 (step) 상태
+  const [currentStep, setCurrentStep] = useState(1)
+  const totalSteps = 3 // 총 3단계
+
   // 이전 캠페인 목록 불러오기
   const loadPreviousCampaigns = async () => {
     setLoadingPrevious(true)
@@ -182,6 +191,102 @@ const CampaignCreationKorea = () => {
       setCrawlError('네트워크 오류가 발생했습니다. 상품 정보를 수동으로 입력해주세요.')
     } finally {
       setIsCrawling(false)
+    }
+  }
+
+  // 자동 저장 함수
+  const autoSave = async () => {
+    if (!campaignForm.brand && !campaignForm.product_name) return // 아무것도 입력하지 않으면 저장 안함
+
+    setAutoSaving(true)
+    try {
+      const saveData = {
+        ...campaignForm,
+        savedAt: new Date().toISOString()
+      }
+      localStorage.setItem('campaign_draft_korea', JSON.stringify(saveData))
+      setLastSaved(new Date())
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+    } finally {
+      setAutoSaving(false)
+    }
+  }
+
+  // 폼 변경 시 자동 저장 트리거
+  useEffect(() => {
+    if (editId) return // 수정 모드에서는 자동 저장 안함
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSave()
+    }, 3000) // 3초 후 자동 저장
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [campaignForm])
+
+  // 컴포넌트 마운트 시 저장된 드래프트 불러오기
+  useEffect(() => {
+    if (editId) return // 수정 모드에서는 불러오지 않음
+
+    const savedDraft = localStorage.getItem('campaign_draft_korea')
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft)
+        const savedTime = new Date(parsed.savedAt)
+        const now = new Date()
+        const hoursDiff = (now - savedTime) / (1000 * 60 * 60)
+
+        // 24시간 이내 저장본만 복원
+        if (hoursDiff < 24) {
+          delete parsed.savedAt
+          setCampaignForm(prev => ({ ...prev, ...parsed }))
+          setLastSaved(savedTime)
+        } else {
+          localStorage.removeItem('campaign_draft_korea')
+        }
+      } catch (error) {
+        console.error('Failed to load draft:', error)
+      }
+    }
+  }, [editId])
+
+  // 저장 완료 후 드래프트 삭제
+  useEffect(() => {
+    if (success) {
+      localStorage.removeItem('campaign_draft_korea')
+    }
+  }, [success])
+
+  // 시간 포맷
+  const formatTime = (date) => {
+    if (!date) return ''
+    const hours = date.getHours()
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    const period = hours >= 12 ? '오후' : '오전'
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours
+    return `${period} ${displayHours.toString().padStart(2, '0')}:${minutes}`
+  }
+
+  // 이전/다음 단계 이동
+  const goToNextStep = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const goToPrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -938,7 +1043,7 @@ const CampaignCreationKorea = () => {
       {/* 캠페인 상세 설정 폼 - 전체 너비 */}
       <div className="bg-gray-50 py-12">
         <div className="max-w-7xl mx-auto px-4 lg:px-12">
-          <form onSubmit={handleSubmit}>
+          <form id="campaign-form" onSubmit={handleSubmit}>
             {/* 기획형 캠페인 - 2컬럼 레이아웃 (폼 + 견적서) */}
             {campaignForm.campaign_type === 'planned' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -2272,6 +2377,77 @@ const CampaignCreationKorea = () => {
           </form>
         </div>
       </div>
+
+      {/* 하단 고정 네비게이션 바 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* 왼쪽: 자동 저장 상태 */}
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              {autoSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>저장 중...</span>
+                </>
+              ) : lastSaved ? (
+                <>
+                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>자동 저장됨 ({formatTime(lastSaved)})</span>
+                </>
+              ) : (
+                <span className="text-gray-400">입력 내용이 자동 저장됩니다</span>
+              )}
+            </div>
+
+            {/* 오른쪽: 버튼들 */}
+            <div className="flex items-center gap-3">
+              {/* 도움이 필요하신가요 */}
+              <button
+                type="button"
+                onClick={() => window.open('https://pf.kakao.com/_xnxfxhxj', '_blank')}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">?</span>
+                </span>
+                <span>도움이 필요하신가요?</span>
+                <span className="text-xs text-gray-400">전문 매니저가 상담해드립니다.</span>
+              </button>
+
+              {/* 이전 단계 버튼 */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/company/campaigns')}
+                className="px-6 py-2.5 border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                이전 단계
+              </Button>
+
+              {/* 다음 단계 버튼 */}
+              <Button
+                type="submit"
+                form="campaign-form"
+                disabled={processing || campaignForm.category.length === 0}
+                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {processing ? '저장 중...' : (editId ? '수정하기' : '다음 단계')}
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 하단 바 공간 확보 */}
+      <div className="h-20"></div>
     </div>
   )
 }
