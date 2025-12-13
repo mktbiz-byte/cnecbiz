@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
@@ -24,11 +24,78 @@ const getYouTubeThumbnail = (videoId) => {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
+// 개별 비디오 카드 컴포넌트 (자동재생 지원)
+const VideoCard = ({ video }) => {
+  const [isVisible, setIsVisible] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const cardRef = useRef(null)
+
+  const youtubeId = getYouTubeVideoId(video.url || video.youtube_url)
+  const thumbnailUrl = video.thumbnail_url || getYouTubeThumbnail(youtubeId)
+
+  // Intersection Observer로 화면에 보일 때 감지
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting)
+      },
+      { threshold: 0.5 }
+    )
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={cardRef}
+      className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-white/5 group"
+    >
+      {isVisible && youtubeId ? (
+        // 화면에 보이면 YouTube 임베드 자동재생
+        <iframe
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&showinfo=0&rel=0&modestbranding=1`}
+          className="w-full h-full pointer-events-none"
+          allow="autoplay; encrypted-media"
+          loading="lazy"
+          onLoad={() => setIsLoaded(true)}
+        />
+      ) : thumbnailUrl ? (
+        // 화면 밖이면 썸네일만 표시 (빠른 로딩)
+        <img
+          src={thumbnailUrl}
+          alt={video.title}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={(e) => {
+            if (e.target.src.includes('maxresdefault')) {
+              e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
+            }
+          }}
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
+          <Play className="w-12 h-12 text-white/40" />
+        </div>
+      )}
+
+      {/* 로딩 중 오버레이 */}
+      {isVisible && !isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
   const [videos, setVideos] = useState([])
-  const [playingVideoId, setPlayingVideoId] = useState(null) // 현재 재생 중인 영상 ID
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const [faqs, setFaqs] = useState([])
@@ -310,58 +377,11 @@ export default function LandingPage() {
             <p className="text-white/60">브랜딩을 해치지 않으면서 감도 높게 제품을 소개</p>
           </div>
 
-          {/* Video Grid - YouTube Optimized */}
+          {/* Video Grid - 자동재생 */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {videos.slice(0, 5).map((video) => {
-              const youtubeId = getYouTubeVideoId(video.url || video.youtube_url)
-              const thumbnailUrl = video.thumbnail_url || getYouTubeThumbnail(youtubeId)
-              const isPlaying = playingVideoId === video.id
-
-              return (
-                <div
-                  key={video.id}
-                  className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-white/5 group cursor-pointer"
-                  onClick={() => setPlayingVideoId(isPlaying ? null : video.id)}
-                >
-                  {isPlaying && youtubeId ? (
-                    // YouTube 임베드 (클릭 시 재생)
-                    <iframe
-                      src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&showinfo=0&rel=0`}
-                      className="w-full h-full"
-                      allow="autoplay; encrypted-media"
-                      allowFullScreen
-                      loading="lazy"
-                    />
-                  ) : thumbnailUrl ? (
-                    // 썸네일 이미지 (빠른 로딩)
-                    <>
-                      <img
-                        src={thumbnailUrl}
-                        alt={video.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        onError={(e) => {
-                          // maxresdefault 실패 시 hqdefault로 fallback
-                          if (e.target.src.includes('maxresdefault')) {
-                            e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
-                          }
-                        }}
-                      />
-                      {/* 재생 버튼 오버레이 */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
-                        <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Play className="w-6 h-6 text-white fill-white ml-1" />
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
-                      <Play className="w-12 h-12 text-white/40" />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            {videos.slice(0, 5).map((video) => (
+              <VideoCard key={video.id} video={video} />
+            ))}
           </div>
 
           {/* Contact Form Overlay Style */}
