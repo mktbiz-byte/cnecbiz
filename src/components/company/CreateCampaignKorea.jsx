@@ -600,32 +600,22 @@ const CampaignCreationKorea = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
-            ← 캠페인 목록으로
-          </Button>
-        </div>
+      {/* 뒤로가기 버튼 */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <Button variant="ghost" onClick={() => navigate('/company/campaigns')}>
+          ← 캠페인 목록으로
+        </Button>
+      </div>
 
+      {/* 캠페인 타입 선택 - 전체 너비 */}
+      <div className="bg-white border-y border-gray-200 py-12 mt-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">가장 합리적인 캠페인을 선택하세요</h1>
+            <p className="text-gray-500 text-lg">복잡한 옵션은 빼고, 꼭 필요한 기능만 담았습니다.</p>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              🇰🇷 {editId ? '캠페인 수정' : '한국 캠페인 생성'}
-            </CardTitle>
-            <p className="text-sm text-gray-600 mt-2">cnec-kr 데이터베이스에 캠페인이 생성됩니다</p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              
-              {/* 1. 캠페인 타입 선택 - 가격 카드 스타일 */}
-              <div className="py-8">
-                <div className="text-center mb-8">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">가장 합리적인 캠페인을 선택하세요</h2>
-                  <p className="text-gray-500">복잡한 옵션은 빼고, 꼭 필요한 기능만 담았습니다.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
                   {/* 기획형 캠페인 */}
                   <div
                     className={`relative bg-white rounded-2xl border-2 p-6 transition-all cursor-pointer ${
@@ -793,10 +783,21 @@ const CampaignCreationKorea = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* 2. 패키지 선택 */}
-              <div className="border-t pt-6 mt-6">
-                <Label htmlFor="package_type">패키지 선택 *</Label>
+        {/* 캠페인 상세 설정 폼 */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>{editId ? '캠페인 수정' : '캠페인 상세 설정'}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* 패키지 선택 */}
+                <div>
+                  <Label htmlFor="package_type">패키지 선택 *</Label>
                 {campaignForm.campaign_type === '4week_challenge' ? (
                   <Select value={campaignForm.package_type} onValueChange={handlePackageChange}>
                     <SelectTrigger className="bg-white mt-2">
@@ -878,12 +879,12 @@ const CampaignCreationKorea = () => {
                     </div>
                   </>
                 )}
-              </div>
+                </div>
 
-              {/* 3. 모집 인원 및 결제 예상 금액 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="total_slots">모집 인원 *</Label>
+                {/* 모집 인원 및 결제 예상 금액 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="total_slots">모집 인원 *</Label>
                   <Input
                     id="total_slots"
                     type="number"
