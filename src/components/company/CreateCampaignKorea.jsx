@@ -770,15 +770,35 @@ const CampaignCreationKorea = () => {
         campaignForm.question4
       ].filter(q => q && q.trim() !== '').map(q => ({ question: q }))
 
-      // DB에 없는 필드 제외
-      const {
-        question1, question2, question3, question4,
-        target_platforms, product_price, shipping_date,
-        bonus_amount, oliveyoung_recruit_count,
-        sale_season, provide_logo, oliveyoung_logo_url,
-        content_type, emblem_required,
-        ...restForm
-      } = campaignForm
+      // DB에 저장할 필드만 명시적으로 선택 (화이트리스트 방식)
+      const allowedFields = {
+        campaign_type: campaignForm.campaign_type,
+        package_type: campaignForm.package_type,
+        brand: campaignForm.brand,
+        product_name: campaignForm.product_name,
+        product_description: campaignForm.product_description,
+        product_link: campaignForm.product_link,
+        product_detail_file_url: campaignForm.product_detail_file_url,
+        category: campaignForm.category,
+        total_slots: campaignForm.total_slots,
+        remaining_slots: campaignForm.remaining_slots,
+        application_deadline: campaignForm.application_deadline || null,
+        start_date: campaignForm.start_date || null,
+        end_date: campaignForm.end_date || null,
+        reward_points: campaignForm.reward_points,
+        estimated_cost: campaignForm.estimated_cost,
+        requirements: campaignForm.requirements,
+        image_url: campaignForm.image_url,
+        is_oliveyoung_sale: campaignForm.is_oliveyoung_sale,
+        oliveyoung_subtype: campaignForm.oliveyoung_subtype,
+        step1_deadline: campaignForm.step1_deadline || null,
+        step2_deadline: campaignForm.step2_deadline || null,
+        step3_deadline: campaignForm.step3_deadline || null,
+        week1_deadline: campaignForm.week1_deadline || null,
+        week2_deadline: campaignForm.week2_deadline || null,
+        week3_deadline: campaignForm.week3_deadline || null,
+        week4_deadline: campaignForm.week4_deadline || null
+      }
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
       const categoryNames = campaignForm.category
@@ -830,26 +850,15 @@ const CampaignCreationKorea = () => {
       }
 
       const campaignData = {
-        ...restForm,
+        ...allowedFields,
         title: autoTitle,
         reward_points: parseInt(campaignForm.reward_points) || 0,
         total_slots: parseInt(campaignForm.total_slots) || 0,
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
-        target_platforms: campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
-        company_id: currentUser.id,  // user_id 저장
-        company_email: userEmail,  // 회사 이메일 저장
-        // 빈 문자열인 날짜 필드를 null로 변환
-        application_deadline: campaignForm.application_deadline || null,
-        start_date: campaignForm.start_date || null,
-        end_date: campaignForm.end_date || null,
-        step1_deadline: campaignForm.step1_deadline || null,
-        step2_deadline: campaignForm.step2_deadline || null,
-        step3_deadline: campaignForm.step3_deadline || null,
-        week1_deadline: campaignForm.week1_deadline || null,
-        week2_deadline: campaignForm.week2_deadline || null,
-        week3_deadline: campaignForm.week3_deadline || null,
-        week4_deadline: campaignForm.week4_deadline || null
+        target_platforms: Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
+        company_id: currentUser.id,
+        company_email: userEmail
       }
 
       if (editId) {
