@@ -341,7 +341,7 @@ export default function LandingPage() {
                     onClick={() => navigate('/signup')}
                     className="px-5 py-2.5 bg-white text-gray-900 rounded-full text-sm font-medium hover:bg-gray-100 transition-all"
                   >
-                    무료 시작
+                    회원 가입
                   </button>
                 </>
               )}
@@ -383,7 +383,7 @@ export default function LandingPage() {
                       onClick={() => { navigate('/signup'); setMobileMenuOpen(false); }}
                       className="w-full py-3 bg-white text-gray-900 rounded-full font-medium"
                     >
-                      무료 시작
+                      회원 가입
                     </button>
                   </>
                 )}
