@@ -2681,379 +2681,532 @@ const CampaignCreationKorea = () => {
               </div>
             )}
 
-            {/* 4주 챌린지만 기존 레이아웃 유지 */}
+            {/* 4주 챌린지 - 2컬럼 레이아웃 (기획형/올영세일과 동일) */}
             {campaignForm.campaign_type === '4week_challenge' && (
-              <Card className="shadow-lg max-w-4xl mx-auto">
-                <CardHeader>
-                  <CardTitle>{editId ? '캠페인 수정' : '캠페인 상세 설정'}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="brand">브랜드명 *</Label>
-                <Input
-                  id="brand"
-                  value={campaignForm.brand}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
-                  placeholder="예: 에이블씨엔씨"
-                  required
-                />
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 왼쪽: 모든 폼 필드 */}
+                <div className="lg:col-span-2 space-y-8">
+                  {/* 캠페인 옵션 선택 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">4주 챌린지 캠페인 옵션</h2>
+                    <p className="text-gray-500 mb-6">4주간 크리에이터가 매주 1회씩 콘텐츠를 업로드합니다.</p>
 
-              {/* 5. 참여 조건 */}
-              <div>
-                <Label htmlFor="requirements">참여 조건</Label>
-                <Textarea
-                  id="requirements"
-                  value={campaignForm.requirements}
-                  onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                  placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
-                  rows={3}
-                />
-              </div>
-
-              {/* 6. 모집 채널 (카테고리) */}
-              <div>
-                <Label>모집 채널 * (여러 개 선택 가능)</Label>
-                <div className="flex gap-4 mt-2">
-                  {categoryOptions.map(opt => (
-                    <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={campaignForm.category.includes(opt.value)}
-                        onChange={() => handleCategoryToggle(opt.value)}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-gray-600">{opt.icon}</span>
-                      <span className="text-sm">{opt.label}</span>
-                    </label>
-                  ))}
-                </div>
-                {campaignForm.category.length === 0 && (
-                  <p className="text-sm text-red-500 mt-1">최소 1개 이상 선택해주세요</p>
-                )}
-              </div>
-
-              {/* 7. 스케줄 설정 */}
-              <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">📅 스케줄 설정</h3>
-                
-                {/* 모집 마감일 */}
-                <div className="mb-4">
-                  <Label htmlFor="application_deadline">모집 마감일 *</Label>
-                  <Input
-                    id="application_deadline"
-                    type="date"
-                    value={campaignForm.application_deadline}
-                    onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                {/* 기획형 캠페인 스케줄 */}
-                {campaignForm.campaign_type === 'planned' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="start_date">촬영 마감일 *</Label>
-                      <Input
-                        id="start_date"
-                        type="date"
-                        value={campaignForm.start_date}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="end_date">SNS 업로드일 *</Label>
-                      <Input
-                        id="end_date"
-                        type="date"
-                        value={campaignForm.end_date}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 4주 챌린지 상세 설정 */}
-              {campaignForm.campaign_type === '4week_challenge' && (
-                <div className="border-t pt-6 mt-6">
-                  <h3 className="text-lg font-semibold mb-4">🏆 4주 챌린지 상세 설정</h3>
-                  <div className="space-y-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                    {/* 4주 마감일 */}
-                    <div>
-                      <h4 className="font-semibold mb-3">📅 4주 콘텐츠 스케줄</h4>
-                      <div className="space-y-3">
-                        <div>
-                          <Label htmlFor="week1_deadline">Week 1 마감일 *</Label>
-                          <Input
-                            id="week1_deadline"
-                            type="date"
-                            value={campaignForm.week1_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week1_deadline: e.target.value }))}
-                            required={campaignForm.campaign_type === '4week_challenge'}
-                            className="bg-white"
+                    {/* 모집 인원 슬라이더 */}
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-semibold text-gray-700">모집 인원 (명)</Label>
+                        <span className="text-purple-600 font-bold text-lg">{campaignForm.total_slots}명</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min="1"
+                          max="50"
+                          value={campaignForm.total_slots}
+                          onChange={(e) => handleSlotsChange(parseInt(e.target.value))}
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                        />
+                        <div className="flex items-center border rounded-lg bg-white">
+                          <button
+                            type="button"
+                            onClick={() => handleSlotsChange(Math.max(1, campaignForm.total_slots - 1))}
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-l-lg text-lg"
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={campaignForm.total_slots}
+                            onChange={(e) => handleSlotsChange(parseInt(e.target.value) || 1)}
+                            className="w-16 text-center border-x py-2"
+                            min="1"
+                            max="50"
                           />
-                          <p className="text-xs text-gray-500 mt-1">첫 주차 콘텐츠 제출 마감</p>
-                        </div>
-                        <div>
-                          <Label htmlFor="week2_deadline">Week 2 마감일 *</Label>
-                          <Input
-                            id="week2_deadline"
-                            type="date"
-                            value={campaignForm.week2_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week2_deadline: e.target.value }))}
-                            required={campaignForm.campaign_type === '4week_challenge'}
-                            className="bg-white"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">2주차 콘텐츠 제출 마감</p>
-                        </div>
-                        <div>
-                          <Label htmlFor="week3_deadline">Week 3 마감일 *</Label>
-                          <Input
-                            id="week3_deadline"
-                            type="date"
-                            value={campaignForm.week3_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week3_deadline: e.target.value }))}
-                            required={campaignForm.campaign_type === '4week_challenge'}
-                            className="bg-white"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">3주차 콘텐츠 제출 마감</p>
-                        </div>
-                        <div>
-                          <Label htmlFor="week4_deadline">Week 4 마감일 *</Label>
-                          <Input
-                            id="week4_deadline"
-                            type="date"
-                            value={campaignForm.week4_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week4_deadline: e.target.value }))}
-                            required={campaignForm.campaign_type === '4week_challenge'}
-                            className="bg-white"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">최종 주차 콘텐츠 제출 마감</p>
+                          <button
+                            type="button"
+                            onClick={() => handleSlotsChange(Math.min(50, campaignForm.total_slots + 1))}
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-r-lg text-lg"
+                          >
+                            +
+                          </button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* 캠페인 썸네일 */}
-              <div className="border-t pt-6 mt-6">
-                <Label>캠페인 썸네일</Label>
-                <p className="text-sm text-gray-600 mb-2">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
-                <input
-                  ref={thumbnailInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleThumbnailUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="w-full"
-                >
-                  {uploadingImage ? '업로드 중...' : campaignForm.image_url ? '썸네일 변경' : '썸네일 업로드'}
-                </Button>
-                {campaignForm.image_url && (
-                  <div className="mt-4">
-                    <p className="text-sm text-green-600 mb-2">✓ 썸네일이 업로드되었습니다</p>
-                    <img src={campaignForm.image_url} alt="썸네일" className="w-full max-w-md rounded border" />
-                  </div>
-                )}
-              </div>
-
-              {/* 상품 상세 정보 */}
-              <div className="border-t pt-6 mt-6">
-                <h3 className="text-lg font-semibold mb-4">📦 상품 상세 정보</h3>
-                
-                <div className="space-y-4">
-                  {/* 상품명 */}
-                  <div>
-                    <Label htmlFor="product_name">상품명</Label>
-                    <Input
-                      id="product_name"
-                      value={campaignForm.product_name}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
-                      placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
-                    />
+                    {/* 인센티브 옵션 */}
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700 mb-4 block">인센티브 옵션 (지원율 높이기)</Label>
+                      <p className="text-xs text-gray-500 mb-3">더 높은 인센티브로 우수 크리에이터의 지원을 유도하세요</p>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {[
+                          { value: 0, label: '기본', description: '기본 지원율' },
+                          { value: 100000, label: '+10만원', description: '지원율 UP', tag: '인기' },
+                          { value: 200000, label: '+20만원', description: '지원율 2배', tag: '추천' },
+                          { value: 300000, label: '+30만원', description: '탑티어 매칭', tag: 'BEST' }
+                        ].map((option) => (
+                          <div
+                            key={option.value}
+                            onClick={() => setCampaignForm(prev => ({ ...prev, bonus_amount: option.value }))}
+                            className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                              campaignForm.bonus_amount === option.value
+                                ? 'border-purple-500 bg-purple-50 shadow-md'
+                                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                            }`}
+                          >
+                            {option.tag && (
+                              <span className={`absolute -top-2.5 right-2 text-white text-xs font-bold px-2 py-0.5 rounded ${
+                                option.tag === 'BEST' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+                                option.tag === '추천' ? 'bg-purple-500' : 'bg-indigo-500'
+                              }`}>
+                                {option.tag}
+                              </span>
+                            )}
+                            <div className={`text-lg font-bold mb-1 ${
+                              campaignForm.bonus_amount === option.value ? 'text-purple-600' : 'text-gray-900'
+                            }`}>
+                              {option.label}
+                            </div>
+                            <div className="text-xs text-gray-500">{option.description}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* 상품 설명 */}
-                  <div>
-                    <Label htmlFor="product_description">상품 설명</Label>
-                    <Textarea
-                      id="product_description"
-                      value={campaignForm.product_description}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
-                      placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
-                      rows={4}
-                    />
+                  {/* 브랜드/참여조건 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <span className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                        </span>
+                        브랜드 정보
+                      </h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowPreviousCampaigns(true)
+                          loadPreviousCampaigns()
+                        }}
+                        className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50"
+                      >
+                        <History className="w-4 h-4" />
+                        이전 캠페인에서 불러오기
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="brand">브랜드명 *</Label>
+                        <Input
+                          id="brand"
+                          value={campaignForm.brand}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
+                          placeholder="예: 에이블씨엔씨"
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="requirements">참여 조건</Label>
+                        <Textarea
+                          id="requirements"
+                          value={campaignForm.requirements}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
+                          placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분"
+                          className="mt-1"
+                          rows={2}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* 상품 링크 */}
-                  <div>
-                    <Label htmlFor="product_link">상품 링크 (URL)</Label>
-                    <Input
-                      id="product_link"
-                      type="url"
-                      value={campaignForm.product_link}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
-                      placeholder="https://example.com/product"
-                    />
-                    <p className="text-sm text-gray-500 mt-1">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
-                  </div>
-
-                  {/* 상품 상세 페이지 이미지 */}
-                  <div className="border-t pt-4 mt-4">
-                    <Label>상품 상세 페이지 이미지</Label>
-                    <p className="text-sm text-gray-600 mb-2">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
+                  {/* 캠페인 썸네일 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
+                      <span className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </span>
+                      캠페인 썸네일
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">캠페인 목록에 표시될 대표 이미지를 업로드하세요</p>
                     <input
-                      ref={detailImageInputRef}
+                      ref={thumbnailInputRef}
                       type="file"
                       accept="image/*"
-                      onChange={handleProductDetailImageUpload}
+                      onChange={handleThumbnailUpload}
                       className="hidden"
                     />
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => detailImageInputRef.current?.click()}
-                      disabled={uploadingDetailImage}
-                      className="w-full"
+                      onClick={() => thumbnailInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="w-full py-6 border-dashed border-2"
                     >
-                      {uploadingDetailImage ? '업로드 중...' : campaignForm.product_detail_file_url ? '이미지 변경' : '이미지 업로드'}
+                      {uploadingImage ? '업로드 중...' : campaignForm.image_url ? '썸네일 변경' : '이미지 업로드 (권장: 1200x630)'}
                     </Button>
-                    {campaignForm.product_detail_file_url && (
+                    {campaignForm.image_url && (
                       <div className="mt-4">
-                        <p className="text-sm text-green-600 mb-2">✓ 상품 상세 이미지가 업로드되었습니다</p>
-                        <img 
-                          src={campaignForm.product_detail_file_url} 
-                          alt="상품 상세" 
-                          className="max-w-full h-auto rounded border"
-                          style={{ maxHeight: '500px' }}
-                        />
+                        <p className="text-sm text-green-600 mb-2">✓ 썸네일이 업로드되었습니다</p>
+                        <img src={campaignForm.image_url} alt="썸네일" className="w-full max-w-md rounded-xl border" />
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
 
-              {/* 상태 안내 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  📌 캠페인은 "<strong>임시저장</strong>" 상태로 저장됩니다. 
-                  저장 후 캠페인 목록에서 <strong>"승인 요청하기"</strong>를 누르면 관리자가 검토합니다.
-                </p>
-              </div>
+                  {/* 상품 정보 입력 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
+                      <span className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                      </span>
+                      상품 정보 입력
+                    </h3>
 
-              {/* 질문 섹션 */}
-              <div className="border-t pt-6 mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <Label className="text-lg font-semibold">지원자 질문 (선택사항)</Label>
-                  {questionCount < 4 && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="product_name">상품명 *</Label>
+                        <Input
+                          id="product_name"
+                          value={campaignForm.product_name}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                          placeholder="예: 4주 스킨케어 세트"
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="product_description">상품 설명</Label>
+                        <Textarea
+                          id="product_description"
+                          value={campaignForm.product_description}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
+                          placeholder="상품의 특징, 사용법, 챌린지 가이드 등을 입력하세요"
+                          className="mt-1"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="product_link">상품 링크 (URL)</Label>
+                        <Input
+                          id="product_link"
+                          type="url"
+                          value={campaignForm.product_link}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
+                          placeholder="https://example.com/product"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 모집 채널 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
+                      <span className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2m0 2a2 2 0 100 4m0-4a2 2 0 110 4m10-4V2m0 2a2 2 0 100 4m0-4a2 2 0 110 4M3 20h18" /></svg>
+                      </span>
+                      모집 채널
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">여러 개 선택 가능합니다</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {categoryOptions.map(opt => (
+                        <div
+                          key={opt.value}
+                          onClick={() => handleCategoryToggle(opt.value)}
+                          className={`flex items-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                            campaignForm.category.includes(opt.value)
+                              ? 'border-purple-500 bg-purple-50'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <span className="text-2xl">{opt.icon}</span>
+                          <span className={`font-medium ${
+                            campaignForm.category.includes(opt.value) ? 'text-purple-600' : 'text-gray-700'
+                          }`}>{opt.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {campaignForm.category.length === 0 && (
+                      <p className="text-sm text-red-500 mt-2">최소 1개 이상 선택해주세요</p>
+                    )}
+                  </div>
+
+                  {/* 스케줄 설정 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
+                      <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </span>
+                      4주 챌린지 스케줄
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-6">Week 1 마감일을 설정하면 Week 2~4가 자동으로 +7일씩 계산됩니다</p>
+
+                    <div className="space-y-4">
+                      {/* 모집 마감일 */}
+                      <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                        <Label htmlFor="application_deadline" className="text-purple-700 font-semibold">모집 마감일 *</Label>
+                        <Input
+                          id="application_deadline"
+                          type="date"
+                          value={campaignForm.application_deadline}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
+                          className="mt-2 bg-white"
+                          required
+                        />
+                      </div>
+
+                      {/* Week 1 마감일 (입력) */}
+                      <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                          <Label htmlFor="week1_deadline" className="text-purple-700 font-semibold">Week 1 콘텐츠 마감일 *</Label>
+                        </div>
+                        <Input
+                          id="week1_deadline"
+                          type="date"
+                          value={campaignForm.week1_deadline}
+                          onChange={(e) => {
+                            const week1 = e.target.value
+                            if (week1) {
+                              const week1Date = new Date(week1)
+                              const week2Date = new Date(week1Date)
+                              week2Date.setDate(week2Date.getDate() + 7)
+                              const week3Date = new Date(week1Date)
+                              week3Date.setDate(week3Date.getDate() + 14)
+                              const week4Date = new Date(week1Date)
+                              week4Date.setDate(week4Date.getDate() + 21)
+
+                              setCampaignForm(prev => ({
+                                ...prev,
+                                week1_deadline: week1,
+                                week2_deadline: week2Date.toISOString().split('T')[0],
+                                week3_deadline: week3Date.toISOString().split('T')[0],
+                                week4_deadline: week4Date.toISOString().split('T')[0]
+                              }))
+                            } else {
+                              setCampaignForm(prev => ({
+                                ...prev,
+                                week1_deadline: '',
+                                week2_deadline: '',
+                                week3_deadline: '',
+                                week4_deadline: ''
+                              }))
+                            }
+                          }}
+                          className="bg-white"
+                          required
+                        />
+                        <p className="text-xs text-purple-600 mt-2">첫 번째 콘텐츠 업로드 마감</p>
+                      </div>
+
+                      {/* Week 2~4 자동 계산 표시 */}
+                      {campaignForm.week1_deadline && (
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="w-5 h-5 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                              <span className="text-xs font-medium text-gray-600">Week 2</span>
+                            </div>
+                            <div className="text-sm font-semibold text-gray-800">{campaignForm.week2_deadline}</div>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="w-5 h-5 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                              <span className="text-xs font-medium text-gray-600">Week 3</span>
+                            </div>
+                            <div className="text-sm font-semibold text-gray-800">{campaignForm.week3_deadline}</div>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="w-5 h-5 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                              <span className="text-xs font-medium text-gray-600">Week 4</span>
+                            </div>
+                            <div className="text-sm font-semibold text-gray-800">{campaignForm.week4_deadline}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 에러/성공 메시지 */}
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                      {error}
+                    </div>
+                  )}
+                  {success && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+                      {success}
+                    </div>
+                  )}
+
+                  {/* 모바일용 버튼 */}
+                  <div className="lg:hidden space-y-3">
                     <Button
-                      type="button"
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
-                      size="default"
-                      onClick={() => setQuestionCount(prev => Math.min(prev + 1, 4))}
+                      type="submit"
+                      disabled={processing || campaignForm.category.length === 0}
+                      className="w-full py-6 text-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold"
                     >
-                      + 질문 추가
+                      {processing ? '저장 중...' : (editId ? '수정하기' : '캠페인 시작하기')}
                     </Button>
-                  )}
+                    <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')} className="w-full py-4">
+                      취소
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500 mb-4">지원자에게 물어볼 질문을 최대 4개까지 추가할 수 있습니다.</p>
-                
-                <div className="space-y-4">
-                  {/* 질문 1 */}
-                  {questionCount >= 1 && (
-                    <div>
-                      <Label htmlFor="question1">질문 1</Label>
-                      <Textarea
-                        id="question1"
-                        value={campaignForm.question1}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question1: e.target.value }))}
-                        placeholder="예: 본인의 피부 타입과 주요 피부 고민을 알려주세요."
-                        rows={2}
-                      />
-                    </div>
-                  )}
 
-                  {/* 질문 2 */}
-                  {questionCount >= 2 && (
-                    <div>
-                      <Label htmlFor="question2">질문 2</Label>
-                      <Textarea
-                        id="question2"
-                        value={campaignForm.question2}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question2: e.target.value }))}
-                        placeholder="예: 평소 사용하는 스킨케어 제품을 알려주세요."
-                        rows={2}
-                      />
-                    </div>
-                  )}
+                {/* 오른쪽: 예상 견적서 (Sticky) - 다크 테마 */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-6">
+                    <div className="bg-slate-900 rounded-2xl p-6 text-white">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <span className="text-xl">📋</span> 예상 견적서
+                      </h3>
 
-                  {/* 질문 3 */}
-                  {questionCount >= 3 && (
-                    <div>
-                      <Label htmlFor="question3">질문 3</Label>
-                      <Textarea
-                        id="question3"
-                        value={campaignForm.question3}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question3: e.target.value }))}
-                        placeholder="예: 이 캠페인에 지원한 이유를 알려주세요."
-                        rows={2}
-                      />
-                    </div>
-                  )}
+                      {/* AI 지원율 예측 */}
+                      <div className="bg-slate-800 rounded-xl p-4 mb-5">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center text-lg flex-shrink-0">
+                            🏆
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-purple-300 text-xs font-medium mb-1">AI 지원율 예측</div>
+                            <div className="text-sm leading-relaxed">
+                              4주 챌린지는 평균{' '}
+                              <span className="text-purple-400 font-bold text-lg">
+                                {(() => {
+                                  const bonus = campaignForm.bonus_amount || 0
+                                  if (bonus >= 300000) return '25~40명'
+                                  if (bonus >= 200000) return '18~30명'
+                                  if (bonus >= 100000) return '12~22명'
+                                  return '8~15명'
+                                })()}
+                              </span>
+                              의 크리에이터가 지원합니다.
+                            </div>
+                          </div>
+                        </div>
 
-                  {/* 질문 4 */}
-                  {questionCount >= 4 && (
-                    <div>
-                      <Label htmlFor="question4">질문 4</Label>
-                      <Textarea
-                        id="question4"
-                        value={campaignForm.question4}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, question4: e.target.value }))}
-                        placeholder="예: 콘텐츠 제작 시 중점적으로 다루고 싶은 부분이 있나요?"
-                        rows={2}
-                      />
+                        {/* 크리에이터 특성 표시 */}
+                        <div className="mt-3 pt-3 border-t border-slate-700">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs text-gray-400">예상 크리에이터 수준</span>
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3, 4, 5].map((level) => {
+                                const currentLevel = campaignForm.bonus_amount >= 300000 ? 5 :
+                                                    campaignForm.bonus_amount >= 200000 ? 4 :
+                                                    campaignForm.bonus_amount >= 100000 ? 3 : 2
+                                return (
+                                  <div
+                                    key={level}
+                                    className={`w-2 h-2 rounded-full ${
+                                      level <= currentLevel
+                                        ? 'bg-gradient-to-r from-purple-400 to-pink-400'
+                                        : 'bg-slate-600'
+                                    }`}
+                                  />
+                                )
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded">
+                              4주 연속 콘텐츠
+                            </span>
+                            {campaignForm.bonus_amount >= 100000 && (
+                              <span className="text-xs px-2 py-0.5 bg-pink-500/20 text-pink-300 rounded">
+                                우수 크리에이터
+                              </span>
+                            )}
+                            {campaignForm.bonus_amount >= 200000 && (
+                              <span className="text-xs px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded">
+                                높은 완주율
+                              </span>
+                            )}
+                            {campaignForm.bonus_amount >= 300000 && (
+                              <span className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded">
+                                탑티어 매칭
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, 40 + ((campaignForm.bonus_amount || 0) / 100000) * 15)}%` }}
+                          />
+                        </div>
+                        {campaignForm.bonus_amount > 0 && (
+                          <div className="mt-2 text-xs text-green-400">
+                            +{Math.floor((campaignForm.bonus_amount / 100000) * 5)}-{Math.floor((campaignForm.bonus_amount / 100000) * 8)}명 지원율 증가 예상
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 견적 상세 */}
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">기본 단가 (4주 패키지)</span>
+                          <span>600,000원</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">모집 인원</span>
+                          <span>x {campaignForm.total_slots || 1}명</span>
+                        </div>
+                        {campaignForm.bonus_amount > 0 && (
+                          <div className="flex justify-between text-green-400">
+                            <span>인센티브 옵션</span>
+                            <span>+{(campaignForm.bonus_amount).toLocaleString()}원</span>
+                          </div>
+                        )}
+                        <div className="border-t border-slate-700 pt-3">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">공급가액</span>
+                            <span>{(600000 * (campaignForm.total_slots || 1) + (campaignForm.bonus_amount || 0)).toLocaleString()}원</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">부가세 (10%)</span>
+                          <span>{Math.round((600000 * (campaignForm.total_slots || 1) + (campaignForm.bonus_amount || 0)) * 0.1).toLocaleString()}원</span>
+                        </div>
+                      </div>
+
+                      {/* 총 결제 금액 */}
+                      <div className="mt-5 pt-4 border-t border-slate-700">
+                        <div className="flex justify-between items-end mb-1">
+                          <span className="text-gray-400">총 결제 금액</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-4xl font-bold">{Math.round((600000 * (campaignForm.total_slots || 1) + (campaignForm.bonus_amount || 0)) * 1.1).toLocaleString()}</span>
+                          <span className="text-xl ml-1">원</span>
+                        </div>
+                      </div>
+
+                      {/* 버튼 */}
+                      <div className="hidden lg:block mt-6 space-y-3">
+                        <Button
+                          type="submit"
+                          disabled={processing || campaignForm.category.length === 0}
+                          className="w-full py-6 text-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold"
+                        >
+                          {processing ? '저장 중...' : (editId ? '수정하기' : '캠페인 시작하기')}
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')} className="w-full py-4 bg-transparent border-slate-600 text-gray-300 hover:bg-slate-800">
+                          취소
+                        </Button>
+                      </div>
+
+                      <p className="text-xs text-gray-500 mt-4 text-center">
+                        * 세금계산서 발행 가능 / 카드 결제 지원
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-
-              {/* 에러/성공 메시지 */}
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                  {error}
-                </div>
-              )}
-              {success && (
-                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-                  {success}
-                </div>
-              )}
-
-              {/* 버튼 */}
-              <div className="flex gap-4">
-                <Button 
-                  type="submit" 
-                  disabled={processing || campaignForm.category.length === 0} 
-                  className="flex-1"
-                >
-                  {processing ? '저장 중...' : (editId ? '수정하기' : '다음단계')}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => navigate('/company/campaigns')}>
-                  취소
-                </Button>
-              </div>
-                </CardContent>
-              </Card>
             )}
           </form>
         </div>
