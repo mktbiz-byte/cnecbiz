@@ -177,7 +177,7 @@ const CampaignGuideEditor = () => {
     try {
       const { data, error } = await supabase
         .from('campaigns')
-        .select('title, guide_data')
+        .select('title, ai_generated_guide')
         .eq('id', campaignId)
         .single()
 
@@ -186,8 +186,8 @@ const CampaignGuideEditor = () => {
       if (data) {
         setCampaignTitle(data.title)
 
-        // guide_data JSON에서 데이터 로드
-        const guide = data.guide_data || {}
+        // ai_generated_guide JSON에서 데이터 로드
+        const guide = data.ai_generated_guide || {}
         setHookingPoint(guide.hookingPoint || '')
         setCoreMessage(guide.coreMessage || '')
         if (guide.missions) setMissions(guide.missions)
@@ -252,7 +252,7 @@ const CampaignGuideEditor = () => {
     try {
       await supabase
         .from('campaigns')
-        .update({ guide_data: guideData })
+        .update({ ai_generated_guide: guideData })
         .eq('id', campaignId)
     } catch (err) {
       console.error('자동 저장 실패:', err)
@@ -380,7 +380,7 @@ const CampaignGuideEditor = () => {
     try {
       const { error } = await supabase
         .from('campaigns')
-        .update({ guide_data: guideData })
+        .update({ ai_generated_guide: guideData })
         .eq('id', campaignId)
 
       if (error) throw error
