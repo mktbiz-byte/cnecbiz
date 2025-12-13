@@ -463,6 +463,40 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Partner Brands Section */}
+      <section className="py-16 sm:py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-gray-900">
+              함께 하는 <span className="text-blue-600">브랜드</span>
+            </h2>
+            <p className="text-gray-600 text-lg">다양한 브랜드들이 CNEC과 함께 성장하고 있습니다</p>
+          </div>
+
+          <div className="bg-white rounded-3xl p-8 sm:p-12 shadow-sm">
+            <div className="grid grid-cols-5 sm:grid-cols-5 md:grid-cols-10 gap-4 sm:gap-6">
+              {[
+                'MEDIHEAL', 'SKINFOOD', 'REJURAN', 'Dr.G', 'CLIO',
+                '동아제약', 'SNP', 'ESTHER', 'lemiu', 'TONYMOLY',
+                'FATION', 'VELY VELY', 'kalo kul', 'LALA ROSE DAY', 'laundryou',
+                'COSON', 'Minted', 'OSANG', 'KINTEX', '롯데홈쇼핑',
+                'Nightingale', 'Dr.Bio', 'lala Chuu', 'samyang', 'Merry monde',
+                'MBC', 'Morebella', '비니비니', '바이로담', 'Bubble Monkey',
+                'BENTON', '씨앤씨인터내셔날', 'briel', 'SEDNA', 'SAI8',
+                'celire', 'CELLRETURN', 'Cell:Monde', 'SELF BEAUTY', '세종대연합동문'
+              ].map((brand, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-center h-12 sm:h-16 px-2 border border-gray-100 rounded-lg hover:border-gray-200 transition-colors"
+                >
+                  <span className="text-xs sm:text-sm text-gray-600 font-medium text-center truncate">{brand}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Pricing Section */}
       <section id="pricing" className="py-16 sm:py-24 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
