@@ -265,7 +265,10 @@ export default function SignupWithVerification() {
                 홈으로 돌아가기
               </Button>
               <Button
-                onClick={() => window.open('https://cnec.kr', '_blank')}
+                onClick={() => {
+                  navigate('/')
+                  setTimeout(() => window.dispatchEvent(new Event('openConsultationModal')), 100)
+                }}
                 className="flex-1 h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25"
               >
                 상담 신청하기
