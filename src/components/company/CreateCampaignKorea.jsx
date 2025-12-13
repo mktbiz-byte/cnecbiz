@@ -21,6 +21,7 @@ const CampaignCreationKorea = () => {
     package_type: 'standard',  // 기본값: 스탠다드
     brand: '',
     product_name: '',
+    product_price: '',
     product_description: '',
     product_link: '',
     category: [],
@@ -67,6 +68,10 @@ const CampaignCreationKorea = () => {
   const [previousCampaigns, setPreviousCampaigns] = useState([])
   const [showPreviousCampaigns, setShowPreviousCampaigns] = useState(false)
   const [loadingPrevious, setLoadingPrevious] = useState(false)
+
+  // URL 크롤링 상태
+  const [isCrawling, setIsCrawling] = useState(false)
+  const [crawlError, setCrawlError] = useState(null)
 
   // 이전 캠페인 목록 불러오기
   const loadPreviousCampaigns = async () => {
@@ -136,6 +141,42 @@ const CampaignCreationKorea = () => {
       start_date: filmingDeadline,
       end_date: uploadDate
     }))
+  }
+
+  // URL 크롤링 함수
+  const crawlProductUrl = async () => {
+    if (!campaignForm.product_link) return
+
+    setIsCrawling(true)
+    setCrawlError(null)
+
+    try {
+      const response = await fetch('/.netlify/functions/crawl-product-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: campaignForm.product_link })
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setCampaignForm(prev => ({
+          ...prev,
+          product_name: result.data.product_name || prev.product_name,
+          brand: result.data.brand_name || prev.brand,
+          product_price: result.data.product_price || prev.product_price,
+          image_url: result.data.thumbnail_url || prev.image_url,
+          product_description: result.data.product_description || prev.product_description,
+        }))
+      } else {
+        setCrawlError(result.error || '정보를 가져오는데 실패했습니다')
+      }
+    } catch (error) {
+      console.error('Crawl error:', error)
+      setCrawlError('네트워크 오류가 발생했습니다')
+    } finally {
+      setIsCrawling(false)
+    }
   }
 
   const categoryOptions = [
@@ -1321,16 +1362,119 @@ const CampaignCreationKorea = () => {
 
                   {/* 상품 상세 정보 섹션 */}
                   <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
                       <span className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                       </span>
-                      상품 상세 정보
+                      상품 정보 입력
                     </h3>
+                    <p className="text-sm text-gray-500 mb-6 ml-10">URL만 입력하면 상품 정보를 자동으로 가져옵니다</p>
 
                     <div className="space-y-5">
+                      {/* URL 입력 및 크롤링 */}
                       <div>
-                        <Label htmlFor="product_name" className="text-sm font-medium text-gray-700 mb-2 block">상품명</Label>
+                        <Label htmlFor="product_link" className="text-sm font-medium text-gray-700 mb-2 block">상품 URL</Label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                            </div>
+                            <Input
+                              id="product_link"
+                              type="url"
+                              value={campaignForm.product_link}
+                              onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
+                              placeholder="https://www.oliveyoung.co.kr/store/goods/..."
+                              className="h-12 pl-10 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={crawlProductUrl}
+                            disabled={isCrawling || !campaignForm.product_link}
+                            className="h-12 px-4 whitespace-nowrap border-amber-300 text-amber-700 hover:bg-amber-50"
+                          >
+                            {isCrawling ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                                가져오는 중...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                정보 가져오기
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        {crawlError && (
+                          <p className="text-xs text-red-500 mt-2">❌ {crawlError}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">💡 올리브영, 쿠팡, 네이버 스마트스토어, 자사몰 URL 지원</p>
+                      </div>
+
+                      {/* 크롤링된 정보 표시 또는 수동 입력 */}
+                      {(campaignForm.product_name || campaignForm.brand || campaignForm.image_url) && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                          <div className="flex gap-4">
+                            {/* 상품 이미지 */}
+                            {campaignForm.image_url && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={campaignForm.image_url}
+                                  alt="상품 이미지"
+                                  className="w-24 h-24 rounded-lg object-cover border border-amber-200"
+                                />
+                              </div>
+                            )}
+                            {/* 상품 정보 */}
+                            <div className="flex-1 space-y-1">
+                              {campaignForm.brand && (
+                                <p className="text-xs text-amber-600 font-medium">{campaignForm.brand}</p>
+                              )}
+                              {campaignForm.product_name && (
+                                <p className="font-semibold text-gray-900">{campaignForm.product_name}</p>
+                              )}
+                              {campaignForm.product_price && (
+                                <p className="text-lg font-bold text-amber-700">{Number(campaignForm.product_price).toLocaleString()}원</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 브랜드명 & 제품가격 */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="brand" className="text-sm font-medium text-gray-700 mb-2 block">브랜드명</Label>
+                          <Input
+                            id="brand"
+                            value={campaignForm.brand}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
+                            placeholder="예: 에이블씨엔씨"
+                            className="h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="product_price" className="text-sm font-medium text-gray-700 mb-2 block">제품 가격</Label>
+                          <div className="relative">
+                            <Input
+                              id="product_price"
+                              type="number"
+                              value={campaignForm.product_price}
+                              onChange={(e) => setCampaignForm(prev => ({ ...prev, product_price: e.target.value }))}
+                              placeholder="29000"
+                              className="h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500 pr-8"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">원</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 상품명 */}
+                      <div>
+                        <Label htmlFor="product_name" className="text-sm font-medium text-gray-700 mb-2 block">제품명</Label>
                         <Input
                           id="product_name"
                           value={campaignForm.product_name}
@@ -1340,6 +1484,7 @@ const CampaignCreationKorea = () => {
                         />
                       </div>
 
+                      {/* 상품 설명 */}
                       <div>
                         <Label htmlFor="product_description" className="text-sm font-medium text-gray-700 mb-2 block">상품 설명</Label>
                         <Textarea
@@ -1347,29 +1492,12 @@ const CampaignCreationKorea = () => {
                           value={campaignForm.product_description}
                           onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
                           placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
-                          rows={4}
+                          rows={3}
                           className="border-gray-200 focus:border-amber-500 focus:ring-amber-500 resize-none"
                         />
                       </div>
 
-                      <div>
-                        <Label htmlFor="product_link" className="text-sm font-medium text-gray-700 mb-2 block">상품 링크 (URL)</Label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                          </div>
-                          <Input
-                            id="product_link"
-                            type="url"
-                            value={campaignForm.product_link}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
-                            placeholder="https://example.com/product"
-                            className="h-12 pl-10 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1.5">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
-                      </div>
-
+                      {/* 상품 상세 페이지 이미지 */}
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-2 block">상품 상세 페이지 이미지</Label>
                         <p className="text-xs text-gray-500 mb-3">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
