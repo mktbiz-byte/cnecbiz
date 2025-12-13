@@ -1,13 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
 import Footer from './Footer'
 
+// YouTube URL에서 Video ID 추출
+const getYouTubeVideoId = (url) => {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/shorts\/|youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
+// YouTube 썸네일 URL 생성 (고화질)
+const getYouTubeThumbnail = (videoId) => {
+  if (!videoId) return null
+  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+}
+
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
   const [videos, setVideos] = useState([])
+  const [playingVideoId, setPlayingVideoId] = useState(null) // 현재 재생 중인 영상 ID
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const [faqs, setFaqs] = useState([])
@@ -22,38 +43,12 @@ export default function LandingPage() {
     stats_success: '1억+'
   })
 
-  // Video refs for auto-play
-  const videoRefs = useRef([])
-
   useEffect(() => {
     fetchVideos()
     checkAuth()
     fetchFaqs()
     fetchPageContent()
   }, [])
-
-  // Auto-play videos when they come into view
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const video = entry.target
-          if (entry.isIntersecting) {
-            video.play().catch(() => {})
-          } else {
-            video.pause()
-          }
-        })
-      },
-      { threshold: 0.5 }
-    )
-
-    videoRefs.current.forEach((video) => {
-      if (video) observer.observe(video)
-    })
-
-    return () => observer.disconnect()
-  }, [videos])
 
   const checkAuth = async () => {
     const { data: { session } } = await supabaseBiz.auth.getSession()
@@ -315,38 +310,58 @@ export default function LandingPage() {
             <p className="text-white/60">브랜딩을 해치지 않으면서 감도 높게 제품을 소개</p>
           </div>
 
-          {/* Video Grid - Auto-playing */}
+          {/* Video Grid - YouTube Optimized */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {videos.slice(0, 5).map((video, index) => (
-              <div
-                key={video.id}
-                className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-white/5 group cursor-pointer"
-              >
-                {video.video_url ? (
-                  <video
-                    ref={(el) => (videoRefs.current[index] = el)}
-                    src={video.video_url}
-                    className="w-full h-full object-cover"
-                    loop
-                    muted
-                    playsInline
-                    poster={video.thumbnail_url}
-                  />
-                ) : video.thumbnail_url ? (
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
-                    <Play className="w-12 h-12 text-white/40" />
-                  </div>
-                )}
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            ))}
+            {videos.slice(0, 5).map((video) => {
+              const youtubeId = getYouTubeVideoId(video.url || video.youtube_url)
+              const thumbnailUrl = video.thumbnail_url || getYouTubeThumbnail(youtubeId)
+              const isPlaying = playingVideoId === video.id
+
+              return (
+                <div
+                  key={video.id}
+                  className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-white/5 group cursor-pointer"
+                  onClick={() => setPlayingVideoId(isPlaying ? null : video.id)}
+                >
+                  {isPlaying && youtubeId ? (
+                    // YouTube 임베드 (클릭 시 재생)
+                    <iframe
+                      src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&showinfo=0&rel=0`}
+                      className="w-full h-full"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                      loading="lazy"
+                    />
+                  ) : thumbnailUrl ? (
+                    // 썸네일 이미지 (빠른 로딩)
+                    <>
+                      <img
+                        src={thumbnailUrl}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          // maxresdefault 실패 시 hqdefault로 fallback
+                          if (e.target.src.includes('maxresdefault')) {
+                            e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
+                          }
+                        }}
+                      />
+                      {/* 재생 버튼 오버레이 */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                        <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Play className="w-6 h-6 text-white fill-white ml-1" />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
+                      <Play className="w-12 h-12 text-white/40" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           {/* Contact Form Overlay Style */}
