@@ -92,10 +92,12 @@ const VideoCard = ({ video, size = 'normal' }) => {
 
 // 비디오 카테고리 섹션 컴포넌트
 const VideoCategorySection = ({ title, subtitle, videos, bgColor = 'bg-gray-900' }) => {
+  if (!videos || videos.length === 0) return null
+
   return (
     <div className={`py-12 sm:py-16 ${bgColor}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 sm:mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">{title}</h3>
           <p className="text-gray-400 text-sm sm:text-base">{subtitle}</p>
         </div>
@@ -125,69 +127,42 @@ export default function LandingPage() {
     stats_success: '1억+'
   })
 
-  // 비디오 카테고리 데이터
+  // 비디오 카테고리 정의 (DB 영상을 분배해서 사용)
   const videoCategories = [
     {
       id: 'before-after',
       title: 'Before & After',
       subtitle: '드라마틱한 사용후기',
-      videos: [
-        { id: 'ba1', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: 'Before After 1' },
-        { id: 'ba2', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: 'Before After 2' },
-        { id: 'ba3', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: 'Before After 3' },
-        { id: 'ba4', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: 'Before After 4' },
-        { id: 'ba5', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: 'Before After 5' },
-      ]
     },
     {
       id: '4week-challenge',
       title: '4주 챌린지',
       subtitle: '4주간의 진정성 있는 후기',
-      videos: [
-        { id: '4w1', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '4주 챌린지 1' },
-        { id: '4w2', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '4주 챌린지 2' },
-        { id: '4w3', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '4주 챌린지 3' },
-        { id: '4w4', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '4주 챌린지 4' },
-        { id: '4w5', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '4주 챌린지 5' },
-      ]
     },
     {
       id: 'mood',
       title: '감성 & 무드',
       subtitle: '높은 영상미와 감도 높은 영상',
-      videos: [
-        { id: 'm1', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '감성 무드 1' },
-        { id: 'm2', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '감성 무드 2' },
-        { id: 'm3', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '감성 무드 3' },
-        { id: 'm4', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '감성 무드 4' },
-        { id: 'm5', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '감성 무드 5' },
-      ]
     },
     {
       id: 'visit',
       title: '방문형',
       subtitle: '올영, 팝업스토어 등 오프라인 방문',
-      videos: [
-        { id: 'v1', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '방문형 1' },
-        { id: 'v2', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '방문형 2' },
-        { id: 'v3', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '방문형 3' },
-        { id: 'v4', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '방문형 4' },
-        { id: 'v5', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '방문형 5' },
-      ]
     },
     {
       id: 'promotion',
       title: '프로모션',
       subtitle: '올영 세일, 쿠팡 골드박스 등 기획전 연계',
-      videos: [
-        { id: 'p1', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '프로모션 1' },
-        { id: 'p2', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '프로모션 2' },
-        { id: 'p3', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '프로모션 3' },
-        { id: 'p4', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '프로모션 4' },
-        { id: 'p5', youtube_url: 'https://youtube.com/shorts/dQw4w9WgXcQ', title: '프로모션 5' },
-      ]
     },
   ]
+
+  // DB에서 가져온 영상을 카테고리별로 분배
+  const getVideosForCategory = (categoryIndex) => {
+    if (!videos || videos.length === 0) return []
+    const videosPerCategory = 5
+    const startIndex = categoryIndex * videosPerCategory
+    return videos.slice(startIndex, startIndex + videosPerCategory)
+  }
 
   useEffect(() => {
     fetchVideos()
@@ -310,19 +285,19 @@ export default function LandingPage() {
   // 고객 성공 스토리 데이터
   const testimonials = [
     {
-      name: '김민지',
+      name: '김민*',
       role: '뷰티 브랜드 마케팅 팀장',
       company: 'A사 화장품',
       content: '처음으로 인플루언서 마케팅을 진행했는데, CNEC 덕분에 어려움 없이 성공적인 캠페인을 진행할 수 있었습니다. 특히 크리에이터 매칭 시스템이 정말 편리했어요.',
     },
     {
-      name: '이준호',
+      name: '이*호',
       role: '스타트업 대표',
       company: 'B사 스킨케어',
       content: '수출바우처를 활용해 일본 시장 진출을 준비했는데, 현지 크리에이터 섭외부터 콘텐츠 제작까지 원스톱으로 해결됐습니다. ROI가 기대 이상이었습니다.',
     },
     {
-      name: '박서현',
+      name: '박서*',
       role: '이커머스 운영자',
       company: 'C사 헬스케어',
       content: '올리브영 세일 기간에 맞춰 집중 캠페인을 진행했는데, 매출이 전월 대비 320% 상승했습니다. 타이밍과 크리에이터 선정이 정말 중요하다는 걸 깨달았어요.',
@@ -342,7 +317,7 @@ export default function LandingPage() {
             <nav className="hidden lg:flex items-center space-x-8">
               <a href="#showcase" className="text-gray-400 hover:text-white transition-colors text-sm">포트폴리오</a>
               <a href="#pricing" className="text-gray-400 hover:text-white transition-colors text-sm">요금제</a>
-              <a href="#testimonials" className="text-gray-400 hover:text-white transition-colors text-sm">고객 후기</a>
+              <a href="#voucher" className="text-gray-400 hover:text-white transition-colors text-sm">수출바우처</a>
               <a href="#faq" className="text-gray-400 hover:text-white transition-colors text-sm">FAQ</a>
             </nav>
 
@@ -385,7 +360,7 @@ export default function LandingPage() {
               <nav className="flex flex-col space-y-3">
                 <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">포트폴리오</a>
                 <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">요금제</a>
-                <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">고객 후기</a>
+                <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">수출바우처</a>
                 <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">FAQ</a>
               </nav>
               <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-800">
@@ -423,18 +398,18 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4">
-              <span className="text-white">숏폼 콘텐츠 제작은 </span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">역시 CNEC</span>
+              <span className="text-white">뷰티 숏폼은 </span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">역시 크넥</span>
             </h1>
             <p className="text-gray-400 text-base sm:text-lg mb-6">
-              검증된 크리에이터 21,000명+ | 평균 제작기간 7일 | 수정 무제한
+              AI 데이터 기반 크리에이터 추천 | 평균 제작기간 7일 | 2차 활용 무료
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={() => navigate('/signup')}
                 className="w-full sm:w-auto px-6 py-3 bg-white text-gray-900 rounded-full font-semibold hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
               >
-                무료로 시작하기
+                캠페인 생성하기
                 <ArrowRight className="w-4 h-4" />
               </button>
               <a
@@ -451,14 +426,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Video Portfolio Sections - 카테고리별 */}
+      {/* Video Portfolio Sections - 카테고리별 (DB 영상 사용) */}
       <section id="showcase">
         {videoCategories.map((category, index) => (
           <VideoCategorySection
             key={category.id}
             title={category.title}
             subtitle={category.subtitle}
-            videos={category.videos}
+            videos={getVideosForCategory(index)}
             bgColor={index % 2 === 0 ? 'bg-gray-900' : 'bg-gray-950'}
           />
         ))}
@@ -634,7 +609,7 @@ export default function LandingPage() {
       </section>
 
       {/* Voucher Section */}
-      <section className="py-16 sm:py-24 bg-gradient-to-r from-purple-900/50 to-pink-900/50">
+      <section id="voucher" className="py-16 sm:py-24 bg-gradient-to-r from-purple-900/50 to-pink-900/50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full text-white text-sm mb-6">
             <Award className="w-4 h-4" />
@@ -695,7 +670,7 @@ export default function LandingPage() {
               onClick={() => navigate('/signup')}
               className="w-full sm:w-auto px-8 py-4 bg-white text-gray-900 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all"
             >
-              무료로 시작하기
+              캠페인 생성하기
             </button>
             <a
               href="https://pf.kakao.com/_xgNdxlG"
