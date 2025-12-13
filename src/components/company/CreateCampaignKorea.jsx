@@ -896,102 +896,130 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 브랜드/참여조건 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
-                    <div>
-                      <Label htmlFor="brand" className="text-sm font-semibold text-gray-700">브랜드명 *</Label>
-                      <Input
-                        id="brand"
-                        value={campaignForm.brand}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
-                        placeholder="예: 에이블씨엔씨"
-                        required
-                        className="mt-2"
-                      />
-                    </div>
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
+                      <span className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                      </span>
+                      브랜드 정보
+                    </h3>
 
-                    <div>
-                      <Label htmlFor="requirements" className="text-sm font-semibold text-gray-700">참여 조건</Label>
-                      <Textarea
-                        id="requirements"
-                        value={campaignForm.requirements}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
-                        placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
-                        rows={3}
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">모집 채널 * (여러 개 선택 가능)</Label>
-                      <div className="flex gap-6 mt-3">
-                        {categoryOptions.map(opt => (
-                          <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={campaignForm.category.includes(opt.value)}
-                              onChange={() => handleCategoryToggle(opt.value)}
-                              className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
-                            />
-                            <span className="text-base">{opt.label}</span>
-                          </label>
-                        ))}
+                    <div className="space-y-5">
+                      <div>
+                        <Label htmlFor="brand" className="text-sm font-medium text-gray-700 mb-2 block">브랜드명 <span className="text-red-500">*</span></Label>
+                        <Input
+                          id="brand"
+                          value={campaignForm.brand}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, brand: e.target.value }))}
+                          placeholder="예: 에이블씨엔씨"
+                          required
+                          className="h-12 border-gray-200 focus:border-indigo-500 focus:ring-indigo-500"
+                        />
                       </div>
-                      {campaignForm.category.length === 0 && (
-                        <p className="text-sm text-red-500 mt-2">최소 1개 이상 선택해주세요</p>
-                      )}
+
+                      <div>
+                        <Label htmlFor="requirements" className="text-sm font-medium text-gray-700 mb-2 block">참여 조건</Label>
+                        <Textarea
+                          id="requirements"
+                          value={campaignForm.requirements}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, requirements: e.target.value }))}
+                          placeholder="예: 피부 트러블이 있으신분, 아이와 같이 출연 가능하신분, 속건조가 심하신분"
+                          rows={3}
+                          className="border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 resize-none"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 mb-3 block">모집 채널 <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">(여러 개 선택 가능)</span></Label>
+                        <div className="flex flex-wrap gap-3">
+                          {categoryOptions.map(opt => (
+                            <label
+                              key={opt.value}
+                              className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
+                                campaignForm.category.includes(opt.value)
+                                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                  : 'border-gray-200 bg-white hover:border-gray-300 text-gray-700'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={campaignForm.category.includes(opt.value)}
+                                onChange={() => handleCategoryToggle(opt.value)}
+                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                              />
+                              <span className="font-medium">{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {campaignForm.category.length === 0 && (
+                          <p className="text-sm text-red-500 mt-2 flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            최소 1개 이상 선택해주세요
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                   {/* 스케줄 설정 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
-                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                      <span>📅</span> 스케줄 설정
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
+                      <span className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </span>
+                      스케줄 설정
                     </h3>
 
-                    <div>
-                      <Label htmlFor="application_deadline" className="text-sm font-semibold text-gray-700">모집 마감일 *</Label>
-                      <Input
-                        id="application_deadline"
-                        type="date"
-                        value={campaignForm.application_deadline}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
-                        required
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-5">
                       <div>
-                        <Label htmlFor="start_date" className="text-sm font-semibold text-gray-700">촬영 마감일 *</Label>
+                        <Label htmlFor="application_deadline" className="text-sm font-medium text-gray-700 mb-2 block">모집 마감일 <span className="text-red-500">*</span></Label>
                         <Input
-                          id="start_date"
+                          id="application_deadline"
                           type="date"
-                          value={campaignForm.start_date}
-                          onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                          value={campaignForm.application_deadline}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, application_deadline: e.target.value }))}
                           required
-                          className="mt-2"
+                          className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="end_date" className="text-sm font-semibold text-gray-700">SNS 업로드일 *</Label>
-                        <Input
-                          id="end_date"
-                          type="date"
-                          value={campaignForm.end_date}
-                          onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
-                          required
-                          className="mt-2"
-                        />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="start_date" className="text-sm font-medium text-gray-700 mb-2 block">촬영 마감일 <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="start_date"
+                            type="date"
+                            value={campaignForm.start_date}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, start_date: e.target.value }))}
+                            required
+                            className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="end_date" className="text-sm font-medium text-gray-700 mb-2 block">SNS 업로드일 <span className="text-red-500">*</span></Label>
+                          <Input
+                            id="end_date"
+                            type="date"
+                            value={campaignForm.end_date}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, end_date: e.target.value }))}
+                            required
+                            className="h-12 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* 캠페인 썸네일 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-4">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">캠페인 썸네일</Label>
-                      <p className="text-sm text-gray-500 mt-1">캠페인 목록에 표시될 썸네일 이미지를 업로드하세요</p>
-                    </div>
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-2">
+                      <span className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </span>
+                      캠페인 썸네일
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4 ml-10">캠페인 목록에 표시될 대표 이미지</p>
+
                     <input
                       ref={thumbnailInputRef}
                       type="file"
@@ -999,172 +1027,229 @@ const CampaignCreationKorea = () => {
                       onChange={handleThumbnailUpload}
                       className="hidden"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
+                    <div
                       onClick={() => thumbnailInputRef.current?.click()}
-                      disabled={uploadingImage}
-                      className="w-full py-6 border-dashed border-2"
+                      className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all hover:border-pink-400 hover:bg-pink-50/50 ${
+                        campaignForm.image_url ? 'border-green-300 bg-green-50/30' : 'border-gray-300'
+                      }`}
                     >
-                      {uploadingImage ? '업로드 중...' : campaignForm.image_url ? '썸네일 변경' : '썸네일 업로드'}
-                    </Button>
-                    {campaignForm.image_url && (
-                      <div className="mt-4">
-                        <p className="text-sm text-green-600 mb-2">✓ 썸네일이 업로드되었습니다</p>
-                        <img src={campaignForm.image_url} alt="썸네일" className="w-full max-w-md rounded-lg border" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 상품 상세 정보 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
-                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                      <span>📦</span> 상품 상세 정보
-                    </h3>
-
-                    <div>
-                      <Label htmlFor="product_name" className="text-sm font-semibold text-gray-700">상품명</Label>
-                      <Input
-                        id="product_name"
-                        value={campaignForm.product_name}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
-                        placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="product_description" className="text-sm font-semibold text-gray-700">상품 설명</Label>
-                      <Textarea
-                        id="product_description"
-                        value={campaignForm.product_description}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
-                        placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
-                        rows={4}
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="product_link" className="text-sm font-semibold text-gray-700">상품 링크 (URL)</Label>
-                      <Input
-                        id="product_link"
-                        type="url"
-                        value={campaignForm.product_link}
-                        onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
-                        placeholder="https://example.com/product"
-                        className="mt-2"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">상품 상세 페이지 이미지</Label>
-                      <p className="text-sm text-gray-500 mt-1">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
-                      <input
-                        ref={detailImageInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleProductDetailImageUpload}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => detailImageInputRef.current?.click()}
-                        disabled={uploadingDetailImage}
-                        className="w-full mt-3 py-6 border-dashed border-2"
-                      >
-                        {uploadingDetailImage ? '업로드 중...' : campaignForm.product_detail_file_url ? '이미지 변경' : '이미지 업로드'}
-                      </Button>
-                      {campaignForm.product_detail_file_url && (
-                        <div className="mt-4">
-                          <p className="text-sm text-green-600 mb-2">✓ 상품 상세 이미지가 업로드되었습니다</p>
-                          <img
-                            src={campaignForm.product_detail_file_url}
-                            alt="상품 상세"
-                            className="max-w-full h-auto rounded-lg border"
-                            style={{ maxHeight: '400px' }}
-                          />
+                      {uploadingImage ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-sm text-gray-500">업로드 중...</span>
+                        </div>
+                      ) : campaignForm.image_url ? (
+                        <div className="flex flex-col items-center gap-3">
+                          <img src={campaignForm.image_url} alt="썸네일" className="max-h-40 rounded-lg shadow-sm" />
+                          <span className="text-sm text-green-600 font-medium flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                            클릭하여 이미지 변경
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                          </div>
+                          <span className="text-sm text-gray-500">클릭하여 이미지 업로드</span>
                         </div>
                       )}
                     </div>
                   </div>
 
+                  {/* 상품 상세 정보 섹션 */}
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
+                      <span className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                      </span>
+                      상품 상세 정보
+                    </h3>
+
+                    <div className="space-y-5">
+                      <div>
+                        <Label htmlFor="product_name" className="text-sm font-medium text-gray-700 mb-2 block">상품명</Label>
+                        <Input
+                          id="product_name"
+                          value={campaignForm.product_name}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_name: e.target.value }))}
+                          placeholder="예: 에이블씨엔씨 립스틱 #01 코랄핑크"
+                          className="h-12 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="product_description" className="text-sm font-medium text-gray-700 mb-2 block">상품 설명</Label>
+                        <Textarea
+                          id="product_description"
+                          value={campaignForm.product_description}
+                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_description: e.target.value }))}
+                          placeholder="상품의 특징, 성분, 사용법 등을 자세히 입력하세요"
+                          rows={4}
+                          className="border-gray-200 focus:border-amber-500 focus:ring-amber-500 resize-none"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="product_link" className="text-sm font-medium text-gray-700 mb-2 block">상품 링크 (URL)</Label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                          </div>
+                          <Input
+                            id="product_link"
+                            type="url"
+                            value={campaignForm.product_link}
+                            onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
+                            placeholder="https://example.com/product"
+                            className="h-12 pl-10 border-gray-200 focus:border-amber-500 focus:ring-amber-500"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1.5">크리에이터가 참고할 수 있는 상품 페이지 링크</p>
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 mb-2 block">상품 상세 페이지 이미지</Label>
+                        <p className="text-xs text-gray-500 mb-3">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
+                        <input
+                          ref={detailImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProductDetailImageUpload}
+                          className="hidden"
+                        />
+                        <div
+                          onClick={() => detailImageInputRef.current?.click()}
+                          className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
+                            campaignForm.product_detail_file_url ? 'border-green-300 bg-green-50/30' : 'border-gray-300'
+                          }`}
+                        >
+                          {uploadingDetailImage ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-sm text-gray-500">업로드 중...</span>
+                            </div>
+                          ) : campaignForm.product_detail_file_url ? (
+                            <div className="flex flex-col items-center gap-3">
+                              <img
+                                src={campaignForm.product_detail_file_url}
+                                alt="상품 상세"
+                                className="max-h-48 rounded-lg shadow-sm"
+                              />
+                              <span className="text-sm text-green-600 font-medium flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                클릭하여 이미지 변경
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                              </div>
+                              <span className="text-sm text-gray-500">클릭하여 이미지 업로드</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* 상태 안내 */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                    <span className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                    </span>
                     <p className="text-sm text-blue-800">
-                      📌 캠페인은 "<strong>임시저장</strong>" 상태로 저장됩니다.
-                      저장 후 캠페인 목록에서 <strong>"승인 요청하기"</strong>를 누르면 관리자가 검토합니다.
+                      캠페인은 "<strong className="text-blue-900">임시저장</strong>" 상태로 저장됩니다.
+                      저장 후 캠페인 목록에서 <strong className="text-blue-900">"승인 요청하기"</strong>를 누르면 관리자가 검토합니다.
                     </p>
                   </div>
 
                   {/* 질문 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xl font-bold text-gray-900">지원자 질문 (선택사항)</h3>
+                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <span className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </span>
+                        지원자 질문
+                        <span className="text-sm font-normal text-gray-400">(선택사항)</span>
+                      </h3>
                       {questionCount < 4 && (
                         <Button
                           type="button"
-                          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                          className="bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 shadow-md"
                           onClick={() => setQuestionCount(prev => Math.min(prev + 1, 4))}
                         >
-                          + 질문 추가
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                          질문 추가
                         </Button>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500">지원자에게 물어볼 질문을 최대 4개까지 추가할 수 있습니다.</p>
+                    <p className="text-sm text-gray-500 mb-5 ml-10">지원자에게 물어볼 질문을 최대 4개까지 추가할 수 있습니다.</p>
 
                     <div className="space-y-4">
                       {questionCount >= 1 && (
-                        <div>
-                          <Label htmlFor="question1" className="text-sm font-semibold text-gray-700">질문 1</Label>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <Label htmlFor="question1" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                            <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">1</span>
+                            질문 1
+                          </Label>
                           <Textarea
                             id="question1"
                             value={campaignForm.question1}
                             onChange={(e) => setCampaignForm(prev => ({ ...prev, question1: e.target.value }))}
                             placeholder="예: 본인의 피부 타입과 주요 피부 고민을 알려주세요."
                             rows={2}
-                            className="mt-2"
+                            className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
                           />
                         </div>
                       )}
                       {questionCount >= 2 && (
-                        <div>
-                          <Label htmlFor="question2" className="text-sm font-semibold text-gray-700">질문 2</Label>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <Label htmlFor="question2" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                            <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">2</span>
+                            질문 2
+                          </Label>
                           <Textarea
                             id="question2"
                             value={campaignForm.question2}
                             onChange={(e) => setCampaignForm(prev => ({ ...prev, question2: e.target.value }))}
                             placeholder="예: 평소 사용하는 스킨케어 제품을 알려주세요."
                             rows={2}
-                            className="mt-2"
+                            className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
                           />
                         </div>
                       )}
                       {questionCount >= 3 && (
-                        <div>
-                          <Label htmlFor="question3" className="text-sm font-semibold text-gray-700">질문 3</Label>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <Label htmlFor="question3" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                            <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">3</span>
+                            질문 3
+                          </Label>
                           <Textarea
                             id="question3"
                             value={campaignForm.question3}
                             onChange={(e) => setCampaignForm(prev => ({ ...prev, question3: e.target.value }))}
                             placeholder="예: 이 캠페인에 지원한 이유를 알려주세요."
                             rows={2}
-                            className="mt-2"
+                            className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
                           />
                         </div>
                       )}
                       {questionCount >= 4 && (
-                        <div>
-                          <Label htmlFor="question4" className="text-sm font-semibold text-gray-700">질문 4</Label>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <Label htmlFor="question4" className="text-sm font-medium text-violet-700 mb-2 block flex items-center gap-2">
+                            <span className="w-5 h-5 bg-violet-100 text-violet-600 rounded-full text-xs flex items-center justify-center font-bold">4</span>
+                            질문 4
+                          </Label>
                           <Textarea
                             id="question4"
                             value={campaignForm.question4}
                             onChange={(e) => setCampaignForm(prev => ({ ...prev, question4: e.target.value }))}
                             placeholder="예: 콘텐츠 제작 시 중점적으로 다루고 싶은 부분이 있나요?"
                             rows={2}
-                            className="mt-2"
+                            className="border-gray-200 focus:border-violet-500 focus:ring-violet-500 resize-none bg-white"
                           />
                         </div>
                       )}
