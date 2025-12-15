@@ -38,17 +38,21 @@ exports.handler = async (event) => {
     }
 
     console.log('Approving company:', companyId, 'approve:', approve)
+    console.log('VITE_SUPABASE_BIZ_URL:', process.env.VITE_SUPABASE_BIZ_URL ? 'SET' : 'NOT SET')
+    console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET')
 
-    // Use RPC to bypass schema cache issue
-    const { data, error } = await supabaseAdmin.rpc('approve_company', {
+    // Try RPC first
+    console.log('Trying RPC approve_company...')
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('approve_company', {
       company_uuid: companyId,
       approved: approve
     })
 
-    if (error) {
-      console.error('RPC Error:', JSON.stringify(error))
+    if (rpcError) {
+      console.error('RPC Error:', rpcError.message, rpcError.code, rpcError.details)
 
-      // Fallback: try direct update
+      // Try direct update
+      console.log('RPC failed, trying direct update...')
       const { data: directData, error: directError } = await supabaseAdmin
         .from('companies')
         .update({ is_approved: approve })
@@ -56,13 +60,14 @@ exports.handler = async (event) => {
         .select()
 
       if (directError) {
-        console.error('Direct update error:', JSON.stringify(directError))
+        console.error('Direct update error:', directError.message, directError.code, directError.details)
         return {
           statusCode: 500,
           headers,
           body: JSON.stringify({
-            error: 'approve_company 함수가 없습니다. Supabase SQL Editor에서 함수를 생성해주세요.',
-            originalError: error.message
+            error: `RPC 실패: ${rpcError.message} | 직접 업데이트 실패: ${directError.message}`,
+            rpcError: rpcError,
+            directError: directError
           })
         }
       }
@@ -79,23 +84,22 @@ exports.handler = async (event) => {
       }
     }
 
-    console.log('RPC successful')
-
+    console.log('RPC successful:', rpcData)
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
         message: approve ? '계정이 승인되었습니다.' : '계정 승인이 거부되었습니다.',
-        data
+        data: rpcData
       })
     }
   } catch (error) {
-    console.error('Error:', error)
+    console.error('Catch Error:', error)
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message, stack: error.stack })
     }
   }
 }
