@@ -128,6 +128,92 @@ const regionConfig = {
   biz: { label: '비즈', flag: '💼', color: 'bg-gray-50 text-gray-600' }
 }
 
+// D-day 계산 헬퍼 함수
+const getDaysUntilDeadline = (deadline) => {
+  if (!deadline) return null
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const deadlineDate = new Date(deadline)
+  deadlineDate.setHours(0, 0, 0, 0)
+  const diffTime = deadlineDate - now
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
+}
+
+// 캠페인 긴급도/주의 필요 상태 계산
+const getCampaignAlerts = (campaign) => {
+  const alerts = []
+  const daysLeft = getDaysUntilDeadline(campaign.application_deadline)
+  const applicants = campaign.application_stats?.total || 0
+  const selected = campaign.application_stats?.selected || 0
+  const targetSlots = campaign.max_participants || campaign.total_slots || 0
+
+  // 활성 캠페인만 체크
+  if (campaign.status === 'active' || campaign.status === 'approved') {
+    // 마감 임박 (D-7 이내)
+    if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 7) {
+      alerts.push({
+        type: 'deadline',
+        level: daysLeft <= 1 ? 'critical' : daysLeft <= 3 ? 'warning' : 'info',
+        daysLeft
+      })
+    }
+
+    // 지원자 부족 (5명 이하)
+    if (applicants <= 5 && daysLeft !== null && daysLeft >= 0) {
+      alerts.push({
+        type: 'low_applicants',
+        level: applicants === 0 ? 'critical' : 'warning',
+        count: applicants
+      })
+    }
+
+    // 선정 미완료 (지원자는 있는데 선정 안함)
+    if (applicants > 0 && selected === 0 && daysLeft !== null && daysLeft <= 3) {
+      alerts.push({
+        type: 'no_selection',
+        level: 'warning'
+      })
+    }
+  }
+
+  return alerts
+}
+
+// 스마트 정렬: 긴급도 우선
+const getSmartSortScore = (campaign) => {
+  const alerts = getCampaignAlerts(campaign)
+  const daysLeft = getDaysUntilDeadline(campaign.application_deadline)
+  let score = 0
+
+  // 1. 활성/승인 상태 우선 (완료/취소는 뒤로)
+  if (campaign.status === 'active' || campaign.status === 'approved') {
+    score += 10000
+  } else if (campaign.status === 'completed' || campaign.status === 'cancelled') {
+    score -= 5000
+  }
+
+  // 2. 긴급 알림 있으면 높은 점수
+  alerts.forEach(alert => {
+    if (alert.level === 'critical') score += 3000
+    else if (alert.level === 'warning') score += 2000
+    else score += 1000
+  })
+
+  // 3. 마감일 가까울수록 높은 점수 (D-7 이내)
+  if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 7) {
+    score += (8 - daysLeft) * 100
+  }
+
+  // 4. 지원자 적을수록 높은 점수 (관심 필요)
+  const applicants = campaign.application_stats?.total || 0
+  if (applicants <= 5) {
+    score += (6 - applicants) * 50
+  }
+
+  return score
+}
+
 export default function CampaignsManagement() {
   const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
@@ -199,9 +285,9 @@ export default function CampaignsManagement() {
     }
   }
 
-  // 필터링된 캠페인 (useMemo로 최적화)
+  // 필터링된 캠페인 (useMemo로 최적화 + 스마트 정렬)
   const filteredCampaigns = useMemo(() => {
-    return campaigns.filter(campaign => {
+    const filtered = campaigns.filter(campaign => {
       const matchesSearch = searchTerm === '' ||
         campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         campaign.campaign_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -238,6 +324,9 @@ export default function CampaignsManagement() {
 
       return matchesSearch && matchesRegion && matchesStatus
     })
+
+    // 스마트 정렬: 긴급도 높은 순으로 정렬
+    return filtered.sort((a, b) => getSmartSortScore(b) - getSmartSortScore(a))
   }, [campaigns, searchTerm, selectedRegion, selectedStatus])
 
   // 페이지네이션 계산
@@ -463,6 +552,76 @@ export default function CampaignsManagement() {
     )
   }
 
+  // D-day 뱃지 컴포넌트
+  const DdayBadge = ({ daysLeft }) => {
+    if (daysLeft === null || daysLeft < 0) return null
+
+    let text, colorClass
+    if (daysLeft === 0) {
+      text = 'D-Day'
+      colorClass = 'bg-red-500 text-white animate-pulse'
+    } else if (daysLeft <= 1) {
+      text = `D-${daysLeft}`
+      colorClass = 'bg-red-500 text-white'
+    } else if (daysLeft <= 3) {
+      text = `D-${daysLeft}`
+      colorClass = 'bg-orange-500 text-white'
+    } else if (daysLeft <= 7) {
+      text = `D-${daysLeft}`
+      colorClass = 'bg-amber-500 text-white'
+    } else {
+      return null
+    }
+
+    return (
+      <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${colorClass}`}>
+        {text}
+      </span>
+    )
+  }
+
+  // 경고 인디케이터 컴포넌트
+  const AlertIndicators = ({ campaign }) => {
+    const alerts = getCampaignAlerts(campaign)
+    if (alerts.length === 0) return null
+
+    return (
+      <div className="flex items-center gap-1.5">
+        {alerts.map((alert, idx) => {
+          if (alert.type === 'low_applicants') {
+            return (
+              <span
+                key={idx}
+                className={`px-2 py-0.5 rounded-md text-xs font-medium ${
+                  alert.level === 'critical'
+                    ? 'bg-red-100 text-red-700 border border-red-200'
+                    : 'bg-amber-100 text-amber-700 border border-amber-200'
+                }`}
+                title={`지원자 ${alert.count}명으로 부족`}
+              >
+                <Users className="w-3 h-3 inline mr-1" />
+                지원부족
+              </span>
+            )
+          }
+          if (alert.type === 'no_selection') {
+            return (
+              <span
+                key={idx}
+                className="px-2 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200"
+                title="선정이 필요합니다"
+              >
+                <CheckSquare className="w-3 h-3 inline mr-1" />
+                선정필요
+              </span>
+            )
+          }
+          return null
+        })}
+      </div>
+    )
+  }
+
   // 지역 탭
   const regionTabs = [
     { value: 'all', label: '전체' },
@@ -646,10 +805,13 @@ export default function CampaignsManagement() {
                 {paginatedCampaigns.map((campaign) => {
                   const isSelected = selectedCampaigns.has(`${campaign.region}-${campaign.id}`)
                   const platforms = getPlatforms(campaign)
+                  const daysLeft = getDaysUntilDeadline(campaign.application_deadline)
+                  const alerts = getCampaignAlerts(campaign)
+                  const hasUrgentAlert = alerts.some(a => a.level === 'critical' || a.level === 'warning')
                   return (
                     <div
                       key={`${campaign.region}-${campaign.id}`}
-                      className={`p-6 transition-all ${isSelected ? 'bg-blue-50/50' : 'hover:bg-gray-50/50'}`}
+                      className={`p-6 transition-all ${isSelected ? 'bg-blue-50/50' : hasUrgentAlert ? 'bg-amber-50/30 hover:bg-amber-50/50' : 'hover:bg-gray-50/50'}`}
                     >
                       <div className="flex gap-5">
                         {/* 체크박스 */}
@@ -716,6 +878,10 @@ export default function CampaignsManagement() {
                                 <CampaignTypeBadge type={campaign.campaign_type} />
                                 <RegionBadge region={campaign.region} />
                                 <StatusBadge status={campaign.status} />
+                                {/* D-day 표시 */}
+                                <DdayBadge daysLeft={daysLeft} />
+                                {/* 경고 인디케이터 */}
+                                <AlertIndicators campaign={campaign} />
                               </div>
                             </div>
                             {/* 액션 버튼 */}
