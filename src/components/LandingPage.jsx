@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
@@ -24,78 +24,104 @@ const getYouTubeThumbnail = (videoId) => {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
-// 개별 비디오 카드 컴포넌트 (YouTube Lite Embed - 10배 빠른 로딩)
-// 핵심: 썸네일만 먼저 표시하고, 클릭 시에만 iframe 로드
+// 개별 비디오 카드 컴포넌트 (스마트 자동재생 - 빠른 로딩 + 움직이는 영상)
+// 핵심: 화면 가까이 오면 미리 로드 → 보이면 자동 재생 (뮤트)
 const VideoCard = ({ video, size = 'normal' }) => {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [shouldLoad, setShouldLoad] = useState(false) // iframe 로드 시작
+  const [isVisible, setIsVisible] = useState(false) // 화면에 보임
+  const [isLoaded, setIsLoaded] = useState(false) // iframe 로드 완료
   const [thumbnailLoaded, setThumbnailLoaded] = useState(false)
+  const cardRef = useRef(null)
 
   const youtubeId = getYouTubeVideoId(video.url || video.youtube_url)
   const thumbnailUrl = video.thumbnail_url || getYouTubeThumbnail(youtubeId)
 
-  const handlePlay = () => {
-    setIsPlaying(true)
-  }
+  useEffect(() => {
+    const card = cardRef.current
+    if (!card) return
+
+    // 프리로드 옵저버: 화면에서 300px 전에 미리 로드 시작
+    const preloadObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoad(true)
+          preloadObserver.disconnect()
+        }
+      },
+      { rootMargin: '300px' } // 300px 전에 미리 로드
+    )
+
+    // 가시성 옵저버: 실제로 보일 때 체크
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting)
+      },
+      { threshold: 0.3 }
+    )
+
+    preloadObserver.observe(card)
+    visibilityObserver.observe(card)
+
+    return () => {
+      preloadObserver.disconnect()
+      visibilityObserver.disconnect()
+    }
+  }, [])
 
   const sizeClasses = size === 'large' ? 'aspect-[9/16] min-h-[400px]' : 'aspect-[9/16]'
 
+  // iframe URL: 보일 때만 autoplay, 안 보이면 일시정지
+  const iframeSrc = shouldLoad && youtubeId
+    ? `https://www.youtube.com/embed/${youtubeId}?autoplay=${isVisible ? 1 : 0}&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1`
+    : null
+
   return (
     <div
-      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 group shadow-lg cursor-pointer`}
-      onClick={!isPlaying ? handlePlay : undefined}
+      ref={cardRef}
+      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 group shadow-lg`}
     >
-      {isPlaying && youtubeId ? (
-        // 클릭 후에만 iframe 로드 (무거운 리소스)
-        <>
-          <iframe
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&loop=1&playlist=${youtubeId}&playsinline=1&controls=1&showinfo=0&rel=0&modestbranding=1`}
-            className="w-full h-full"
-            allow="autoplay; encrypted-media; fullscreen"
-            loading="eager"
-            onLoad={() => setIsLoaded(true)}
-          />
-          {!isLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-              <div className="w-10 h-10 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-            </div>
-          )}
-        </>
-      ) : (
-        // 기본 상태: 가벼운 썸네일만 표시 (초고속 로딩)
-        <>
-          {thumbnailUrl ? (
-            <img
-              src={thumbnailUrl}
-              alt={video.title || '영상'}
-              className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${thumbnailLoaded ? 'opacity-100' : 'opacity-0'}`}
-              loading="lazy"
-              decoding="async"
-              onLoad={() => setThumbnailLoaded(true)}
-              onError={(e) => {
-                if (e.target.src.includes('maxresdefault')) {
-                  e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
-                }
-              }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
-          )}
+      {/* 썸네일 (항상 표시 - iframe 로드 중 배경) */}
+      {thumbnailUrl && (
+        <img
+          src={thumbnailUrl}
+          alt={video.title || '영상'}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-0' : 'opacity-100'}`}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setThumbnailLoaded(true)}
+          onError={(e) => {
+            if (e.target.src.includes('maxresdefault')) {
+              e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
+            }
+          }}
+        />
+      )}
 
-          {/* 재생 버튼 오버레이 */}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-red-600 rounded-full flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform duration-300">
-              <Play className="w-6 h-6 sm:w-7 sm:h-7 text-white ml-1" fill="white" />
-            </div>
+      {/* YouTube iframe (프리로드 조건 충족 시) */}
+      {iframeSrc && (
+        <iframe
+          src={iframeSrc}
+          className={`absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          allow="autoplay; encrypted-media"
+          loading="lazy"
+          onLoad={() => setIsLoaded(true)}
+        />
+      )}
+
+      {/* 로딩 인디케이터 */}
+      {shouldLoad && !isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* 재생 아이콘 (로드 전에만) */}
+      {!shouldLoad && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-600/90 rounded-full flex items-center justify-center shadow-lg">
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 text-white ml-0.5" fill="white" />
           </div>
-
-          {/* 영상 제목 (하단) */}
-          {video.title && (
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-              <p className="text-white text-xs sm:text-sm font-medium line-clamp-2">{video.title}</p>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   )
