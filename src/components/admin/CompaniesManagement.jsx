@@ -86,14 +86,19 @@ export default function CompaniesManagement() {
 
   const handleApproval = async (id, approve) => {
     try {
-      const { error } = await supabaseBiz
-        .from('companies')
-        .update({ is_approved: approve })
-        .eq('id', id)
+      const response = await fetch('/.netlify/functions/approve-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: id, approve })
+      })
 
-      if (error) throw error
+      const result = await response.json()
 
-      alert(approve ? '계정이 승인되었습니다.' : '계정 승인이 거부되었습니다.')
+      if (!response.ok) {
+        throw new Error(result.error || '승인 처리 실패')
+      }
+
+      alert(result.message)
       fetchCompanies()
     } catch (error) {
       console.error('Error updating approval:', error)
