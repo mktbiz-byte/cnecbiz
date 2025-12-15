@@ -1857,7 +1857,7 @@ export default function CampaignDetail() {
 
   const handleRequestAdditionalPayment = () => {
     const additionalCount = selectedParticipants.length - campaign.total_slots
-    const packagePrice = getPackagePrice(campaign.package_type)
+    const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
     const additionalCost = packagePrice * additionalCount
     if (confirm(`추가 ${additionalCount}명에 대한 입금 요청을 하시겠습니까?\n\n추가 금액: ${additionalCost.toLocaleString()}원`)) {
       // 견적서 페이지로 이동 (추가 인원 정보 포함, region 파라미터 유지)
@@ -2515,7 +2515,22 @@ export default function CampaignDetail() {
     }
   }
 
-  const getPackagePrice = (packageType) => {
+  const getPackagePrice = (packageType, campaignType) => {
+    // 4주 챌린지 전용 가격표
+    const fourWeekPrices = {
+      'standard': 600000,
+      'premium': 700000,
+      'professional': 800000,
+      'enterprise': 1000000
+    }
+
+    // 올리브영 전용 가격표
+    const oliveyoungPrices = {
+      'standard': 400000,
+      'premium': 500000,
+      'professional': 600000
+    }
+
     const prices = {
       'junior': 200000,
       'intermediate': 300000,
@@ -2525,9 +2540,24 @@ export default function CampaignDetail() {
       'premium': 300000,
       '프리미엄 30만원': 300000,
       '4week_challenge': 600000,
-      '4주챌린지 60만원': 600000
+      '4주챌린지 60만원': 600000,
+      'standard': 300000,
+      'professional': 600000,
+      'enterprise': 1000000
     }
-    return prices[packageType] || 200000
+
+    const packageKey = packageType?.toLowerCase()
+
+    // 캠페인 타입별 가격표 우선 적용
+    if ((campaignType === '4week_challenge' || campaignType === '4week') && fourWeekPrices[packageKey]) {
+      return fourWeekPrices[packageKey]
+    }
+
+    if (campaignType === 'oliveyoung' && oliveyoungPrices[packageKey]) {
+      return oliveyoungPrices[packageKey]
+    }
+
+    return prices[packageKey] || 200000
   }
 
   const handleCancelCampaign = async () => {
@@ -2813,8 +2843,8 @@ export default function CampaignDetail() {
                 <div>
                   <p className="text-sm text-gray-600">결제 예상 금액 <span className="text-xs text-gray-500">(VAT 포함)</span></p>
                   <p className="text-2xl font-bold mt-2">
-                    {campaign.package_type && campaign.total_slots ? 
-                      `₩${(getPackagePrice(campaign.package_type) * campaign.total_slots * 1.1).toLocaleString()}` 
+                    {campaign.package_type && campaign.total_slots ?
+                      `₩${(getPackagePrice(campaign.package_type, campaign.campaign_type) * campaign.total_slots * 1.1).toLocaleString()}`
                       : '-'
                     }
                   </p>

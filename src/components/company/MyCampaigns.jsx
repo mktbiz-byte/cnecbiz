@@ -251,6 +251,14 @@ export default function MyCampaigns() {
   }
 
   const getPackagePrice = (packageType, campaignType) => {
+    // 4주 챌린지 전용 가격표
+    const fourWeekPrices = {
+      'standard': 600000,
+      'premium': 700000,
+      'professional': 800000,
+      'enterprise': 1000000
+    }
+
     const oliveyoungPrices = {
       'standard': 400000,
       'premium': 500000,
@@ -280,6 +288,11 @@ export default function MyCampaigns() {
 
     if (legacyPrices[packageKey]) {
       return legacyPrices[packageKey]
+    }
+
+    // 4주 챌린지 캠페인
+    if ((campaignType === '4week_challenge' || campaignType === '4week') && fourWeekPrices[packageKey]) {
+      return fourWeekPrices[packageKey]
     }
 
     if (campaignType === 'oliveyoung' && oliveyoungPrices[packageKey]) {
