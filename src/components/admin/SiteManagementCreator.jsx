@@ -25,7 +25,7 @@ export default function SiteManagementCreator() {
 
   // FAQ
   const [faqs, setFaqs] = useState([])
-  const [newFaq, setNewFaq] = useState({ question: '', answer: '', category: 'general', order: 0 })
+  const [newFaq, setNewFaq] = useState({ question: '', answer: '', category: 'general', display_order: 0 })
   const [editingFaq, setEditingFaq] = useState(null)
 
   // 메인페이지 문구
@@ -250,7 +250,7 @@ export default function SiteManagementCreator() {
       const { data, error } = await supabaseKorea
         .from('faqs')
         .select('*')
-        .order('order', { ascending: true })
+        .order('display_order', { ascending: true })
 
       if (error) throw error
       setFaqs(data || [])
@@ -268,15 +268,15 @@ export default function SiteManagementCreator() {
 
     setSaving(true)
     try {
-      const maxOrder = faqs.length > 0 ? Math.max(...faqs.map(f => f.order || 0)) : 0
+      const maxOrder = faqs.length > 0 ? Math.max(...faqs.map(f => f.display_order || 0)) : 0
 
       const { error } = await supabaseKorea
         .from('faqs')
-        .insert([{ ...newFaq, order: maxOrder + 1, is_active: true }])
+        .insert([{ ...newFaq, display_order: maxOrder + 1, is_active: true }])
 
       if (error) throw error
       alert('FAQ가 추가되었습니다.')
-      setNewFaq({ question: '', answer: '', category: 'general', order: 0 })
+      setNewFaq({ question: '', answer: '', category: 'general', display_order: 0 })
       fetchFaqs()
     } catch (error) {
       console.error('FAQ 추가 오류:', error)
