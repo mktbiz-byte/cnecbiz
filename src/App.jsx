@@ -76,6 +76,7 @@ import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApproval
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorMappingManagement from './components/admin/CreatorMappingManagement'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
+import ProfileCompletionKorea from './components/creator/ProfileCompletionKorea'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
 import FeaturedCreatorsPage from './components/company/FeaturedCreatorsPage'
 import FeaturedCreatorProfile from './components/company/FeaturedCreatorProfile'
@@ -221,6 +222,7 @@ function App() {
 
         {/* Creator Routes */}
         <Route path="/creator/mypage" element={<CreatorMyPage />} />
+        <Route path="/creator/complete-profile" element={<ProfileCompletionKorea />} />
         <Route path="/creator/apply" element={<CreatorProfileApplication />} />
         <Route path="/creator/withdrawal" element={<WithdrawalRequest />} />
         <Route path="/creator/:creatorId" element={<CreatorDetailProfile />} />
