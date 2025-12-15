@@ -193,84 +193,51 @@ export const createCampaignInRegions = async (campaignData, selectedRegions) => 
 // Helper function to get campaigns from all regions
 export const getCampaignsFromAllRegions = async () => {
   const regions = ['biz', 'korea', 'japan', 'us', 'taiwan']
-  const allCampaigns = []
 
-  console.log('[getCampaignsFromAllRegions] Starting to fetch campaigns from all regions...')
-
-  for (const region of regions) {
+  // 모든 지역에서 병렬로 데이터 가져오기
+  const fetchPromises = regions.map(async (region) => {
     const client = getSupabaseClient(region)
-    if (!client) {
-      console.warn(`[getCampaignsFromAllRegions] No client for region: ${region}`)
-      continue
-    }
+    if (!client) return []
 
     try {
-      console.log(`[getCampaignsFromAllRegions] Fetching from ${region}...`)
-      console.log(`[getCampaignsFromAllRegions] Client for ${region}:`, client ? 'exists' : 'null')
-      
       const { data, error } = await client
         .from('campaigns')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error(`[getCampaignsFromAllRegions] Error from ${region}:`, error)
-        console.error(`[getCampaignsFromAllRegions] Error details:`, JSON.stringify(error))
-      } else if (data) {
-        console.log(`[getCampaignsFromAllRegions] Fetched ${data.length} campaigns from ${region}`)
-        console.log(`[getCampaignsFromAllRegions] Sample campaign from ${region}:`, data[0] ? Object.keys(data[0]) : 'no data')
-        
-        // 지역별 스키마 차이를 통일된 형식으로 매핑
-        const normalizedCampaigns = data.map(campaign => {
-          // 지역별 통화 단위
-          const currencySymbol = {
-            'korea': '₩',
-            'japan': '¥',
-            'us': '$',
-            'taiwan': 'NT$',
-            'biz': '₩'
-          }[region] || '₩'
-          
-          // 기본 필드 매핑
-          const normalized = {
-            ...campaign,
-            region,
-            currency: currencySymbol,
-            // 제목 통일
-            campaign_name: campaign.title || campaign.product_name || campaign.campaign_name || '제목 없음',
-            // 설명 통일
-            description: campaign.description || '설명 없음',
-            // 예산 계산
-            budget: campaign.estimated_cost || // 한국 (estimated_cost)
-                   (campaign.reward_amount && campaign.max_participants 
-                     ? campaign.reward_amount * campaign.max_participants  // 일본/미국/대만
-                     : campaign.budget || 0),
-            // 크리에이터 수 (모집 인원)
-            creator_count: campaign.total_slots || campaign.max_participants || campaign.creator_count || 0,
-            // 날짜 필드 통일
-            start_date: campaign.start_date,
-            end_date: campaign.end_date,
-            application_deadline: campaign.application_deadline || campaign.recruitment_deadline,
-            // 상태 통일
-            status: campaign.status,
-            approval_status: campaign.approval_status || campaign.status
-          }
-          
-          return normalized
-        })
-        
-        allCampaigns.push(...normalizedCampaigns)
-      } else {
-        console.warn(`[getCampaignsFromAllRegions] No data and no error from ${region}`)
-      }
-    } catch (error) {
-      console.error(`[getCampaignsFromAllRegions] Exception from ${region}:`, error)
-      console.error(`[getCampaignsFromAllRegions] Exception details:`, error.message, error.stack)
-    }
-  }
+      if (error || !data) return []
 
-  console.log(`[getCampaignsFromAllRegions] Total campaigns: ${allCampaigns.length}`)
-  return allCampaigns
+      // 지역별 스키마 차이를 통일된 형식으로 매핑
+      const currencySymbol = {
+        'korea': '₩',
+        'japan': '¥',
+        'us': '$',
+        'taiwan': 'NT$',
+        'biz': '₩'
+      }[region] || '₩'
+
+      return data.map(campaign => ({
+        ...campaign,
+        region,
+        currency: currencySymbol,
+        campaign_name: campaign.title || campaign.product_name || campaign.campaign_name || '제목 없음',
+        description: campaign.description || '설명 없음',
+        budget: campaign.estimated_cost ||
+               (campaign.reward_amount && campaign.max_participants
+                 ? campaign.reward_amount * campaign.max_participants
+                 : campaign.budget || 0),
+        creator_count: campaign.total_slots || campaign.max_participants || campaign.creator_count || 0,
+        application_deadline: campaign.application_deadline || campaign.recruitment_deadline,
+        approval_status: campaign.approval_status || campaign.status
+      }))
+    } catch (error) {
+      console.error(`Error fetching from ${region}:`, error)
+      return []
+    }
+  })
+
+  const results = await Promise.all(fetchPromises)
+  return results.flat()
 }
 
 // Helper function to get campaign statistics from all regions
@@ -357,10 +324,10 @@ export const getApplicationStatsForCampaigns = async (campaignIds, region) => {
   }
 }
 
-// Helper function to get campaigns with application statistics
+// Helper function to get campaigns with application statistics (병렬 최적화 버전)
 export const getCampaignsWithStats = async () => {
   const campaigns = await getCampaignsFromAllRegions()
-  
+
   // 지역별로 캠페인 그룹화
   const campaignsByRegion = {}
   campaigns.forEach(campaign => {
@@ -370,20 +337,38 @@ export const getCampaignsWithStats = async () => {
     campaignsByRegion[campaign.region].push(campaign)
   })
 
-  // 각 지역별로 지원자 통계 조회
-  for (const [region, regionCampaigns] of Object.entries(campaignsByRegion)) {
+  // 모든 지역의 통계를 병렬로 조회
+  const statsPromises = Object.entries(campaignsByRegion).map(async ([region, regionCampaigns]) => {
     const campaignIds = regionCampaigns.map(c => c.id)
     const stats = await getApplicationStatsForCampaigns(campaignIds, region)
-    
-    // 캠페인에 통계 추가
-    regionCampaigns.forEach(campaign => {
-      campaign.application_stats = stats[campaign.id] || {
-        total: 0,
-        selected: 0,
-        completed: 0
-      }
-    })
-  }
+    return { region, stats }
+  })
 
+  const allStats = await Promise.all(statsPromises)
+
+  // 통계 결과를 캠페인에 매핑
+  const statsMap = {}
+  allStats.forEach(({ region, stats }) => {
+    statsMap[region] = stats
+  })
+
+  campaigns.forEach(campaign => {
+    const regionStats = statsMap[campaign.region] || {}
+    campaign.application_stats = regionStats[campaign.id] || {
+      total: 0,
+      selected: 0,
+      completed: 0
+    }
+  })
+
+  return campaigns
+}
+
+// 빠른 로딩용 - 통계 없이 캠페인만 가져오기
+export const getCampaignsFast = async () => {
+  const campaigns = await getCampaignsFromAllRegions()
+  campaigns.forEach(campaign => {
+    campaign.application_stats = { total: 0, selected: 0, completed: 0 }
+  })
   return campaigns
 }

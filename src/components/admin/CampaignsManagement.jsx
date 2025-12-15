@@ -58,7 +58,7 @@ const getPlatforms = (campaign) => {
 
   return platforms
 }
-import { supabaseBiz, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, getCampaignsFast, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 const ITEMS_PER_PAGE = 20
@@ -179,14 +179,22 @@ export default function CampaignsManagement() {
     }
   }
 
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = async (withStats = false) => {
     setLoading(true)
     try {
-      const allCampaigns = await getCampaignsWithStats()
+      // 빠른 초기 로딩: 통계 없이 캠페인만 먼저 표시
+      const allCampaigns = await getCampaignsFast()
       setCampaigns(allCampaigns)
+      setLoading(false)
+
+      // 백그라운드에서 통계 로드
+      if (!withStats) {
+        getCampaignsWithStats().then(campaignsWithStats => {
+          setCampaigns(campaignsWithStats)
+        }).catch(err => console.error('Stats loading error:', err))
+      }
     } catch (error) {
       console.error('Error fetching campaigns:', error)
-    } finally {
       setLoading(false)
     }
   }
