@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
@@ -24,102 +24,58 @@ const getYouTubeThumbnail = (videoId) => {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
-// 개별 비디오 카드 컴포넌트 (스마트 자동재생 - 빠른 로딩 + 움직이는 영상)
-// 핵심: 화면 가까이 오면 미리 로드 → 보이면 자동 재생 (뮤트)
+// 개별 비디오 카드 컴포넌트 (초고속 로딩 - 호버/터치 시 재생)
 const VideoCard = ({ video, size = 'normal' }) => {
-  const [shouldLoad, setShouldLoad] = useState(false) // iframe 로드 시작
-  const [isVisible, setIsVisible] = useState(false) // 화면에 보임
-  const [isLoaded, setIsLoaded] = useState(false) // iframe 로드 완료
-  const [thumbnailLoaded, setThumbnailLoaded] = useState(false)
-  const cardRef = useRef(null)
+  const [isActive, setIsActive] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   const youtubeId = getYouTubeVideoId(video.url || video.youtube_url)
   const thumbnailUrl = video.thumbnail_url || getYouTubeThumbnail(youtubeId)
 
-  useEffect(() => {
-    const card = cardRef.current
-    if (!card) return
-
-    // 프리로드 옵저버: 화면에서 300px 전에 미리 로드 시작
-    const preloadObserver = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldLoad(true)
-          preloadObserver.disconnect()
-        }
-      },
-      { rootMargin: '300px' } // 300px 전에 미리 로드
-    )
-
-    // 가시성 옵저버: 실제로 보일 때 체크
-    const visibilityObserver = new IntersectionObserver(
-      ([entry]) => {
-        setIsVisible(entry.isIntersecting)
-      },
-      { threshold: 0.3 }
-    )
-
-    preloadObserver.observe(card)
-    visibilityObserver.observe(card)
-
-    return () => {
-      preloadObserver.disconnect()
-      visibilityObserver.disconnect()
-    }
-  }, [])
-
   const sizeClasses = size === 'large' ? 'aspect-[9/16] min-h-[400px]' : 'aspect-[9/16]'
-
-  // iframe URL: 보일 때만 autoplay, 안 보이면 일시정지
-  const iframeSrc = shouldLoad && youtubeId
-    ? `https://www.youtube.com/embed/${youtubeId}?autoplay=${isVisible ? 1 : 0}&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1`
-    : null
 
   return (
     <div
-      ref={cardRef}
-      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 group shadow-lg`}
+      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 shadow-lg cursor-pointer`}
+      onMouseEnter={() => setIsActive(true)}
+      onMouseLeave={() => { setIsActive(false); setIsLoaded(false) }}
+      onClick={() => setIsActive(true)}
     >
-      {/* 썸네일 (항상 표시 - iframe 로드 중 배경) */}
-      {thumbnailUrl && (
-        <img
-          src={thumbnailUrl}
-          alt={video.title || '영상'}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-0' : 'opacity-100'}`}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setThumbnailLoaded(true)}
-          onError={(e) => {
-            if (e.target.src.includes('maxresdefault')) {
-              e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
-            }
-          }}
-        />
-      )}
+      {/* 썸네일 */}
+      <img
+        src={thumbnailUrl || `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
+        alt={video.title || '영상'}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${isActive && isLoaded ? 'opacity-0' : 'opacity-100'}`}
+        loading="lazy"
+        onError={(e) => {
+          if (e.target.src.includes('maxresdefault')) {
+            e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
+          }
+        }}
+      />
 
-      {/* YouTube iframe (프리로드 조건 충족 시) */}
-      {iframeSrc && (
+      {/* YouTube iframe (호버/터치 시에만) */}
+      {isActive && youtubeId && (
         <iframe
-          src={iframeSrc}
-          className={`absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&rel=0&modestbranding=1`}
+          className="absolute inset-0 w-full h-full pointer-events-none"
           allow="autoplay; encrypted-media"
-          loading="lazy"
           onLoad={() => setIsLoaded(true)}
         />
       )}
 
-      {/* 로딩 인디케이터 */}
-      {shouldLoad && !isLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center">
+      {/* 호버 시 로딩 스피너 */}
+      {isActive && !isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
           <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
         </div>
       )}
 
-      {/* 재생 아이콘 (로드 전에만) */}
-      {!shouldLoad && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-red-600/90 rounded-full flex items-center justify-center shadow-lg">
-            <Play className="w-5 h-5 sm:w-6 sm:h-6 text-white ml-0.5" fill="white" />
+      {/* 재생 버튼 */}
+      {!isActive && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors">
+          <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform">
+            <Play className="w-6 h-6 text-white ml-1" fill="white" />
           </div>
         </div>
       )}
