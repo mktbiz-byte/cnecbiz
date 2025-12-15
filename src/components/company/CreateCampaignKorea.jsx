@@ -2412,8 +2412,15 @@ const CampaignCreationKorea = () => {
                     </h3>
                     <p className="text-sm text-gray-500 mb-4 ml-10">캠페인 목록에 표시될 대표 이미지</p>
 
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailUpload}
+                      className="hidden"
+                      id="oliveyoung-thumbnail-input"
+                    />
                     <div
-                      onClick={() => thumbnailInputRef.current?.click()}
+                      onClick={() => document.getElementById('oliveyoung-thumbnail-input')?.click()}
                       className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all hover:border-pink-400 hover:bg-pink-50/50 ${
                         campaignForm.image_url ? 'border-green-300 bg-green-50/30' : 'border-gray-300'
                       }`}
@@ -2525,8 +2532,15 @@ const CampaignCreationKorea = () => {
                       <div>
                         <Label className="text-sm font-medium text-gray-700 mb-2 block">상품 상세 페이지 이미지</Label>
                         <p className="text-xs text-gray-500 mb-3">상품 상세 정보가 담긴 이미지 파일을 업로드하세요 (권장: 10MB 이하)</p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProductDetailImageUpload}
+                          className="hidden"
+                          id="oliveyoung-detail-input"
+                        />
                         <div
-                          onClick={() => detailImageInputRef.current?.click()}
+                          onClick={() => document.getElementById('oliveyoung-detail-input')?.click()}
                           className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all hover:border-amber-400 hover:bg-amber-50/50 ${
                             campaignForm.product_detail_file_url ? 'border-green-300 bg-green-50/30' : 'border-gray-300'
                           }`}

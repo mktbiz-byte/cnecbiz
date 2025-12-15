@@ -138,6 +138,10 @@ exports.handler = async (event) => {
     else if (url.includes('smartstore.naver.com') || url.includes('brand.naver.com')) {
       productInfo = parseNaverStore($, url)
     }
+    // 클럽클리오
+    else if (url.includes('clubclio.co.kr')) {
+      productInfo = parseClubClio($, url)
+    }
     // 기타 일반 사이트
     else {
       productInfo = parseGeneric($, url)
@@ -271,6 +275,65 @@ function parseCoupang($, url) {
   }
 }
 
+// 클럽클리오 파싱 (clubclio.co.kr)
+function parseClubClio($, url) {
+  // 상품명 - 다양한 셀렉터 시도
+  const productName = $('meta[property="og:title"]').attr('content') ||
+                      $('.goods_name').text().trim() ||
+                      $('h2.tit').text().trim() ||
+                      $('[class*="goods"] h2').text().trim() ||
+                      $('title').text().split('|')[0].trim() || ''
+
+  // 브랜드명
+  const brandName = $('meta[property="product:brand"]').attr('content') ||
+                    $('.brand_name').text().trim() ||
+                    $('[class*="brand"]').first().text().trim() ||
+                    'CLIO'
+
+  // 가격 - 원화(KRW)로 추출
+  // 메타 태그에서 먼저 시도
+  let priceText = $('meta[property="product:price:amount"]').attr('content') || ''
+
+  // 메타 태그에 없으면 HTML에서 추출
+  if (!priceText) {
+    // 판매가 셀렉터들
+    priceText = $('.goods_price .sale_price').text().trim() ||
+                $('.sale_price').first().text().trim() ||
+                $('.price .sale').text().trim() ||
+                $('[class*="price"] .num').text().trim() ||
+                $('[class*="sale_price"]').first().text().trim() ||
+                $('[class*="goods_price"]').text().trim() ||
+                ''
+  }
+
+  // 숫자만 추출 (원화 가격)
+  const price = priceText.replace(/[^0-9]/g, '')
+
+  // 가격이 너무 크면 (예: 타임스탬프 등) 빈 값 처리
+  const numericPrice = parseInt(price, 10)
+  const validPrice = (numericPrice > 0 && numericPrice < 10000000) ? price : ''
+
+  // 썸네일 이미지
+  const thumbnail = $('meta[property="og:image"]').attr('content') ||
+                    $('.goods_view_img img').attr('src') ||
+                    $('[class*="goods"] img').first().attr('src') || ''
+
+  // 상품 설명
+  const description = $('meta[property="og:description"]').attr('content') ||
+                      $('meta[name="description"]').attr('content') || ''
+
+  const keywords = extractKeywords(productName + ' ' + description)
+
+  return {
+    product_name: productName,
+    brand_name: brandName,
+    product_price: validPrice,
+    thumbnail_url: thumbnail,
+    product_description: description,
+    keywords
+  }
+}
+
 // 네이버 스마트스토어 파싱
 function parseNaverStore($, url) {
   const productName = $('meta[property="og:title"]').attr('content') ||
@@ -311,17 +374,27 @@ function parseGeneric($, url) {
   const description = $('meta[property="og:description"]').attr('content') ||
                       $('meta[name="description"]').attr('content') || ''
 
-  const priceText = $('[class*="price"]').first().text().trim() ||
-                    $('[itemprop="price"]').attr('content') ||
-                    $('meta[property="product:price:amount"]').attr('content') || ''
+  // 가격 추출 - 메타 태그 우선
+  let priceText = $('meta[property="product:price:amount"]').attr('content') || ''
+
+  if (!priceText) {
+    priceText = $('[itemprop="price"]').attr('content') ||
+                $('[class*="sale_price"]').first().text().trim() ||
+                $('[class*="price"]').first().text().trim() || ''
+  }
+
   const price = priceText.replace(/[^0-9]/g, '')
+
+  // 가격 유효성 검사 (1000만원 이하만 유효)
+  const numericPrice = parseInt(price, 10)
+  const validPrice = (numericPrice > 0 && numericPrice < 10000000) ? price : ''
 
   const keywords = extractKeywords(productName + ' ' + description)
 
   return {
     product_name: productName,
     brand_name: '',
-    product_price: price,
+    product_price: validPrice,
     thumbnail_url: thumbnail,
     product_description: description,
     keywords
