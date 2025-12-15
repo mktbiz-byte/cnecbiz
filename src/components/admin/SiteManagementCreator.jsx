@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Video, HelpCircle, Edit, Plus, Trash2, Save,
   Eye, EyeOff, Shield, UserPlus, Search, FileText, Mail, Send, FileSignature,
-  ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Layout, Settings, Loader2
+  ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, Layout, Settings, Loader2, Building2
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -75,6 +75,24 @@ export default function SiteManagementCreator() {
   const [emailTemplates, setEmailTemplates] = useState([])
   const [editingTemplate, setEditingTemplate] = useState(null)
 
+  // 푸터/사이트 정보
+  const [footerSettings, setFooterSettings] = useState({
+    company_name: '',
+    ceo_name: '',
+    business_number: '',
+    address: '',
+    phone: '',
+    email: '',
+    customer_service_hours: '',
+    copyright_text: '',
+    instagram_url: '',
+    youtube_url: '',
+    blog_url: '',
+    kakao_channel_url: '',
+    privacy_policy_url: '',
+    terms_url: ''
+  })
+
   useEffect(() => {
     checkAuth()
     fetchVideos()
@@ -84,6 +102,7 @@ export default function SiteManagementCreator() {
     fetchSeoSettings()
     fetchEmailSettings()
     fetchFeaturedCreators()
+    fetchFooterSettings()
   }, [])
 
   useEffect(() => {
@@ -625,6 +644,57 @@ export default function SiteManagementCreator() {
     }
   }
 
+  // ===== 푸터/사이트 정보 =====
+  const fetchFooterSettings = async () => {
+    if (!supabaseKorea) return
+    try {
+      const { data, error } = await supabaseKorea.from('site_settings').select('*').limit(1).maybeSingle()
+      if (error && error.code !== 'PGRST116') throw error
+      if (data) {
+        setFooterSettings({
+          company_name: data.company_name || '',
+          ceo_name: data.ceo_name || '',
+          business_number: data.business_number || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          customer_service_hours: data.customer_service_hours || '',
+          copyright_text: data.copyright_text || '',
+          instagram_url: data.instagram_url || '',
+          youtube_url: data.youtube_url || '',
+          blog_url: data.blog_url || '',
+          kakao_channel_url: data.kakao_channel_url || '',
+          privacy_policy_url: data.privacy_policy_url || '',
+          terms_url: data.terms_url || ''
+        })
+      }
+    } catch (error) {
+      console.error('푸터 설정 조회 오류:', error)
+    }
+  }
+
+  const handleSaveFooterSettings = async () => {
+    if (!supabaseKorea) return
+    setSaving(true)
+    try {
+      const { data: existing } = await supabaseKorea.from('site_settings').select('id').limit(1).maybeSingle()
+
+      if (existing) {
+        const { error } = await supabaseKorea.from('site_settings').update(footerSettings).eq('id', existing.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabaseKorea.from('site_settings').insert([footerSettings])
+        if (error) throw error
+      }
+      alert('사이트 정보가 저장되었습니다.')
+    } catch (error) {
+      console.error('푸터 설정 저장 오류:', error)
+      alert('저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const faqCategories = [
     { value: 'general', label: '일반' },
     { value: 'service', label: '서비스' },
@@ -683,6 +753,10 @@ export default function SiteManagementCreator() {
               <TabsTrigger value="email-templates" className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
                 <FileText className="w-4 h-4" />
                 이메일 템플릿
+              </TabsTrigger>
+              <TabsTrigger value="footer" className="flex items-center gap-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+                <Building2 className="w-4 h-4" />
+                사이트 정보
               </TabsTrigger>
             </TabsList>
 
@@ -1401,6 +1475,171 @@ export default function SiteManagementCreator() {
                       <div className="text-center py-12 text-gray-500">등록된 이메일 템플릿이 없습니다.</div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 사이트 정보/푸터 탭 */}
+            <TabsContent value="footer">
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="border-b border-gray-100">
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-orange-500" />
+                    사이트 정보 / 푸터 관리
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  {/* 회사 기본 정보 */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h3 className="font-semibold text-gray-900 mb-4">회사 기본 정보</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">회사명</label>
+                        <Input
+                          value={footerSettings.company_name}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, company_name: e.target.value })}
+                          placeholder="(주)씨넥"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">대표자명</label>
+                        <Input
+                          value={footerSettings.ceo_name}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, ceo_name: e.target.value })}
+                          placeholder="홍길동"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">사업자등록번호</label>
+                        <Input
+                          value={footerSettings.business_number}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, business_number: e.target.value })}
+                          placeholder="123-45-67890"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
+                        <Input
+                          value={footerSettings.phone}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, phone: e.target.value })}
+                          placeholder="02-1234-5678"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">주소</label>
+                        <Input
+                          value={footerSettings.address}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, address: e.target.value })}
+                          placeholder="서울특별시 강남구 테헤란로 123"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                        <Input
+                          value={footerSettings.email}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, email: e.target.value })}
+                          placeholder="contact@cnec.co.kr"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">고객센터 운영시간</label>
+                        <Input
+                          value={footerSettings.customer_service_hours}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, customer_service_hours: e.target.value })}
+                          placeholder="평일 09:00 - 18:00"
+                          className="bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SNS 링크 */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h3 className="font-semibold text-gray-900 mb-4">SNS 링크</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">인스타그램 URL</label>
+                        <Input
+                          value={footerSettings.instagram_url}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, instagram_url: e.target.value })}
+                          placeholder="https://instagram.com/cnec"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">유튜브 URL</label>
+                        <Input
+                          value={footerSettings.youtube_url}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, youtube_url: e.target.value })}
+                          placeholder="https://youtube.com/@cnec"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">블로그 URL</label>
+                        <Input
+                          value={footerSettings.blog_url}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, blog_url: e.target.value })}
+                          placeholder="https://blog.naver.com/cnec"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">카카오 채널 URL</label>
+                        <Input
+                          value={footerSettings.kakao_channel_url}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, kakao_channel_url: e.target.value })}
+                          placeholder="https://pf.kakao.com/cnec"
+                          className="bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 법적 문서 링크 및 저작권 */}
+                  <div className="bg-gray-50 rounded-xl p-6">
+                    <h3 className="font-semibold text-gray-900 mb-4">법적 문서 및 저작권</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">개인정보처리방침 URL</label>
+                        <Input
+                          value={footerSettings.privacy_policy_url}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, privacy_policy_url: e.target.value })}
+                          placeholder="/privacy-policy 또는 전체 URL"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">이용약관 URL</label>
+                        <Input
+                          value={footerSettings.terms_url}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, terms_url: e.target.value })}
+                          placeholder="/terms 또는 전체 URL"
+                          className="bg-white"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">저작권 문구</label>
+                        <Input
+                          value={footerSettings.copyright_text}
+                          onChange={(e) => setFooterSettings({ ...footerSettings, copyright_text: e.target.value })}
+                          placeholder="© 2025 CNEC. All rights reserved."
+                          className="bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button onClick={handleSaveFooterSettings} disabled={saving} className="bg-orange-500 hover:bg-orange-600">
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    저장하기
+                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
