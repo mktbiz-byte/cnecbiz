@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle, Pause } from 'lucide-react'
+import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle, Pause, ArrowUp, ArrowDown, GripVertical } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -59,6 +59,7 @@ export default function CampaignsManagement() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [editingPoints, setEditingPoints] = useState(null) // {campaignId, value}
   const [savingPoints, setSavingPoints] = useState(false)
+  const [orderMode, setOrderMode] = useState(false) // 순서 변경 모드
 
   useEffect(() => {
     checkAuth()
@@ -413,6 +414,76 @@ export default function CampaignsManagement() {
     }
   }
 
+  // 캠페인 순서 변경 핸들러
+  const handleOrderChange = async (campaign, direction) => {
+    const region = campaign.region || 'korea'
+    const supabaseClient = getSupabaseClient(region)
+
+    // 같은 지역의 캠페인만 필터링
+    const regionCampaigns = campaigns
+      .filter(c => c.region === region)
+      .sort((a, b) => (a.display_order || 999) - (b.display_order || 999))
+
+    const currentIndex = regionCampaigns.findIndex(c => c.id === campaign.id)
+    if (currentIndex === -1) return
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (targetIndex < 0 || targetIndex >= regionCampaigns.length) return
+
+    const targetCampaign = regionCampaigns[targetIndex]
+    const currentOrder = campaign.display_order || currentIndex
+    const targetOrder = targetCampaign.display_order || targetIndex
+
+    setConfirming(true)
+    try {
+      // 두 캠페인의 순서 교환
+      await Promise.all([
+        supabaseClient
+          .from('campaigns')
+          .update({ display_order: targetOrder })
+          .eq('id', campaign.id),
+        supabaseClient
+          .from('campaigns')
+          .update({ display_order: currentOrder })
+          .eq('id', targetCampaign.id)
+      ])
+
+      fetchCampaigns()
+    } catch (error) {
+      console.error('순서 변경 오류:', error)
+      alert('순서 변경에 실패했습니다: ' + error.message)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  // 순서 초기화 (전체 캠페인에 순서 부여)
+  const initializeOrder = async (region) => {
+    if (!confirm(`${region === 'korea' ? '한국' : region} 캠페인의 순서를 초기화하시겠습니까?`)) return
+
+    const supabaseClient = getSupabaseClient(region)
+    const regionCampaigns = campaigns
+      .filter(c => c.region === region)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) // 최신순
+
+    setConfirming(true)
+    try {
+      for (let i = 0; i < regionCampaigns.length; i++) {
+        await supabaseClient
+          .from('campaigns')
+          .update({ display_order: i })
+          .eq('id', regionCampaigns[i].id)
+      }
+      alert('순서가 초기화되었습니다.')
+      fetchCampaigns()
+    } catch (error) {
+      console.error('초기화 오류:', error)
+      alert('초기화에 실패했습니다: ' + error.message)
+    } finally {
+      setConfirming(false)
+    }
+  }
+
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = searchTerm === '' ||
       campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -461,6 +532,13 @@ export default function CampaignsManagement() {
     }
 
     return matchesSearch && matchesRegion && matchesStatus
+  }).sort((a, b) => {
+    // 순서 변경 모드일 때는 display_order로 정렬
+    if (orderMode) {
+      return (a.display_order ?? 999) - (b.display_order ?? 999)
+    }
+    // 기본: 최신순
+    return new Date(b.created_at) - new Date(a.created_at)
   })
 
   const getStatusBadge = (status) => {
@@ -562,6 +640,25 @@ export default function CampaignsManagement() {
             <TrendingUp className="w-8 h-8 text-blue-600" />
             <h1 className="text-3xl font-bold">캠페인 관리</h1>
           </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={orderMode ? "default" : "outline"}
+              onClick={() => setOrderMode(!orderMode)}
+              className={orderMode ? "bg-purple-600 hover:bg-purple-700" : ""}
+            >
+              <GripVertical className="w-4 h-4 mr-2" />
+              {orderMode ? "순서 변경 완료" : "순서 변경"}
+            </Button>
+            {orderMode && selectedRegion !== 'all' && (
+              <Button
+                variant="outline"
+                onClick={() => initializeOrder(selectedRegion)}
+                disabled={confirming}
+              >
+                순서 초기화
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
@@ -648,9 +745,35 @@ export default function CampaignsManagement() {
                 {filteredCampaigns.map((campaign) => (
                   <div
                     key={`${campaign.region}-${campaign.id}`}
-                    className="p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className={`p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors ${orderMode ? 'border-2 border-purple-200' : ''}`}
                   >
                     <div className="flex items-start justify-between mb-4">
+                      {/* 순서 변경 모드: 좌측에 순서 컨트롤 */}
+                      {orderMode && (
+                        <div className="flex flex-col items-center mr-4 gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOrderChange(campaign, 'up')}
+                            disabled={confirming}
+                            className="p-1 h-8 w-8 hover:bg-purple-100"
+                          >
+                            <ArrowUp className="w-4 h-4 text-purple-600" />
+                          </Button>
+                          <span className="text-xs text-gray-500 font-medium">
+                            {campaign.display_order ?? '-'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOrderChange(campaign, 'down')}
+                            disabled={confirming}
+                            className="p-1 h-8 w-8 hover:bg-purple-100"
+                          >
+                            <ArrowDown className="w-4 h-4 text-purple-600" />
+                          </Button>
+                        </div>
+                      )}
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-bold">{campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}</h3>
