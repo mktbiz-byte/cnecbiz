@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus } from 'lucide-react'
+import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, UserCheck, UserX, Clock } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -68,7 +68,7 @@ export default function CompaniesManagement() {
 
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active'
-    
+
     try {
       const { error } = await supabaseBiz
         .from('companies')
@@ -81,6 +81,23 @@ export default function CompaniesManagement() {
     } catch (error) {
       console.error('Error updating status:', error)
       alert('상태 변경 실패: ' + error.message)
+    }
+  }
+
+  const handleApproval = async (id, approve) => {
+    try {
+      const { error } = await supabaseBiz
+        .from('companies')
+        .update({ is_approved: approve })
+        .eq('id', id)
+
+      if (error) throw error
+
+      alert(approve ? '계정이 승인되었습니다.' : '계정 승인이 거부되었습니다.')
+      fetchCompanies()
+    } catch (error) {
+      console.error('Error updating approval:', error)
+      alert('승인 상태 변경 실패: ' + error.message)
     }
   }
 
@@ -170,6 +187,31 @@ export default function CompaniesManagement() {
     )
   }
 
+  const getApprovalBadge = (isApproved) => {
+    if (isApproved === true) {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 flex items-center gap-1">
+          <UserCheck className="w-3 h-3" />
+          승인됨
+        </span>
+      )
+    } else if (isApproved === false) {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 flex items-center gap-1">
+          <UserX className="w-3 h-3" />
+          거부됨
+        </span>
+      )
+    } else {
+      return (
+        <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          승인대기
+        </span>
+      )
+    }
+  }
+
   return (
     <>
       <AdminNavigation />
@@ -196,18 +238,26 @@ export default function CompaniesManagement() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="text-sm text-gray-600 mb-2">전체 기업</div>
               <div className="text-3xl font-bold">{companies.length}</div>
             </CardContent>
           </Card>
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-6">
+              <div className="text-sm text-yellow-700 mb-2">승인 대기</div>
+              <div className="text-3xl font-bold text-yellow-600">
+                {companies.filter(c => c.is_approved === null || c.is_approved === undefined).length}
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardContent className="p-6">
-              <div className="text-sm text-gray-600 mb-2">활성 기업</div>
-              <div className="text-3xl font-bold text-green-600">
-                {companies.filter(c => c.status === 'active').length}
+              <div className="text-sm text-gray-600 mb-2">승인됨</div>
+              <div className="text-3xl font-bold text-blue-600">
+                {companies.filter(c => c.is_approved === true).length}
               </div>
             </CardContent>
           </Card>
@@ -239,6 +289,7 @@ export default function CompaniesManagement() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold">{company.company_name}</h3>
+                        {getApprovalBadge(company.is_approved)}
                         {getStatusBadge(company.status || 'active')}
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
@@ -267,6 +318,29 @@ export default function CompaniesManagement() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
+                      {/* 승인/거부 버튼 */}
+                      {company.is_approved !== true && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleApproval(company.id, true)}
+                        >
+                          <UserCheck className="w-4 h-4 mr-2" />
+                          승인
+                        </Button>
+                      )}
+                      {company.is_approved !== false && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-red-300 text-red-600 hover:bg-red-50"
+                          onClick={() => handleApproval(company.id, false)}
+                        >
+                          <UserX className="w-4 h-4 mr-2" />
+                          거부
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
