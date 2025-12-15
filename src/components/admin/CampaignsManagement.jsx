@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle, Pause } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { TrendingUp, Search, Eye, CheckCircle, XCircle, Clock, DollarSign, Edit, Trash2, PlayCircle, Pause, CheckSquare } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions, getCampaignsWithStats, getSupabaseClient } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -59,6 +60,8 @@ export default function CampaignsManagement() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [editingPoints, setEditingPoints] = useState(null) // {campaignId, value}
   const [savingPoints, setSavingPoints] = useState(false)
+  const [selectedCampaigns, setSelectedCampaigns] = useState(new Set()) // 선택된 캠페인 IDs
+  const [bulkActionLoading, setBulkActionLoading] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -413,6 +416,147 @@ export default function CampaignsManagement() {
     }
   }
 
+  // 체크박스 선택/해제 핸들러
+  const handleSelectCampaign = (campaignId, region) => {
+    const key = `${region}-${campaignId}`
+    setSelectedCampaigns(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(key)) {
+        newSet.delete(key)
+      } else {
+        newSet.add(key)
+      }
+      return newSet
+    })
+  }
+
+  // 전체 선택/해제
+  const handleSelectAll = () => {
+    if (selectedCampaigns.size === filteredCampaigns.length) {
+      // 전체 해제
+      setSelectedCampaigns(new Set())
+    } else {
+      // 전체 선택
+      const allKeys = filteredCampaigns.map(c => `${c.region}-${c.id}`)
+      setSelectedCampaigns(new Set(allKeys))
+    }
+  }
+
+  // 선택 해제
+  const clearSelection = () => {
+    setSelectedCampaigns(new Set())
+  }
+
+  // 일괄 활성화
+  const handleBulkActivate = async () => {
+    const selectedList = filteredCampaigns.filter(c => selectedCampaigns.has(`${c.region}-${c.id}`))
+
+    if (selectedList.length === 0) {
+      alert('선택된 캠페인이 없습니다.')
+      return
+    }
+
+    if (!confirm(`${selectedList.length}개의 캠페인을 일괄 활성화하시겠습니까?\n\n이미 활성화된 캠페인은 건너뜁니다.`)) {
+      return
+    }
+
+    setBulkActionLoading(true)
+    let successCount = 0
+    let skipCount = 0
+    let errorCount = 0
+
+    for (const campaign of selectedList) {
+      if (campaign.status === 'active') {
+        skipCount++
+        continue
+      }
+
+      try {
+        const region = campaign.region || 'biz'
+        const supabaseClient = getSupabaseClient(region)
+
+        const updateData = {
+          status: 'active',
+          updated_at: new Date().toISOString()
+        }
+
+        if (region === 'korea') {
+          updateData.approved_at = new Date().toISOString()
+        }
+
+        const { error } = await supabaseClient
+          .from('campaigns')
+          .update(updateData)
+          .eq('id', campaign.id)
+
+        if (error) throw error
+        successCount++
+      } catch (error) {
+        console.error(`캠페인 ${campaign.id} 활성화 실패:`, error)
+        errorCount++
+      }
+    }
+
+    setBulkActionLoading(false)
+    setSelectedCampaigns(new Set())
+
+    let message = `일괄 활성화 완료!\n\n성공: ${successCount}개`
+    if (skipCount > 0) message += `\n건너뜀 (이미 활성화됨): ${skipCount}개`
+    if (errorCount > 0) message += `\n실패: ${errorCount}개`
+
+    alert(message)
+    fetchCampaigns()
+  }
+
+  // 일괄 삭제
+  const handleBulkDelete = async () => {
+    const selectedList = filteredCampaigns.filter(c => selectedCampaigns.has(`${c.region}-${c.id}`))
+
+    if (selectedList.length === 0) {
+      alert('선택된 캠페인이 없습니다.')
+      return
+    }
+
+    if (!confirm(`⚠️ ${selectedList.length}개의 캠페인을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+      return
+    }
+
+    if (!confirm('⚠️ 최종 확인: 선택한 모든 캠페인이 영구 삭제됩니다. 계속하시겠습니까?')) {
+      return
+    }
+
+    setBulkActionLoading(true)
+    let successCount = 0
+    let errorCount = 0
+
+    for (const campaign of selectedList) {
+      try {
+        const region = campaign.region || 'biz'
+        const supabaseClient = getSupabaseClient(region)
+
+        const { error } = await supabaseClient
+          .from('campaigns')
+          .delete()
+          .eq('id', campaign.id)
+
+        if (error) throw error
+        successCount++
+      } catch (error) {
+        console.error(`캠페인 ${campaign.id} 삭제 실패:`, error)
+        errorCount++
+      }
+    }
+
+    setBulkActionLoading(false)
+    setSelectedCampaigns(new Set())
+
+    let message = `일괄 삭제 완료!\n\n성공: ${successCount}개`
+    if (errorCount > 0) message += `\n실패: ${errorCount}개`
+
+    alert(message)
+    fetchCampaigns()
+  }
+
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = searchTerm === '' ||
       campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -635,10 +779,67 @@ export default function CampaignsManagement() {
           </CardContent>
         </Card>
 
+        {/* Bulk Action Bar - 선택된 캠페인이 있을 때 표시 */}
+        {isSuperAdmin && selectedCampaigns.size > 0 && (
+          <Card className="mb-4 border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="font-medium text-blue-700">
+                    {selectedCampaigns.size}개 선택됨
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearSelection}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    선택 해제
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleBulkActivate}
+                    disabled={bulkActionLoading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <PlayCircle className="w-4 h-4 mr-2" />
+                    {bulkActionLoading ? '처리 중...' : '일괄 활성화'}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={bulkActionLoading}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {bulkActionLoading ? '처리 중...' : '일괄 삭제'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Campaigns List */}
         <Card>
           <CardHeader>
-            <CardTitle>캠페인 목록 ({filteredCampaigns.length}개)</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>캠페인 목록 ({filteredCampaigns.length}개)</CardTitle>
+              {isSuperAdmin && filteredCampaigns.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                  className="text-sm"
+                >
+                  <CheckSquare className="w-4 h-4 mr-2" />
+                  {selectedCampaigns.size === filteredCampaigns.length ? '전체 해제' : '전체 선택'}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -648,10 +849,26 @@ export default function CampaignsManagement() {
                 {filteredCampaigns.map((campaign) => (
                   <div
                     key={`${campaign.region}-${campaign.id}`}
-                    className="p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className={`p-6 rounded-lg hover:bg-gray-100 transition-colors ${
+                      selectedCampaigns.has(`${campaign.region}-${campaign.id}`)
+                        ? 'bg-blue-50 border-2 border-blue-300'
+                        : 'bg-gray-50'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
+                      <div className="flex items-start gap-4 flex-1">
+                        {/* 체크박스 - Super Admin만 표시 */}
+                        {isSuperAdmin && (
+                          <div className="pt-1">
+                            <Checkbox
+                              id={`campaign-${campaign.region}-${campaign.id}`}
+                              checked={selectedCampaigns.has(`${campaign.region}-${campaign.id}`)}
+                              onCheckedChange={() => handleSelectCampaign(campaign.id, campaign.region)}
+                              className="h-5 w-5"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-lg font-bold">{campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}</h3>
                           {getCampaignTypeBadge(campaign.campaign_type)}
@@ -767,6 +984,7 @@ export default function CampaignsManagement() {
                             </div>
                           </div>
                         </div>
+                      </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
                         {campaign.payment_status === 'pending' && (
