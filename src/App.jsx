@@ -85,6 +85,7 @@ import TaxOfficePage from './components/tax/TaxOfficePage'
 import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
 import SiteManagement from './components/admin/SiteManagement'
+import SiteManagementCreator from './components/admin/SiteManagementCreator'
 import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
@@ -203,6 +204,7 @@ function App() {
         <Route path="/creator/video-feedback" element={<CampaignVideoFeedback />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/site-management" element={<SiteManagement />} />
+        <Route path="/admin/site-management-creator" element={<SiteManagementCreator />} />
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
