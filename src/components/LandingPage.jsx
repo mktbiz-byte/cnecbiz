@@ -120,7 +120,7 @@ export default function LandingPage() {
     stats_success: '5억회'
   })
 
-  // 비디오 카테고리 정의 (DB 영상을 분배해서 사용)
+  // 비디오 카테고리 정의 (DB 영상을 분배해서 사용) - 3개 카테고리 x 5개 = 15개
   const videoCategories = [
     {
       id: 'before-after',
@@ -133,19 +133,9 @@ export default function LandingPage() {
       subtitle: '4주간의 진정성 있는 후기',
     },
     {
-      id: 'mood',
-      title: '감성 & 무드',
-      subtitle: '높은 영상미와 감도 높은 영상',
-    },
-    {
       id: 'visit',
       title: '방문형',
       subtitle: '올영, 팝업스토어 등 오프라인 방문',
-    },
-    {
-      id: 'promotion',
-      title: '프로모션',
-      subtitle: '올영 세일, 쿠팡 골드박스 등 기획전 연계',
     },
   ]
 
