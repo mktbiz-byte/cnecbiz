@@ -1,7 +1,8 @@
 const { createClient } = require('@supabase/supabase-js')
 
+// BIZ 데이터베이스 사용
 const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
+  process.env.VITE_SUPABASE_BIZ_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
@@ -36,6 +37,8 @@ exports.handler = async (event) => {
       }
     }
 
+    console.log('Approving company:', companyId, 'approve:', approve)
+
     // Update is_approved field
     const { data, error } = await supabaseAdmin
       .from('companies')
@@ -44,13 +47,28 @@ exports.handler = async (event) => {
       .select()
 
     if (error) {
-      console.error('Error updating approval:', error)
+      console.error('Error updating approval:', JSON.stringify(error))
+
+      // If column doesn't exist, return specific error
+      if (error.message && error.message.includes('is_approved')) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            error: 'is_approved 컬럼이 없습니다. Supabase SQL Editor에서 다음 명령어를 실행해주세요: ALTER TABLE companies ADD COLUMN is_approved BOOLEAN DEFAULT NULL;',
+            originalError: error.message
+          })
+        }
+      }
+
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({ error: error.message })
       }
     }
+
+    console.log('Update successful:', data)
 
     return {
       statusCode: 200,
