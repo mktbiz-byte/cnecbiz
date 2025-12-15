@@ -39,36 +39,47 @@ exports.handler = async (event) => {
 
     console.log('Approving company:', companyId, 'approve:', approve)
 
-    // Update is_approved field
-    const { data, error } = await supabaseAdmin
-      .from('companies')
-      .update({ is_approved: approve })
-      .eq('id', companyId)
-      .select()
+    // Use RPC to bypass schema cache issue
+    const { data, error } = await supabaseAdmin.rpc('approve_company', {
+      company_uuid: companyId,
+      approved: approve
+    })
 
     if (error) {
-      console.error('Error updating approval:', JSON.stringify(error))
+      console.error('RPC Error:', JSON.stringify(error))
 
-      // If column doesn't exist, return specific error
-      if (error.message && error.message.includes('is_approved')) {
+      // Fallback: try direct update
+      const { data: directData, error: directError } = await supabaseAdmin
+        .from('companies')
+        .update({ is_approved: approve })
+        .eq('id', companyId)
+        .select()
+
+      if (directError) {
+        console.error('Direct update error:', JSON.stringify(directError))
         return {
           statusCode: 500,
           headers,
           body: JSON.stringify({
-            error: 'is_approved 컬럼이 없습니다. Supabase SQL Editor에서 다음 명령어를 실행해주세요: ALTER TABLE companies ADD COLUMN is_approved BOOLEAN DEFAULT NULL;',
+            error: 'approve_company 함수가 없습니다. Supabase SQL Editor에서 함수를 생성해주세요.',
             originalError: error.message
           })
         }
       }
 
+      console.log('Direct update successful:', directData)
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers,
-        body: JSON.stringify({ error: error.message })
+        body: JSON.stringify({
+          success: true,
+          message: approve ? '계정이 승인되었습니다.' : '계정 승인이 거부되었습니다.',
+          data: directData
+        })
       }
     }
 
-    console.log('Update successful:', data)
+    console.log('RPC successful')
 
     return {
       statusCode: 200,
