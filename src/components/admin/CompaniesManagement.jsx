@@ -96,10 +96,7 @@ export default function CompaniesManagement() {
     try {
       const { error } = await supabaseBiz
         .from('companies')
-        .update({
-          is_approved: true,
-          approved_at: new Date().toISOString()
-        })
+        .update({ is_approved: true })
         .eq('id', company.id)
 
       if (error) throw error
