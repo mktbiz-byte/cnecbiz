@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,19 +6,36 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Users, Search, Globe, TrendingUp, Star, MessageSquare, X, Download } from 'lucide-react'
+import {
+  Users, Search, Globe, Star, MessageSquare, Download,
+  Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
+  X, ExternalLink, User, MapPin, CreditCard, Calendar
+} from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
+
+// 숫자 포맷
+const formatNumber = (num) => {
+  if (!num) return '0'
+  if (num >= 10000) return `${(num / 10000).toFixed(1)}만`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}천`
+  return num.toLocaleString()
+}
 
 export default function AllCreatorsPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [showReviewModal, setShowReviewModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
   const [selectedCreator, setSelectedCreator] = useState(null)
+  const [selectedCreators, setSelectedCreators] = useState([])
   const [reviewData, setReviewData] = useState({ rating: 0, review: '' })
-  
+  const [messageData, setMessageData] = useState({ type: 'email', subject: '', content: '' })
+  const [sendingMessage, setSendingMessage] = useState(false)
+
   const [creators, setCreators] = useState({
     korea: [],
     japan: [],
@@ -76,7 +93,6 @@ export default function AllCreatorsPage() {
             .select('*')
             .order('created_at', { ascending: false })
           if (!error) koreaData = data || []
-          else console.warn('한국 DB 조회 오류:', error.message)
         } catch (e) {
           console.warn('한국 DB 연결 오류:', e.message)
         }
@@ -90,12 +106,9 @@ export default function AllCreatorsPage() {
             .select('*')
             .order('created_at', { ascending: false })
           if (!error) japanData = data || []
-          else console.warn('일본 DB 조회 오류:', error.message)
         } catch (e) {
           console.warn('일본 DB 연결 오류:', e.message)
         }
-      } else {
-        console.warn('일본 Supabase 클라이언트가 설정되지 않았습니다.')
       }
 
       // 미국 크리에이터
@@ -106,15 +119,12 @@ export default function AllCreatorsPage() {
             .select('*')
             .order('created_at', { ascending: false })
           if (!error) usData = data || []
-          else console.warn('미국 DB 조회 오류:', error.message)
         } catch (e) {
           console.warn('미국 DB 연결 오류:', e.message)
         }
-      } else {
-        console.warn('미국 Supabase 클라이언트가 설정되지 않았습니다.')
       }
 
-      // 대만 크리에이터 (BIZ DB에서 region 필터)
+      // 대만 크리에이터
       if (supabaseBiz) {
         try {
           const { data, error } = await supabaseBiz
@@ -123,19 +133,12 @@ export default function AllCreatorsPage() {
             .eq('region', 'taiwan')
             .order('created_at', { ascending: false })
           if (!error) taiwanData = data || []
-          else console.warn('대만 DB 조회 오류:', error.message)
         } catch (e) {
           console.warn('대만 DB 연결 오류:', e.message)
         }
       }
 
-      setCreators({
-        korea: koreaData,
-        japan: japanData,
-        us: usData,
-        taiwan: taiwanData
-      })
-
+      setCreators({ korea: koreaData, japan: japanData, us: usData, taiwan: taiwanData })
       setStats({
         korea: koreaData.length,
         japan: japanData.length,
@@ -157,7 +160,7 @@ export default function AllCreatorsPage() {
       rejected: { label: '거절됨', color: 'bg-red-100 text-red-800' }
     }
     const { label, color } = statusMap[status] || statusMap.pending
-    return <span className={`px-2 py-1 rounded text-xs ${color}`}>{label}</span>
+    return <span className={`px-2 py-1 rounded text-xs font-medium ${color}`}>{label}</span>
   }
 
   const getAllCreators = () => {
@@ -171,57 +174,130 @@ export default function AllCreatorsPage() {
 
   const filterCreators = (creatorList) => {
     if (!searchTerm) return creatorList
+    const term = searchTerm.toLowerCase()
     return creatorList.filter(creator =>
-      creator.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      creator.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      creator.channel_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      creator.name?.toLowerCase().includes(term) ||
+      creator.email?.toLowerCase().includes(term) ||
+      creator.channel_name?.toLowerCase().includes(term) ||
+      creator.phone?.includes(term)
     )
   }
 
-  const handleRatingChange = async (creatorId, newRating, region) => {
+  // 선택된 크리에이터 토글
+  const toggleSelectCreator = (creator) => {
+    setSelectedCreators(prev => {
+      const exists = prev.find(c => c.id === creator.id && c.dbRegion === creator.dbRegion)
+      if (exists) {
+        return prev.filter(c => !(c.id === creator.id && c.dbRegion === creator.dbRegion))
+      }
+      return [...prev, creator]
+    })
+  }
+
+  // 전체 선택/해제
+  const toggleSelectAll = (creatorList) => {
+    const allSelected = creatorList.every(c =>
+      selectedCreators.find(sc => sc.id === c.id && sc.dbRegion === c.dbRegion)
+    )
+    if (allSelected) {
+      setSelectedCreators(prev =>
+        prev.filter(sc => !creatorList.find(c => c.id === sc.id && c.dbRegion === sc.dbRegion))
+      )
+    } else {
+      const newSelections = creatorList.filter(c =>
+        !selectedCreators.find(sc => sc.id === c.id && sc.dbRegion === c.dbRegion)
+      )
+      setSelectedCreators(prev => [...prev, ...newSelections])
+    }
+  }
+
+  // 프로필 모달 열기
+  const openProfileModal = (creator) => {
+    setSelectedCreator(creator)
+    setShowProfileModal(true)
+  }
+
+  // 메시지 발송 모달 열기
+  const openMessageModal = () => {
+    if (selectedCreators.length === 0) {
+      alert('메시지를 보낼 크리에이터를 선택해주세요.')
+      return
+    }
+    setMessageData({ type: 'email', subject: '', content: '' })
+    setShowMessageModal(true)
+  }
+
+  // 메시지 발송
+  const handleSendMessage = async () => {
+    if (!messageData.content) {
+      alert('메시지 내용을 입력해주세요.')
+      return
+    }
+
+    setSendingMessage(true)
+    let successCount = 0
+    let failCount = 0
+
     try {
-      // 지역에 따라 올바른 Supabase 클라이언트 사용
-      let supabaseClient
-      if (region === 'korea') {
-        supabaseClient = supabaseKorea
-      } else if (region === 'japan') {
-        supabaseClient = supabaseJapan
-      } else if (region === 'us') {
-        supabaseClient = supabaseUS
-      } else {
-        supabaseClient = supabaseBiz
+      for (const creator of selectedCreators) {
+        try {
+          if (messageData.type === 'email' && creator.email) {
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: creator.email,
+                subject: messageData.subject || '[CNEC] 안내 메시지',
+                html: `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                      <h1 style="color: white; margin: 0;">CNEC</h1>
+                    </div>
+                    <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+                      <p style="color: #4b5563; line-height: 1.8; white-space: pre-wrap;">${messageData.content}</p>
+                    </div>
+                  </div>
+                `
+              })
+            })
+            successCount++
+          } else if (messageData.type === 'kakao' && creator.phone) {
+            const phoneNumber = creator.phone.replace(/-/g, '')
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: phoneNumber,
+                receiverName: creator.name || '크리에이터',
+                templateCode: '025100001022', // 일반 알림 템플릿
+                variables: {
+                  '이름': creator.name || '크리에이터',
+                  '내용': messageData.content.substring(0, 200)
+                }
+              })
+            })
+            successCount++
+          }
+        } catch (err) {
+          console.error(`발송 실패 (${creator.email || creator.phone}):`, err)
+          failCount++
+        }
       }
 
-      if (!supabaseClient) {
-        alert('해당 지역의 데이터베이스에 연결할 수 없습니다.')
-        return
-      }
-
-      const { error } = await supabaseClient
-        .from('user_profiles')
-        .update({
-          rating: newRating,
-          review_updated_at: new Date().toISOString()
-        })
-        .eq('id', creatorId)
-
-      if (error) throw error
-
-      // 데이터 새로고침
-      await fetchAllCreators()
-      alert('별점이 업데이트되었습니다.')
+      alert(`발송 완료!\n성공: ${successCount}건\n실패: ${failCount}건`)
+      setShowMessageModal(false)
+      setSelectedCreators([])
     } catch (error) {
-      console.error('별점 업데이트 오류:', error)
-      alert('별점 업데이트에 실패했습니다: ' + error.message)
+      console.error('메시지 발송 오류:', error)
+      alert('메시지 발송 중 오류가 발생했습니다.')
+    } finally {
+      setSendingMessage(false)
     }
   }
 
   const openReviewModal = (creator, region) => {
     setSelectedCreator({ ...creator, dbRegion: region })
-    setReviewData({
-      rating: creator.rating || 0,
-      review: creator.company_review || ''
-    })
+    setReviewData({ rating: creator.rating || 0, review: creator.company_review || '' })
     setShowReviewModal(true)
   }
 
@@ -231,21 +307,10 @@ export default function AllCreatorsPage() {
     setSaving(true)
     try {
       let supabaseClient
-      if (selectedCreator.dbRegion === 'korea') {
-        supabaseClient = supabaseKorea
-      } else if (selectedCreator.dbRegion === 'japan') {
-        supabaseClient = supabaseJapan
-      } else if (selectedCreator.dbRegion === 'us') {
-        supabaseClient = supabaseUS
-      } else {
-        supabaseClient = supabaseBiz
-      }
-
-      if (!supabaseClient) {
-        alert('해당 지역의 데이터베이스에 연결할 수 없습니다.')
-        setSaving(false)
-        return
-      }
+      if (selectedCreator.dbRegion === 'korea') supabaseClient = supabaseKorea
+      else if (selectedCreator.dbRegion === 'japan') supabaseClient = supabaseJapan
+      else if (selectedCreator.dbRegion === 'us') supabaseClient = supabaseUS
+      else supabaseClient = supabaseBiz
 
       const { error } = await supabaseClient
         .from('user_profiles')
@@ -262,7 +327,6 @@ export default function AllCreatorsPage() {
       setShowReviewModal(false)
       await fetchAllCreators()
     } catch (error) {
-      console.error('저장 오류:', error)
       alert('저장에 실패했습니다: ' + error.message)
     } finally {
       setSaving(false)
@@ -270,181 +334,165 @@ export default function AllCreatorsPage() {
   }
 
   const exportToExcel = (data, filename, regionName) => {
-    // 엑셀 데이터 준비
     const excelData = data.map(creator => ({
       '이름': creator.name || '-',
       '이메일': creator.email || '-',
       '전화번호': creator.phone || '-',
-      '채널명': creator.channel_name || '-',
       '인스타그램 URL': creator.instagram_url || '-',
       '인스타그램 팔로워': creator.instagram_followers || 0,
       '유튜브 URL': creator.youtube_url || '-',
       '유튜브 구독자': creator.youtube_subscribers || 0,
       '틱톡 URL': creator.tiktok_url || '-',
       '틱톡 팔로워': creator.tiktok_followers || 0,
-      '나이': creator.age || '-',
       '지역': creator.region || regionName,
-      '피부타입': creator.skin_type || '-',
-      '주소': creator.address ? `${creator.postcode || ''} ${creator.address} ${creator.detail_address || ''}`.trim() : '-',
-      '은행명': creator.bank_name || '-',
-      '계좌번호': creator.bank_account_number || '-',
-      '예금주': creator.bank_account_holder || '-',
-      '포인트': creator.points || 0,
-      '별점': creator.rating || 0,
-      '기업 후기': creator.company_review || '-',
-      'SMS 수신동의': creator.sms_consent ? '동의' : '미동의',
-      '이메일 수신동의': creator.email_consent ? '동의' : '미동의',
       '가입일': creator.created_at ? new Date(creator.created_at).toLocaleDateString() : '-'
     }))
 
-    // 워크시트 생성
     const worksheet = XLSX.utils.json_to_sheet(excelData)
-    
-    // 컬럼 너비 설정
-    const columnWidths = [
-      { wch: 10 }, // 이름
-      { wch: 25 }, // 이메일
-      { wch: 15 }, // 전화번호
-      { wch: 20 }, // 채널명
-      { wch: 40 }, // 인스타그램 URL
-      { wch: 15 }, // 인스타그램 팔로워
-      { wch: 40 }, // 유튜브 URL
-      { wch: 15 }, // 유튜브 구독자
-      { wch: 40 }, // 틱톡 URL
-      { wch: 15 }, // 틱톡 팔로워
-      { wch: 10 }, // 나이
-      { wch: 10 }, // 지역
-      { wch: 15 }, // 피부타입
-      { wch: 50 }, // 주소
-      { wch: 15 }, // 은행명
-      { wch: 20 }, // 계좌번호
-      { wch: 15 }, // 예금주
-      { wch: 10 }, // 포인트
-      { wch: 10 }, // 별점
-      { wch: 30 }, // 기업 후기
-      { wch: 15 }, // SMS 수신동의
-      { wch: 15 }, // 이메일 수신동의
-      { wch: 15 }  // 가입일
-    ]
-    worksheet['!cols'] = columnWidths
-
-    // 워크북 생성
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, regionName)
-
-    // 파일 다운로드
     XLSX.writeFile(workbook, filename)
   }
 
   const handleExportByRegion = (region) => {
-    let data = []
-    let regionName = ''
-    let filename = ''
-
-    switch(region) {
-      case 'korea':
-        data = creators.korea
-        regionName = '한국'
-        filename = `크리에이터_한국_${new Date().toISOString().split('T')[0]}.xlsx`
-        break
-      case 'japan':
-        data = creators.japan
-        regionName = '일본'
-        filename = `크리에이터_일본_${new Date().toISOString().split('T')[0]}.xlsx`
-        break
-      case 'us':
-        data = creators.us
-        regionName = '미국'
-        filename = `크리에이터_미국_${new Date().toISOString().split('T')[0]}.xlsx`
-        break
-      case 'taiwan':
-        data = creators.taiwan
-        regionName = '대만'
-        filename = `크리에이터_대만_${new Date().toISOString().split('T')[0]}.xlsx`
-        break
-      default:
-        return
+    const regionConfig = {
+      korea: { data: creators.korea, name: '한국' },
+      japan: { data: creators.japan, name: '일본' },
+      us: { data: creators.us, name: '미국' },
+      taiwan: { data: creators.taiwan, name: '대만' }
     }
-
-    if (data.length === 0) {
-      alert(`${regionName} 크리에이터 데이터가 없습니다.`)
+    const config = regionConfig[region]
+    if (!config || config.data.length === 0) {
+      alert(`${config?.name || region} 크리에이터 데이터가 없습니다.`)
       return
     }
-
-    exportToExcel(data, filename, regionName)
+    exportToExcel(config.data, `크리에이터_${config.name}_${new Date().toISOString().split('T')[0]}.xlsx`, config.name)
   }
 
-  const CreatorTable = ({ creators, region }) => {
-    const filtered = filterCreators(creators)
+  // SNS 아이콘 컴포넌트
+  const SNSIcons = ({ creator }) => (
+    <div className="flex items-center gap-2">
+      {/* Instagram */}
+      {creator.instagram_url && (
+        <a
+          href={creator.instagram_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-xs hover:opacity-90"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Instagram className="w-3 h-3" />
+          <span>{formatNumber(creator.instagram_followers)}</span>
+        </a>
+      )}
+      {/* YouTube */}
+      {creator.youtube_url && (
+        <a
+          href={creator.youtube_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded-lg text-xs hover:opacity-90"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Youtube className="w-3 h-3" />
+          <span>{formatNumber(creator.youtube_subscribers)}</span>
+        </a>
+      )}
+      {/* TikTok */}
+      {creator.tiktok_url && (
+        <a
+          href={creator.tiktok_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 px-2 py-1 bg-black text-white rounded-lg text-xs hover:opacity-90"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Video className="w-3 h-3" />
+          <span>{formatNumber(creator.tiktok_followers)}</span>
+        </a>
+      )}
+      {!creator.instagram_url && !creator.youtube_url && !creator.tiktok_url && (
+        <span className="text-gray-400 text-xs">미등록</span>
+      )}
+    </div>
+  )
+
+  const CreatorTable = ({ creatorList, region }) => {
+    const filtered = filterCreators(creatorList)
+    const allSelected = filtered.length > 0 && filtered.every(c =>
+      selectedCreators.find(sc => sc.id === c.id && sc.dbRegion === c.dbRegion)
+    )
 
     return (
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b">
-              <th className="text-left p-4">이름</th>
-              <th className="text-left p-4">이메일</th>
-              <th className="text-left p-4">채널명</th>
-              <th className="text-left p-4">구독자</th>
-              <th className="text-left p-4">상태</th>
-              {region === 'korea' && <th className="text-left p-4">별점</th>}
-              {region === 'all' && <th className="text-left p-4">지역</th>}
-              <th className="text-left p-4">가입일</th>
+            <tr className="border-b bg-gray-50">
+              <th className="p-3 text-left">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => toggleSelectAll(filtered)}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+              </th>
+              <th className="text-left p-3 font-medium text-gray-600">이름</th>
+              <th className="text-left p-3 font-medium text-gray-600">이메일</th>
+              <th className="text-left p-3 font-medium text-gray-600">휴대폰</th>
+              <th className="text-left p-3 font-medium text-gray-600">SNS</th>
+              <th className="text-left p-3 font-medium text-gray-600">상태</th>
+              {region === 'all' && <th className="text-left p-3 font-medium text-gray-600">지역</th>}
+              <th className="text-left p-3 font-medium text-gray-600">가입일</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((creator, index) => (
-              <tr key={`${creator.id}-${index}`} className="border-b hover:bg-gray-50">
-                <td className="p-4">{creator.name || '-'}</td>
-                <td className="p-4">{creator.email || '-'}</td>
-                <td className="p-4">{creator.channel_name || '-'}</td>
-                <td className="p-4">
-                  {creator.followers ? Number(creator.followers).toLocaleString() : '-'}
-                </td>
-                <td className="p-4">{getStatusBadge(creator.approval_status)}</td>
-                {region === 'korea' && (
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={creator.rating || 0}
-                        onChange={(e) => handleRatingChange(creator.id, parseFloat(e.target.value), region)}
-                        className="border rounded px-2 py-1 text-sm"
-                      >
-                        <option value="0">0.0</option>
-                        <option value="1.0">1.0</option>
-                        <option value="1.5">1.5</option>
-                        <option value="2.0">2.0</option>
-                        <option value="2.5">2.5</option>
-                        <option value="3.0">3.0</option>
-                        <option value="3.5">3.5</option>
-                        <option value="4.0">4.0</option>
-                        <option value="4.5">4.5</option>
-                        <option value="5.0">5.0</option>
-                      </select>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openReviewModal(creator, region)}
-                        className="h-8 px-2"
-                        title="후기 작성"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                      </Button>
-                    </div>
+            {filtered.map((creator, index) => {
+              const isSelected = selectedCreators.find(sc => sc.id === creator.id && sc.dbRegion === creator.dbRegion)
+              return (
+                <tr
+                  key={`${creator.id}-${index}`}
+                  className={`border-b hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-indigo-50' : ''}`}
+                  onClick={() => openProfileModal(creator)}
+                >
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={!!isSelected}
+                      onChange={() => toggleSelectCreator(creator)}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
                   </td>
-                )}
-                {region === 'all' && (
-                  <td className="p-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                      {creator.region}
+                  <td className="p-3">
+                    <span className="text-indigo-600 hover:underline font-medium">
+                      {creator.name || '-'}
                     </span>
                   </td>
-                )}
-                <td className="p-4">
-                  {creator.created_at ? new Date(creator.created_at).toLocaleDateString() : '-'}
-                </td>
-              </tr>
-            ))}
+                  <td className="p-3 text-gray-600">{creator.email || '-'}</td>
+                  <td className="p-3">
+                    {creator.phone ? (
+                      <span className="flex items-center gap-1 text-gray-600">
+                        <Phone className="w-3 h-3" />
+                        {creator.phone}
+                      </span>
+                    ) : '-'}
+                  </td>
+                  <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                    <SNSIcons creator={creator} />
+                  </td>
+                  <td className="p-3">{getStatusBadge(creator.approval_status)}</td>
+                  {region === 'all' && (
+                    <td className="p-3">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                        {creator.region}
+                      </span>
+                    </td>
+                  )}
+                  <td className="p-3 text-gray-500 text-sm">
+                    {creator.created_at ? new Date(creator.created_at).toLocaleDateString() : '-'}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
         {filtered.length === 0 && (
@@ -462,7 +510,7 @@ export default function AllCreatorsPage() {
         <AdminNavigation />
         <div className="min-h-screen bg-gray-50 lg:ml-64 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
             <p className="text-gray-600">크리에이터 정보를 불러오는 중...</p>
           </div>
         </div>
@@ -476,92 +524,73 @@ export default function AllCreatorsPage() {
       <div className="min-h-screen bg-gray-50 lg:ml-64">
         <div className="max-w-7xl mx-auto p-6">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              전체 크리에이터 현황
-            </h1>
-            <p className="text-gray-500 mt-1">국가별 크리에이터 가입 현황 (별점 및 후기는 기업 전용 내부 평가)</p>
+            <h1 className="text-3xl font-bold text-gray-900">전체 크리에이터 현황</h1>
+            <p className="text-gray-500 mt-1">국가별 크리에이터 가입 현황</p>
           </div>
 
           {/* 통계 카드 */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
-                  <Globe className="w-4 h-4 mr-2" />
-                  전체
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
-                  {stats.total}명
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm">전체</p>
+                    <p className="text-3xl font-bold">{stats.total}명</p>
+                  </div>
+                  <Globe className="w-10 h-10 text-blue-200" />
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  🇰🇷 한국
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">
-                  {stats.korea}명
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  🇯🇵 일본
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-600">
-                  {stats.japan}명
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  🇺🇸 미국
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-purple-600">
-                  {stats.us}명
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-600">
-                  🇹🇼 대만
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-orange-600">
-                  {stats.taiwan}명
-                </div>
-              </CardContent>
-            </Card>
+            {[
+              { key: 'korea', flag: '🇰🇷', name: '한국', color: 'from-green-500 to-green-600' },
+              { key: 'japan', flag: '🇯🇵', name: '일본', color: 'from-red-500 to-red-600' },
+              { key: 'us', flag: '🇺🇸', name: '미국', color: 'from-purple-500 to-purple-600' },
+              { key: 'taiwan', flag: '🇹🇼', name: '대만', color: 'from-orange-500 to-orange-600' }
+            ].map(({ key, flag, name, color }) => (
+              <Card key={key} className={`bg-gradient-to-br ${color} text-white`}>
+                <CardContent className="pt-6">
+                  <p className="text-white/80 text-sm">{flag} {name}</p>
+                  <p className="text-3xl font-bold">{stats[key]}명</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
-          {/* 검색 */}
+          {/* 검색 & 액션 바 */}
           <Card className="mb-6">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Search className="w-5 h-5 text-gray-400" />
-                <Input
-                  placeholder="이름, 이메일, 채널명으로 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1"
-                />
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="flex items-center gap-2 flex-1 w-full md:w-auto">
+                  <Search className="w-5 h-5 text-gray-400" />
+                  <Input
+                    placeholder="이름, 이메일, 전화번호로 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {selectedCreators.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600 bg-indigo-100 px-3 py-1 rounded-full">
+                        {selectedCreators.length}명 선택됨
+                      </span>
+                      <Button
+                        onClick={openMessageModal}
+                        className="bg-indigo-500 hover:bg-indigo-600"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        메시지 발송
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedCreators([])}
+                      >
+                        선택 해제
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -582,97 +611,248 @@ export default function AllCreatorsPage() {
                   <CardTitle>전체 크리에이터 ({stats.total}명)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CreatorTable creators={getAllCreators()} region="all" />
+                  <CreatorTable creatorList={getAllCreators()} region="all" />
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="korea">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>한국 크리에이터 ({stats.korea}명)</CardTitle>
-                    <Button
-                      onClick={() => handleExportByRegion('korea')}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      엑셀 다운로드
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CreatorTable creators={creators.korea.map(c => ({ ...c, region: '한국' }))} region="korea" />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="japan">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>일본 크리에이터 ({stats.japan}명)</CardTitle>
-                    <Button
-                      onClick={() => handleExportByRegion('japan')}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      엑셀 다운로드
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CreatorTable creators={creators.japan.map(c => ({ ...c, region: '일본' }))} region="japan" />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="us">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>미국 크리에이터 ({stats.us}명)</CardTitle>
-                    <Button
-                      onClick={() => handleExportByRegion('us')}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      엑셀 다운로드
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CreatorTable creators={creators.us.map(c => ({ ...c, region: '미국' }))} region="us" />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="taiwan">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>대만 크리에이터 ({stats.taiwan}명)</CardTitle>
-                    <Button
-                      onClick={() => handleExportByRegion('taiwan')}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      엑셀 다운로드
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CreatorTable creators={creators.taiwan.map(c => ({ ...c, region: '대만' }))} region="taiwan" />
-                </CardContent>
-              </Card>
-            </TabsContent>
+            {['korea', 'japan', 'us', 'taiwan'].map(region => (
+              <TabsContent key={region} value={region}>
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>
+                        {region === 'korea' && '한국'}{region === 'japan' && '일본'}{region === 'us' && '미국'}{region === 'taiwan' && '대만'} 크리에이터 ({stats[region]}명)
+                      </CardTitle>
+                      <Button onClick={() => handleExportByRegion(region)} variant="outline">
+                        <Download className="w-4 h-4 mr-2" />
+                        엑셀 다운로드
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CreatorTable
+                      creatorList={creators[region].map(c => ({ ...c, region: region === 'korea' ? '한국' : region === 'japan' ? '일본' : region === 'us' ? '미국' : '대만', dbRegion: region }))}
+                      region={region}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
           </Tabs>
         </div>
       </div>
+
+      {/* 프로필 모달 */}
+      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-indigo-500" />
+              크리에이터 프로필
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedCreator && (
+            <div className="space-y-6">
+              {/* 기본 정보 */}
+              <div className="flex items-start gap-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                  {selectedCreator.profile_image ? (
+                    <img src={selectedCreator.profile_image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-10 h-10 text-indigo-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
+                  <p className="text-gray-500">{selectedCreator.email}</p>
+                  {selectedCreator.phone && (
+                    <p className="text-gray-500 flex items-center gap-1 mt-1">
+                      <Phone className="w-4 h-4" /> {selectedCreator.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* SNS 정보 */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Instagram className="w-4 h-4" /> SNS 정보
+                </h4>
+                <div className="space-y-3">
+                  {selectedCreator.instagram_url && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                          <Instagram className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-600">Instagram</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{formatNumber(selectedCreator.instagram_followers)} 팔로워</span>
+                        <a href={selectedCreator.instagram_url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {selectedCreator.youtube_url && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
+                          <Youtube className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-600">YouTube</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{formatNumber(selectedCreator.youtube_subscribers)} 구독자</span>
+                        <a href={selectedCreator.youtube_url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {selectedCreator.tiktok_url && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
+                          <Video className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-600">TikTok</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{formatNumber(selectedCreator.tiktok_followers)} 팔로워</span>
+                        <a href={selectedCreator.tiktok_url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {!selectedCreator.instagram_url && !selectedCreator.youtube_url && !selectedCreator.tiktok_url && (
+                    <p className="text-gray-400 text-center py-4">등록된 SNS 정보가 없습니다.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 추가 정보 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> 지역
+                  </h4>
+                  <p className="text-gray-600">{selectedCreator.region || '-'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> 가입일
+                  </h4>
+                  <p className="text-gray-600">
+                    {selectedCreator.created_at ? new Date(selectedCreator.created_at).toLocaleDateString('ko-KR') : '-'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 은행 정보 */}
+              {(selectedCreator.bank_name || selectedCreator.bank_account_number) && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" /> 정산 계좌
+                  </h4>
+                  <p className="text-gray-600">
+                    {selectedCreator.bank_name} {selectedCreator.bank_account_number} ({selectedCreator.bank_account_holder})
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProfileModal(false)}>
+              닫기
+            </Button>
+            <Button onClick={() => {
+              setShowProfileModal(false)
+              openReviewModal(selectedCreator, selectedCreator?.dbRegion)
+            }}>
+              <Star className="w-4 h-4 mr-2" />
+              평가하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 메시지 발송 모달 */}
+      <Dialog open={showMessageModal} onOpenChange={setShowMessageModal}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-indigo-500" />
+              메시지 발송 ({selectedCreators.length}명)
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">발송 방식</label>
+              <div className="flex gap-2">
+                <Button
+                  variant={messageData.type === 'email' ? 'default' : 'outline'}
+                  onClick={() => setMessageData({ ...messageData, type: 'email' })}
+                  className={messageData.type === 'email' ? 'bg-indigo-500' : ''}
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  이메일
+                </Button>
+                <Button
+                  variant={messageData.type === 'kakao' ? 'default' : 'outline'}
+                  onClick={() => setMessageData({ ...messageData, type: 'kakao' })}
+                  className={messageData.type === 'kakao' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  카카오 알림톡
+                </Button>
+              </div>
+            </div>
+
+            {messageData.type === 'email' && (
+              <div>
+                <label className="block text-sm font-medium mb-2">제목</label>
+                <Input
+                  value={messageData.subject}
+                  onChange={(e) => setMessageData({ ...messageData, subject: e.target.value })}
+                  placeholder="이메일 제목"
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-2">내용</label>
+              <Textarea
+                value={messageData.content}
+                onChange={(e) => setMessageData({ ...messageData, content: e.target.value })}
+                placeholder="메시지 내용을 입력하세요..."
+                className="min-h-[150px]"
+              />
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-sm text-gray-600">
+                <strong>수신자:</strong> {selectedCreators.map(c => c.name || c.email).join(', ')}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMessageModal(false)} disabled={sendingMessage}>
+              취소
+            </Button>
+            <Button onClick={handleSendMessage} disabled={sendingMessage} className="bg-indigo-500 hover:bg-indigo-600">
+              {sendingMessage ? '발송 중...' : '발송하기'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 후기 작성 모달 */}
       <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
@@ -690,8 +870,6 @@ export default function AllCreatorsPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="font-semibold">이름:</span> {selectedCreator.name || '-'}</div>
                   <div><span className="font-semibold">이메일:</span> {selectedCreator.email || '-'}</div>
-                  <div><span className="font-semibold">채널명:</span> {selectedCreator.channel_name || '-'}</div>
-                  <div><span className="font-semibold">구독자:</span> {selectedCreator.followers?.toLocaleString() || '-'}</div>
                 </div>
               </div>
 
@@ -703,51 +881,29 @@ export default function AllCreatorsPage() {
                   className="w-full border rounded px-3 py-2"
                 >
                   <option value="0">0.0 - 평가 안 함</option>
-                  <option value="1.0">1.0 - 매우 불만족</option>
-                  <option value="1.5">1.5</option>
-                  <option value="2.0">2.0 - 불만족</option>
-                  <option value="2.5">2.5</option>
-                  <option value="3.0">3.0 - 보통</option>
-                  <option value="3.5">3.5</option>
-                  <option value="4.0">4.0 - 만족</option>
-                  <option value="4.5">4.5</option>
-                  <option value="5.0">5.0 - 매우 만족</option>
+                  {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map(v => (
+                    <option key={v} value={v}>{v.toFixed(1)}</option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  후기 (기업 내부용, 크리에이터에게 보이지 않음)
-                </label>
+                <label className="block text-sm font-medium mb-2">후기 (내부용)</label>
                 <Textarea
                   value={reviewData.review}
                   onChange={(e) => setReviewData({ ...reviewData, review: e.target.value })}
-                  placeholder="크리에이터와의 협업 경험, 콘텐츠 품질, 소통 태도 등을 자유롭게 작성해주세요..."
-                  className="min-h-[200px] bg-white border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  placeholder="크리에이터와의 협업 경험을 작성해주세요..."
+                  className="min-h-[150px]"
                 />
-              </div>
-
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ 이 평가와 후기는 기업 내부 관리용이며, 크리에이터에게는 절대 공개되지 않습니다.
-                </p>
               </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowReviewModal(false)}
-              disabled={saving}
-            >
+            <Button variant="outline" onClick={() => setShowReviewModal(false)} disabled={saving}>
               취소
             </Button>
-            <Button
-              onClick={handleSaveReview}
-              disabled={saving}
-              className="bg-orange-500 hover:bg-orange-600"
-            >
+            <Button onClick={handleSaveReview} disabled={saving} className="bg-indigo-500 hover:bg-indigo-600">
               {saving ? '저장 중...' : '저장'}
             </Button>
           </DialogFooter>
