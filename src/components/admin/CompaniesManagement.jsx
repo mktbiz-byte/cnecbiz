@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus } from 'lucide-react'
+import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -68,7 +68,7 @@ export default function CompaniesManagement() {
 
   const handleToggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active'
-    
+
     try {
       const { error } = await supabaseBiz
         .from('companies')
@@ -81,6 +81,34 @@ export default function CompaniesManagement() {
     } catch (error) {
       console.error('Error updating status:', error)
       alert('상태 변경 실패: ' + error.message)
+    }
+  }
+
+  // 기업 계정 승인 (is_approved = true)
+  const handleApproveCompany = async (company) => {
+    if (company.is_approved === true) {
+      alert('이미 승인된 기업입니다.')
+      return
+    }
+
+    if (!confirm(`${company.company_name} 기업을 승인하시겠습니까?\n승인 후 캠페인 생성이 가능해집니다.`)) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('companies')
+        .update({
+          is_approved: true,
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', company.id)
+
+      if (error) throw error
+
+      alert('기업 승인이 완료되었습니다!')
+      fetchCompanies()
+    } catch (error) {
+      console.error('Error approving company:', error)
+      alert('승인 실패: ' + error.message)
     }
   }
 
@@ -196,11 +224,22 @@ export default function CompaniesManagement() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="text-sm text-gray-600 mb-2">전체 기업</div>
               <div className="text-3xl font-bold">{companies.length}</div>
+            </CardContent>
+          </Card>
+          <Card className={companies.filter(c => c.is_approved === false).length > 0 ? 'ring-2 ring-amber-400' : ''}>
+            <CardContent className="p-6">
+              <div className="text-sm text-gray-600 mb-2 flex items-center gap-1">
+                <ShieldAlert className="w-4 h-4 text-amber-500" />
+                승인 대기
+              </div>
+              <div className="text-3xl font-bold text-amber-600">
+                {companies.filter(c => c.is_approved === false).length}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -240,6 +279,17 @@ export default function CompaniesManagement() {
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-bold">{company.company_name}</h3>
                         {getStatusBadge(company.status || 'active')}
+                        {company.is_approved === false ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex items-center gap-1">
+                            <ShieldAlert className="w-3 h-3" />
+                            승인대기
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            승인됨
+                          </span>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                         <div>
@@ -267,6 +317,16 @@ export default function CompaniesManagement() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
+                      {company.is_approved === false && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveCompany(company)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          <ShieldCheck className="w-4 h-4 mr-2" />
+                          계정 승인
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
