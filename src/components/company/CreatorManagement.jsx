@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Users,
-  Heart,
   UserCheck,
   FolderOpen,
   Search,
@@ -13,42 +12,54 @@ import {
   ExternalLink,
   Bookmark,
   BookmarkCheck,
-  MessageSquare,
   Instagram,
   Youtube,
   Video,
-  ChevronDown,
   X,
-  Download,
-  Copy,
   CheckCircle,
   Clock,
-  Play
+  AlertCircle,
+  Eye,
+  Calendar,
+  Award,
+  TrendingUp,
+  Sparkles,
+  UserPlus
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CompanyNavigation from './CompanyNavigation'
 
+// Skeleton loader for creator cards
+const CreatorCardSkeleton = () => (
+  <div className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse">
+    <div className="aspect-square bg-gray-200" />
+    <div className="p-4">
+      <div className="h-5 w-2/3 bg-gray-200 rounded mb-2" />
+      <div className="h-4 w-1/2 bg-gray-200 rounded mb-4" />
+      <div className="space-y-2">
+        <div className="h-4 w-full bg-gray-200 rounded" />
+        <div className="h-4 w-full bg-gray-200 rounded" />
+      </div>
+    </div>
+  </div>
+)
+
 export default function CreatorManagement() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
-  const [activeTab, setActiveTab] = useState('saved') // saved, applied, campaign
+  const [activeTab, setActiveTab] = useState('applied') // applied, campaign, recommended
   const [creators, setCreators] = useState([])
   const [campaigns, setCampaigns] = useState([])
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-
-  // 필터 상태
-  const [filters, setFilters] = useState({
-    recommended: false,
-    newbie: false
-  })
+  const [statusFilter, setStatusFilter] = useState('all')
 
   // 정렬 상태
-  const [sortBy, setSortBy] = useState('saved') // saved, followers, selected
+  const [sortBy, setSortBy] = useState('latest') // latest, followers
 
   // 캠페인별 보기 서브탭
-  const [campaignSubTab, setCampaignSubTab] = useState('selected') // selected, postings
+  const [campaignSubTab, setCampaignSubTab] = useState('all') // all, selected, completed
 
   useEffect(() => {
     checkAuth()
@@ -80,19 +91,19 @@ export default function CreatorManagement() {
       // 캠페인 목록 가져오기
       const { data: campaignsData } = await supabaseKorea
         .from('campaigns')
-        .select('id, title, campaign_type, status')
+        .select('id, title, campaign_type, status, main_image, thumbnail')
         .eq('company_email', user.email)
         .order('created_at', { ascending: false })
 
       setCampaigns(campaignsData || [])
 
       // 탭에 따라 크리에이터 데이터 가져오기
-      if (activeTab === 'saved') {
-        await fetchSavedCreators()
-      } else if (activeTab === 'applied') {
-        await fetchAppliedCreators()
+      if (activeTab === 'applied') {
+        await fetchAppliedCreators(campaignsData || [])
       } else if (activeTab === 'campaign' && selectedCampaign) {
         await fetchCampaignCreators(selectedCampaign)
+      } else if (activeTab === 'recommended') {
+        await fetchRecommendedCreators()
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -101,8 +112,106 @@ export default function CreatorManagement() {
     }
   }
 
-  const fetchSavedCreators = async () => {
-    // 통합관리자에서 등록한 추천 크리에이터 목록 가져오기
+  const fetchAppliedCreators = async (campaignsList) => {
+    if (!campaignsList || campaignsList.length === 0) {
+      setCreators([])
+      return
+    }
+
+    try {
+      const { data: applications, error } = await supabaseKorea
+        .from('applications')
+        .select(`
+          id,
+          status,
+          created_at,
+          campaign_id,
+          campaigns (id, title, main_image, thumbnail),
+          creator_id,
+          name,
+          instagram_handle,
+          instagram_followers,
+          youtube_handle,
+          youtube_followers,
+          tiktok_handle,
+          profile_image_url,
+          phone,
+          email
+        `)
+        .in('campaign_id', campaignsList.map(c => c.id))
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      if (applications && applications.length > 0) {
+        const formattedCreators = applications.map(app => ({
+          id: app.id,
+          creatorId: app.creator_id,
+          name: app.name || '이름 없음',
+          handle: app.instagram_handle ? `@${app.instagram_handle}` : (app.tiktok_handle ? `@${app.tiktok_handle}` : ''),
+          avatar: app.profile_image_url || null,
+          followers: app.instagram_followers || app.youtube_followers || 0,
+          instagram: app.instagram_handle ? `https://instagram.com/${app.instagram_handle}` : null,
+          youtube: app.youtube_handle ? `https://youtube.com/@${app.youtube_handle}` : null,
+          tiktok: app.tiktok_handle ? `https://tiktok.com/@${app.tiktok_handle}` : null,
+          phone: app.phone,
+          email: app.email,
+          campaignId: app.campaign_id,
+          campaignTitle: app.campaigns?.title,
+          campaignImage: app.campaigns?.main_image || app.campaigns?.thumbnail,
+          applicationStatus: app.status,
+          appliedAt: app.created_at,
+          isSelected: ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'].includes(app.status)
+        }))
+        setCreators(formattedCreators)
+      } else {
+        setCreators([])
+      }
+    } catch (error) {
+      console.error('Error fetching applied creators:', error)
+      setCreators([])
+    }
+  }
+
+  const fetchCampaignCreators = async (campaignId) => {
+    try {
+      const { data: applications, error } = await supabaseKorea
+        .from('applications')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      if (applications && applications.length > 0) {
+        const formattedCreators = applications.map(app => ({
+          id: app.id,
+          creatorId: app.creator_id,
+          name: app.name || '이름 없음',
+          handle: app.instagram_handle ? `@${app.instagram_handle}` : (app.tiktok_handle ? `@${app.tiktok_handle}` : ''),
+          avatar: app.profile_image_url || null,
+          followers: app.instagram_followers || app.youtube_followers || 0,
+          instagram: app.instagram_handle ? `https://instagram.com/${app.instagram_handle}` : null,
+          youtube: app.youtube_handle ? `https://youtube.com/@${app.youtube_handle}` : null,
+          tiktok: app.tiktok_handle ? `https://tiktok.com/@${app.tiktok_handle}` : null,
+          phone: app.phone,
+          email: app.email,
+          applicationStatus: app.status,
+          appliedAt: app.created_at,
+          isSelected: ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'].includes(app.status),
+          isCompleted: app.status === 'completed'
+        }))
+        setCreators(formattedCreators)
+      } else {
+        setCreators([])
+      }
+    } catch (error) {
+      console.error('Error fetching campaign creators:', error)
+      setCreators([])
+    }
+  }
+
+  const fetchRecommendedCreators = async () => {
     try {
       const { data: featuredCreators, error } = await supabaseBiz
         .from('featured_creators')
@@ -117,13 +226,11 @@ export default function CreatorManagement() {
           id: creator.id,
           name: creator.name || creator.creator_name || '이름 없음',
           handle: creator.instagram_handle ? `@${creator.instagram_handle}` : '',
-          avatar: creator.profile_image || creator.thumbnail_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+          avatar: creator.profile_image || creator.thumbnail_url || null,
           followers: creator.followers || 0,
-          selectedCount: creator.collaboration_count || 0,
-          applyingCount: 0,
-          isRecommended: creator.featured_type === 'ai_recommended' || creator.is_featured === true,
-          isNewbie: creator.is_new || false,
-          isSaved: false,
+          collaborationCount: creator.collaboration_count || 0,
+          isRecommended: true,
+          isFeatured: creator.featured_type === 'ai_recommended' || creator.is_featured === true,
           instagram: creator.instagram_handle ? `https://instagram.com/${creator.instagram_handle}` : null,
           youtube: creator.youtube_handle ? `https://youtube.com/@${creator.youtube_handle}` : null,
           tiktok: creator.tiktok_handle ? `https://tiktok.com/@${creator.tiktok_handle}` : null,
@@ -133,24 +240,7 @@ export default function CreatorManagement() {
         }))
         setCreators(formattedCreators)
       } else {
-        // 데이터가 없을 경우 데모 데이터 표시
-        setCreators([
-          {
-            id: 'demo-1',
-            name: '크넥 추천 크리에이터',
-            handle: '@cnec_creator',
-            avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-            followers: 50000,
-            selectedCount: 0,
-            applyingCount: 0,
-            isRecommended: true,
-            isNewbie: false,
-            isSaved: false,
-            instagram: null,
-            youtube: null,
-            tiktok: null
-          }
-        ])
+        setCreators([])
       }
     } catch (error) {
       console.error('Error fetching featured creators:', error)
@@ -158,162 +248,137 @@ export default function CreatorManagement() {
     }
   }
 
-  const fetchAppliedCreators = async () => {
-    // 지원한 크리에이터 목록 가져오기
-    try {
-      const { data: applications } = await supabaseKorea
-        .from('applications')
-        .select(`
-          id,
-          status,
-          created_at,
-          campaign_id,
-          campaigns (id, title),
-          creator_id,
-          name,
-          instagram_handle,
-          instagram_followers,
-          youtube_handle,
-          youtube_followers,
-          tiktok_handle,
-          profile_image_url
-        `)
-        .in('campaign_id', campaigns.map(c => c.id))
-        .order('created_at', { ascending: false })
+  // Filter and sort creators
+  const filteredCreators = useMemo(() => {
+    let filtered = creators
 
-      if (applications && applications.length > 0) {
-        const formattedCreators = applications.map(app => ({
-          id: app.id,
-          name: app.name || '이름 없음',
-          handle: app.instagram_handle ? `@${app.instagram_handle}` : '',
-          avatar: app.profile_image_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-          followers: app.instagram_followers || 0,
-          selectedCount: 0,
-          applyingCount: 1,
-          isRecommended: false,
-          isNewbie: false,
-          isSaved: false,
-          instagram: app.instagram_handle ? `https://instagram.com/${app.instagram_handle}` : null,
-          youtube: app.youtube_handle ? `https://youtube.com/@${app.youtube_handle}` : null,
-          tiktok: app.tiktok_handle ? `https://tiktok.com/@${app.tiktok_handle}` : null,
-          campaignTitle: app.campaigns?.title,
-          applicationStatus: app.status
-        }))
-        setCreators(formattedCreators)
-      } else {
-        setCreators([])
-      }
-    } catch (error) {
-      console.error('Error fetching applied creators:', error)
-      setCreators([])
-    }
-  }
-
-  const fetchCampaignCreators = async (campaignId) => {
-    try {
-      const { data: applications } = await supabaseKorea
-        .from('applications')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .order('created_at', { ascending: false })
-
-      if (applications) {
-        const formattedCreators = applications.map(app => ({
-          id: app.id,
-          name: app.name || '이름 없음',
-          handle: app.instagram_handle ? `@${app.instagram_handle}` : '',
-          avatar: app.profile_image_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-          followers: app.instagram_followers || 0,
-          selectedCount: 0,
-          applyingCount: 0,
-          isRecommended: false,
-          isNewbie: false,
-          isSaved: false,
-          instagram: app.instagram_handle ? `https://instagram.com/${app.instagram_handle}` : null,
-          youtube: app.youtube_handle ? `https://youtube.com/@${app.youtube_handle}` : null,
-          tiktok: app.tiktok_handle ? `https://tiktok.com/@${app.tiktok_handle}` : null,
-          applicationStatus: app.status,
-          isSelected: ['selected', 'approved', 'virtual_selected'].includes(app.status)
-        }))
-        setCreators(formattedCreators)
-      }
-    } catch (error) {
-      console.error('Error fetching campaign creators:', error)
-      setCreators([])
-    }
-  }
-
-  const toggleSaveCreator = (creatorId) => {
-    setCreators(prev => prev.map(c =>
-      c.id === creatorId ? { ...c, isSaved: !c.isSaved } : c
-    ))
-  }
-
-  const filteredCreators = creators.filter(creator => {
-    // 검색 필터
+    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      if (!creator.name.toLowerCase().includes(query) &&
-          !creator.handle.toLowerCase().includes(query)) {
-        return false
+      filtered = filtered.filter(c =>
+        c.name?.toLowerCase().includes(query) ||
+        c.handle?.toLowerCase().includes(query) ||
+        c.campaignTitle?.toLowerCase().includes(query)
+      )
+    }
+
+    // Status filter for applied/campaign tabs
+    if (statusFilter !== 'all' && (activeTab === 'applied' || activeTab === 'campaign')) {
+      switch (statusFilter) {
+        case 'selected':
+          filtered = filtered.filter(c => c.isSelected)
+          break
+        case 'pending':
+          filtered = filtered.filter(c => !c.isSelected && c.applicationStatus !== 'rejected')
+          break
+        case 'completed':
+          filtered = filtered.filter(c => c.applicationStatus === 'completed')
+          break
       }
     }
 
-    // 추천 필터
-    if (filters.recommended && !creator.isRecommended) {
-      return false
+    // Campaign sub-tab filter
+    if (activeTab === 'campaign' && selectedCampaign) {
+      switch (campaignSubTab) {
+        case 'selected':
+          filtered = filtered.filter(c => c.isSelected)
+          break
+        case 'completed':
+          filtered = filtered.filter(c => c.isCompleted)
+          break
+      }
     }
 
-    // 신입 필터
-    if (filters.newbie && !creator.isNewbie) {
-      return false
-    }
-
-    return true
-  })
-
-  // 정렬
-  const sortedCreators = [...filteredCreators].sort((a, b) => {
+    // Sort
     if (sortBy === 'followers') {
-      return b.followers - a.followers
+      filtered = [...filtered].sort((a, b) => (b.followers || 0) - (a.followers || 0))
     }
-    if (sortBy === 'selected') {
-      return b.selectedCount - a.selectedCount
-    }
-    return 0 // 저장순은 기본 순서 유지
-  })
+
+    return filtered
+  }, [creators, searchQuery, statusFilter, sortBy, activeTab, campaignSubTab, selectedCampaign])
+
+  // Stats
+  const stats = useMemo(() => {
+    const total = creators.length
+    const selected = creators.filter(c => c.isSelected).length
+    const pending = creators.filter(c => !c.isSelected && c.applicationStatus !== 'rejected').length
+    const completed = creators.filter(c => c.applicationStatus === 'completed').length
+    return { total, selected, pending, completed }
+  }, [creators])
 
   const formatFollowers = (num) => {
-    if (num >= 10000) {
-      return `${(num / 10000).toFixed(1)}만`
-    }
+    if (!num) return '0'
+    if (num >= 10000) return `${(num / 10000).toFixed(1)}만`
     return num.toLocaleString()
   }
 
+  const getStatusInfo = (status) => {
+    const statuses = {
+      pending: { label: '검토중', color: 'bg-yellow-100 text-yellow-700' },
+      selected: { label: '선정됨', color: 'bg-green-100 text-green-700' },
+      approved: { label: '선정됨', color: 'bg-green-100 text-green-700' },
+      virtual_selected: { label: '가선정', color: 'bg-blue-100 text-blue-700' },
+      filming: { label: '촬영중', color: 'bg-purple-100 text-purple-700' },
+      video_submitted: { label: '영상 제출', color: 'bg-indigo-100 text-indigo-700' },
+      revision_requested: { label: '수정 요청', color: 'bg-orange-100 text-orange-700' },
+      completed: { label: '완료', color: 'bg-emerald-100 text-emerald-700' },
+      rejected: { label: '미선정', color: 'bg-red-100 text-red-700' }
+    }
+    return statuses[status] || { label: status || '대기', color: 'bg-gray-100 text-gray-700' }
+  }
+
   const tabs = [
-    { id: 'saved', label: '크넥 추천 크리에이터', icon: Star },
-    { id: 'applied', label: '지원한 크리에이터', icon: UserCheck },
-    { id: 'campaign', label: '캠페인별 보기', icon: FolderOpen }
+    { id: 'applied', label: '지원한 크리에이터', icon: UserCheck, count: stats.total },
+    { id: 'campaign', label: '캠페인별 보기', icon: FolderOpen },
+    { id: 'recommended', label: '크넥 추천', icon: Sparkles }
   ]
 
   return (
     <>
       <CompanyNavigation />
-      <div className="min-h-screen bg-[#F9FAFB] lg:ml-64">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-6">
+          <div className="mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center">
-                <Users className="w-5 h-5 text-white" />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                <Users className="w-6 h-6 text-white" />
               </div>
               크리에이터 현황
             </h1>
-            <p className="text-gray-500 mt-1 ml-13">캠페인에 지원한 크리에이터를 확인하고 관리하세요</p>
+            <p className="text-gray-500 mt-2">캠페인에 지원한 크리에이터를 확인하고 관리하세요</p>
           </div>
 
+          {/* Stats Cards */}
+          {(activeTab === 'applied' || activeTab === 'campaign') && creators.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {[
+                { label: '전체 지원자', value: stats.total, icon: Users, color: 'blue', filter: 'all' },
+                { label: '선정됨', value: stats.selected, icon: CheckCircle, color: 'green', filter: 'selected' },
+                { label: '검토중', value: stats.pending, icon: Clock, color: 'yellow', filter: 'pending' },
+                { label: '완료', value: stats.completed, icon: Award, color: 'emerald', filter: 'completed' }
+              ].map(stat => (
+                <button
+                  key={stat.label}
+                  onClick={() => setStatusFilter(statusFilter === stat.filter ? 'all' : stat.filter)}
+                  className={`bg-white rounded-xl p-4 border transition-all text-left ${
+                    statusFilter === stat.filter
+                      ? `ring-2 ring-${stat.color}-400 border-${stat.color}-200 shadow-lg`
+                      : 'border-gray-100 hover:border-gray-200 hover:shadow-md'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-500">{stat.label}</span>
+                    <stat.icon className={`w-5 h-5 text-${stat.color}-500`} />
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Tabs */}
-          <div className="bg-white rounded-xl border border-gray-100 p-1 mb-6 inline-flex">
+          <div className="bg-white rounded-2xl border border-gray-100 p-1.5 mb-6 inline-flex shadow-sm">
             {tabs.map(tab => {
               const Icon = tab.icon
               return (
@@ -321,20 +386,28 @@ export default function CreatorManagement() {
                   key={tab.id}
                   onClick={() => {
                     setActiveTab(tab.id)
+                    setStatusFilter('all')
                     if (tab.id !== 'campaign') {
                       setSelectedCampaign(null)
                     }
                   }}
                   className={`
-                    flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all
+                    flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all
                     ${activeTab === tab.id
-                      ? 'bg-indigo-500 text-white'
+                      ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg'
                       : 'text-gray-600 hover:bg-gray-50'
                     }
                   `}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
+                  {tab.count !== undefined && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${
+                      activeTab === tab.id ? 'bg-white/20' : 'bg-gray-100'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -342,14 +415,14 @@ export default function CreatorManagement() {
 
           {/* Campaign Selector (캠페인별 보기) */}
           {activeTab === 'campaign' && (
-            <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 shadow-sm">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
                 캠페인 선택
               </label>
               <select
                 value={selectedCampaign || ''}
                 onChange={(e) => setSelectedCampaign(e.target.value)}
-                className="w-full md:w-96 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full md:w-96 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
               >
                 <option value="">캠페인을 선택하세요</option>
                 {campaigns.map(campaign => (
@@ -361,72 +434,42 @@ export default function CreatorManagement() {
 
               {/* 캠페인별 서브탭 */}
               {selectedCampaign && (
-                <div className="flex gap-2 mt-4 border-t border-gray-100 pt-4">
-                  <button
-                    onClick={() => setCampaignSubTab('selected')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      campaignSubTab === 'selected'
-                        ? 'bg-indigo-50 text-indigo-600'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    선정한 인플루언서
-                  </button>
-                  <button
-                    onClick={() => setCampaignSubTab('postings')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      campaignSubTab === 'postings'
-                        ? 'bg-indigo-50 text-indigo-600'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    포스팅
-                  </button>
+                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                  {[
+                    { id: 'all', label: '전체' },
+                    { id: 'selected', label: '선정된 크리에이터' },
+                    { id: 'completed', label: '완료' }
+                  ].map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => setCampaignSubTab(sub.id)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        campaignSubTab === sub.id
+                          ? 'bg-violet-100 text-violet-700'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
           {/* Search & Filters */}
-          <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="크리에이터 이름 또는 핸들 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-12"
-              />
-            </div>
-
-            {/* Filters & Sort */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              {/* Filters */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-500 flex items-center gap-1">
-                  <Filter className="w-4 h-4" />
-                  필터
-                </span>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={filters.recommended}
-                    onChange={(e) => setFilters(prev => ({ ...prev, recommended: e.target.checked }))}
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-gray-700">크넥 추천</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={filters.newbie}
-                    onChange={(e) => setFilters(prev => ({ ...prev, newbie: e.target.checked }))}
-                    className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
-                  />
-                  <span className="text-sm text-gray-700">신규 크리에이터</span>
-                </label>
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 shadow-sm">
+            <div className="flex flex-col md:flex-row gap-4">
+              {/* Search */}
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="크리에이터 이름 또는 핸들로 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 h-12 rounded-xl border-gray-200 focus:border-violet-500 focus:ring-violet-500/20"
+                />
               </div>
 
               {/* Sort */}
@@ -434,14 +477,13 @@ export default function CreatorManagement() {
                 <span className="text-sm text-gray-500">정렬</span>
                 <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                   {[
-                    { id: 'saved', label: '최신순' },
-                    { id: 'followers', label: '팔로워순' },
-                    { id: 'selected', label: '협업 많은 순' }
+                    { id: 'latest', label: '최신순' },
+                    { id: 'followers', label: '팔로워순' }
                   ].map(sort => (
                     <button
                       key={sort.id}
                       onClick={() => setSortBy(sort.id)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         sortBy === sort.id
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
@@ -456,28 +498,39 @@ export default function CreatorManagement() {
           </div>
 
           {/* Creator Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {loading ? (
-              <div className="col-span-full text-center py-16">
-                <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-500">크리에이터를 불러오는 중...</p>
-              </div>
-            ) : sortedCreators.length === 0 ? (
-              <div className="col-span-full text-center py-16">
-                <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium text-gray-600 mb-2">
-                  {activeTab === 'saved' && '저장한 크리에이터가 없습니다'}
-                  {activeTab === 'applied' && '지원한 크리에이터가 없습니다'}
-                  {activeTab === 'campaign' && (selectedCampaign ? '해당 캠페인에 지원자가 없습니다' : '캠페인을 선택해주세요')}
-                </p>
+              [...Array(8)].map((_, i) => <CreatorCardSkeleton key={i} />)
+            ) : filteredCreators.length === 0 ? (
+              <div className="col-span-full">
+                <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-violet-100 to-purple-100 rounded-2xl flex items-center justify-center">
+                    {activeTab === 'recommended' ? (
+                      <Sparkles className="w-10 h-10 text-violet-400" />
+                    ) : (
+                      <Users className="w-10 h-10 text-violet-400" />
+                    )}
+                  </div>
+                  <p className="text-xl font-semibold text-gray-700 mb-2">
+                    {activeTab === 'applied' && '아직 지원한 크리에이터가 없습니다'}
+                    {activeTab === 'campaign' && (selectedCampaign ? '해당 캠페인에 지원자가 없습니다' : '캠페인을 선택해주세요')}
+                    {activeTab === 'recommended' && '추천 크리에이터가 준비중입니다'}
+                  </p>
+                  <p className="text-gray-500">
+                    {activeTab === 'applied' && '캠페인을 활성화하면 크리에이터들이 지원합니다'}
+                    {activeTab === 'campaign' && !selectedCampaign && '상단에서 캠페인을 선택하세요'}
+                    {activeTab === 'recommended' && '곧 크넥에서 선별한 우수 크리에이터를 추천해드립니다'}
+                  </p>
+                </div>
               </div>
             ) : (
-              sortedCreators.map(creator => (
+              filteredCreators.map(creator => (
                 <CreatorCard
                   key={creator.id}
                   creator={creator}
-                  onToggleSave={() => toggleSaveCreator(creator.id)}
-                  showApplyPrice={activeTab === 'applied'}
+                  activeTab={activeTab}
+                  formatFollowers={formatFollowers}
+                  getStatusInfo={getStatusInfo}
                 />
               ))
             )}
@@ -489,38 +542,41 @@ export default function CreatorManagement() {
 }
 
 // 크리에이터 카드 컴포넌트
-function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
-  const [showMessage, setShowMessage] = useState(false)
-
-  const formatFollowers = (num) => {
-    if (num >= 10000) {
-      return `${(num / 10000).toFixed(1)}만`
-    }
-    return num.toLocaleString()
-  }
+function CreatorCard({ creator, activeTab, formatFollowers, getStatusInfo }) {
+  const statusInfo = getStatusInfo(creator.applicationStatus)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-indigo-200 transition-all">
+    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-violet-200 transition-all duration-300 group">
       {/* 프로필 이미지 영역 */}
-      <div className="relative aspect-square bg-gray-100">
-        <img
-          src={creator.avatar}
-          alt={creator.name}
-          className="w-full h-full object-cover"
-        />
+      <div className="relative aspect-square bg-gradient-to-br from-gray-100 to-gray-200">
+        {creator.avatar ? (
+          <img
+            src={creator.avatar}
+            alt={creator.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              e.target.style.display = 'none'
+              e.target.nextSibling.style.display = 'flex'
+            }}
+          />
+        ) : null}
+        <div className={`w-full h-full flex flex-col items-center justify-center ${creator.avatar ? 'hidden' : ''}`}>
+          <Users className="w-12 h-12 text-gray-400 mb-2" />
+          <span className="text-sm text-gray-400">이미지 없음</span>
+        </div>
 
         {/* 추천 배지 */}
         {creator.isRecommended && (
-          <span className="absolute top-3 left-3 px-2.5 py-1 bg-indigo-500 text-white text-xs font-medium rounded-full flex items-center gap-1">
+          <span className="absolute top-3 left-3 px-2.5 py-1 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-medium rounded-full flex items-center gap-1 shadow-lg">
             <Star className="w-3 h-3" />
             크넥 추천
           </span>
         )}
 
-        {/* 신규 배지 */}
-        {creator.isNewbie && (
-          <span className="absolute top-3 left-3 px-2.5 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
-            신규
+        {/* 상태 배지 (지원한 크리에이터) */}
+        {activeTab !== 'recommended' && creator.applicationStatus && (
+          <span className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>
+            {statusInfo.label}
           </span>
         )}
 
@@ -531,7 +587,7 @@ function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
               href={creator.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+              className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
               onClick={(e) => e.stopPropagation()}
             >
               <Instagram className="w-4 h-4 text-pink-500" />
@@ -542,7 +598,7 @@ function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
               href={creator.youtube}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+              className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
               onClick={(e) => e.stopPropagation()}
             >
               <Youtube className="w-4 h-4 text-red-500" />
@@ -553,32 +609,27 @@ function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
               href={creator.tiktok}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+              className="w-9 h-9 bg-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
               onClick={(e) => e.stopPropagation()}
             >
               <Video className="w-4 h-4 text-black" />
             </a>
           )}
         </div>
-
-        {/* 지원 메시지 보기 버튼 (지원한 크리에이터) */}
-        {showApplyPrice && (
-          <button
-            onClick={() => setShowMessage(!showMessage)}
-            className="absolute top-3 right-3 px-2.5 py-1 bg-white/90 backdrop-blur-sm text-xs font-medium rounded-full text-gray-700 hover:bg-white transition-colors"
-          >
-            지원 메시지 보기
-          </button>
-        )}
       </div>
 
       {/* 크리에이터 정보 */}
       <div className="p-4">
         <div className="mb-3">
-          <h3 className="font-semibold text-gray-900">{creator.name}</h3>
-          <p className="text-sm text-gray-500">{creator.handle}</p>
-          {showApplyPrice && creator.campaignTitle && (
-            <p className="text-xs text-indigo-600 mt-1">{creator.campaignTitle}</p>
+          <h3 className="font-semibold text-gray-900 text-lg">{creator.name}</h3>
+          {creator.handle && (
+            <p className="text-sm text-gray-500">{creator.handle}</p>
+          )}
+          {activeTab === 'applied' && creator.campaignTitle && (
+            <p className="text-xs text-violet-600 mt-1.5 flex items-center gap-1">
+              <FolderOpen className="w-3 h-3" />
+              {creator.campaignTitle}
+            </p>
           )}
         </div>
 
@@ -586,58 +637,37 @@ function CreatorCard({ creator, onToggleSave, showApplyPrice }) {
         <div className="space-y-2 mb-4">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">팔로워</span>
-            <span className="font-medium text-gray-900">{formatFollowers(creator.followers)}</span>
+            <span className="font-semibold text-gray-900">{formatFollowers(creator.followers)}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">협업 횟수</span>
-            <span className={`font-medium ${creator.selectedCount > 0 ? 'text-indigo-600' : 'text-gray-900'}`}>
-              {creator.selectedCount}회
-            </span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">지원 중인 캠페인</span>
-            <span className="font-medium text-gray-900">{creator.applyingCount}건</span>
-          </div>
+          {activeTab === 'recommended' && creator.collaborationCount !== undefined && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">협업 횟수</span>
+              <span className="font-semibold text-violet-600">{creator.collaborationCount}회</span>
+            </div>
+          )}
+          {creator.appliedAt && (
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">지원일</span>
+              <span className="text-gray-600">
+                {new Date(creator.appliedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* 액션 버튼 */}
         <div className="space-y-2">
-          {creator.instagram && (
+          {(creator.instagram || creator.youtube || creator.tiktok) && (
             <a
-              href={creator.instagram}
+              href={creator.instagram || creator.youtube || creator.tiktok}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-md"
             >
-              <Instagram className="w-4 h-4" />
-              인스타그램 보기
+              <ExternalLink className="w-4 h-4" />
+              프로필 보기
             </a>
           )}
-
-          <button
-            onClick={onToggleSave}
-            className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              creator.isSaved
-                ? 'bg-indigo-50 text-indigo-600 border border-indigo-200'
-                : 'bg-gray-900 text-white hover:bg-gray-800'
-            }`}
-          >
-            {creator.isSaved ? (
-              <>
-                <BookmarkCheck className="w-4 h-4" />
-                관심 크리에이터
-              </>
-            ) : (
-              <>
-                <Bookmark className="w-4 h-4" />
-                관심 등록
-              </>
-            )}
-          </button>
-
-          <button className="w-full text-sm text-indigo-600 hover:text-indigo-700 py-2">
-            캠페인 참여 요청하기
-          </button>
         </div>
       </div>
     </div>

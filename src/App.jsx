@@ -76,6 +76,7 @@ import FeaturedCreatorApprovals from './components/admin/FeaturedCreatorApproval
 import CampaignCreatorRecommendations from './components/admin/CampaignCreatorRecommendations'
 import CreatorMappingManagement from './components/admin/CreatorMappingManagement'
 import CreatorProfileApplication from './components/creator/CreatorProfileApplication'
+import ProfileCompletionKorea from './components/creator/ProfileCompletionKorea'
 import CreatorDetailProfile from './components/company/CreatorDetailProfile'
 import FeaturedCreatorsPage from './components/company/FeaturedCreatorsPage'
 import FeaturedCreatorProfile from './components/company/FeaturedCreatorProfile'
@@ -85,6 +86,7 @@ import TaxOfficePage from './components/tax/TaxOfficePage'
 import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
 import SiteManagement from './components/admin/SiteManagement'
+import SiteManagementCreator from './components/admin/SiteManagementCreator'
 import RevenueManagementWithCharts from './components/admin/RevenueManagementWithCharts'
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
@@ -203,6 +205,7 @@ function App() {
         <Route path="/creator/video-feedback" element={<CampaignVideoFeedback />} />
         <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/site-management" element={<SiteManagement />} />
+        <Route path="/admin/site-management-creator" element={<SiteManagementCreator />} />
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
@@ -219,6 +222,7 @@ function App() {
 
         {/* Creator Routes */}
         <Route path="/creator/mypage" element={<CreatorMyPage />} />
+        <Route path="/creator/complete-profile" element={<ProfileCompletionKorea />} />
         <Route path="/creator/apply" element={<CreatorProfileApplication />} />
         <Route path="/creator/withdrawal" element={<WithdrawalRequest />} />
         <Route path="/creator/:creatorId" element={<CreatorDetailProfile />} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, TrendingUp, Users, Video, CheckCircle2, ArrowRight, Play, Star, Award, Target, Zap, Shield, MessageCircle, ChevronDown, Menu, X, Phone, Mail, Sparkles, BarChart3, Image, Calendar, MapPin, Tag } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
@@ -24,66 +24,59 @@ const getYouTubeThumbnail = (videoId) => {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
-// 개별 비디오 카드 컴포넌트 (자동재생 지원)
+// 개별 비디오 카드 컴포넌트 (초고속 로딩 - 호버/터치 시 재생)
 const VideoCard = ({ video, size = 'normal' }) => {
-  const [isVisible, setIsVisible] = useState(false)
+  const [isActive, setIsActive] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
-  const cardRef = useRef(null)
 
   const youtubeId = getYouTubeVideoId(video.url || video.youtube_url)
   const thumbnailUrl = video.thumbnail_url || getYouTubeThumbnail(youtubeId)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsVisible(entry.isIntersecting)
-      },
-      { threshold: 0.5 }
-    )
-
-    if (cardRef.current) {
-      observer.observe(cardRef.current)
-    }
-
-    return () => observer.disconnect()
-  }, [])
 
   const sizeClasses = size === 'large' ? 'aspect-[9/16] min-h-[400px]' : 'aspect-[9/16]'
 
   return (
     <div
-      ref={cardRef}
-      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 group shadow-lg`}
+      className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 shadow-lg cursor-pointer`}
+      onMouseEnter={() => setIsActive(true)}
+      onMouseLeave={() => { setIsActive(false); setIsLoaded(false) }}
+      onClick={() => setIsActive(true)}
     >
-      {isVisible && youtubeId ? (
+      {/* 썸네일 */}
+      <img
+        src={thumbnailUrl || `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
+        alt={video.title || '영상'}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${isActive && isLoaded ? 'opacity-0' : 'opacity-100'}`}
+        loading="lazy"
+        onError={(e) => {
+          if (e.target.src.includes('maxresdefault')) {
+            e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
+          }
+        }}
+      />
+
+      {/* YouTube iframe (호버/터치 시에만) */}
+      {isActive && youtubeId && (
         <iframe
-          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&showinfo=0&rel=0&modestbranding=1`}
-          className="w-full h-full pointer-events-none"
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&rel=0&modestbranding=1`}
+          className="absolute inset-0 w-full h-full pointer-events-none"
           allow="autoplay; encrypted-media"
-          loading="lazy"
           onLoad={() => setIsLoaded(true)}
         />
-      ) : thumbnailUrl ? (
-        <img
-          src={thumbnailUrl}
-          alt={video.title}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          onError={(e) => {
-            if (e.target.src.includes('maxresdefault')) {
-              e.target.src = e.target.src.replace('maxresdefault', 'hqdefault')
-            }
-          }}
-        />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-          <Play className="w-12 h-12 text-gray-600" />
+      )}
+
+      {/* 호버 시 로딩 스피너 */}
+      {isActive && !isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
         </div>
       )}
 
-      {isVisible && !isLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      {/* 재생 버튼 */}
+      {!isActive && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors">
+          <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform">
+            <Play className="w-6 h-6 text-white ml-1" fill="white" />
+          </div>
         </div>
       )}
     </div>
@@ -127,7 +120,7 @@ export default function LandingPage() {
     stats_success: '5억회'
   })
 
-  // 비디오 카테고리 정의 (DB 영상을 분배해서 사용)
+  // 비디오 카테고리 정의 (DB 영상을 분배해서 사용) - 3개 카테고리 x 5개 = 15개
   const videoCategories = [
     {
       id: 'before-after',
@@ -140,19 +133,9 @@ export default function LandingPage() {
       subtitle: '4주간의 진정성 있는 후기',
     },
     {
-      id: 'mood',
-      title: '감성 & 무드',
-      subtitle: '높은 영상미와 감도 높은 영상',
-    },
-    {
       id: 'visit',
       title: '방문형',
       subtitle: '올영, 팝업스토어 등 오프라인 방문',
-    },
-    {
-      id: 'promotion',
-      title: '프로모션',
-      subtitle: '올영 세일, 쿠팡 골드박스 등 기획전 연계',
     },
   ]
 

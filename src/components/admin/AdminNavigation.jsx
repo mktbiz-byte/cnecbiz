@@ -34,6 +34,7 @@ export default function AdminNavigation() {
     { path: '/admin/contracts', icon: FileSignature, label: '계약서 관리' },
     { path: '/admin/tax-feedback', icon: MessageSquare, label: '세무서 피드백' },
     { path: '/admin/site-management', icon: Settings, label: '사이트 관리' },
+    { path: '/admin/site-management-creator', icon: Settings, label: '사이트 관리 (크리에이터)' },
     { path: '/admin/manage-admins', icon: Shield, label: '관리자 권한' },
   ]
 
