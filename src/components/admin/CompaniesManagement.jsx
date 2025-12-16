@@ -101,6 +101,101 @@ export default function CompaniesManagement() {
 
       if (error) throw error
 
+      // 승인 알림 발송 (카카오톡 + 이메일)
+      const approvalDate = new Date().toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+
+      // 담당자 전화번호 (하이픈 제거)
+      const phoneNumber = (company.contact_phone || company.manager_phone || company.phone || '').replace(/-/g, '')
+      const contactEmail = company.contact_email || company.email
+
+      // 카카오톡 알림톡 발송
+      if (phoneNumber) {
+        try {
+          await fetch('/.netlify/functions/send-kakao-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              receiverNum: phoneNumber,
+              receiverName: company.contact_name || company.company_name,
+              templateCode: '025120000522',
+              variables: {
+                '회사명': company.company_name || '기업',
+                '승인일시': approvalDate
+              }
+            })
+          })
+          console.log('✓ 기업 승인 알림톡 발송 완료')
+        } catch (kakaoError) {
+          console.error('알림톡 발송 실패:', kakaoError)
+        }
+      }
+
+      // 이메일 발송
+      if (contactEmail) {
+        try {
+          await fetch('/.netlify/functions/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: contactEmail,
+              subject: `[CNEC] ${company.company_name}님, 기업회원 가입이 승인되었습니다`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                    <h1 style="color: white; margin: 0; font-size: 28px;">CNEC BIZ</h1>
+                    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">글로벌 인플루언서 마케팅 플랫폼</p>
+                  </div>
+
+                  <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+                    <h2 style="color: #1f2937; margin-top: 0;">🎉 기업회원 가입 승인 완료</h2>
+
+                    <p style="color: #4b5563; line-height: 1.6;">
+                      안녕하세요, <strong>${company.company_name}</strong> 담당자님!<br><br>
+                      CNEC 기업회원 가입이 승인되었습니다.
+                    </p>
+
+                    <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 30px 0;">
+                      <h3 style="color: #1f2937; margin-top: 0; font-size: 16px;">📋 승인 정보</h3>
+                      <ul style="color: #4b5563; line-height: 1.8; margin: 0; padding-left: 20px; list-style: none;">
+                        <li><strong>회사명:</strong> ${company.company_name}</li>
+                        <li><strong>승인일시:</strong> ${approvalDate}</li>
+                      </ul>
+                    </div>
+
+                    <p style="color: #4b5563; line-height: 1.6;">
+                      지금 바로 어드민에 로그인하여<br>
+                      캠페인을 등록해보세요.
+                    </p>
+
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="https://cnecbiz.com/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">로그인 바로가기</a>
+                    </div>
+
+                    <p style="color: #6b7280; font-size: 14px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                      ※ 본 메시지는 회원가입 신청에 따라 발송되었습니다.<br>
+                      ※ 문의: cnec@cnecbiz.com
+                    </p>
+                  </div>
+
+                  <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+                    <p>© 2025 CNEC BIZ. All rights reserved.</p>
+                  </div>
+                </div>
+              `
+            })
+          })
+          console.log('✓ 기업 승인 이메일 발송 완료')
+        } catch (emailError) {
+          console.error('이메일 발송 실패:', emailError)
+        }
+      }
+
       alert('기업 승인이 완료되었습니다!')
       fetchCompanies()
     } catch (error) {
