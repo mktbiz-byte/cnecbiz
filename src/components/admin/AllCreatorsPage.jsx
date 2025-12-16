@@ -19,8 +19,8 @@ import * as XLSX from 'xlsx'
 // 페이지당 아이템 수
 const ITEMS_PER_PAGE = 50
 
-// 필요한 컬럼만 선택 (성능 최적화)
-const SELECT_COLUMNS = 'id,name,email,phone,profile_image,instagram_url,instagram_followers,youtube_url,youtube_subscribers,tiktok_url,tiktok_followers,approval_status,created_at,bank_name,bank_account_number,bank_account_holder,rating,company_review,points,completed_campaigns,is_affiliated,region'
+// 전체 컬럼 선택 (안정성 우선)
+const SELECT_COLUMNS = '*'
 
 // 숫자 포맷
 const formatNumber = (num) => {
