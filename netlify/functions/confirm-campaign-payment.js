@@ -67,15 +67,23 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 관리자 권한 확인 (supabaseBiz에서 조회)
+    // 먼저 auth user의 이메일로 관리자 확인
+    const { data: authUser, error: authError } = await supabaseBiz.auth.admin.getUserById(adminUserId)
+
+    let adminEmail = null
+    if (authUser?.user?.email) {
+      adminEmail = authUser.user.email
+    }
+
+    // 관리자 권한 확인 (이메일로 조회)
     const { data: admin, error: adminError } = await supabaseBiz
       .from('admin_users')
       .select('role, email')
-      .eq('id', adminUserId)
-      .single()
+      .eq('email', adminEmail)
+      .maybeSingle()
 
     if (adminError || !admin) {
-      console.error('[confirm-campaign-payment] Admin verification failed:', adminError)
+      console.error('[confirm-campaign-payment] Admin verification failed:', adminError, 'email:', adminEmail)
       return {
         statusCode: 403,
         headers,

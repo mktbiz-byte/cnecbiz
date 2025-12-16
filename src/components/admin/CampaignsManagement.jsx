@@ -397,7 +397,11 @@ export default function CampaignsManagement() {
     try {
       const supabaseClient = getSupabaseClient(campaign.region || 'biz')
       const updateData = { status: newStatus, updated_at: new Date().toISOString() }
-      if (newStatus === 'active' && campaign.region === 'korea') {
+
+      // 활성화 시 approval_status, progress_status도 함께 업데이트
+      if (newStatus === 'active') {
+        updateData.approval_status = 'approved'
+        updateData.progress_status = 'recruiting'
         updateData.approved_at = new Date().toISOString()
       }
 
@@ -503,8 +507,13 @@ export default function CampaignsManagement() {
       if (campaign.status === 'active') { skip++; continue }
       try {
         const client = getSupabaseClient(campaign.region || 'biz')
-        const updateData = { status: 'active', updated_at: new Date().toISOString() }
-        if (campaign.region === 'korea') updateData.approved_at = new Date().toISOString()
+        const updateData = {
+          status: 'active',
+          approval_status: 'approved',
+          progress_status: 'recruiting',
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
         const { error } = await client.from('campaigns').update(updateData).eq('id', campaign.id)
         if (error) throw error
         success++
