@@ -339,7 +339,7 @@ export default function MyCampaigns() {
 
   // Get campaign thumbnail
   const getThumbnail = (campaign) => {
-    return campaign.main_image || campaign.thumbnail || campaign.product_image || campaign.images?.[0] || null
+    return campaign.main_image || campaign.thumbnail || campaign.thumbnail_url || campaign.image_url || campaign.product_image || campaign.images?.[0] || null
   }
 
   return (
