@@ -404,6 +404,24 @@ export default function CampaignsManagement() {
       const { error } = await supabaseClient.from('campaigns').update(updateData).eq('id', campaign.id)
       if (error) throw error
 
+      // 활성화 시 기업에게 알림톡 전송
+      if (newStatus === 'active') {
+        try {
+          await fetch('/.netlify/functions/send-campaign-activation-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignId: campaign.id,
+              region: campaign.region || 'biz'
+            })
+          })
+          console.log('캠페인 활성화 알림톡 전송 완료')
+        } catch (notifyError) {
+          console.error('알림톡 전송 실패:', notifyError)
+          // 알림톡 실패해도 상태 변경은 성공으로 처리
+        }
+      }
+
       alert(`상태가 변경되었습니다!`)
       fetchCampaigns()
     } catch (error) {
@@ -479,6 +497,7 @@ export default function CampaignsManagement() {
 
     setBulkActionLoading(true)
     let success = 0, skip = 0, fail = 0
+    const activatedCampaigns = []
 
     for (const campaign of selectedList) {
       if (campaign.status === 'active') { skip++; continue }
@@ -489,7 +508,25 @@ export default function CampaignsManagement() {
         const { error } = await client.from('campaigns').update(updateData).eq('id', campaign.id)
         if (error) throw error
         success++
+        activatedCampaigns.push(campaign)
       } catch { fail++ }
+    }
+
+    // 활성화된 캠페인들에 대해 알림톡 전송
+    for (const campaign of activatedCampaigns) {
+      try {
+        await fetch('/.netlify/functions/send-campaign-activation-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            region: campaign.region || 'biz'
+          })
+        })
+        console.log(`캠페인 활성화 알림톡 전송: ${campaign.id}`)
+      } catch (notifyError) {
+        console.error('알림톡 전송 실패:', notifyError)
+      }
     }
 
     setBulkActionLoading(false)
