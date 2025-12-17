@@ -109,20 +109,22 @@ export default function MyCampaigns() {
       const supabaseJapan = getSupabaseClient('japan')
       const supabaseUS = getSupabaseClient('us')
 
-      // Fetch all regions in parallel - both by email and by company_id/user_id
-      const [koreaByEmail, koreaByCompanyId, japanResult, usResult] = await Promise.allSettled([
+      // Fetch all regions in parallel - by email, company_id, AND user_id for proper transfer support
+      const [koreaByEmail, koreaByCompanyId, koreaByUserId, japanResult, usResult] = await Promise.allSettled([
         supabaseKorea?.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
         companyId ? supabaseKorea?.from('campaigns').select('*').eq('company_id', companyId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
+        userId ? supabaseKorea?.from('campaigns').select('*').eq('user_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         supabaseJapan?.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
         userId ? supabaseUS?.from('campaigns').select('*').eq('company_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] })
       ])
 
-      // Merge Korea campaigns (by email and by company_id, deduplicate)
+      // Merge Korea campaigns (by email, company_id, AND user_id - deduplicate)
       const koreaByEmailData = (koreaByEmail.status === 'fulfilled' && koreaByEmail.value?.data || [])
       const koreaByCompanyIdData = (koreaByCompanyId.status === 'fulfilled' && koreaByCompanyId.value?.data || [])
+      const koreaByUserIdData = (koreaByUserId.status === 'fulfilled' && koreaByUserId.value?.data || [])
       const koreaIds = new Set()
       const koreaCampaigns = []
-      ;[...koreaByEmailData, ...koreaByCompanyIdData].forEach(c => {
+      ;[...koreaByEmailData, ...koreaByCompanyIdData, ...koreaByUserIdData].forEach(c => {
         if (!koreaIds.has(c.id)) {
           koreaIds.add(c.id)
           koreaCampaigns.push({ ...c, region: 'korea' })
