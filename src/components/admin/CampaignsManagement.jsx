@@ -7,8 +7,10 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   TrendingUp, Search, Eye, CheckCircle, XCircle, Clock,
   DollarSign, Edit, Trash2, PlayCircle, Pause, CheckSquare,
-  ChevronLeft, ChevronRight, Loader2, Users, Calendar, Target, ImageIcon
+  ChevronLeft, ChevronRight, Loader2, Users, Calendar, Target, ImageIcon,
+  ArrowRightLeft, Hash
 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
 // 플랫폼 아이콘 컴포넌트
 const InstagramIcon = ({ className }) => (
@@ -228,6 +230,14 @@ export default function CampaignsManagement() {
   const [selectedCampaigns, setSelectedCampaigns] = useState(new Set())
   const [bulkActionLoading, setBulkActionLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+
+  // 캠페인 이관 관련 상태
+  const [showTransferModal, setShowTransferModal] = useState(false)
+  const [transferCampaign, setTransferCampaign] = useState(null)
+  const [transferEmail, setTransferEmail] = useState('')
+  const [transferring, setTransferring] = useState(false)
+  const [companies, setCompanies] = useState([])
+  const [companiesLoading, setCompaniesLoading] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -567,6 +577,78 @@ export default function CampaignsManagement() {
     fetchCampaigns()
   }
 
+  // 캠페인 이관 모달 열기
+  const openTransferModal = async (campaign) => {
+    setTransferCampaign(campaign)
+    setTransferEmail(campaign.company_email || '')
+    setShowTransferModal(true)
+
+    // 기업 목록 로드
+    setCompaniesLoading(true)
+    try {
+      const supabaseClient = getSupabaseClient(campaign.region || 'korea')
+      const { data, error } = await supabaseClient
+        .from('companies')
+        .select('id, company_name, user_id, email')
+        .order('company_name', { ascending: true })
+
+      if (!error && data) {
+        setCompanies(data)
+      }
+    } catch (e) {
+      console.error('기업 목록 로드 실패:', e)
+    } finally {
+      setCompaniesLoading(false)
+    }
+  }
+
+  // 캠페인 이관 실행
+  const handleTransferCampaign = async () => {
+    if (!transferCampaign || !transferEmail) {
+      alert('이관할 이메일을 입력해주세요.')
+      return
+    }
+
+    if (!confirm(`캠페인을 "${transferEmail}"로 이관하시겠습니까?\n\n캠페인: ${transferCampaign.campaign_name || transferCampaign.title}`)) {
+      return
+    }
+
+    setTransferring(true)
+    try {
+      const supabaseClient = getSupabaseClient(transferCampaign.region || 'korea')
+
+      // 해당 이메일의 기업 정보 찾기
+      const selectedCompany = companies.find(c => c.email === transferEmail)
+
+      const updateData = {
+        company_email: transferEmail,
+        updated_at: new Date().toISOString()
+      }
+
+      // company_id도 함께 업데이트
+      if (selectedCompany) {
+        updateData.company_id = selectedCompany.id
+      }
+
+      const { error } = await supabaseClient
+        .from('campaigns')
+        .update(updateData)
+        .eq('id', transferCampaign.id)
+
+      if (error) throw error
+
+      alert('캠페인이 성공적으로 이관되었습니다!')
+      setShowTransferModal(false)
+      setTransferCampaign(null)
+      setTransferEmail('')
+      fetchCampaigns()
+    } catch (error) {
+      alert('이관 실패: ' + error.message)
+    } finally {
+      setTransferring(false)
+    }
+  }
+
   // 뱃지 컴포넌트들
   const StatusBadge = ({ status }) => {
     const config = statusConfig[status] || statusConfig.pending
@@ -895,6 +977,11 @@ export default function CampaignsManagement() {
                           <div className="flex items-start justify-between gap-4 mb-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1.5">
+                                {/* 캠페인 번호 */}
+                                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-mono">
+                                  <Hash className="w-3 h-3" />
+                                  {campaign.campaign_number || campaign.id?.toString().slice(-6) || '-'}
+                                </span>
                                 <h3 className="text-[15px] font-semibold text-gray-900 truncate">
                                   {campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}
                                 </h3>
@@ -960,6 +1047,12 @@ export default function CampaignsManagement() {
                                 <Edit className="w-3.5 h-3.5 mr-1" />
                                 수정
                               </Button>
+                              {isSuperAdmin && (
+                                <Button size="sm" variant="outline" onClick={() => openTransferModal(campaign)} className="h-8 px-3 text-xs font-medium border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200">
+                                  <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
+                                  이관
+                                </Button>
+                              )}
                               <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/campaigns/${campaign.id}?region=${campaign.region}`)} className="h-8 px-3 text-xs font-medium text-gray-500">
                                 <Eye className="w-3.5 h-3.5 mr-1" />
                                 상세
@@ -1097,6 +1190,110 @@ export default function CampaignsManagement() {
           </div>
         </div>
       </div>
+
+      {/* 캠페인 이관 모달 */}
+      <Dialog open={showTransferModal} onOpenChange={setShowTransferModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="w-5 h-5 text-blue-500" />
+              캠페인 계정 이관
+            </DialogTitle>
+          </DialogHeader>
+
+          {transferCampaign && (
+            <div className="space-y-4">
+              {/* 캠페인 정보 */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500 mb-1">이관할 캠페인</p>
+                <p className="font-semibold text-gray-900">
+                  {transferCampaign.campaign_name || transferCampaign.title}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  현재 소유자: <span className="text-gray-700">{transferCampaign.company_email || '없음'}</span>
+                </p>
+              </div>
+
+              {/* 이관 대상 선택 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  이관할 계정 이메일
+                </label>
+                <Input
+                  type="email"
+                  value={transferEmail}
+                  onChange={(e) => setTransferEmail(e.target.value)}
+                  placeholder="이메일 주소 입력"
+                  className="mb-2"
+                />
+
+                {/* 기업 목록에서 선택 */}
+                {companiesLoading ? (
+                  <div className="text-center py-4 text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                    기업 목록 로드 중...
+                  </div>
+                ) : companies.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">또는 기업 목록에서 선택:</p>
+                    <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                      {companies.map((company) => (
+                        <button
+                          key={company.id}
+                          onClick={() => setTransferEmail(company.email)}
+                          className={`w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors ${
+                            transferEmail === company.email ? 'bg-blue-50 border-l-2 border-blue-500' : ''
+                          }`}
+                        >
+                          <p className="font-medium text-sm text-gray-900">{company.company_name}</p>
+                          <p className="text-xs text-gray-500">{company.email}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800">
+                  ⚠️ 이관 후 원래 계정에서는 해당 캠페인을 볼 수 없습니다.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowTransferModal(false)
+                setTransferCampaign(null)
+                setTransferEmail('')
+              }}
+              disabled={transferring}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleTransferCampaign}
+              disabled={transferring || !transferEmail}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {transferring ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  이관 중...
+                </>
+              ) : (
+                <>
+                  <ArrowRightLeft className="w-4 h-4 mr-2" />
+                  이관하기
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
