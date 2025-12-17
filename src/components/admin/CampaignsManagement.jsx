@@ -8,7 +8,7 @@ import {
   TrendingUp, Search, Eye, CheckCircle, XCircle, Clock,
   DollarSign, Edit, Trash2, PlayCircle, Pause, CheckSquare,
   ChevronLeft, ChevronRight, Loader2, Users, Calendar, Target, ImageIcon,
-  ArrowRightLeft, Hash
+  ArrowRightLeft, Hash, Building2, Phone, Mail, User, Globe, MapPin
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
@@ -238,6 +238,15 @@ export default function CampaignsManagement() {
   const [transferring, setTransferring] = useState(false)
   const [companies, setCompanies] = useState([])
   const [companiesLoading, setCompaniesLoading] = useState(false)
+
+  // 캠페인 번호 부여 관련 상태
+  const [assigningNumbers, setAssigningNumbers] = useState(false)
+
+  // 캠페인 상세 + 기업 정보 모달 관련 상태
+  const [showCampaignDetailModal, setShowCampaignDetailModal] = useState(false)
+  const [selectedCampaignDetail, setSelectedCampaignDetail] = useState(null)
+  const [companyInfo, setCompanyInfo] = useState(null)
+  const [loadingCompanyInfo, setLoadingCompanyInfo] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -649,6 +658,112 @@ export default function CampaignsManagement() {
     }
   }
 
+  // 기존 캠페인에 순차 번호 부여
+  const handleAssignCampaignNumbers = async () => {
+    if (!confirm('기존 캠페인에 순차 번호를 부여하시겠습니까?\n\n생성일 기준으로 번호가 순차 부여됩니다.')) {
+      return
+    }
+
+    setAssigningNumbers(true)
+    try {
+      // 모든 캠페인을 created_at 기준으로 정렬하여 가져오기
+      const allCampaigns = await getCampaignsFast()
+      const sortedCampaigns = [...allCampaigns].sort((a, b) =>
+        new Date(a.created_at) - new Date(b.created_at)
+      )
+
+      let updatedCount = 0
+      let errorCount = 0
+
+      // 순차적으로 번호 부여
+      for (let i = 0; i < sortedCampaigns.length; i++) {
+        const campaign = sortedCampaigns[i]
+        const newNumber = i + 1
+
+        // 이미 번호가 있으면 스킵
+        if (campaign.campaign_number) continue
+
+        try {
+          const client = getSupabaseClient(campaign.region || 'korea')
+          const { error } = await client
+            .from('campaigns')
+            .update({
+              campaign_number: newNumber,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', campaign.id)
+
+          if (error) throw error
+          updatedCount++
+        } catch {
+          errorCount++
+        }
+      }
+
+      alert(`완료!\n\n업데이트: ${updatedCount}개\n${errorCount > 0 ? `실패: ${errorCount}개` : ''}`)
+      fetchCampaigns()
+    } catch (error) {
+      alert('번호 부여 실패: ' + error.message)
+    } finally {
+      setAssigningNumbers(false)
+    }
+  }
+
+  // 캠페인 클릭 시 상세 정보 + 기업 정보 표시
+  const handleCampaignClick = async (campaign) => {
+    setSelectedCampaignDetail(campaign)
+    setShowCampaignDetailModal(true)
+    setCompanyInfo(null)
+    setLoadingCompanyInfo(true)
+
+    try {
+      const supabaseClient = getSupabaseClient(campaign.region || 'korea')
+
+      // company_id로 기업 정보 조회
+      if (campaign.company_id) {
+        const { data: companyData } = await supabaseClient
+          .from('companies')
+          .select('*')
+          .eq('id', campaign.company_id)
+          .maybeSingle()
+
+        if (companyData) {
+          setCompanyInfo(companyData)
+          setLoadingCompanyInfo(false)
+          return
+        }
+      }
+
+      // company_email로 기업 정보 조회
+      if (campaign.company_email) {
+        const { data: companyData } = await supabaseClient
+          .from('companies')
+          .select('*')
+          .eq('email', campaign.company_email)
+          .maybeSingle()
+
+        if (companyData) {
+          setCompanyInfo(companyData)
+          setLoadingCompanyInfo(false)
+          return
+        }
+
+        // auth.users에서 이메일로 사용자 정보 조회
+        // companies 테이블에 없는 경우 기본 정보 표시
+        setCompanyInfo({
+          email: campaign.company_email,
+          company_name: '(미등록 기업)',
+          not_registered: true
+        })
+      }
+    } catch (error) {
+      console.error('기업 정보 조회 실패:', error)
+      setCompanyInfo(null)
+    } finally {
+      setLoadingCompanyInfo(false)
+    }
+  }
+
   // 뱃지 컴포넌트들
   const StatusBadge = ({ status }) => {
     const config = statusConfig[status] || statusConfig.pending
@@ -908,12 +1023,35 @@ export default function CampaignsManagement() {
                 <h2 className="text-lg font-semibold text-gray-900">캠페인 목록</h2>
                 <span className="text-sm text-gray-500">({filteredCampaigns.length}개)</span>
               </div>
-              {isSuperAdmin && paginatedCampaigns.length > 0 && (
-                <Button variant="outline" size="sm" onClick={handleSelectAll}>
-                  <CheckSquare className="w-4 h-4 mr-1.5" />
-                  {selectedCampaigns.size === paginatedCampaigns.length ? '전체 해제' : '전체 선택'}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {isSuperAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAssignCampaignNumbers}
+                    disabled={assigningNumbers}
+                    className="text-xs"
+                  >
+                    {assigningNumbers ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                        번호 부여 중...
+                      </>
+                    ) : (
+                      <>
+                        <Hash className="w-4 h-4 mr-1.5" />
+                        번호 일괄 부여
+                      </>
+                    )}
+                  </Button>
+                )}
+                {isSuperAdmin && paginatedCampaigns.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                    <CheckSquare className="w-4 h-4 mr-1.5" />
+                    {selectedCampaigns.size === paginatedCampaigns.length ? '전체 해제' : '전체 선택'}
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* 로딩 */}
@@ -982,7 +1120,11 @@ export default function CampaignsManagement() {
                                   <Hash className="w-3 h-3" />
                                   {campaign.campaign_number || campaign.id?.toString().slice(-6) || '-'}
                                 </span>
-                                <h3 className="text-[15px] font-semibold text-gray-900 truncate">
+                                <h3
+                                  className="text-[15px] font-semibold text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                                  onClick={() => handleCampaignClick(campaign)}
+                                  title="클릭하여 기업 정보 보기"
+                                >
                                   {campaign.campaign_name || campaign.title || campaign.product_name || '제목 없음'}
                                 </h3>
                                 {/* 플랫폼 아이콘 */}
@@ -1290,6 +1432,244 @@ export default function CampaignsManagement() {
                   이관하기
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 캠페인 상세 + 기업 정보 모달 */}
+      <Dialog open={showCampaignDetailModal} onOpenChange={setShowCampaignDetailModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-blue-500" />
+              캠페인 등록 기업 정보
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedCampaignDetail && (
+            <div className="space-y-6">
+              {/* 캠페인 정보 섹션 */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
+                <div className="flex items-start gap-4">
+                  {/* 캠페인 썸네일 */}
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-white flex-shrink-0 shadow-sm">
+                    {selectedCampaignDetail.image_url ? (
+                      <img
+                        src={selectedCampaignDetail.image_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <ImageIcon className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-white text-blue-600 rounded-md text-xs font-mono shadow-sm">
+                        <Hash className="w-3 h-3" />
+                        {selectedCampaignDetail.campaign_number || selectedCampaignDetail.id?.toString().slice(-6) || '-'}
+                      </span>
+                      <CampaignTypeBadge type={selectedCampaignDetail.campaign_type} />
+                      <RegionBadge region={selectedCampaignDetail.region} />
+                      <StatusBadge status={selectedCampaignDetail.status} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      {selectedCampaignDetail.campaign_name || selectedCampaignDetail.title || '제목 없음'}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      등록일: {selectedCampaignDetail.created_at
+                        ? new Date(selectedCampaignDetail.created_at).toLocaleDateString('ko-KR', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 기업 정보 섹션 */}
+              <div className="bg-white rounded-xl border border-gray-200 p-5">
+                <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  등록 기업 정보
+                </h4>
+
+                {loadingCompanyInfo ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 text-blue-500 animate-spin mr-2" />
+                    <span className="text-gray-500">기업 정보 로딩 중...</span>
+                  </div>
+                ) : companyInfo ? (
+                  <div className="space-y-4">
+                    {companyInfo.not_registered ? (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                        <p className="text-amber-700 font-medium">미등록 기업</p>
+                        <p className="text-sm text-amber-600 mt-1">
+                          이메일: {companyInfo.email}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* 기업명 */}
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <Building2 className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-0.5">기업명</p>
+                            <p className="font-semibold text-gray-900">
+                              {companyInfo.company_name || '-'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 담당자명 */}
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                            <User className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-0.5">담당자</p>
+                            <p className="font-semibold text-gray-900">
+                              {companyInfo.manager_name || companyInfo.contact_name || '-'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 이메일 */}
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                            <Mail className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-0.5">이메일</p>
+                            <p className="font-medium text-gray-900 break-all">
+                              {companyInfo.email || '-'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 연락처 */}
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                          <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                            <Phone className="w-4 h-4 text-orange-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-0.5">연락처</p>
+                            <p className="font-semibold text-gray-900">
+                              {companyInfo.phone || companyInfo.contact_phone || '-'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 웹사이트 */}
+                        {companyInfo.website && (
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center flex-shrink-0">
+                              <Globe className="w-4 h-4 text-cyan-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">웹사이트</p>
+                              <a
+                                href={companyInfo.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-blue-600 hover:underline break-all"
+                              >
+                                {companyInfo.website}
+                              </a>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 주소 */}
+                        {companyInfo.address && (
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg md:col-span-2">
+                            <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
+                              <MapPin className="w-4 h-4 text-rose-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">주소</p>
+                              <p className="font-medium text-gray-900">
+                                {companyInfo.address}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 사업자등록번호 */}
+                        {companyInfo.business_number && (
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                              <Hash className="w-4 h-4 text-slate-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">사업자등록번호</p>
+                              <p className="font-semibold text-gray-900">
+                                {companyInfo.business_number}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 가입일 */}
+                        {companyInfo.created_at && (
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                              <Calendar className="w-4 h-4 text-indigo-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-0.5">가입일</p>
+                              <p className="font-semibold text-gray-900">
+                                {new Date(companyInfo.created_at).toLocaleDateString('ko-KR', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    기업 정보를 찾을 수 없습니다.
+                  </div>
+                )}
+              </div>
+
+              {/* 캠페인 소유자 이메일 (항상 표시) */}
+              <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-between">
+                <span className="text-sm text-gray-500">캠페인 등록 이메일:</span>
+                <span className="font-medium text-gray-900">{selectedCampaignDetail.company_email || '-'}</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCampaignDetailModal(false)
+                setSelectedCampaignDetail(null)
+                setCompanyInfo(null)
+              }}
+            >
+              닫기
+            </Button>
+            <Button
+              onClick={() => navigate(`/admin/campaigns/${selectedCampaignDetail?.id}?region=${selectedCampaignDetail?.region}`)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              캠페인 상세보기
             </Button>
           </DialogFooter>
         </DialogContent>
