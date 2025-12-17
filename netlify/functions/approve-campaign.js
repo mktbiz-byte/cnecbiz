@@ -104,15 +104,70 @@ exports.handler = async (event, context) => {
 
     console.log('[approve-campaign] Campaign found:', campaign.title)
 
-    // 회사 정보 조회 (Biz DB에서)
-    const { data: company, error: companyError } = await supabaseBiz
-      .from('companies')
-      .select('*')
-      .eq('user_id', campaign.user_id)
-      .single()
+    // 회사 정보 조회 (company_id 또는 company_email로)
+    let company = null
 
-    if (companyError || !company) {
-      console.error('[approve-campaign] Company not found:', companyError)
+    // 1. company_id로 지역 DB에서 조회
+    if (campaign.company_id) {
+      const { data: companyData } = await supabaseRegion
+        .from('companies')
+        .select('*')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[approve-campaign] Company found by company_id in regional DB')
+      }
+    }
+
+    // 2. company_id로 Biz DB에서 조회
+    if (!company && campaign.company_id) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[approve-campaign] Company found by company_id in Biz DB')
+      }
+    }
+
+    // 3. company_email로 지역 DB에서 조회
+    if (!company && campaign.company_email) {
+      const { data: companyData } = await supabaseRegion
+        .from('companies')
+        .select('*')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[approve-campaign] Company found by company_email in regional DB')
+      }
+    }
+
+    // 4. company_email로 Biz DB에서 조회
+    if (!company && campaign.company_email) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('*')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[approve-campaign] Company found by company_email in Biz DB')
+      }
+    }
+
+    if (!company) {
+      console.error('[approve-campaign] Company not found for campaign:', {
+        company_id: campaign.company_id,
+        company_email: campaign.company_email
+      })
       return {
         statusCode: 404,
         headers,
