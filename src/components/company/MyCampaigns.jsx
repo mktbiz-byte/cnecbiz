@@ -109,15 +109,26 @@ export default function MyCampaigns() {
       const supabaseJapan = getSupabaseClient('japan')
       const supabaseUS = getSupabaseClient('us')
 
-      // Fetch all regions in parallel
-      const [koreaResult, japanResult, usResult] = await Promise.allSettled([
+      // Fetch all regions in parallel - both by email and by company_id/user_id
+      const [koreaByEmail, koreaByCompanyId, japanResult, usResult] = await Promise.allSettled([
         supabaseKorea?.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
+        companyId ? supabaseKorea?.from('campaigns').select('*').eq('company_id', companyId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         supabaseJapan?.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
         userId ? supabaseUS?.from('campaigns').select('*').eq('company_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] })
       ])
 
-      // Process results and add region info
-      const koreaCampaigns = (koreaResult.status === 'fulfilled' && koreaResult.value?.data || []).map(c => ({ ...c, region: 'korea' }))
+      // Merge Korea campaigns (by email and by company_id, deduplicate)
+      const koreaByEmailData = (koreaByEmail.status === 'fulfilled' && koreaByEmail.value?.data || [])
+      const koreaByCompanyIdData = (koreaByCompanyId.status === 'fulfilled' && koreaByCompanyId.value?.data || [])
+      const koreaIds = new Set()
+      const koreaCampaigns = []
+      ;[...koreaByEmailData, ...koreaByCompanyIdData].forEach(c => {
+        if (!koreaIds.has(c.id)) {
+          koreaIds.add(c.id)
+          koreaCampaigns.push({ ...c, region: 'korea' })
+        }
+      })
+
       const japanCampaigns = (japanResult.status === 'fulfilled' && japanResult.value?.data || []).map(c => ({ ...c, region: 'japan' }))
       const usCampaigns = (usResult.status === 'fulfilled' && usResult.value?.data || []).map(c => ({ ...c, region: 'us' }))
 
