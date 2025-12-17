@@ -182,12 +182,13 @@ exports.handler = async (event, context) => {
       console.log('[confirm-campaign-payment] No payment record found, skipping payment update')
     }
 
-    // 3. campaigns 테이블 업데이트 - 승인 대기 상태로 변경 (자동 활성화 방지)
+    // 3. campaigns 테이블 업데이트 - 입금 확인 시 자동 승인 및 활성화
     const campaignUpdateData = {
-      status: 'pending',  // 승인 대기 상태로 유지 (active로 변경하면 자동 노출됨)
-      approval_status: 'pending_approval',  // 승인 대기 상태로 변경
-      payment_status: 'confirmed',  // 입금 확인 상킬로 변경
-      progress_status: 'pending_approval',  // 진행 상태도 승인 대기로 변경
+      status: 'active',  // 자동 활성화
+      approval_status: 'approved',  // 자동 승인
+      payment_status: 'confirmed',  // 입금 확인 상태로 변경
+      progress_status: 'recruiting',  // 모집 중으로 변경
+      approved_at: new Date().toISOString(),
       payment_confirmed_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -212,17 +213,72 @@ exports.handler = async (event, context) => {
       }
     }
 
-    console.log('[confirm-campaign-payment] Campaign status updated to pending (awaiting approval)')
+    console.log('[confirm-campaign-payment] Campaign auto-approved and activated')
 
-    // 회사 정보 조회 (알림 발송용) (supabaseBiz에서 user_id로 조회)
-    const { data: company, error: companyError } = await supabaseBiz
-      .from('companies')
-      .select('company_name, email, phone, contact_person, notification_phone, notification_email')
-      .eq('user_id', campaign.company_id)
-      .single()
+    // 회사 정보 조회 (알림 발송용) - company_id 또는 company_email로 조회
+    let company = null
 
-    if (companyError) {
-      console.error('[confirm-campaign-payment] Company lookup error:', companyError)
+    // 1. company_id로 Korea DB에서 조회
+    if (campaign.company_id) {
+      const { data: companyData } = await supabaseKorea
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_id in Korea DB')
+      }
+    }
+
+    // 2. company_id로 Biz DB에서 조회
+    if (!company && campaign.company_id) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('id', campaign.company_id)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_id in Biz DB')
+      }
+    }
+
+    // 3. company_email로 Korea DB에서 조회
+    if (!company && campaign.company_email) {
+      const { data: companyData } = await supabaseKorea
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_email in Korea DB')
+      }
+    }
+
+    // 4. company_email로 Biz DB에서 조회
+    if (!company && campaign.company_email) {
+      const { data: companyData } = await supabaseBiz
+        .from('companies')
+        .select('company_name, email, phone, contact_person, notification_phone, notification_email')
+        .eq('email', campaign.company_email)
+        .maybeSingle()
+
+      if (companyData) {
+        company = companyData
+        console.log('[confirm-campaign-payment] Company found by company_email in Biz DB')
+      }
+    }
+
+    if (!company) {
+      console.error('[confirm-campaign-payment] Company not found for campaign:', {
+        company_id: campaign.company_id,
+        company_email: campaign.company_email
+      })
     } else {
       console.log('[confirm-campaign-payment] Company found:', company?.company_name)
     }
@@ -312,7 +368,7 @@ exports.handler = async (event, context) => {
     }
     const campaignTypeText = campaignTypeMap[campaign.campaign_type] || '기획형'
 
-    const message = `💵 입금 확인 완료 - 승인 대기 (한국)
+    const message = `✅ 입금 확인 완료 - 자동 승인 (한국)
 
 • 회사명: ${company?.company_name || '회사명 없음'}
 • 캠페인명: ${campaign.title}
@@ -321,7 +377,7 @@ exports.handler = async (event, context) => {
 • 입금자명: ${depositorName || '미입력'}
 • 입금일: ${depositDate || new Date().toISOString().split('T')[0]}
 
-⏳ 승인 대기 중입니다. 승인 후 캠페인이 활성화됩니다.
+🎉 캠페인이 자동 승인되어 모집이 시작되었습니다!
 
 관리 페이지: https://cnectotal.netlify.app/admin/campaigns/${campaignId}`
 
