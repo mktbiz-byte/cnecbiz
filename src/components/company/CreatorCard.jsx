@@ -164,47 +164,16 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{age}세</span>
             </div>
 
-            {/* 채널별 팔로워 - 아이콘과 함께 */}
+            {/* 채널별 팔로워 + 선택 + 링크 통합 */}
             <div className="space-y-1.5">
               {appliedChannels.map(channel => {
                 const style = getChannelStyle(channel.name)
+                const isSelected = selectedChannel === channel.name
                 return (
                   <div key={channel.name} className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-full ${style.bg} flex items-center justify-center`}>
-                      <ChannelIcon name={channel.name} className={`w-3.5 h-3.5 ${style.text}`} />
-                    </div>
-                    <span className="text-sm text-gray-700 font-medium">{channel.label}</span>
-                    <span className="text-sm font-bold text-gray-900">{formatFollowers(channel.followers)}명</span>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* 피부타입 */}
-            {skinTypeKorean && (
-              <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                <Droplets className="w-4 h-4 text-blue-400" />
-                <span>피부타입:</span>
-                <span className="font-medium">{skinTypeKorean}</span>
-              </div>
-            )}
-          </div>
-
-          {/* 메인 채널 선택 */}
-          {appliedChannels.length > 0 && (
-            <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 mb-2">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                메인 채널 선택 (1개)
-              </label>
-              <div className="space-y-1.5">
-                {appliedChannels.map(channel => {
-                  const style = getChannelStyle(channel.name)
-                  const isSelected = selectedChannel === channel.name
-                  return (
+                    {/* 라디오 선택 */}
                     <label
-                      key={channel.name}
-                      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${
+                      className={`flex items-center gap-2 flex-1 p-2 rounded-lg cursor-pointer transition-all border ${
                         isSelected
                           ? `${style.light} border-2`
                           : 'bg-white border-gray-100 hover:bg-gray-50'
@@ -218,24 +187,37 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
                         onChange={(e) => setSelectedChannel(e.target.value)}
                         className="sr-only"
                       />
-                      <div className={`w-5 h-5 rounded-full ${isSelected ? style.bg : 'bg-gray-200'} flex items-center justify-center`}>
-                        <ChannelIcon name={channel.name} className={`w-3 h-3 ${isSelected ? style.text : 'text-gray-400'}`} />
+                      <div className={`w-6 h-6 rounded-full ${isSelected ? style.bg : 'bg-gray-200'} flex items-center justify-center flex-shrink-0`}>
+                        <ChannelIcon name={channel.name} className={`w-3.5 h-3.5 ${isSelected ? style.text : 'text-gray-400'}`} />
                       </div>
-                      <span className={`flex-1 text-sm ${isSelected ? 'font-semibold' : ''}`}>
-                        {channel.label}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {formatFollowers(channel.followers)}명
-                      </span>
+                      <span className={`text-sm ${isSelected ? 'font-semibold' : 'text-gray-700'}`}>{channel.label}</span>
+                      <span className={`text-sm ${isSelected ? 'font-bold' : 'font-medium text-gray-500'}`}>{formatFollowers(channel.followers)}명</span>
                       {isSelected && (
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />
                       )}
                     </label>
-                  )
-                })}
-              </div>
+                    {/* SNS 링크 버튼 */}
+                    <button
+                      onClick={() => window.open(channel.url, '_blank')}
+                      className={`p-2 rounded-lg ${style.light} hover:opacity-80 transition-opacity`}
+                      title={`${channel.label} 프로필 보기`}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
-          )}
+
+            {/* 피부타입 */}
+            {skinTypeKorean && (
+              <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
+                <Droplets className="w-4 h-4 text-blue-400" />
+                <span>피부타입:</span>
+                <span className="font-medium">{skinTypeKorean}</span>
+              </div>
+            )}
+          </div>
 
           {/* 질문 답변 */}
           {answers.length > 0 && (
@@ -291,28 +273,6 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
                   {additional_info}
                 </p>
               </div>
-            </div>
-          )}
-
-          {/* SNS 바로가기 버튼 */}
-          {appliedChannels.length > 0 && (
-            <div className="flex gap-2 mb-3">
-              {appliedChannels.map(channel => {
-                const style = getChannelStyle(channel.name)
-                return (
-                  <Button
-                    key={channel.name}
-                    size="sm"
-                    variant="outline"
-                    className={`flex-1 h-8 text-xs ${style.light} hover:opacity-80`}
-                    onClick={() => window.open(channel.url, '_blank')}
-                  >
-                    <ChannelIcon name={channel.name} className="w-3.5 h-3.5 mr-1" />
-                    {channel.label}
-                    <ExternalLink className="w-3 h-3 ml-1 opacity-50" />
-                  </Button>
-                )
-              })}
             </div>
           )}
 
