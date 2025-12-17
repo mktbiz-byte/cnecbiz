@@ -786,7 +786,7 @@ export default function CampaignsManagement() {
     try {
       const supabaseClient = getSupabaseClient(campaign.region || 'korea')
 
-      // company_id로 기업 정보 조회
+      // 1. company_id로 지역 DB에서 조회
       if (campaign.company_id) {
         const { data: companyData } = await supabaseClient
           .from('companies')
@@ -799,9 +799,22 @@ export default function CampaignsManagement() {
           setLoadingCompanyInfo(false)
           return
         }
+
+        // company_id로 supabaseBiz에서 조회
+        const { data: bizCompanyData } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('id', campaign.company_id)
+          .maybeSingle()
+
+        if (bizCompanyData) {
+          setCompanyInfo(bizCompanyData)
+          setLoadingCompanyInfo(false)
+          return
+        }
       }
 
-      // company_email로 기업 정보 조회
+      // 2. company_email로 지역 DB에서 조회
       if (campaign.company_email) {
         const { data: companyData } = await supabaseClient
           .from('companies')
@@ -815,11 +828,29 @@ export default function CampaignsManagement() {
           return
         }
 
-        // auth.users에서 이메일로 사용자 정보 조회
-        // companies 테이블에 없는 경우 기본 정보 표시
+        // company_email로 supabaseBiz에서 조회
+        const { data: bizCompanyData } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('email', campaign.company_email)
+          .maybeSingle()
+
+        if (bizCompanyData) {
+          setCompanyInfo(bizCompanyData)
+          setLoadingCompanyInfo(false)
+          return
+        }
+
+        // 어디에도 없으면 미등록 기업으로 표시
         setCompanyInfo({
           email: campaign.company_email,
           company_name: '(미등록 기업)',
+          not_registered: true
+        })
+      } else {
+        // company_email도 없는 경우
+        setCompanyInfo({
+          company_name: '(정보 없음)',
           not_registered: true
         })
       }
