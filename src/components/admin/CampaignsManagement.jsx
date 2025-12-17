@@ -630,16 +630,52 @@ export default function CampaignsManagement() {
       // 해당 이메일의 기업 정보 찾기
       const selectedCompany = companies.find(c => c.email === transferEmail)
 
-      // 1. 캠페인 소유권 이관
+      // 1. 타겟 이메일의 auth user_id 찾기 (supabaseBiz에서 profiles 또는 companies로 조회)
+      let targetUserId = selectedCompany?.user_id
+
+      // user_id가 없으면 companies 테이블에서 email로 찾기
+      if (!targetUserId) {
+        const { data: companyByEmail } = await supabaseClient
+          .from('companies')
+          .select('user_id, id')
+          .eq('email', transferEmail)
+          .maybeSingle()
+
+        if (companyByEmail?.user_id) {
+          targetUserId = companyByEmail.user_id
+        }
+      }
+
+      // 그래도 없으면 supabaseBiz의 companies에서 찾기
+      if (!targetUserId) {
+        const { data: bizCompany } = await supabaseBiz
+          .from('companies')
+          .select('user_id, id')
+          .eq('email', transferEmail)
+          .maybeSingle()
+
+        if (bizCompany?.user_id) {
+          targetUserId = bizCompany.user_id
+        }
+      }
+
+      // 2. 캠페인 소유권 이관
       const updateData = {
         company_email: transferEmail,
         updated_at: new Date().toISOString()
       }
 
-      // company_id도 함께 업데이트
-      if (selectedCompany) {
+      // company_id 업데이트
+      if (selectedCompany?.id) {
         updateData.company_id = selectedCompany.id
-        updateData.user_id = selectedCompany.user_id // 권한 이관을 위한 user_id 업데이트
+      }
+
+      // user_id 업데이트 (중요: RLS 정책을 위해 필수)
+      if (targetUserId) {
+        updateData.user_id = targetUserId
+        console.log('이관 대상 user_id:', targetUserId)
+      } else {
+        console.warn('이관 대상 user_id를 찾을 수 없습니다. company_email만 업데이트합니다.')
       }
 
       const { error: campaignError } = await supabaseClient
@@ -649,15 +685,13 @@ export default function CampaignsManagement() {
 
       if (campaignError) throw campaignError
 
-      // 2. 지원자 데이터의 company 관련 필드 업데이트 (applications 테이블)
-      // applications 테이블에 company_email 또는 company_id 필드가 있는 경우 업데이트
+      // 3. 지원자 데이터의 company 관련 필드 업데이트 (applications 테이블)
       try {
         const applicationUpdateData = {
           updated_at: new Date().toISOString()
         }
 
-        // company_id가 있으면 applications에도 반영 (테이블 구조에 따라)
-        if (selectedCompany) {
+        if (selectedCompany?.id) {
           applicationUpdateData.company_id = selectedCompany.id
         }
 
@@ -669,10 +703,9 @@ export default function CampaignsManagement() {
         console.log('지원자 데이터 이관 완료')
       } catch (appError) {
         console.log('applications 테이블 업데이트 (선택적):', appError.message)
-        // applications 테이블 구조에 따라 실패할 수 있음 - 무시하고 진행
       }
 
-      // 3. campaign_participants 테이블 업데이트 (있는 경우)
+      // 4. campaign_participants 테이블 업데이트 (있는 경우)
       try {
         await supabaseClient
           .from('campaign_participants')
@@ -687,7 +720,7 @@ export default function CampaignsManagement() {
         console.log('campaign_participants 테이블 업데이트 (선택적):', partError.message)
       }
 
-      alert(`캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:\n- 캠페인 소유권\n- 지원자 데이터 ${applicantCount}명\n- 관리 권한`)
+      alert(`캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:\n- 캠페인 소유권\n- 지원자 데이터 ${applicantCount}명\n- 관리 권한${targetUserId ? '' : '\n\n⚠️ 주의: user_id를 찾을 수 없어 일부 권한이 제한될 수 있습니다.'}`)
       setShowTransferModal(false)
       setTransferCampaign(null)
       setTransferEmail('')
