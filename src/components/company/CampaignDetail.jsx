@@ -27,6 +27,7 @@ import FourWeekGuideViewer from './FourWeekGuideViewer'
 import PersonalizedGuideViewer from './PersonalizedGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
+import PostSelectionSetupModal from './PostSelectionSetupModal'
 
 export default function CampaignDetail() {
   const { id } = useParams()
@@ -94,6 +95,8 @@ export default function CampaignDetail() {
   })
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
   const [showOliveyoungGuideModal, setShowOliveyoungGuideModal] = useState(false)
+  const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
+  const [creatorForSetup, setCreatorForSetup] = useState(null)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
@@ -1764,6 +1767,136 @@ export default function CampaignDetail() {
     }
   }
 
+  // 단일 크리에이터 가이드 생성 (PostSelectionSetupModal에서 호출)
+  const generateSingleCreatorGuide = async (creator) => {
+    try {
+      const contentUrl = creator.content_url || ''
+
+      // 플랫폼 판별
+      let platform = 'unknown'
+      let username = ''
+
+      if (contentUrl.includes('youtube.com') || contentUrl.includes('youtu.be')) {
+        platform = 'youtube'
+        const channelMatch = contentUrl.match(/youtube\.com\/channel\/([\w-]+)/)
+        const handleMatch = contentUrl.match(/youtube\.com\/@([\w-]+)/)
+        username = channelMatch?.[1] || handleMatch?.[1] || ''
+      } else if (contentUrl.includes('instagram.com')) {
+        platform = 'instagram'
+        const match = contentUrl.match(/instagram\.com\/([\w.]+)/)
+        username = match?.[1] || ''
+      } else if (contentUrl.includes('tiktok.com')) {
+        platform = 'tiktok'
+        const match = contentUrl.match(/tiktok\.com\/@([\w.]+)/)
+        username = match?.[1] || ''
+      }
+
+      let creatorAnalysis = { platform, channelName: creator.applicant_name || creator.creator_name }
+
+      // 플랫폼별 분석 API 호출 (username이 있는 경우에만)
+      if (username) {
+        let analysisResponse
+        if (platform === 'youtube') {
+          analysisResponse = await fetch('/.netlify/functions/analyze-youtube-creator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ channelUrl: contentUrl })
+          })
+        } else if (platform === 'instagram') {
+          analysisResponse = await fetch('/.netlify/functions/analyze-instagram-creator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+          })
+        } else if (platform === 'tiktok') {
+          analysisResponse = await fetch('/.netlify/functions/analyze-tiktok-creator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+          })
+        }
+
+        if (analysisResponse?.ok) {
+          creatorAnalysis = await analysisResponse.json()
+          creatorAnalysis.platform = platform
+        }
+      }
+
+      // 맞춤 가이드 생성
+      const guideResponse = await fetch('/.netlify/functions/generate-personalized-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creatorAnalysis,
+          productInfo: {
+            brand: campaign?.brand,
+            product_name: campaign?.product_name,
+            product_features: campaign?.product_features,
+            product_key_points: campaign?.product_key_points,
+            video_duration: campaign?.video_duration
+          },
+          baseGuide: campaign?.ai_guide || ''
+        })
+      })
+
+      if (!guideResponse.ok) {
+        throw new Error('가이드 생성 실패')
+      }
+
+      const { personalizedGuide } = await guideResponse.json()
+      return personalizedGuide
+    } catch (error) {
+      console.error('Single guide generation error:', error)
+      throw error
+    }
+  }
+
+  // PostSelectionSetupModal 완료 핸들러
+  const handlePostSelectionComplete = async (updatedCreator) => {
+    try {
+      // 상태를 가이드 확인 대기로 변경
+      await supabase
+        .from('applications')
+        .update({
+          status: 'guide_confirmation',
+          guide_sent_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', updatedCreator.id)
+
+      // 알림톡 발송
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('email, phone')
+          .eq('id', updatedCreator.user_id)
+          .maybeSingle()
+
+        if (profile?.phone) {
+          await sendGuideDeliveredNotification(
+            profile.phone,
+            updatedCreator.applicant_name || updatedCreator.creator_name,
+            {
+              campaignName: campaign?.title || '캠페인',
+              deliveryInfo: `${updatedCreator.shipping_company} ${updatedCreator.tracking_number}`
+            }
+          )
+        }
+      } catch (notifError) {
+        console.error('Notification error:', notifError)
+      }
+
+      // 데이터 새로고침
+      await fetchApplications()
+      await fetchParticipants()
+
+      alert('가이드가 전달되었습니다.')
+    } catch (error) {
+      console.error('Complete handler error:', error)
+      alert('처리 중 오류가 발생했습니다.')
+    }
+  }
+
   const handleConfirmSelection = async () => {
     if (selectedParticipants.length === 0) {
       alert('크리에이터를 선택해주세요.')
@@ -3032,31 +3165,18 @@ export default function CampaignDetail() {
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
-                        
+
                         try {
                           // 모집인원 제한 체크
                           const currentParticipantsCount = participants.length
                           const totalSlots = campaign.total_slots || 0
                           const availableSlots = totalSlots - currentParticipantsCount
-                          
+
                           if (availableSlots <= 0) {
                             alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
                             return
                           }
-                          
-                          // 중복 확인
-                          const { data: existing } = await supabase
-                            .from('applications')
-                            .select('id')
-                            .eq('campaign_id', id)
-                            .eq('creator_name', app.applicant_name)
-                            .maybeSingle()
-                          
-                          if (existing) {
-                            alert(`${app.applicant_name}님은 이미 확정되었습니다.`)
-                            return
-                          }
-                          
+
                           // 플랫폼 추출
                           let platform = '-'
                           const channelToCheck = mainChannel || app.main_channel || ''
@@ -3067,13 +3187,14 @@ export default function CampaignDetail() {
                           } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
                             platform = 'TikTok'
                           }
-                          
+
                           // 기존 application 업데이트 (새로 삽입하지 않음)
                           const { error: updateError } = await supabase
                             .from('applications')
-                            .update({ 
+                            .update({
                               status: 'selected',
-                              virtual_selected: false
+                              virtual_selected: false,
+                              main_channel: mainChannel || app.main_channel
                             })
                             .eq('id', app.id)
 
@@ -3082,8 +3203,7 @@ export default function CampaignDetail() {
                           await fetchApplications()
                           await fetchParticipants()
 
-                          // 알림톡 및 이메일 발송
-                          // 알림톡 발송
+                          // 선정 알림톡 발송
                           try {
                             const { data: profile } = await supabase
                               .from('user_profiles')
@@ -3096,16 +3216,20 @@ export default function CampaignDetail() {
                                 profile.phone,
                                 app.applicant_name,
                                 {
-                                  campaignName: campaign?.title || '캐페인'
+                                  campaignName: campaign?.title || '캠페인'
                                 }
                               )
-                              console.log('Alimtalk sent successfully')
                             }
                           } catch (notificationError) {
                             console.error('Notification error:', notificationError)
                           }
 
-                          alert('확정되었습니다. 알림톡과 이메일이 발송되었습니다.')
+                          // 선정 후 배송/가이드 세팅 모달 열기
+                          setCreatorForSetup({
+                            ...app,
+                            main_channel: mainChannel || app.main_channel
+                          })
+                          setShowPostSelectionModal(true)
                         } catch (error) {
                           console.error('Error confirming:', error)
                           alert('확정 처리에 실패했습니다.')
@@ -3309,31 +3433,18 @@ export default function CampaignDetail() {
                       onConfirm={async (app, mainChannel) => {
                         // 개별 확정
                         if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
-                        
+
                         try {
                           // 모집인원 제한 체크
                           const currentParticipantsCount = participants.length
                           const totalSlots = campaign.total_slots || 0
                           const availableSlots = totalSlots - currentParticipantsCount
-                          
+
                           if (availableSlots <= 0) {
                             alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
                             return
                           }
-                          
-                          // 중복 확인
-                          const { data: existing } = await supabase
-                            .from('applications')
-                            .select('id')
-                            .eq('campaign_id', id)
-                            .eq('creator_name', app.applicant_name)
-                            .maybeSingle()
-                          
-                          if (existing) {
-                            alert(`${app.applicant_name}님은 이미 확정되었습니다.`)
-                            return
-                          }
-                          
+
                           // 플랫폼 추출
                           let platform = '-'
                           const channelToCheck = mainChannel || app.main_channel || ''
@@ -3344,13 +3455,14 @@ export default function CampaignDetail() {
                           } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
                             platform = 'TikTok'
                           }
-                          
+
                           // 기존 application 업데이트 (새로 삽입하지 않음)
                           const { error: updateError } = await supabase
                             .from('applications')
-                            .update({ 
+                            .update({
                               status: 'selected',
-                              virtual_selected: false
+                              virtual_selected: false,
+                              main_channel: mainChannel || app.main_channel
                             })
                             .eq('id', app.id)
 
@@ -3359,7 +3471,7 @@ export default function CampaignDetail() {
                           await fetchApplications()
                           await fetchParticipants()
 
-                          // 알림톡 및 이메일 발송
+                          // 선정 알림톡 발송
                           try {
                             const { data: profile } = await supabase
                               .from('user_profiles')
@@ -3367,24 +3479,25 @@ export default function CampaignDetail() {
                               .eq('id', app.user_id)
                               .maybeSingle()
 
-                            if (profile && profile.phone) {
-                              // 카카오 알림톡
-                              if (profile.phone) {
-                                await sendCampaignSelectedNotification(
-                                  profile.phone,
-                                  app.applicant_name,
-                                  {
-                                    campaignName: campaign?.title || '캠페인'
-                                  }
-                                )
-                                console.log('Alimtalk sent successfully')
-                              }
+                            if (profile?.phone) {
+                              await sendCampaignSelectedNotification(
+                                profile.phone,
+                                app.applicant_name,
+                                {
+                                  campaignName: campaign?.title || '캠페인'
+                                }
+                              )
                             }
                           } catch (notificationError) {
                             console.error('Notification error:', notificationError)
                           }
 
-                          alert('확정되었습니다. 알림톡과 이메일이 발송되었습니다.')
+                          // 선정 후 배송/가이드 세팅 모달 열기
+                          setCreatorForSetup({
+                            ...app,
+                            main_channel: mainChannel || app.main_channel
+                          })
+                          setShowPostSelectionModal(true)
                         } catch (error) {
                           console.error('Error confirming:', error)
                           alert('확정 처리에 실패했습니다.')
@@ -5174,6 +5287,20 @@ export default function CampaignDetail() {
           supabase={supabase}
         />
       )}
+
+      {/* 선정 후 세팅 모달 (배송 + 가이드 생성 + 전달) */}
+      <PostSelectionSetupModal
+        isOpen={showPostSelectionModal}
+        onClose={() => {
+          setShowPostSelectionModal(false)
+          setCreatorForSetup(null)
+        }}
+        creator={creatorForSetup}
+        campaign={campaign}
+        onGenerateGuide={generateSingleCreatorGuide}
+        onComplete={handlePostSelectionComplete}
+        supabase={supabase}
+      />
     </div>
   )
 }
