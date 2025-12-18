@@ -23,7 +23,9 @@ import {
   MessageSquare,
   Calendar,
   Download,
-  RefreshCw
+  RefreshCw,
+  Camera,
+  Hash
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
@@ -107,6 +109,7 @@ export default function CampaignDetail() {
   })
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
   const [showOliveyoungGuideModal, setShowOliveyoungGuideModal] = useState(false)
+  const [showCampaignGuidePopup, setShowCampaignGuidePopup] = useState(false) // 캠페인 등록 정보 팝업
   const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
   const [creatorForSetup, setCreatorForSetup] = useState(null)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
@@ -2239,9 +2242,12 @@ export default function CampaignDetail() {
             const platformConfig = getPlatformConfig(participant.creator_platform || participant.main_channel || participant.platform)
             const isSelected = selectedParticipants.includes(participant.id)
             const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
-            const profileImage = participant.profile_image_url || participant.creator_profile_image
+            // 프로필 이미지 - 여러 필드 체크
+            const profileImage = participant.profile_image_url || participant.creator_profile_image || participant.profile_photo_url || participant.profile_image || participant.avatar_url
             const shippingAddress = participant.shipping_address || participant.address || ''
-            const shippingPhone = participant.shipping_phone || participant.phone || ''
+            const shippingPhone = participant.shipping_phone || participant.phone || participant.phone_number || participant.creator_phone || ''
+            const courierCompany = trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''
+            const trackingNum = trackingChanges[participant.id]?.tracking_number ?? participant.tracking_number ?? ''
 
             return (
               <div
@@ -2296,240 +2302,125 @@ export default function CampaignDetail() {
                         </span>
                       </div>
 
-                      {/* 배송 & 가이드 정보 그리드 */}
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
-                        {/* 배송 정보 - 주소 직접 표시 */}
-                        <div className="bg-gray-50 rounded-lg p-2.5">
-                          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            배송 정보
-                          </div>
-                          {shippingAddress ? (
-                            <div className="space-y-0.5">
-                              <p className="text-xs text-gray-700 line-clamp-2">{shippingAddress}</p>
-                              {shippingPhone && <p className="text-[11px] text-gray-500">{shippingPhone}</p>}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-gray-400 italic">주소 미입력</p>
+                      {/* 배송 정보 + 택배 + 가이드 - 한 줄 컴팩트 레이아웃 */}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {/* 배송 주소 */}
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg">
+                          <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          <span className="truncate max-w-[200px]">{shippingAddress || '주소 미입력'}</span>
+                        </div>
+
+                        {/* 택배사 + 송장번호 인라인 */}
+                        <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg">
+                          <Truck className="w-3 h-3 text-gray-400" />
+                          <select
+                            value={courierCompany}
+                            onChange={(e) => handleTrackingNumberChange(participant.id, 'shipping_company', e.target.value)}
+                            className="px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                          >
+                            <option value="">택배사</option>
+                            <option value="우체국">우체국</option>
+                            <option value="CJ대한통운">CJ대한통운</option>
+                            <option value="로젠택배">로젠택배</option>
+                            <option value="한진택배">한진택배</option>
+                            <option value="GS포스트박스">GS포스트박스</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={trackingNum}
+                            onChange={(e) => handleTrackingNumberChange(participant.id, 'tracking_number', e.target.value)}
+                            placeholder="송장번호"
+                            className="w-24 px-1.5 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          {trackingChanges[participant.id] && (
+                            <Button
+                              onClick={() => saveTrackingNumber(participant.id)}
+                              size="sm"
+                              className="bg-blue-500 hover:bg-blue-600 text-white text-[10px] px-2 py-0.5 h-auto"
+                            >
+                              저장
+                            </Button>
                           )}
                         </div>
 
-                        {/* 송장 정보 */}
-                        <div className="bg-gray-50 rounded-lg p-2.5">
-                          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <Truck className="w-3 h-3" />
-                            택배 정보
-                          </div>
-                          <div className="space-y-1.5">
-                            <select
-                              value={trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''}
-                              onChange={(e) => handleTrackingNumberChange(participant.id, 'shipping_company', e.target.value)}
-                              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                            >
-                              <option value="">택배사</option>
-                              <option value="우체국">우체국</option>
-                              <option value="CJ대한통운">CJ대한통운</option>
-                              <option value="로젠택배">로젠택배</option>
-                              <option value="한진택배">한진택배</option>
-                              <option value="GS포스트박스">GS포스트박스</option>
-                            </select>
-                            <div className="flex gap-1">
-                              <input
-                                type="text"
-                                value={trackingChanges[participant.id]?.tracking_number ?? participant.tracking_number ?? ''}
-                                onChange={(e) => handleTrackingNumberChange(participant.id, 'tracking_number', e.target.value)}
-                                placeholder="송장번호"
-                                className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
-                              {trackingChanges[participant.id] && (
-                                <Button
-                                  onClick={() => saveTrackingNumber(participant.id)}
-                                  size="sm"
-                                  className="bg-blue-500 hover:bg-blue-600 text-white text-[10px] px-2 py-1 h-auto"
-                                >
-                                  저장
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* AI 가이드 섹션 (planned 캠페인) */}
+                        {/* AI 가이드 섹션 (planned 캠페인) - 인라인 버튼 */}
                         {campaign.campaign_type === 'planned' && (
-                          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-2.5">
-                            <div className="text-[10px] font-medium text-purple-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                              <Sparkles className="w-3 h-3" />
-                              AI 맞춤 가이드
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                              {participant.personalized_guide ? (
-                                <>
+                          <div className="flex items-center gap-1.5">
+                            {participant.personalized_guide ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedGuide(participant)
+                                    setShowGuideModal(true)
+                                  }}
+                                  className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs px-3 py-1 h-auto"
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  가이드 보기
+                                </Button>
+                                {!participant.guide_confirmed ? (
                                   <Button
                                     size="sm"
-                                    onClick={() => {
-                                      setSelectedGuide(participant)
-                                      setShowGuideModal(true)
+                                    variant="outline"
+                                    onClick={async () => {
+                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                      await handleGuideApproval([participant.id])
                                     }}
-                                    className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-xs py-1.5 h-auto"
+                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
+                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
-                                    <Eye className="w-3 h-3 mr-1" />
-                                    가이드 보기
+                                    <Send className="w-3 h-3 mr-1" />
+                                    전달하기
                                   </Button>
-                                  {!participant.guide_confirmed ? (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={async () => {
-                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                        await handleGuideApproval([participant.id])
-                                      }}
-                                      disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
-                                      className="w-full text-green-600 border-green-500 hover:bg-green-50 text-xs py-1.5 h-auto"
-                                    >
-                                      <Send className="w-3 h-3 mr-1" />
-                                      전달하기
-                                    </Button>
-                                  ) : (
-                                    <div className="flex items-center justify-center gap-1 text-green-600 text-xs font-medium py-1">
-                                      <CheckCircle className="w-3 h-3" />
-                                      전달완료
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={async () => {
-                                    if (!confirm(`${creatorName}님의 맞춤 가이드를 생성하시겠습니까?`)) return
-                                    await handleGeneratePersonalizedGuides([participant])
-                                  }}
-                                  className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs py-1.5 h-auto"
-                                >
-                                  <Sparkles className="w-3 h-3 mr-1" />
-                                  AI 가이드 생성
-                                </Button>
-                              )}
-                            </div>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    전달완료
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={async () => {
+                                  if (!confirm(`${creatorName}님의 맞춤 가이드를 생성하시겠습니까?`)) return
+                                  await handleGeneratePersonalizedGuides([participant])
+                                }}
+                                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                AI 가이드 생성
+                              </Button>
+                            )}
                           </div>
                         )}
 
-                        {/* 4주 챌린지 메시지 섹션 */}
+                        {/* 4주 챌린지 메시지 섹션 - 인라인 버튼 */}
                         {campaign.campaign_type === '4week_challenge' && (
-                          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-2.5">
-                            <div className="text-[10px] font-medium text-indigo-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                              <MessageSquare className="w-3 h-3" />
-                              개별 메시지
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedParticipantForMessage(participant)
-                                setIndividualMessage(participant.personalized_guide || '')
-                                setShowIndividualMessageModal(true)
-                              }}
-                              className="w-full text-indigo-600 border-indigo-400 hover:bg-indigo-50 text-xs py-1.5 h-auto"
-                            >
-                              {participant.personalized_guide ? (
-                                <>
-                                  <Eye className="w-3 h-3 mr-1" />
-                                  가이드 확인
-                                </>
-                              ) : (
-                                <>
-                                  <Edit3 className="w-3 h-3 mr-1" />
-                                  메시지 작성
-                                </>
-                              )}
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedParticipantForMessage(participant)
+                              setIndividualMessage(participant.personalized_guide || '')
+                              setShowIndividualMessageModal(true)
+                            }}
+                            className="text-indigo-600 border-indigo-400 hover:bg-indigo-50 text-xs px-3 py-1 h-auto"
+                          >
+                            {participant.personalized_guide ? (
+                              <>
+                                <Eye className="w-3 h-3 mr-1" />
+                                가이드 확인
+                              </>
+                            ) : (
+                              <>
+                                <Edit3 className="w-3 h-3 mr-1" />
+                                메시지 작성
+                              </>
+                            )}
+                          </Button>
                         )}
-
-                        {/* 마감일 섹션 */}
-                        <div className="bg-gray-50 rounded-xl p-3 hover:bg-gray-100 transition-colors">
-                          <div className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            마감일
-                          </div>
-                          {editingDeadline === participant.id ? (
-                            <div className="flex flex-col gap-2">
-                              <input
-                                type="date"
-                                id={`deadline-${participant.id}`}
-                                defaultValue={participant.submission_deadline || campaign.content_submission_deadline || ''}
-                                className="w-full px-3 py-1.5 text-sm border border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                autoFocus
-                              />
-                              <div className="flex gap-1.5">
-                                <button
-                                  onClick={async () => {
-                                    const input = document.getElementById(`deadline-${participant.id}`)
-                                    const newDeadline = input.value
-                                    if (newDeadline) {
-                                      try {
-                                        const { error } = await supabase
-                                          .from('applications')
-                                          .update({ submission_deadline: newDeadline })
-                                          .eq('id', participant.id)
-                                        if (error) throw error
-                                        await fetchParticipants()
-                                        alert('마감일이 업데이트되었습니다.')
-                                      } catch (error) {
-                                        console.error('Error updating deadline:', error)
-                                        alert('마감일 업데이트에 실패했습니다.')
-                                      }
-                                    }
-                                    setEditingDeadline(null)
-                                  }}
-                                  className="flex-1 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 text-xs font-medium shadow-sm"
-                                >
-                                  저장
-                                </button>
-                                <button
-                                  onClick={() => setEditingDeadline(null)}
-                                  className="flex-1 px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-xs font-medium"
-                                >
-                                  취소
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm font-medium text-gray-700">
-                                {(() => {
-                                  if (campaign.campaign_type === 'oliveyoung') {
-                                    return (
-                                      <div className="space-y-0.5 text-xs">
-                                        <div>1차: {campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
-                                        <div>2차: {campaign.step2_deadline ? new Date(campaign.step2_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
-                                        <div>3차: {campaign.step3_deadline ? new Date(campaign.step3_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
-                                      </div>
-                                    )
-                                  }
-                                  if (campaign.campaign_type === '4week_challenge') {
-                                    return (
-                                      <div className="space-y-0.5 text-xs">
-                                        <div>1주: {campaign.week1_deadline ? new Date(campaign.week1_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
-                                        <div>2주: {campaign.week2_deadline ? new Date(campaign.week2_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
-                                        <div>3주: {campaign.week3_deadline ? new Date(campaign.week3_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
-                                        <div>4주: {campaign.week4_deadline ? new Date(campaign.week4_deadline).toLocaleDateString('ko-KR') : '미정'}</div>
-                                      </div>
-                                    )
-                                  }
-                                  return participant.submission_deadline || campaign.content_submission_deadline || '미정'
-                                })()}
-                              </div>
-                              {campaign.campaign_type !== 'oliveyoung' && campaign.campaign_type !== '4week_challenge' && (
-                                <button
-                                  onClick={() => setEditingDeadline(participant.id)}
-                                  className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -3799,11 +3690,23 @@ export default function CampaignDetail() {
           <TabsContent value="confirmed">
             <Card className="border-0 shadow-lg">
               <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl border-b">
-                <CardTitle className="flex items-center gap-2 text-green-800">
-                  <CheckCircle className="w-5 h-5" />
-                  선정 크리에이터 관리
-                </CardTitle>
-                <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="w-5 h-5" />
+                      선정 크리에이터 관리
+                    </CardTitle>
+                    <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCampaignGuidePopup(true)}
+                    className="bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    가이드라인 보기
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {/* 플랫폼별 필터 탭 - 개선된 디자인 */}
@@ -5594,6 +5497,178 @@ export default function CampaignDetail() {
         creator={creatorForSetup}
         campaign={campaign}
       />
+
+      {/* 캠페인 가이드라인 팝업 */}
+      {showCampaignGuidePopup && campaign && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 text-white relative">
+              <button
+                onClick={() => setShowCampaignGuidePopup(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">캠페인 가이드라인</h2>
+                  <p className="text-sm opacity-90">{campaign.title}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] space-y-6">
+              {/* 캠페인 기본 정보 */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">캠페인 정보</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">캠페인 유형:</span>
+                    <span className="ml-2 font-medium">
+                      {campaign.campaign_type === 'planned' ? '기획 캠페인' :
+                       campaign.campaign_type === 'oliveyoung' ? '올리브영' :
+                       campaign.campaign_type === '4week_challenge' ? '4주 챌린지' : campaign.campaign_type}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">영상 길이:</span>
+                    <span className="ml-2 font-medium">{campaign.video_duration || '미지정'}</span>
+                  </div>
+                  {campaign.recruitment_deadline && (
+                    <div>
+                      <span className="text-gray-500">모집 마감:</span>
+                      <span className="ml-2 font-medium">{new Date(campaign.recruitment_deadline).toLocaleDateString('ko-KR')}</span>
+                    </div>
+                  )}
+                  {campaign.content_submission_deadline && (
+                    <div>
+                      <span className="text-gray-500">콘텐츠 제출 마감:</span>
+                      <span className="ml-2 font-medium">{new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 필수 장면 */}
+              {campaign.guide_content && (() => {
+                try {
+                  const guideData = typeof campaign.guide_content === 'string'
+                    ? JSON.parse(campaign.guide_content)
+                    : campaign.guide_content
+
+                  if (guideData?.shooting_scenes && Array.isArray(guideData.shooting_scenes)) {
+                    return (
+                      <div className="space-y-4">
+                        <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                          <Camera className="w-5 h-5 text-purple-500" />
+                          필수로 들어가야 하는 장면
+                        </h3>
+                        <div className="space-y-3">
+                          {guideData.shooting_scenes.map((scene, index) => (
+                            <div key={index} className="flex gap-4 bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow">
+                              {scene.reference_image && (
+                                <img
+                                  src={scene.reference_image}
+                                  alt={scene.scene_type}
+                                  className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-gray-900">{scene.scene_type || `장면 ${index + 1}`}</h4>
+                                <p className="text-sm text-gray-600 mt-1">{scene.instructions || scene.description}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                } catch (e) {
+                  return null
+                }
+              })()}
+
+              {/* AI 생성 가이드 */}
+              {campaign.ai_generated_guide && (
+                <div className="space-y-4">
+                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-pink-500" />
+                    AI 생성 가이드
+                  </h3>
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">{campaign.ai_generated_guide}</pre>
+                  </div>
+                </div>
+              )}
+
+              {/* 참고 영상/URL */}
+              {campaign.sample_video_url && (
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <Video className="w-5 h-5 text-blue-500" />
+                    참고 영상
+                  </h3>
+                  <a
+                    href={campaign.sample_video_url.startsWith('http') ? campaign.sample_video_url : `https://${campaign.sample_video_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Eye className="w-4 h-4" />
+                    참고 영상 보기
+                  </a>
+                </div>
+              )}
+
+              {/* 추가 안내사항 */}
+              {campaign.additional_notes && (
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-green-500" />
+                    추가 안내사항
+                  </h3>
+                  <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{campaign.additional_notes}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* 해시태그 */}
+              {campaign.hashtags && (
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-indigo-500" />
+                    필수 해시태그
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(Array.isArray(campaign.hashtags) ? campaign.hashtags : campaign.hashtags.split(/[,\s]+/)).map((tag, i) => (
+                      <span key={i} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                        #{tag.replace(/^#/, '')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 푸터 */}
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowCampaignGuidePopup(false)}
+              >
+                닫기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
