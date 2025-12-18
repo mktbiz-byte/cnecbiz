@@ -201,10 +201,11 @@ export default function CampaignDetail() {
       const { data: { user } } = await supabaseBiz.auth.getUser()
       if (!user) return
 
+      // email로 admin 체크 (admin_users 테이블은 email 기준)
       const { data: adminData } = await supabaseBiz
         .from('admin_users')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('email', user.email)
         .maybeSingle()
 
       setIsAdmin(!!adminData)

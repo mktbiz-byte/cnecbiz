@@ -1293,7 +1293,7 @@ export default function CampaignsManagement() {
                                   이관
                                 </Button>
                               )}
-                              <Button size="sm" variant="ghost" onClick={() => navigate(`/admin/campaigns/${campaign.id}?region=${campaign.region}`)} className="h-8 px-3 text-xs font-medium text-gray-500">
+                              <Button size="sm" variant="ghost" onClick={() => navigate(`/company/campaigns/${campaign.id}?region=${campaign.region}`)} className="h-8 px-3 text-xs font-medium text-gray-500">
                                 <Eye className="w-3.5 h-3.5 mr-1" />
                                 상세
                               </Button>
@@ -1785,7 +1785,7 @@ export default function CampaignsManagement() {
               닫기
             </Button>
             <Button
-              onClick={() => navigate(`/admin/campaigns/${selectedCampaignDetail?.id}?region=${selectedCampaignDetail?.region}`)}
+              onClick={() => navigate(`/company/campaigns/${selectedCampaignDetail?.id}?region=${selectedCampaignDetail?.region}`)}
               className="bg-blue-600 hover:bg-blue-700"
             >
               <Eye className="w-4 h-4 mr-2" />
