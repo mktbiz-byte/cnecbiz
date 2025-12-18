@@ -1,21 +1,22 @@
-import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { useState } from 'react'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Package,
   FileText,
-  Send,
   CheckCircle2,
-  ChevronRight,
-  ChevronLeft,
-  Truck,
   Sparkles,
   User,
-  Loader2,
-  ExternalLink,
-  Edit3,
-  RefreshCw
+  Video,
+  Clock,
+  ArrowRight,
+  Camera,
+  ThumbsUp,
+  PartyPopper,
+  Truck,
+  MessageSquare,
+  Play
 } from 'lucide-react'
 
 // 플랫폼 아이콘
@@ -37,57 +38,86 @@ const TikTokIcon = ({ className }) => (
   </svg>
 )
 
-const STEPS = [
-  { id: 'delivery', label: '배송정보', icon: Truck },
-  { id: 'guide', label: '가이드 생성', icon: FileText },
-  { id: 'confirm', label: '확인 및 전달', icon: Send }
-]
-
-const COURIER_OPTIONS = [
-  { value: 'CJ대한통운', label: 'CJ대한통운' },
-  { value: '우체국', label: '우체국' },
-  { value: '한진택배', label: '한진택배' },
-  { value: '로젠택배', label: '로젠택배' },
-  { value: 'GS포스트박스', label: 'GS포스트박스' },
-  { value: '롯데택배', label: '롯데택배' },
-  { value: '경동택배', label: '경동택배' }
+const PROCESS_STEPS = [
+  {
+    id: 1,
+    title: '배송 정보 입력',
+    description: '제품을 발송하고 택배사/송장번호를 입력하세요',
+    duration: '1~2일 소요',
+    icon: Truck,
+    color: 'blue',
+    bgGradient: 'from-blue-500 to-cyan-500',
+    details: [
+      '"선정 크리에이터" 탭에서 택배사 선택',
+      '송장번호 입력 후 저장',
+      '크리에이터가 제품 수령 대기'
+    ]
+  },
+  {
+    id: 2,
+    title: 'AI 맞춤 가이드 생성 및 전달',
+    description: 'AI가 크리에이터별 맞춤 가이드를 자동 생성합니다',
+    duration: '3분 이내',
+    icon: Sparkles,
+    color: 'purple',
+    bgGradient: 'from-purple-500 to-pink-500',
+    details: [
+      '"전체 AI 가이드 생성" 버튼 클릭',
+      '생성된 가이드 확인/수정',
+      '"가이드 전달" 클릭 → 알림톡 발송'
+    ]
+  },
+  {
+    id: 3,
+    title: '크리에이터 촬영 및 업로드',
+    description: '가이드 확인 후 콘텐츠 제작 및 업로드',
+    duration: '마감일까지',
+    icon: Camera,
+    color: 'amber',
+    bgGradient: 'from-amber-500 to-orange-500',
+    details: [
+      '크리에이터가 마이페이지에서 가이드 확인',
+      '가이드에 맞춰 콘텐츠 촬영/편집',
+      '마이페이지에서 영상 업로드'
+    ]
+  },
+  {
+    id: 4,
+    title: '영상 확인 및 피드백',
+    description: '제출된 영상 검토 후 승인 또는 수정 요청',
+    duration: '검토 후',
+    icon: Video,
+    color: 'rose',
+    bgGradient: 'from-rose-500 to-red-500',
+    details: [
+      '"영상 확인" 탭에서 제출 영상 확인',
+      '문제 없으면 "승인" 클릭',
+      '수정 필요시 피드백 작성 후 "수정 요청"'
+    ]
+  },
+  {
+    id: 5,
+    title: '최종 승인 및 캠페인 완료',
+    description: '영상 승인 완료 후 캠페인이 종료됩니다',
+    duration: '완료!',
+    icon: PartyPopper,
+    color: 'emerald',
+    bgGradient: 'from-emerald-500 to-green-500',
+    details: [
+      '최종 승인 처리',
+      '크리에이터에게 완료 알림 발송',
+      '정산 및 리워드 처리 진행'
+    ]
+  }
 ]
 
 export default function PostSelectionSetupModal({
   isOpen,
   onClose,
   creator,
-  campaign,
-  onComplete,
-  onGenerateGuide,
-  supabase
+  campaign
 }) {
-  const [currentStep, setCurrentStep] = useState(0)
-  const [isGeneratingGuide, setIsGeneratingGuide] = useState(false)
-  const [isSending, setIsSending] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-
-  // Form data
-  const [deliveryData, setDeliveryData] = useState({
-    shipping_company: '',
-    tracking_number: ''
-  })
-  const [guideContent, setGuideContent] = useState('')
-  const [editedGuideContent, setEditedGuideContent] = useState('')
-
-  // Reset state when modal opens with new creator
-  useEffect(() => {
-    if (isOpen && creator) {
-      setCurrentStep(0)
-      setDeliveryData({
-        shipping_company: creator.shipping_company || '',
-        tracking_number: creator.tracking_number || ''
-      })
-      setGuideContent(creator.personalized_guide || '')
-      setEditedGuideContent(creator.personalized_guide || '')
-      setIsEditing(false)
-    }
-  }, [isOpen, creator?.id])
+  const [expandedStep, setExpandedStep] = useState(0)
 
   const getPlatformIcon = (platform) => {
     const p = (platform || '').toLowerCase()
@@ -103,414 +133,147 @@ export default function PostSelectionSetupModal({
     return null
   }
 
-  const handleGenerateGuide = async () => {
-    setIsGeneratingGuide(true)
-    try {
-      const result = await onGenerateGuide(creator)
-      if (result) {
-        setGuideContent(result)
-        setEditedGuideContent(result)
-      }
-    } catch (error) {
-      console.error('Guide generation error:', error)
-      alert('가이드 생성 중 오류가 발생했습니다.')
-    } finally {
-      setIsGeneratingGuide(false)
-    }
-  }
-
-  const handleSaveDelivery = async () => {
-    try {
-      const { error } = await supabase
-        .from('applications')
-        .update({
-          shipping_company: deliveryData.shipping_company,
-          tracking_number: deliveryData.tracking_number,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', creator.id)
-
-      if (error) throw error
-      return true
-    } catch (error) {
-      console.error('Delivery save error:', error)
-      alert('배송 정보 저장 중 오류가 발생했습니다.')
-      return false
-    }
-  }
-
-  const handleSaveGuide = async () => {
-    try {
-      const { error } = await supabase
-        .from('applications')
-        .update({
-          personalized_guide: editedGuideContent,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', creator.id)
-
-      if (error) throw error
-      setGuideContent(editedGuideContent)
-      setIsEditing(false)
-      return true
-    } catch (error) {
-      console.error('Guide save error:', error)
-      alert('가이드 저장 중 오류가 발생했습니다.')
-      return false
-    }
-  }
-
-  const handleComplete = async () => {
-    setIsSending(true)
-    try {
-      // Save delivery info
-      await handleSaveDelivery()
-
-      // Save guide if edited
-      if (editedGuideContent !== guideContent) {
-        await handleSaveGuide()
-      }
-
-      // Call onComplete to send guide notification
-      await onComplete({
-        ...creator,
-        shipping_company: deliveryData.shipping_company,
-        tracking_number: deliveryData.tracking_number,
-        personalized_guide: editedGuideContent || guideContent
-      })
-
-      onClose()
-    } catch (error) {
-      console.error('Complete error:', error)
-      alert('처리 중 오류가 발생했습니다.')
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  const handleNext = async () => {
-    if (currentStep === 0) {
-      // Validate delivery info
-      if (!deliveryData.shipping_company || !deliveryData.tracking_number) {
-        alert('택배사와 송장번호를 입력해주세요.')
-        return
-      }
-      await handleSaveDelivery()
-    }
-
-    if (currentStep < STEPS.length - 1) {
-      setCurrentStep(currentStep + 1)
-    }
-  }
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
-    }
-  }
-
-  const canProceed = () => {
-    switch (currentStep) {
-      case 0: // Delivery
-        return deliveryData.shipping_company && deliveryData.tracking_number
-      case 1: // Guide
-        return guideContent || editedGuideContent
-      case 2: // Confirm
-        return true
-      default:
-        return false
-    }
-  }
-
   if (!creator) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
+        {/* 헤더 - 크리에이터 정보 */}
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600"></div>
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-30"></div>
+
+          <div className="relative p-6 text-white">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                <User className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold">{creator.applicant_name || creator.creator_name}</h2>
+                  <Badge className="bg-white/25 text-white border-0 backdrop-blur-sm px-3 py-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                    선정 완료
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 mt-2 text-white/80">
+                  {getPlatformIcon(creator.main_channel || creator.creator_platform)}
+                  <span>{creator.main_channel || creator.creator_platform}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 축하 메시지 */}
+        <div className="px-6 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <PartyPopper className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="text-lg font-bold">{creator.applicant_name || creator.creator_name}</div>
-              <div className="flex items-center gap-2 text-sm text-gray-500 font-normal">
-                {getPlatformIcon(creator.main_channel || creator.creator_platform)}
-                <span>{creator.main_channel || creator.creator_platform}</span>
-              </div>
+              <p className="font-bold text-green-800">크리에이터 선정이 완료되었습니다! 🎉</p>
+              <p className="text-sm text-green-600">아래 절차에 따라 캠페인을 진행해주세요</p>
             </div>
-            <Badge className="ml-auto bg-green-100 text-green-700">선정 완료</Badge>
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Progress Steps */}
-        <div className="flex items-center justify-between px-4 py-4 bg-gray-50 rounded-xl my-4">
-          {STEPS.map((step, index) => {
-            const Icon = step.icon
-            const isActive = index === currentStep
-            const isComplete = index < currentStep
-
-            return (
-              <div key={step.id} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div className={`
-                    w-10 h-10 rounded-full flex items-center justify-center transition-all
-                    ${isActive ? 'bg-blue-600 text-white shadow-lg scale-110' : ''}
-                    ${isComplete ? 'bg-green-500 text-white' : ''}
-                    ${!isActive && !isComplete ? 'bg-gray-200 text-gray-400' : ''}
-                  `}>
-                    {isComplete ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
-                  </div>
-                  <span className={`text-xs mt-2 font-medium ${isActive ? 'text-blue-600' : isComplete ? 'text-green-600' : 'text-gray-400'}`}>
-                    {step.label}
-                  </span>
-                </div>
-                {index < STEPS.length - 1 && (
-                  <div className={`w-16 h-1 mx-2 rounded ${index < currentStep ? 'bg-green-500' : 'bg-gray-200'}`} />
-                )}
-              </div>
-            )
-          })}
+          </div>
         </div>
 
-        {/* Step Content */}
-        <div className="min-h-[300px]">
-          {/* Step 1: Delivery */}
-          {currentStep === 0 && (
-            <div className="space-y-6">
-              <div className="text-center py-4">
-                <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <Package className="w-8 h-8 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">배송 정보 입력</h3>
-                <p className="text-sm text-gray-500 mt-1">크리에이터에게 제품을 발송해주세요</p>
-              </div>
+        {/* 프로세스 단계 */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-280px)]">
+          <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
+            <Play className="w-5 h-5 text-emerald-500" />
+            캠페인 진행 가이드
+          </h3>
 
-              <div className="space-y-4 bg-white p-6 rounded-xl border">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    택배사 선택
-                  </label>
-                  <select
-                    value={deliveryData.shipping_company}
-                    onChange={(e) => setDeliveryData({ ...deliveryData, shipping_company: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">택배사를 선택하세요</option>
-                    {COURIER_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
+          <div className="space-y-3">
+            {PROCESS_STEPS.map((step, index) => {
+              const Icon = step.icon
+              const isExpanded = expandedStep === index
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    송장번호
-                  </label>
-                  <input
-                    type="text"
-                    value={deliveryData.tracking_number}
-                    onChange={(e) => setDeliveryData({ ...deliveryData, tracking_number: e.target.value })}
-                    placeholder="송장번호를 입력하세요"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {deliveryData.shipping_company && deliveryData.tracking_number && (
-                  <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span className="font-medium">배송 정보 입력 완료</span>
+              return (
+                <div
+                  key={step.id}
+                  className={`rounded-2xl border-2 transition-all duration-300 cursor-pointer overflow-hidden ${
+                    isExpanded
+                      ? 'border-gray-200 shadow-xl bg-white'
+                      : 'border-gray-100 hover:border-gray-200 bg-white hover:shadow-md'
+                  }`}
+                  onClick={() => setExpandedStep(isExpanded ? -1 : index)}
+                >
+                  {/* 단계 헤더 */}
+                  <div className="flex items-center gap-4 p-4">
+                    {/* 숫자 + 아이콘 */}
+                    <div className={`relative w-14 h-14 rounded-xl bg-gradient-to-br ${step.bgGradient} flex items-center justify-center shadow-lg`}>
+                      <Icon className="w-7 h-7 text-white" />
+                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center">
+                        <span className="text-xs font-bold text-gray-700">{step.id}</span>
+                      </div>
                     </div>
-                    <p className="text-sm text-green-600 mt-1">
-                      {deliveryData.shipping_company} - {deliveryData.tracking_number}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
-          {/* Step 2: Guide */}
-          {currentStep === 1 && (
-            <div className="space-y-4">
-              <div className="text-center py-4">
-                <div className="w-16 h-16 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-4">
-                  <FileText className="w-8 h-8 text-purple-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">맞춤 가이드 생성</h3>
-                <p className="text-sm text-gray-500 mt-1">AI가 크리에이터 맞춤 가이드를 생성합니다</p>
-              </div>
+                    {/* 내용 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs py-0.5 px-2 bg-gray-50 border-gray-200">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {step.duration}
+                        </Badge>
+                      </div>
+                      <h4 className="font-bold text-gray-900 text-base">{step.title}</h4>
+                      <p className="text-sm text-gray-500 truncate">{step.description}</p>
+                    </div>
 
-              {!guideContent && !editedGuideContent ? (
-                <div className="text-center py-8">
-                  <Button
-                    onClick={handleGenerateGuide}
-                    disabled={isGeneratingGuide}
-                    className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white px-8 py-3 text-lg"
-                  >
-                    {isGeneratingGuide ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        AI 가이드 생성 중...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5 mr-2" />
-                        AI 가이드 생성
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Badge className="bg-purple-100 text-purple-700">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      가이드 생성 완료
-                    </Badge>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleGenerateGuide}
-                        disabled={isGeneratingGuide}
-                      >
-                        <RefreshCw className={`w-4 h-4 mr-1 ${isGeneratingGuide ? 'animate-spin' : ''}`} />
-                        재생성
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setIsEditing(!isEditing)}
-                      >
-                        <Edit3 className="w-4 h-4 mr-1" />
-                        {isEditing ? '미리보기' : '수정'}
-                      </Button>
+                    {/* 화살표 */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      isExpanded ? 'bg-gray-100 rotate-90' : 'bg-gray-50'
+                    }`}>
+                      <ArrowRight className={`w-4 h-4 text-gray-400`} />
                     </div>
                   </div>
 
-                  {isEditing ? (
-                    <textarea
-                      value={editedGuideContent}
-                      onChange={(e) => setEditedGuideContent(e.target.value)}
-                      className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
-                    />
-                  ) : (
-                    <div className="bg-gray-50 rounded-lg p-4 max-h-64 overflow-y-auto">
-                      <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
-                        {editedGuideContent || guideContent}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 3: Confirm */}
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <div className="text-center py-4">
-                <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <Send className="w-8 h-8 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">가이드 전달 확인</h3>
-                <p className="text-sm text-gray-500 mt-1">입력한 정보를 확인하고 가이드를 전달하세요</p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Delivery Summary */}
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                  <div className="flex items-center gap-2 text-blue-700 font-medium mb-3">
-                    <Truck className="w-5 h-5" />
-                    배송 정보
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-500">택배사:</span>
-                      <span className="ml-2 font-medium">{deliveryData.shipping_company}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">송장번호:</span>
-                      <span className="ml-2 font-medium">{deliveryData.tracking_number}</span>
+                  {/* 상세 내용 */}
+                  <div className={`transition-all duration-300 overflow-hidden ${
+                    isExpanded ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="px-4 pb-4">
+                      <div className={`bg-gradient-to-br from-${step.color}-50 to-${step.color}-100/50 rounded-xl p-4 ml-[72px] border border-${step.color}-100`}>
+                        <ul className="space-y-2.5">
+                          {step.details.map((detail, idx) => (
+                            <li key={idx} className="flex items-start gap-3 text-sm">
+                              <div className={`w-5 h-5 rounded-full bg-gradient-to-br ${step.bgGradient} flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm`}>
+                                <CheckCircle2 className="w-3 h-3 text-white" />
+                              </div>
+                              <span className="text-gray-700">{detail}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 </div>
+              )
+            })}
+          </div>
 
-                {/* Guide Summary */}
-                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
-                  <div className="flex items-center gap-2 text-purple-700 font-medium mb-3">
-                    <FileText className="w-5 h-5" />
-                    맞춤 가이드
-                  </div>
-                  <div className="bg-white rounded-lg p-3 max-h-32 overflow-y-auto">
-                    <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">
-                      {(editedGuideContent || guideContent)?.substring(0, 300)}...
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Action Info */}
-                <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-                  <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
-                    <CheckCircle2 className="w-5 h-5" />
-                    전달 시 실행되는 작업
-                  </div>
-                  <ul className="text-sm text-green-600 space-y-1 ml-7">
-                    <li>• 크리에이터에게 카카오 알림톡 발송</li>
-                    <li>• 크리에이터 마이페이지에 가이드 노출</li>
-                    <li>• 진행 상태가 "촬영중"으로 변경</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* 팁 */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+            <p className="text-sm text-blue-800 flex items-start gap-3">
+              <span className="text-xl flex-shrink-0">💡</span>
+              <span>
+                <strong className="text-blue-900">Tip:</strong> "선정 크리에이터" 탭에서 배송 정보 입력, AI 가이드 생성, 가이드 전달까지 모든 작업을 한 번에 관리할 수 있습니다.
+              </span>
+            </p>
+          </div>
         </div>
 
-        {/* Footer Actions */}
-        <DialogFooter className="flex justify-between mt-6">
-          <div>
-            {currentStep > 0 && (
-              <Button variant="outline" onClick={handleBack}>
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                이전
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>
-              나중에
-            </Button>
-            {currentStep < STEPS.length - 1 ? (
-              <Button
-                onClick={handleNext}
-                disabled={!canProceed()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                다음
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleComplete}
-                disabled={isSending || !canProceed()}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
-              >
-                {isSending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    전달 중...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    가이드 전달
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
+        {/* 푸터 */}
+        <DialogFooter className="p-6 pt-4 border-t bg-gray-50">
+          <Button
+            onClick={onClose}
+            className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white py-6 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
+          >
+            <CheckCircle2 className="w-5 h-5 mr-2" />
+            확인했습니다, 시작하기
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
