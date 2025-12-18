@@ -10,7 +10,7 @@ import {
   Users, Search, Globe, Star, MessageSquare, Download,
   Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
   X, ExternalLink, User, MapPin, CreditCard, Calendar, ChevronLeft, ChevronRight,
-  Briefcase, Award, FileCheck
+  Briefcase, Award, FileCheck, Key, RefreshCw, Eye, EyeOff, Check, Copy, Loader2
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -42,6 +42,14 @@ export default function AllCreatorsPage() {
   const [reviewData, setReviewData] = useState({ rating: 0, review: '' })
   const [messageData, setMessageData] = useState({ type: 'email', subject: '', content: '' })
   const [sendingMessage, setSendingMessage] = useState(false)
+
+  // 비밀번호 재설정 모달 상태
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false)
+  const [passwordResetCreator, setPasswordResetCreator] = useState(null)
+  const [tempPassword, setTempPassword] = useState('')
+  const [passwordCopied, setPasswordCopied] = useState(false)
+  const [sendingPasswordEmail, setSendingPasswordEmail] = useState(false)
+  const [passwordEmailSent, setPasswordEmailSent] = useState(false)
 
   const [creators, setCreators] = useState({
     korea: [],
@@ -280,6 +288,113 @@ export default function AllCreatorsPage() {
     setSelectedCreator({ ...creator, dbRegion: region })
     setReviewData({ rating: creator.rating || 0, review: creator.company_review || '' })
     setShowReviewModal(true)
+  }
+
+  // 비밀번호 재설정 모달 열기
+  const openPasswordResetModal = (creator) => {
+    setPasswordResetCreator(creator)
+    setTempPassword('')
+    setPasswordCopied(false)
+    setPasswordEmailSent(false)
+    setShowPasswordResetModal(true)
+    setShowProfileModal(false)
+  }
+
+  // 임시 비밀번호 생성
+  const generateTempPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+    let password = ''
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    setTempPassword(password)
+    setPasswordCopied(false)
+    setPasswordEmailSent(false)
+  }
+
+  // 비밀번호 복사
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(tempPassword)
+      setPasswordCopied(true)
+      setTimeout(() => setPasswordCopied(false), 2000)
+    } catch (err) {
+      console.error('복사 실패:', err)
+    }
+  }
+
+  // 비밀번호 재설정 및 이메일 발송
+  const sendPasswordResetEmail = async () => {
+    if (!passwordResetCreator || !tempPassword) {
+      alert('임시 비밀번호를 먼저 생성해주세요')
+      return
+    }
+
+    const creatorEmail = passwordResetCreator.email
+    if (!creatorEmail) {
+      alert('이메일 주소가 없습니다')
+      return
+    }
+
+    setSendingPasswordEmail(true)
+
+    try {
+      // 1. 먼저 실제 비밀번호 변경 (Supabase Auth)
+      const resetResponse = await fetch('/.netlify/functions/creator-admin-reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: creatorEmail,
+          newPassword: tempPassword,
+          region: passwordResetCreator.dbRegion
+        })
+      })
+
+      const resetResult = await resetResponse.json()
+
+      if (!resetResult.success) {
+        throw new Error(resetResult.error || '비밀번호 변경에 실패했습니다')
+      }
+
+      // 2. 비밀번호 변경 성공 후 이메일 발송
+      await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: creatorEmail,
+          subject: `[CNEC] ${passwordResetCreator.name || '크리에이터'}님의 임시 비밀번호 안내`,
+          html: `
+            <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">CNEC</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">임시 비밀번호 안내</p>
+              </div>
+              <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+                <p style="color: #4b5563; line-height: 1.8;">안녕하세요, ${passwordResetCreator.name || '크리에이터'}님!</p>
+                <p style="color: #4b5563; line-height: 1.8;">관리자에 의해 비밀번호가 재설정되었습니다.</p>
+                <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+                  <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">임시 비밀번호</p>
+                  <p style="color: #1f2937; font-size: 24px; font-weight: bold; margin: 0; font-family: monospace;">${tempPassword}</p>
+                </div>
+                <p style="color: #4b5563; line-height: 1.8;">로그인 후 반드시 비밀번호를 변경해주세요.</p>
+                <p style="color: #9ca3af; font-size: 12px; margin-top: 30px;">본 메일은 발신 전용입니다.</p>
+              </div>
+              <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; text-align: center;">
+                <p style="color: #9ca3af; font-size: 12px; margin: 0;">© 2025 CNEC. All rights reserved.</p>
+              </div>
+            </div>
+          `
+        })
+      })
+
+      setPasswordEmailSent(true)
+      alert(`비밀번호가 변경되었습니다.\n${creatorEmail}로 임시 비밀번호 안내 메일이 발송되었습니다.`)
+    } catch (error) {
+      console.error('비밀번호 재설정 실패:', error)
+      alert('비밀번호 재설정에 실패했습니다: ' + error.message)
+    } finally {
+      setSendingPasswordEmail(false)
+    }
   }
 
   const handleSaveReview = async () => {
@@ -818,9 +933,17 @@ export default function AllCreatorsPage() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setShowProfileModal(false)}>
               닫기
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => openPasswordResetModal(selectedCreator)}
+              className="text-amber-600 border-amber-300 hover:bg-amber-50"
+            >
+              <Key className="w-4 h-4 mr-2" />
+              비밀번호 재설정
             </Button>
             <Button onClick={() => {
               setShowProfileModal(false)
@@ -960,6 +1083,134 @@ export default function AllCreatorsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 비밀번호 재설정 모달 */}
+      {showPasswordResetModal && passwordResetCreator && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-5 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Key className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">비밀번호 재설정</h2>
+                    <p className="text-sm opacity-90">{passwordResetCreator.name || '크리에이터'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowPasswordResetModal(false)} className="text-white/80 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 space-y-5">
+              {/* 발송 대상 이메일 */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-500">발송 대상 이메일</label>
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border">
+                  <Mail className="w-5 h-5 text-gray-400" />
+                  <span className="text-gray-900">{passwordResetCreator.email || '이메일 없음'}</span>
+                </div>
+              </div>
+
+              {/* 지역 정보 */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-500">지역</label>
+                <div className="px-4 py-3 bg-slate-50 rounded-xl border">
+                  <span className="text-gray-900">
+                    {passwordResetCreator.dbRegion === 'korea' ? '🇰🇷 한국' :
+                     passwordResetCreator.dbRegion === 'japan' ? '🇯🇵 일본' :
+                     passwordResetCreator.dbRegion === 'us' ? '🇺🇸 미국' :
+                     passwordResetCreator.dbRegion === 'taiwan' ? '🇹🇼 대만' :
+                     passwordResetCreator.region || passwordResetCreator.dbRegion}
+                  </span>
+                </div>
+              </div>
+
+              {/* 임시 비밀번호 */}
+              <div className="space-y-2">
+                <label className="text-sm text-gray-500">임시 비밀번호</label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-xl border font-mono text-lg">
+                    {tempPassword || <span className="text-gray-400">생성 버튼을 클릭하세요</span>}
+                    {tempPassword && (
+                      <button
+                        onClick={copyPassword}
+                        className="ml-auto text-gray-400 hover:text-gray-600"
+                        title="복사"
+                      >
+                        {passwordCopied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
+                      </button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={generateTempPassword}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    생성
+                  </Button>
+                </div>
+              </div>
+
+              {/* 안내 메시지 */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>⚠️ 참고사항</strong><br />
+                  • 임시 비밀번호 생성 후 이메일 발송 버튼을 클릭하세요<br />
+                  • 발송 시 실제 비밀번호가 즉시 변경됩니다<br />
+                  • 크리에이터에게 로그인 후 비밀번호 변경을 안내해주세요
+                </p>
+              </div>
+
+              {/* 발송 성공 메시지 */}
+              {passwordEmailSent && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-green-800">비밀번호 변경 완료!</div>
+                    <div className="text-sm text-green-600">비밀번호가 변경되었고, 크리에이터에게 안내 메일이 발송되었습니다.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 푸터 */}
+            <div className="px-6 py-4 bg-slate-50 border-t flex gap-2">
+              <Button
+                onClick={sendPasswordResetEmail}
+                disabled={!tempPassword || sendingPasswordEmail}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                {sendingPasswordEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    이메일로 발송
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowPasswordResetModal(false)}
+              >
+                닫기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

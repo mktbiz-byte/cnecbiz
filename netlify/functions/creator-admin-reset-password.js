@@ -1,6 +1,6 @@
 /**
- * 관리자 비밀번호 재설정 API
- * 슈퍼 관리자가 기업 사용자의 비밀번호를 재설정할 수 있는 API
+ * 크리에이터 관리자 비밀번호 재설정 API
+ * 슈퍼 관리자가 크리에이터의 비밀번호를 재설정할 수 있는 API
  */
 
 const { createClient } = require('@supabase/supabase-js')
@@ -33,26 +33,9 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const { email, newPassword, region } = JSON.parse(event.body)
 
-    // 환경 변수 확인
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('환경 변수 누락:', { hasUrl: !!supabaseUrl, hasKey: !!supabaseServiceKey })
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ success: false, error: '서버 설정 오류입니다.' })
-      }
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    })
-
-    const { email, newPassword } = JSON.parse(event.body)
-
-    console.log('비밀번호 재설정 요청:', email)
+    console.log('크리에이터 비밀번호 재설정 요청:', { email, region })
 
     // 입력 검증
     if (!email || !newPassword) {
@@ -70,6 +53,46 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ success: false, error: '비밀번호는 최소 6자 이상이어야 합니다.' })
       }
     }
+
+    // 지역에 따른 Supabase 클라이언트 선택
+    let supabaseUrl, supabaseServiceKey
+
+    switch (region) {
+      case 'korea':
+        supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
+        supabaseServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+        break
+      case 'japan':
+        supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
+        supabaseServiceKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+        break
+      case 'us':
+        supabaseUrl = process.env.VITE_SUPABASE_US_URL
+        supabaseServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
+        break
+      case 'taiwan':
+        supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
+        supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        break
+      default:
+        // 기본값: 한국
+        supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
+        supabaseServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+    }
+
+    // 환경 변수 확인
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('환경 변수 누락:', { region, hasUrl: !!supabaseUrl, hasKey: !!supabaseServiceKey })
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ success: false, error: '서버 설정 오류입니다.' })
+      }
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
 
     // Auth 사용자 목록에서 이메일로 찾기
     let targetUser = null
@@ -106,7 +129,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({ success: false, error: '해당 이메일의 사용자를 찾을 수 없습니다.' })
+        body: JSON.stringify({ success: false, error: '해당 이메일의 크리에이터를 찾을 수 없습니다.' })
       }
     }
 
@@ -127,19 +150,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    console.log('비밀번호 변경 완료:', email)
-
-    // companies 테이블에 비밀번호 변경 필요 플래그 설정
-    const { error: flagError } = await supabaseAdmin
-      .from('companies')
-      .update({ password_reset_required: true })
-      .eq('email', email.toLowerCase())
-
-    if (flagError) {
-      console.log('플래그 설정 실패 (무시):', flagError.message)
-    } else {
-      console.log('비밀번호 변경 필요 플래그 설정 완료')
-    }
+    console.log('크리에이터 비밀번호 변경 완료:', email)
 
     return {
       statusCode: 200,

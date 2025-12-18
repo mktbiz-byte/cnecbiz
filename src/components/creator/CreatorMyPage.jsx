@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseKorea } from '../../lib/supabaseClients'
-import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare } from 'lucide-react'
+import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare, Key, Shield, EyeOff, Loader2 } from 'lucide-react'
 
 const CreatorMyPage = () => {
   const navigate = useNavigate()
@@ -12,6 +12,20 @@ const CreatorMyPage = () => {
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+
+  // 비밀번호 변경 상태
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   useEffect(() => {
     loadUser()
@@ -152,6 +166,76 @@ const CreatorMyPage = () => {
     }
   }
 
+  // 비밀번호 변경 처리
+  const handlePasswordChange = async () => {
+    setPasswordError('')
+    setPasswordSuccess(false)
+
+    // 유효성 검사
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('모든 필드를 입력해주세요.')
+      return
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('새 비밀번호는 최소 8자 이상이어야 합니다.')
+      return
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('새 비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    // 복잡성 검사
+    const hasUpperCase = /[A-Z]/.test(passwordData.newPassword)
+    const hasLowerCase = /[a-z]/.test(passwordData.newPassword)
+    const hasNumbers = /\d/.test(passwordData.newPassword)
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword)
+
+    if (!(hasUpperCase && hasLowerCase && hasNumbers) && !hasSpecialChar) {
+      setPasswordError('비밀번호는 대문자, 소문자, 숫자를 포함하거나 특수문자를 포함해야 합니다.')
+      return
+    }
+
+    setPasswordLoading(true)
+
+    try {
+      // 현재 비밀번호로 재인증
+      const { error: signInError } = await supabaseKorea.auth.signInWithPassword({
+        email: user.email,
+        password: passwordData.currentPassword
+      })
+
+      if (signInError) {
+        setPasswordError('현재 비밀번호가 올바르지 않습니다.')
+        setPasswordLoading(false)
+        return
+      }
+
+      // 비밀번호 업데이트
+      const { error: updateError } = await supabaseKorea.auth.updateUser({
+        password: passwordData.newPassword
+      })
+
+      if (updateError) throw updateError
+
+      setPasswordSuccess(true)
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+
+      // 3초 후 모달 닫기
+      setTimeout(() => {
+        setShowPasswordModal(false)
+        setPasswordSuccess(false)
+      }, 2000)
+    } catch (error) {
+      console.error('Password change error:', error)
+      setPasswordError('비밀번호 변경에 실패했습니다: ' + error.message)
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { text: '대기중', color: 'bg-gray-100 text-gray-800' },
@@ -208,7 +292,21 @@ const CreatorMyPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">내 캠페인</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">내 캠페인</h1>
+        <button
+          onClick={() => {
+            setShowPasswordModal(true)
+            setPasswordError('')
+            setPasswordSuccess(false)
+            setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+        >
+          <Shield className="w-4 h-4" />
+          비밀번호 변경
+        </button>
+      </div>
 
       {campaigns.length === 0 ? (
         <div className="text-center py-12">
@@ -591,6 +689,149 @@ const CreatorMyPage = () => {
           onClose={() => setShowExtensionModal(false)}
           onSubmit={handleExtensionRequest}
         />
+      )}
+
+      {/* 비밀번호 변경 모달 */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Key className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">비밀번호 변경</h2>
+                  <p className="text-sm opacity-90">계정 보안을 위해 비밀번호를 변경하세요</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 space-y-5">
+              {/* 성공 메시지 */}
+              {passwordSuccess && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <p className="text-sm text-green-800 font-medium">비밀번호가 성공적으로 변경되었습니다!</p>
+                </div>
+              )}
+
+              {/* 에러 메시지 */}
+              {passwordError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-sm text-red-800">{passwordError}</p>
+                </div>
+              )}
+
+              {!passwordSuccess && (
+                <>
+                  {/* 현재 비밀번호 */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">현재 비밀번호</label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        placeholder="현재 비밀번호 입력"
+                        className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 새 비밀번호 */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">새 비밀번호</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                        placeholder="8자 이상, 대소문자/숫자/특수문자 조합"
+                        className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      대문자, 소문자, 숫자를 포함하거나 특수문자를 포함해야 합니다
+                    </p>
+                  </div>
+
+                  {/* 새 비밀번호 확인 */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">새 비밀번호 확인</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        placeholder="새 비밀번호 재입력"
+                        className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {passwordData.confirmPassword && passwordData.newPassword === passwordData.confirmPassword && (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        비밀번호가 일치합니다
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 푸터 */}
+            <div className="px-6 py-4 bg-slate-50 border-t flex gap-2">
+              {!passwordSuccess && (
+                <button
+                  onClick={handlePasswordChange}
+                  disabled={passwordLoading}
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {passwordLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      변경 중...
+                    </>
+                  ) : (
+                    <>
+                      <Key className="w-4 h-4" />
+                      비밀번호 변경
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className={`${passwordSuccess ? 'flex-1' : ''} px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-medium`}
+              >
+                {passwordSuccess ? '완료' : '취소'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
