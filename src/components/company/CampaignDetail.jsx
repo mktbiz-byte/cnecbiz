@@ -449,59 +449,59 @@ export default function CampaignDetail() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      
+
+      // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
+      const { data: allProfiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('*')
+
+      if (profilesError) {
+        console.error('Error fetching all profiles for applications:', profilesError)
+      } else {
+        console.log('Fetched all profiles for applications count:', allProfiles?.length || 0)
+        if (allProfiles && allProfiles.length > 0) {
+          console.log('Profile columns available:', Object.keys(allProfiles[0]))
+        }
+      }
+
       // user_id가 있는 경우 user_profiles에서 추가 정보 가져오기
-      const enrichedData = await Promise.all(
-        (data || []).map(async (app) => {
-          console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
-          if (app.user_id) {
-            try {
-              // user_profiles 테이블에서 검색 (id 또는 user_id 컬럼 시도)
-              let profile = null
+      const enrichedData = (data || []).map((app) => {
+        console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
 
-              // 먼저 id 컬럼으로 시도
-              const { data: profilesById, error: errorById } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .eq('id', app.user_id)
+        let profile = null
 
-              if (!errorById && profilesById && profilesById.length > 0) {
-                profile = profilesById[0]
-              } else {
-                // id로 못 찾으면 user_id 컬럼으로 시도
-                const { data: profilesByUserId } = await supabase
-                  .from('user_profiles')
-                  .select('*')
-                  .eq('user_id', app.user_id)
+        if (app.user_id && allProfiles && allProfiles.length > 0) {
+          // JavaScript에서 프로필 매칭 (id, user_id, email로 시도)
+          profile = allProfiles.find(p =>
+            p.id === app.user_id ||
+            p.user_id === app.user_id ||
+            (app.email && p.email === app.email)
+          )
+        }
 
-                if (profilesByUserId && profilesByUserId.length > 0) {
-                  profile = profilesByUserId[0]
-                }
-              }
+        console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
-              console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
-
-              if (profile) {
-                const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
-                const enriched = {
-                  ...app,
-                  profile_photo_url: profileImage,
-                  instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
-                  youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
-                  tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0
-                }
-                console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url)
-                return enriched
-              }
-            } catch (err) {
-              console.error('Error fetching profile for user:', app.user_id, err)
-            }
+        if (profile) {
+          const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
+          const enriched = {
+            ...app,
+            profile_photo_url: profileImage,
+            instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
+            youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
+            tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0,
+            // SNS URL도 병합
+            instagram_url: profile.instagram_url || app.instagram_url,
+            youtube_url: profile.youtube_url || app.youtube_url,
+            tiktok_url: profile.tiktok_url || app.tiktok_url
           }
-          console.log('Returning original app data for:', app.applicant_name)
-          return app
-        })
-      )
-      
+          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url)
+          return enriched
+        }
+
+        console.log('Returning original app data for:', app.applicant_name)
+        return app
+      })
+
       console.log('Fetched applications with status:', enrichedData.map(app => ({ name: app.applicant_name, status: app.status, virtual_selected: app.virtual_selected })))
       setApplications(enrichedData)
     } catch (error) {
