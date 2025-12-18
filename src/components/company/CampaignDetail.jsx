@@ -264,20 +264,21 @@ export default function CampaignDetail() {
         (data || []).map(async (app) => {
           if (app.user_id) {
             try {
-              // user_profiles 테이블에서 프로필 사진 가져오기 (id 또는 user_id로 검색)
+              // user_profiles 테이블에서 user_id 컬럼으로 검색
               const { data: profiles, error: profileError } = await supabase
                 .from('user_profiles')
-                .select('id, user_id, profile_image, profile_photo_url, profile_image_url, avatar_url, profile_video_url')
-                .or(`id.eq.${app.user_id},user_id.eq.${app.user_id}`)
+                .select('*')
+                .eq('user_id', app.user_id)
 
               if (profileError) {
-                console.error('Profile fetch error:', profileError)
+                console.error('Profile fetch error for', app.applicant_name, ':', profileError)
               }
 
               const profile = profiles && profiles.length > 0 ? profiles[0] : null
-              console.log('Profile data for', app.applicant_name, ':', profile)
+              console.log('Profile data for', app.applicant_name, 'YT:', profile?.youtube_subscribers, 'IG:', profile?.instagram_followers, 'Photo:', profile?.profile_image)
 
               if (profile) {
+                // profile_image 필드 우선 사용
                 const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url || profile.profile_video_url
                 return {
                   ...app,
@@ -427,8 +428,8 @@ export default function CampaignDetail() {
             try {
               const { data: profiles, error: profileError } = await supabase
                 .from('user_profiles')
-                .select('id, user_id, profile_image, profile_photo_url, profile_image_url, avatar_url, instagram_followers, youtube_subscribers, tiktok_followers')
-                .or(`id.eq.${app.user_id},user_id.eq.${app.user_id}`)
+                .select('*')
+                .eq('user_id', app.user_id)
 
               const profile = profiles && profiles.length > 0 ? profiles[0] : null
 
