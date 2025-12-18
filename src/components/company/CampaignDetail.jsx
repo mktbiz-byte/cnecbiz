@@ -273,18 +273,36 @@ export default function CampaignDetail() {
 
           if (app.user_id) {
             try {
-              // user_profiles 테이블에서 user_id 컬럼으로 검색
-              const { data: profiles, error: profileError } = await supabase
+              // user_profiles 테이블에서 검색 (id 또는 user_id 컬럼 시도)
+              let profile = null
+
+              // 먼저 id 컬럼으로 시도
+              const { data: profilesById, error: errorById } = await supabase
                 .from('user_profiles')
                 .select('*')
-                .eq('user_id', app.user_id)
+                .eq('id', app.user_id)
 
-              if (profileError) {
-                console.error('Profile fetch error for', app.applicant_name, ':', profileError)
+              if (!errorById && profilesById && profilesById.length > 0) {
+                profile = profilesById[0]
+                console.log('Found profile by id for', app.applicant_name)
+              } else {
+                // id로 못 찾으면 user_id 컬럼으로 시도
+                const { data: profilesByUserId, error: errorByUserId } = await supabase
+                  .from('user_profiles')
+                  .select('*')
+                  .eq('user_id', app.user_id)
+
+                if (!errorByUserId && profilesByUserId && profilesByUserId.length > 0) {
+                  profile = profilesByUserId[0]
+                  console.log('Found profile by user_id for', app.applicant_name)
+                } else {
+                  console.log('No profile found for', app.applicant_name, 'errorById:', errorById?.message, 'errorByUserId:', errorByUserId?.message)
+                }
               }
 
-              const profile = profiles && profiles.length > 0 ? profiles[0] : null
-              console.log('User profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
+              if (profile) {
+                console.log('Profile found for', app.applicant_name, 'profile_image:', profile.profile_image)
+              }
 
               // user_profiles에서 먼저, 없으면 application에서 프로필 이미지 가져오기
               // app.profile_photo_url을 가장 먼저 체크 (applications 테이블에 저장된 값)
@@ -441,15 +459,30 @@ export default function CampaignDetail() {
           console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
           if (app.user_id) {
             try {
-              const { data: profiles, error: profileError } = await supabase
+              // user_profiles 테이블에서 검색 (id 또는 user_id 컬럼 시도)
+              let profile = null
+
+              // 먼저 id 컬럼으로 시도
+              const { data: profilesById, error: errorById } = await supabase
                 .from('user_profiles')
                 .select('*')
-                .eq('user_id', app.user_id)
+                .eq('id', app.user_id)
 
-              const profile = profiles && profiles.length > 0 ? profiles[0] : null
+              if (!errorById && profilesById && profilesById.length > 0) {
+                profile = profilesById[0]
+              } else {
+                // id로 못 찾으면 user_id 컬럼으로 시도
+                const { data: profilesByUserId } = await supabase
+                  .from('user_profiles')
+                  .select('*')
+                  .eq('user_id', app.user_id)
 
-              console.log('Profile data for', app.applicant_name, ':', profile)
-              if (profileError) console.error('Profile fetch error:', profileError)
+                if (profilesByUserId && profilesByUserId.length > 0) {
+                  profile = profilesByUserId[0]
+                }
+              }
+
+              console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
               if (profile) {
                 const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
@@ -460,7 +493,7 @@ export default function CampaignDetail() {
                   youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
                   tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0
                 }
-                console.log('Enriched data:', enriched.applicant_name, 'YT:', enriched.youtube_subscribers, 'IG:', enriched.instagram_followers, 'Photo:', enriched.profile_photo_url)
+                console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url)
                 return enriched
               }
             } catch (err) {
