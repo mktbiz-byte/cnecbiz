@@ -316,7 +316,7 @@ export default function CompaniesManagement() {
     }
   }
 
-  // 비밀번호 재설정 이메일 발송
+  // 비밀번호 재설정 및 이메일 발송
   const sendPasswordResetEmail = async () => {
     if (!detailCompany || !tempPassword) {
       alert('임시 비밀번호를 먼저 생성해주세요')
@@ -332,7 +332,23 @@ export default function CompaniesManagement() {
     setSendingEmail(true)
 
     try {
-      // 이메일 발송
+      // 1. 먼저 실제 비밀번호 변경 (Supabase Auth)
+      const resetResponse = await fetch('/.netlify/functions/admin-reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: contactEmail,
+          newPassword: tempPassword
+        })
+      })
+
+      const resetResult = await resetResponse.json()
+
+      if (!resetResult.success) {
+        throw new Error(resetResult.error || '비밀번호 변경에 실패했습니다')
+      }
+
+      // 2. 비밀번호 변경 성공 후 이메일 발송
       await fetch('/.netlify/functions/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -389,10 +405,10 @@ export default function CompaniesManagement() {
       })
 
       setEmailSent(true)
-      alert(`${contactEmail}로 임시 비밀번호 안내 메일이 발송되었습니다.`)
+      alert(`비밀번호가 변경되었습니다.\n${contactEmail}로 임시 비밀번호 안내 메일이 발송되었습니다.`)
     } catch (error) {
-      console.error('이메일 발송 실패:', error)
-      alert('이메일 발송에 실패했습니다: ' + error.message)
+      console.error('비밀번호 재설정 실패:', error)
+      alert('비밀번호 재설정에 실패했습니다: ' + error.message)
     } finally {
       setSendingEmail(false)
     }
@@ -911,7 +927,7 @@ export default function CompaniesManagement() {
                 <p className="text-sm text-amber-800">
                   <strong>⚠️ 참고사항</strong><br />
                   • 임시 비밀번호 생성 후 이메일 발송 버튼을 클릭하세요<br />
-                  • 실제 비밀번호 변경은 별도로 진행해야 합니다<br />
+                  • 발송 시 실제 비밀번호가 즉시 변경됩니다<br />
                   • 담당자에게 로그인 후 비밀번호 변경을 안내해주세요
                 </p>
               </div>
@@ -923,8 +939,8 @@ export default function CompaniesManagement() {
                     <Check className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-green-800">이메일 발송 완료!</div>
-                    <div className="text-sm text-green-600">담당자에게 임시 비밀번호가 발송되었습니다.</div>
+                    <div className="font-medium text-green-800">비밀번호 변경 완료!</div>
+                    <div className="text-sm text-green-600">비밀번호가 변경되었고, 담당자에게 안내 메일이 발송되었습니다.</div>
                   </div>
                 </div>
               )}
