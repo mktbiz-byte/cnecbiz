@@ -275,19 +275,20 @@ export default function CampaignDetail() {
               }
 
               const profile = profiles && profiles.length > 0 ? profiles[0] : null
-              console.log('Profile data for', app.applicant_name, 'Photo:', profile?.profile_image, 'Instagram:', profile?.instagram_url, 'YouTube:', profile?.youtube_url)
+              console.log('Profile data for', app.applicant_name, 'Photo:', profile?.profile_image, 'AppPhoto:', app.profile_image_url, 'Instagram:', profile?.instagram_url)
 
-              if (profile) {
-                // profile_image 필드 우선 사용
-                const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url || profile.profile_video_url
-                return {
-                  ...app,
-                  profile_photo_url: profileImage,
-                  // SNS URL 병합 (user_profiles에서 가져온 값 우선)
-                  instagram_url: profile.instagram_url || app.instagram_url,
-                  youtube_url: profile.youtube_url || app.youtube_url,
-                  tiktok_url: profile.tiktok_url || app.tiktok_url
-                }
+              // user_profiles에서 먼저, 없으면 application에서 프로필 이미지 가져오기
+              const profileImage = profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url ||
+                                   profile?.avatar_url || profile?.profile_video_url ||
+                                   app.profile_image_url || app.profile_image || app.creator_profile_image || app.avatar_url
+
+              return {
+                ...app,
+                profile_photo_url: profileImage,
+                // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
+                instagram_url: profile?.instagram_url || app.instagram_url,
+                youtube_url: profile?.youtube_url || app.youtube_url,
+                tiktok_url: profile?.tiktok_url || app.tiktok_url
               }
             } catch (err) {
               console.error('Error fetching profile for user:', app.user_id, err)
