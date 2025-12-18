@@ -5,10 +5,6 @@
 
 const { createClient } = require('@supabase/supabase-js')
 
-// Supabase Admin 클라이언트 초기화
-const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
 exports.handler = async (event, context) => {
   // CORS 헤더
   const headers = {
@@ -37,85 +33,51 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
     // 환경 변수 확인
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('환경 변수 누락:', {
-        hasUrl: !!supabaseUrl,
-        hasKey: !!supabaseServiceKey
-      })
+      console.error('환경 변수 누락:', { hasUrl: !!supabaseUrl, hasKey: !!supabaseServiceKey })
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({
-          success: false,
-          error: '서버 설정 오류입니다.'
-        })
+        body: JSON.stringify({ success: false, error: '서버 설정 오류입니다.' })
       }
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     })
 
     const { email, newPassword } = JSON.parse(event.body)
 
-    console.log('비밀번호 재설정 요청:', { email, passwordLength: newPassword?.length })
+    console.log('비밀번호 재설정 요청:', email)
 
     // 입력 검증
     if (!email || !newPassword) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({
-          success: false,
-          error: '이메일과 새 비밀번호가 필요합니다.'
-        })
+        body: JSON.stringify({ success: false, error: '이메일과 새 비밀번호가 필요합니다.' })
       }
     }
 
-    // 비밀번호 길이 검증
     if (newPassword.length < 6) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({
-          success: false,
-          error: '비밀번호는 최소 6자 이상이어야 합니다.'
-        })
+        body: JSON.stringify({ success: false, error: '비밀번호는 최소 6자 이상이어야 합니다.' })
       }
     }
 
-    // 1. 먼저 companies 테이블에서 해당 이메일의 기업 확인
-    const { data: company, error: companyError } = await supabaseAdmin
-      .from('companies')
-      .select('id, email, company_name, auth_user_id')
-      .eq('email', email.toLowerCase())
-      .single()
-
-    if (companyError) {
-      console.error('기업 조회 오류:', companyError)
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: '해당 이메일의 기업을 찾을 수 없습니다.'
-        })
-      }
-    }
-
-    console.log('기업 정보:', { companyId: company.id, companyName: company.company_name })
-
-    // 2. auth.users에서 이메일로 사용자 찾기 (페이징 처리)
+    // Auth 사용자 목록에서 이메일로 찾기
     let targetUser = null
     let page = 1
-    const perPage = 100
+    const perPage = 1000
 
-    while (!targetUser) {
-      const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+    while (!targetUser && page <= 10) {
+      const { data, error: listError } = await supabaseAdmin.auth.admin.listUsers({
         page,
         perPage
       })
@@ -125,46 +87,33 @@ exports.handler = async (event, context) => {
         return {
           statusCode: 500,
           headers,
-          body: JSON.stringify({
-            success: false,
-            error: '사용자 조회 중 오류가 발생했습니다.',
-            details: listError.message
-          })
+          body: JSON.stringify({ success: false, error: '사용자 조회 중 오류: ' + listError.message })
         }
       }
 
-      // 해당 이메일의 사용자 찾기
+      const users = data?.users || []
+      console.log(`페이지 ${page}: ${users.length}명 조회`)
+
+      // 이메일로 사용자 찾기 (대소문자 무시)
       targetUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase())
 
-      // 더 이상 사용자가 없으면 종료
-      if (users.length < perPage) {
-        break
-      }
+      if (users.length < perPage) break
       page++
-
-      // 무한 루프 방지
-      if (page > 100) {
-        console.error('사용자 검색 페이지 초과')
-        break
-      }
     }
 
     if (!targetUser) {
-      console.error('Auth 사용자를 찾을 수 없음:', email)
+      console.error('사용자를 찾을 수 없음:', email)
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({
-          success: false,
-          error: '해당 이메일의 인증 계정을 찾을 수 없습니다.'
-        })
+        body: JSON.stringify({ success: false, error: '해당 이메일의 사용자를 찾을 수 없습니다.' })
       }
     }
 
-    console.log('Auth 사용자 찾음:', { userId: targetUser.id, email: targetUser.email })
+    console.log('사용자 찾음:', targetUser.id, targetUser.email)
 
-    // 3. 비밀번호 업데이트
-    const { data: updateData, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+    // 비밀번호 업데이트
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       targetUser.id,
       { password: newPassword }
     )
@@ -174,23 +123,16 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({
-          success: false,
-          error: '비밀번호 변경 중 오류가 발생했습니다.',
-          details: updateError.message
-        })
+        body: JSON.stringify({ success: false, error: '비밀번호 변경 실패: ' + updateError.message })
       }
     }
 
-    console.log(`관리자 비밀번호 재설정 완료: ${email} (User ID: ${targetUser.id})`)
+    console.log('비밀번호 변경 완료:', email)
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        success: true,
-        message: '비밀번호가 성공적으로 변경되었습니다.'
-      })
+      body: JSON.stringify({ success: true, message: '비밀번호가 성공적으로 변경되었습니다.' })
     }
 
   } catch (error) {
@@ -198,11 +140,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({
-        success: false,
-        error: '서버 오류가 발생했습니다.',
-        details: error.message
-      })
+      body: JSON.stringify({ success: false, error: '서버 오류: ' + error.message })
     }
   }
 }
