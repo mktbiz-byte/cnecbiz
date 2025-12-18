@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building, User, Mail, Phone, MapPin, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import { Building, User, Mail, Phone, MapPin, FileText, CheckCircle, AlertCircle, Key, Eye, EyeOff, Loader2, Shield } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import CompanyNavigation from './CompanyNavigation'
 
@@ -15,6 +15,19 @@ export default function CompanyProfileEdit() {
   // const [currentStep, setCurrentStep] = useState(1) // 한 페이지로 통합
   const [company, setCompany] = useState(null)
   
+  // 비밀번호 변경 관련 상태
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  })
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+
   const [formData, setFormData] = useState({
     // 기본 정보 (회원가입 시 입력된 정보)
     companyName: '',
@@ -171,6 +184,76 @@ export default function CompanyProfileEdit() {
         }))
       }
     }).open()
+  }
+
+  // 비밀번호 변경 처리
+  const handlePasswordChange = async () => {
+    setPasswordError('')
+    setPasswordSuccess(false)
+
+    // 유효성 검사
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('모든 필드를 입력해주세요.')
+      return
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('새 비밀번호는 최소 8자 이상이어야 합니다.')
+      return
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('새 비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    // 복잡성 검사
+    const hasUpperCase = /[A-Z]/.test(passwordData.newPassword)
+    const hasLowerCase = /[a-z]/.test(passwordData.newPassword)
+    const hasNumbers = /\d/.test(passwordData.newPassword)
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword)
+
+    if (!(hasUpperCase && hasLowerCase && hasNumbers) && !hasSpecialChar) {
+      setPasswordError('비밀번호는 대문자, 소문자, 숫자를 포함하거나 특수문자를 포함해야 합니다.')
+      return
+    }
+
+    setPasswordLoading(true)
+
+    try {
+      // 현재 비밀번호로 재인증
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) throw new Error('로그인이 필요합니다.')
+
+      const { error: signInError } = await supabaseBiz.auth.signInWithPassword({
+        email: user.email,
+        password: passwordData.currentPassword
+      })
+
+      if (signInError) {
+        setPasswordError('현재 비밀번호가 올바르지 않습니다.')
+        setPasswordLoading(false)
+        return
+      }
+
+      // 비밀번호 업데이트
+      const { error: updateError } = await supabaseBiz.auth.updateUser({
+        password: passwordData.newPassword
+      })
+
+      if (updateError) throw updateError
+
+      setPasswordSuccess(true)
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+
+      // 3초 후 성공 메시지 숨김
+      setTimeout(() => setPasswordSuccess(false), 5000)
+    } catch (error) {
+      console.error('Password change error:', error)
+      setPasswordError('비밀번호 변경에 실패했습니다: ' + error.message)
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   // 완료 화면
@@ -510,6 +593,132 @@ export default function CompanyProfileEdit() {
                     </p>
                   </div>
                 </div>
+
+              {/* 비밀번호 변경 */}
+              <div className="space-y-6 border-t border-gray-200 pt-8">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    <h3 className="font-semibold text-lg">비밀번호 변경</h3>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    계정 보안을 위해 비밀번호를 주기적으로 변경해주세요.
+                  </p>
+
+                  {/* 성공 메시지 */}
+                  {passwordSuccess && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <p className="text-sm text-green-800">비밀번호가 성공적으로 변경되었습니다!</p>
+                    </div>
+                  )}
+
+                  {/* 에러 메시지 */}
+                  {passwordError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                      <p className="text-sm text-red-800">{passwordError}</p>
+                    </div>
+                  )}
+
+                  <div className="bg-slate-50 p-6 rounded-xl space-y-4">
+                    {/* 현재 비밀번호 */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">현재 비밀번호</label>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input
+                          type={showCurrentPassword ? 'text' : 'password'}
+                          value={passwordData.currentPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                          placeholder="현재 비밀번호 입력"
+                          className="pl-10 pr-10 h-12"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 새 비밀번호 */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">새 비밀번호</label>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input
+                          type={showNewPassword ? 'text' : 'password'}
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                          placeholder="8자 이상, 대소문자/숫자/특수문자 조합"
+                          className="pl-10 pr-10 h-12"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        대문자, 소문자, 숫자를 포함하거나 특수문자를 포함해야 합니다 (8자 이상)
+                      </p>
+                    </div>
+
+                    {/* 새 비밀번호 확인 */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">새 비밀번호 확인</label>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="새 비밀번호 재입력"
+                          className="pl-10 pr-10 h-12"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
+                      {passwordData.confirmPassword && passwordData.newPassword === passwordData.confirmPassword && (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          비밀번호가 일치합니다
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 변경 버튼 */}
+                    <Button
+                      type="button"
+                      onClick={handlePasswordChange}
+                      disabled={passwordLoading}
+                      className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      {passwordLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          변경 중...
+                        </>
+                      ) : (
+                        <>
+                          <Key className="w-4 h-4 mr-2" />
+                          비밀번호 변경
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
 
               {/* 입력 정보 확인 */}
               <div className="space-y-6 border-t border-gray-200 pt-8">

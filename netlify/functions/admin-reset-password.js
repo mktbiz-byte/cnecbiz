@@ -129,6 +129,18 @@ exports.handler = async (event, context) => {
 
     console.log('비밀번호 변경 완료:', email)
 
+    // companies 테이블에 비밀번호 변경 필요 플래그 설정
+    const { error: flagError } = await supabaseAdmin
+      .from('companies')
+      .update({ password_reset_required: true })
+      .eq('email', email.toLowerCase())
+
+    if (flagError) {
+      console.log('플래그 설정 실패 (무시):', flagError.message)
+    } else {
+      console.log('비밀번호 변경 필요 플래그 설정 완료')
+    }
+
     return {
       statusCode: 200,
       headers,
