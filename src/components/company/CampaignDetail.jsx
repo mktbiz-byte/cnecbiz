@@ -275,14 +275,18 @@ export default function CampaignDetail() {
               }
 
               const profile = profiles && profiles.length > 0 ? profiles[0] : null
-              console.log('Profile data for', app.applicant_name, 'YT:', profile?.youtube_subscribers, 'IG:', profile?.instagram_followers, 'Photo:', profile?.profile_image)
+              console.log('Profile data for', app.applicant_name, 'Photo:', profile?.profile_image, 'Instagram:', profile?.instagram_url, 'YouTube:', profile?.youtube_url)
 
               if (profile) {
                 // profile_image 필드 우선 사용
                 const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url || profile.profile_video_url
                 return {
                   ...app,
-                  profile_photo_url: profileImage
+                  profile_photo_url: profileImage,
+                  // SNS URL 병합 (user_profiles에서 가져온 값 우선)
+                  instagram_url: profile.instagram_url || app.instagram_url,
+                  youtube_url: profile.youtube_url || app.youtube_url,
+                  tiktok_url: profile.tiktok_url || app.tiktok_url
                 }
               }
             } catch (err) {
@@ -2278,6 +2282,12 @@ export default function CampaignDetail() {
             const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
             // 프로필 이미지 - profile_photo_url (user_profiles에서 가져온 것) 우선
             const profileImage = participant.profile_photo_url || participant.profile_image_url || participant.creator_profile_image || participant.profile_image || participant.avatar_url
+            // SNS URL 가져오기
+            const platform = (participant.creator_platform || participant.main_channel || participant.platform || '').toLowerCase()
+            const snsUrl = platform.includes('instagram') ? participant.instagram_url :
+                          platform.includes('youtube') ? participant.youtube_url :
+                          platform.includes('tiktok') ? participant.tiktok_url :
+                          participant.instagram_url || participant.youtube_url || participant.tiktok_url
             const shippingAddress = participant.shipping_address || participant.address || ''
             const shippingPhone = participant.shipping_phone || participant.phone || participant.phone_number || participant.creator_phone || ''
             const courierCompany = trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''
@@ -2326,10 +2336,23 @@ export default function CampaignDetail() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-base font-bold text-gray-900 truncate">{creatorName}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1`}>
-                          <span>{platformConfig.icon}</span>
-                          {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
-                        </span>
+                        {snsUrl ? (
+                          <a
+                            href={snsUrl.startsWith('http') ? snsUrl : `https://${snsUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1 hover:opacity-80 cursor-pointer transition-opacity`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span>{platformConfig.icon}</span>
+                            {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
+                          </a>
+                        ) : (
+                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1`}>
+                            <span>{platformConfig.icon}</span>
+                            {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
+                          </span>
+                        )}
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusConfig.bgClass} ${statusConfig.textClass}`}>
                           <StatusIcon className="w-3 h-3" />
                           {statusConfig.label}
