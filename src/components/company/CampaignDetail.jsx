@@ -1744,8 +1744,7 @@ export default function CampaignDetail() {
       const { error: appError } = await supabase
         .from('applications')
         .update({
-          status: 'completed',
-          completed_at: new Date().toISOString()
+          status: 'completed'
         })
         .eq('id', submission.application_id)
 
@@ -2269,7 +2268,10 @@ export default function CampaignDetail() {
               <span className="text-sm font-medium text-pink-200">수정 요청</span>
             </div>
           </div>
-          <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group">
+          <div
+            className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] cursor-pointer group"
+            onClick={() => setActiveTab('editing')}
+          >
             <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -mr-10 -mt-10"></div>
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
             <div className="relative z-10">
@@ -2404,7 +2406,14 @@ export default function CampaignDetail() {
                             {participant.creator_platform || participant.main_channel || participant.platform || '플랫폼'}
                           </span>
                         )}
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusConfig.bgClass} ${statusConfig.textClass}`}>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusConfig.bgClass} ${statusConfig.textClass} ${participant.status === 'video_submitted' ? 'cursor-pointer hover:opacity-80' : ''}`}
+                          onClick={() => {
+                            if (participant.status === 'video_submitted') {
+                              setActiveTab('editing')
+                            }
+                          }}
+                        >
                           <StatusIcon className="w-3 h-3" />
                           {statusConfig.label}
                         </span>
