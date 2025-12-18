@@ -262,6 +262,15 @@ export default function CampaignDetail() {
       // user_id가 있는 경우 user_profiles에서 프로필 사진 가져오기
       const enrichedData = await Promise.all(
         (data || []).map(async (app) => {
+          // 먼저 app에 이미 있는 프로필 사진 확인
+          console.log('App fields for', app.applicant_name, ':', {
+            profile_photo_url: app.profile_photo_url,
+            profile_image_url: app.profile_image_url,
+            profile_image: app.profile_image,
+            creator_profile_image: app.creator_profile_image,
+            avatar_url: app.avatar_url
+          })
+
           if (app.user_id) {
             try {
               // user_profiles 테이블에서 user_id 컬럼으로 검색
@@ -275,16 +284,17 @@ export default function CampaignDetail() {
               }
 
               const profile = profiles && profiles.length > 0 ? profiles[0] : null
-              console.log('Profile data for', app.applicant_name, 'Photo:', profile?.profile_image, 'AppPhoto:', app.profile_image_url, 'Instagram:', profile?.instagram_url)
+              console.log('User profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
               // user_profiles에서 먼저, 없으면 application에서 프로필 이미지 가져오기
+              // app.profile_photo_url을 가장 먼저 체크 (applications 테이블에 저장된 값)
               const profileImage = profile?.profile_image || profile?.profile_photo_url || profile?.profile_image_url ||
                                    profile?.avatar_url || profile?.profile_video_url ||
-                                   app.profile_image_url || app.profile_image || app.creator_profile_image || app.avatar_url
+                                   app.profile_photo_url || app.profile_image_url || app.profile_image || app.creator_profile_image || app.avatar_url
 
               return {
                 ...app,
-                profile_photo_url: profileImage,
+                profile_photo_url: profileImage || app.profile_photo_url,
                 // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
                 instagram_url: profile?.instagram_url || app.instagram_url,
                 youtube_url: profile?.youtube_url || app.youtube_url,
