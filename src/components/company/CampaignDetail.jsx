@@ -530,15 +530,25 @@ export default function CampaignDetail() {
         const urlPromises = data.map(async (submission) => {
           if (submission.video_file_url) {
             try {
-              // Extract path from full URL
+              // Extract path from full URL - support both 'videos' and 'campaign-videos' buckets
               const url = new URL(submission.video_file_url)
-              const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
+
+              // Try 'videos' bucket first (for video_submissions)
+              let pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/videos\/(.+)$/)
+              let bucketName = 'videos'
+
+              // If not found, try 'campaign-videos' bucket
+              if (!pathMatch) {
+                pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/campaign-videos\/(.+)$/)
+                bucketName = 'campaign-videos'
+              }
+
               if (pathMatch) {
                 const filePath = pathMatch[1]
                 const { data: signedData, error: signedError } = await supabase.storage
-                  .from('campaign-videos')
+                  .from(bucketName)
                   .createSignedUrl(filePath, 18000) // 5 hours = 18000 seconds
-                
+
                 if (signedError) {
                   console.error('Error creating signed URL:', signedError)
                   return { id: submission.id, url: submission.video_file_url }
@@ -3640,10 +3650,13 @@ export default function CampaignDetail() {
                             
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                                <video 
+                                <video
                                   key={`${userId}-${selectedVersion}-${submission.id}`}
-                                  controls 
-                                  preload="metadata"
+                                  controls
+                                  autoPlay
+                                  muted
+                                  playsInline
+                                  preload="auto"
                                   className="w-full h-full"
                                   src={signedVideoUrls[submission.id] || submission.video_file_url}
                                 >
