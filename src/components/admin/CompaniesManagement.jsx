@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -17,6 +17,17 @@ export default function CompaniesManagement() {
   const [pointsAction, setPointsAction] = useState('add') // 'add' or 'deduct'
   const [pointsAmount, setPointsAmount] = useState('')
   const [pointsReason, setPointsReason] = useState('')
+
+  // 기업 상세 정보 모달
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [detailCompany, setDetailCompany] = useState(null)
+
+  // 비밀번호 재설정 관련
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false)
+  const [tempPassword, setTempPassword] = useState('')
+  const [passwordCopied, setPasswordCopied] = useState(false)
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -266,6 +277,127 @@ export default function CompaniesManagement() {
     }
   }
 
+  // 기업 상세 정보 모달 열기
+  const handleShowDetail = (company) => {
+    setDetailCompany(company)
+    setShowDetailModal(true)
+  }
+
+  // 비밀번호 재설정 모달 열기
+  const handleOpenPasswordReset = (company) => {
+    setDetailCompany(company)
+    setTempPassword('')
+    setPasswordCopied(false)
+    setEmailSent(false)
+    setShowPasswordResetModal(true)
+  }
+
+  // 임시 비밀번호 생성
+  const generateTempPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%'
+    let password = ''
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    setTempPassword(password)
+    setPasswordCopied(false)
+    setEmailSent(false)
+  }
+
+  // 비밀번호 복사
+  const copyPassword = async () => {
+    if (!tempPassword) return
+    try {
+      await navigator.clipboard.writeText(tempPassword)
+      setPasswordCopied(true)
+      setTimeout(() => setPasswordCopied(false), 2000)
+    } catch (err) {
+      console.error('복사 실패:', err)
+    }
+  }
+
+  // 비밀번호 재설정 이메일 발송
+  const sendPasswordResetEmail = async () => {
+    if (!detailCompany || !tempPassword) {
+      alert('임시 비밀번호를 먼저 생성해주세요')
+      return
+    }
+
+    const contactEmail = detailCompany.contact_email || detailCompany.email
+    if (!contactEmail) {
+      alert('이메일 주소가 없습니다')
+      return
+    }
+
+    setSendingEmail(true)
+
+    try {
+      // 이메일 발송
+      await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: contactEmail,
+          subject: `[CNEC] ${detailCompany.company_name}님의 임시 비밀번호 안내`,
+          html: `
+            <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 16px 16px 0 0; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">CNEC BIZ</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">임시 비밀번호 안내</p>
+              </div>
+
+              <div style="background: white; padding: 40px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 16px 16px;">
+                <h2 style="color: #1f2937; margin-top: 0; font-size: 20px;">🔐 비밀번호가 재설정되었습니다</h2>
+
+                <p style="color: #4b5563; line-height: 1.8; font-size: 15px;">
+                  안녕하세요, <strong>${detailCompany.company_name}</strong> 담당자님!<br><br>
+                  관리자에 의해 계정 비밀번호가 재설정되었습니다.<br>
+                  아래 임시 비밀번호로 로그인 후, 반드시 새 비밀번호로 변경해주세요.
+                </p>
+
+                <div style="background: linear-gradient(135deg, #f0f4ff 0%, #fdf2f8 100%); padding: 25px; border-radius: 12px; margin: 30px 0; text-align: center; border: 2px dashed #667eea;">
+                  <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 13px;">임시 비밀번호</p>
+                  <div style="background: white; padding: 15px 25px; border-radius: 8px; display: inline-block; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <code style="color: #667eea; font-size: 24px; font-weight: bold; letter-spacing: 2px;">${tempPassword}</code>
+                  </div>
+                </div>
+
+                <div style="background: #fef3c7; padding: 16px 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+                  <p style="color: #92400e; margin: 0; font-size: 14px;">
+                    ⚠️ <strong>보안 안내</strong><br>
+                    로그인 후 즉시 비밀번호를 변경해주세요.<br>
+                    본 메일을 삭제하시고, 임시 비밀번호를 타인과 공유하지 마세요.
+                  </p>
+                </div>
+
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="https://cnecbiz.com/login" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">로그인 바로가기</a>
+                </div>
+
+                <p style="color: #9ca3af; font-size: 13px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                  ※ 본 메일은 CNEC 관리자에 의해 발송되었습니다.<br>
+                  ※ 문의: cnec@cnecbiz.com
+                </p>
+              </div>
+
+              <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+                <p>© 2025 CNEC BIZ. All rights reserved.</p>
+              </div>
+            </div>
+          `
+        })
+      })
+
+      setEmailSent(true)
+      alert(`${contactEmail}로 임시 비밀번호 안내 메일이 발송되었습니다.`)
+    } catch (error) {
+      console.error('이메일 발송 실패:', error)
+      alert('이메일 발송에 실패했습니다: ' + error.message)
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
   const filteredCompanies = companies.filter(company =>
     company.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     company.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -422,7 +554,7 @@ export default function CompaniesManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => navigate(`/admin/companies/${company.id}`)}
+                        onClick={() => handleShowDetail(company)}
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         상세보기
@@ -538,6 +670,291 @@ export default function CompaniesManagement() {
                   취소
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 기업 상세 정보 모달 */}
+      {showDetailModal && detailCompany && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 py-5 text-white relative">
+              <button
+                onClick={() => setShowDetailModal(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Building2 className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">{detailCompany.company_name}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    {detailCompany.is_approved ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-400/30 text-white flex items-center gap-1">
+                        <ShieldCheck className="w-3 h-3" />
+                        승인됨
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-400/30 text-white flex items-center gap-1">
+                        <ShieldAlert className="w-3 h-3" />
+                        승인대기
+                      </span>
+                    )}
+                    {getStatusBadge(detailCompany.status || 'active')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {/* 기본 정보 */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-slate-50 to-blue-50/50 p-4 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+                      <Mail className="w-4 h-4" />
+                      이메일
+                    </div>
+                    <div className="font-medium text-slate-800">{detailCompany.email || '-'}</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-50 to-green-50/50 p-4 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+                      <Phone className="w-4 h-4" />
+                      연락처
+                    </div>
+                    <div className="font-medium text-slate-800">{detailCompany.phone || detailCompany.contact_phone || '-'}</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-50 to-purple-50/50 p-4 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+                      <User className="w-4 h-4" />
+                      담당자
+                    </div>
+                    <div className="font-medium text-slate-800">{detailCompany.contact_person || detailCompany.contact_name || '-'}</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-50 to-amber-50/50 p-4 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+                      <FileText className="w-4 h-4" />
+                      사업자등록번호
+                    </div>
+                    <div className="font-medium text-slate-800">{detailCompany.business_registration_number || '-'}</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-50 to-rose-50/50 p-4 rounded-xl border border-slate-100 md:col-span-2">
+                    <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+                      <MapPin className="w-4 h-4" />
+                      주소
+                    </div>
+                    <div className="font-medium text-slate-800">{detailCompany.address || '-'}</div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-slate-50 to-cyan-50/50 p-4 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 text-slate-500 text-sm mb-1">
+                      <Calendar className="w-4 h-4" />
+                      가입일
+                    </div>
+                    <div className="font-medium text-slate-800">
+                      {new Date(detailCompany.created_at).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100">
+                    <div className="flex items-center gap-2 text-blue-600 text-sm mb-1">
+                      <CreditCard className="w-4 h-4" />
+                      포인트 잔액
+                    </div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {(detailCompany.points_balance || 0).toLocaleString()}P
+                    </div>
+                  </div>
+                </div>
+
+                {/* 비밀번호 재설정 섹션 */}
+                <div className="bg-gradient-to-r from-rose-50 to-orange-50 p-5 rounded-xl border border-rose-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <Key className="w-5 h-5 text-rose-500" />
+                        비밀번호 재설정
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        기업 담당자가 비밀번호를 분실한 경우 임시 비밀번호를 생성하여 이메일로 발송할 수 있습니다.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => handleOpenPasswordReset(detailCompany)}
+                      className="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white shadow-md"
+                    >
+                      <Key className="w-4 h-4 mr-2" />
+                      비밀번호 재설정
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 푸터 */}
+            <div className="px-6 py-4 bg-slate-50 border-t flex justify-between items-center">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigate(`/admin/companies/${detailCompany.id}`)
+                  setShowDetailModal(false)
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                캠페인 관리 보기
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowDetailModal(false)}
+              >
+                닫기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 재설정 모달 */}
+      {showPasswordResetModal && detailCompany && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-rose-500 to-orange-500 px-6 py-5 text-white relative">
+              <button
+                onClick={() => setShowPasswordResetModal(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Key className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">비밀번호 재설정</h2>
+                  <p className="text-sm opacity-90">{detailCompany.company_name}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 space-y-5">
+              {/* 발송 대상 이메일 */}
+              <div className="bg-slate-50 p-4 rounded-xl">
+                <div className="text-sm text-slate-500 mb-1">발송 대상 이메일</div>
+                <div className="font-medium text-slate-800 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-blue-500" />
+                  {detailCompany.contact_email || detailCompany.email || '이메일 없음'}
+                </div>
+              </div>
+
+              {/* 임시 비밀번호 생성 */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  임시 비밀번호
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      type="text"
+                      value={tempPassword}
+                      placeholder="비밀번호를 생성해주세요"
+                      readOnly
+                      className="pr-10 font-mono text-lg tracking-wide"
+                    />
+                    {tempPassword && (
+                      <button
+                        onClick={copyPassword}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-md transition-colors"
+                      >
+                        {passwordCopied ? (
+                          <Check className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-slate-400" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={generateTempPassword}
+                    className="shrink-0"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    생성
+                  </Button>
+                </div>
+                {passwordCopied && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    클립보드에 복사되었습니다
+                  </p>
+                )}
+              </div>
+
+              {/* 안내 메시지 */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>⚠️ 참고사항</strong><br />
+                  • 임시 비밀번호 생성 후 이메일 발송 버튼을 클릭하세요<br />
+                  • 실제 비밀번호 변경은 별도로 진행해야 합니다<br />
+                  • 담당자에게 로그인 후 비밀번호 변경을 안내해주세요
+                </p>
+              </div>
+
+              {/* 발송 성공 메시지 */}
+              {emailSent && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-green-800">이메일 발송 완료!</div>
+                    <div className="text-sm text-green-600">담당자에게 임시 비밀번호가 발송되었습니다.</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 푸터 */}
+            <div className="px-6 py-4 bg-slate-50 border-t flex gap-2">
+              <Button
+                onClick={sendPasswordResetEmail}
+                disabled={!tempPassword || sendingEmail}
+                className="flex-1 bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white"
+              >
+                {sendingEmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    이메일로 발송
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowPasswordResetModal(false)}
+              >
+                닫기
+              </Button>
             </div>
           </div>
         </div>
