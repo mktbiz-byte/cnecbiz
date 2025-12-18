@@ -3170,28 +3170,46 @@ export default function CampaignDetail() {
           </Card>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs - 개선된 디자인 */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white border shadow-sm p-1 rounded-xl">
-            <TabsTrigger value="applications" className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 rounded-lg px-4 py-2">
+          <TabsList className="bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-lg shadow-gray-200/50 p-1.5 rounded-2xl inline-flex">
+            <TabsTrigger
+              value="applications"
+              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
+            >
               <Users className="w-4 h-4" />
-              지원 크리에이터 ({applications.length})
+              <span>지원 크리에이터</span>
+              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{applications.length}</span>
             </TabsTrigger>
-            <TabsTrigger value="virtual" className="flex items-center gap-2 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 rounded-lg px-4 py-2">
+            <TabsTrigger
+              value="virtual"
+              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
+            >
               <CheckCircle className="w-4 h-4" />
-              가상 선정 ({applications.filter(app => app.virtual_selected).length}명)
+              <span>가상 선정</span>
+              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{applications.filter(app => app.virtual_selected).length}명</span>
             </TabsTrigger>
-            <TabsTrigger value="confirmed" className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700 rounded-lg px-4 py-2">
+            <TabsTrigger
+              value="confirmed"
+              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-green-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-green-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
+            >
               <CheckCircle className="w-4 h-4" />
-              선정 크리에이터 ({participants.length})
+              <span>선정 크리에이터</span>
+              <span className="bg-white/20 data-[state=active]:bg-white/30 px-2 py-0.5 rounded-full text-xs font-bold">{participants.length}</span>
             </TabsTrigger>
-            <TabsTrigger value="editing" className="flex items-center gap-2 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700 rounded-lg px-4 py-2">
+            <TabsTrigger
+              value="editing"
+              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-orange-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-orange-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
+            >
               <FileText className="w-4 h-4" />
-              영상 확인
+              <span>영상 확인</span>
             </TabsTrigger>
-            <TabsTrigger value="completed" className="flex items-center gap-2 data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 rounded-lg px-4 py-2">
+            <TabsTrigger
+              value="completed"
+              className="flex items-center gap-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-teal-200 rounded-xl px-5 py-2.5 text-gray-600 hover:text-gray-900 transition-all duration-200 font-medium"
+            >
               <CheckCircle className="w-4 h-4" />
-              완료
+              <span>완료</span>
             </TabsTrigger>
           </TabsList>
 
@@ -3744,29 +3762,41 @@ export default function CampaignDetail() {
                 <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
               </CardHeader>
               <CardContent>
-                {/* 플랫폼별 필터 탭 */}
-                <Tabs defaultValue="all" className="mt-4">
-                  <TabsList>
-                    <TabsTrigger value="all">
-                      전체 ({participants.length})
+                {/* 플랫폼별 필터 탭 - 개선된 디자인 */}
+                <Tabs defaultValue="all" className="mt-6">
+                  <TabsList className="bg-gray-100/80 p-1 rounded-xl inline-flex gap-1">
+                    <TabsTrigger
+                      value="all"
+                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-gray-900 transition-all"
+                    >
+                      전체 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-gray-100 px-2 py-0.5 rounded-full">{participants.length}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="youtube">
-                      유튜브 ({participants.filter(p => {
+                    <TabsTrigger
+                      value="youtube"
+                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-red-600 transition-all flex items-center gap-1.5"
+                    >
+                      <span>📺</span> 유튜브 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-red-100 px-2 py-0.5 rounded-full">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('youtube') || platform.includes('유튜브')
-                      }).length})
+                      }).length}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="instagram">
-                      인스타 ({participants.filter(p => {
+                    <TabsTrigger
+                      value="instagram"
+                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-pink-600 transition-all flex items-center gap-1.5"
+                    >
+                      <span>📸</span> 인스타 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-pink-100 px-2 py-0.5 rounded-full">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('instagram') || platform.includes('인스타그램')
-                      }).length})
+                      }).length}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="tiktok">
-                      틱톡 ({participants.filter(p => {
+                    <TabsTrigger
+                      value="tiktok"
+                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg px-4 py-2 text-sm font-medium text-gray-600 data-[state=active]:text-gray-900 transition-all flex items-center gap-1.5"
+                    >
+                      <span>🎵</span> 틱톡 <span className="ml-1 text-xs bg-gray-200 data-[state=active]:bg-gray-100 px-2 py-0.5 rounded-full">{participants.filter(p => {
                         const platform = (p.creator_platform || p.main_channel || '').toLowerCase()
                         return platform.includes('tiktok') || platform.includes('틱톡')
-                      }).length})
+                      }).length}</span>
                     </TabsTrigger>
                   </TabsList>
                   
