@@ -882,24 +882,16 @@ export default function CampaignDetail() {
     }
     
     try {
-      // applications에서 삭제
-      const { error: deleteError } = await supabase
-        .from('applications')
-        .delete()
-        .eq('campaign_id', id)
-        .eq('creator_name', cancellingApp.applicant_name)
-      
-      if (deleteError) throw deleteError
-      
-      // applications 상태를 pending으로 변경
+      // applications 상태를 pending으로 변경 (삭제하지 않고 상태만 변경)
       const { error: updateError } = await supabase
         .from('applications')
-        .update({ 
+        .update({
           status: 'pending',
-          virtual_selected: false 
+          virtual_selected: false,
+          updated_at: new Date().toISOString()
         })
         .eq('id', cancellingApp.id)
-      
+
       if (updateError) throw updateError
       
       // 알림톡 발송
