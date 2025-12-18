@@ -3585,7 +3585,10 @@ export default function CampaignDetail() {
 
                 {(() => {
                   // Group video submissions by user_id
-                  const filteredSubmissions = videoSubmissions.filter(v => ['submitted', 'video_submitted', 'revision_requested'].includes(v.status))
+                  // Show all non-approved submissions (submitted, video_submitted, revision_requested, resubmitted, pending, null)
+                  console.log('All video submissions:', videoSubmissions)
+                  console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
+                  const filteredSubmissions = videoSubmissions.filter(v => !['approved', 'completed', 'rejected'].includes(v.status))
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
                     if (!acc[submission.user_id]) {
                       acc[submission.user_id] = []
