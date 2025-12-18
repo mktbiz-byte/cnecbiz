@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Send, Eye, RefreshCw } from 'lucide-react'
@@ -28,17 +28,18 @@ export default function FourWeekChallengeFinalGuide() {
       setLoading(true)
       
       // 캠페인 정보 로드
-      const { data: campaignData, error: campaignError } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data: campaignData, error: campaignError } = await client
         .from('campaigns')
         .select('*')
         .eq('id', campaignId)
         .single()
-      
+
       if (campaignError) throw campaignError
       setCampaign(campaignData)
-      
+
       // 참여 크리에이터 로드
-      const { data: participantsData, error: participantsError } = await supabaseKorea
+      const { data: participantsData, error: participantsError } = await client
         .from('applications')
         .select('*')
         .eq('campaign_id', campaignId)
@@ -104,7 +105,8 @@ export default function FourWeekChallengeFinalGuide() {
         [`week${weekNumber}`]: guide
       }
       
-      await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      await client
         .from('applications')
         .update({
           personalized_guide: JSON.stringify(updatedGuides),
@@ -187,7 +189,8 @@ export default function FourWeekChallengeFinalGuide() {
       
       for (const participantId of selectedParticipants) {
         try {
-          const { error } = await supabaseKorea
+          const client = supabaseKorea || supabaseBiz
+          const { error } = await client
             .from('applications')
             .update({
               [`week${weekNumber}_sent`]: true,

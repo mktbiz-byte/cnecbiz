@@ -31,14 +31,14 @@ export default function PaymentHistoryPage() {
           .filter(Boolean)
         
         let cancelledCampaignIds = []
-        if (campaignIds.length > 0) {
+        if (campaignIds.length > 0 && supabaseKorea) {
           // campaigns 테이블은 supabaseKorea에 있음
           const { data: campaigns } = await supabaseKorea
             .from('campaigns')
             .select('id, status')
             .in('id', campaignIds)
             .eq('status', 'cancelled')
-          
+
           cancelledCampaignIds = campaigns?.map(c => c.id) || []
         }
         

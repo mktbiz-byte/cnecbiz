@@ -19,16 +19,17 @@ export {
   sendCreatorSignupNotification,
   sendCampaignSelectedNotification,
   sendGuideDeliveredNotification,
-  sendVideoDeadline3DaysNotification,
-  sendVideoDeadline2DaysNotification,
-  sendVideoDeadlineTodayNotification,
-  sendVideoRevisionRequestedNotification,
+  sendVideoSubmitReminder3Days,
+  sendVideoSubmitReminder2Days,
+  sendVideoSubmitReminderToday,
+  sendVideoRevisionRequestNotification,
   sendVideoApprovedNotification,
-  sendCampaignRewardPaidNotification,
+  sendPointAwardedNotification,
   sendWithdrawalRequestedNotification,
   sendWithdrawalCompletedNotification,
-  sendDeadlineOverdueNotification
+  sendSubmissionDelayWarningNotification,
+  sendCampaignCancelledNotification
 } from './creatorNotifications.js';
 
 // 팝빌 직접 사용
-export { sendAlimtalk, sendBulkAlimtalk } from '../popbillService.js';
+export { sendKakaoNotification, sendKakaoNotifications } from '../popbillService.js';

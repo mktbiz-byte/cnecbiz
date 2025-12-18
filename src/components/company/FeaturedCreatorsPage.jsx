@@ -89,7 +89,8 @@ const FeaturedCreatorsPage = () => {
       if (!user) return;
 
       // 한국 지역 캠페인 가져오기
-      const { data: koreaCampaigns } = await supabaseKorea
+      const koreaClient = supabaseKorea || supabaseBiz;
+      const { data: koreaCampaigns } = await koreaClient
         .from('campaigns')
         .select('id, title, package_type, campaign_type, region, recruitment_deadline, total_slots')
         .eq('company_email', user.email)
@@ -99,13 +100,17 @@ const FeaturedCreatorsPage = () => {
 
       // 일본 지역 캠페인 가져오기
       const supabaseJapan = getSupabaseClient('japan');
-      const { data: japanCampaigns } = await supabaseJapan
-        .from('campaigns')
-        .select('id, title, package_type, campaign_type, region, recruitment_deadline, total_slots')
-        .eq('company_email', user.email)
-        .eq('is_cancelled', false)
-        .in('approval_status', ['pending', 'approved'])
-        .order('created_at', { ascending: false });
+      let japanCampaigns = [];
+      if (supabaseJapan) {
+        const { data } = await supabaseJapan
+          .from('campaigns')
+          .select('id, title, package_type, campaign_type, region, recruitment_deadline, total_slots')
+          .eq('company_email', user.email)
+          .eq('is_cancelled', false)
+          .in('approval_status', ['pending', 'approved'])
+          .order('created_at', { ascending: false });
+        japanCampaigns = data || [];
+      }
 
       const koreaCampaignsWithRegion = (koreaCampaigns || []).map(c => ({ ...c, region: 'korea' }));
       const japanCampaignsWithRegion = (japanCampaigns || []).map(c => ({ ...c, region: 'japan' }));
