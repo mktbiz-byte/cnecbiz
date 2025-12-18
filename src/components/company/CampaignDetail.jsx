@@ -264,17 +264,24 @@ export default function CampaignDetail() {
         (data || []).map(async (app) => {
           if (app.user_id) {
             try {
-              const { data: profiles } = await supabase
+              // user_profiles 테이블에서 프로필 사진 가져오기 (id 또는 user_id로 검색)
+              const { data: profiles, error: profileError } = await supabase
                 .from('user_profiles')
-                .select('profile_photo_url, profile_image_url, avatar_url, profile_video_url')
-                .eq('id', app.user_id)
+                .select('id, user_id, profile_image, profile_photo_url, profile_image_url, avatar_url, profile_video_url')
+                .or(`id.eq.${app.user_id},user_id.eq.${app.user_id}`)
+
+              if (profileError) {
+                console.error('Profile fetch error:', profileError)
+              }
 
               const profile = profiles && profiles.length > 0 ? profiles[0] : null
+              console.log('Profile data for', app.applicant_name, ':', profile)
 
               if (profile) {
+                const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url || profile.profile_video_url
                 return {
                   ...app,
-                  profile_photo_url: profile.profile_photo_url || profile.profile_image_url || profile.avatar_url || profile.profile_video_url
+                  profile_photo_url: profileImage
                 }
               }
             } catch (err) {
@@ -420,18 +427,19 @@ export default function CampaignDetail() {
             try {
               const { data: profiles, error: profileError } = await supabase
                 .from('user_profiles')
-                .select('profile_photo_url, profile_image_url, avatar_url, instagram_followers, youtube_subscribers, tiktok_followers')
-                .eq('id', app.user_id)
-              
+                .select('id, user_id, profile_image, profile_photo_url, profile_image_url, avatar_url, instagram_followers, youtube_subscribers, tiktok_followers')
+                .or(`id.eq.${app.user_id},user_id.eq.${app.user_id}`)
+
               const profile = profiles && profiles.length > 0 ? profiles[0] : null
-              
+
               console.log('Profile data for', app.applicant_name, ':', profile)
               if (profileError) console.error('Profile fetch error:', profileError)
-              
+
               if (profile) {
+                const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
                 const enriched = {
                   ...app,
-                  profile_photo_url: profile.profile_photo_url || profile.profile_image_url || profile.avatar_url,
+                  profile_photo_url: profileImage,
                   instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
                   youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
                   tiktok_followers: profile.tiktok_followers || app.tiktok_followers || 0
