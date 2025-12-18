@@ -4216,8 +4216,7 @@ export default function CampaignDetail() {
                       const { error } = await supabase
                         .from('applications')
                         .update({
-                          personalized_guide: updatedGuide,
-                          guide_updated_at: new Date().toISOString()
+                          personalized_guide: updatedGuide
                         })
                         .eq('id', selectedGuide.id)
 
@@ -4288,9 +4287,8 @@ export default function CampaignDetail() {
                         try {
                           await supabase
                             .from('applications')
-                            .update({ 
-                              personalized_guide: editedGuideContent,
-                              guide_updated_at: new Date().toISOString()
+                            .update({
+                              personalized_guide: editedGuideContent
                             })
                             .eq('id', selectedGuide.id)
                           
@@ -5127,9 +5125,8 @@ export default function CampaignDetail() {
                   try {
                     const { error } = await supabase
                       .from('applications')
-                      .update({ 
-                        personalized_guide: individualMessage,
-                        guide_updated_at: new Date().toISOString()
+                      .update({
+                        personalized_guide: individualMessage
                       })
                       .eq('id', selectedParticipantForMessage.id)
                     
