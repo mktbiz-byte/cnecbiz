@@ -48,6 +48,7 @@ export default function CampaignDetail() {
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
+  const [activeTab, setActiveTab] = useState('applications') // 메인 탭 상태
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [cancellingApp, setCancellingApp] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -1996,53 +1997,69 @@ export default function CampaignDetail() {
   const renderParticipantsTable = (filteredParticipants) => {
     if (filteredParticipants.length === 0) {
       return (
-        <div className="text-center py-12 text-gray-500">
-          해당 플랫폼의 크리에이터가 없습니다.
+        <div className="text-center py-16 text-gray-400">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+            <Users className="w-8 h-8 text-gray-300" />
+          </div>
+          <p className="text-lg font-medium">해당 플랫폼의 크리에이터가 없습니다</p>
         </div>
       )
     }
 
+    // 상태별 카운트
+    const statusCounts = {
+      guideWaiting: filteredParticipants.filter(p => ['selected', 'guide_confirmation'].includes(p.status)).length,
+      filming: filteredParticipants.filter(p => p.status === 'filming').length,
+      revision: filteredParticipants.filter(p => p.status === 'revision_requested').length,
+      submitted: filteredParticipants.filter(p => p.status === 'video_submitted').length,
+      approved: filteredParticipants.filter(p => ['approved', 'completed'].includes(p.status)).length
+    }
+
     return (
       <>
-        {filteredParticipants.length > 0 && (
-          <div className="flex gap-4 mt-3 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">가이드 확인중:</span>
-              <Badge className="bg-purple-100 text-purple-700">
-                {filteredParticipants.filter(p => ['selected', 'guide_confirmation'].includes(p.status)).length}명
-              </Badge>
+        {/* 진행 상태 파이프라인 */}
+        <div className="grid grid-cols-5 gap-3 mt-4 mb-6">
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-purple-600">가이드 확인중</span>
+              <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">촬영중:</span>
-              <Badge className="bg-yellow-100 text-yellow-700">
-                {filteredParticipants.filter(p => p.status === 'filming').length}명
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">수정중:</span>
-              <Badge className="bg-pink-100 text-pink-700">
-                {filteredParticipants.filter(p => p.status === 'revision_requested').length}명
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">제출완료:</span>
-              <Badge className="bg-blue-100 text-blue-700">
-                {filteredParticipants.filter(p => p.status === 'video_submitted').length}명
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">승인완료:</span>
-              <Badge className="bg-green-100 text-green-700">
-                {filteredParticipants.filter(p => ['approved', 'completed'].includes(p.status)).length}명
-              </Badge>
-            </div>
+            <div className="text-2xl font-bold text-purple-700 mt-1">{statusCounts.guideWaiting}</div>
           </div>
-        )}
-        <div className="overflow-x-auto mt-4">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4 border border-yellow-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-yellow-600">촬영중</span>
+              <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
+            </div>
+            <div className="text-2xl font-bold text-yellow-700 mt-1">{statusCounts.filming}</div>
+          </div>
+          <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-4 border border-pink-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-pink-600">수정중</span>
+              <div className="w-2 h-2 rounded-full bg-pink-400"></div>
+            </div>
+            <div className="text-2xl font-bold text-pink-700 mt-1">{statusCounts.revision}</div>
+          </div>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-blue-600">제출완료</span>
+              <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+            </div>
+            <div className="text-2xl font-bold text-blue-700 mt-1">{statusCounts.submitted}</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-green-600">승인완료</span>
+              <CheckCircle className="w-4 h-4 text-green-500" />
+            </div>
+            <div className="text-2xl font-bold text-green-700 mt-1">{statusCounts.approved}</div>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-separate border-spacing-y-2">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   <input
                     type="checkbox"
                     checked={selectedParticipants.length === filteredParticipants.length && filteredParticipants.length > 0}
@@ -2053,29 +2070,29 @@ export default function CampaignDetail() {
                         setSelectedParticipants([])
                       }
                     }}
-                    className="w-4 h-4"
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">이름</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">플랫폼</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배송정보</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">택배사 / 송장번호</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">크리에이터</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">플랫폼</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">배송정보</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">택배사 / 송장번호</th>
                 {campaign.campaign_type === 'planned' && (
                   <>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">맞춤 가이드</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">가이드 전달</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">맞춤 가이드</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">가이드 전달</th>
                   </>
                 )}
                 {campaign.campaign_type === '4week_challenge' && (
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">개별 메시지</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">개별 메시지</th>
                 )}
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">진행 상태</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">마감일</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">진행 상태</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">마감일</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody>
               {filteredParticipants.map((participant) => (
-                <tr key={participant.id} className="hover:bg-gray-50">
+                <tr key={participant.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-gray-100">
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
@@ -2952,29 +2969,28 @@ export default function CampaignDetail() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="applications" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="applications" className="flex items-center gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-white border shadow-sm p-1 rounded-xl">
+            <TabsTrigger value="applications" className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 rounded-lg px-4 py-2">
               <Users className="w-4 h-4" />
-              크리에이터 관리 ({applications.length})
+              지원 크리에이터 ({applications.length})
             </TabsTrigger>
-            <TabsTrigger value="virtual" className="flex items-center gap-2">
+            <TabsTrigger value="virtual" className="flex items-center gap-2 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 rounded-lg px-4 py-2">
               <CheckCircle className="w-4 h-4" />
               가상 선정 ({applications.filter(app => app.virtual_selected).length}명)
             </TabsTrigger>
-            <TabsTrigger value="confirmed" className="flex items-center gap-2">
+            <TabsTrigger value="confirmed" className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700 rounded-lg px-4 py-2">
               <CheckCircle className="w-4 h-4" />
-              참여 크리에이터 ({participants.length})
+              선정 크리에이터 ({participants.length})
             </TabsTrigger>
-            <TabsTrigger value="editing" className="flex items-center gap-2">
+            <TabsTrigger value="editing" className="flex items-center gap-2 data-[state=active]:bg-orange-50 data-[state=active]:text-orange-700 rounded-lg px-4 py-2">
               <FileText className="w-4 h-4" />
               영상 확인
             </TabsTrigger>
-            <TabsTrigger value="completed" className="flex items-center gap-2">
+            <TabsTrigger value="completed" className="flex items-center gap-2 data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 rounded-lg px-4 py-2">
               <CheckCircle className="w-4 h-4" />
               완료
             </TabsTrigger>
-
           </TabsList>
 
           {/* 크리에이터 관리 탭 (추천 + 지원 통합) */}
@@ -3223,6 +3239,9 @@ export default function CampaignDetail() {
                             main_channel: mainChannel || app.main_channel
                           })
                           setShowPostSelectionModal(true)
+
+                          // 선정 크리에이터 탭으로 자동 이동
+                          setActiveTab('confirmed')
                         } catch (error) {
                           console.error('Error confirming:', error)
                           alert('확정 처리에 실패했습니다.')
@@ -3491,6 +3510,9 @@ export default function CampaignDetail() {
                             main_channel: mainChannel || app.main_channel
                           })
                           setShowPostSelectionModal(true)
+
+                          // 선정 크리에이터 탭으로 자동 이동
+                          setActiveTab('confirmed')
                         } catch (error) {
                           console.error('Error confirming:', error)
                           alert('확정 처리에 실패했습니다.')
@@ -3509,11 +3531,15 @@ export default function CampaignDetail() {
             </Card>
           </TabsContent>
 
-          {/* 확정 크리에이터 + 가이드 확인 탭 */}
+          {/* 선정 크리에이터 탭 */}
           <TabsContent value="confirmed">
-            <Card>
-              <CardHeader>
-                <CardTitle>참여 크리에이터 리스트</CardTitle>
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-xl border-b">
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <CheckCircle className="w-5 h-5" />
+                  선정 크리에이터 관리
+                </CardTitle>
+                <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
               </CardHeader>
               <CardContent>
                 {/* 플랫폼별 필터 탭 */}
