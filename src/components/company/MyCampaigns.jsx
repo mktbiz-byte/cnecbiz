@@ -82,9 +82,10 @@ export default function MyCampaigns() {
     setLoading(true)
 
     try {
-      // Parallel fetch: company info from both DBs
+      // Parallel fetch: company info from both DBs (with null check)
+      const koreaClient = supabaseKorea || supabaseBiz
       const [koreaCompanyResult, bizCompanyResult] = await Promise.allSettled([
-        supabaseKorea?.from('companies').select('*').eq('user_id', user.id).maybeSingle(),
+        koreaClient.from('companies').select('*').eq('user_id', user.id).maybeSingle(),
         supabaseBiz.from('companies').select('*').eq('user_id', user.id).maybeSingle()
       ])
 
@@ -106,16 +107,17 @@ export default function MyCampaigns() {
 
   const fetchCampaignsParallel = async (userEmail, companyId, userId) => {
     try {
+      const koreaClient = supabaseKorea || supabaseBiz
       const supabaseJapan = getSupabaseClient('japan')
       const supabaseUS = getSupabaseClient('us')
 
       // Fetch all regions in parallel - by email, company_id, AND user_id for proper transfer support
       const [koreaByEmail, koreaByCompanyId, koreaByUserId, japanResult, usResult] = await Promise.allSettled([
-        supabaseKorea?.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
-        companyId ? supabaseKorea?.from('campaigns').select('*').eq('company_id', companyId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
-        userId ? supabaseKorea?.from('campaigns').select('*').eq('user_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
+        koreaClient.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
+        companyId ? koreaClient.from('campaigns').select('*').eq('company_id', companyId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
+        userId ? koreaClient.from('campaigns').select('*').eq('user_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] }),
         supabaseJapan?.from('campaigns').select('*').eq('company_email', userEmail).order('created_at', { ascending: false }),
-        userId ? supabaseUS?.from('campaigns').select('*').eq('company_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] })
+        userId && supabaseUS ? supabaseUS.from('campaigns').select('*').eq('company_id', userId).order('created_at', { ascending: false }) : Promise.resolve({ data: [] })
       ])
 
       // Merge Korea campaigns (by email, company_id, AND user_id - deduplicate)
@@ -164,19 +166,20 @@ export default function MyCampaigns() {
       us: campaignsList.filter(c => c.region === 'us').map(c => c.id)
     }
 
+    const koreaClient = supabaseKorea || supabaseBiz
     const supabaseJapan = getSupabaseClient('japan')
     const supabaseUS = getSupabaseClient('us')
 
     // Fetch all applications in parallel by region (single query per region)
     const [koreaApps, japanApps, usApps] = await Promise.allSettled([
       byRegion.korea.length > 0
-        ? supabaseKorea?.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.korea)
+        ? koreaClient.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.korea)
         : Promise.resolve({ data: [] }),
-      byRegion.japan.length > 0
-        ? supabaseJapan?.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.japan)
+      byRegion.japan.length > 0 && supabaseJapan
+        ? supabaseJapan.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.japan)
         : Promise.resolve({ data: [] }),
-      byRegion.us.length > 0
-        ? supabaseUS?.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.us)
+      byRegion.us.length > 0 && supabaseUS
+        ? supabaseUS.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.us)
         : Promise.resolve({ data: [] })
     ])
 

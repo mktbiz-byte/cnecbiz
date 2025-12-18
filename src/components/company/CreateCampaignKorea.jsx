@@ -487,7 +487,8 @@ const CampaignCreationKorea = () => {
 
   const loadCampaign = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('campaigns')
         .select('*')
         .eq('id', editId)
@@ -668,13 +669,14 @@ const CampaignCreationKorea = () => {
       const fileName = `logo-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-logos/${fileName}`
 
-      const { error: uploadError } = await supabaseKorea.storage
+      const client = supabaseKorea || supabaseBiz
+      const { error: uploadError } = await client.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseKorea.storage
+      const { data: { publicUrl } } = client.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -701,13 +703,14 @@ const CampaignCreationKorea = () => {
       const fileName = `thumbnail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await supabaseKorea.storage
+      const client = supabaseKorea || supabaseBiz
+      const { error: uploadError } = await client.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseKorea.storage
+      const { data: { publicUrl } } = client.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -734,13 +737,14 @@ const CampaignCreationKorea = () => {
       const fileName = `product-detail-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `campaign-images/${fileName}`
 
-      const { error: uploadError } = await supabaseKorea.storage
+      const client = supabaseKorea || supabaseBiz
+      const { error: uploadError } = await client.storage
         .from('campaign-images')
         .upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabaseKorea.storage
+      const { data: { publicUrl } } = client.storage
         .from('campaign-images')
         .getPublicUrl(filePath)
 
@@ -861,9 +865,10 @@ const CampaignCreationKorea = () => {
         company_email: userEmail
       }
 
+      const client = supabaseKorea || supabaseBiz
       if (editId) {
         // 수정 모드: 포인트 차감 없이 수정만 진행
-        const { error: updateError } = await supabaseKorea
+        const { error: updateError } = await client
           .from('campaigns')
           .update(campaignData)
           .eq('id', editId)
@@ -873,7 +878,7 @@ const CampaignCreationKorea = () => {
         setSuccess('캠페인이 수정되었습니다!')
       } else {
         // 신규 생성 모드
-        const { data: insertData, error: insertError } = await supabaseKorea
+        const { data: insertData, error: insertError } = await client
           .from('campaigns')
           .insert([{
             ...campaignData,

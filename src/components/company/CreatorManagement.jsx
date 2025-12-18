@@ -88,8 +88,9 @@ export default function CreatorManagement() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      // 캠페인 목록 가져오기
-      const { data: campaignsData } = await supabaseKorea
+      // 캠페인 목록 가져오기 (supabaseKorea가 없으면 supabaseBiz 사용)
+      const client = supabaseKorea || supabaseBiz
+      const { data: campaignsData } = await client
         .from('campaigns')
         .select('id, title, campaign_type, status, main_image, thumbnail')
         .eq('company_email', user.email)
@@ -119,7 +120,8 @@ export default function CreatorManagement() {
     }
 
     try {
-      const { data: applications, error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data: applications, error } = await client
         .from('applications')
         .select(`
           id,
@@ -175,7 +177,8 @@ export default function CreatorManagement() {
 
   const fetchCampaignCreators = async (campaignId) => {
     try {
-      const { data: applications, error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data: applications, error } = await client
         .from('applications')
         .select('*')
         .eq('campaign_id', campaignId)

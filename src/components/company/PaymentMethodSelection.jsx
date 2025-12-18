@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients';
+import { supabaseKorea, supabaseBiz, supabaseJapan, supabaseUS } from '../../lib/supabaseClients';
 import TossPaymentWidget from '../payment/TossPaymentWidget';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
@@ -17,12 +17,12 @@ const PaymentMethodSelection = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 지역별 Supabase 클라이언트 선택
+  // 지역별 Supabase 클라이언트 선택 (null 체크 포함)
   const getSupabaseClient = (region) => {
     switch(region) {
-      case 'japan': return supabaseJapan;
-      case 'us': return supabaseUS;
-      default: return supabaseKorea;
+      case 'japan': return supabaseJapan || supabaseBiz;
+      case 'us': return supabaseUS || supabaseBiz;
+      default: return supabaseKorea || supabaseBiz;
     }
   };
 
