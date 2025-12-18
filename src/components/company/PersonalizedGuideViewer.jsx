@@ -192,7 +192,7 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
         </div>
       </div>
 
-      {/* Shooting Scenes - Compact Design */}
+      {/* Shooting Scenes - Table Format */}
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
           <Camera className="w-4 h-4 text-purple-600" />
@@ -201,79 +201,91 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
           </h4>
         </div>
 
-        <div className="p-3 space-y-2">
-          {displayData.shooting_scenes?.map((scene, index) => (
-            <div
-              key={index}
-              className="relative bg-gray-50 rounded-lg p-3 border border-gray-100 hover:border-purple-200 transition-all"
-            >
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-purple-400 to-pink-400 rounded-l-lg"></div>
-
-              <div className="pl-2">
-                {/* Scene badges - inline */}
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold">
-                    장면 {scene.order}
-                  </span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${getSceneTypeStyle(scene.scene_type)}`}>
-                    {scene.scene_type}
-                  </span>
-                </div>
-
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={scene.scene_description}
-                      onChange={(e) => {
-                        const newScenes = [...editedGuide.shooting_scenes]
-                        newScenes[index].scene_description = e.target.value
-                        setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
-                      }}
-                      className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                      placeholder="장면 설명"
-                    />
-                    <input
-                      type="text"
-                      value={scene.dialogue}
-                      onChange={(e) => {
-                        const newScenes = [...editedGuide.shooting_scenes]
-                        newScenes[index].dialogue = e.target.value
-                        setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
-                      }}
-                      className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                      placeholder="대사"
-                    />
-                    <input
-                      type="text"
-                      value={scene.shooting_tip}
-                      onChange={(e) => {
-                        const newScenes = [...editedGuide.shooting_scenes]
-                        newScenes[index].shooting_tip = e.target.value
-                        setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
-                      }}
-                      className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                      placeholder="촬영 팁"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <p className="text-sm text-gray-800">
-                      <span className="font-medium">장면:</span> {scene.scene_description}
-                    </p>
-                    <div className="flex items-start gap-1.5 text-sm text-gray-700">
-                      <MessageSquare className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
-                      <span className="italic">"{scene.dialogue}"</span>
-                    </div>
-                    <div className="flex items-start gap-1.5 text-xs text-gray-500">
-                      <Lightbulb className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <span>촬영 팁: {scene.shooting_tip}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-16">순서</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-24">장면 유형</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">촬영 장면</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">대사 및 자막</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider w-48">촬영 팁</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {displayData.shooting_scenes?.map((scene, index) => (
+                <tr key={index} className="hover:bg-purple-50/30 transition-colors">
+                  <td className="px-4 py-3">
+                    <span className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-2.5 py-1 rounded-full text-xs font-bold">
+                      {scene.order}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${getSceneTypeStyle(scene.scene_type)}`}>
+                      {scene.scene_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={scene.scene_description}
+                        onChange={(e) => {
+                          const newScenes = [...editedGuide.shooting_scenes]
+                          newScenes[index].scene_description = e.target.value
+                          setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
+                        }}
+                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        placeholder="장면 설명"
+                      />
+                    ) : (
+                      <p className="text-sm text-gray-800">{scene.scene_description}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={scene.dialogue}
+                        onChange={(e) => {
+                          const newScenes = [...editedGuide.shooting_scenes]
+                          newScenes[index].dialogue = e.target.value
+                          setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
+                        }}
+                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        placeholder="대사"
+                      />
+                    ) : (
+                      <div className="flex items-start gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700 italic">"{scene.dialogue}"</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={scene.shooting_tip}
+                        onChange={(e) => {
+                          const newScenes = [...editedGuide.shooting_scenes]
+                          newScenes[index].shooting_tip = e.target.value
+                          setEditedGuide({ ...editedGuide, shooting_scenes: newScenes })
+                        }}
+                        className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
+                        placeholder="촬영 팁"
+                      />
+                    ) : (
+                      <div className="flex items-start gap-1.5">
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-xs text-gray-500">{scene.shooting_tip}</span>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

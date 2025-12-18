@@ -4213,20 +4213,28 @@ export default function CampaignDetail() {
                     guide={selectedGuide.personalized_guide}
                     creator={selectedGuide}
                     onSave={async (updatedGuide) => {
-                      await supabase
+                      const { error } = await supabase
                         .from('applications')
-                        .update({ 
+                        .update({
                           personalized_guide: updatedGuide,
                           guide_updated_at: new Date().toISOString()
                         })
                         .eq('id', selectedGuide.id)
-                      
+
+                      if (error) {
+                        console.error('가이드 저장 실패:', error)
+                        throw new Error('데이터베이스 저장 실패: ' + error.message)
+                      }
+
                       // Update local state
                       setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
-                      const updatedParticipants = participants.map(p => 
+                      const updatedParticipants = participants.map(p =>
                         p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
                       )
                       setParticipants(updatedParticipants)
+
+                      // Refresh participants to ensure data consistency
+                      await fetchParticipants()
                     }}
                   />
                 )}
