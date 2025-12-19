@@ -722,11 +722,6 @@ export default function CompanyProfileEdit() {
 
               {/* 입력 정보 확인 */}
               <div className="space-y-6 border-t border-gray-200 pt-8">
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold mb-2">입력하신 정보를 확인해주세요</h3>
-                    <p className="text-gray-600">정보가 정확한지 확인 후 등록을 완료해주세요.</p>
-                  </div>
-
                   <div className="space-y-4">
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h4 className="font-semibold mb-3">기본 정보</h4>

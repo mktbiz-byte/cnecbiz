@@ -511,8 +511,15 @@ export default function CampaignDetail() {
 
   const fetchVideoSubmissions = async () => {
     try {
+      // video_submissions는 항상 supabaseKorea에 저장됨 (supabaseKorea가 없으면 supabaseBiz fallback)
+      const videoClient = supabaseKorea || supabaseBiz
+      if (!videoClient) {
+        console.error('No supabase client available for video submissions')
+        return
+      }
+
       console.log('Fetching video submissions for campaign_id:', id)
-      const { data, error } = await supabase
+      const { data, error } = await videoClient
         .from('video_submissions')
         .select('*')
         .eq('campaign_id', id)
@@ -545,7 +552,7 @@ export default function CampaignDetail() {
 
               if (pathMatch) {
                 const filePath = pathMatch[1]
-                const { data: signedData, error: signedError } = await supabase.storage
+                const { data: signedData, error: signedError } = await videoClient.storage
                   .from(bucketName)
                   .createSignedUrl(filePath, 18000) // 5 hours = 18000 seconds
 
