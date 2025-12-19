@@ -62,7 +62,10 @@ export default function ConsultationManagement() {
   const selectConsultation = (consultation) => {
     setSelectedConsultation(consultation)
     setContractStatus(consultation.contract_status || 'pending')
-    setExpectedRevenue(consultation.expected_revenue || '')
+    // expected_revenue가 0일 때도 표시되도록 수정
+    setExpectedRevenue(consultation.expected_revenue !== null && consultation.expected_revenue !== undefined
+      ? String(consultation.expected_revenue)
+      : '')
     setContractSent(consultation.contract_sent || false)
     setMemo(consultation.memo || '')
     setNewRecord('')
@@ -107,11 +110,16 @@ export default function ConsultationManagement() {
     if (!selectedConsultation) return
 
     try {
+      // expectedRevenue 값 변환: 빈 문자열이면 null, 그 외에는 숫자로 변환
+      const revenueValue = expectedRevenue !== '' && expectedRevenue !== null && expectedRevenue !== undefined
+        ? parseInt(String(expectedRevenue).replace(/,/g, ''), 10)
+        : null
+
       const { error } = await supabaseBiz
         .from('consultation_requests')
         .update({
           contract_status: contractStatus,
-          expected_revenue: expectedRevenue ? parseInt(expectedRevenue) : null,
+          expected_revenue: isNaN(revenueValue) ? null : revenueValue,
           contract_sent: contractSent,
           updated_at: new Date().toISOString()
         })
@@ -123,6 +131,7 @@ export default function ConsultationManagement() {
       fetchConsultations()
     } catch (error) {
       console.error('계약 정보 저장 오류:', error)
+      alert('계약 정보 저장에 실패했습니다: ' + error.message)
     }
   }
 
