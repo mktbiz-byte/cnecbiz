@@ -25,7 +25,8 @@ import {
   Download,
   RefreshCw,
   Camera,
-  Hash
+  Hash,
+  Trash2
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CreatorCard from './CreatorCard'
@@ -110,6 +111,8 @@ export default function CampaignDetail() {
   const [show4WeekGuideModal, setShow4WeekGuideModal] = useState(false)
   const [showOliveyoungGuideModal, setShowOliveyoungGuideModal] = useState(false)
   const [showCampaignGuidePopup, setShowCampaignGuidePopup] = useState(false) // 캠페인 등록 정보 팝업
+  const [showDeleteModal, setShowDeleteModal] = useState(false) // 캠페인 삭제 모달
+  const [isDeleting, setIsDeleting] = useState(false)
   const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
   const [creatorForSetup, setCreatorForSetup] = useState(null)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
@@ -226,6 +229,41 @@ export default function CampaignDetail() {
       setIsAdmin(!!adminData)
     } catch (error) {
       console.error('Error checking admin status:', error)
+    }
+  }
+
+  // 캠페인 삭제 함수
+  const handleDeleteCampaign = async () => {
+    if (!campaign) return
+
+    setIsDeleting(true)
+    try {
+      // 관련 applications도 함께 삭제
+      const { error: appError } = await supabase
+        .from('applications')
+        .delete()
+        .eq('campaign_id', campaign.id)
+
+      if (appError) {
+        console.error('Error deleting applications:', appError)
+      }
+
+      // 캠페인 삭제
+      const { error } = await supabase
+        .from('campaigns')
+        .delete()
+        .eq('id', campaign.id)
+
+      if (error) throw error
+
+      alert('캠페인이 삭제되었습니다.')
+      navigate('/company/campaigns')
+    } catch (error) {
+      console.error('Error deleting campaign:', error)
+      alert('캠페인 삭제에 실패했습니다: ' + (error.message || '알 수 없는 오류'))
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteModal(false)
     }
   }
 
@@ -2428,10 +2466,10 @@ export default function CampaignDetail() {
 
                       {/* 배송 정보 + 택배 + 가이드 - 한 줄 컴팩트 레이아웃 */}
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        {/* 배송 주소 */}
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg">
+                        {/* 배송 주소 - 전체 표시 */}
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg min-w-0 flex-shrink">
                           <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                          <span className="truncate max-w-[200px]">{shippingAddress || '주소 미입력'}</span>
+                          <span className="break-all">{shippingAddress || '주소 미입력'}</span>
                         </div>
 
                         {/* 택배사 + 송장번호 인라인 */}
@@ -2516,6 +2554,46 @@ export default function CampaignDetail() {
                                 <Sparkles className="w-3 h-3 mr-1" />
                                 AI 가이드 생성
                               </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 4주 챌린지 가이드 섹션 - 인라인 버튼 */}
+                        {campaign.campaign_type === '4week_challenge' && (
+                          <div className="flex items-center gap-1.5">
+                            {campaign.challenge_weekly_guides_ai ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => setShow4WeekGuideModal(true)}
+                                  className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-xs px-3 py-1 h-auto"
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  가이드 보기
+                                </Button>
+                                {!participant.guide_confirmed ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      if (!confirm(`${creatorName}님에게 4주 챌린지 가이드를 전달하시겠습니까?`)) return
+                                      await handleDeliver4WeekGuideByWeek(1)
+                                    }}
+                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
+                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                  >
+                                    <Send className="w-3 h-3 mr-1" />
+                                    전달하기
+                                  </Button>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    전달완료
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-gray-500 text-xs">가이드 생성 필요</span>
                             )}
                           </div>
                         )}
@@ -2791,22 +2869,32 @@ export default function CampaignDetail() {
             {getApprovalStatusBadge(campaign.approval_status)}
             {/* 수정 버튼: draft, pending_payment, rejected 상태에서 표시 (취소되지 않은 경우만) */}
             {(campaign.status === 'draft' || ['draft', 'pending_payment', 'rejected'].includes(campaign.approval_status)) && !campaign.is_cancelled && (
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  let editPath
-                  if (region === 'japan') {
-                    editPath = `/company/campaigns/create/japan?id=${id}`
-                  } else if (region === 'us') {
-                    editPath = `/company/campaigns/create/us?id=${id}`
-                  } else {
-                    editPath = `/company/campaigns/create/korea?edit=${id}`
-                  }
-                  navigate(editPath)
-                }}
-              >
-                수정
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    let editPath
+                    if (region === 'japan') {
+                      editPath = `/company/campaigns/create/japan?id=${id}`
+                    } else if (region === 'us') {
+                      editPath = `/company/campaigns/create/us?id=${id}`
+                    } else {
+                      editPath = `/company/campaigns/create/korea?edit=${id}`
+                    }
+                    navigate(editPath)
+                  }}
+                >
+                  수정
+                </Button>
+                <Button
+                  variant="outline"
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                  onClick={() => setShowDeleteModal(true)}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  삭제
+                </Button>
+              </>
             )}
             {/* 결제 요청 버튼: draft 또는 pending_payment 상태에서만 표시 */}
             {(campaign.approval_status === 'draft' || campaign.approval_status === 'pending_payment') && !campaign.is_cancelled && (
@@ -5500,6 +5588,58 @@ export default function CampaignDetail() {
                 onClick={() => setShowCampaignGuidePopup(false)}
               >
                 닫기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 캠페인 삭제 확인 모달 */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b bg-red-50">
+              <h2 className="text-lg font-bold text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                캠페인 삭제 확인
+              </h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-gray-700">
+                정말로 <span className="font-bold text-gray-900">{campaign?.title}</span> 캠페인을 삭제하시겠습니까?
+              </p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700 text-sm font-medium">⚠️ 주의사항</p>
+                <ul className="text-red-600 text-sm mt-2 space-y-1 list-disc list-inside">
+                  <li>삭제된 캠페인은 복구할 수 없습니다</li>
+                  <li>관련된 신청자 데이터도 함께 삭제됩니다</li>
+                </ul>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteCampaign}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    삭제 중...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    삭제하기
+                  </>
+                )}
               </Button>
             </div>
           </div>

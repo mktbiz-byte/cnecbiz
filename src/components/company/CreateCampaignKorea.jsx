@@ -778,6 +778,28 @@ const CampaignCreationKorea = () => {
     setSuccess('')
 
     try {
+      // 필수 필드 검증
+      if (!campaignForm.brand || !campaignForm.brand.trim()) {
+        setError('브랜드명을 입력해주세요.')
+        setProcessing(false)
+        return
+      }
+      if (!campaignForm.product_name || !campaignForm.product_name.trim()) {
+        setError('상품명을 입력해주세요.')
+        setProcessing(false)
+        return
+      }
+      if (!campaignForm.category || campaignForm.category.length === 0) {
+        setError('모집 채널을 1개 이상 선택해주세요.')
+        setProcessing(false)
+        return
+      }
+      if (!campaignForm.application_deadline) {
+        setError('모집 마감일을 입력해주세요.')
+        setProcessing(false)
+        return
+      }
+
       // question1-4를 questions JSONB 배열로 변환
       const questions = [
         campaignForm.question1,
@@ -935,7 +957,9 @@ const CampaignCreationKorea = () => {
       }, 1500)
     } catch (err) {
       console.error('캠페인 저장 실패:', err)
-      setError('캠페인 저장에 실패했습니다: ' + err.message)
+      // Supabase 에러 객체 처리
+      const errorMessage = err?.message || err?.error?.message || err?.details || JSON.stringify(err)
+      setError('캠페인 저장에 실패했습니다: ' + errorMessage)
     } finally {
       setProcessing(false)
     }
@@ -3056,17 +3080,77 @@ const CampaignCreationKorea = () => {
                           rows={3}
                         />
                       </div>
+                      {/* 상품 링크 + 정보 가져오기 버튼 */}
                       <div>
                         <Label htmlFor="product_link">상품 링크 (URL)</Label>
-                        <Input
-                          id="product_link"
-                          type="url"
-                          value={campaignForm.product_link}
-                          onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
-                          placeholder="https://example.com/product"
-                          className="mt-1"
-                        />
+                        <div className="flex gap-2 mt-1">
+                          <div className="relative flex-1">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                            </div>
+                            <Input
+                              id="product_link"
+                              type="url"
+                              value={campaignForm.product_link}
+                              onChange={(e) => setCampaignForm(prev => ({ ...prev, product_link: e.target.value }))}
+                              placeholder="https://example.com/product"
+                              className="h-12 pl-10 border-gray-200 focus:border-purple-500 focus:ring-purple-500"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={crawlProductUrl}
+                            disabled={isCrawling || !campaignForm.product_link}
+                            className="h-12 px-4 whitespace-nowrap border-purple-300 text-purple-700 hover:bg-purple-50"
+                          >
+                            {isCrawling ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                                가져오는 중...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                정보 가져오기
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        {crawlError && (
+                          <p className={`text-xs mt-2 ${crawlError.includes('수동으로') ? 'text-purple-600' : 'text-red-500'}`}>
+                            {crawlError.includes('수동으로') ? '⚠️' : '❌'} {crawlError}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-2">💡 자사몰 url을 입력하면 상품 정보를 자동으로 가져올 수 있습니다.</p>
                       </div>
+
+                      {/* 크롤링된 정보 표시 프리뷰 */}
+                      {(campaignForm.product_name || campaignForm.image_url) && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                          <div className="flex gap-4">
+                            {/* 상품 이미지 */}
+                            {campaignForm.image_url && (
+                              <div className="flex-shrink-0">
+                                <img
+                                  src={campaignForm.image_url}
+                                  alt="상품 이미지"
+                                  className="w-24 h-24 rounded-lg object-cover border border-purple-200"
+                                />
+                              </div>
+                            )}
+                            {/* 상품 정보 */}
+                            <div className="flex-1 space-y-1">
+                              {campaignForm.product_name && (
+                                <p className="font-semibold text-gray-900">{campaignForm.product_name}</p>
+                              )}
+                              {campaignForm.product_price && (
+                                <p className="text-lg font-bold text-purple-700">{Number(campaignForm.product_price).toLocaleString()}원</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* 상품 상세 페이지 이미지 */}
                       <div>
