@@ -77,12 +77,14 @@ export default function ConsultationManagement() {
 
     // localStorage에서 contractSent 로드 (DB에 컬럼 없음)
     const savedContractSent = localStorage.getItem(`contract_sent_${consultation.id}`)
+    // localStorage에서 contract_status 로드 (DB에 컬럼 없음)
+    const savedContractStatus = localStorage.getItem(`contract_status_${consultation.id}`)
 
     setSelectedConsultation({
       ...consultation,
       records: localRecords
     })
-    setContractStatus(consultation.contract_status || 'pending')
+    setContractStatus(savedContractStatus || 'pending')
     // expected_revenue가 0일 때도 표시되도록 수정
     setExpectedRevenue(consultation.expected_revenue !== null && consultation.expected_revenue !== undefined
       ? String(consultation.expected_revenue)
@@ -239,13 +241,15 @@ export default function ConsultationManagement() {
       const { error } = await supabaseBiz
         .from('consultation_requests')
         .update({
-          contract_status: contractStatus,
           expected_revenue: isNaN(revenueValue) ? null : revenueValue,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedConsultation.id)
 
       if (error) throw error
+
+      // contract_status는 localStorage에 저장 (DB에 컬럼 없음)
+      localStorage.setItem(`contract_status_${selectedConsultation.id}`, contractStatus)
 
       // contractSent 상태는 localStorage에 저장 (DB에 컬럼 없음)
       if (contractSent !== undefined) {
@@ -302,8 +306,16 @@ export default function ConsultationManagement() {
     }
   }
 
+  const getContractStatusFromStorage = (consultationId) => {
+    try {
+      return localStorage.getItem(`contract_status_${consultationId}`) || 'pending'
+    } catch {
+      return 'pending'
+    }
+  }
+
   const getStageProgress = (consultation) => {
-    const status = consultation?.contract_status || 'pending'
+    const status = getContractStatusFromStorage(consultation?.id)
     const stages = ['신규 접수', '컨택/미팅', '제안/협상', '계약 완료']
     const stageMap = {
       'pending': 0,
@@ -338,8 +350,8 @@ export default function ConsultationManagement() {
   )
 
   const getStatusBadge = (consultation) => {
-    const contractStatus = consultation.contract_status || 'pending'
-    switch (contractStatus) {
+    const status = getContractStatusFromStorage(consultation.id)
+    switch (status) {
       case 'contracted':
         return <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">계약 완료</span>
       case 'negotiating':
@@ -435,7 +447,7 @@ export default function ConsultationManagement() {
                       </span>
                       {consultation.expected_revenue && (
                         <span className="font-medium text-green-600">
-                          계약 확률 {consultation.contract_status === 'negotiating' ? '80%' : '0%'}
+                          계약 확률 {getContractStatusFromStorage(consultation.id) === 'negotiating' ? '80%' : '0%'}
                         </span>
                       )}
                     </div>
