@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink } from 'lucide-react'
+import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award } from 'lucide-react'
+import { checkIfFeaturedCreator, GRADE_LEVELS } from '../../services/creatorGradeService'
 
 // 플랫폼 아이콘 컴포넌트
 const InstagramIcon = ({ className }) => (
@@ -31,7 +32,7 @@ const formatFollowers = (num) => {
   return num.toLocaleString()
 }
 
-export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant, onViewProfile }) {
+export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant, onViewProfile, featuredInfo: propFeaturedInfo }) {
   const {
     applicant_name,
     age,
@@ -45,7 +46,8 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
     answer_2,
     answer_3,
     answer_4,
-    additional_info
+    additional_info,
+    user_id
   } = application
 
   // 피부타입 한글 변환
@@ -64,6 +66,27 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
   // 로컬 상태로 메인 채널 관리
   const [selectedChannel, setSelectedChannel] = useState(savedMainChannel || '')
 
+  // 추천 크리에이터 상태
+  const [featuredInfo, setFeaturedInfo] = useState(propFeaturedInfo || null)
+
+  // 추천 크리에이터 확인
+  useEffect(() => {
+    if (propFeaturedInfo) {
+      setFeaturedInfo(propFeaturedInfo)
+      return
+    }
+
+    const checkFeatured = async () => {
+      if (user_id) {
+        const info = await checkIfFeaturedCreator(user_id)
+        if (info) {
+          setFeaturedInfo(info)
+        }
+      }
+    }
+    checkFeatured()
+  }, [user_id, propFeaturedInfo])
+
   // 지원한 채널 목록
   const appliedChannels = []
   if (instagram_url) appliedChannels.push({ name: 'instagram', label: 'Instagram', url: instagram_url, followers: application.instagram_followers || 0 })
@@ -72,7 +95,8 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
 
   // 평균 별점 (임시로 비활성화 - rating 필드 없음)
   const averageRating = 0
-  const isRecommended = false
+  // 추천 크리에이터 여부 - featuredInfo에서 가져옴
+  const isRecommended = featuredInfo?.isRecommended || featuredInfo?.isFeatured
 
   const handleVirtualSelect = () => {
     if (!selectedChannel && !virtual_selected) {
@@ -145,12 +169,20 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
             </div>
           )}
 
-          {/* 추천 배지 */}
-          {isRecommended && (
+          {/* 크넥 추천 배지 */}
+          {isRecommended && featuredInfo && (
             <div className="absolute top-2 left-2">
-              <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg">
-                <Sparkles className="w-3 h-3 mr-1" />
-                추천
+              <Badge
+                className="text-white shadow-lg flex items-center gap-1"
+                style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#F59E0B' }}
+              >
+                <Award className="w-3 h-3" />
+                <span className="font-bold">크넥 추천</span>
+                {featuredInfo.gradeName && (
+                  <span className="text-[10px] opacity-90 ml-0.5">
+                    {featuredInfo.gradeName}
+                  </span>
+                )}
               </Badge>
             </div>
           )}
