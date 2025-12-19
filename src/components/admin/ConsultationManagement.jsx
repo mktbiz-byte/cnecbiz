@@ -3,7 +3,7 @@ import { supabaseBiz } from '../../lib/supabaseClients'
 import {
   MessageCircle, CheckCircle, Clock, Mail, Phone, Building, Calendar,
   FileText, Search, Plus, Send, Paperclip, ChevronRight, User,
-  DollarSign, FileCheck, AlertCircle, MoreHorizontal, X
+  DollarSign, FileCheck, AlertCircle, MoreHorizontal, X, Edit2, Trash2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import AdminNavigation from './AdminNavigation'
@@ -18,6 +18,11 @@ export default function ConsultationManagement() {
   // 상담 기록 입력
   const [newRecord, setNewRecord] = useState('')
   const [recordType, setRecordType] = useState('phone') // phone, email, meeting, note
+
+  // 상담 기록 수정
+  const [editingRecordId, setEditingRecordId] = useState(null)
+  const [editingRecordContent, setEditingRecordContent] = useState('')
+  const [editingRecordType, setEditingRecordType] = useState('')
 
   // 계약 정보
   const [contractStatus, setContractStatus] = useState('pending')
@@ -70,6 +75,9 @@ export default function ConsultationManagement() {
       }
     })()
 
+    // localStorage에서 contractSent 로드 (DB에 컬럼 없음)
+    const savedContractSent = localStorage.getItem(`contract_sent_${consultation.id}`)
+
     setSelectedConsultation({
       ...consultation,
       records: localRecords
@@ -79,7 +87,7 @@ export default function ConsultationManagement() {
     setExpectedRevenue(consultation.expected_revenue !== null && consultation.expected_revenue !== undefined
       ? String(consultation.expected_revenue)
       : '')
-    setContractSent(consultation.contract_sent || false)
+    setContractSent(savedContractSent === 'true')
     setMemo(consultation.memo || '')
     setNewRecord('')
   }
@@ -141,6 +149,84 @@ export default function ConsultationManagement() {
     }
   }
 
+  // 상담 기록 수정 시작
+  const handleStartEditRecord = (record) => {
+    setEditingRecordId(record.id)
+    setEditingRecordContent(record.content)
+    setEditingRecordType(record.type)
+  }
+
+  // 상담 기록 수정 취소
+  const handleCancelEditRecord = () => {
+    setEditingRecordId(null)
+    setEditingRecordContent('')
+    setEditingRecordType('')
+  }
+
+  // 상담 기록 수정 저장
+  const handleSaveEditRecord = () => {
+    if (!editingRecordContent.trim() || !selectedConsultation || !editingRecordId) return
+
+    try {
+      const existingRecords = getLocalRecords(selectedConsultation.id)
+      const updatedRecords = existingRecords.map(record =>
+        record.id === editingRecordId
+          ? {
+              ...record,
+              content: editingRecordContent,
+              type: editingRecordType,
+              updated_at: new Date().toISOString()
+            }
+          : record
+      )
+
+      saveLocalRecords(selectedConsultation.id, updatedRecords)
+
+      setSelectedConsultation({
+        ...selectedConsultation,
+        records: updatedRecords
+      })
+
+      setConsultations(prev => prev.map(c =>
+        c.id === selectedConsultation.id
+          ? { ...c, records: updatedRecords }
+          : c
+      ))
+
+      handleCancelEditRecord()
+    } catch (error) {
+      console.error('상담 기록 수정 오류:', error)
+      alert('수정에 실패했습니다.')
+    }
+  }
+
+  // 상담 기록 삭제
+  const handleDeleteRecord = (recordId) => {
+    if (!selectedConsultation) return
+    if (!confirm('이 상담 기록을 삭제하시겠습니까?')) return
+
+    try {
+      const existingRecords = getLocalRecords(selectedConsultation.id)
+      const updatedRecords = existingRecords.filter(record => record.id !== recordId)
+
+      saveLocalRecords(selectedConsultation.id, updatedRecords)
+
+      setSelectedConsultation({
+        ...selectedConsultation,
+        records: updatedRecords
+      })
+
+      setConsultations(prev => prev.map(c =>
+        c.id === selectedConsultation.id
+          ? { ...c, records: updatedRecords }
+          : c
+      ))
+    } catch (error) {
+      console.error('상담 기록 삭제 오류:', error)
+      alert('삭제에 실패했습니다.')
+    }
+  }
+
   const handleSaveContract = async () => {
     if (!selectedConsultation) return
 
@@ -155,12 +241,16 @@ export default function ConsultationManagement() {
         .update({
           contract_status: contractStatus,
           expected_revenue: isNaN(revenueValue) ? null : revenueValue,
-          contract_sent: contractSent,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedConsultation.id)
 
       if (error) throw error
+
+      // contractSent 상태는 localStorage에 저장 (DB에 컬럼 없음)
+      if (contractSent !== undefined) {
+        localStorage.setItem(`contract_sent_${selectedConsultation.id}`, contractSent ? 'true' : 'false')
+      }
 
       alert('계약 정보가 저장되었습니다.')
       fetchConsultations()
@@ -495,14 +585,76 @@ export default function ConsultationManagement() {
                                   {getRecordIcon(record.type)}
                                 </div>
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-medium text-gray-900">{getRecordTypeLabel(record.type)}</span>
-                                    <span className="text-xs text-gray-500">by {record.author}</span>
-                                    <span className="text-xs text-gray-400">
-                                      {new Date(record.created_at).toLocaleString('ko-KR')}
-                                    </span>
-                                  </div>
-                                  <p className="text-gray-700">{record.content}</p>
+                                  {editingRecordId === record.id ? (
+                                    /* 수정 모드 */
+                                    <div className="space-y-3">
+                                      <select
+                                        value={editingRecordType}
+                                        onChange={(e) => setEditingRecordType(e.target.value)}
+                                        className="px-3 py-1.5 border rounded-lg text-sm"
+                                      >
+                                        <option value="phone">전화 상담</option>
+                                        <option value="email">이메일</option>
+                                        <option value="meeting">미팅</option>
+                                        <option value="note">메모</option>
+                                      </select>
+                                      <textarea
+                                        value={editingRecordContent}
+                                        onChange={(e) => setEditingRecordContent(e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-lg resize-none text-sm"
+                                        rows={3}
+                                      />
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={handleSaveEditRecord}
+                                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                                        >
+                                          저장
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={handleCancelEditRecord}
+                                        >
+                                          취소
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    /* 보기 모드 */
+                                    <>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-medium text-gray-900">{getRecordTypeLabel(record.type)}</span>
+                                          <span className="text-xs text-gray-500">by {record.author}</span>
+                                          <span className="text-xs text-gray-400">
+                                            {new Date(record.created_at).toLocaleString('ko-KR')}
+                                          </span>
+                                          {record.updated_at && record.updated_at !== record.created_at && (
+                                            <span className="text-xs text-blue-500">(수정됨)</span>
+                                          )}
+                                        </div>
+                                        <div className="flex gap-1">
+                                          <button
+                                            onClick={() => handleStartEditRecord(record)}
+                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                            title="수정"
+                                          >
+                                            <Edit2 className="w-3.5 h-3.5" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteRecord(record.id)}
+                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                            title="삭제"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <p className="text-gray-700">{record.content}</p>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             ))
