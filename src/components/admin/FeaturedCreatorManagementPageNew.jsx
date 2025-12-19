@@ -10,12 +10,20 @@ import { Alert, AlertDescription } from '../ui/alert'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/dialog'
 import { Badge } from '../ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
-import { 
+import {
   Star, Plus, Edit, Trash2, Loader2, Mail, Send,
-  TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2
+  TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2, Search, Crown
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import {
+  GRADE_LEVELS,
+  BADGE_TYPES,
+  calculateInitialGrade,
+  saveCreatorGrade,
+  searchCreatorsFromRegions,
+  registerFeaturedCreator
+} from '../../services/creatorGradeService'
 
 export default function FeaturedCreatorManagementPageNew() {
   const navigate = useNavigate()
@@ -44,7 +52,7 @@ export default function FeaturedCreatorManagementPageNew() {
   const [sendingReport, setSendingReport] = useState(false)
 
   // CNEC Plus state
-  const [activeTab, setActiveTab] = useState('featured')
+  const [activeTab, setActiveTab] = useState('graded')  // 기본 탭을 등급제로 변경
   const [cnecPlusCreators, setCnecPlusCreators] = useState([])
   const [showCnecPlusForm, setShowCnecPlusForm] = useState(false)
   const [showCnecPlusCreatorModal, setShowCnecPlusCreatorModal] = useState(false)
@@ -62,6 +70,17 @@ export default function FeaturedCreatorManagementPageNew() {
     display_order: 0
   })
 
+  // 등급제 크리에이터 state
+  const [gradedCreators, setGradedCreators] = useState([])
+  const [loadingGraded, setLoadingGraded] = useState(false)
+  const [showGradedCreatorModal, setShowGradedCreatorModal] = useState(false)
+  const [gradedSearchQuery, setGradedSearchQuery] = useState('')
+  const [gradedSearchRegions, setGradedSearchRegions] = useState(['korea', 'japan', 'us'])
+  const [gradedSearchResults, setGradedSearchResults] = useState([])
+  const [searchingGraded, setSearchingGraded] = useState(false)
+  const [selectedGradedCreator, setSelectedGradedCreator] = useState(null)
+  const [gradeFilter, setGradeFilter] = useState('all')
+
   // Registered creator selection
   const [showCreatorSelectModal, setShowCreatorSelectModal] = useState(false)
   const [selectedRegionForSearch, setSelectedRegionForSearch] = useState('korea')
@@ -72,7 +91,102 @@ export default function FeaturedCreatorManagementPageNew() {
   useEffect(() => {
     loadFeaturedCreators()
     loadCnecPlusCreators()
+    loadGradedCreators()
   }, [])
+
+  // 등급제 크리에이터 목록 로드
+  const loadGradedCreators = async () => {
+    setLoadingGraded(true)
+    try {
+      const { data, error } = await supabaseBiz
+        .from('featured_creators')
+        .select('*')
+        .eq('is_active', true)
+        .not('cnec_grade_level', 'is', null)
+        .order('cnec_grade_level', { ascending: false })
+        .order('cnec_total_score', { ascending: false })
+
+      if (error) throw error
+      setGradedCreators(data || [])
+    } catch (err) {
+      console.error('등급제 크리에이터 로드 오류:', err)
+      // 테이블에 컬럼이 없는 경우 전체 크리에이터 로드
+      try {
+        const { data } = await supabaseBiz
+          .from('featured_creators')
+          .select('*')
+          .eq('is_active', true)
+          .order('capi_score', { ascending: false, nullsLast: true })
+        setGradedCreators(data || [])
+      } catch (e) {
+        console.error('Fallback 로드 오류:', e)
+      }
+    } finally {
+      setLoadingGraded(false)
+    }
+  }
+
+  // 3개 지역 DB에서 크리에이터 검색
+  const handleSearchGradedCreators = async () => {
+    setSearchingGraded(true)
+    try {
+      const results = await searchCreatorsFromRegions(gradedSearchQuery, gradedSearchRegions)
+      setGradedSearchResults(results)
+    } catch (err) {
+      console.error('크리에이터 검색 오류:', err)
+      alert('검색 중 오류가 발생했습니다.')
+    } finally {
+      setSearchingGraded(false)
+    }
+  }
+
+  // 크리에이터를 추천 크리에이터로 등록
+  const handleRegisterGradedCreator = async (creator) => {
+    try {
+      const result = await registerFeaturedCreator(creator, creator.source_region)
+      if (result.success) {
+        alert(`${creator.name || creator.channel_name}님이 추천 크리에이터로 등록되었습니다.\n등급: ${result.gradeInfo.gradeName}`)
+        setShowGradedCreatorModal(false)
+        setGradedSearchResults([])
+        setGradedSearchQuery('')
+        await loadGradedCreators()
+        await loadFeaturedCreators()
+      } else {
+        throw result.error
+      }
+    } catch (err) {
+      console.error('등록 오류:', err)
+      alert('등록 중 오류가 발생했습니다: ' + err.message)
+    }
+  }
+
+  // 등급 수동 업데이트
+  const handleUpdateGrade = async (creatorId, newGradeLevel, isManualMuse = false) => {
+    try {
+      const gradeName = GRADE_LEVELS[newGradeLevel].name
+      const { error } = await supabaseBiz
+        .from('featured_creators')
+        .update({
+          cnec_grade_level: newGradeLevel,
+          cnec_grade_name: gradeName,
+          is_cnec_recommended: newGradeLevel >= 2
+        })
+        .eq('id', creatorId)
+
+      if (error) throw error
+
+      alert(`등급이 ${gradeName}(으)로 변경되었습니다.`)
+      await loadGradedCreators()
+    } catch (err) {
+      console.error('등급 업데이트 오류:', err)
+      alert('등급 업데이트 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 등급별 필터링된 크리에이터 목록
+  const filteredGradedCreators = gradeFilter === 'all'
+    ? gradedCreators
+    : gradedCreators.filter(c => c.cnec_grade_level === parseInt(gradeFilter))
 
   const loadFeaturedCreators = async () => {
     try {
@@ -962,15 +1076,174 @@ export default function FeaturedCreatorManagementPageNew() {
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="mb-6">
+                <TabsTrigger value="graded">
+                  <Crown className="w-4 h-4 mr-2" />
+                  등급제 크리에이터
+                </TabsTrigger>
                 <TabsTrigger value="featured">
                   <Star className="w-4 h-4 mr-2" />
-                  추천 크리에이터
+                  CAPI 크리에이터
                 </TabsTrigger>
                 <TabsTrigger value="cnecplus">
                   <Sparkles className="w-4 h-4 mr-2" />
                   CNEC Plus
                 </TabsTrigger>
               </TabsList>
+
+              {/* 등급제 크리에이터 탭 */}
+              <TabsContent value="graded">
+                <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">크넥 등급제 크리에이터</h3>
+                    <p className="text-sm text-gray-500">FRESH → GLOW → BLOOM → ICONIC → MUSE 등급으로 크리에이터를 관리합니다</p>
+                  </div>
+                  <Button onClick={() => setShowGradedCreatorModal(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    크리에이터 추가
+                  </Button>
+                </div>
+
+                {/* 등급 필터 */}
+                <div className="flex gap-2 mb-6 flex-wrap">
+                  <Button
+                    variant={gradeFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setGradeFilter('all')}
+                  >
+                    전체 ({gradedCreators.length})
+                  </Button>
+                  {Object.entries(GRADE_LEVELS).map(([level, info]) => {
+                    const count = gradedCreators.filter(c => c.cnec_grade_level === parseInt(level)).length
+                    return (
+                      <Button
+                        key={level}
+                        variant={gradeFilter === level ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setGradeFilter(level)}
+                        className="gap-1"
+                        style={gradeFilter === level ? { backgroundColor: info.color } : {}}
+                      >
+                        <span style={{ color: gradeFilter !== level ? info.color : 'inherit' }}>
+                          {info.name}
+                        </span>
+                        <span className="text-xs opacity-70">({count})</span>
+                      </Button>
+                    )
+                  })}
+                </div>
+
+                {/* 등급제 크리에이터 목록 */}
+                {loadingGraded ? (
+                  <div className="text-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                  </div>
+                ) : filteredGradedCreators.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center text-gray-500">
+                      <Crown className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>등록된 등급제 크리에이터가 없습니다</p>
+                      <p className="text-sm mt-2">크리에이터를 추가하여 등급제를 시작하세요</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredGradedCreators.map(creator => {
+                      const gradeInfo = GRADE_LEVELS[creator.cnec_grade_level || 1]
+                      return (
+                        <Card key={creator.id} className="overflow-hidden">
+                          <div
+                            className="h-2"
+                            style={{ backgroundColor: gradeInfo.color }}
+                          />
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              {/* 프로필 이미지 */}
+                              <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                                {creator.profile_image_url || creator.profile_image ? (
+                                  <img
+                                    src={creator.profile_image_url || creator.profile_image}
+                                    alt={creator.name || creator.channel_name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Users className="w-8 h-8 text-gray-300" />
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold truncate">{creator.name || creator.channel_name}</h3>
+                                  <Badge
+                                    className="text-white text-xs"
+                                    style={{ backgroundColor: gradeInfo.color }}
+                                  >
+                                    {gradeInfo.name}
+                                  </Badge>
+                                </div>
+
+                                <div className="text-sm text-gray-500 mb-2">
+                                  {creator.cnec_total_score?.toFixed(1) || 0}점
+                                  {creator.primary_country && (
+                                    <span className="ml-2">
+                                      {getRegionFlag(creator.primary_country?.toLowerCase())}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* 등급 변경 드롭다운 */}
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                    value={String(creator.cnec_grade_level || 1)}
+                                    onValueChange={(value) => handleUpdateGrade(creator.id, parseInt(value))}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs w-28">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {Object.entries(GRADE_LEVELS).map(([level, info]) => (
+                                        <SelectItem key={level} value={level}>
+                                          <span style={{ color: info.color }}>{info.name}</span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8"
+                                    onClick={() => handleDelete(creator.id)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 통계 */}
+                            <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs text-center">
+                              <div>
+                                <div className="font-semibold">{creator.instagram_followers?.toLocaleString() || '-'}</div>
+                                <div className="text-gray-500">Instagram</div>
+                              </div>
+                              <div>
+                                <div className="font-semibold">{creator.youtube_subscribers?.toLocaleString() || '-'}</div>
+                                <div className="text-gray-500">YouTube</div>
+                              </div>
+                              <div>
+                                <div className="font-semibold">{creator.tiktok_followers?.toLocaleString() || '-'}</div>
+                                <div className="text-gray-500">TikTok</div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </TabsContent>
 
               <TabsContent value="featured">
                 {/* Action Button and Filter */}
@@ -1404,6 +1677,170 @@ export default function FeaturedCreatorManagementPageNew() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 등급제 크리에이터 추가 모달 */}
+      <Dialog open={showGradedCreatorModal} onOpenChange={setShowGradedCreatorModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-amber-500" />
+              등급제 크리에이터 추가
+            </DialogTitle>
+            <DialogDescription>
+              한국, 일본, 미국 DB에서 크리에이터를 검색하여 추천 크리에이터로 등록합니다
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* 지역 선택 */}
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm font-medium py-2">검색 지역:</span>
+              {[
+                { id: 'korea', name: '한국', flag: '🇰🇷' },
+                { id: 'japan', name: '일본', flag: '🇯🇵' },
+                { id: 'us', name: '미국', flag: '🇺🇸' }
+              ].map(region => (
+                <Button
+                  key={region.id}
+                  variant={gradedSearchRegions.includes(region.id) ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setGradedSearchRegions(prev =>
+                      prev.includes(region.id)
+                        ? prev.filter(r => r !== region.id)
+                        : [...prev, region.id]
+                    )
+                  }}
+                >
+                  {region.flag} {region.name}
+                </Button>
+              ))}
+            </div>
+
+            {/* 검색 */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="이름, 이메일, 채널명으로 검색..."
+                value={gradedSearchQuery}
+                onChange={(e) => setGradedSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearchGradedCreators()}
+                className="flex-1"
+              />
+              <Button onClick={handleSearchGradedCreators} disabled={searchingGraded || gradedSearchRegions.length === 0}>
+                {searchingGraded ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+                <span className="ml-2">검색</span>
+              </Button>
+            </div>
+
+            {/* 등급 안내 */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="font-medium mb-2">등급 시스템 안내</h4>
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(GRADE_LEVELS).map(([level, info]) => (
+                  <div key={level} className="flex items-center gap-1.5">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: info.color }}
+                    />
+                    <span className="text-sm">
+                      Lv.{level} {info.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 검색 결과 */}
+            {searchingGraded ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                <p className="text-sm text-gray-500 mt-2">크리에이터 검색 중...</p>
+              </div>
+            ) : gradedSearchResults.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>검색어를 입력하고 검색 버튼을 클릭하세요</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {gradedSearchResults.map(creator => (
+                  <Card
+                    key={`${creator.source_region}-${creator.id}`}
+                    className="cursor-pointer hover:border-amber-500 hover:shadow-md transition-all"
+                    onClick={() => handleRegisterGradedCreator(creator)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        {/* 프로필 이미지 */}
+                        <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                          {creator.profile_image || creator.profile_image_url || creator.avatar_url ? (
+                            <img
+                              src={creator.profile_image || creator.profile_image_url || creator.avatar_url}
+                              alt={creator.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Users className="w-6 h-6 text-gray-300" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 정보 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold truncate">{creator.name || creator.channel_name}</h4>
+                            <Badge variant="outline" className="text-xs">
+                              {getRegionFlag(creator.source_region)} {getRegionName(creator.source_region)}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-gray-500 truncate">{creator.email}</div>
+                          {creator.channel_name && creator.channel_name !== creator.name && (
+                            <div className="text-sm text-gray-600 mt-1">채널: {creator.channel_name}</div>
+                          )}
+                        </div>
+
+                        {/* SNS 정보 */}
+                        <div className="flex flex-col gap-1 text-xs text-right">
+                          {creator.instagram_followers > 0 && (
+                            <span className="text-pink-600">IG: {creator.instagram_followers?.toLocaleString()}</span>
+                          )}
+                          {creator.youtube_subscribers > 0 && (
+                            <span className="text-red-600">YT: {creator.youtube_subscribers?.toLocaleString()}</span>
+                          )}
+                          {creator.tiktok_followers > 0 && (
+                            <span className="text-gray-800">TT: {creator.tiktok_followers?.toLocaleString()}</span>
+                          )}
+                        </div>
+
+                        {/* 등록 버튼 */}
+                        <Button size="sm" className="bg-amber-500 hover:bg-amber-600">
+                          <Plus className="w-4 h-4 mr-1" />
+                          등록
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowGradedCreatorModal(false)
+              setGradedSearchResults([])
+              setGradedSearchQuery('')
+            }}>
+              닫기
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
