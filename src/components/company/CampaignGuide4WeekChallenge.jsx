@@ -656,8 +656,17 @@ JSON 형식으로 작성해주세요.`
               size="lg"
               className="h-12 text-base font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-              가이드 완성 및 견적서 확인
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  AI가 가이드를 생성중입니다...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  가이드 완성 및 견적서 확인
+                </>
+              )}
             </Button>
           </div>
         </div>

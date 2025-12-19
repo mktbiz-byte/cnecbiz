@@ -177,11 +177,13 @@ export default function ConsultationBanner() {
       <div className={`fixed bottom-24 right-6 z-50 ${
         isMainPage ? '' : 'hidden md:block'
       }`}>
-        <button
-          onClick={() => setIsModalOpen(true)}
+        <a
+          href="https://pf.kakao.com/_xgNdxlG"
+          target="_blank"
+          rel="noopener noreferrer"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className="group relative"
+          className="group relative block"
         >
           {/* 글로우 효과 */}
           <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-full blur-lg opacity-60 group-hover:opacity-80 transition-opacity" />
@@ -189,17 +191,16 @@ export default function ConsultationBanner() {
           {/* 메인 버튼 */}
           <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full px-6 py-3.5 flex items-center gap-3 shadow-2xl hover:shadow-violet-500/25 transition-all duration-300 hover:scale-105">
             <div className="relative">
-              <Sparkles className="w-5 h-5" />
+              <MessageCircle className="w-5 h-5" />
               {/* 펄스 애니메이션 */}
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-bold">30초 만에 견적받기</p>
-              <p className="text-xs text-violet-200">전담 매니저가 즉시 연락드려요</p>
+              <p className="text-sm font-bold">진행중인 캠페인 문의</p>
             </div>
             <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
           </div>
-        </button>
+        </a>
       </div>
 
       {/* 상담 신청 모달 - 프리미엄 디자인 */}

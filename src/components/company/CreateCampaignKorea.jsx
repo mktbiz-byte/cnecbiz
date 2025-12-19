@@ -87,9 +87,19 @@ const CampaignCreationKorea = () => {
   const loadPreviousCampaigns = async () => {
     setLoadingPrevious(true)
     try {
-      const { data, error } = await supabaseBiz
+      // 현재 사용자 이메일 가져오기
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) {
+        console.error('User not logged in')
+        return
+      }
+
+      // campaigns는 supabaseKorea에 저장됨
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('campaigns')
         .select('id, brand, product_name, image_url, created_at')
+        .eq('company_email', user.email)
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -105,7 +115,9 @@ const CampaignCreationKorea = () => {
   // 이전 캠페인에서 정보 불러오기
   const loadFromPreviousCampaign = async (campaignId) => {
     try {
-      const { data, error } = await supabaseBiz
+      // campaigns는 supabaseKorea에 저장됨
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('campaigns')
         .select('*')
         .eq('id', campaignId)
@@ -862,7 +874,8 @@ const CampaignCreationKorea = () => {
         questions: questions.length > 0 ? questions : null,
         target_platforms: Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
         company_id: currentUser.id,
-        company_email: userEmail
+        company_email: userEmail,
+        region: 'korea'  // 관리자 삭제 시 올바른 데이터베이스에서 삭제하기 위해 필요
       }
 
       const client = supabaseKorea || supabaseBiz
