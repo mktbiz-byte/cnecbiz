@@ -28,7 +28,6 @@ export default function CompanyNavigation() {
     { icon: TrendingUp, label: '내 캠페인', path: '/company/campaigns' },
     { icon: Users, label: '크리에이터 현황', path: '/company/creators' },
     { icon: Receipt, label: '내 결제내역', path: '/company/payments' },
-    { icon: User, label: '프로필 수정', path: '/company/profile-edit' },
   ]
 
   const handleLogout = async () => {
@@ -129,7 +128,7 @@ export default function CompanyNavigation() {
                 className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
               >
                 <HelpCircle className="w-4 h-4" />
-                <span className="text-sm">실시간 상담요청</span>
+                <span className="text-sm">진행중인 캠페인 문의</span>
               </a>
             </div>
           </nav>
