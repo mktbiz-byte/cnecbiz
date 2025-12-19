@@ -403,9 +403,9 @@ export default function AllCreatorsPage() {
     setSaving(true)
     try {
       let supabaseClient
-      if (selectedCreator.dbRegion === 'korea') supabaseClient = supabaseKorea
-      else if (selectedCreator.dbRegion === 'japan') supabaseClient = supabaseJapan
-      else if (selectedCreator.dbRegion === 'us') supabaseClient = supabaseUS
+      if (selectedCreator.dbRegion === 'korea') supabaseClient = supabaseKorea || supabaseBiz
+      else if (selectedCreator.dbRegion === 'japan') supabaseClient = supabaseJapan || supabaseBiz
+      else if (selectedCreator.dbRegion === 'us') supabaseClient = supabaseUS || supabaseBiz
       else supabaseClient = supabaseBiz
 
       const { error } = await supabaseClient

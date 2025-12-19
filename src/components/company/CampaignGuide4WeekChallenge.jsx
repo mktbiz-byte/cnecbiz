@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X, Package, FileText, Info, Calendar, Sparkles } from 'lucide-react'
@@ -59,7 +59,8 @@ export default function CampaignGuide4WeekChallenge() {
 
   const loadCampaign = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -122,8 +123,9 @@ export default function CampaignGuide4WeekChallenge() {
     setLoading(true)
 
     try {
+      const client = supabaseKorea || supabaseBiz
       // 기존 데이터베이스 구조에 맞춰 저장
-      const { error } = await supabaseKorea
+      const { error } = await client
         .from('campaigns')
         .update({
           brand: guideData.brand,
@@ -186,8 +188,9 @@ export default function CampaignGuide4WeekChallenge() {
     setLoading(true)
 
     try {
+      const client = supabaseKorea || supabaseBiz
       // 먼저 원본 데이터 저장
-      const { error: saveError } = await supabaseKorea
+      const { error: saveError } = await client
         .from('campaigns')
         .update({
           brand: guideData.brand,
@@ -368,7 +371,7 @@ JSON 형식으로 작성해주세요.`
         guide_generated_at: new Date().toISOString()
       }
 
-      const { error: aiUpdateError } = await supabaseKorea
+      const { error: aiUpdateError } = await client
         .from('campaigns')
         .update(updateData)
         .eq('id', id)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Loader2, AlertCircle, Sparkles, Package, FileText, Info, CheckCircle2 } from 'lucide-react'
@@ -35,7 +35,8 @@ export default function CampaignGuideOliveYoung() {
 
   const loadCampaign = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -66,7 +67,8 @@ export default function CampaignGuideOliveYoung() {
     setLoading(true)
 
     try {
-      const { error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { error } = await client
         .from('campaigns')
         .update({
           brand: productData.brand,
@@ -105,8 +107,9 @@ export default function CampaignGuideOliveYoung() {
     setGenerating(true)
 
     try {
+      const client = supabaseKorea || supabaseBiz
       // 먼저 데이터 저장
-      const { error: updateError } = await supabaseKorea
+      const { error: updateError } = await client
         .from('campaigns')
         .update({
           brand: productData.brand,
@@ -198,7 +201,7 @@ JSON 형식으로 응답해주세요:
       }
 
       // AI 가공된 가이드 저장 (STEP 3는 제외)
-      const { error: finalUpdateError } = await supabaseKorea
+      const { error: finalUpdateError } = await client
         .from('campaigns')
         .update({
           oliveyoung_step1_guide_ai: step1Enhanced,

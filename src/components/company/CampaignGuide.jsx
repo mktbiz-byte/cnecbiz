@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabaseKorea } from '../../lib/supabaseClients'
+import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Loader2, AlertCircle, Sparkles } from 'lucide-react'
@@ -32,7 +32,8 @@ export default function CampaignGuide() {
 
   const loadCampaign = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('campaigns')
         .select('*')
         .eq('id', id)
@@ -59,7 +60,8 @@ export default function CampaignGuide() {
     setLoading(true)
 
     try {
-      const { error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { error } = await client
         .from('campaigns')
         .update({
           brand: productData.brand,
@@ -91,8 +93,9 @@ export default function CampaignGuide() {
     setGenerating(true)
 
     try {
+      const client = supabaseKorea || supabaseBiz
       // 먼저 데이터 저장
-      const { error: updateError } = await supabaseKorea
+      const { error: updateError } = await client
         .from('campaigns')
         .update({
           brand: productData.brand,
@@ -139,7 +142,7 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
       const generatedGuide = data.candidates[0].content.parts[0].text
 
       // AI 캠페인 지원 가이드 저장
-      const { error: guideError } = await supabaseKorea
+      const { error: guideError } = await client
         .from('campaigns')
         .update({
           ai_generated_guide: generatedGuide,

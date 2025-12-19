@@ -64,8 +64,9 @@ export default function VideoReview() {
         return
       }
 
-      // Get submission data from supabaseKorea
-      const { data, error } = await supabaseKorea
+      // Get submission data from supabaseKorea (with null check)
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('video_submissions')
         .select(`
           *,
@@ -101,7 +102,8 @@ export default function VideoReview() {
 
   const loadComments = async () => {
     try {
-      const { data, error } = await supabaseKorea
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('video_review_comments')
         .select('*')
         .eq('submission_id', submissionId)
@@ -109,11 +111,11 @@ export default function VideoReview() {
 
       if (error) throw error
       setComments(data || [])
-      
+
       // Load replies for all comments
       if (data && data.length > 0) {
         const commentIds = data.map(c => c.id)
-        const { data: repliesData, error: repliesError } = await supabaseKorea
+        const { data: repliesData, error: repliesError } = await client
           .from('video_review_comment_replies')
           .select('*')
           .in('comment_id', commentIds)
