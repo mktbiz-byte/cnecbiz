@@ -65,6 +65,11 @@ const CampaignCreationKorea = () => {
   const [uploadingDetailImage, setUploadingDetailImage] = useState(false)
   const [questionCount, setQuestionCount] = useState(0)
 
+  // 세금계산서 정보 체크
+  const [companyInfo, setCompanyInfo] = useState(null)
+  const [taxInvoiceComplete, setTaxInvoiceComplete] = useState(true)
+  const [showTaxInvoiceWarning, setShowTaxInvoiceWarning] = useState(false)
+
   // 이전 캠페인 불러오기 상태
   const [previousCampaigns, setPreviousCampaigns] = useState([])
   const [showPreviousCampaigns, setShowPreviousCampaigns] = useState(false)
@@ -277,6 +282,46 @@ const CampaignCreationKorea = () => {
       localStorage.removeItem('campaign_draft_korea')
     }
   }, [success])
+
+  // 세금계산서 발행 정보 체크
+  useEffect(() => {
+    const checkTaxInvoiceInfo = async () => {
+      try {
+        const { data: { user } } = await supabaseBiz.auth.getUser()
+        if (!user) return
+
+        const { data: company, error } = await supabaseBiz
+          .from('companies')
+          .select('ceo_name, business_type, business_category, company_postal_code, company_address')
+          .eq('user_id', user.id)
+          .single()
+
+        if (error) {
+          console.error('Error fetching company info:', error)
+          return
+        }
+
+        setCompanyInfo(company)
+
+        // 세금계산서 필수 필드 체크 (대표자명, 업태, 종목, 우편번호, 주소)
+        const isComplete = !!(
+          company?.ceo_name?.trim() &&
+          company?.business_type?.trim() &&
+          company?.business_category?.trim() &&
+          company?.company_postal_code?.trim() &&
+          company?.company_address?.trim()
+        )
+        setTaxInvoiceComplete(isComplete)
+        if (!isComplete) {
+          setShowTaxInvoiceWarning(true)
+        }
+      } catch (err) {
+        console.error('Tax invoice info check error:', err)
+      }
+    }
+
+    checkTaxInvoiceInfo()
+  }, [])
 
   // 시간 포맷
   const formatTime = (date) => {
@@ -778,6 +823,14 @@ const CampaignCreationKorea = () => {
     setSuccess('')
 
     try {
+      // 세금계산서 발행 정보 필수 체크
+      if (!taxInvoiceComplete) {
+        setError('캠페인 생성을 위해 세금계산서 발행 정보를 먼저 입력해주세요. 프로필 수정 페이지에서 입력할 수 있습니다.')
+        setShowTaxInvoiceWarning(true)
+        setProcessing(false)
+        return
+      }
+
       // 필수 필드 검증
       if (!campaignForm.brand || !campaignForm.brand.trim()) {
         setError('브랜드명을 입력해주세요.')
@@ -966,6 +1019,42 @@ const CampaignCreationKorea = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* 세금계산서 정보 미완료 경고 배너 */}
+      {showTaxInvoiceWarning && !taxInvoiceComplete && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-6xl mx-auto px-4 lg:px-8 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-amber-800 font-semibold">세금계산서 발행 정보를 입력해주세요</h3>
+                <p className="text-amber-700 text-sm mt-1">
+                  캠페인을 생성하려면 먼저 세금계산서 발행 정보(대표자명, 업태, 종목, 사업장 주소)를 입력해야 합니다.
+                </p>
+                <Button
+                  onClick={() => navigate('/company/profile/edit')}
+                  className="mt-3 bg-amber-500 hover:bg-amber-600 text-white"
+                  size="sm"
+                >
+                  프로필 수정하기 →
+                </Button>
+              </div>
+              <button
+                onClick={() => setShowTaxInvoiceWarning(false)}
+                className="flex-shrink-0 text-amber-500 hover:text-amber-700"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 캠페인 타입 선택 */}
       <div className="bg-gray-50 py-8 lg:py-12">
         {/* 뒤로가기 */}

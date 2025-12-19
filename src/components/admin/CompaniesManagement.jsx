@@ -853,7 +853,7 @@ export default function CompaniesManagement() {
                       <MapPin className="w-4 h-4" />
                       주소
                     </div>
-                    <div className="font-medium text-slate-800">{detailCompany.address || '-'}</div>
+                    <div className="font-medium text-slate-800">{detailCompany.company_address || detailCompany.address || '-'}</div>
                   </div>
 
                   <div className="bg-gradient-to-br from-slate-50 to-cyan-50/50 p-4 rounded-xl border border-slate-100">
