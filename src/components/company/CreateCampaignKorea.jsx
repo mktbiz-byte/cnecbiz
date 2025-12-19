@@ -896,8 +896,7 @@ const CampaignCreationKorea = () => {
         questions: questions.length > 0 ? questions : null,
         target_platforms: Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
         company_id: currentUser.id,
-        company_email: userEmail,
-        region: 'korea'  // 관리자 삭제 시 올바른 데이터베이스에서 삭제하기 위해 필요
+        company_email: userEmail
       }
 
       const client = supabaseKorea || supabaseBiz
