@@ -359,18 +359,35 @@ export async function searchCreatorsFromRegions(query = '', regions = ['korea', 
       const client = getSupabaseClient(region)
       if (!client) continue
 
+      // 공통 컬럼만 선택 (channel_name은 일부 지역에 없을 수 있음)
       let searchQuery = client
         .from('user_profiles')
-        .select('*')
+        .select('id, user_id, name, email, phone, profile_image, profile_image_url, avatar_url, instagram_url, instagram_followers, youtube_url, youtube_subscribers, tiktok_url, tiktok_followers, bio, created_at')
 
       if (query.trim()) {
-        searchQuery = searchQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%,channel_name.ilike.%${query}%`)
+        // name과 email만 검색 (channel_name은 일부 지역에 없음)
+        searchQuery = searchQuery.or(`name.ilike.%${query}%,email.ilike.%${query}%`)
       }
 
       const { data, error } = await searchQuery.limit(30)
 
       if (error) {
         console.error(`${region} 검색 오류:`, error)
+        // 컬럼 오류인 경우 기본 컬럼만으로 재시도
+        if (error.code === '42703' || error.message?.includes('column')) {
+          const { data: retryData } = await client
+            .from('user_profiles')
+            .select('id, user_id, name, email, phone, profile_image, bio')
+            .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+            .limit(30)
+          if (retryData) {
+            const creatorsWithRegion = retryData.map(creator => ({
+              ...creator,
+              source_region: region
+            }))
+            results.push(...creatorsWithRegion)
+          }
+        }
         continue
       }
 
