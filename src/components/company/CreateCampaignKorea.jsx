@@ -778,6 +778,28 @@ const CampaignCreationKorea = () => {
     setSuccess('')
 
     try {
+      // 필수 필드 검증
+      if (!campaignForm.brand || !campaignForm.brand.trim()) {
+        setError('브랜드명을 입력해주세요.')
+        setProcessing(false)
+        return
+      }
+      if (!campaignForm.product_name || !campaignForm.product_name.trim()) {
+        setError('상품명을 입력해주세요.')
+        setProcessing(false)
+        return
+      }
+      if (!campaignForm.category || campaignForm.category.length === 0) {
+        setError('모집 채널을 1개 이상 선택해주세요.')
+        setProcessing(false)
+        return
+      }
+      if (!campaignForm.application_deadline) {
+        setError('모집 마감일을 입력해주세요.')
+        setProcessing(false)
+        return
+      }
+
       // question1-4를 questions JSONB 배열로 변환
       const questions = [
         campaignForm.question1,
