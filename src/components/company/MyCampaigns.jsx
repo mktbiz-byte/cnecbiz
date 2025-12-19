@@ -245,11 +245,15 @@ export default function MyCampaigns() {
   const getPackagePrice = (packageType, campaignType) => {
     const prices = {
       oliveyoung: { standard: 400000, premium: 500000, professional: 600000 },
+      fourWeek: { standard: 600000, premium: 700000, professional: 800000, enterprise: 1000000 },
       general: { junior: 200000, intermediate: 300000, senior: 400000, basic: 200000, standard: 300000, premium: 400000, professional: 600000, enterprise: 1000000 },
       legacy: { oliveyoung: 200000, '올영 20만원': 200000, '프리미엄 30만원': 300000, '4week_challenge': 600000, '4주챌린지 60만원': 600000 }
     }
     const key = packageType?.toLowerCase()
-    return prices.legacy[key] || (campaignType === 'oliveyoung' && prices.oliveyoung[key]) || prices.general[key] || 200000
+    return prices.legacy[key] ||
+           (campaignType === 'oliveyoung' && prices.oliveyoung[key]) ||
+           (campaignType === '4week_challenge' && prices.fourWeek[key]) ||
+           prices.general[key] || 200000
   }
 
   const getCampaignTypeInfo = useCallback((campaignType) => {

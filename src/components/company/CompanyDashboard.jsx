@@ -169,7 +169,15 @@ export default function CompanyDashboard() {
       'professional': 600000
     }
 
-    // 기획형 & 4주 챌린지 패키지 가격 (동일)
+    // 4주 챌린지 패키지 가격
+    const fourWeekPrices = {
+      'standard': 600000,
+      'premium': 700000,
+      'professional': 800000,
+      'enterprise': 1000000
+    }
+
+    // 기획형 패키지 가격
     const generalPrices = {
       'junior': 200000,
       'intermediate': 300000,
@@ -202,7 +210,12 @@ export default function CompanyDashboard() {
       return oliveyoungPrices[packageKey]
     }
 
-    // 기획형 & 4주 챌린지 패키지
+    // 4주 챌린지 패키지
+    if (campaignType === '4week_challenge' && fourWeekPrices[packageKey]) {
+      return fourWeekPrices[packageKey]
+    }
+
+    // 기획형 패키지
     return generalPrices[packageKey] || 200000
   }
 
