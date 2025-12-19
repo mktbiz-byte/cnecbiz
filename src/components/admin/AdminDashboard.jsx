@@ -17,7 +17,14 @@ export default function AdminDashboard() {
     companies: 0,
     campaigns: 0,
     creators: 0,
-    revenue: 0
+    revenue: 0,
+    // 매출 관리 데이터
+    thisMonthRevenue: 0,
+    thisMonthExpenses: 0,
+    thisQuarterRevenue: 0,
+    thisQuarterExpenses: 0,
+    thisYearRevenue: 0,
+    thisYearExpenses: 0
   })
   const [campaignStats, setCampaignStats] = useState({
     total: 0,
@@ -66,23 +73,79 @@ export default function AdminDashboard() {
     if (!supabaseBiz) return
 
     try {
-      const [companiesRes, creatorsRes] = await Promise.all([
+      const [companiesRes, creatorsRes, financialRes] = await Promise.all([
         supabaseBiz.from('companies').select('id', { count: 'exact', head: true }),
-        supabaseBiz.from('featured_creators').select('id', { count: 'exact', head: true })
+        supabaseBiz.from('featured_creators').select('id', { count: 'exact', head: true }),
+        supabaseBiz.from('financial_records').select('*')
       ])
 
       const campaigns = await getCampaignsFromAllRegions()
+      const financialData = financialRes.data || []
 
-      // 총 매출: 승인된 캠페인의 estimated_cost 합산
-      const totalRevenue = campaigns
-        ?.filter(c => c.approval_status === 'approved' || c.status === 'completed')
-        ?.reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0
+      // 현재 날짜 기준
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth() + 1 // 1-12
+      const currentQuarter = Math.ceil(currentMonth / 3) // 1-4
+      const quarterStartMonth = (currentQuarter - 1) * 3 + 1
+      const quarterEndMonth = currentQuarter * 3
+
+      // 총 매출: financial_records에서 type === 'revenue' 합산
+      const totalRevenue = financialData
+        .filter(r => r.type === 'revenue')
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+
+      // 이번 달 매출/매입
+      const thisMonthRevenue = financialData
+        .filter(r => r.type === 'revenue' && r.record_date &&
+          r.record_date.startsWith(`${currentYear}-${String(currentMonth).padStart(2, '0')}`))
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+
+      const thisMonthExpenses = financialData
+        .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') &&
+          r.record_date && r.record_date.startsWith(`${currentYear}-${String(currentMonth).padStart(2, '0')}`))
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+
+      // 이번 분기 매출/매입
+      const thisQuarterRevenue = financialData
+        .filter(r => r.type === 'revenue' && r.record_date)
+        .filter(r => {
+          const month = parseInt(r.record_date.substring(5, 7))
+          const year = parseInt(r.record_date.substring(0, 4))
+          return year === currentYear && month >= quarterStartMonth && month <= quarterEndMonth
+        })
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+
+      const thisQuarterExpenses = financialData
+        .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') && r.record_date)
+        .filter(r => {
+          const month = parseInt(r.record_date.substring(5, 7))
+          const year = parseInt(r.record_date.substring(0, 4))
+          return year === currentYear && month >= quarterStartMonth && month <= quarterEndMonth
+        })
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+
+      // 올해 매출/매입
+      const thisYearRevenue = financialData
+        .filter(r => r.type === 'revenue' && r.record_date && r.record_date.startsWith(`${currentYear}`))
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+
+      const thisYearExpenses = financialData
+        .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') &&
+          r.record_date && r.record_date.startsWith(`${currentYear}`))
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
 
       setStats({
         companies: companiesRes.count || 0,
         campaigns: campaigns?.length || 0,
         creators: creatorsRes.count || 0,
-        revenue: totalRevenue
+        revenue: totalRevenue,
+        thisMonthRevenue,
+        thisMonthExpenses,
+        thisQuarterRevenue,
+        thisQuarterExpenses,
+        thisYearRevenue,
+        thisYearExpenses
       })
     } catch (error) {
       console.error('통계 조회 오류:', error)
@@ -91,7 +154,12 @@ export default function AdminDashboard() {
 
   const fetchCampaignStats = async () => {
     try {
-      const campaigns = await getCampaignsFromAllRegions()
+      const [campaigns, financialRes] = await Promise.all([
+        getCampaignsFromAllRegions(),
+        supabaseBiz.from('financial_records').select('*').eq('type', 'revenue')
+      ])
+
+      const financialData = financialRes.data || []
 
       if (campaigns) {
         const stats = {
@@ -105,22 +173,27 @@ export default function AdminDashboard() {
         }
         setCampaignStats(stats)
 
-        // 월별 매출 데이터 (최근 6개월)
+        // 월별 매출 데이터 (최근 6개월) - financial_records 기준
         const monthlyData = []
         const now = new Date()
         for (let i = 5; i >= 0; i--) {
           const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
-          const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
+          const monthStr = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`
+
+          const monthRevenue = financialData
+            .filter(r => r.record_date && r.record_date.startsWith(monthStr))
+            .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
 
           const monthCampaigns = campaigns.filter(c => {
             const created = new Date(c.created_at)
-            return created >= month && created <= monthEnd &&
+            return created.getFullYear() === month.getFullYear() &&
+                   created.getMonth() === month.getMonth() &&
                    (c.approval_status === 'approved' || c.status === 'completed')
           })
 
           monthlyData.push({
             month: month.toLocaleDateString('ko-KR', { month: 'short' }),
-            revenue: monthCampaigns.reduce((sum, c) => sum + (c.estimated_cost || 0), 0),
+            revenue: monthRevenue,
             count: monthCampaigns.length
           })
         }
@@ -190,15 +263,15 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]" onClick={() => navigate('/admin/revenue')}>
+          <Card className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]" onClick={() => navigate('/admin/revenue-charts')}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">총 매출</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">{new Date().getFullYear()}년 매출</CardTitle>
               <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-green-600" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gray-900">₩{stats.revenue.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-gray-900">₩{stats.thisYearRevenue.toLocaleString()}</div>
               <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" /> 상세 보고서 보기
               </p>
@@ -426,7 +499,7 @@ export default function AdminDashboard() {
               <Button
                 variant="outline"
                 className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-green-50 hover:border-green-300"
-                onClick={() => navigate('/admin/revenue')}
+                onClick={() => navigate('/admin/revenue-charts')}
               >
                 <DollarSign className="w-6 h-6 text-green-600" />
                 <span className="text-sm">매출 보고서</span>
