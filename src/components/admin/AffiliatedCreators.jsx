@@ -95,9 +95,16 @@ export default function AffiliatedCreators({ onUpdate }) {
     e.preventDefault()
 
     try {
+      // Get current user for company_id (required for YouTube API refresh)
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      if (!user) {
+        alert('로그인이 필요합니다.')
+        return
+      }
+
       const { error } = await supabaseBiz
         .from('affiliated_creators')
-        .insert([formData])
+        .insert([{ ...formData, company_id: user.id }])
 
       if (error) throw error
 
