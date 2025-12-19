@@ -3,15 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2, Package, DollarSign, MoreHorizontal, Download } from 'lucide-react'
+import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
 export default function CompaniesManagement() {
   const navigate = useNavigate()
   const [companies, setCompanies] = useState([])
+  const [companyCampaigns, setCompanyCampaigns] = useState({}) // {company_email: {count, total_amount}}
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('all') // all, active, suspended, pending
   const [showPointsModal, setShowPointsModal] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState(null)
   const [pointsAction, setPointsAction] = useState('add') // 'add' or 'deduct'
@@ -32,6 +34,7 @@ export default function CompaniesManagement() {
   useEffect(() => {
     checkAuth()
     fetchCompanies()
+    fetchCompanyCampaigns()
   }, [])
 
   const checkAuth = async () => {
@@ -74,6 +77,34 @@ export default function CompaniesManagement() {
       console.error('Error fetching companies:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 기업별 캠페인 현황 조회
+  const fetchCompanyCampaigns = async () => {
+    try {
+      const campaigns = await getCampaignsFromAllRegions()
+      if (campaigns) {
+        const campaignsByCompany = {}
+        campaigns.forEach(c => {
+          const email = c.company_email
+          if (email) {
+            if (!campaignsByCompany[email]) {
+              campaignsByCompany[email] = { count: 0, inProgress: 0, totalAmount: 0 }
+            }
+            campaignsByCompany[email].count++
+            if (c.status === 'in_progress' || (c.approval_status === 'approved' && c.status !== 'completed')) {
+              campaignsByCompany[email].inProgress++
+            }
+            if (c.approval_status === 'approved' || c.status === 'completed') {
+              campaignsByCompany[email].totalAmount += (c.estimated_cost || 0)
+            }
+          }
+        })
+        setCompanyCampaigns(campaignsByCompany)
+      }
+    } catch (error) {
+      console.error('Error fetching company campaigns:', error)
     }
   }
 
@@ -500,109 +531,162 @@ export default function CompaniesManagement() {
           </Card>
         </div>
 
-        {/* Companies List */}
+        {/* 필터 탭 */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { value: 'all', label: '전체', count: companies.length },
+            { value: 'pending', label: '승인대기', count: companies.filter(c => c.is_approved === false).length, color: 'amber' },
+            { value: 'active', label: '활성', count: companies.filter(c => c.status === 'active' && c.is_approved !== false).length, color: 'green' },
+            { value: 'suspended', label: '정지', count: companies.filter(c => c.status === 'suspended').length, color: 'red' }
+          ].map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                statusFilter === tab.value
+                  ? tab.color === 'amber' ? 'bg-amber-600 text-white' :
+                    tab.color === 'green' ? 'bg-green-600 text-white' :
+                    tab.color === 'red' ? 'bg-red-600 text-white' :
+                    'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
+        {/* Companies Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>기업 목록 ({filteredCompanies.length}개)</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              기업 회원 관리
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                엑셀 다운로드
+              </Button>
+              <Button size="sm" className="bg-blue-600">
+                <Plus className="w-4 h-4 mr-2" />
+                기업 수동 등록
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {loading ? (
               <div className="text-center py-12 text-gray-500">로딩 중...</div>
             ) : (
-              <div className="space-y-4">
-                {filteredCompanies.map((company) => (
-                  <div
-                    key={company.id}
-                    className="flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold">{company.company_name}</h3>
-                        {getStatusBadge(company.status || 'active')}
-                        {company.is_approved === false ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex items-center gap-1">
-                            <ShieldAlert className="w-3 h-3" />
-                            승인대기
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" />
-                            승인됨
-                          </span>
-                        )}
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">이메일:</span> {company.email}
-                        </div>
-                        <div>
-                          <span className="font-medium">담당자:</span> {company.contact_person || 'N/A'}
-                        </div>
-                        <div>
-                          <span className="font-medium">전화:</span> {company.phone || 'N/A'}
-                        </div>
-                        <div>
-                          <span className="font-medium">사업자번호:</span> {company.business_registration_number || 'N/A'}
-                        </div>
-                        <div>
-                          <span className="font-medium">가입일:</span>{' '}
-                          {new Date(company.created_at).toLocaleDateString('ko-KR')}
-                        </div>
-                        <div>
-                          <span className="font-medium">포인트 잔액:</span>{' '}
-                          <span className="text-blue-600 font-bold">
-                            {(company.points_balance || 0).toLocaleString()}P
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      {company.is_approved === false && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproveCompany(company)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                        >
-                          <ShieldCheck className="w-4 h-4 mr-2" />
-                          계정 승인
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleShowDetail(company)}
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        상세보기
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAdjustPoints(company)}
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        포인트 조정
-                      </Button>
-                      <Button
-                        variant={company.status === 'active' ? 'destructive' : 'default'}
-                        size="sm"
-                        onClick={() => handleToggleStatus(company.id, company.status || 'active')}
-                      >
-                        {company.status === 'active' ? (
-                          <>
-                            <Ban className="w-4 h-4 mr-2" />
-                            정지
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            활성화
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-y">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">NO</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">기업 정보</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">구분</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">담당자</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">진행중 / 누적</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">총 결제 금액</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">상태</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredCompanies
+                      .filter(c => {
+                        if (statusFilter === 'all') return true
+                        if (statusFilter === 'pending') return c.is_approved === false
+                        if (statusFilter === 'active') return c.status === 'active' && c.is_approved !== false
+                        if (statusFilter === 'suspended') return c.status === 'suspended'
+                        return true
+                      })
+                      .map((company, index) => {
+                        const campaignData = companyCampaigns[company.email] || { count: 0, inProgress: 0, totalAmount: 0 }
+                        return (
+                          <tr key={company.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-4 text-sm text-gray-500">{index + 1}</td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                                  {(company.company_name || '?').charAt(0)}
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-gray-900">{company.company_name}</div>
+                                  <div className="text-xs text-gray-500">{company.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">
+                              {company.is_approved === false ? (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                  승인대기
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                  일반
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="text-sm font-medium text-gray-900">{company.contact_person || company.contact_name || '-'}</div>
+                              <div className="text-xs text-gray-500 flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                {company.phone || company.contact_phone || '-'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <button
+                                onClick={() => navigate(`/admin/campaigns?company=${encodeURIComponent(company.email)}`)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <span className="text-purple-700 font-bold">{campaignData.inProgress}건</span>
+                                <span className="text-gray-400">/</span>
+                                <span className="text-gray-600">{campaignData.count}</span>
+                              </button>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <span className="font-bold text-gray-900">
+                                {campaignData.totalAmount.toLocaleString()}원
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              {company.status === 'suspended' ? (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                  휴면
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                  정상
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {company.is_approved === false && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveCompany(company)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
+                                  >
+                                    승인
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleShowDetail(company)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
 
                 {filteredCompanies.length === 0 && (
                   <div className="text-center py-12 text-gray-500">
