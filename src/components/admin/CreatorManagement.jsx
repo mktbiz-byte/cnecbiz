@@ -114,7 +114,7 @@ export default function CreatorManagement() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-gray-600 flex items-center">
                   <Youtube className="w-4 h-4 mr-2 text-red-600" />
-                  우리 채널
+                  지원 프로그램
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -176,7 +176,7 @@ export default function CreatorManagement() {
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="our-channels">
                 <Youtube className="w-4 h-4 mr-2" />
-                우리 채널
+                지원 프로그램
               </TabsTrigger>
               <TabsTrigger value="affiliated-creators">
                 <Users className="w-4 h-4 mr-2" />
