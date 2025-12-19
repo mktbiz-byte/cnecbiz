@@ -115,8 +115,8 @@ export default function OurChannels({ onUpdate }) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">우리 채널</h2>
-          <p className="text-gray-600 text-sm">자사 운영 YouTube 채널 (최대 10개)</p>
+          <h2 className="text-2xl font-bold text-gray-900">지원 프로그램</h2>
+          <p className="text-gray-600 text-sm">YouTube 채널 지원 프로그램 (최대 10개)</p>
         </div>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
