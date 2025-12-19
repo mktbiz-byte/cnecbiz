@@ -75,20 +75,17 @@ export default function ConsultationManagement() {
       }
     })()
 
-    // localStorage에서 contractSent 로드 (DB에 컬럼 없음)
+    // localStorage에서 계약 정보 로드 (DB에 컬럼 없음)
     const savedContractSent = localStorage.getItem(`contract_sent_${consultation.id}`)
-    // localStorage에서 contract_status 로드 (DB에 컬럼 없음)
     const savedContractStatus = localStorage.getItem(`contract_status_${consultation.id}`)
+    const savedExpectedRevenue = localStorage.getItem(`expected_revenue_${consultation.id}`)
 
     setSelectedConsultation({
       ...consultation,
       records: localRecords
     })
     setContractStatus(savedContractStatus || 'pending')
-    // expected_revenue가 0일 때도 표시되도록 수정
-    setExpectedRevenue(consultation.expected_revenue !== null && consultation.expected_revenue !== undefined
-      ? String(consultation.expected_revenue)
-      : '')
+    setExpectedRevenue(savedExpectedRevenue || '')
     setContractSent(savedContractSent === 'true')
     setMemo(consultation.memo || '')
     setNewRecord('')
@@ -233,28 +230,10 @@ export default function ConsultationManagement() {
     if (!selectedConsultation) return
 
     try {
-      // expectedRevenue 값 변환: 빈 문자열이면 null, 그 외에는 숫자로 변환
-      const revenueValue = expectedRevenue !== '' && expectedRevenue !== null && expectedRevenue !== undefined
-        ? parseInt(String(expectedRevenue).replace(/,/g, ''), 10)
-        : null
-
-      const { error } = await supabaseBiz
-        .from('consultation_requests')
-        .update({
-          expected_revenue: isNaN(revenueValue) ? null : revenueValue,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedConsultation.id)
-
-      if (error) throw error
-
-      // contract_status는 localStorage에 저장 (DB에 컬럼 없음)
+      // 모든 계약 정보를 localStorage에 저장 (DB에 컬럼 없음)
       localStorage.setItem(`contract_status_${selectedConsultation.id}`, contractStatus)
-
-      // contractSent 상태는 localStorage에 저장 (DB에 컬럼 없음)
-      if (contractSent !== undefined) {
-        localStorage.setItem(`contract_sent_${selectedConsultation.id}`, contractSent ? 'true' : 'false')
-      }
+      localStorage.setItem(`expected_revenue_${selectedConsultation.id}`, expectedRevenue || '')
+      localStorage.setItem(`contract_sent_${selectedConsultation.id}`, contractSent ? 'true' : 'false')
 
       alert('계약 정보가 저장되었습니다.')
       fetchConsultations()
@@ -311,6 +290,14 @@ export default function ConsultationManagement() {
       return localStorage.getItem(`contract_status_${consultationId}`) || 'pending'
     } catch {
       return 'pending'
+    }
+  }
+
+  const getExpectedRevenueFromStorage = (consultationId) => {
+    try {
+      return localStorage.getItem(`expected_revenue_${consultationId}`) || ''
+    } catch {
+      return ''
     }
   }
 
@@ -445,7 +432,7 @@ export default function ConsultationManagement() {
                         <Clock className="w-3 h-3" />
                         {getLastContact(consultation)}
                       </span>
-                      {consultation.expected_revenue && (
+                      {getExpectedRevenueFromStorage(consultation.id) && (
                         <span className="font-medium text-green-600">
                           계약 확률 {getContractStatusFromStorage(consultation.id) === 'negotiating' ? '80%' : '0%'}
                         </span>
