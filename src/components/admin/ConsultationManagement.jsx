@@ -60,7 +60,20 @@ export default function ConsultationManagement() {
   }
 
   const selectConsultation = (consultation) => {
-    setSelectedConsultation(consultation)
+    // localStorage에서 상담 기록 로드
+    const localRecords = (() => {
+      try {
+        const stored = localStorage.getItem(`consultation_records_${consultation.id}`)
+        return stored ? JSON.parse(stored) : []
+      } catch {
+        return []
+      }
+    })()
+
+    setSelectedConsultation({
+      ...consultation,
+      records: localRecords
+    })
     setContractStatus(consultation.contract_status || 'pending')
     // expected_revenue가 0일 때도 표시되도록 수정
     setExpectedRevenue(consultation.expected_revenue !== null && consultation.expected_revenue !== undefined
@@ -71,11 +84,31 @@ export default function ConsultationManagement() {
     setNewRecord('')
   }
 
+  // localStorage에서 상담 기록 로드
+  const getLocalRecords = (consultationId) => {
+    try {
+      const stored = localStorage.getItem(`consultation_records_${consultationId}`)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  }
+
+  // localStorage에 상담 기록 저장
+  const saveLocalRecords = (consultationId, records) => {
+    try {
+      localStorage.setItem(`consultation_records_${consultationId}`, JSON.stringify(records))
+    } catch (e) {
+      console.error('localStorage 저장 오류:', e)
+    }
+  }
+
   const handleSaveRecord = async () => {
     if (!newRecord.trim() || !selectedConsultation) return
 
     try {
-      const records = selectedConsultation.records || []
+      // localStorage에서 기존 기록 로드
+      const existingRecords = getLocalRecords(selectedConsultation.id)
       const newRecordObj = {
         id: Date.now(),
         type: recordType,
@@ -84,22 +117,24 @@ export default function ConsultationManagement() {
         created_at: new Date().toISOString()
       }
 
-      const { error } = await supabaseBiz
-        .from('consultation_requests')
-        .update({
-          records: [...records, newRecordObj],
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedConsultation.id)
+      const updatedRecords = [...existingRecords, newRecordObj]
 
-      if (error) throw error
+      // localStorage에 저장 (DB에 records 컬럼이 없으므로 로컬 저장 사용)
+      saveLocalRecords(selectedConsultation.id, updatedRecords)
 
+      // 상태 업데이트
       setSelectedConsultation({
         ...selectedConsultation,
-        records: [...records, newRecordObj]
+        records: updatedRecords
       })
       setNewRecord('')
-      fetchConsultations()
+
+      // 컨설테이션 목록의 로컬 기록도 업데이트
+      setConsultations(prev => prev.map(c =>
+        c.id === selectedConsultation.id
+          ? { ...c, records: updatedRecords }
+          : c
+      ))
     } catch (error) {
       console.error('상담 기록 저장 오류:', error)
       alert('저장에 실패했습니다.')
@@ -227,7 +262,15 @@ export default function ConsultationManagement() {
   }
 
   const getLastContact = (consultation) => {
-    const records = consultation.records || []
+    // localStorage에서 기록 확인
+    let records = []
+    try {
+      const stored = localStorage.getItem(`consultation_records_${consultation.id}`)
+      records = stored ? JSON.parse(stored) : []
+    } catch {
+      records = []
+    }
+
     if (records.length === 0) return '마지막 연락: -'
     const last = records[records.length - 1]
     const date = new Date(last.created_at)
