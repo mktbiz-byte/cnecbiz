@@ -413,16 +413,73 @@ const InvoicePage = () => {
     )
   }
 
-  // estimated_cost는 VAT 포함 총액
-  const totalCost = campaign.estimated_cost || 0
-  const recruitmentCount = campaign.total_slots || 0
-  // VAT 제외 금액 = 총액 / 1.1
-  const subtotal = Math.round(totalCost / 1.1)
-  const vat = totalCost - subtotal
+  // 패키지 가격 조회 함수 (CampaignDetail.jsx와 동일)
+  const getPackagePrice = (packageType, campaignType) => {
+    // 올리브영 패키지 가격
+    const oliveyoungPrices = {
+      'standard': 400000,
+      'premium': 500000,
+      'professional': 600000
+    }
+
+    // 4주 챌린지 패키지 가격
+    const fourWeekPrices = {
+      'standard': 600000,
+      'premium': 700000,
+      'professional': 800000,
+      'enterprise': 1000000
+    }
+
+    // 기획형 패키지 가격
+    const generalPrices = {
+      'junior': 200000,
+      'intermediate': 300000,
+      'senior': 400000,
+      'basic': 200000,
+      'standard': 300000,
+      'premium': 400000,
+      'professional': 600000,
+      'enterprise': 1000000
+    }
+
+    // 레거시 패키지
+    const legacyPrices = {
+      'oliveyoung': 200000,
+      '올영 20만원': 200000,
+      '프리미엄 30만원': 300000,
+      '4week_challenge': 600000,
+      '4주챌린지 60만원': 600000
+    }
+
+    const packageKey = packageType?.toLowerCase()
+
+    // 레거시 패키지 먼저 확인
+    if (legacyPrices[packageKey]) {
+      return legacyPrices[packageKey]
+    }
+
+    // 올리브영 패키지
+    if (campaignType === 'oliveyoung' && oliveyoungPrices[packageKey]) {
+      return oliveyoungPrices[packageKey]
+    }
+
+    // 4주 챌린지 패키지
+    if (campaignType === '4week_challenge' && fourWeekPrices[packageKey]) {
+      return fourWeekPrices[packageKey]
+    }
+
+    // 기획형 패키지 (기본)
+    return generalPrices[packageKey] || 300000
+  }
+
+  // 가격 계산 (CampaignDetail.jsx와 동일한 방식)
+  const recruitmentCount = campaign.total_slots || 1
+  const packagePrice = getPackagePrice(campaign.package_type, campaign.campaign_type)
+  const subtotal = packagePrice * recruitmentCount
+  const vat = Math.round(subtotal * 0.1)
+  const totalCost = subtotal + vat
   // 할인 금액 (현재는 0)
   const discountAmount = 0
-  // 단가 = VAT 제외 금액 / 모집인원
-  const packagePrice = recruitmentCount > 0 ? Math.round(subtotal / recruitmentCount) : 0
   
   const isPaymentConfirmed = campaign.payment_status === 'confirmed'
 
