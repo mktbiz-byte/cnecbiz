@@ -88,33 +88,19 @@ export default function FeaturedCreatorManagementPage() {
         return
       }
 
-      // 기본 필드만 선택 (지역별로 스키마가 다를 수 있음)
       let query = client
         .from('user_profiles')
-        .select('id, user_id, name, full_name, email, phone, profile_image, profile_image_url, avatar_url, youtube_url, youtube_subscribers, instagram_url, instagram_followers, tiktok_url, tiktok_followers, category, bio, created_at')
+        .select('*')
+        .eq('role', 'creator')
 
       // 검색어가 있으면 필터링
       if (searchQuery.trim()) {
-        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
+        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,channel_name.ilike.%${searchQuery}%`)
       }
 
-      let { data, error } = await query.order('created_at', { ascending: false }).limit(50)
+      const { data, error } = await query.limit(50)
 
-      // 컬럼 오류 시 기본 컬럼만으로 재시도
-      if (error && (error.code === '42703' || error.message?.includes('column'))) {
-        console.log('Retrying with basic columns due to schema difference')
-        const { data: retryData, error: retryError } = await client
-          .from('user_profiles')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(50)
-
-        if (retryError) throw retryError
-        data = retryData
-      } else if (error) {
-        throw error
-      }
-
+      if (error) throw error
       setRegisteredCreators(data || [])
     } catch (err) {
       console.error('Error searching creators:', err)
@@ -133,31 +119,24 @@ export default function FeaturedCreatorManagementPage() {
 
   // 가입 크리에이터 선택
   const handleSelectCreator = (creator) => {
-    // 플랫폼별 팔로워 수 계산
-    const followers = creator.youtube_subscribers || creator.instagram_followers || creator.tiktok_followers || 0
-    // 메인 플랫폼 결정
-    const platform = creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok'
-    // 채널 URL 결정
-    const channelUrl = creator.youtube_url || creator.instagram_url || creator.tiktok_url || ''
-
     setFormData({
       ...formData,
-      channel_name: creator.name || creator.full_name || '',
-      channel_url: channelUrl,
-      profile_image: creator.profile_image || creator.profile_image_url || creator.avatar_url || '',
-      followers: followers.toString(),
-      avg_views: '',
+      channel_name: creator.channel_name || creator.name || '',
+      channel_url: creator.youtube_url || creator.instagram_url || creator.tiktok_url || '',
+      profile_image: creator.profile_image || '',
+      followers: creator.followers?.toString() || '',
+      avg_views: creator.avg_views?.toString() || '',
       avg_likes: '',
       avg_comments: '',
       category: creator.category || '',
-      target_audience: '',
-      content_style: creator.bio || '',
+      target_audience: creator.target_audience || '',
+      content_style: '',
       sample_videos: '',
-      platform,
+      platform: creator.youtube_url ? 'youtube' : creator.instagram_url ? 'instagram' : 'tiktok',
       regions: [selectedRegion] // 선택한 지역 자동 추가
     })
     setShowCreatorModal(false)
-    alert(`${creator.name || creator.full_name} 크리에이터의 정보가 입력되었습니다.`)
+    alert(`${creator.name || creator.channel_name} 크리에이터의 정보가 입력되었습니다.`)
   }
 
   const handleInputChange = (e) => {
@@ -927,37 +906,30 @@ export default function FeaturedCreatorManagementPage() {
                   <p>검색 결과가 없습니다</p>
                 </div>
               ) : (
-                registeredCreators.map(creator => {
-                  // 팔로워 수 계산
-                  const followers = creator.youtube_subscribers || creator.instagram_followers || creator.tiktok_followers || 0
-                  const profileImg = creator.profile_image || creator.profile_image_url || creator.avatar_url
-                  const platform = creator.youtube_url ? 'YouTube' : creator.instagram_url ? 'Instagram' : creator.tiktok_url ? 'TikTok' : ''
-
-                  return (
-                    <Card key={creator.id} className="p-4 hover:bg-gray-50 cursor-pointer" onClick={() => handleSelectCreator(creator)}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {profileImg ? (
-                            <img src={profileImg} alt={creator.name} className="w-12 h-12 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                              <Users className="w-6 h-6 text-gray-400" />
-                            </div>
-                          )}
-                          <div>
-                            <h4 className="font-semibold">{creator.name || creator.full_name || '이름 없음'}</h4>
-                            <p className="text-sm text-gray-600">{creator.email}</p>
-                            {platform && <p className="text-xs text-blue-500">{platform}</p>}
+                registeredCreators.map(creator => (
+                  <Card key={creator.id} className="p-4 hover:bg-gray-50 cursor-pointer" onClick={() => handleSelectCreator(creator)}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {creator.profile_image ? (
+                          <img src={creator.profile_image} alt={creator.name} className="w-12 h-12 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                            <Users className="w-6 h-6 text-gray-400" />
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">팔로워: {followers > 0 ? followers.toLocaleString() : 'N/A'}</p>
-                          <p className="text-xs text-gray-500">{creator.category || '카테고리 없음'}</p>
+                        )}
+                        <div>
+                          <h4 className="font-semibold">{creator.name || creator.channel_name || '이름 없음'}</h4>
+                          <p className="text-sm text-gray-600">{creator.email}</p>
+                          {creator.channel_name && <p className="text-xs text-gray-500">채널: {creator.channel_name}</p>}
                         </div>
                       </div>
-                    </Card>
-                  )
-                })
+                      <div className="text-right">
+                        <p className="text-sm font-medium">구독자: {creator.followers?.toLocaleString() || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">{creator.category || '카테고리 없음'}</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))
               )}
             </div>
           </div>
