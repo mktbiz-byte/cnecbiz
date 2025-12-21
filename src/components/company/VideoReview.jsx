@@ -475,8 +475,9 @@ export default function VideoReview() {
         body: JSON.stringify({
           creatorName: submission?.applications?.applicant_name || '크리에이터',
           creatorPhone: submission?.applications?.phone_number,
-          campaignTitle: submission?.applications?.campaigns?.title || '쾐페인',
-          feedbackCount: comments.length
+          campaignTitle: submission?.applications?.campaigns?.title || '캠페인',
+          feedbackCount: comments.length,
+          submissionId
         })
       })
 
@@ -486,7 +487,16 @@ export default function VideoReview() {
         throw new Error(result.error || '알림 전송 실패')
       }
 
-      alert('수정 요청이 크리에이터에게 전달되었습니다. (알림톡 + 이메일)')
+      // 응답에 따른 메시지 표시
+      if (result.skipped) {
+        alert('수정 요청이 등록되었습니다.\n(알림 서비스 미설정으로 알림은 발송되지 않았습니다)')
+      } else if (result.notificationFailed) {
+        alert(`수정 요청이 등록되었습니다.\n${result.warning || '크리에이터에게 직접 연락해 주세요'}`)
+      } else if (result.method === 'sms') {
+        alert('수정 요청이 크리에이터에게 문자로 전달되었습니다.')
+      } else {
+        alert('수정 요청이 크리에이터에게 전달되었습니다.')
+      }
     } catch (error) {
       console.error('Error sending notification:', error)
       alert('알림 전송 실패: ' + error.message)
