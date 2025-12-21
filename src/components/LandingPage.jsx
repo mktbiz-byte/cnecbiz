@@ -24,28 +24,49 @@ const getYouTubeThumbnail = (videoId) => {
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
 }
 
-// 개별 비디오 카드 컴포넌트 (초고속 로딩 - 호버/터치 시 재생)
-const VideoCard = ({ video, size = 'normal' }) => {
-  const [isActive, setIsActive] = useState(false)
+// 개별 비디오 카드 컴포넌트 (자동 재생)
+const VideoCard = ({ video, size = 'normal', autoPlay = true }) => {
+  const [isActive, setIsActive] = useState(autoPlay)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [isInView, setIsInView] = useState(false)
+  const cardRef = React.useRef(null)
 
   const youtubeId = getYouTubeVideoId(video.url || video.youtube_url)
   const thumbnailUrl = video.thumbnail_url || getYouTubeThumbnail(youtubeId)
 
   const sizeClasses = size === 'large' ? 'aspect-[9/16] min-h-[400px]' : 'aspect-[9/16]'
 
+  // Intersection Observer로 뷰포트에 들어올 때만 재생
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting)
+      },
+      { threshold: 0.3 }
+    )
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  const shouldPlay = autoPlay ? isInView : isActive
+
   return (
     <div
+      ref={cardRef}
       className={`relative ${sizeClasses} rounded-2xl overflow-hidden bg-gray-900 shadow-lg cursor-pointer`}
-      onMouseEnter={() => setIsActive(true)}
-      onMouseLeave={() => { setIsActive(false); setIsLoaded(false) }}
+      onMouseEnter={() => !autoPlay && setIsActive(true)}
+      onMouseLeave={() => !autoPlay && setIsActive(false)}
       onClick={() => setIsActive(true)}
     >
       {/* 썸네일 */}
       <img
         src={thumbnailUrl || `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
         alt={video.title || '영상'}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${isActive && isLoaded ? 'opacity-0' : 'opacity-100'}`}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${shouldPlay && isLoaded ? 'opacity-0' : 'opacity-100'}`}
         loading="lazy"
         onError={(e) => {
           if (e.target.src.includes('maxresdefault')) {
@@ -54,25 +75,25 @@ const VideoCard = ({ video, size = 'normal' }) => {
         }}
       />
 
-      {/* YouTube iframe (호버/터치 시에만) */}
-      {isActive && youtubeId && (
+      {/* YouTube iframe (뷰포트에 들어오면 자동 재생) */}
+      {shouldPlay && youtubeId && (
         <iframe
-          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&rel=0&modestbranding=1`}
+          src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&controls=0&rel=0&modestbranding=1&showinfo=0`}
           className="absolute inset-0 w-full h-full pointer-events-none"
           allow="autoplay; encrypted-media"
           onLoad={() => setIsLoaded(true)}
         />
       )}
 
-      {/* 호버 시 로딩 스피너 */}
-      {isActive && !isLoaded && (
+      {/* 로딩 스피너 */}
+      {shouldPlay && !isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
           <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
         </div>
       )}
 
-      {/* 재생 버튼 */}
-      {!isActive && (
+      {/* 재생 버튼 (자동재생 아닐 때만 표시) */}
+      {!autoPlay && !isActive && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors">
           <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform">
             <Play className="w-6 h-6 text-white ml-1" fill="white" />
