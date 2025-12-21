@@ -3892,14 +3892,27 @@ export default function CampaignDetail() {
                                 size="sm"
                                 variant="outline"
                                 className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
-                                onClick={() => {
-                                  const link = document.createElement('a')
-                                  link.href = submission.video_file_url
-                                  link.download = `${submission.applications?.creator_name || 'video'}_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                  link.target = '_blank'
-                                  document.body.appendChild(link)
-                                  link.click()
-                                  document.body.removeChild(link)
+                                onClick={async () => {
+                                  try {
+                                    // Cross-origin 다운로드를 위해 blob으로 fetch
+                                    const response = await fetch(submission.video_file_url)
+                                    const blob = await response.blob()
+                                    const blobUrl = window.URL.createObjectURL(blob)
+
+                                    const link = document.createElement('a')
+                                    link.href = blobUrl
+                                    link.download = `${submission.applications?.creator_name || 'video'}_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                    document.body.appendChild(link)
+                                    link.click()
+                                    document.body.removeChild(link)
+
+                                    // blob URL 해제
+                                    window.URL.revokeObjectURL(blobUrl)
+                                  } catch (error) {
+                                    console.error('Download failed:', error)
+                                    // fallback: 새 탭에서 열기
+                                    window.open(submission.video_file_url, '_blank')
+                                  }
                                 }}
                               >
                                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
