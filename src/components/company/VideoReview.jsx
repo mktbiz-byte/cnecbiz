@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, ChevronLeft, ChevronRight, Keyboard, Clock, FileText } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
@@ -10,7 +10,8 @@ export default function VideoReview() {
   const navigate = useNavigate()
   const videoRef = useRef(null)
   const videoContainerRef = useRef(null)
-  
+  const timelineRef = useRef(null)
+
   const [submission, setSubmission] = useState(null)
   const [comments, setComments] = useState([])
   const [replies, setReplies] = useState({}) // { commentId: [replies] }
@@ -26,6 +27,14 @@ export default function VideoReview() {
   const [isPaused, setIsPaused] = useState(true)
   const [attachmentFile, setAttachmentFile] = useState(null)
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(1)
+  const [isMuted, setIsMuted] = useState(false)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [subtitles, setSubtitles] = useState([]) // { start, end, text }
+  const [currentSubtitle, setCurrentSubtitle] = useState('')
+  const [selectedFeedback, setSelectedFeedback] = useState(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
     loadSubmission()
@@ -38,21 +47,175 @@ export default function VideoReview() {
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime)
+      // Update current subtitle
+      const sub = subtitles.find(s => video.currentTime >= s.start && video.currentTime <= s.end)
+      setCurrentSubtitle(sub?.text || '')
     }
 
     const handlePlay = () => setIsPaused(false)
     const handlePause = () => setIsPaused(true)
+    const handleLoadedMetadata = () => setDuration(video.duration)
+    const handleVolumeChange = () => {
+      setVolume(video.volume)
+      setIsMuted(video.muted)
+    }
 
     video.addEventListener('timeupdate', handleTimeUpdate)
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
-    
+    video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.addEventListener('volumechange', handleVolumeChange)
+
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate)
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      video.removeEventListener('volumechange', handleVolumeChange)
     }
+  }, [signedVideoUrl, subtitles])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if typing in input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
+      const video = videoRef.current
+      if (!video) return
+
+      switch (e.key) {
+        case ' ':
+        case 'k':
+          e.preventDefault()
+          if (video.paused) video.play()
+          else video.pause()
+          break
+        case 'ArrowLeft':
+          e.preventDefault()
+          video.currentTime = Math.max(0, video.currentTime - (e.shiftKey ? 10 : 5))
+          break
+        case 'ArrowRight':
+          e.preventDefault()
+          video.currentTime = Math.min(video.duration, video.currentTime + (e.shiftKey ? 10 : 5))
+          break
+        case 'j':
+          e.preventDefault()
+          video.currentTime = Math.max(0, video.currentTime - 10)
+          break
+        case 'l':
+          e.preventDefault()
+          video.currentTime = Math.min(video.duration, video.currentTime + 10)
+          break
+        case ',':
+          e.preventDefault()
+          video.currentTime = Math.max(0, video.currentTime - (1/30)) // 1 frame back (assuming 30fps)
+          break
+        case '.':
+          e.preventDefault()
+          video.currentTime = Math.min(video.duration, video.currentTime + (1/30)) // 1 frame forward
+          break
+        case 'm':
+          e.preventDefault()
+          video.muted = !video.muted
+          break
+        case 'f':
+          e.preventDefault()
+          toggleFullscreen()
+          break
+        case '?':
+          e.preventDefault()
+          setShowShortcuts(prev => !prev)
+          break
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Parse subtitles from video track
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleCueChange = () => {
+      const track = video.textTracks[0]
+      if (track && track.activeCues && track.activeCues.length > 0) {
+        setCurrentSubtitle(track.activeCues[0].text)
+      } else {
+        setCurrentSubtitle('')
+      }
+    }
+
+    const handleTrackLoaded = () => {
+      const track = video.textTracks[0]
+      if (track) {
+        track.mode = 'hidden' // Hide native subtitles, we'll show our own
+        const cues = Array.from(track.cues || [])
+        setSubtitles(cues.map(cue => ({
+          start: cue.startTime,
+          end: cue.endTime,
+          text: cue.text
+        })))
+        track.addEventListener('cuechange', handleCueChange)
+      }
+    }
+
+    video.addEventListener('loadedmetadata', handleTrackLoaded)
+    return () => video.removeEventListener('loadedmetadata', handleTrackLoaded)
   }, [signedVideoUrl])
+
+  const toggleFullscreen = useCallback(() => {
+    const container = videoContainerRef.current
+    if (!container) return
+
+    if (!document.fullscreenElement) {
+      container.requestFullscreen?.() || container.webkitRequestFullscreen?.()
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen?.() || document.webkitExitFullscreen?.()
+      setIsFullscreen(false)
+    }
+  }, [])
+
+  const togglePlay = () => {
+    const video = videoRef.current
+    if (!video) return
+    if (video.paused) video.play()
+    else video.pause()
+  }
+
+  const toggleMute = () => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = !video.muted
+  }
+
+  const handleVolumeSlider = (e) => {
+    const video = videoRef.current
+    if (!video) return
+    const newVolume = parseFloat(e.target.value)
+    video.volume = newVolume
+    video.muted = newVolume === 0
+  }
+
+  const skipTime = (seconds) => {
+    const video = videoRef.current
+    if (!video) return
+    video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds))
+  }
+
+  const handleTimelineClick = (e) => {
+    const video = videoRef.current
+    const timeline = timelineRef.current
+    if (!video || !timeline) return
+
+    const rect = timeline.getBoundingClientRect()
+    const percentage = (e.clientX - rect.left) / rect.width
+    video.currentTime = percentage * video.duration
+    video.pause()
+  }
 
   const loadSubmission = async () => {
     try {
@@ -333,442 +496,679 @@ export default function VideoReview() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">로딩 중...</div>
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-900">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-300">영상을 불러오는 중...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!submission) {
-    return <div className="flex items-center justify-center h-screen">영상을 찾을 수 없습니다.</div>
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-900">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-400" />
+          </div>
+          <p className="text-slate-300">영상을 찾을 수 없습니다.</p>
+          <Button
+            variant="ghost"
+            className="mt-4 text-slate-400 hover:text-white"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            뒤로 가기
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* 헤더 */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => navigate(-1)}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              뒤로 가기
-            </Button>
-            <Button
-              onClick={sendReviewNotification}
-              disabled={isSending || comments.length === 0}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold px-6 py-3 text-base shadow-lg hover:shadow-xl transition-all"
-            >
-              <Mail className="w-5 h-5 mr-2" />
-              {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
-            </Button>
+    <div className="min-h-screen bg-slate-900 text-white">
+      {/* 키보드 단축키 모달 */}
+      {showShortcuts && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowShortcuts(false)}>
+          <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full shadow-2xl border border-slate-700" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Keyboard className="w-5 h-5 text-blue-400" />
+                키보드 단축키
+              </h3>
+              <button onClick={() => setShowShortcuts(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">재생/일시정지</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">Space</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">5초 뒤로</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">←</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">5초 앞으로</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">→</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">10초 뒤로</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">J</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">10초 앞으로</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">L</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">프레임 뒤로</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">,</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">프레임 앞으로</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">.</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">음소거</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">M</kbd>
+                </div>
+                <div className="flex justify-between bg-slate-700/50 px-3 py-2 rounded">
+                  <span className="text-slate-300">전체화면</span>
+                  <kbd className="bg-slate-600 px-2 py-0.5 rounded text-xs font-mono">F</kbd>
+                </div>
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold">영상 수정 요청</h1>
-          <p className="text-gray-600 mt-2">
-            {submission.applications?.applicant_name || '크리에이터'}
-          </p>
-          <p className="text-sm text-gray-500 mt-1">
-            💡 영상을 클릭하여 해당 위치에 피드백을 추가하세요
-          </p>
         </div>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 왼쪽: 영상 플레이어 */}
-          <div className="lg:col-span-2">
-            <Card className="p-6">
-              <div 
-                ref={videoContainerRef}
-                className="aspect-video bg-black rounded-lg overflow-hidden mb-4 relative"
+      {/* 헤더 */}
+      <div className="bg-slate-800 border-b border-slate-700">
+        <div className="max-w-[1920px] mx-auto px-4 py-3">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={() => navigate(-1)}
+                className="text-slate-400 hover:text-white hover:bg-slate-700"
               >
-                {/* Transparent overlay for click detection - exclude bottom 60px for controls */}
-                <div 
-                  className="absolute top-0 left-0 right-0 cursor-crosshair"
-                  style={{ 
-                    bottom: '60px',
-                    pointerEvents: 'auto',
-                    zIndex: 5
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                뒤로
+              </Button>
+              <div className="h-6 w-px bg-slate-700"></div>
+              <div>
+                <h1 className="text-lg font-semibold">영상 수정 요청</h1>
+                <p className="text-sm text-slate-400">
+                  {submission.applications?.applicant_name || '크리에이터'} • {submission.applications?.campaigns?.title || '캠페인'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowShortcuts(true)}
+                className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                title="키보드 단축키 (? 키)"
+              >
+                <Keyboard className="w-5 h-5" />
+              </button>
+              <Button
+                onClick={sendReviewNotification}
+                disabled={isSending || comments.length === 0}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-5 py-2 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 메인 컨텐츠 */}
+      <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row gap-4 p-4 h-[calc(100vh-70px)]">
+        {/* 왼쪽: 영상 플레이어 영역 */}
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* 영상 컨테이너 */}
+          <div
+            ref={videoContainerRef}
+            className="relative bg-black rounded-xl overflow-hidden flex-1 min-h-0"
+          >
+            {/* 클릭 영역 오버레이 */}
+            <div
+              className="absolute inset-0 cursor-crosshair z-10"
+              style={{ bottom: '50px' }}
+              onClick={handleVideoClick}
+            />
+
+            <video
+              ref={videoRef}
+              className="w-full h-full object-contain"
+              crossOrigin="anonymous"
+              src={signedVideoUrl || submission.video_file_url}
+              onClick={(e) => e.stopPropagation()}
+            >
+              브라우저가 비디오를 지원하지 않습니다.
+            </video>
+
+            {/* 자막 표시 */}
+            {currentSubtitle && (
+              <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-20">
+                <div className="bg-black/80 text-white px-4 py-2 rounded-lg text-lg font-medium text-center max-w-[80%]">
+                  {currentSubtitle}
+                </div>
+              </div>
+            )}
+
+            {/* Active marker (being created) */}
+            {activeMarker && isPaused && (
+              <div
+                className="absolute border-4 border-amber-400 cursor-move shadow-lg shadow-amber-400/30"
+                style={{
+                  left: `${activeMarker.x}%`,
+                  top: `${activeMarker.y}%`,
+                  width: `${activeMarker.width}px`,
+                  height: `${activeMarker.height}px`,
+                  transform: 'translate(-50%, -50%)',
+                  pointerEvents: 'auto',
+                  zIndex: 20,
+                  boxShadow: '0 0 20px rgba(251, 191, 36, 0.5)'
+                }}
+                onMouseDown={(e) => {
+                  if (e.target.closest('.resize-handle')) return
+                  e.stopPropagation()
+                  e.preventDefault()
+                  const startX = e.clientX
+                  const startY = e.clientY
+                  const startMarkerX = activeMarker.x
+                  const startMarkerY = activeMarker.y
+
+                  const handleMouseMove = (moveEvent) => {
+                    moveEvent.preventDefault()
+                    const rect = videoContainerRef.current.getBoundingClientRect()
+                    const deltaX = ((moveEvent.clientX - startX) / rect.width) * 100
+                    const deltaY = ((moveEvent.clientY - startY) / rect.height) * 100
+                    const newX = Math.max(10, Math.min(90, startMarkerX + deltaX))
+                    const newY = Math.max(10, Math.min(90, startMarkerY + deltaY))
+                    setActiveMarker({ ...activeMarker, x: newX, y: newY })
+                  }
+
+                  const handleMouseUp = () => {
+                    document.removeEventListener('mousemove', handleMouseMove)
+                    document.removeEventListener('mouseup', handleMouseUp)
+                  }
+
+                  document.addEventListener('mousemove', handleMouseMove)
+                  document.addEventListener('mouseup', handleMouseUp)
+                }}
+              >
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-amber-400 text-slate-900 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {formatTimePrecise(activeMarker.timestamp)}
+                </div>
+                <div
+                  className="resize-handle absolute -bottom-2 -right-2 w-5 h-5 bg-amber-400 rounded-full cursor-se-resize flex items-center justify-center"
+                  style={{ pointerEvents: 'auto' }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    const startX = e.clientX
+                    const startY = e.clientY
+                    const startWidth = activeMarker.width
+                    const startHeight = activeMarker.height
+
+                    const handleMouseMove = (moveEvent) => {
+                      const deltaX = moveEvent.clientX - startX
+                      const deltaY = moveEvent.clientY - startY
+                      const rect = videoContainerRef.current.getBoundingClientRect()
+                      const newWidth = Math.max(40, startWidth + (deltaX / rect.width) * 100 * 10)
+                      const newHeight = Math.max(40, startHeight + (deltaY / rect.height) * 100 * 10)
+                      setActiveMarker({ ...activeMarker, width: newWidth, height: newHeight })
+                    }
+
+                    const handleMouseUp = () => {
+                      document.removeEventListener('mousemove', handleMouseMove)
+                      document.removeEventListener('mouseup', handleMouseUp)
+                    }
+
+                    document.addEventListener('mousemove', handleMouseMove)
+                    document.addEventListener('mouseup', handleMouseUp)
                   }}
-                  onClick={handleVideoClick}
-                />
-                <video
-                  ref={videoRef}
-                  controls
-                  crossOrigin="anonymous"
-                  className="w-full h-full"
-                  src={signedVideoUrl || submission.video_file_url}
-                  onClick={(e) => e.stopPropagation()}
                 >
-                  브라우저가 비디오를 지원하지 않습니다.
-                </video>
-                
-                {/* Active marker (being created) */}
-                {activeMarker && isPaused && (
-                  <div
-                    className="absolute border-4 border-yellow-500 cursor-move"
-                    style={{
-                      left: `${activeMarker.x}%`,
-                      top: `${activeMarker.y}%`,
-                      width: `${activeMarker.width}px`,
-                      height: `${activeMarker.height}px`,
-                      transform: 'translate(-50%, -50%)',
-                      pointerEvents: 'auto',
-                      zIndex: 20
-                    }}
-                    onMouseDown={(e) => {
-                      // Check if clicking on resize handle
-                      if (e.target.closest('.resize-handle')) return
-                      e.stopPropagation()
-                      e.preventDefault()
-                      const startX = e.clientX
-                      const startY = e.clientY
-                      const startMarkerX = activeMarker.x
-                      const startMarkerY = activeMarker.y
-                      
-                      const handleMouseMove = (moveEvent) => {
-                        moveEvent.preventDefault()
-                        const rect = videoContainerRef.current.getBoundingClientRect()
-                        const deltaX = ((moveEvent.clientX - startX) / rect.width) * 100
-                        const deltaY = ((moveEvent.clientY - startY) / rect.height) * 100
-                        const newX = Math.max(10, Math.min(90, startMarkerX + deltaX))
-                        const newY = Math.max(10, Math.min(90, startMarkerY + deltaY))
-                        setActiveMarker({ ...activeMarker, x: newX, y: newY })
-                      }
-                      
-                      const handleMouseUp = () => {
-                        document.removeEventListener('mousemove', handleMouseMove)
-                        document.removeEventListener('mouseup', handleMouseUp)
-                      }
-                      
-                      document.addEventListener('mousemove', handleMouseMove)
-                      document.addEventListener('mouseup', handleMouseUp)
-                    }}
-                  >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                      {formatTimePrecise(activeMarker.timestamp)}
-                    </div>
-                    {/* Resize handles */}
-                    <div 
-                      className="resize-handle absolute -bottom-2 -right-2 w-4 h-4 bg-yellow-500 rounded-full cursor-se-resize"
-                      style={{ pointerEvents: 'auto' }}
-                      onMouseDown={(e) => {
-                        e.stopPropagation()
-                        const startX = e.clientX
-                        const startY = e.clientY
-                        const startWidth = activeMarker.width
-                        const startHeight = activeMarker.height
-                        
-                        const handleMouseMove = (moveEvent) => {
-                          const deltaX = moveEvent.clientX - startX
-                          const deltaY = moveEvent.clientY - startY
-                          const rect = videoContainerRef.current.getBoundingClientRect()
-                          const newWidth = Math.max(40, startWidth + (deltaX / rect.width) * 100 * 10)
-                          const newHeight = Math.max(40, startHeight + (deltaY / rect.height) * 100 * 10)
-                          setActiveMarker({ ...activeMarker, width: newWidth, height: newHeight })
-                        }
-                        
-                        const handleMouseUp = () => {
-                          document.removeEventListener('mousemove', handleMouseMove)
-                          document.removeEventListener('mouseup', handleMouseUp)
-                        }
-                        
-                        document.addEventListener('mousemove', handleMouseMove)
-                        document.addEventListener('mouseup', handleMouseUp)
-                      }}
-                    />
+                  <ChevronRight className="w-3 h-3 text-slate-900 rotate-45" />
+                </div>
+              </div>
+            )}
+
+            {/* Existing comment markers */}
+            {comments.map((comment, index) => {
+              const x = comment.box_x || (20 + (comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 60))
+              const y = comment.box_y || (20 + ((comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 7) % 60))
+              const width = comment.box_width || 120
+              const height = comment.box_height || 120
+
+              const timeDiff = Math.abs(currentTime - comment.timestamp)
+              const isVisible = isPaused && timeDiff <= 2
+              const isSelected = selectedFeedback === comment.id
+
+              if (!isVisible) return null
+
+              return (
+                <div
+                  key={comment.id}
+                  className={`absolute border-4 cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-blue-400 shadow-lg shadow-blue-400/50'
+                      : 'border-blue-500/70 hover:border-blue-400'
+                  }`}
+                  style={{
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: isSelected ? 15 : 10,
+                    boxShadow: isSelected ? '0 0 30px rgba(96, 165, 250, 0.6)' : 'none'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedFeedback(comment.id)
+                    seekToTimestamp(comment.timestamp)
+                  }}
+                >
+                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap flex items-center gap-1 shadow-lg">
+                    <span className="w-4 h-4 bg-white text-blue-500 rounded-full flex items-center justify-center text-[10px]">{index + 1}</span>
+                    {formatTimePrecise(comment.timestamp)}
                   </div>
-                )}
-                
-                {/* Existing comment markers - only show when video is at that timestamp */}
+                  {comment.comment && isSelected && (
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-30">
+                      <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 shadow-xl min-w-[150px] max-w-[250px]">
+                        <div className="text-xs text-slate-200 whitespace-normal break-words">
+                          {comment.comment}
+                        </div>
+                        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[8px] border-b-slate-800"></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* 커스텀 비디오 컨트롤 */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 z-20">
+              {/* 프로그레스 바 */}
+              <div
+                ref={timelineRef}
+                className="relative h-2 bg-slate-600/50 rounded-full mb-3 cursor-pointer group"
+                onClick={handleTimelineClick}
+              >
+                {/* 버퍼 */}
+                <div className="absolute top-0 left-0 h-full bg-slate-500/50 rounded-full" style={{ width: '100%' }}></div>
+                {/* 진행 */}
+                <div
+                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
+                  style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+                ></div>
+                {/* 재생 헤드 */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform"
+                  style={{ left: `${duration ? (currentTime / duration) * 100 : 0}%`, transform: 'translate(-50%, -50%)' }}
+                ></div>
+
+                {/* 피드백 마커들 */}
                 {comments.map((comment, index) => {
-                  const x = comment.box_x || (20 + (comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 60))
-                  const y = comment.box_y || (20 + ((comment.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 7) % 60))
-                  const width = comment.box_width || 120
-                  const height = comment.box_height || 120
-                  
-                  // Only show marker when video is paused AND within ±2 seconds of current time
-                  const timeDiff = Math.abs(currentTime - comment.timestamp)
-                  const isVisible = isPaused && timeDiff <= 2
-                  
-                  if (!isVisible) return null
-                  
+                  const position = duration ? (comment.timestamp / duration) * 100 : 0
                   return (
                     <div
                       key={comment.id}
-                      className="absolute border-4 border-blue-500 cursor-pointer hover:border-blue-600 transition-all"
-                      style={{
-                        left: `${x}%`,
-                        top: `${y}%`,
-                        width: `${width}px`,
-                        height: `${height}px`,
-                        transform: 'translate(-50%, -50%)',
-                        zIndex: 10
-                      }}
+                      className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full cursor-pointer transition-all hover:scale-150 ${
+                        selectedFeedback === comment.id ? 'bg-blue-400 scale-150' : 'bg-blue-500'
+                      }`}
+                      style={{ left: `${position}%`, transform: 'translate(-50%, -50%)', zIndex: 10 }}
                       onClick={(e) => {
                         e.stopPropagation()
+                        setSelectedFeedback(comment.id)
                         seekToTimestamp(comment.timestamp)
                       }}
-                    >
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                        #{index + 1} {formatTimePrecise(comment.timestamp)}
-                      </div>
-                      {/* Comment text bubble */}
-                      {comment.comment && (
-                        <div className="absolute -bottom-2 left-1/2 transform translate-y-full -translate-x-1/2 z-30">
-                          <div className="bg-white border-2 border-blue-500 rounded-lg p-2 shadow-lg min-w-[120px] max-w-[200px]">
-                            <div className="text-xs text-gray-800 whitespace-normal break-words text-center">
-                              {comment.comment}
-                            </div>
-                            {/* Arrow pointing up to the box */}
-                            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-blue-500"></div>
-                            <div className="absolute -top-1.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-white"></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Timeline with feedback markers */}
-              <div className="relative h-3 bg-gray-300 rounded-full mb-4">
-                {comments.map((comment, index) => {
-                  const position = videoRef.current ? (comment.timestamp / videoRef.current.duration) * 100 : 0
-                  return (
-                    <div
-                      key={comment.id}
-                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-700 hover:scale-125 transition-all shadow-md"
-                      style={{ left: `${position}%`, transform: 'translate(-50%, -50%)' }}
-                      onClick={() => seekToTimestamp(comment.timestamp)}
                       title={`#${index + 1} - ${formatTimePrecise(comment.timestamp)}`}
-                    >
-                      <div className="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
-                        #{index + 1} {formatTimePrecise(comment.timestamp)}
-                      </div>
-                    </div>
+                    />
                   )
                 })}
-                {activeMarker && videoRef.current && (
+                {activeMarker && (
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-yellow-500 rounded-full shadow-md"
-                    style={{ left: `${(activeMarker.timestamp / videoRef.current.duration) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-amber-400 rounded-full animate-pulse"
+                    style={{ left: `${duration ? (activeMarker.timestamp / duration) * 100 : 0}%`, transform: 'translate(-50%, -50%)', zIndex: 10 }}
                   />
                 )}
               </div>
 
-              {/* 피드백 작성 폼 */}
-              {activeMarker && (
-                <div className="mt-4 p-4 border-2 border-yellow-500 rounded-lg bg-yellow-50">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium">수정 요청 작성 ({formatTimePrecise(activeMarker.timestamp)})</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={cancelMarker}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+              {/* 컨트롤 버튼들 */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* 재생/일시정지 */}
+                  <button
+                    onClick={togglePlay}
+                    className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    {isPaused ? <Play className="w-5 h-5 ml-0.5" /> : <Pause className="w-5 h-5" />}
+                  </button>
+
+                  {/* 건너뛰기 */}
+                  <button onClick={() => skipTime(-10)} className="text-slate-400 hover:text-white transition-colors p-1">
+                    <SkipBack className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => skipTime(10)} className="text-slate-400 hover:text-white transition-colors p-1">
+                    <SkipForward className="w-5 h-5" />
+                  </button>
+
+                  {/* 볼륨 */}
+                  <div className="flex items-center gap-2 group">
+                    <button onClick={toggleMute} className="text-slate-400 hover:text-white transition-colors p-1">
+                      {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeSlider}
+                      className="w-0 group-hover:w-20 transition-all duration-200 h-1 appearance-none bg-slate-600 rounded-full cursor-pointer"
+                      style={{ accentColor: '#3b82f6' }}
+                    />
                   </div>
-                  
-                  <textarea
-                    value={currentComment}
-                    onChange={(e) => setCurrentComment(e.target.value)}
-                    placeholder="이 위치에 대한 수정 요청 사항을 작성하세요..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md mb-2"
-                    rows={4}
-                    autoFocus
-                  />
-                  
-                  {/* 파일 첨부 */}
-                  <div className="mb-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      📎 참고 파일 첨부 (선택사항)
-                    </label>
-                    <p className="text-xs text-gray-500 mb-2">
-                      크리에이터에게 별도 참고할 이미지나 파일이 있으시면 첨부해 주세요.
-                    </p>
+
+                  {/* 시간 */}
+                  <div className="text-sm font-mono text-slate-300 ml-2">
+                    <span className="text-white">{formatTimePrecise(currentTime)}</span>
+                    <span className="mx-1">/</span>
+                    <span>{formatTimePrecise(duration)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* 프레임 이동 */}
+                  <div className="flex items-center bg-slate-700/50 rounded-lg px-2 py-1 gap-1">
+                    <button
+                      onClick={() => skipTime(-1/30)}
+                      className="text-slate-400 hover:text-white transition-colors p-1"
+                      title="이전 프레임 (,)"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs text-slate-400">프레임</span>
+                    <button
+                      onClick={() => skipTime(1/30)}
+                      className="text-slate-400 hover:text-white transition-colors p-1"
+                      title="다음 프레임 (.)"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* 전체화면 */}
+                  <button
+                    onClick={toggleFullscreen}
+                    className="text-slate-400 hover:text-white transition-colors p-2"
+                    title="전체화면 (F)"
+                  >
+                    <Maximize className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 피드백 입력 폼 */}
+          {activeMarker && (
+            <div className="mt-4 p-4 bg-slate-800 border border-amber-400/50 rounded-xl shadow-lg shadow-amber-400/10">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-slate-900" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">새 피드백 작성</p>
+                    <p className="text-xs text-slate-400 font-mono">{formatTimePrecise(activeMarker.timestamp)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={cancelMarker}
+                  className="text-slate-400 hover:text-white p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <textarea
+                value={currentComment}
+                onChange={(e) => setCurrentComment(e.target.value)}
+                placeholder="수정이 필요한 부분을 상세하게 작성해 주세요..."
+                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400 resize-none"
+                rows={3}
+                autoFocus
+              />
+
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex-1 mr-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="file"
                       accept="image/*,.pdf,.ppt,.pptx,.doc,.docx"
                       onChange={(e) => setAttachmentFile(e.target.files[0])}
-                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      className="hidden"
                     />
-                    {attachmentFile && (
-                      <p className="text-xs text-green-600 mt-1">
-                        ✓ {attachmentFile.name} ({(attachmentFile.size / 1024).toFixed(1)} KB)
-                      </p>
-                    )}
-                  </div>
-                  
-                  <Button
-                    onClick={addComment}
-                    disabled={uploadingFile}
-                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    {uploadingFile ? '업로드 중...' : '피드백 추가'}
-                  </Button>
+                    <div className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-slate-300 transition-colors">
+                      📎 파일 첨부
+                    </div>
+                  </label>
+                  {attachmentFile && (
+                    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                      ✓ {attachmentFile.name}
+                    </p>
+                  )}
                 </div>
-              )}
-            </Card>
-          </div>
 
-          {/* 오른쪽: 피드백 목록 */}
-          <div>
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">
-                피드백 타임라인 ({comments.length})
-              </h3>
-              
+                <Button
+                  onClick={addComment}
+                  disabled={uploadingFile || !currentComment.trim()}
+                  className="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-900 font-semibold px-6 py-2 shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {uploadingFile ? '업로드 중...' : '피드백 추가'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* 안내 문구 */}
+          {!activeMarker && (
+            <div className="mt-4 text-center py-3 bg-slate-800/50 rounded-lg border border-dashed border-slate-600">
+              <p className="text-slate-400 text-sm">
+                💡 영상의 원하는 위치를 <span className="text-amber-400 font-medium">클릭</span>하여 피드백을 추가하세요
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 오른쪽: 피드백 패널 */}
+        <div className="w-full lg:w-[400px] flex flex-col min-h-0">
+          <div className="bg-slate-800 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
+            {/* 패널 헤더 */}
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold">피드백 타임라인</h3>
+                  <p className="text-xs text-slate-400">{comments.length}개의 수정 요청</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 피드백 목록 */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {comments.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  영상을 클릭하여 첫 피드백을 추가하세요!
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageSquare className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <p className="text-slate-400 text-sm">아직 피드백이 없습니다</p>
+                  <p className="text-slate-500 text-xs mt-1">영상을 클릭하여 첫 피드백을 추가하세요</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {comments.map((comment, index) => (
-                    <div
-                      key={comment.id}
-                      className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-colors"
-                    >
-                      {/* 피드백 헤더 */}
-                      <div
-                        className="cursor-pointer"
-                        onClick={() => seekToTimestamp(comment.timestamp)}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs">
-                              {index + 1}
-                            </span>
-                            <span className="text-sm font-semibold text-blue-600 font-mono">
-                              {formatTimePrecise(comment.timestamp)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">
-                              {new Date(comment.created_at).toLocaleDateString('ko-KR')}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteComment(comment.id)
-                              }}
-                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <p className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{comment.comment}</p>
-                        
-                        {/* 첨부 파일 */}
-                        {comment.attachment_url && (
-                          <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                </svg>
-                                <span className="text-xs font-medium text-blue-700">
-                                  {comment.attachment_name || '첨부파일'}
-                                </span>
-                              </div>
-                              <a
-                                href={comment.attachment_url}
-                                download={comment.attachment_name}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                다운로드
-                              </a>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 댓글 섹션 */}
-                      <div className="border-t pt-3 mt-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <MessageSquare className="w-4 h-4 text-gray-500" />
-                          <span className="text-xs font-medium text-gray-600">
-                            댓글 {replies[comment.id]?.length || 0}
+                comments.map((comment, index) => (
+                  <div
+                    key={comment.id}
+                    className={`rounded-xl p-4 transition-all cursor-pointer ${
+                      selectedFeedback === comment.id
+                        ? 'bg-blue-500/20 border border-blue-500/50 shadow-lg shadow-blue-500/10'
+                        : 'bg-slate-700/50 border border-transparent hover:bg-slate-700 hover:border-slate-600'
+                    }`}
+                    onClick={() => {
+                      setSelectedFeedback(comment.id)
+                      seekToTimestamp(comment.timestamp)
+                    }}
+                  >
+                    {/* 피드백 헤더 */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                          selectedFeedback === comment.id
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-slate-600 text-slate-300'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <div>
+                          <span className={`text-sm font-mono font-semibold ${
+                            selectedFeedback === comment.id ? 'text-blue-400' : 'text-slate-300'
+                          }`}>
+                            {formatTimePrecise(comment.timestamp)}
                           </span>
+                          <p className="text-[10px] text-slate-500">
+                            {new Date(comment.created_at).toLocaleDateString('ko-KR')}
+                          </p>
                         </div>
-
-                        {/* 댓글 목록 */}
-                        {replies[comment.id]?.map((reply) => (
-                          <div key={reply.id} className="bg-gray-50 rounded p-2 mb-2 text-xs">
-                            <div className="font-semibold text-gray-700">{reply.author_name}</div>
-                            <div className="text-gray-600 mt-1">{reply.reply_text}</div>
-                            <div className="text-gray-400 text-[10px] mt-1">
-                              {new Date(reply.created_at).toLocaleString('ko-KR')}
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* 댓글 작성 폼 */}
-                        {replyingTo === comment.id ? (
-                          <div className="mt-2">
-                            <input
-                              type="text"
-                              value={authorName}
-                              onChange={(e) => setAuthorName(e.target.value)}
-                              placeholder="이름"
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs mb-1"
-                            />
-                            <textarea
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              placeholder="댓글을 입력하세요..."
-                              className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                              rows={2}
-                            />
-                            <div className="flex gap-1 mt-1">
-                              <Button
-                                size="sm"
-                                onClick={() => addReply(comment.id)}
-                                className="flex-1 h-7 text-xs"
-                              >
-                                작성
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setReplyingTo(null)
-                                  setReplyText('')
-                                  setAuthorName('')
-                                }}
-                                className="h-7 text-xs"
-                              >
-                                취소
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setReplyingTo(comment.id)}
-                            className="w-full mt-2 h-7 text-xs"
-                          >
-                            <MessageSquare className="w-3 h-3 mr-1" />
-                            댓글 달기
-                          </Button>
-                        )}
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteComment(comment.id)
+                        }}
+                        className="text-slate-500 hover:text-red-400 p-1 hover:bg-red-400/10 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                  ))}
-                </div>
+
+                    {/* 피드백 내용 */}
+                    <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">
+                      {comment.comment}
+                    </p>
+
+                    {/* 첨부 파일 */}
+                    {comment.attachment_url && (
+                      <div className="mt-3 p-2 bg-slate-600/50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs text-slate-300">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                            </svg>
+                            <span className="truncate max-w-[150px]">{comment.attachment_name || '첨부파일'}</span>
+                          </div>
+                          <a
+                            href={comment.attachment_url}
+                            download={comment.attachment_name}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-400 hover:text-blue-300 font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            다운로드
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 댓글 섹션 */}
+                    <div className="mt-3 pt-3 border-t border-slate-600/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MessageSquare className="w-3 h-3 text-slate-500" />
+                        <span className="text-[10px] text-slate-500">
+                          댓글 {replies[comment.id]?.length || 0}
+                        </span>
+                      </div>
+
+                      {/* 댓글 목록 */}
+                      {replies[comment.id]?.map((reply) => (
+                        <div key={reply.id} className="bg-slate-600/30 rounded-lg p-2 mb-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-300">{reply.author_name}</span>
+                            <span className="text-[10px] text-slate-500">
+                              {new Date(reply.created_at).toLocaleDateString('ko-KR')}
+                            </span>
+                          </div>
+                          <p className="text-slate-400 mt-1">{reply.reply_text}</p>
+                        </div>
+                      ))}
+
+                      {/* 댓글 작성 폼 */}
+                      {replyingTo === comment.id ? (
+                        <div className="mt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="text"
+                            value={authorName}
+                            onChange={(e) => setAuthorName(e.target.value)}
+                            placeholder="이름"
+                            className="w-full px-3 py-2 bg-slate-600/50 border border-slate-500 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          />
+                          <textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="댓글을 입력하세요..."
+                            className="w-full px-3 py-2 bg-slate-600/50 border border-slate-500 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                            rows={2}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => addReply(comment.id)}
+                              className="flex-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors"
+                            >
+                              작성
+                            </button>
+                            <button
+                              onClick={() => {
+                                setReplyingTo(null)
+                                setReplyText('')
+                                setAuthorName('')
+                              }}
+                              className="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-slate-300 text-xs rounded-lg transition-colors"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setReplyingTo(comment.id)
+                          }}
+                          className="w-full mt-2 px-3 py-2 bg-slate-600/30 hover:bg-slate-600/50 text-slate-400 hover:text-slate-300 text-xs rounded-lg transition-colors flex items-center justify-center gap-1"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          댓글 달기
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
               )}
-            </Card>
+            </div>
           </div>
         </div>
       </div>
