@@ -218,7 +218,7 @@ export default function FeaturedCreatorManagementPageNew() {
         (pricingData || []).map(async (pricing) => {
           const { data: creator, error: creatorError } = await supabaseBiz
             .from('featured_creators')
-            .select('id, channel_name, platform, profile_image, capi_score, capi_grade, regions')
+            .select('id, name, profile_image_url, capi_score, capi_grade, active_regions, primary_country')
             .eq('id', pricing.creator_id)
             .single()
 
@@ -634,18 +634,20 @@ export default function FeaturedCreatorManagementPageNew() {
     try {
       // 1. featured_creators에 먼저 저장
       const newCreator = {
-        platform: cnecPlusFormData.platform,
-        channel_name: cnecPlusFormData.creator_name,
-        channel_url: cnecPlusFormData.channel_url,
-        profile_image: cnecPlusFormData.profile_image,
-        regions: [cnecPlusFormData.creator_region],
-        supported_campaigns: [], // CNEC Plus는 모든 캠페인 지원
+        // Required fields for featured_creators table
+        source_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
+        source_country: cnecPlusFormData.creator_region === 'korea' ? 'KR' :
+                        cnecPlusFormData.creator_region === 'japan' ? 'JP' :
+                        cnecPlusFormData.creator_region === 'us' ? 'US' : 'TW',
+        name: cnecPlusFormData.creator_name,
+        primary_country: cnecPlusFormData.creator_region === 'korea' ? 'KR' :
+                        cnecPlusFormData.creator_region === 'japan' ? 'JP' :
+                        cnecPlusFormData.creator_region === 'us' ? 'US' : 'TW',
+        // Optional fields
+        profile_image_url: cnecPlusFormData.profile_image,
+        active_regions: [cnecPlusFormData.creator_region],
         featured_type: 'cnec_plus',
-        is_active: true,
-        followers: 0,
-        avg_views: 0,
-        avg_likes: 0,
-        avg_comments: 0
+        is_active: true
       }
 
       const { data: creatorData, error: creatorError } = await supabaseBiz
@@ -1427,16 +1429,20 @@ export default function FeaturedCreatorManagementPageNew() {
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-lg font-bold">{item.featured_creators?.channel_name}</h3>
+                                <h3 className="text-lg font-bold">{item.featured_creators?.name}</h3>
                                 {item.featured_creators?.capi_grade && (
                                   <Badge className={getGradeColor(item.featured_creators.capi_grade)}>
                                     {item.featured_creators.capi_grade}급 {item.featured_creators.capi_score}점
                                   </Badge>
                                 )}
-                                <Badge variant="outline">{item.featured_creators?.platform}</Badge>
+                                {item.featured_creators?.primary_country && (
+                                  <Badge variant="outline">
+                                    {getRegionFlag(item.featured_creators.primary_country.toLowerCase())}
+                                  </Badge>
+                                )}
                               </div>
                               <div className="flex gap-2 mb-3">
-                                {item.featured_creators?.regions?.map(region => (
+                                {item.featured_creators?.active_regions?.map(region => (
                                   <span key={region} className="text-sm">
                                     {getRegionFlag(region)} {getRegionName(region)}
                                   </span>
