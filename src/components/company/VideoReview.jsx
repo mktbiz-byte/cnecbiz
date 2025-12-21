@@ -166,7 +166,7 @@ export default function VideoReview() {
       if (attachmentFile) {
         const fileExt = attachmentFile.name.split('.').pop()
         const fileName = `video-review/${submissionId}/${Date.now()}.${fileExt}`
-        
+
         const { error: uploadError } = await supabaseBiz.storage
           .from('campaign-images')
           .upload(fileName, attachmentFile)
@@ -181,7 +181,9 @@ export default function VideoReview() {
         attachmentName = attachmentFile.name
       }
 
-      const { data, error } = await supabaseBiz
+      // Use same DB as video_submissions (Korea) to avoid FK constraint error
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('video_review_comments')
         .insert({
           submission_id: submissionId,
@@ -216,7 +218,9 @@ export default function VideoReview() {
     if (!confirm('이 피드백을 삭제하시겠습니까?')) return
 
     try {
-      const { error } = await supabaseBiz
+      // Use same DB as video_submissions (Korea)
+      const client = supabaseKorea || supabaseBiz
+      const { error } = await client
         .from('video_review_comments')
         .delete()
         .eq('id', commentId)
@@ -238,7 +242,9 @@ export default function VideoReview() {
     }
 
     try {
-      const { data, error } = await supabaseBiz
+      // Use same DB as video_submissions (Korea)
+      const client = supabaseKorea || supabaseBiz
+      const { data, error } = await client
         .from('video_review_comment_replies')
         .insert({
           comment_id: commentId,
@@ -263,11 +269,18 @@ export default function VideoReview() {
     }
   }
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds, precise = false) => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
+    if (precise) {
+      const ms = Math.floor((seconds % 1) * 100)
+      return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
+    }
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
+
+  // 정밀 시간 포맷 (0.01초 단위)
+  const formatTimePrecise = (seconds) => formatTime(seconds, true)
 
   const seekToTimestamp = (timestamp) => {
     if (videoRef.current) {
@@ -430,7 +443,7 @@ export default function VideoReview() {
                     }}
                   >
                     <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                      {formatTime(activeMarker.timestamp)}
+                      {formatTimePrecise(activeMarker.timestamp)}
                     </div>
                     {/* Resize handles */}
                     <div 
@@ -495,7 +508,7 @@ export default function VideoReview() {
                       }}
                     >
                       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                        #{index + 1} {formatTime(comment.timestamp)}
+                        #{index + 1} {formatTimePrecise(comment.timestamp)}
                       </div>
                       {/* Comment text bubble */}
                       {comment.comment && (
@@ -525,10 +538,10 @@ export default function VideoReview() {
                       className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 rounded-full cursor-pointer hover:bg-blue-700 hover:scale-125 transition-all shadow-md"
                       style={{ left: `${position}%`, transform: 'translate(-50%, -50%)' }}
                       onClick={() => seekToTimestamp(comment.timestamp)}
-                      title={`#${index + 1} - ${formatTime(comment.timestamp)}`}
+                      title={`#${index + 1} - ${formatTimePrecise(comment.timestamp)}`}
                     >
                       <div className="absolute -top-7 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap opacity-0 hover:opacity-100 transition-opacity">
-                        #{index + 1} {formatTime(comment.timestamp)}
+                        #{index + 1} {formatTimePrecise(comment.timestamp)}
                       </div>
                     </div>
                   )
@@ -545,7 +558,7 @@ export default function VideoReview() {
               {activeMarker && (
                 <div className="mt-4 p-4 border-2 border-yellow-500 rounded-lg bg-yellow-50">
                   <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm font-medium">수정 요청 작성 ({formatTime(activeMarker.timestamp)})</p>
+                    <p className="text-sm font-medium">수정 요청 작성 ({formatTimePrecise(activeMarker.timestamp)})</p>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -626,8 +639,8 @@ export default function VideoReview() {
                             <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-xs">
                               {index + 1}
                             </span>
-                            <span className="text-sm font-semibold text-blue-600">
-                              {formatTime(comment.timestamp)}
+                            <span className="text-sm font-semibold text-blue-600 font-mono">
+                              {formatTimePrecise(comment.timestamp)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
