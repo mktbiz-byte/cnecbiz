@@ -34,7 +34,7 @@ CREATE TABLE featured_creators (
   region TEXT,
   
   -- 추천 시스템
-  featured_type VARCHAR(20) DEFAULT 'auto' CHECK (featured_type IN ('auto', 'manual')),
+  featured_type VARCHAR(20) DEFAULT 'auto' CHECK (featured_type IN ('auto', 'manual', 'ai_recommended', 'cnec_plus', 'capi')),
   is_active BOOLEAN DEFAULT true,
   
   -- 국가 및 지역

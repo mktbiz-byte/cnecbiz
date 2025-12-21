@@ -10,7 +10,7 @@ CREATE TABLE featured_creators (
   user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
   
   -- 기본 정보
-  featured_type VARCHAR(20) DEFAULT 'auto' CHECK (featured_type IN ('auto', 'manual')),
+  featured_type VARCHAR(20) DEFAULT 'auto' CHECK (featured_type IN ('auto', 'manual', 'ai_recommended', 'cnec_plus', 'capi')),
   is_active BOOLEAN DEFAULT true,
   
   -- 국가 및 지역
@@ -186,7 +186,7 @@ $$ LANGUAGE plpgsql;
 -- 코멘트 추가
 COMMENT ON TABLE featured_creators IS '자동 매칭 기반 추천 크리에이터 시스템';
 COMMENT ON COLUMN featured_creators.user_id IS 'user_profiles 참조';
-COMMENT ON COLUMN featured_creators.featured_type IS '추천 유형: auto(자동), manual(수동)';
+COMMENT ON COLUMN featured_creators.featured_type IS '추천 유형: auto(자동), manual(수동), ai_recommended(AI추천), cnec_plus(CNEC플러스), capi(CAPI분석)';
 COMMENT ON COLUMN featured_creators.primary_country IS '주요 활동 국가';
 COMMENT ON COLUMN featured_creators.active_regions IS '활동 가능 지역 배열';
 COMMENT ON COLUMN featured_creators.category_scores IS '카테고리별 점수 (0-100)';
