@@ -590,11 +590,18 @@ export default function MyCampaigns() {
                                 <span className="text-gray-600">모집</span>
                                 <span className="font-bold text-blue-600">{campaign.total_slots || 0}명</span>
                               </span>
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-lg text-sm">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  navigate(`/company/campaigns/${campaign.id}?tab=applicants${campaign.region ? `&region=${campaign.region}` : ''}`)
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-sm transition-colors cursor-pointer"
+                                title="지원자 현황 보기"
+                              >
                                 <UserCheck className="w-4 h-4 text-emerald-500" />
                                 <span className="text-gray-600">지원</span>
                                 <span className="font-bold text-emerald-600">{participantInfo.total}명</span>
-                              </span>
+                              </button>
                               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 rounded-lg text-sm">
                                 <CheckCircle className="w-4 h-4 text-violet-500" />
                                 <span className="text-gray-600">확정</span>

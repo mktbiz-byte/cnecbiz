@@ -13,8 +13,10 @@ const CampaignCreationKorea = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const editId = searchParams.get('edit') || searchParams.get('id')
+  const isAdmin = searchParams.get('admin') === 'true'
   const thumbnailInputRef = useRef(null)
   const detailImageInputRef = useRef(null)
+  const brandInfoRef = useRef(null)
 
   const [campaignForm, setCampaignForm] = useState({
     campaign_type: 'planned',  // 'planned', 'oliveyoung', '4week_challenge'
@@ -624,6 +626,13 @@ const CampaignCreationKorea = () => {
           week3_deadline: formatDate(data.week3_deadline),
           week4_deadline: formatDate(data.week4_deadline)
         })
+
+        // 수정 모드일 때 브랜드 정보 섹션으로 스크롤
+        setTimeout(() => {
+          if (brandInfoRef.current) {
+            brandInfoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 300)
       }
     } catch (err) {
       console.error('캠페인 불러오기 실패:', err)
@@ -1059,8 +1068,19 @@ const CampaignCreationKorea = () => {
       <div className="bg-gray-50 py-8 lg:py-12">
         {/* 뒤로가기 */}
         <div className="max-w-6xl mx-auto px-4 lg:px-8 mb-6">
-          <Button variant="ghost" onClick={() => navigate('/company/campaigns')} className="text-gray-500 hover:text-gray-700">
-            ← 캠페인 목록으로
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (editId) {
+                // 수정 모드일 때는 해당 캠페인 상세 페이지로 이동
+                navigate(`/company/campaigns/${editId}`)
+              } else {
+                navigate('/company/campaigns')
+              }
+            }}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ← {editId ? '캠페인으로 돌아가기' : '캠페인 목록으로'}
           </Button>
         </div>
 
@@ -1423,7 +1443,7 @@ const CampaignCreationKorea = () => {
                   </div>
 
                   {/* 브랜드/참여조건 섹션 */}
-                  <div className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
+                  <div ref={brandInfoRef} className="bg-white rounded-2xl p-6 lg:p-8 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <span className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">

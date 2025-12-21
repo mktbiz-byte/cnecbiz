@@ -48,6 +48,7 @@ export default function CampaignDetail() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const region = searchParams.get('region') || 'korea'
+  const tabParam = searchParams.get('tab') // URL에서 tab 파라미터 읽기
   const supabase = region === 'japan'
     ? getSupabaseClient('japan')
     : region === 'us'
@@ -62,7 +63,8 @@ export default function CampaignDetail() {
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
-  const [activeTab, setActiveTab] = useState('applications') // 메인 탭 상태
+  // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
+  const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [cancellingApp, setCancellingApp] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
