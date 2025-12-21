@@ -6,6 +6,7 @@ import { supabaseBiz } from '../lib/supabaseClients'
 export default function ConsultationBanner() {
   const location = useLocation()
   const isMainPage = location.pathname === '/'
+  const isAdminPage = location.pathname.startsWith('/admin')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
 
@@ -173,9 +174,9 @@ export default function ConsultationBanner() {
 
   return (
     <>
-      {/* 플로팅 상담 버튼 - 우측 하단 (하단 바 위로 위치) */}
+      {/* 플로팅 상담 버튼 - 우측 하단 (하단 바 위로 위치) - 관리자 페이지에서는 숨김 */}
       <div className={`fixed bottom-24 right-6 z-50 ${
-        isMainPage ? '' : 'hidden md:block'
+        isAdminPage ? 'hidden' : isMainPage ? '' : 'hidden md:block'
       }`}>
         <a
           href="https://pf.kakao.com/_xgNdxlG"
