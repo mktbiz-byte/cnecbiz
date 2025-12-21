@@ -910,7 +910,8 @@ export default function CompaniesManagement() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  navigate(`/admin/companies/${detailCompany.id}`)
+                  const companyName = encodeURIComponent(detailCompany.company_name || detailCompany.name || '')
+                  navigate(`/admin/campaigns?company_id=${detailCompany.id}&company_name=${companyName}`)
                   setShowDetailModal(false)
                 }}
               >

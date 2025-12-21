@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -218,6 +218,10 @@ const getSmartSortScore = (campaign) => {
 
 export default function CampaignsManagement() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filterCompanyId = searchParams.get('company_id')
+  const filterCompanyName = searchParams.get('company_name')
+
   const [campaigns, setCampaigns] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('all')
@@ -307,6 +311,9 @@ export default function CampaignsManagement() {
   // 필터링된 캠페인 (useMemo로 최적화 + 스마트 정렬)
   const filteredCampaigns = useMemo(() => {
     const filtered = campaigns.filter(campaign => {
+      // 기업 ID 필터 (URL 파라미터로 들어온 경우)
+      const matchesCompany = !filterCompanyId || campaign.company_id === filterCompanyId
+
       const matchesSearch = searchTerm === '' ||
         campaign.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         campaign.campaign_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -341,12 +348,12 @@ export default function CampaignsManagement() {
         }
       }
 
-      return matchesSearch && matchesRegion && matchesStatus
+      return matchesCompany && matchesSearch && matchesRegion && matchesStatus
     })
 
     // 스마트 정렬: 긴급도 높은 순으로 정렬
     return filtered.sort((a, b) => getSmartSortScore(b) - getSmartSortScore(a))
-  }, [campaigns, searchTerm, selectedRegion, selectedStatus])
+  }, [campaigns, searchTerm, selectedRegion, selectedStatus, filterCompanyId])
 
   // 페이지네이션 계산
   const paginatedCampaigns = useMemo(() => {
@@ -1110,6 +1117,33 @@ export default function CampaignsManagement() {
                   {bulkActionLoading ? '처리중...' : '일괄 삭제'}
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* 기업 필터 표시 */}
+          {filterCompanyId && (
+            <div className="mb-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Building2 className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <p className="text-sm font-medium text-indigo-900">
+                    {filterCompanyName ? `"${decodeURIComponent(filterCompanyName)}"` : '선택한 기업'}의 캠페인만 표시 중
+                  </p>
+                  <p className="text-xs text-indigo-600">{filteredCampaigns.length}개의 캠페인</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchParams({})
+                  navigate('/admin/campaigns')
+                }}
+                className="text-indigo-600 border-indigo-300 hover:bg-indigo-100"
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                필터 해제
+              </Button>
             </div>
           )}
 
