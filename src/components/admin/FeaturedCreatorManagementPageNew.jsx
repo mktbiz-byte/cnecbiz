@@ -635,7 +635,7 @@ export default function FeaturedCreatorManagementPageNew() {
       // 1. featured_creators에 먼저 저장
       const newCreator = {
         // Required fields for featured_creators table
-        source_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID
+        source_user_id: crypto.randomUUID(), // 고유 UUID 생성
         source_country: cnecPlusFormData.creator_region === 'korea' ? 'KR' :
                         cnecPlusFormData.creator_region === 'japan' ? 'JP' :
                         cnecPlusFormData.creator_region === 'us' ? 'US' : 'TW',
