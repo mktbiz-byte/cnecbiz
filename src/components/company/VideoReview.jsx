@@ -1361,14 +1361,14 @@ export default function VideoReview() {
           />
 
           {/* Bottom Sheet */}
-          <div className="bg-slate-800 rounded-t-2xl max-h-[80vh] flex flex-col animate-slide-up">
+          <div className="bg-slate-800 rounded-t-2xl h-[80vh] flex flex-col animate-slide-up">
             {/* Handle */}
-            <div className="flex justify-center py-3">
+            <div className="flex justify-center py-3 shrink-0">
               <div className="w-12 h-1 bg-slate-600 rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="px-4 pb-3 border-b border-slate-700 flex items-center justify-between">
+            <div className="px-4 pb-3 border-b border-slate-700 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
                   <FileText className="w-4 h-4" />
@@ -1388,7 +1388,7 @@ export default function VideoReview() {
 
             {/* Active Marker Form - Mobile */}
             {activeMarker && (
-              <div className="p-4 border-b border-amber-400/30 bg-amber-400/10">
+              <div className="p-4 border-b border-amber-400/30 bg-amber-400/10 shrink-0">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center">
                     <FileText className="w-3 h-3 text-slate-900" />
@@ -1437,7 +1437,7 @@ export default function VideoReview() {
             )}
 
             {/* Feedback List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
               {comments.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="w-14 h-14 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -1499,7 +1499,7 @@ export default function VideoReview() {
 
             {/* Send Button */}
             {comments.length > 0 && (
-              <div className="p-4 border-t border-slate-700">
+              <div className="p-4 border-t border-slate-700 shrink-0">
                 <Button
                   onClick={() => {
                     sendReviewNotification()
