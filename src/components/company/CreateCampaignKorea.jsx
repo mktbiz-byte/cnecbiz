@@ -285,8 +285,14 @@ const CampaignCreationKorea = () => {
     }
   }, [success])
 
-  // 세금계산서 발행 정보 체크
+  // 세금계산서 발행 정보 체크 (관리자는 체크 스킵)
   useEffect(() => {
+    // 관리자 모드에서는 세금계산서 체크 스킵
+    if (isAdmin) {
+      setTaxInvoiceComplete(true)
+      return
+    }
+
     const checkTaxInvoiceInfo = async () => {
       try {
         const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -323,7 +329,7 @@ const CampaignCreationKorea = () => {
     }
 
     checkTaxInvoiceInfo()
-  }, [])
+  }, [isAdmin])
 
   // 시간 포맷
   const formatTime = (date) => {
@@ -957,8 +963,13 @@ const CampaignCreationKorea = () => {
         remaining_slots: parseInt(campaignForm.remaining_slots) || parseInt(campaignForm.total_slots) || 0,
         questions: questions.length > 0 ? questions : null,
         target_platforms: Array.isArray(campaignForm.target_platforms) && campaignForm.target_platforms.length > 0 ? campaignForm.target_platforms : null,
-        company_id: currentUser.id,
-        company_email: userEmail
+      }
+
+      // 관리자 수정 모드가 아닐 때만 company_id와 company_email 설정
+      // 관리자가 수정할 때는 원래 기업의 소유권 유지
+      if (!isAdmin) {
+        campaignData.company_id = currentUser.id
+        campaignData.company_email = userEmail
       }
 
       const client = supabaseKorea || supabaseBiz

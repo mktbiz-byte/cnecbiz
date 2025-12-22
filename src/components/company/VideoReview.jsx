@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, ChevronLeft, ChevronRight, Keyboard, Clock, FileText } from 'lucide-react'
+import { ArrowLeft, Send, MessageSquare, X, Trash2, Mail, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward, ChevronLeft, ChevronRight, Keyboard, Clock, FileText, Menu, ChevronUp, ChevronDown } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 
 export default function VideoReview() {
@@ -35,11 +35,24 @@ export default function VideoReview() {
   const [currentSubtitle, setCurrentSubtitle] = useState('')
   const [selectedFeedback, setSelectedFeedback] = useState(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [showMobileFeedback, setShowMobileFeedback] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     loadSubmission()
     loadComments()
   }, [submissionId])
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     const video = videoRef.current
@@ -300,18 +313,46 @@ export default function VideoReview() {
 
   const handleVideoClick = (e) => {
     if (!videoRef.current || !videoContainerRef.current) return
-    
+
     // Pause video when clicking
     videoRef.current.pause()
-    
+
     const rect = videoContainerRef.current.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
-    
+
     const timestamp = videoRef.current.currentTime
-    
-    setActiveMarker({ x, y, timestamp, width: 120, height: 120 })
+
+    // Mobile uses smaller markers
+    const markerSize = isMobile ? 80 : 120
+    setActiveMarker({ x, y, timestamp, width: markerSize, height: markerSize })
     setCurrentComment('')
+
+    // On mobile, auto-scroll to feedback form
+    if (isMobile) {
+      setShowMobileFeedback(true)
+    }
+  }
+
+  // Touch event handler for mobile
+  const handleVideoTouch = (e) => {
+    if (!videoRef.current || !videoContainerRef.current) return
+    e.preventDefault()
+
+    const touch = e.touches[0] || e.changedTouches[0]
+    if (!touch) return
+
+    videoRef.current.pause()
+
+    const rect = videoContainerRef.current.getBoundingClientRect()
+    const x = ((touch.clientX - rect.left) / rect.width) * 100
+    const y = ((touch.clientY - rect.top) / rect.height) * 100
+
+    const timestamp = videoRef.current.currentTime
+
+    setActiveMarker({ x, y, timestamp, width: 80, height: 80 })
+    setCurrentComment('')
+    setShowMobileFeedback(true)
   }
 
   const addComment = async () => {
@@ -596,62 +637,120 @@ export default function VideoReview() {
         </div>
       )}
 
-      {/* 헤더 */}
-      <div className="bg-slate-800 border-b border-slate-700">
-        <div className="max-w-[1920px] mx-auto px-4 py-3">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                onClick={() => navigate(-1)}
-                className="text-slate-400 hover:text-white hover:bg-slate-700"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                뒤로
-              </Button>
-              <div className="h-6 w-px bg-slate-700"></div>
-              <div>
-                <h1 className="text-lg font-semibold">영상 수정 요청</h1>
-                <p className="text-sm text-slate-400">
-                  {submission.applications?.applicant_name || '크리에이터'} • {submission.applications?.campaigns?.title || '캠페인'}
-                </p>
+      {/* 헤더 - Desktop */}
+      {!isMobile && (
+        <div className="bg-slate-800 border-b border-slate-700">
+          <div className="max-w-[1920px] mx-auto px-4 py-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate(-1)}
+                  className="text-slate-400 hover:text-white hover:bg-slate-700"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  뒤로
+                </Button>
+                <div className="h-6 w-px bg-slate-700"></div>
+                <div>
+                  <h1 className="text-lg font-semibold">영상 수정 요청</h1>
+                  <p className="text-sm text-slate-400">
+                    {submission.applications?.applicant_name || '크리에이터'} • {submission.applications?.campaigns?.title || '캠페인'}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowShortcuts(true)}
-                className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                title="키보드 단축키 (? 키)"
-              >
-                <Keyboard className="w-5 h-5" />
-              </button>
-              <Button
-                onClick={sendReviewNotification}
-                disabled={isSending || comments.length === 0}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-5 py-2 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
-              >
-                <Mail className="w-4 h-4 mr-2" />
-                {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
-              </Button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowShortcuts(true)}
+                  className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                  title="키보드 단축키 (? 키)"
+                >
+                  <Keyboard className="w-5 h-5" />
+                </button>
+                <Button
+                  onClick={sendReviewNotification}
+                  disabled={isSending || comments.length === 0}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-5 py-2 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* 헤더 - Mobile */}
+      {isMobile && (
+        <div className="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
+          <div className="px-3 py-2">
+            <div className="flex justify-between items-center">
+              <button
+                onClick={() => navigate(-1)}
+                className="text-slate-400 hover:text-white p-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex-1 text-center px-2">
+                <h1 className="text-sm font-semibold truncate">영상 수정 요청</h1>
+                <p className="text-xs text-slate-400 truncate">
+                  {submission.applications?.applicant_name || '크리에이터'}
+                </p>
+              </div>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="text-slate-400 hover:text-white p-2"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Mobile menu dropdown */}
+            {mobileMenuOpen && (
+              <div className="absolute right-2 top-full mt-1 bg-slate-700 rounded-lg shadow-xl border border-slate-600 z-50 min-w-[200px]">
+                <button
+                  onClick={() => {
+                    setShowMobileFeedback(true)
+                    setMobileMenuOpen(false)
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-slate-600 flex items-center gap-3 rounded-t-lg"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  피드백 목록 ({comments.length})
+                </button>
+                <button
+                  onClick={() => {
+                    sendReviewNotification()
+                    setMobileMenuOpen(false)
+                  }}
+                  disabled={isSending || comments.length === 0}
+                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-slate-600 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-lg"
+                >
+                  <Mail className="w-4 h-4" />
+                  {isSending ? '전송 중...' : '수정 요청 전달'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 메인 컨텐츠 */}
-      <div className="max-w-[1920px] mx-auto flex flex-col lg:flex-row gap-4 p-4 h-[calc(100vh-70px)]">
+      <div className={`max-w-[1920px] mx-auto ${isMobile ? 'flex flex-col h-[calc(100vh-52px)]' : 'flex flex-col lg:flex-row gap-4 p-4 h-[calc(100vh-70px)]'}`}>
         {/* 왼쪽: 영상 플레이어 영역 */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className={`flex flex-col ${isMobile ? 'flex-1 min-h-0' : 'flex-1 min-h-0'}`}>
           {/* 영상 컨테이너 */}
           <div
             ref={videoContainerRef}
-            className="relative bg-black rounded-xl overflow-hidden flex-1 min-h-0"
+            className={`relative bg-black overflow-hidden ${isMobile ? 'w-full aspect-[9/16] max-h-[60vh]' : 'rounded-xl flex-1 min-h-0'}`}
           >
             {/* 클릭 영역 오버레이 */}
             <div
-              className="absolute inset-0 cursor-crosshair z-10"
-              style={{ bottom: '50px' }}
-              onClick={handleVideoClick}
+              className={`absolute inset-0 z-10 ${isMobile ? 'touch-none' : 'cursor-crosshair'}`}
+              style={{ bottom: isMobile ? '60px' : '50px' }}
+              onClick={!isMobile ? handleVideoClick : undefined}
+              onTouchStart={isMobile ? handleVideoTouch : undefined}
             />
 
             <video
@@ -807,11 +906,11 @@ export default function VideoReview() {
             })}
 
             {/* 커스텀 비디오 컨트롤 */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 z-20">
+            <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent z-20 ${isMobile ? 'p-3' : 'p-4'}`}>
               {/* 프로그레스 바 */}
               <div
                 ref={timelineRef}
-                className="relative h-2 bg-slate-600/50 rounded-full mb-3 cursor-pointer group"
+                className={`relative bg-slate-600/50 rounded-full mb-3 cursor-pointer group ${isMobile ? 'h-3' : 'h-2'}`}
                 onClick={handleTimelineClick}
               >
                 {/* 버퍼 */}
@@ -823,7 +922,7 @@ export default function VideoReview() {
                 ></div>
                 {/* 재생 헤드 */}
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg scale-0 group-hover:scale-100 transition-transform"
+                  className={`absolute top-1/2 -translate-y-1/2 bg-white rounded-full shadow-lg transition-transform ${isMobile ? 'w-5 h-5 scale-100' : 'w-4 h-4 scale-0 group-hover:scale-100'}`}
                   style={{ left: `${duration ? (currentTime / duration) * 100 : 0}%`, transform: 'translate(-50%, -50%)' }}
                 ></div>
 
@@ -833,14 +932,15 @@ export default function VideoReview() {
                   return (
                     <div
                       key={comment.id}
-                      className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full cursor-pointer transition-all hover:scale-150 ${
+                      className={`absolute top-1/2 -translate-y-1/2 rounded-full cursor-pointer transition-all ${
                         selectedFeedback === comment.id ? 'bg-blue-400 scale-150' : 'bg-blue-500'
-                      }`}
+                      } ${isMobile ? 'w-4 h-4' : 'w-3 h-3 hover:scale-150'}`}
                       style={{ left: `${position}%`, transform: 'translate(-50%, -50%)', zIndex: 10 }}
                       onClick={(e) => {
                         e.stopPropagation()
                         setSelectedFeedback(comment.id)
                         seekToTimestamp(comment.timestamp)
+                        if (isMobile) setShowMobileFeedback(true)
                       }}
                       title={`#${index + 1} - ${formatTimePrecise(comment.timestamp)}`}
                     />
@@ -848,51 +948,52 @@ export default function VideoReview() {
                 })}
                 {activeMarker && (
                   <div
-                    className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-amber-400 rounded-full animate-pulse"
+                    className={`absolute top-1/2 -translate-y-1/2 bg-amber-400 rounded-full animate-pulse ${isMobile ? 'w-4 h-4' : 'w-3 h-3'}`}
                     style={{ left: `${duration ? (activeMarker.timestamp / duration) * 100 : 0}%`, transform: 'translate(-50%, -50%)', zIndex: 10 }}
                   />
                 )}
               </div>
 
-              {/* 컨트롤 버튼들 */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {/* 재생/일시정지 */}
-                  <button
-                    onClick={togglePlay}
-                    className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
-                  >
-                    {isPaused ? <Play className="w-5 h-5 ml-0.5" /> : <Pause className="w-5 h-5" />}
-                  </button>
-
-                  {/* 건너뛰기 */}
-                  <button onClick={() => skipTime(-10)} className="text-slate-400 hover:text-white transition-colors p-1">
-                    <SkipBack className="w-5 h-5" />
-                  </button>
-                  <button onClick={() => skipTime(10)} className="text-slate-400 hover:text-white transition-colors p-1">
-                    <SkipForward className="w-5 h-5" />
-                  </button>
-
-                  {/* 볼륨 */}
-                  <div className="flex items-center gap-2 group">
-                    <button onClick={toggleMute} className="text-slate-400 hover:text-white transition-colors p-1">
-                      {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              {/* 컨트롤 버튼들 - Desktop */}
+              {!isMobile && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* 재생/일시정지 */}
+                    <button
+                      onClick={togglePlay}
+                      className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
+                    >
+                      {isPaused ? <Play className="w-5 h-5 ml-0.5" /> : <Pause className="w-5 h-5" />}
                     </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeSlider}
-                      className="w-0 group-hover:w-20 transition-all duration-200 h-1 appearance-none bg-slate-600 rounded-full cursor-pointer"
-                      style={{ accentColor: '#3b82f6' }}
-                    />
-                  </div>
 
-                  {/* 시간 */}
-                  <div className="text-sm font-mono text-slate-300 ml-2">
-                    <span className="text-white">{formatTimePrecise(currentTime)}</span>
+                    {/* 건너뛰기 */}
+                    <button onClick={() => skipTime(-10)} className="text-slate-400 hover:text-white transition-colors p-1">
+                      <SkipBack className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => skipTime(10)} className="text-slate-400 hover:text-white transition-colors p-1">
+                      <SkipForward className="w-5 h-5" />
+                    </button>
+
+                    {/* 볼륨 */}
+                    <div className="flex items-center gap-2 group">
+                      <button onClick={toggleMute} className="text-slate-400 hover:text-white transition-colors p-1">
+                        {isMuted || volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeSlider}
+                        className="w-0 group-hover:w-20 transition-all duration-200 h-1 appearance-none bg-slate-600 rounded-full cursor-pointer"
+                        style={{ accentColor: '#3b82f6' }}
+                      />
+                    </div>
+
+                    {/* 시간 */}
+                    <div className="text-sm font-mono text-slate-300 ml-2">
+                      <span className="text-white">{formatTimePrecise(currentTime)}</span>
                     <span className="mx-1">/</span>
                     <span>{formatTimePrecise(duration)}</span>
                   </div>
@@ -928,11 +1029,58 @@ export default function VideoReview() {
                   </button>
                 </div>
               </div>
+              )}
+
+              {/* 컨트롤 버튼들 - Mobile */}
+              {isMobile && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {/* 10초 뒤로 */}
+                    <button
+                      onClick={() => skipTime(-10)}
+                      className="text-white active:text-blue-400 transition-colors p-2"
+                    >
+                      <SkipBack className="w-6 h-6" />
+                    </button>
+
+                    {/* 재생/일시정지 */}
+                    <button
+                      onClick={togglePlay}
+                      className="w-14 h-14 bg-white/20 active:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+                    >
+                      {isPaused ? <Play className="w-7 h-7 ml-1" /> : <Pause className="w-7 h-7" />}
+                    </button>
+
+                    {/* 10초 앞으로 */}
+                    <button
+                      onClick={() => skipTime(10)}
+                      className="text-white active:text-blue-400 transition-colors p-2"
+                    >
+                      <SkipForward className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  {/* 시간 + 전체화면 */}
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs font-mono text-slate-300">
+                      <span className="text-white">{formatTime(currentTime)}</span>
+                      <span className="mx-1">/</span>
+                      <span>{formatTime(duration)}</span>
+                    </div>
+                    <button
+                      onClick={toggleFullscreen}
+                      className="text-white active:text-blue-400 transition-colors p-2"
+                    >
+                      <Maximize className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* 피드백 입력 폼 */}
-          {activeMarker && (
+          {/* 피드백 입력 폼 - Desktop */}
+          {activeMarker && !isMobile && (
             <div className="mt-4 p-4 bg-slate-800 border border-amber-400/50 rounded-xl shadow-lg shadow-amber-400/10">
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
@@ -993,17 +1141,36 @@ export default function VideoReview() {
             </div>
           )}
 
-          {/* 안내 문구 */}
-          {!activeMarker && (
+          {/* 안내 문구 - Desktop */}
+          {!activeMarker && !isMobile && (
             <div className="mt-4 text-center py-3 bg-slate-800/50 rounded-lg border border-dashed border-slate-600">
               <p className="text-slate-400 text-sm">
                 💡 영상의 원하는 위치를 <span className="text-amber-400 font-medium">클릭</span>하여 피드백을 추가하세요
               </p>
             </div>
           )}
+
+          {/* Mobile hint bar */}
+          {isMobile && !activeMarker && (
+            <div className="p-3 bg-slate-800 border-t border-slate-700">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-400 text-xs">
+                  👆 영상을 터치하여 피드백 추가
+                </p>
+                <button
+                  onClick={() => setShowMobileFeedback(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-xs rounded-lg"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  피드백 {comments.length}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* 오른쪽: 피드백 패널 */}
+        {/* 오른쪽: 피드백 패널 - Desktop only */}
+        {!isMobile && (
         <div className="w-full lg:w-[400px] flex flex-col min-h-0">
           <div className="bg-slate-800 rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
             {/* 패널 헤더 */}
@@ -1181,7 +1348,185 @@ export default function VideoReview() {
             </div>
           </div>
         </div>
+        )}
       </div>
+
+      {/* Mobile Bottom Sheet - Feedback Panel */}
+      {isMobile && showMobileFeedback && (
+        <div className="fixed inset-0 z-50 flex flex-col">
+          {/* Backdrop */}
+          <div
+            className="flex-1 bg-black/60"
+            onClick={() => setShowMobileFeedback(false)}
+          />
+
+          {/* Bottom Sheet */}
+          <div className="bg-slate-800 rounded-t-2xl h-[80vh] flex flex-col animate-slide-up">
+            {/* Handle */}
+            <div className="flex justify-center py-3 shrink-0">
+              <div className="w-12 h-1 bg-slate-600 rounded-full" />
+            </div>
+
+            {/* Header */}
+            <div className="px-4 pb-3 border-b border-slate-700 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white">피드백 목록</h3>
+                  <p className="text-xs text-slate-400">{comments.length}개의 수정 요청</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMobileFeedback(false)}
+                className="p-2 text-slate-400"
+              >
+                <ChevronDown className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Active Marker Form - Mobile */}
+            {activeMarker && (
+              <div className="p-4 border-b border-amber-400/30 bg-amber-400/10 shrink-0">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center">
+                    <FileText className="w-3 h-3 text-slate-900" />
+                  </div>
+                  <span className="text-sm font-semibold text-white">새 피드백</span>
+                  <span className="text-xs text-amber-400 font-mono">{formatTimePrecise(activeMarker.timestamp)}</span>
+                  <button
+                    onClick={cancelMarker}
+                    className="ml-auto text-slate-400 p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <textarea
+                  value={currentComment}
+                  onChange={(e) => setCurrentComment(e.target.value)}
+                  placeholder="수정 요청 내용을 작성하세요..."
+                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/50 resize-none"
+                  rows={2}
+                  autoFocus
+                />
+
+                <div className="mt-2 flex items-center gap-2">
+                  <label className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.ppt,.pptx,.doc,.docx"
+                      onChange={(e) => setAttachmentFile(e.target.files[0])}
+                      className="hidden"
+                    />
+                    <div className="px-3 py-2 bg-slate-700 text-center rounded-lg text-xs text-slate-300">
+                      {attachmentFile ? `📎 ${attachmentFile.name.slice(0, 15)}...` : '📎 파일 첨부'}
+                    </div>
+                  </label>
+                  <Button
+                    onClick={addComment}
+                    disabled={uploadingFile || !currentComment.trim()}
+                    className="flex-1 bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-semibold text-sm py-2 disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4 mr-1" />
+                    {uploadingFile ? '업로드...' : '추가'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Feedback List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+              {comments.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-14 h-14 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <MessageSquare className="w-7 h-7 text-slate-500" />
+                  </div>
+                  <p className="text-slate-400 text-sm">아직 피드백이 없습니다</p>
+                  <p className="text-slate-500 text-xs mt-1">영상을 터치하여 추가하세요</p>
+                </div>
+              ) : (
+                comments.map((comment, index) => (
+                  <div
+                    key={comment.id}
+                    className={`rounded-xl p-3 transition-all ${
+                      selectedFeedback === comment.id
+                        ? 'bg-blue-500/20 border border-blue-500/50'
+                        : 'bg-slate-700/50 border border-transparent'
+                    }`}
+                    onClick={() => {
+                      setSelectedFeedback(comment.id)
+                      seekToTimestamp(comment.timestamp)
+                      setShowMobileFeedback(false)
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          selectedFeedback === comment.id
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-slate-600 text-slate-300'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <span className="text-xs font-mono text-blue-400">
+                          {formatTimePrecise(comment.timestamp)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteComment(comment.id)
+                        }}
+                        className="text-slate-500 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm text-slate-200 leading-relaxed">
+                      {comment.comment}
+                    </p>
+                    {comment.attachment_url && (
+                      <div className="mt-2 text-xs text-slate-400 flex items-center gap-1">
+                        📎 {comment.attachment_name || '첨부파일'}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Send Button */}
+            {comments.length > 0 && (
+              <div className="p-4 border-t border-slate-700 shrink-0">
+                <Button
+                  onClick={() => {
+                    sendReviewNotification()
+                    setShowMobileFeedback(false)
+                  }}
+                  disabled={isSending}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  {isSending ? '전송 중...' : `수정 요청 전달 (${comments.length})`}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CSS for animation */}
+      <style>{`
+        @keyframes slide-up {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
