@@ -25,8 +25,6 @@ import {
   TrendingUp,
   Sparkles,
   UserPlus,
-  Phone,
-  Mail,
   MapPin
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
@@ -293,9 +291,7 @@ export default function CreatorManagement() {
           evaluationScore: creator.evaluation_score,
           categories: creator.categories || [],
           regions: creator.regions || [],
-          bio: creator.bio || creator.description || '',
-          introduction: creator.introduction || '',
-          phone: creator.phone || ''
+          skinType: creator.skin_type || null
         }))
         setCreators(formattedCreators)
       } else {
@@ -676,31 +672,22 @@ export default function CreatorManagement() {
                 )}
               </div>
 
-              {/* 연락처 정보 */}
-              {(selectedCreatorProfile.phone || selectedCreatorProfile.email) && (
-                <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">연락처</h4>
-                  <div className="space-y-2">
-                    {selectedCreatorProfile.phone && (
-                      <div className="flex items-center gap-3 text-sm">
-                        <Phone className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-700">{selectedCreatorProfile.phone}</span>
-                      </div>
-                    )}
-                    {selectedCreatorProfile.email && (
-                      <div className="flex items-center gap-3 text-sm">
-                        <Mail className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-700">{selectedCreatorProfile.email}</span>
-                      </div>
-                    )}
+              {/* 피부타입 정보 */}
+              {selectedCreatorProfile.skinType && (
+                <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl p-4 mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">피부타입</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3 py-1.5 bg-white/70 text-rose-700 rounded-full text-sm font-medium border border-rose-200">
+                      {selectedCreatorProfile.skinType}
+                    </span>
                   </div>
                 </div>
               )}
 
-              {/* 카테고리 */}
+              {/* 주력 카테고리 */}
               {selectedCreatorProfile.categories && selectedCreatorProfile.categories.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">카테고리</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">주력 카테고리</h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedCreatorProfile.categories.map((cat, idx) => (
                       <span key={idx} className="px-3 py-1.5 bg-violet-100 text-violet-700 rounded-full text-sm font-medium">
@@ -708,16 +695,6 @@ export default function CreatorManagement() {
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* 소개/바이오 */}
-              {(selectedCreatorProfile.bio || selectedCreatorProfile.introduction) && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">소개</h4>
-                  <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">
-                    {selectedCreatorProfile.bio || selectedCreatorProfile.introduction}
-                  </p>
                 </div>
               )}
 
