@@ -262,10 +262,14 @@ export default function CreatorManagement() {
 
   const fetchRecommendedCreators = async () => {
     try {
+      // cnec_grade_level >= 2 (GLOW 이상)만 표시
+      // 1 = FRESH, 2 = GLOW, 3 = BLOOM, 4 = ICONIC, 5 = MUSE
       const { data: featuredCreators, error } = await supabaseBiz
         .from('featured_creators')
         .select('*')
         .eq('is_active', true)
+        .gte('cnec_grade_level', 2)
+        .order('cnec_grade_level', { ascending: false })
         .order('created_at', { ascending: false })
 
       if (error) throw error
