@@ -24,10 +24,44 @@ import {
   Award,
   TrendingUp,
   Sparkles,
-  UserPlus
+  UserPlus,
+  Phone,
+  Mail,
+  MapPin
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CompanyNavigation from './CompanyNavigation'
+
+// SNS URL 정규화 함수 - @id 또는 id만 있으면 전체 URL로 변환
+const normalizeInstagramUrl = (handle) => {
+  if (!handle) return null
+  if (handle.startsWith('http://') || handle.startsWith('https://')) {
+    return handle
+  }
+  const cleanHandle = handle.replace(/^@/, '').trim()
+  if (!cleanHandle) return null
+  return `https://www.instagram.com/${cleanHandle}`
+}
+
+const normalizeYoutubeUrl = (handle) => {
+  if (!handle) return null
+  if (handle.startsWith('http://') || handle.startsWith('https://')) {
+    return handle
+  }
+  const cleanHandle = handle.replace(/^@/, '').trim()
+  if (!cleanHandle) return null
+  return `https://www.youtube.com/@${cleanHandle}`
+}
+
+const normalizeTiktokUrl = (handle) => {
+  if (!handle) return null
+  if (handle.startsWith('http://') || handle.startsWith('https://')) {
+    return handle
+  }
+  const cleanHandle = handle.replace(/^@/, '').trim()
+  if (!cleanHandle) return null
+  return `https://www.tiktok.com/@${cleanHandle}`
+}
 
 // Skeleton loader for creator cards
 const CreatorCardSkeleton = () => (
@@ -61,12 +95,18 @@ export default function CreatorManagement() {
   // 캠페인별 보기 서브탭
   const [campaignSubTab, setCampaignSubTab] = useState('all') // all, selected, completed
 
+  // 프로필 모달 상태
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [selectedCreatorProfile, setSelectedCreatorProfile] = useState(null)
+
   useEffect(() => {
     checkAuth()
   }, [])
 
   useEffect(() => {
     if (user) {
+      // 탭 전환 시 크리에이터 목록 초기화
+      setCreators([])
       fetchData()
     }
   }, [user, activeTab, selectedCampaign])
@@ -150,12 +190,15 @@ export default function CreatorManagement() {
           id: app.id,
           creatorId: app.creator_id,
           name: app.name || '이름 없음',
-          handle: app.instagram_handle ? `@${app.instagram_handle}` : (app.tiktok_handle ? `@${app.tiktok_handle}` : ''),
+          handle: app.instagram_handle ? `@${app.instagram_handle.replace(/^@/, '')}` : (app.tiktok_handle ? `@${app.tiktok_handle.replace(/^@/, '')}` : ''),
           avatar: app.profile_image_url || null,
           followers: app.instagram_followers || app.youtube_followers || 0,
-          instagram: app.instagram_handle ? `https://instagram.com/${app.instagram_handle}` : null,
-          youtube: app.youtube_handle ? `https://youtube.com/@${app.youtube_handle}` : null,
-          tiktok: app.tiktok_handle ? `https://tiktok.com/@${app.tiktok_handle}` : null,
+          instagram: normalizeInstagramUrl(app.instagram_handle),
+          youtube: normalizeYoutubeUrl(app.youtube_handle),
+          tiktok: normalizeTiktokUrl(app.tiktok_handle),
+          instagramHandle: app.instagram_handle?.replace(/^@/, ''),
+          youtubeHandle: app.youtube_handle?.replace(/^@/, ''),
+          tiktokHandle: app.tiktok_handle?.replace(/^@/, ''),
           phone: app.phone,
           email: app.email,
           campaignId: app.campaign_id,
@@ -191,12 +234,15 @@ export default function CreatorManagement() {
           id: app.id,
           creatorId: app.creator_id,
           name: app.name || '이름 없음',
-          handle: app.instagram_handle ? `@${app.instagram_handle}` : (app.tiktok_handle ? `@${app.tiktok_handle}` : ''),
+          handle: app.instagram_handle ? `@${app.instagram_handle.replace(/^@/, '')}` : (app.tiktok_handle ? `@${app.tiktok_handle.replace(/^@/, '')}` : ''),
           avatar: app.profile_image_url || null,
           followers: app.instagram_followers || app.youtube_followers || 0,
-          instagram: app.instagram_handle ? `https://instagram.com/${app.instagram_handle}` : null,
-          youtube: app.youtube_handle ? `https://youtube.com/@${app.youtube_handle}` : null,
-          tiktok: app.tiktok_handle ? `https://tiktok.com/@${app.tiktok_handle}` : null,
+          instagram: normalizeInstagramUrl(app.instagram_handle),
+          youtube: normalizeYoutubeUrl(app.youtube_handle),
+          tiktok: normalizeTiktokUrl(app.tiktok_handle),
+          instagramHandle: app.instagram_handle?.replace(/^@/, ''),
+          youtubeHandle: app.youtube_handle?.replace(/^@/, ''),
+          tiktokHandle: app.tiktok_handle?.replace(/^@/, ''),
           phone: app.phone,
           email: app.email,
           applicationStatus: app.status,
@@ -228,18 +274,24 @@ export default function CreatorManagement() {
         const formattedCreators = featuredCreators.map(creator => ({
           id: creator.id,
           name: creator.name || creator.creator_name || '이름 없음',
-          handle: creator.instagram_handle ? `@${creator.instagram_handle}` : '',
+          handle: creator.instagram_handle ? `@${creator.instagram_handle.replace(/^@/, '')}` : '',
           avatar: creator.profile_image || creator.thumbnail_url || null,
           followers: creator.followers || 0,
           collaborationCount: creator.collaboration_count || 0,
           isRecommended: true,
           isFeatured: creator.featured_type === 'ai_recommended' || creator.is_featured === true,
-          instagram: creator.instagram_handle ? `https://instagram.com/${creator.instagram_handle}` : null,
-          youtube: creator.youtube_handle ? `https://youtube.com/@${creator.youtube_handle}` : null,
-          tiktok: creator.tiktok_handle ? `https://tiktok.com/@${creator.tiktok_handle}` : null,
+          instagram: normalizeInstagramUrl(creator.instagram_handle),
+          youtube: normalizeYoutubeUrl(creator.youtube_handle),
+          tiktok: normalizeTiktokUrl(creator.tiktok_handle),
+          instagramHandle: creator.instagram_handle?.replace(/^@/, ''),
+          youtubeHandle: creator.youtube_handle?.replace(/^@/, ''),
+          tiktokHandle: creator.tiktok_handle?.replace(/^@/, ''),
           evaluationScore: creator.evaluation_score,
           categories: creator.categories || [],
-          regions: creator.regions || []
+          regions: creator.regions || [],
+          bio: creator.bio || creator.description || '',
+          introduction: creator.introduction || '',
+          phone: creator.phone || ''
         }))
         setCreators(formattedCreators)
       } else {
@@ -534,18 +586,209 @@ export default function CreatorManagement() {
                   activeTab={activeTab}
                   formatFollowers={formatFollowers}
                   getStatusInfo={getStatusInfo}
+                  onViewProfile={() => {
+                    setSelectedCreatorProfile(creator)
+                    setShowProfileModal(true)
+                  }}
                 />
               ))
             )}
           </div>
         </div>
       </div>
+
+      {/* 프로필 모달 */}
+      {showProfileModal && selectedCreatorProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowProfileModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">크리에이터 프로필</h2>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* 프로필 내용 */}
+            <div className="p-6">
+              {/* 프로필 이미지 & 기본 정보 */}
+              <div className="flex items-start gap-4 mb-6">
+                <div className="relative">
+                  {selectedCreatorProfile.avatar ? (
+                    <img
+                      src={selectedCreatorProfile.avatar}
+                      alt={selectedCreatorProfile.name}
+                      className="w-24 h-24 rounded-2xl object-cover border-2 border-violet-100"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                      <Users className="w-10 h-10 text-violet-400" />
+                    </div>
+                  )}
+                  {selectedCreatorProfile.isRecommended && (
+                    <span className="absolute -top-2 -right-2 px-2 py-1 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[10px] font-medium rounded-full flex items-center gap-1 shadow-lg">
+                      <Star className="w-3 h-3" />
+                      추천
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">{selectedCreatorProfile.name}</h3>
+                  {selectedCreatorProfile.handle && (
+                    <p className="text-gray-500 text-sm mb-2">{selectedCreatorProfile.handle}</p>
+                  )}
+                  {selectedCreatorProfile.campaignTitle && (
+                    <p className="text-xs text-violet-600 flex items-center gap-1">
+                      <FolderOpen className="w-3 h-3" />
+                      {selectedCreatorProfile.campaignTitle}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 통계 정보 */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-4 text-center">
+                  <Users className="w-5 h-5 text-pink-500 mx-auto mb-2" />
+                  <div className="text-xl font-bold text-gray-900">{formatFollowers(selectedCreatorProfile.followers)}</div>
+                  <div className="text-xs text-gray-500">팔로워</div>
+                </div>
+                {selectedCreatorProfile.collaborationCount !== undefined && (
+                  <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-4 text-center">
+                    <Award className="w-5 h-5 text-violet-500 mx-auto mb-2" />
+                    <div className="text-xl font-bold text-gray-900">{selectedCreatorProfile.collaborationCount}</div>
+                    <div className="text-xs text-gray-500">협업 횟수</div>
+                  </div>
+                )}
+                {selectedCreatorProfile.evaluationScore && (
+                  <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-4 text-center">
+                    <Star className="w-5 h-5 text-amber-500 mx-auto mb-2" />
+                    <div className="text-xl font-bold text-gray-900">{selectedCreatorProfile.evaluationScore}</div>
+                    <div className="text-xs text-gray-500">평가점수</div>
+                  </div>
+                )}
+              </div>
+
+              {/* 연락처 정보 */}
+              {(selectedCreatorProfile.phone || selectedCreatorProfile.email) && (
+                <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">연락처</h4>
+                  <div className="space-y-2">
+                    {selectedCreatorProfile.phone && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-700">{selectedCreatorProfile.phone}</span>
+                      </div>
+                    )}
+                    {selectedCreatorProfile.email && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Mail className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-700">{selectedCreatorProfile.email}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 카테고리 */}
+              {selectedCreatorProfile.categories && selectedCreatorProfile.categories.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">카테고리</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCreatorProfile.categories.map((cat, idx) => (
+                      <span key={idx} className="px-3 py-1.5 bg-violet-100 text-violet-700 rounded-full text-sm font-medium">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 소개/바이오 */}
+              {(selectedCreatorProfile.bio || selectedCreatorProfile.introduction) && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">소개</h4>
+                  <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">
+                    {selectedCreatorProfile.bio || selectedCreatorProfile.introduction}
+                  </p>
+                </div>
+              )}
+
+              {/* SNS 링크 */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-gray-700">SNS</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {selectedCreatorProfile.instagram && (
+                    <a
+                      href={selectedCreatorProfile.instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl hover:from-pink-100 hover:to-rose-100 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center">
+                        <Instagram className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">Instagram</div>
+                        <div className="text-sm text-gray-500">@{selectedCreatorProfile.instagramHandle || '프로필 보기'}</div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-400" />
+                    </a>
+                  )}
+                  {selectedCreatorProfile.youtube && (
+                    <a
+                      href={selectedCreatorProfile.youtube}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-4 py-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center">
+                        <Youtube className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">YouTube</div>
+                        <div className="text-sm text-gray-500">@{selectedCreatorProfile.youtubeHandle || '채널 보기'}</div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-400" />
+                    </a>
+                  )}
+                  {selectedCreatorProfile.tiktok && (
+                    <a
+                      href={selectedCreatorProfile.tiktok}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-4 py-3 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
+                        <Video className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">TikTok</div>
+                        <div className="text-sm text-gray-500">@{selectedCreatorProfile.tiktokHandle || '프로필 보기'}</div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-400" />
+                    </a>
+                  )}
+                  {!selectedCreatorProfile.instagram && !selectedCreatorProfile.youtube && !selectedCreatorProfile.tiktok && (
+                    <div className="text-center py-4 text-gray-400 text-sm">
+                      등록된 SNS가 없습니다
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
 
 // 크리에이터 카드 컴포넌트
-function CreatorCard({ creator, activeTab, formatFollowers, getStatusInfo }) {
+function CreatorCard({ creator, activeTab, formatFollowers, getStatusInfo, onViewProfile }) {
   const statusInfo = getStatusInfo(creator.applicationStatus)
 
   return (
@@ -660,17 +903,13 @@ function CreatorCard({ creator, activeTab, formatFollowers, getStatusInfo }) {
 
         {/* 액션 버튼 */}
         <div className="space-y-2">
-          {(creator.instagram || creator.youtube || creator.tiktok) && (
-            <a
-              href={creator.instagram || creator.youtube || creator.tiktok}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-md"
-            >
-              <ExternalLink className="w-4 h-4" />
-              프로필 보기
-            </a>
-          )}
+          <button
+            onClick={onViewProfile}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-md"
+          >
+            <Eye className="w-4 h-4" />
+            프로필 보기
+          </button>
         </div>
       </div>
     </div>
