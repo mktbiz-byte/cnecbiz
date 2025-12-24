@@ -21,6 +21,7 @@ const taxinvoiceService = popbill.TaxinvoiceService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 
 console.log('✅ [INIT] Taxinvoice service initialized');
+console.log('🔧 [CONFIG] POPBILL_LINK_ID:', process.env.POPBILL_LINK_ID);
 console.log('🔧 [CONFIG] POPBILL_CORP_NUM:', POPBILL_CORP_NUM);
 console.log('🔧 [CONFIG] POPBILL_TEST_MODE:', process.env.POPBILL_TEST_MODE);
 
