@@ -284,7 +284,7 @@ export default function CreatorManagement() {
           id: creator.id,
           name: creator.name || creator.creator_name || '이름 없음',
           handle: creator.instagram_handle ? `@${creator.instagram_handle.replace(/^@/, '')}` : '',
-          avatar: creator.profile_image || creator.thumbnail_url || null,
+          avatar: creator.profile_image_url || creator.profile_image || creator.thumbnail_url || null,
           followers: creator.followers || 0,
           collaborationCount: creator.collaboration_count || 0,
           isRecommended: true,
