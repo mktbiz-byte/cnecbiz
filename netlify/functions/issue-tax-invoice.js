@@ -1,5 +1,6 @@
 const popbill = require('popbill');
 const { createClient } = require('@supabase/supabase-js');
+const nodemailer = require('nodemailer');
 
 // ========== 팝빌 전역 설정 (카카오톡 API와 동일한 방식) ==========
 popbill.config({
@@ -206,7 +207,7 @@ exports.handler = async (event) => {
       invoicerBizClass: '정보통신업',
       invoicerBizType: '전자상거래 소매 중개업',
       invoicerContactName: '관리자',
-      invoicerEmail: 'mkt_biz@cnec.co.kr',
+      invoicerEmail: 'mkt@howlab.co.kr',
       invoicerTEL: '1833-6025',
 
       // 공급받는자 정보
@@ -340,16 +341,68 @@ exports.handler = async (event) => {
     }
 
     console.log('\n✅ [COMPLETE] 세금계산서 발행 완료!');
-    console.log('   - 국세청 승인번호:', result.ntsconfirmNum);
+    console.log('   - 국세청 승인번호:', result.ntsConfirmNum);
     console.log('   - 발행 시각:', new Date().toLocaleString('ko-KR'));
     console.log('📊 ========== 세금계산서 발행 종료 ==========\n\n');
+
+    // 7. 이메일 알림 발송
+    console.log('🔍 [STEP 6] 이메일 알림 발송...');
+    try {
+      const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+      const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+
+      if (gmailAppPassword) {
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: gmailEmail,
+            pass: gmailAppPassword.trim().replace(/\s/g, '')
+          }
+        });
+
+        const emailSubject = `[세금계산서 발행] ${request.companies.company_name} - ${request.total_amount.toLocaleString()}원`;
+        const emailHtml = `
+          <h2>세금계산서가 발행되었습니다</h2>
+          <table border="1" cellpadding="10" style="border-collapse: collapse;">
+            <tr><td><strong>공급받는자</strong></td><td>${request.companies.company_name}</td></tr>
+            <tr><td><strong>사업자번호</strong></td><td>${request.companies.business_number}</td></tr>
+            <tr><td><strong>공급가액</strong></td><td>${request.supply_cost_total.toLocaleString()}원</td></tr>
+            <tr><td><strong>세액</strong></td><td>${request.tax_total.toLocaleString()}원</td></tr>
+            <tr><td><strong>합계</strong></td><td>${request.total_amount.toLocaleString()}원</td></tr>
+            <tr><td><strong>국세청 승인번호</strong></td><td>${result.ntsConfirmNum || '-'}</td></tr>
+            <tr><td><strong>발행일시</strong></td><td>${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</td></tr>
+          </table>
+          <p>팝빌에서 상세 내역을 확인할 수 있습니다.</p>
+        `;
+
+        // 수신자 목록: mkt@howlab.co.kr + 기업 이메일(있는 경우)
+        const recipients = ['mkt@howlab.co.kr'];
+        if (request.companies.email) {
+          recipients.push(request.companies.email);
+        }
+
+        await transporter.sendMail({
+          from: `"CNECBIZ 세금계산서" <${gmailEmail}>`,
+          to: recipients.join(', '),
+          subject: emailSubject,
+          html: emailHtml
+        });
+
+        console.log('✅ [STEP 6] 이메일 알림 발송 완료 -', recipients.join(', '));
+      } else {
+        console.log('⚠️ [STEP 6] GMAIL_APP_PASSWORD 미설정 - 이메일 발송 생략');
+      }
+    } catch (emailError) {
+      console.error('❌ [STEP 6] 이메일 발송 실패:', emailError.message);
+      // 이메일 실패해도 세금계산서 발행은 성공이므로 계속 진행
+    }
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
         message: '세금계산서 발행 완료',
-        ntsconfirmNum: result.ntsconfirmNum,
+        ntsConfirmNum: result.ntsConfirmNum,
         issuedAt: new Date().toISOString()
       })
     };
