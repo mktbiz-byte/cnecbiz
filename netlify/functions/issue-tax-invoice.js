@@ -174,7 +174,22 @@ exports.handler = async (event) => {
     // 3. 팝빌 세금계산서 객체 생성
     console.log('🔍 [STEP 2] 팝빌 세금계산서 객체 생성...');
 
+    // MgtKey(문서번호) 생성: 날짜 + 랜덤 문자열 (최대 24자, 중복 불가)
+    const generateMgtKey = () => {
+      const now = new Date()
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '') // YYYYMMDD
+      const timeStr = now.toISOString().slice(11, 19).replace(/:/g, '') // HHMMSS
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase() // 4자리 랜덤
+      return `${dateStr}${timeStr}${random}` // 총 18자
+    }
+
+    const mgtKey = generateMgtKey()
+    console.log('   - 문서번호(MgtKey):', mgtKey)
+
     const taxinvoice = {
+      // 문서번호 (필수) - 공급자 측 고유 문서번호
+      invoicerMgtKey: mgtKey,
+
       // 기본 정보
       writeDate: request.write_date.replace(/-/g, ''), // YYYYMMDD
       chargeDirection: request.charge_direction || '정과금',
@@ -274,7 +289,8 @@ exports.handler = async (event) => {
       ...taxInfo,
       issued: true,
       issued_at: new Date().toISOString(),
-      nts_confirm_num: result.ntsconfirmNum
+      nts_confirm_num: result.ntsconfirmNum,
+      mgt_key: mgtKey  // 문서번호 저장
     };
 
     const { error: updateError } = await supabaseAdmin
