@@ -318,7 +318,7 @@ exports.handler = async (event) => {
           company_id: company.id,  // companies 테이블의 실제 id 사용
           type: 'tax_invoice',
           amount: request.total_amount,
-          description: `세금계산서 선발행 - ${request.companies.company_name}`,
+          memo: `세금계산서 선발행 - ${request.companies.company_name}`,  // description -> memo
           charge_request_id: taxInvoiceRequestId,  // points_charge_requests ID 참조
           status: 'pending',
           due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
