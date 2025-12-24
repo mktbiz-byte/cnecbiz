@@ -1,6 +1,6 @@
 /**
  * 캠페인 상태 변경 API (관리자용)
- * 캠페인 상태를 변경하고 필요시 기업에게 알림 발송
+ * 캠페인 상태를 변경
  * 모든 리전(korea, japan, us, taiwan)을 지원
  */
 
@@ -147,27 +147,6 @@ exports.handler = async (event, context) => {
     }
 
     console.log('[update-campaign-status] Campaign updated successfully:', updatedCampaign?.title || campaignId)
-
-    // 활성화 시 알림톡 전송 (별도 함수 호출)
-    if (newStatus === 'active') {
-      try {
-        // 내부적으로 send-campaign-activation-notification 호출
-        const notifyResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-campaign-activation-notification`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId, region })
-        })
-
-        if (notifyResponse.ok) {
-          console.log('[update-campaign-status] Activation notification sent')
-        } else {
-          console.error('[update-campaign-status] Notification failed:', await notifyResponse.text())
-        }
-      } catch (notifyError) {
-        console.error('[update-campaign-status] Notification error:', notifyError)
-        // 알림 실패해도 상태 변경은 성공으로 처리
-      }
-    }
 
     return {
       statusCode: 200,
