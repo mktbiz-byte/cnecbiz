@@ -11,20 +11,33 @@ function getSupabaseClient(region) {
 
   switch (region) {
     case 'korea':
+    case 'kr':
       supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
       supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
       break
     case 'japan':
+    case 'jp':
       supabaseUrl = process.env.VITE_SUPABASE_JAPAN_URL
       supabaseKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
       break
     case 'us':
+    case 'usa':
       supabaseUrl = process.env.VITE_SUPABASE_US_URL
       supabaseKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
+      break
+    case 'taiwan':
+    case 'tw':
+      supabaseUrl = process.env.VITE_SUPABASE_TAIWAN_URL
+      supabaseKey = process.env.SUPABASE_TAIWAN_SERVICE_ROLE_KEY
       break
     default:
       supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
       supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  }
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error(`[approve-campaign] Missing credentials for region: ${region}`)
+    return null
   }
 
   return createClient(supabaseUrl, supabaseKey)
@@ -82,6 +95,16 @@ exports.handler = async (event, context) => {
 
     // 지역별 Supabase 클라이언트 선택
     const supabaseRegion = getSupabaseClient(region)
+    if (!supabaseRegion) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: `${region} 리전의 Supabase 설정이 없습니다. 환경변수를 확인해주세요.`
+        })
+      }
+    }
 
     // 캠페인 정보 조회
     const { data: campaign, error: campaignError } = await supabaseRegion

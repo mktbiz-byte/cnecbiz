@@ -421,35 +421,21 @@ export default function CampaignsManagement() {
 
     setConfirming(true)
     try {
-      const supabaseClient = getSupabaseClient(campaign.region || 'biz')
-      const updateData = { status: newStatus, updated_at: new Date().toISOString() }
+      // Netlify 함수를 통해 상태 변경 (모든 리전 지원)
+      const response = await fetch('/.netlify/functions/update-campaign-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          region: campaign.region || 'biz',
+          newStatus
+        })
+      })
 
-      // 활성화 시 approval_status, progress_status도 함께 업데이트
-      if (newStatus === 'active') {
-        updateData.approval_status = 'approved'
-        updateData.progress_status = 'recruiting'
-        updateData.approved_at = new Date().toISOString()
-      }
+      const result = await response.json()
 
-      const { error } = await supabaseClient.from('campaigns').update(updateData).eq('id', campaign.id)
-      if (error) throw error
-
-      // 활성화 시 기업에게 알림톡 전송
-      if (newStatus === 'active') {
-        try {
-          await fetch('/.netlify/functions/send-campaign-activation-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              campaignId: campaign.id,
-              region: campaign.region || 'biz'
-            })
-          })
-          console.log('캠페인 활성화 알림톡 전송 완료')
-        } catch (notifyError) {
-          console.error('알림톡 전송 실패:', notifyError)
-          // 알림톡 실패해도 상태 변경은 성공으로 처리
-        }
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '상태 변경에 실패했습니다.')
       }
 
       alert(`상태가 변경되었습니다!`)
@@ -527,41 +513,24 @@ export default function CampaignsManagement() {
 
     setBulkActionLoading(true)
     let success = 0, skip = 0, fail = 0
-    const activatedCampaigns = []
 
     for (const campaign of selectedList) {
       if (campaign.status === 'active') { skip++; continue }
       try {
-        const client = getSupabaseClient(campaign.region || 'biz')
-        const updateData = {
-          status: 'active',
-          approval_status: 'approved',
-          progress_status: 'recruiting',
-          approved_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-        const { error } = await client.from('campaigns').update(updateData).eq('id', campaign.id)
-        if (error) throw error
-        success++
-        activatedCampaigns.push(campaign)
-      } catch { fail++ }
-    }
-
-    // 활성화된 캠페인들에 대해 알림톡 전송
-    for (const campaign of activatedCampaigns) {
-      try {
-        await fetch('/.netlify/functions/send-campaign-activation-notification', {
+        // Netlify 함수를 통해 상태 변경 (모든 리전 지원, 알림톡 자동 전송)
+        const response = await fetch('/.netlify/functions/update-campaign-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             campaignId: campaign.id,
-            region: campaign.region || 'biz'
+            region: campaign.region || 'biz',
+            newStatus: 'active'
           })
         })
-        console.log(`캠페인 활성화 알림톡 전송: ${campaign.id}`)
-      } catch (notifyError) {
-        console.error('알림톡 전송 실패:', notifyError)
-      }
+        const result = await response.json()
+        if (!response.ok || !result.success) throw new Error(result.error)
+        success++
+      } catch { fail++ }
     }
 
     setBulkActionLoading(false)
