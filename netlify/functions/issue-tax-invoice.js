@@ -267,7 +267,10 @@ exports.handler = async (event) => {
         null,   // UserID
         (result) => {
           console.log('✅ [STEP 3] 팝빌 API 호출 성공!');
+          console.log('   - 전체 응답:', JSON.stringify(result, null, 2));
           console.log('   - 국세청 승인번호:', result.ntsconfirmNum);
+          console.log('   - 응답코드:', result.code);
+          console.log('   - 응답메시지:', result.message);
           resolve(result);
         },
         (error) => {
