@@ -25,10 +25,13 @@ import {
   TrendingUp,
   Sparkles,
   UserPlus,
-  MapPin
+  MapPin,
+  Send,
+  Mail
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import CompanyNavigation from './CompanyNavigation'
+import CampaignInvitationModal from './CampaignInvitationModal'
 
 // SNS URL 정규화 함수 - @id 또는 id만 있으면 전체 URL로 변환
 const normalizeInstagramUrl = (handle) => {
@@ -96,6 +99,10 @@ export default function CreatorManagement() {
   // 프로필 모달 상태
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [selectedCreatorProfile, setSelectedCreatorProfile] = useState(null)
+
+  // 초대장 모달 상태
+  const [invitationModalOpen, setInvitationModalOpen] = useState(false)
+  const [selectedCreatorForInvitation, setSelectedCreatorForInvitation] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -391,6 +398,19 @@ export default function CreatorManagement() {
   return (
     <>
       <CompanyNavigation />
+
+      {/* 초대장 모달 */}
+      <CampaignInvitationModal
+        isOpen={invitationModalOpen}
+        onClose={() => {
+          setInvitationModalOpen(false)
+          setSelectedCreatorForInvitation(null)
+        }}
+        creator={selectedCreatorForInvitation}
+        companyId={user?.id}
+        companyEmail={user?.email}
+      />
+
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 lg:ml-64">
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {/* Header */}
@@ -590,6 +610,10 @@ export default function CreatorManagement() {
                     setSelectedCreatorProfile(creator)
                     setShowProfileModal(true)
                   }}
+                  onInvite={() => {
+                    setSelectedCreatorForInvitation(creator)
+                    setInvitationModalOpen(true)
+                  }}
                 />
               ))
             )}
@@ -769,7 +793,7 @@ export default function CreatorManagement() {
 }
 
 // 크리에이터 카드 컴포넌트
-function CreatorCard({ creator, activeTab, formatFollowers, getStatusInfo, onViewProfile }) {
+function CreatorCard({ creator, activeTab, formatFollowers, getStatusInfo, onViewProfile, onInvite }) {
   const statusInfo = getStatusInfo(creator.applicationStatus)
 
   return (
@@ -884,9 +908,23 @@ function CreatorCard({ creator, activeTab, formatFollowers, getStatusInfo, onVie
 
         {/* 액션 버튼 */}
         <div className="space-y-2">
+          {/* 추천 크리에이터 탭: 초대장 보내기 버튼 */}
+          {activeTab === 'recommended' && onInvite && (
+            <button
+              onClick={onInvite}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-md"
+            >
+              <Send className="w-4 h-4" />
+              초대장 발송하기
+            </button>
+          )}
           <button
             onClick={onViewProfile}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-md"
+            className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'recommended'
+                ? 'border border-gray-200 text-gray-700 hover:bg-gray-50'
+                : 'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 shadow-md'
+            }`}
           >
             <Eye className="w-4 h-4" />
             프로필 보기
