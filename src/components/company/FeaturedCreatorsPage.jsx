@@ -3,6 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients';
 import styled from 'styled-components';
 import { Instagram, Youtube, TrendingUp, Users, Eye, CheckCircle, Circle, Send, Music, Sparkles } from 'lucide-react';
+
+// SNS URL 정규화 함수
+const normalizeSnsUrl = (url, platform) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const handle = url.replace(/^@/, '').trim();
+  if (!handle) return null;
+
+  switch (platform) {
+    case 'instagram':
+      return `https://www.instagram.com/${handle}`;
+    case 'youtube':
+      return `https://www.youtube.com/@${handle}`;
+    case 'tiktok':
+      return `https://www.tiktok.com/@${handle}`;
+    default:
+      return url;
+  }
+};
 const FeaturedCreatorsPage = () => {
   const navigate = useNavigate();
   const [creators, setCreators] = useState([]);
@@ -359,20 +380,20 @@ const FeaturedCreatorsPage = () => {
                   <Send size={16} />
                   캠페인 지원 요청
                 </CampaignInviteButton>
-                {creator.youtube_url && (
-                  <PlatformButton href={creator.youtube_url} target="_blank" rel="noopener noreferrer">
+                {normalizeSnsUrl(creator.youtube_url, 'youtube') && (
+                  <PlatformButton href={normalizeSnsUrl(creator.youtube_url, 'youtube')} target="_blank" rel="noopener noreferrer">
                     <Youtube size={16} />
                     YouTube
                   </PlatformButton>
                 )}
-                {creator.instagram_url && (
-                  <PlatformButton href={creator.instagram_url} target="_blank" rel="noopener noreferrer">
+                {normalizeSnsUrl(creator.instagram_url, 'instagram') && (
+                  <PlatformButton href={normalizeSnsUrl(creator.instagram_url, 'instagram')} target="_blank" rel="noopener noreferrer">
                     <Instagram size={16} />
                     Instagram
                   </PlatformButton>
                 )}
-                {creator.tiktok_url && (
-                  <PlatformButton href={creator.tiktok_url} target="_blank" rel="noopener noreferrer">
+                {normalizeSnsUrl(creator.tiktok_url, 'tiktok') && (
+                  <PlatformButton href={normalizeSnsUrl(creator.tiktok_url, 'tiktok')} target="_blank" rel="noopener noreferrer">
                     <Music size={16} />
                     TikTok
                   </PlatformButton>

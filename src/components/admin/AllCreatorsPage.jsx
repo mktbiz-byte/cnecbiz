@@ -41,6 +41,44 @@ const formatNumber = (num) => {
   return num.toLocaleString()
 }
 
+// SNS URL 정규화 함수 - @id 또는 id만 있으면 전체 URL로 변환
+const normalizeInstagramUrl = (url) => {
+  if (!url) return null
+  // 이미 전체 URL인 경우
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  // @ 제거하고 핸들만 추출
+  const handle = url.replace(/^@/, '').trim()
+  if (!handle) return null
+  return `https://www.instagram.com/${handle}`
+}
+
+const normalizeYoutubeUrl = (url) => {
+  if (!url) return null
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  const handle = url.replace(/^@/, '').trim()
+  if (!handle) return null
+  // @로 시작하는 핸들이면 채널 핸들로
+  if (url.startsWith('@')) {
+    return `https://www.youtube.com/@${handle}`
+  }
+  // 그 외에는 채널 ID로 처리
+  return `https://www.youtube.com/channel/${handle}`
+}
+
+const normalizeTiktokUrl = (url) => {
+  if (!url) return null
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  const handle = url.replace(/^@/, '').trim()
+  if (!handle) return null
+  return `https://www.tiktok.com/@${handle}`
+}
+
 export default function AllCreatorsPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
@@ -628,52 +666,58 @@ export default function AllCreatorsPage() {
   }
 
   // SNS 아이콘 컴포넌트
-  const SNSIcons = ({ creator }) => (
-    <div className="flex items-center gap-2">
-      {/* Instagram */}
-      {creator.instagram_url && (
-        <a
-          href={creator.instagram_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-xs hover:opacity-90"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Instagram className="w-3 h-3" />
-          <span>{formatNumber(creator.instagram_followers)}</span>
-        </a>
-      )}
-      {/* YouTube */}
-      {creator.youtube_url && (
-        <a
-          href={creator.youtube_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded-lg text-xs hover:opacity-90"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Youtube className="w-3 h-3" />
-          <span>{formatNumber(creator.youtube_subscribers)}</span>
-        </a>
-      )}
-      {/* TikTok */}
-      {creator.tiktok_url && (
-        <a
-          href={creator.tiktok_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 px-2 py-1 bg-black text-white rounded-lg text-xs hover:opacity-90"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Video className="w-3 h-3" />
-          <span>{formatNumber(creator.tiktok_followers)}</span>
-        </a>
-      )}
-      {!creator.instagram_url && !creator.youtube_url && !creator.tiktok_url && (
-        <span className="text-gray-400 text-xs">미등록</span>
-      )}
-    </div>
-  )
+  const SNSIcons = ({ creator }) => {
+    const instagramUrl = normalizeInstagramUrl(creator.instagram_url)
+    const youtubeUrl = normalizeYoutubeUrl(creator.youtube_url)
+    const tiktokUrl = normalizeTiktokUrl(creator.tiktok_url)
+
+    return (
+      <div className="flex items-center gap-2">
+        {/* Instagram */}
+        {instagramUrl && (
+          <a
+            href={instagramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg text-xs hover:opacity-90"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Instagram className="w-3 h-3" />
+            <span>{formatNumber(creator.instagram_followers)}</span>
+          </a>
+        )}
+        {/* YouTube */}
+        {youtubeUrl && (
+          <a
+            href={youtubeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded-lg text-xs hover:opacity-90"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Youtube className="w-3 h-3" />
+            <span>{formatNumber(creator.youtube_subscribers)}</span>
+          </a>
+        )}
+        {/* TikTok */}
+        {tiktokUrl && (
+          <a
+            href={tiktokUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 bg-black text-white rounded-lg text-xs hover:opacity-90"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Video className="w-3 h-3" />
+            <span>{formatNumber(creator.tiktok_followers)}</span>
+          </a>
+        )}
+        {!instagramUrl && !youtubeUrl && !tiktokUrl && (
+          <span className="text-gray-400 text-xs">미등록</span>
+        )}
+      </div>
+    )
+  }
 
   // 등급 뱃지 컴포넌트
   const GradeBadge = ({ creatorId, showLabel = false }) => {
@@ -1047,7 +1091,7 @@ export default function AllCreatorsPage() {
                   <Instagram className="w-4 h-4" /> SNS 정보
                 </h4>
                 <div className="space-y-3">
-                  {selectedCreator.instagram_url && (
+                  {normalizeInstagramUrl(selectedCreator.instagram_url) && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
@@ -1057,13 +1101,13 @@ export default function AllCreatorsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold">{formatNumber(selectedCreator.instagram_followers)} 팔로워</span>
-                        <a href={selectedCreator.instagram_url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                        <a href={normalizeInstagramUrl(selectedCreator.instagram_url)} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       </div>
                     </div>
                   )}
-                  {selectedCreator.youtube_url && (
+                  {normalizeYoutubeUrl(selectedCreator.youtube_url) && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
@@ -1073,13 +1117,13 @@ export default function AllCreatorsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold">{formatNumber(selectedCreator.youtube_subscribers)} 구독자</span>
-                        <a href={selectedCreator.youtube_url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                        <a href={normalizeYoutubeUrl(selectedCreator.youtube_url)} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       </div>
                     </div>
                   )}
-                  {selectedCreator.tiktok_url && (
+                  {normalizeTiktokUrl(selectedCreator.tiktok_url) && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
@@ -1089,13 +1133,13 @@ export default function AllCreatorsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold">{formatNumber(selectedCreator.tiktok_followers)} 팔로워</span>
-                        <a href={selectedCreator.tiktok_url} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                        <a href={normalizeTiktokUrl(selectedCreator.tiktok_url)} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       </div>
                     </div>
                   )}
-                  {!selectedCreator.instagram_url && !selectedCreator.youtube_url && !selectedCreator.tiktok_url && (
+                  {!normalizeInstagramUrl(selectedCreator.instagram_url) && !normalizeYoutubeUrl(selectedCreator.youtube_url) && !normalizeTiktokUrl(selectedCreator.tiktok_url) && (
                     <p className="text-gray-400 text-center py-4">등록된 SNS 정보가 없습니다.</p>
                   )}
                 </div>
