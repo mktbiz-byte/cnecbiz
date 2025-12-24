@@ -271,7 +271,7 @@ exports.handler = async (event) => {
         (result) => {
           console.log('✅ [STEP 3] 팝빌 API 호출 성공!');
           console.log('   - 전체 응답:', JSON.stringify(result, null, 2));
-          console.log('   - 국세청 승인번호:', result.ntsconfirmNum);
+          console.log('   - 국세청 승인번호:', result.ntsConfirmNum);
           console.log('   - 응답코드:', result.code);
           console.log('   - 응답메시지:', result.message);
           resolve(result);
@@ -325,10 +325,8 @@ exports.handler = async (event) => {
           company_id: company.id,  // companies 테이블의 실제 id 사용
           type: 'tax_invoice',
           amount: request.total_amount,
-          memo: `세금계산서 선발행 - ${request.companies.company_name}`,
           charge_request_id: taxInvoiceRequestId,  // points_charge_requests ID 참조
           status: 'pending'
-          // due_date 컬럼 없음
         });
 
       if (receivableError) {
