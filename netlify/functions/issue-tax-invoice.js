@@ -247,13 +247,16 @@ exports.handler = async (event) => {
     };
 
     console.log('✅ [STEP 2] 팝빌 세금계산서 객체 생성 완료');
+    console.log('   - 세금계산서 전체 객체:', JSON.stringify(taxinvoice, null, 2));
 
     // 4. 팝빌 API 호출 - 즉시 발행 (RegistIssue)
     console.log('🔍 [STEP 3] 팝빌 API 호출 - 즉시 발행...');
+    console.log('   - 문서번호(MgtKey):', taxinvoice.invoicerMgtKey);
     console.log('   - 공급받는자:', taxinvoice.invoiceeCorpName);
-    console.log('   - 공급가액:', taxinvoice.supplyCostTotal.toLocaleString(), '원');
-    console.log('   - 세액:', taxinvoice.taxTotal.toLocaleString(), '원');
-    console.log('   - 합계:', taxinvoice.totalAmount.toLocaleString(), '원');
+    console.log('   - 공급받는자 사업자번호:', taxinvoice.invoiceeCorpNum);
+    console.log('   - 공급가액:', taxinvoice.supplyCostTotal, '원');
+    console.log('   - 세액:', taxinvoice.taxTotal, '원');
+    console.log('   - 합계:', taxinvoice.totalAmount, '원');
 
     const result = await new Promise((resolve, reject) => {
       taxinvoiceService.registIssue(
