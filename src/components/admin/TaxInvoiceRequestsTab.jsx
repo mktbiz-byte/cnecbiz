@@ -45,15 +45,32 @@ const TaxInvoiceRequestsTab = () => {
     setSelectedRequest(null);
   };
 
-  const handleIssueInvoice = async () => {
+  const handleIssueInvoice = async (isReissue = false) => {
     if (!selectedRequest) return;
 
-    if (!confirm(`${selectedRequest.companies.company_name}의 세금계산서를 팝빌로 발행하시겠습니까?${!selectedRequest.is_deposit_confirmed ? '\n\n⚠️ 입금이 확인되지 않았습니다. 선발행 시 미수금으로 처리됩니다.' : ''}`)) {
+    const confirmMessage = isReissue
+      ? `${selectedRequest.companies.company_name}의 세금계산서를 재발행하시겠습니까?\n\n⚠️ 기존 발행 기록은 유지되며, 새로운 세금계산서가 발행됩니다.`
+      : `${selectedRequest.companies.company_name}의 세금계산서를 팝빌로 발행하시겠습니까?${!selectedRequest.is_deposit_confirmed ? '\n\n⚠️ 입금이 확인되지 않았습니다. 선발행 시 미수금으로 처리됩니다.' : ''}`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
     setIsIssuing(true);
     try {
+      // 재발행인 경우 먼저 발행 상태 초기화
+      if (isReissue) {
+        const resetResponse = await fetch('/.netlify/functions/reset-tax-invoice-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: selectedRequest.id })
+        });
+        const resetResult = await resetResponse.json();
+        if (!resetResult.success) {
+          throw new Error(resetResult.error || '상태 초기화 실패');
+        }
+      }
+
       // 팝빌 세금계산서 발행 API 호출
       const response = await fetch('/.netlify/functions/issue-tax-invoice', {
         method: 'POST',
@@ -70,7 +87,7 @@ const TaxInvoiceRequestsTab = () => {
         throw new Error(result.error || '발행 실패');
       }
 
-      alert('세금계산서가 팝빌로 발행되었습니다.');
+      alert(isReissue ? '세금계산서가 재발행되었습니다.' : '세금계산서가 팝빌로 발행되었습니다.');
       closeModal();
       fetchRequests();
     } catch (error) {
@@ -471,11 +488,20 @@ const TaxInvoiceRequestsTab = () => {
               </button>
               {selectedRequest.status === 'pending' && (
                 <button
-                  onClick={handleIssueInvoice}
+                  onClick={() => handleIssueInvoice(false)}
                   disabled={isIssuing}
                   className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isIssuing ? '발행 중...' : '발행하기 (팝빌)'}
+                </button>
+              )}
+              {selectedRequest.tax_invoice_issued && (
+                <button
+                  onClick={() => handleIssueInvoice(true)}
+                  disabled={isIssuing}
+                  className="px-4 py-2 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isIssuing ? '재발행 중...' : '재발행하기'}
                 </button>
               )}
             </div>

@@ -117,29 +117,17 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 업데이트 데이터 준비
-    const updateData = {
-      status: newStatus,
-      updated_at: new Date().toISOString()
-    }
+    // 업데이트 데이터 준비 (status만)
+    console.log('[update-campaign-status] Updating campaign:', campaignId, 'to status:', newStatus)
 
-    // 활성화 시 추가 필드 설정
-    if (newStatus === 'active') {
-      updateData.approval_status = 'approved'
-      updateData.progress_status = 'recruiting'
-      updateData.approved_at = new Date().toISOString()
-    }
-
-    // 캠페인 상태 업데이트
-    const { data: updatedCampaign, error: updateError } = await supabaseClient
+    // 캠페인 상태 업데이트 (단순화)
+    const { error: updateError } = await supabaseClient
       .from('campaigns')
-      .update(updateData)
+      .update({ status: newStatus })
       .eq('id', campaignId)
-      .select()
-      .single()
 
     if (updateError) {
-      console.error('[update-campaign-status] Update error:', updateError)
+      console.error('[update-campaign-status] Update error:', JSON.stringify(updateError))
       return {
         statusCode: 500,
         headers,
@@ -151,15 +139,14 @@ exports.handler = async (event, context) => {
       }
     }
 
-    console.log('[update-campaign-status] Campaign updated successfully:', updatedCampaign?.title || campaignId)
+    console.log('[update-campaign-status] Campaign updated successfully:', campaignId)
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        message: '캠페인 상태가 변경되었습니다.',
-        campaign: updatedCampaign
+        message: '캠페인 상태가 변경되었습니다.'
       })
     }
 
