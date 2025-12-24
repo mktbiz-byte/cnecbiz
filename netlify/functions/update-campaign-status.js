@@ -41,7 +41,12 @@ function getSupabaseClient(region) {
     return null
   }
 
-  return createClient(supabaseUrl, supabaseKey)
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  })
 }
 
 exports.handler = async (event, context) => {
