@@ -108,6 +108,7 @@ import AuthCallback from './components/AuthCallback'
 import RegularCampaignIntro from './pages/RegularCampaignIntro'
 import OliveYoungCampaignIntro from './pages/OliveYoungCampaignIntro'
 import FourWeekChallengeCampaignIntro from './pages/FourWeekChallengeCampaignIntro'
+import InvitationLanding from './pages/InvitationLanding'
 
 function App() {
   return (
@@ -121,6 +122,7 @@ function App() {
         <Route path="/campaigns/intro/oliveyoung" element={<OliveYoungCampaignIntro />} />
         <Route path="/campaigns/intro/4week" element={<FourWeekChallengeCampaignIntro />} />
         <Route path="/report/:reportCode" element={<PublicReport />} />
+        <Route path="/invitation/:id" element={<InvitationLanding />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />
         <Route path="/signup" element={<SignupWithVerification />} />
