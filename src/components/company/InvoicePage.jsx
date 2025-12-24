@@ -230,6 +230,18 @@ const InvoicePage = () => {
         total_amount: totalCost
       }
 
+      // 중복 결제 요청 방지: 동일 캠페인에 대해 이미 pending 상태의 요청이 있는지 확인
+      const { data: existingRequest } = await supabaseBiz
+        .from('points_charge_requests')
+        .select('id')
+        .eq('related_campaign_id', id)
+        .eq('status', 'pending')
+        .single()
+
+      if (existingRequest) {
+        throw new Error('이미 결제 요청이 진행 중입니다. 잠시 후 다시 시도해주세요.')
+      }
+
       // 캠페인 결제 요청 생성 (related_campaign_id를 통해 입금 확인 시 자동 승인)
       const { error: chargeError } = await supabaseBiz
         .from('points_charge_requests')
