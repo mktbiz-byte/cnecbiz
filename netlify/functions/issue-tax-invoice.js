@@ -34,10 +34,10 @@ console.log('✅ [INIT] Supabase client initialized');
 /**
  * 세금계산서 발행 API
  * POST /issue-tax-invoice
- * 
+ *
  * Body:
  * {
- *   "taxInvoiceRequestId": "uuid",  // tax_invoice_requests 테이블 ID
+ *   "taxInvoiceRequestId": "uuid",  // points_charge_requests 테이블 ID
  *   "forceIssue": false              // 지연발행 여부 (선택)
  * }
  */
@@ -60,41 +60,114 @@ exports.handler = async (event) => {
       };
     }
 
-    console.log('🔍 [STEP 1] 세금계산서 신청 정보 조회...');
-    console.log('   - 신청 ID:', taxInvoiceRequestId);
+    console.log('🔍 [STEP 1] 충전 요청 정보 조회...');
+    console.log('   - 충전 요청 ID:', taxInvoiceRequestId);
 
-    // 2. 세금계산서 신청 정보 조회
-    const { data: request, error: requestError } = await supabaseAdmin
-      .from('tax_invoice_requests')
+    // 2. points_charge_requests에서 충전 요청 정보 조회
+    const { data: chargeRequest, error: chargeError } = await supabaseAdmin
+      .from('points_charge_requests')
       .select(`
-        *,
-        companies (
-          business_number,
-          company_name,
-          ceo_name,
-          address,
-          business_type,
-          business_category,
-          contact_person,
-          email,
-          phone
-        )
+        id,
+        company_id,
+        amount,
+        status,
+        needs_tax_invoice,
+        tax_invoice_info,
+        tax_invoice_issued,
+        is_credit,
+        created_at,
+        confirmed_at
       `)
       .eq('id', taxInvoiceRequestId)
       .single();
 
-    if (requestError || !request) {
-      console.error('❌ [STEP 1] 세금계산서 신청 정보 조회 실패:', requestError);
+    if (chargeError || !chargeRequest) {
+      console.error('❌ [STEP 1] 충전 요청 정보 조회 실패:', chargeError);
       return {
         statusCode: 404,
         body: JSON.stringify({
           success: false,
-          error: '세금계산서 신청 정보를 찾을 수 없습니다.'
+          error: '충전 요청 정보를 찾을 수 없습니다.'
         })
       };
     }
 
-    console.log('✅ [STEP 1] 세금계산서 신청 정보 조회 완료');
+    // 이미 발행된 경우 중복 발행 방지
+    if (chargeRequest.tax_invoice_issued) {
+      console.log('⚠️ [STEP 1] 이미 세금계산서가 발행된 건입니다.');
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          success: false,
+          error: '이미 세금계산서가 발행된 건입니다.'
+        })
+      };
+    }
+
+    // 3. 회사 정보 조회 (company_id는 실제로 user_id임)
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select(`
+        id,
+        user_id,
+        company_name,
+        ceo_name,
+        business_registration_number,
+        company_address,
+        business_type,
+        business_category,
+        contact_person,
+        email,
+        phone
+      `)
+      .eq('user_id', chargeRequest.company_id)
+      .single();
+
+    if (companyError || !company) {
+      console.error('❌ [STEP 1] 회사 정보 조회 실패:', companyError);
+      return {
+        statusCode: 404,
+        body: JSON.stringify({
+          success: false,
+          error: '회사 정보를 찾을 수 없습니다.'
+        })
+      };
+    }
+
+    // 세금계산서 정보 가져오기 (tax_invoice_info에서 또는 company 정보에서)
+    const taxInfo = chargeRequest.tax_invoice_info || {};
+
+    // 금액 계산: 총액에서 공급가액과 세액 분리 (VAT 포함 금액 기준)
+    const totalAmount = chargeRequest.amount;
+    const supplyCostTotal = Math.round(totalAmount / 1.1);  // 공급가액
+    const taxTotal = totalAmount - supplyCostTotal;  // 세액
+
+    // 작성일자: 현재 날짜
+    const today = new Date();
+    const writeDate = today.toISOString().split('T')[0];  // YYYY-MM-DD
+
+    // request 객체 구성 (기존 로직과 호환)
+    const request = {
+      company_id: company.id,
+      supply_cost_total: supplyCostTotal,
+      tax_total: taxTotal,
+      total_amount: totalAmount,
+      write_date: writeDate,
+      is_deposit_confirmed: chargeRequest.status === 'completed' || chargeRequest.status === 'confirmed',
+      companies: {
+        business_number: taxInfo.businessNumber || taxInfo.business_number || company.business_registration_number || '',
+        company_name: taxInfo.companyName || taxInfo.company_name || company.company_name || '',
+        ceo_name: taxInfo.ceoName || taxInfo.ceo_name || company.ceo_name || '',
+        address: taxInfo.address || company.company_address || '',
+        business_type: taxInfo.businessType || taxInfo.business_type || company.business_type || '',
+        business_category: taxInfo.businessItem || taxInfo.business_item || taxInfo.businessCategory || company.business_category || '',
+        contact_person: taxInfo.contactPerson || taxInfo.contact_person || company.contact_person || '',
+        email: taxInfo.email || company.email || '',
+        phone: taxInfo.phone || company.phone || ''
+      }
+    };
+
+    console.log('✅ [STEP 1] 충전 요청 정보 조회 완료');
     console.log('   - 회사명:', request.companies.company_name);
     console.log('   - 금액:', request.supply_cost_total.toLocaleString(), '원');
 
@@ -193,16 +266,22 @@ exports.handler = async (event) => {
       );
     });
 
-    // 5. Supabase 업데이트
+    // 5. Supabase 업데이트 - points_charge_requests 테이블의 tax_invoice_issued 필드 업데이트
     console.log('🔍 [STEP 4] Supabase 업데이트...');
 
+    // 기존 tax_invoice_info에 발행 정보 추가
+    const updatedTaxInvoiceInfo = {
+      ...taxInfo,
+      issued: true,
+      issued_at: new Date().toISOString(),
+      nts_confirm_num: result.ntsconfirmNum
+    };
+
     const { error: updateError } = await supabaseAdmin
-      .from('tax_invoice_requests')
+      .from('points_charge_requests')
       .update({
-        status: 'issued',
-        issued_at: new Date().toISOString(),
-        nts_confirm_num: result.ntsconfirmNum,
-        popbill_result: result
+        tax_invoice_issued: true,
+        tax_invoice_info: updatedTaxInvoiceInfo
       })
       .eq('id', taxInvoiceRequestId);
 
@@ -220,11 +299,11 @@ exports.handler = async (event) => {
       const { error: receivableError } = await supabaseAdmin
         .from('receivables')
         .insert({
-          company_id: request.company_id,
+          company_id: company.id,  // companies 테이블의 실제 id 사용
           type: 'tax_invoice',
           amount: request.total_amount,
           description: `세금계산서 선발행 - ${request.companies.company_name}`,
-          tax_invoice_request_id: taxInvoiceRequestId,
+          charge_request_id: taxInvoiceRequestId,  // points_charge_requests ID 참조
           status: 'pending',
           due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
         });

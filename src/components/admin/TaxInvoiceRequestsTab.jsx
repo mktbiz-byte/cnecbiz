@@ -289,9 +289,14 @@ const TaxInvoiceRequestsTab = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {request.issued_at
-                        ? new Date(request.issued_at).toLocaleString('ko-KR')
-                        : '-'}
+                      {request.issued_at ? (
+                        <div>
+                          <div>{new Date(request.issued_at).toLocaleString('ko-KR')}</div>
+                          {request.nts_confirm_num && (
+                            <div className="text-xs text-blue-600">{request.nts_confirm_num}</div>
+                          )}
+                        </div>
+                      ) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
@@ -362,6 +367,14 @@ const TaxInvoiceRequestsTab = () => {
                       )}
                     </p>
                   </div>
+                  {selectedRequest.status === 'issued' && selectedRequest.nts_confirm_num && (
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-600">국세청 승인번호</p>
+                      <p className="text-sm font-medium text-blue-600">
+                        {selectedRequest.nts_confirm_num}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

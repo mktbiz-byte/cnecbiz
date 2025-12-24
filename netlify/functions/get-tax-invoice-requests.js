@@ -33,6 +33,7 @@ exports.handler = async (event, context) => {
     console.log(`📊 필터: ${filter}`);
 
     // points_charge_requests에서 needs_tax_invoice=true인 건들을 직접 조회
+    // 모든 세금계산서 신청 내역 조회 (포인트 충전 + 캠페인 결제 모두 포함)
     let query = supabaseAdmin
       .from('points_charge_requests')
       .select(`
@@ -45,21 +46,22 @@ exports.handler = async (event, context) => {
         created_at,
         confirmed_at,
         is_credit,
-        tax_invoice_issued
+        tax_invoice_issued,
+        related_campaign_id
       `)
       .eq('needs_tax_invoice', true)
-      .not('related_campaign_id', 'is', null)  // 캐페인 결제 요청만 (포인트 충전 제외)
       .order('created_at', { ascending: false });
 
-    // 필터 적용 (status 기반)
+    // 필터 적용 (tax_invoice_issued 기반)
     if (filter === 'pending') {
-      query = query.eq('status', 'pending');
+      // 발행 대기: 세금계산서가 아직 발행되지 않은 건
+      query = query.or('tax_invoice_issued.is.null,tax_invoice_issued.eq.false');
     } else if (filter === 'issued') {
-      // 발행 완료는 completed 상태로 간주
-      query = query.eq('status', 'completed');
+      // 발행 완료: 세금계산서가 발행된 건
+      query = query.eq('tax_invoice_issued', true);
     } else if (filter === 'prepaid') {
-      // 선발행은 is_credit=true인 건
-      query = query.eq('is_credit', true);
+      // 선발행: 미수금으로 선발행된 건
+      query = query.eq('is_credit', true).eq('tax_invoice_issued', true);
     }
 
     const { data: chargeRequests, error } = await query;
@@ -87,17 +89,26 @@ exports.handler = async (event, context) => {
     const companyMap = new Map(companies.map(c => [c.user_id, c]));
 
     // 데이터 변환 (TaxInvoiceRequestsTab에서 기대하는 형식으로)
-    const requests = chargeRequests.map(req => ({
-      id: req.id,
-      amount: req.amount,
-      status: req.tax_invoice_issued ? 'issued' : 'pending',  // tax_invoice_issued 필드 사용
-      is_deposit_confirmed: req.status === 'completed' || req.status === 'confirmed',
-      is_prepaid: req.is_credit || false,
-      created_at: req.created_at,
-      issued_at: req.confirmed_at,
-      companies: companyMap.get(req.company_id) || { company_name: '알 수 없음', email: '' },
-      tax_invoice_info: req.tax_invoice_info
-    }));
+    const requests = chargeRequests.map(req => {
+      // tax_invoice_info에서 발행일시 가져오기
+      const taxInfo = req.tax_invoice_info || {};
+      const issuedAt = taxInfo.issued_at || (req.tax_invoice_issued ? req.confirmed_at : null);
+
+      return {
+        id: req.id,  // points_charge_requests의 ID
+        charge_request_id: req.id,  // 명시적으로 charge_request_id도 포함
+        amount: req.amount,
+        status: req.tax_invoice_issued ? 'issued' : 'pending',  // tax_invoice_issued 필드 사용
+        is_deposit_confirmed: req.status === 'completed' || req.status === 'confirmed',
+        is_prepaid: req.is_credit || false,
+        created_at: req.created_at,
+        issued_at: issuedAt,  // 발행된 경우에만 issued_at 표시
+        nts_confirm_num: taxInfo.nts_confirm_num || null,  // 국세청 승인번호
+        companies: companyMap.get(req.company_id) || { company_name: '알 수 없음', email: '' },
+        tax_invoice_info: req.tax_invoice_info,
+        related_campaign_id: req.related_campaign_id  // 캠페인 관련 정보도 포함
+      };
+    });
 
     console.log(`✅ ${requests.length}건의 세금계산서 신청 내역 조회 완료`);
 
