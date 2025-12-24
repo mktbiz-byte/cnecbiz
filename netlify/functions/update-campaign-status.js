@@ -5,6 +5,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
+const axios = require('axios')
 
 // Supabase 클라이언트 생성 함수
 function getSupabaseClient(region) {
@@ -152,19 +153,19 @@ exports.handler = async (event, context) => {
     if (newStatus === 'active') {
       try {
         // 내부적으로 send-campaign-activation-notification 호출
-        const notifyResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-campaign-activation-notification`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId, region })
-        })
+        const notifyResponse = await axios.post(
+          `${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-campaign-activation-notification`,
+          { campaignId, region },
+          { headers: { 'Content-Type': 'application/json' } }
+        )
 
-        if (notifyResponse.ok) {
+        if (notifyResponse.status === 200) {
           console.log('[update-campaign-status] Activation notification sent')
         } else {
-          console.error('[update-campaign-status] Notification failed:', await notifyResponse.text())
+          console.error('[update-campaign-status] Notification failed:', notifyResponse.data)
         }
       } catch (notifyError) {
-        console.error('[update-campaign-status] Notification error:', notifyError)
+        console.error('[update-campaign-status] Notification error:', notifyError.message)
         // 알림 실패해도 상태 변경은 성공으로 처리
       }
     }
