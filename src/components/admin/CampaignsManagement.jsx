@@ -226,6 +226,7 @@ export default function CampaignsManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRegion, setSelectedRegion] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [sortOrder, setSortOrder] = useState('created') // 정렬 옵션: 'created', 'deadline', 'smart'
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
@@ -351,9 +352,21 @@ export default function CampaignsManagement() {
       return matchesCompany && matchesSearch && matchesRegion && matchesStatus
     })
 
-    // 스마트 정렬: 긴급도 높은 순으로 정렬
-    return filtered.sort((a, b) => getSmartSortScore(b) - getSmartSortScore(a))
-  }, [campaigns, searchTerm, selectedRegion, selectedStatus, filterCompanyId])
+    // 정렬 옵션에 따른 정렬
+    return filtered.sort((a, b) => {
+      switch (sortOrder) {
+        case 'created': // 생성일 순 (최신순)
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        case 'deadline': // 마감일 순 (가까운 순)
+          const deadlineA = a.application_deadline || a.recruitment_deadline || '9999-12-31'
+          const deadlineB = b.application_deadline || b.recruitment_deadline || '9999-12-31'
+          return new Date(deadlineA) - new Date(deadlineB)
+        case 'smart': // 긴급도 순
+        default:
+          return getSmartSortScore(b) - getSmartSortScore(a)
+      }
+    })
+  }, [campaigns, searchTerm, selectedRegion, selectedStatus, filterCompanyId, sortOrder])
 
   // 페이지네이션 계산
   const paginatedCampaigns = useMemo(() => {
@@ -1054,16 +1067,31 @@ export default function CampaignsManagement() {
               ))}
             </div>
 
-            {/* 검색 */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="캠페인 제목, 브랜드명으로 검색..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white"
-              />
+            {/* 검색 + 정렬 */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="캠페인 제목, 브랜드명으로 검색..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-11 bg-gray-50 border-gray-200 focus:bg-white"
+                />
+              </div>
+              {/* 정렬 옵션 */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 whitespace-nowrap">정렬:</span>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="h-11 px-3 rounded-lg border border-gray-200 bg-gray-50 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="created">생성일순 (최신)</option>
+                  <option value="deadline">마감일순 (가까운)</option>
+                  <option value="smart">긴급도순</option>
+                </select>
+              </div>
             </div>
           </div>
 
