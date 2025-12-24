@@ -295,14 +295,14 @@ exports.handler = async (event) => {
       ...taxInfo,
       issued: true,
       issued_at: new Date().toISOString(),
-      nts_confirm_num: result.ntsconfirmNum,
+      nts_confirm_num: result.ntsConfirmNum,  // 대문자 C 수정
       mgt_key: mgtKey  // 문서번호 저장
     };
 
     const { error: updateError } = await supabaseAdmin
       .from('points_charge_requests')
       .update({
-        status: 'issued',  // 발행 완료 상태로 변경
+        // status는 DB constraint로 인해 변경하지 않음
         tax_invoice_issued: true,
         tax_invoice_info: updatedTaxInvoiceInfo
       })
@@ -325,10 +325,10 @@ exports.handler = async (event) => {
           company_id: company.id,  // companies 테이블의 실제 id 사용
           type: 'tax_invoice',
           amount: request.total_amount,
-          memo: `세금계산서 선발행 - ${request.companies.company_name}`,  // description -> memo
+          memo: `세금계산서 선발행 - ${request.companies.company_name}`,
           charge_request_id: taxInvoiceRequestId,  // points_charge_requests ID 참조
-          status: 'pending',
-          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
+          status: 'pending'
+          // due_date 컬럼 없음
         });
 
       if (receivableError) {
