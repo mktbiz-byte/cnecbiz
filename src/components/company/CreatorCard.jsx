@@ -188,35 +188,33 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
           )}
         </div>
 
-        {/* 이미지 아래 버튼들 */}
-        <div className="flex gap-2 px-4 pt-3">
-          <Button
-            onClick={handleVirtualSelect}
-            variant="outline"
-            size="sm"
-            className={`flex-1 h-8 text-xs ${virtual_selected ? 'border-blue-300 text-blue-600 bg-blue-50' : ''}`}
-          >
-            {virtual_selected ? '선택됨 ✓' : '가상선택'}
-          </Button>
-          {onViewProfile && (
+        {/* 이미지 아래 지원서 보기 버튼 */}
+        {onViewProfile && (
+          <div className="px-4 pt-3">
             <Button
               onClick={() => onViewProfile(application)}
               variant="outline"
               size="sm"
-              className="flex-1 h-8 text-xs border-green-300 text-green-600 hover:bg-green-50"
+              className="w-full h-9 text-sm border-green-300 text-green-600 hover:bg-green-50"
             >
-              <FileText className="w-3 h-3 mr-1" />
+              <FileText className="w-4 h-4 mr-2" />
               지원서 보기
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="p-4 pt-2">
           {/* 기본 정보 */}
           <div className="mb-3">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <h3 className="text-lg font-bold text-gray-900">{applicant_name}</h3>
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{age}세</span>
+              {skinTypeKorean && (
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Droplets className="w-3 h-3" />
+                  {skinTypeKorean}
+                </span>
+              )}
             </div>
 
             {/* 채널별 팔로워 + 선택 + 링크 통합 */}
@@ -263,15 +261,6 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
                 )
               })}
             </div>
-
-            {/* 피부타입 */}
-            {skinTypeKorean && (
-              <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
-                <Droplets className="w-4 h-4 text-blue-400" />
-                <span>피부타입:</span>
-                <span className="font-medium">{skinTypeKorean}</span>
-              </div>
-            )}
           </div>
 
           {/* 액션 버튼 */}
@@ -293,14 +282,31 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
                 </Button>
               </>
             ) : (
-              <Button
-                onClick={handleConfirm}
-                size="sm"
-                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white h-10 font-semibold shadow-md"
-              >
-                <Sparkles className="w-4 h-4 mr-1" />
-                크리에이터 확정
-              </Button>
+              <>
+                <Button
+                  onClick={handleVirtualSelect}
+                  variant="outline"
+                  size="sm"
+                  className={`w-full h-9 ${virtual_selected ? 'border-blue-400 text-blue-600 bg-blue-50 font-semibold' : 'border-gray-200'}`}
+                >
+                  {virtual_selected ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-1" />
+                      가상선택됨
+                    </>
+                  ) : (
+                    '가상선택'
+                  )}
+                </Button>
+                <Button
+                  onClick={handleConfirm}
+                  size="sm"
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white h-10 font-semibold shadow-md"
+                >
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  크리에이터 확정
+                </Button>
+              </>
             )}
           </div>
         </div>
