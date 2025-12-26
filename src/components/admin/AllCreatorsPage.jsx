@@ -104,6 +104,8 @@ const normalizeCreatorData = (creator, region) => {
     tiktok_followers: creator.tiktok_followers || 0,
     // 이름 필드 정규화
     name: creator.name || creator.creator_name || creator.channel_name || creator.full_name || null,
+    // 프로필 이미지 필드 정규화
+    profile_image: creator.profile_image || creator.profile_image_url || creator.avatar || creator.avatar_url || creator.photo || null,
   }
 }
 
@@ -823,9 +825,27 @@ export default function AllCreatorsPage() {
                     />
                   </td>
                   <td className="p-1.5">
-                    <span className="text-indigo-600 hover:underline font-medium">
-                      {creator.name || '-'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* 프로필 이미지 */}
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {creator.profile_image ? (
+                          <img
+                            src={creator.profile_image}
+                            alt={creator.name || ''}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.parentElement.innerHTML = '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>'
+                            }}
+                          />
+                        ) : (
+                          <User className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                      <span className="text-indigo-600 hover:underline font-medium">
+                        {creator.name || '-'}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-1.5">
                     <GradeBadge creatorId={creator.id} />
