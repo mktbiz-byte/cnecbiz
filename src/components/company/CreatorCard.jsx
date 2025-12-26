@@ -179,12 +179,12 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
 
   return (
     <>
-      {/* 가로형 카드 레이아웃 */}
+      {/* 1줄 가로형 카드 레이아웃 */}
       <Card className={`overflow-hidden transition-all duration-200 ${virtual_selected ? 'ring-2 ring-blue-400 shadow-lg bg-blue-50/30' : 'hover:shadow-md hover:border-gray-300'}`}>
-        <CardContent className="p-0">
-          <div className="flex flex-col sm:flex-row">
-            {/* 왼쪽: 프로필 사진 */}
-            <div className="relative w-full sm:w-32 h-32 sm:h-auto aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
+        <CardContent className="p-4">
+          <div className="flex gap-4">
+            {/* 왼쪽: 프로필 사진 (정사각형 유지) */}
+            <div className="relative w-28 h-28 rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
               {application.profile_photo_url ? (
                 <img
                   src={application.profile_photo_url}
@@ -199,8 +199,8 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
 
               {/* 가상선택 배지 */}
               {virtual_selected && (
-                <div className="absolute top-2 left-2">
-                  <Badge className="bg-blue-500 text-white shadow-lg text-xs">
+                <div className="absolute top-1 left-1">
+                  <Badge className="bg-blue-500 text-white shadow-lg text-xs px-1.5 py-0.5">
                     <CheckCircle2 className="w-3 h-3 mr-0.5" />
                     선택
                   </Badge>
@@ -209,9 +209,9 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
 
               {/* 크넥 추천 배지 */}
               {isRecommended && featuredInfo && (
-                <div className="absolute bottom-2 left-2">
+                <div className="absolute bottom-1 left-1">
                   <Badge
-                    className="text-white shadow-lg flex items-center gap-0.5 text-xs"
+                    className="text-white shadow-lg flex items-center gap-0.5 text-xs px-1.5 py-0.5"
                     style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#F59E0B' }}
                   >
                     <Award className="w-3 h-3" />
@@ -222,7 +222,7 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
             </div>
 
             {/* 오른쪽: 정보 영역 */}
-            <div className="flex-1 p-4">
+            <div className="flex-1 min-w-0">
               {/* 상단: 이름, 나이, 배지들 */}
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -323,11 +323,11 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
               {questionsAndAnswers.length > 0 && (
                 <div className="mb-3 space-y-2">
                   {questionsAndAnswers.map((qa, index) => (
-                    <div key={index} className="p-2 bg-green-50 rounded-lg text-xs border border-green-100">
-                      <p className="text-green-700 font-semibold mb-1">
-                        Q{index + 1}. {qa.question || '질문'}
+                    <div key={index} className="p-2.5 bg-green-50 rounded-lg text-sm border border-green-100">
+                      <p className="text-green-700 font-semibold mb-1.5">
+                        Q{index + 1}. {qa.question && qa.question.trim() ? qa.question : `질문 ${index + 1}`}
                       </p>
-                      <p className="text-gray-700 pl-2 border-l-2 border-green-300">{qa.answer}</p>
+                      <p className="text-gray-700 pl-3 border-l-2 border-green-300">{qa.answer}</p>
                     </div>
                   ))}
                 </div>
@@ -335,12 +335,12 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
 
               {/* 지원자 한마디 */}
               {additional_info && (
-                <div className="mb-3 p-2 bg-amber-50 rounded-lg text-xs border border-amber-100">
-                  <p className="text-amber-700 font-semibold mb-1 flex items-center gap-1">
-                    <Star className="w-3 h-3" />
+                <div className="mb-3 p-2.5 bg-amber-50 rounded-lg text-sm border border-amber-100">
+                  <p className="text-amber-700 font-semibold mb-1.5 flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5" />
                     지원자 한마디
                   </p>
-                  <p className="text-gray-700">{additional_info}</p>
+                  <p className="text-gray-700 pl-3 border-l-2 border-amber-300">{additional_info}</p>
                 </div>
               )}
 
