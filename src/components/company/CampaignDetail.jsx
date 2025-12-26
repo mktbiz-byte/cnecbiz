@@ -358,6 +358,10 @@ export default function CampaignDetail() {
 
         return {
           ...app,
+          // 이름: profile에서 먼저, 없으면 app.applicant_name (일본의 경우 email로 저장되는 경우가 있음)
+          applicant_name: profile?.name || profile?.display_name || profile?.nickname ||
+                         (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
+                         profile?.name || app.applicant_name,
           profile_photo_url: profileImage || null,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
@@ -524,10 +528,16 @@ export default function CampaignDetail() {
 
         console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
+        // 이름 결정: profile에서 먼저, 없거나 이메일 형식이면 app에서
+        const resolvedName = profile?.name || profile?.display_name || profile?.nickname ||
+                            (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
+                            app.applicant_name
+
         if (profile) {
           const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
           const enriched = {
             ...app,
+            applicant_name: resolvedName,
             profile_photo_url: profileImage,
             instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
             youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
@@ -542,7 +552,10 @@ export default function CampaignDetail() {
         }
 
         console.log('Returning original app data for:', app.applicant_name)
-        return app
+        return {
+          ...app,
+          applicant_name: resolvedName
+        }
       })
 
       console.log('Fetched applications with status:', enrichedData.map(app => ({ name: app.applicant_name, status: app.status, virtual_selected: app.virtual_selected })))
