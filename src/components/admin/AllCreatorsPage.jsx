@@ -44,108 +44,69 @@ const formatNumber = (num) => {
 // SNS URL 정규화 함수 - @id 또는 id만 있으면 전체 URL로 변환
 const normalizeInstagramUrl = (url) => {
   if (!url) return null
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
   // 이미 전체 URL인 경우
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
   // @ 제거하고 핸들만 추출
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   return `https://www.instagram.com/${handle}`
 }
 
 const normalizeYoutubeUrl = (url) => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   // @로 시작하는 핸들이면 채널 핸들로
-  if (url.startsWith('@')) {
+  if (urlStr.startsWith('@')) {
     return `https://www.youtube.com/@${handle}`
   }
-  // 그 외에는 채널 ID로 처리
-  return `https://www.youtube.com/channel/${handle}`
+  // 그 외에는 채널 핸들로 처리 (@ 추가)
+  return `https://www.youtube.com/@${handle}`
 }
 
 const normalizeTiktokUrl = (url) => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   return `https://www.tiktok.com/@${handle}`
 }
 
-// 이메일 형태인지 확인
-const isEmailFormat = (str) => {
-  if (!str) return false
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)
-}
-
-// SNS 핸들/ID 추출 (URL에서)
-const extractSnsHandle = (url) => {
-  if (!url) return null
-  // URL에서 마지막 경로 추출
-  const match = url.match(/(?:instagram\.com|youtube\.com|tiktok\.com)\/(?:@)?([^\/\?]+)/i)
-  if (match && match[1]) {
-    return match[1].replace('@', '')
+// 크리에이터 데이터 필드 정규화 함수 - 각 지역 DB의 다른 필드명을 통일
+const normalizeCreatorData = (creator, region) => {
+  return {
+    ...creator,
+    // SNS URL 필드 정규화 (다양한 필드명 지원)
+    instagram_url: creator.instagram_url || creator.instagram || creator.instagram_handle || creator.instagram_id || null,
+    youtube_url: creator.youtube_url || creator.youtube || creator.youtube_handle || creator.youtube_channel || creator.youtube_id || null,
+    tiktok_url: creator.tiktok_url || creator.tiktok || creator.tiktok_handle || creator.tiktok_id || null,
+    // 전화번호 필드 정규화
+    phone: creator.phone || creator.phone_number || creator.mobile || creator.contact || null,
+    // 팔로워 수 필드 정규화
+    instagram_followers: creator.instagram_followers || creator.insta_followers || 0,
+    youtube_subscribers: creator.youtube_subscribers || creator.youtube_subs || creator.subscribers || 0,
+    tiktok_followers: creator.tiktok_followers || 0,
+    // 이름 필드 정규화
+    name: creator.name || creator.creator_name || creator.channel_name || creator.full_name || null,
+    // 프로필 이미지 필드 정규화
+    profile_image: creator.profile_image || creator.profile_image_url || creator.avatar || creator.avatar_url || creator.photo || null,
   }
-  // @로 시작하는 핸들인 경우
-  if (url.startsWith('@')) {
-    return url.substring(1)
-  }
-  // 그냥 핸들인 경우
-  if (!url.includes('/') && !url.includes('.')) {
-    return url
-  }
-  return null
-}
-
-// 크리에이터 표시 이름 결정 (이메일이면 SNS 핸들 사용)
-const getDisplayName = (creator) => {
-  // 1. name 필드가 있고 이메일 형태가 아니면 사용
-  if (creator.name && !isEmailFormat(creator.name)) {
-    return creator.name
-  }
-
-  // 2. channel_name이 있고 이메일 형태가 아니면 사용
-  if (creator.channel_name && !isEmailFormat(creator.channel_name)) {
-    return creator.channel_name
-  }
-
-  // 3. full_name이 있고 이메일 형태가 아니면 사용
-  if (creator.full_name && !isEmailFormat(creator.full_name)) {
-    return creator.full_name
-  }
-
-  // 4. display_name이 있고 이메일 형태가 아니면 사용
-  if (creator.display_name && !isEmailFormat(creator.display_name)) {
-    return creator.display_name
-  }
-
-  // 5. 인스타그램 핸들 사용
-  const instaHandle = extractSnsHandle(creator.instagram_url)
-  if (instaHandle) {
-    return `@${instaHandle}`
-  }
-
-  // 6. 유튜브 핸들 사용
-  const youtubeHandle = extractSnsHandle(creator.youtube_url)
-  if (youtubeHandle) {
-    return youtubeHandle
-  }
-
-  // 7. 틱톡 핸들 사용
-  const tiktokHandle = extractSnsHandle(creator.tiktok_url)
-  if (tiktokHandle) {
-    return `@${tiktokHandle}`
-  }
-
-  // 8. 그래도 없으면 이름 또는 기본값
-  return creator.name || '-'
 }
 
 export default function AllCreatorsPage() {
@@ -248,10 +209,75 @@ export default function AllCreatorsPage() {
           .order('created_at', { ascending: false })
       ])
 
-      const koreaData = koreaResult.status === 'fulfilled' && koreaResult.value?.data ? koreaResult.value.data : []
-      const japanData = japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : []
-      const usData = usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : []
-      const taiwanData = taiwanResult.status === 'fulfilled' && taiwanResult.value?.data ? taiwanResult.value.data : []
+      // 각 지역 데이터 필드 정규화 적용 (다른 DB 스키마 대응)
+      const koreaData = (koreaResult.status === 'fulfilled' && koreaResult.value?.data ? koreaResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'korea'))
+      let japanData = (japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'japan'))
+      let usData = (usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'us'))
+      const taiwanData = (taiwanResult.status === 'fulfilled' && taiwanResult.value?.data ? taiwanResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'taiwan'))
+
+      // 미국/일본 크리에이터의 경우 applications 테이블에서 SNS 정보 보완
+      try {
+        const [japanAppsResult, usAppsResult] = await Promise.allSettled([
+          supabaseJapan?.from('applications')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone, phone_number')
+            .order('created_at', { ascending: false }),
+          supabaseUS?.from('applications')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone_number')
+            .order('created_at', { ascending: false })
+        ])
+
+        // 일본 크리에이터 SNS 정보 보완
+        if (japanAppsResult.status === 'fulfilled' && japanAppsResult.value?.data) {
+          const japanAppsMap = new Map()
+          japanAppsResult.value.data.forEach(app => {
+            if (app.user_id && !japanAppsMap.has(app.user_id)) {
+              japanAppsMap.set(app.user_id, app)
+            }
+          })
+          japanData = japanData.map(creator => {
+            const appData = japanAppsMap.get(creator.user_id || creator.id)
+            if (appData) {
+              return {
+                ...creator,
+                instagram_url: creator.instagram_url || appData.instagram_url || null,
+                youtube_url: creator.youtube_url || appData.youtube_url || null,
+                tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
+                phone: creator.phone || appData.phone || appData.phone_number || null
+              }
+            }
+            return creator
+          })
+        }
+
+        // 미국 크리에이터 SNS 정보 보완
+        if (usAppsResult.status === 'fulfilled' && usAppsResult.value?.data) {
+          const usAppsMap = new Map()
+          usAppsResult.value.data.forEach(app => {
+            if (app.user_id && !usAppsMap.has(app.user_id)) {
+              usAppsMap.set(app.user_id, app)
+            }
+          })
+          usData = usData.map(creator => {
+            const appData = usAppsMap.get(creator.user_id || creator.id)
+            if (appData) {
+              return {
+                ...creator,
+                instagram_url: creator.instagram_url || appData.instagram_url || null,
+                youtube_url: creator.youtube_url || appData.youtube_url || null,
+                tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
+                phone: creator.phone || appData.phone_number || null
+              }
+            }
+            return creator
+          })
+        }
+      } catch (appError) {
+        console.error('applications 테이블 조회 오류:', appError)
+      }
 
       setCreators({ korea: koreaData, japan: japanData, us: usData, taiwan: taiwanData })
       setStats({
@@ -353,7 +379,7 @@ export default function AllCreatorsPage() {
         if (error) throw error
       }
 
-      alert(`${getDisplayName(selectedCreator)}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
+      alert(`${selectedCreator.name || '크리에이터'}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
       setShowGradeModal(false)
       await fetchFeaturedCreators()
     } catch (error) {
@@ -368,7 +394,7 @@ export default function AllCreatorsPage() {
   const handleRemoveGrade = async () => {
     if (!selectedCreator) return
 
-    if (!confirm(`${getDisplayName(selectedCreator)}의 등급을 삭제하시겠습니까?`)) return
+    if (!confirm(`${selectedCreator.name || '크리에이터'}의 등급을 삭제하시겠습니까?`)) return
 
     setSavingGrade(true)
     try {
@@ -526,10 +552,10 @@ export default function AllCreatorsPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 receiverNum: phoneNumber,
-                receiverName: getDisplayName(creator),
+                receiverName: creator.name || '크리에이터',
                 templateCode: '025100001022', // 일반 알림 템플릿
                 variables: {
-                  '이름': getDisplayName(creator),
+                  '이름': creator.name || '크리에이터',
                   '내용': messageData.content.substring(0, 200)
                 }
               })
@@ -700,7 +726,7 @@ export default function AllCreatorsPage() {
 
   const exportToExcel = (data, filename, regionName) => {
     const excelData = data.map(creator => ({
-      '이름': getDisplayName(creator),
+      '이름': creator.name || '-',
       '이메일': creator.email || '-',
       '전화번호': creator.phone || '-',
       '인스타그램 URL': creator.instagram_url || '-',
@@ -859,9 +885,27 @@ export default function AllCreatorsPage() {
                     />
                   </td>
                   <td className="p-1.5">
-                    <span className="text-indigo-600 hover:underline font-medium">
-                      {getDisplayName(creator)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* 프로필 이미지 */}
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {creator.profile_image ? (
+                          <img
+                            src={creator.profile_image}
+                            alt={creator.name || ''}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.parentElement.innerHTML = '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>'
+                            }}
+                          />
+                        ) : (
+                          <User className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                      <span className="text-indigo-600 hover:underline font-medium">
+                        {creator.name || '-'}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-1.5">
                     <GradeBadge creatorId={creator.id} />
@@ -1142,7 +1186,7 @@ export default function AllCreatorsPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-xl font-bold text-gray-900">{getDisplayName(selectedCreator)}</h3>
+                    <h3 className="text-xl font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
                     <GradeBadge creatorId={selectedCreator.id} showLabel />
                   </div>
                   <p className="text-gray-500">{selectedCreator.email}</p>
@@ -1400,7 +1444,7 @@ export default function AllCreatorsPage() {
             <div className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="font-semibold">이름:</span> {getDisplayName(selectedCreator)}</div>
+                  <div><span className="font-semibold">이름:</span> {selectedCreator.name || '-'}</div>
                   <div><span className="font-semibold">이메일:</span> {selectedCreator.email || '-'}</div>
                 </div>
               </div>
@@ -1592,7 +1636,7 @@ export default function AllCreatorsPage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">{getDisplayName(selectedCreator)}</h3>
+                  <h3 className="font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
                   <p className="text-sm text-gray-500">{selectedCreator.email}</p>
                   {getCreatorGrade(selectedCreator.id) && (
                     <div className="mt-1">
