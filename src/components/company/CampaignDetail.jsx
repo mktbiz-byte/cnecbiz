@@ -356,12 +356,40 @@ export default function CampaignDetail() {
                              profile?.avatar_url || profile?.profile_video_url ||
                              app.profile_photo_url || app.profile_image_url || app.profile_image || app.creator_profile_image || app.avatar_url
 
+        // 이메일에서 이름 추출 함수
+        const extractNameFromEmail = (email) => {
+          if (!email || !email.includes('@')) return null
+          const localPart = email.split('@')[0]
+          if (/^\d+$/.test(localPart) || localPart.length < 2) return null
+          return localPart
+            .replace(/[._]/g, ' ')
+            .replace(/\d+/g, '')
+            .trim()
+            .split(' ')
+            .filter(part => part.length > 0)
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join(' ') || null
+        }
+
+        // 이름 결정: 다양한 필드에서 검색
+        const resolvedName =
+          profile?.name ||
+          profile?.display_name ||
+          profile?.nickname ||
+          profile?.full_name ||
+          profile?.username ||
+          (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
+          profile?.family_name ||
+          profile?.given_name ||
+          (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
+          (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
+          extractNameFromEmail(app.applicant_name) ||
+          extractNameFromEmail(app.email) ||
+          app.applicant_name
+
         return {
           ...app,
-          // 이름: profile에서 먼저, 없으면 app.applicant_name (일본의 경우 email로 저장되는 경우가 있음)
-          applicant_name: profile?.name || profile?.display_name || profile?.nickname ||
-                         (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
-                         profile?.name || app.applicant_name,
+          applicant_name: resolvedName,
           profile_photo_url: profileImage || null,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
@@ -528,10 +556,38 @@ export default function CampaignDetail() {
 
         console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
-        // 이름 결정: profile에서 먼저, 없거나 이메일 형식이면 app에서
-        const resolvedName = profile?.name || profile?.display_name || profile?.nickname ||
-                            (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
-                            app.applicant_name
+        // 이메일에서 이름 추출 함수
+        const extractNameFromEmail = (email) => {
+          if (!email || !email.includes('@')) return null
+          const localPart = email.split('@')[0]
+          // 숫자만 있거나 너무 짧으면 사용하지 않음
+          if (/^\d+$/.test(localPart) || localPart.length < 2) return null
+          // .과 _를 공백으로 변환하고 첫글자 대문자화
+          return localPart
+            .replace(/[._]/g, ' ')
+            .replace(/\d+/g, '')
+            .trim()
+            .split(' ')
+            .filter(part => part.length > 0)
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join(' ') || null
+        }
+
+        // 이름 결정: 다양한 필드에서 검색
+        const resolvedName =
+          profile?.name ||
+          profile?.display_name ||
+          profile?.nickname ||
+          profile?.full_name ||
+          profile?.username ||
+          (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
+          profile?.family_name ||
+          profile?.given_name ||
+          (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
+          (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
+          extractNameFromEmail(app.applicant_name) ||
+          extractNameFromEmail(app.email) ||
+          app.applicant_name
 
         if (profile) {
           const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
