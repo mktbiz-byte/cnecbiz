@@ -252,43 +252,80 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
               </div>
 
               {/* 지원일 */}
-              <div className="flex items-center justify-center gap-1 text-xs text-gray-400 mb-3">
+              <div className="flex items-center justify-center gap-1 text-xs text-gray-400 mb-2">
                 <Calendar className="w-3 h-3" />
                 {formatDate(created_at)} 지원
               </div>
 
-              {/* SNS 채널 정보 */}
-              <div className="flex flex-wrap items-center justify-center gap-1.5">
-                {appliedChannels.map(channel => {
-                  const style = getChannelStyle(channel.name)
-                  const isSelected = selectedChannel === channel.name
-                  return (
-                    <button
-                      key={channel.name}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedChannel(channel.name)
-                      }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all border ${
-                        isSelected
-                          ? `${style.light} border-2 font-semibold`
-                          : 'bg-white border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <ChannelIcon name={channel.name} className={`w-3.5 h-3.5 ${channel.name === 'instagram' ? 'text-pink-500' : channel.name === 'youtube' ? 'text-red-500' : 'text-gray-800'}`} />
-                      <span className="font-medium">{formatFollowers(channel.followers)}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          window.open(channel.url, '_blank')
-                        }}
-                        className="p-0.5 hover:bg-white/50 rounded"
-                      >
-                        <ExternalLink className="w-2.5 h-2.5 text-gray-400 hover:text-gray-600" />
-                      </button>
-                    </button>
-                  )
-                })}
+              {/* SNS 채널 바로가기 */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 text-center">채널 바로가기</p>
+                <div className="flex flex-col gap-1.5">
+                  {appliedChannels.map(channel => {
+                    const style = getChannelStyle(channel.name)
+                    const isSelected = selectedChannel === channel.name
+
+                    // URL 유효성 검사 및 정규화
+                    const isValidUrl = channel.url && (
+                      channel.url.startsWith('http://') ||
+                      channel.url.startsWith('https://') ||
+                      channel.url.includes('instagram.com') ||
+                      channel.url.includes('youtube.com') ||
+                      channel.url.includes('tiktok.com')
+                    )
+
+                    // URL 정규화 (http 없으면 추가)
+                    const normalizedUrl = channel.url?.startsWith('http')
+                      ? channel.url
+                      : channel.url?.includes('.com') || channel.url?.includes('.')
+                        ? `https://${channel.url}`
+                        : channel.name === 'instagram'
+                          ? `https://instagram.com/${channel.url}`
+                          : channel.name === 'youtube'
+                            ? `https://youtube.com/@${channel.url}`
+                            : `https://tiktok.com/@${channel.url}`
+
+                    return (
+                      <div key={channel.name} className="flex items-center gap-1">
+                        {/* 채널 선택 버튼 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedChannel(channel.name)
+                          }}
+                          className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-all border flex-1 ${
+                            isSelected
+                              ? `${style.light} border-2 font-semibold`
+                              : 'bg-white border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <ChannelIcon name={channel.name} className={`w-4 h-4 ${channel.name === 'instagram' ? 'text-pink-500' : channel.name === 'youtube' ? 'text-red-500' : 'text-gray-800'}`} />
+                          <span className="font-medium">{formatFollowers(channel.followers)}</span>
+                          {isSelected && <CheckCircle2 className="w-3 h-3 text-green-500 ml-auto" />}
+                        </button>
+
+                        {/* 바로가기 버튼 (분리) */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.open(normalizedUrl, '_blank')
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs border transition-all ${
+                            channel.name === 'instagram'
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-pink-400 hover:from-purple-600 hover:to-pink-600'
+                              : channel.name === 'youtube'
+                                ? 'bg-red-500 text-white border-red-400 hover:bg-red-600'
+                                : 'bg-gray-800 text-white border-gray-700 hover:bg-gray-900'
+                          }`}
+                          title={normalizedUrl}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>이동</span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
