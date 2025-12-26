@@ -1337,6 +1337,10 @@ export default function CampaignsManagement() {
                                     <PlayCircle className="w-3.5 h-3.5 mr-1" />
                                     활성화
                                   </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign, 'paused')} disabled={confirming || campaign.status === 'paused'} className="h-8 px-3 text-xs font-medium border-gray-200 text-amber-600 hover:bg-amber-50 hover:border-amber-200">
+                                    <Pause className="w-3.5 h-3.5 mr-1" />
+                                    중지
+                                  </Button>
                                   <Button size="sm" variant="outline" onClick={() => handleDelete(campaign)} disabled={confirming} className="h-8 px-3 text-xs font-medium border-gray-200 text-red-500 hover:bg-red-50 hover:border-red-200">
                                     <Trash2 className="w-3.5 h-3.5 mr-1" />
                                     삭제
@@ -1368,7 +1372,7 @@ export default function CampaignsManagement() {
                                 {campaign.currency || '₩'}{(campaign.budget || 0).toLocaleString()}
                               </span>
                             </div>
-                            {campaign.region === 'korea' && (
+                            {['korea', 'japan', 'us'].includes(campaign.region) && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-violet-500">크리에이터 P</span>
                                 {editingPoints?.campaignId === campaign.id ? (
@@ -1389,7 +1393,7 @@ export default function CampaignsManagement() {
                                   </div>
                                 ) : (
                                   <span className="text-sm font-semibold text-violet-600 flex items-center gap-1">
-                                    ₩{calculateCreatorPoints(campaign).toLocaleString()}
+                                    {campaign.currency || '₩'}{calculateCreatorPoints(campaign).toLocaleString()}
                                     {isSuperAdmin && (
                                       <button onClick={() => setEditingPoints({ campaignId: campaign.id, value: calculateCreatorPoints(campaign) })} className="text-violet-300 hover:text-violet-500">
                                         <Edit size={12} />
