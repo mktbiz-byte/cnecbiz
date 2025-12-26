@@ -76,10 +76,14 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
 
   // 질문과 답변 배열 (질문과 답변을 매칭)
   const rawAnswers = [answer_1, answer_2, answer_3, answer_4]
-  const questionsAndAnswers = campaignQuestions.map((question, index) => ({
-    question,
-    answer: rawAnswers[index]
-  })).filter(qa => qa.answer && qa.answer.trim())
+
+  // campaignQuestions가 있으면 질문과 매칭, 없으면 답변만 표시
+  const questionsAndAnswers = rawAnswers
+    .map((answer, index) => ({
+      question: campaignQuestions[index] || null,
+      answer: answer
+    }))
+    .filter(qa => qa.answer && qa.answer.trim())
 
   // 기존 answers 배열 (호환성 유지)
   const answers = rawAnswers.filter(a => a && a.trim())
@@ -315,11 +319,28 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                 )}
               </div>
 
-              {/* 질문 답변 미리보기 */}
+              {/* 질문 답변 전체 표시 */}
               {questionsAndAnswers.length > 0 && (
-                <div className="mb-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600">
-                  <p className="text-green-600 font-medium mb-0.5 line-clamp-1">Q. {questionsAndAnswers[0].question}</p>
-                  <p className="text-gray-700 line-clamp-1">A. {questionsAndAnswers[0].answer.substring(0, 40)}...</p>
+                <div className="mb-3 space-y-2">
+                  {questionsAndAnswers.map((qa, index) => (
+                    <div key={index} className="p-2 bg-green-50 rounded-lg text-xs border border-green-100">
+                      <p className="text-green-700 font-semibold mb-1">
+                        Q{index + 1}. {qa.question || '질문'}
+                      </p>
+                      <p className="text-gray-700 pl-2 border-l-2 border-green-300">{qa.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 지원자 한마디 */}
+              {additional_info && (
+                <div className="mb-3 p-2 bg-amber-50 rounded-lg text-xs border border-amber-100">
+                  <p className="text-amber-700 font-semibold mb-1 flex items-center gap-1">
+                    <Star className="w-3 h-3" />
+                    지원자 한마디
+                  </p>
+                  <p className="text-gray-700">{additional_info}</p>
                 </div>
               )}
 
@@ -497,7 +518,7 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                       <div key={index} className="p-3 bg-green-50 rounded-lg border border-green-100">
                         <div className="text-xs font-semibold text-green-700 mb-2 flex items-center gap-1">
                           <MessageSquare className="w-3.5 h-3.5" />
-                          Q{index + 1}. {qa.question}
+                          Q{index + 1}. {qa.question || '질문'}
                         </div>
                         <p className="text-sm text-gray-700 pl-1 border-l-2 border-green-300">{qa.answer}</p>
                       </div>
