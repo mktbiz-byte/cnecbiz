@@ -4892,21 +4892,25 @@ export default function CampaignDetail() {
       {/* 크리에이터 프로필 모달 */}
       {showProfileModal && selectedParticipant && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            {/* 모달 헤더 */}
-            <div className="relative">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+            {/* 고정 헤더 */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-20">
+              <h2 className="text-xl font-bold text-gray-900">지원서 보기</h2>
               <button
                 onClick={() => {
                   setShowProfileModal(false)
                   setSelectedParticipant(null)
                 }}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="width" d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              
+            </div>
+
+            {/* 스크롤 가능한 컨텐츠 */}
+            <div className="overflow-y-auto flex-1">
               {/* 프로필 상단 */}
               <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-8 text-center">
                 <img
@@ -4914,12 +4918,11 @@ export default function CampaignDetail() {
                   alt={selectedParticipant.name}
                   className="w-32 h-32 rounded-full mx-auto border-4 border-white shadow-lg object-cover"
                 />
-                <h2 className="text-2xl font-bold text-white mt-4">{selectedParticipant.name}</h2>
+                <h2 className="text-2xl font-bold text-white mt-4">{selectedParticipant.name || selectedParticipant.applicant_name}</h2>
                 {selectedParticipant.age && (
                   <p className="text-blue-100 mt-1">{selectedParticipant.age}세</p>
                 )}
               </div>
-            </div>
 
             {/* 모달 컨텐츠 */}
             <div className="p-6 space-y-6">
@@ -5023,30 +5026,30 @@ export default function CampaignDetail() {
               {/* 지원서 답변 */}
               {(selectedParticipant.answer_1 || selectedParticipant.answer_2 || selectedParticipant.answer_3 || selectedParticipant.answer_4) && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">지원서 답변</h3>
-                  <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">지원서 질문 & 답변</h3>
+                  <div className="space-y-4">
                     {selectedParticipant.answer_1 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm text-gray-500 mb-1">질문 1</div>
-                        <div className="text-gray-800">{selectedParticipant.answer_1}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question1 || '질문 1'}</div>
+                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_1}</div>
                       </div>
                     )}
                     {selectedParticipant.answer_2 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm text-gray-500 mb-1">질문 2</div>
-                        <div className="text-gray-800">{selectedParticipant.answer_2}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question2 || '질문 2'}</div>
+                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_2}</div>
                       </div>
                     )}
                     {selectedParticipant.answer_3 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm text-gray-500 mb-1">질문 3</div>
-                        <div className="text-gray-800">{selectedParticipant.answer_3}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question3 || '질문 3'}</div>
+                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_3}</div>
                       </div>
                     )}
                     {selectedParticipant.answer_4 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm text-gray-500 mb-1">질문 4</div>
-                        <div className="text-gray-800">{selectedParticipant.answer_4}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question4 || '질문 4'}</div>
+                        <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_4}</div>
                       </div>
                     )}
                   </div>
@@ -5063,6 +5066,7 @@ export default function CampaignDetail() {
                 </div>
               )}
             </div>
+            </div>{/* 스크롤 컨테이너 닫기 */}
           </div>
         </div>
       )}
