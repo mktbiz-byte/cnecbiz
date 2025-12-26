@@ -69,13 +69,22 @@ const ITEMS_PER_PAGE = 20
 const calculateCreatorPoints = (campaign) => {
   if (!campaign) return 0
 
+  // 수동 설정값이 있으면 우선 사용
   if (campaign.creator_points_override) {
     return campaign.creator_points_override
   }
 
   const campaignType = campaign.campaign_type
-  const totalSlots = campaign.total_slots || 1
+  const totalSlots = campaign.total_slots || campaign.max_participants || 1
+  const region = campaign.region || 'korea'
 
+  // 일본/미국은 reward_amount 사용 (크리에이터당 보상금액)
+  if (region === 'japan' || region === 'us') {
+    // reward_amount가 1인당 금액으로 설정되어 있음
+    return campaign.reward_amount || 0
+  }
+
+  // 한국: 기존 로직 유지
   if (campaignType === '4week_challenge') {
     const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
                        (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
@@ -485,10 +494,22 @@ export default function CampaignsManagement() {
     try {
       const campaign = campaigns.find(c => c.id === campaignId)
       const supabaseClient = getSupabaseClient(campaign?.region || 'biz')
+      const region = campaign?.region || 'korea'
+
+      // 일본/미국은 reward_amount 필드 사용, 한국은 creator_points_override 사용
+      let updateData = { updated_at: new Date().toISOString() }
+
+      if (region === 'japan' || region === 'us') {
+        // 일본/미국: reward_amount 직접 업데이트 (1인당 보상금액)
+        updateData.reward_amount = parseInt(editingPoints.value) || 0
+      } else {
+        // 한국: creator_points_override 사용
+        updateData.creator_points_override = parseInt(editingPoints.value) || null
+      }
 
       const { error } = await supabaseClient
         .from('campaigns')
-        .update({ creator_points_override: parseInt(editingPoints.value) || null, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', campaignId)
 
       if (error) throw error

@@ -117,13 +117,16 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 업데이트 데이터 준비 (status만)
-    console.log('[update-campaign-status] Updating campaign:', campaignId, 'to status:', newStatus)
+    // 업데이트 데이터 준비
+    console.log('[update-campaign-status] Updating campaign:', campaignId, 'to status:', newStatus, 'region:', region)
 
-    // 캠페인 상태 업데이트 (단순화)
+    // 캠페인 상태 업데이트 (updated_at 타임스탬프 포함)
     const { error: updateError } = await supabaseClient
       .from('campaigns')
-      .update({ status: newStatus })
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', campaignId)
 
     if (updateError) {
