@@ -32,6 +32,57 @@ const formatFollowers = (num) => {
   return num.toLocaleString()
 }
 
+// 이메일 형태인지 확인
+const isEmailFormat = (str) => {
+  if (!str) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)
+}
+
+// SNS 핸들/ID 추출 (URL에서)
+const extractSnsHandle = (url) => {
+  if (!url) return null
+  const match = url.match(/(?:instagram\.com|youtube\.com|tiktok\.com)\/(?:@)?([^\/\?]+)/i)
+  if (match && match[1]) {
+    return match[1].replace('@', '')
+  }
+  if (url.startsWith('@')) {
+    return url.substring(1)
+  }
+  if (!url.includes('/') && !url.includes('.')) {
+    return url
+  }
+  return null
+}
+
+// 표시 이름 결정 (이메일이면 SNS 핸들 사용)
+const getDisplayName = (name, instagramUrl, youtubeUrl, tiktokUrl) => {
+  // 이름이 있고 이메일 형태가 아니면 사용
+  if (name && !isEmailFormat(name)) {
+    return name
+  }
+
+  // 인스타그램 핸들 사용
+  const instaHandle = extractSnsHandle(instagramUrl)
+  if (instaHandle) {
+    return `@${instaHandle}`
+  }
+
+  // 유튜브 핸들 사용
+  const youtubeHandle = extractSnsHandle(youtubeUrl)
+  if (youtubeHandle) {
+    return youtubeHandle
+  }
+
+  // 틱톡 핸들 사용
+  const tiktokHandle = extractSnsHandle(tiktokUrl)
+  if (tiktokHandle) {
+    return `@${tiktokHandle}`
+  }
+
+  // 그래도 없으면 원래 이름
+  return name || '-'
+}
+
 export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant, onViewProfile, featuredInfo: propFeaturedInfo }) {
   const {
     applicant_name,
@@ -150,7 +201,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
           {application.profile_photo_url ? (
             <img
               src={application.profile_photo_url}
-              alt={applicant_name}
+              alt={getDisplayName(applicant_name, instagram_url, youtube_url, tiktok_url)}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -207,7 +258,7 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
           {/* 기본 정보 */}
           <div className="mb-3">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <h3 className="text-lg font-bold text-gray-900">{applicant_name}</h3>
+              <h3 className="text-lg font-bold text-gray-900">{getDisplayName(applicant_name, instagram_url, youtube_url, tiktok_url)}</h3>
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{age}세</span>
               {skinTypeKorean && (
                 <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full flex items-center gap-1">
