@@ -3227,10 +3227,10 @@ export default function CampaignDetail() {
                         key={app.id}
                         application={app}
                         campaignQuestions={[
-                          campaign?.question1 || '',
-                          campaign?.question2 || '',
-                          campaign?.question3 || '',
-                          campaign?.question4 || ''
+                          campaign?.questions?.[0]?.question || '',
+                          campaign?.questions?.[1]?.question || '',
+                          campaign?.questions?.[2]?.question || '',
+                          campaign?.questions?.[3]?.question || ''
                         ]}
                         onVirtualSelect={handleVirtualSelect}
                         isConfirmed={app.status === 'selected'}
@@ -3504,10 +3504,10 @@ export default function CampaignDetail() {
                         key={app.id}
                         application={app}
                         campaignQuestions={[
-                          campaign?.question1 || '',
-                          campaign?.question2 || '',
-                          campaign?.question3 || '',
-                          campaign?.question4 || ''
+                          campaign?.questions?.[0]?.question || '',
+                          campaign?.questions?.[1]?.question || '',
+                          campaign?.questions?.[2]?.question || '',
+                          campaign?.questions?.[3]?.question || ''
                         ]}
                         onVirtualSelect={handleVirtualSelect}
                         isConfirmed={app.status === 'selected'}
