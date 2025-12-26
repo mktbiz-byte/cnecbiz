@@ -38,6 +38,38 @@ const isEmailFormat = (str) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)
 }
 
+// SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
+const normalizeSnsUrl = (url, platform) => {
+  if (!url) return null
+
+  // 이미 완전한 URL인 경우
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  // @로 시작하면 제거
+  let handle = url.trim()
+  if (handle.startsWith('@')) {
+    handle = handle.substring(1)
+  }
+
+  // 플랫폼별 URL 생성
+  switch (platform) {
+    case 'instagram':
+      return `https://www.instagram.com/${handle}`
+    case 'youtube':
+      // 유튜브는 채널 ID인지 핸들인지 확인
+      if (handle.startsWith('UC') || handle.startsWith('channel/')) {
+        return `https://www.youtube.com/channel/${handle.replace('channel/', '')}`
+      }
+      return `https://www.youtube.com/@${handle}`
+    case 'tiktok':
+      return `https://www.tiktok.com/@${handle}`
+    default:
+      return url
+  }
+}
+
 // SNS 핸들/ID 추출 (URL에서)
 const extractSnsHandle = (url) => {
   if (!url) return null
@@ -138,11 +170,11 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
     checkFeatured()
   }, [user_id, propFeaturedInfo])
 
-  // 지원한 채널 목록
+  // 지원한 채널 목록 (URL 정규화 적용)
   const appliedChannels = []
-  if (instagram_url) appliedChannels.push({ name: 'instagram', label: 'Instagram', url: instagram_url, followers: application.instagram_followers || 0 })
-  if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: youtube_url, followers: application.youtube_subscribers || 0 })
-  if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: tiktok_url, followers: application.tiktok_followers || 0 })
+  if (instagram_url) appliedChannels.push({ name: 'instagram', label: 'Instagram', url: normalizeSnsUrl(instagram_url, 'instagram'), followers: application.instagram_followers || 0 })
+  if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: normalizeSnsUrl(youtube_url, 'youtube'), followers: application.youtube_subscribers || 0 })
+  if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: normalizeSnsUrl(tiktok_url, 'tiktok'), followers: application.tiktok_followers || 0 })
 
   // 평균 별점 (임시로 비활성화 - rating 필드 없음)
   const averageRating = 0

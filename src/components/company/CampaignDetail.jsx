@@ -43,6 +43,37 @@ import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
 
+// SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
+const normalizeSnsUrl = (url, platform) => {
+  if (!url) return null
+
+  // 이미 완전한 URL인 경우
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  // @로 시작하면 제거
+  let handle = url.trim()
+  if (handle.startsWith('@')) {
+    handle = handle.substring(1)
+  }
+
+  // 플랫폼별 URL 생성
+  switch (platform) {
+    case 'instagram':
+      return `https://www.instagram.com/${handle}`
+    case 'youtube':
+      if (handle.startsWith('UC') || handle.startsWith('channel/')) {
+        return `https://www.youtube.com/channel/${handle.replace('channel/', '')}`
+      }
+      return `https://www.youtube.com/@${handle}`
+    case 'tiktok':
+      return `https://www.tiktok.com/@${handle}`
+    default:
+      return url
+  }
+}
+
 export default function CampaignDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -4983,7 +5014,7 @@ export default function CampaignDetail() {
                 <div className="flex gap-3">
                   {selectedParticipant.youtube_url && (
                     <a
-                      href={selectedParticipant.youtube_url}
+                      href={normalizeSnsUrl(selectedParticipant.youtube_url, 'youtube')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
@@ -4996,7 +5027,7 @@ export default function CampaignDetail() {
                   )}
                   {selectedParticipant.instagram_url && (
                     <a
-                      href={selectedParticipant.instagram_url}
+                      href={normalizeSnsUrl(selectedParticipant.instagram_url, 'instagram')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
@@ -5009,7 +5040,7 @@ export default function CampaignDetail() {
                   )}
                   {selectedParticipant.tiktok_url && (
                     <a
-                      href={selectedParticipant.tiktok_url}
+                      href={normalizeSnsUrl(selectedParticipant.tiktok_url, 'tiktok')}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 bg-gray-800 hover:bg-gray-900 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
