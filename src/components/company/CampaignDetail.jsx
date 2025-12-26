@@ -5030,25 +5030,25 @@ export default function CampaignDetail() {
                   <div className="space-y-4">
                     {selectedParticipant.answer_1 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question1 || '질문 1'}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question1 || campaign?.questions?.[0]?.question || '질문 1'}</div>
                         <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_1}</div>
                       </div>
                     )}
                     {selectedParticipant.answer_2 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question2 || '질문 2'}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question2 || campaign?.questions?.[1]?.question || '질문 2'}</div>
                         <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_2}</div>
                       </div>
                     )}
                     {selectedParticipant.answer_3 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question3 || '질문 3'}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question3 || campaign?.questions?.[2]?.question || '질문 3'}</div>
                         <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_3}</div>
                       </div>
                     )}
                     {selectedParticipant.answer_4 && (
                       <div className="p-4 bg-gray-50 rounded-lg">
-                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question4 || '질문 4'}</div>
+                        <div className="text-sm font-medium text-blue-600 mb-2">Q. {campaign?.question4 || campaign?.questions?.[3]?.question || '질문 4'}</div>
                         <div className="text-gray-800 pl-4 border-l-2 border-blue-200">{selectedParticipant.answer_4}</div>
                       </div>
                     )}
