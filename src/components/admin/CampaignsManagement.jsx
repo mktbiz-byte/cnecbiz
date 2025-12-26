@@ -497,14 +497,16 @@ export default function CampaignsManagement() {
       const region = campaign?.region || 'korea'
 
       // 일본/미국은 reward_amount 필드 사용, 한국은 creator_points_override 사용
-      let updateData = { updated_at: new Date().toISOString() }
+      let updateData = {}
 
       if (region === 'japan' || region === 'us') {
         // 일본/미국: reward_amount 직접 업데이트 (1인당 보상금액)
+        // updated_at 컬럼이 없을 수 있으므로 제외
         updateData.reward_amount = parseInt(editingPoints.value) || 0
       } else {
-        // 한국: creator_points_override 사용
+        // 한국: creator_points_override 사용 + updated_at
         updateData.creator_points_override = parseInt(editingPoints.value) || null
+        updateData.updated_at = new Date().toISOString()
       }
 
       const { error } = await supabaseClient

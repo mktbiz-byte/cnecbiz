@@ -120,13 +120,18 @@ exports.handler = async (event, context) => {
     // 업데이트 데이터 준비
     console.log('[update-campaign-status] Updating campaign:', campaignId, 'to status:', newStatus, 'region:', region)
 
-    // 캠페인 상태 업데이트 (updated_at 타임스탬프 포함)
+    // 캠페인 상태 업데이트
+    // 일본/미국은 updated_at 컬럼이 없을 수 있으므로 status만 업데이트
+    let updateData = { status: newStatus }
+
+    // 한국/biz는 updated_at 포함
+    if (region === 'korea' || region === 'kr' || region === 'biz' || !region) {
+      updateData.updated_at = new Date().toISOString()
+    }
+
     const { error: updateError } = await supabaseClient
       .from('campaigns')
-      .update({
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', campaignId)
 
     if (updateError) {
