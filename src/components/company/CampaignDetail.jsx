@@ -122,6 +122,9 @@ export default function CampaignDetail() {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false)
   const [regenerateRequest, setRegenerateRequest] = useState('')
   const [isRegenerating, setIsRegenerating] = useState(false)
+  const [showAIEditModal, setShowAIEditModal] = useState(false)
+  const [aiEditPrompt, setAIEditPrompt] = useState('')
+  const [isAIEditing, setIsAIEditing] = useState(false)
   const [isGeneratingAllGuides, setIsGeneratingAllGuides] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
@@ -384,8 +387,40 @@ export default function CampaignDetail() {
                              profile?.avatar_url || profile?.profile_video_url ||
                              app.profile_photo_url || app.profile_image_url || app.profile_image || app.creator_profile_image || app.avatar_url
 
+        // 이메일에서 이름 추출 함수
+        const extractNameFromEmail = (email) => {
+          if (!email || !email.includes('@')) return null
+          const localPart = email.split('@')[0]
+          if (/^\d+$/.test(localPart) || localPart.length < 2) return null
+          return localPart
+            .replace(/[._]/g, ' ')
+            .replace(/\d+/g, '')
+            .trim()
+            .split(' ')
+            .filter(part => part.length > 0)
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join(' ') || null
+        }
+
+        // 이름 결정: 다양한 필드에서 검색
+        const resolvedName =
+          profile?.name ||
+          profile?.display_name ||
+          profile?.nickname ||
+          profile?.full_name ||
+          profile?.username ||
+          (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
+          profile?.family_name ||
+          profile?.given_name ||
+          (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
+          (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
+          extractNameFromEmail(app.applicant_name) ||
+          extractNameFromEmail(app.email) ||
+          app.applicant_name
+
         return {
           ...app,
+          applicant_name: resolvedName,
           profile_photo_url: profileImage || null,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
@@ -552,10 +587,44 @@ export default function CampaignDetail() {
 
         console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
 
+        // 이메일에서 이름 추출 함수
+        const extractNameFromEmail = (email) => {
+          if (!email || !email.includes('@')) return null
+          const localPart = email.split('@')[0]
+          // 숫자만 있거나 너무 짧으면 사용하지 않음
+          if (/^\d+$/.test(localPart) || localPart.length < 2) return null
+          // .과 _를 공백으로 변환하고 첫글자 대문자화
+          return localPart
+            .replace(/[._]/g, ' ')
+            .replace(/\d+/g, '')
+            .trim()
+            .split(' ')
+            .filter(part => part.length > 0)
+            .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+            .join(' ') || null
+        }
+
+        // 이름 결정: 다양한 필드에서 검색
+        const resolvedName =
+          profile?.name ||
+          profile?.display_name ||
+          profile?.nickname ||
+          profile?.full_name ||
+          profile?.username ||
+          (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
+          profile?.family_name ||
+          profile?.given_name ||
+          (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
+          (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
+          extractNameFromEmail(app.applicant_name) ||
+          extractNameFromEmail(app.email) ||
+          app.applicant_name
+
         if (profile) {
           const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
           const enriched = {
             ...app,
+            applicant_name: resolvedName,
             profile_photo_url: profileImage,
             instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
             youtube_subscribers: profile.youtube_subscribers || app.youtube_subscribers || 0,
@@ -570,7 +639,10 @@ export default function CampaignDetail() {
         }
 
         console.log('Returning original app data for:', app.applicant_name)
-        return app
+        return {
+          ...app,
+          applicant_name: resolvedName
+        }
       })
 
       console.log('Fetched applications with status:', enrichedData.map(app => ({ name: app.applicant_name, status: app.status, virtual_selected: app.virtual_selected })))
@@ -783,42 +855,94 @@ export default function CampaignDetail() {
     }
   }
 
-  // 배송 정보 엑셀 다운로드
+  // 배송 정보 엑셀 다운로드 (지역별 현지화)
   const exportShippingInfo = () => {
+    // 지역별 헤더 설정
+    const headers = {
+      korea: {
+        name: '크리에이터명',
+        platform: '플랫폼',
+        phone: '연락처',
+        postal: '우편번호',
+        address: '주소',
+        detail: '상세주소',
+        notes: '배송시 요청사항',
+        courier: '택배사',
+        tracking: '송장번호',
+        status: '상태',
+        deadline: '마감일'
+      },
+      japan: {
+        name: 'クリエイター名',
+        platform: 'プラットフォーム',
+        phone: '電話番号',
+        postal: '郵便番号',
+        address: '住所',
+        detail: '建物名・部屋番号',
+        notes: '配送備考',
+        courier: '配送業者',
+        tracking: '送り状番号',
+        status: 'ステータス',
+        deadline: '締切日'
+      },
+      usa: {
+        name: 'Creator Name',
+        platform: 'Platform',
+        phone: 'Phone',
+        postal: 'ZIP Code',
+        address: 'Address',
+        detail: 'Apt/Suite',
+        notes: 'Delivery Notes',
+        courier: 'Carrier',
+        tracking: 'Tracking Number',
+        status: 'Status',
+        deadline: 'Deadline'
+      }
+    }
+
+    const h = headers[region] || headers.korea
+
     const data = participants.map(p => ({
-      '크리에이터명': p.creator_name || p.applicant_name || '',
-      '플랫폼': p.creator_platform || p.main_channel || p.platform || '',
-      '연락처': p.phone_number || p.creator_phone || p.phone || '',
-      '우편번호': p.postal_code || '',
-      '주소': p.address || p.shipping_address || '',
-      '상세주소': p.detail_address || '',
-      '배송시 요청사항': p.delivery_notes || p.delivery_request || '',
-      '택배사': p.shipping_company || '',
-      '송장번호': p.tracking_number || '',
-      '상태': getStatusLabel(p.status || 'selected'),
-      '마감일': p.submission_deadline || campaign.content_submission_deadline || ''
+      [h.name]: p.creator_name || p.applicant_name || '',
+      [h.platform]: p.creator_platform || p.main_channel || p.platform || '',
+      [h.phone]: p.phone_number || p.creator_phone || p.phone || '',
+      [h.postal]: p.postal_code || '',
+      [h.address]: p.address || p.shipping_address || '',
+      [h.detail]: p.detail_address || '',
+      [h.notes]: p.delivery_notes || p.delivery_request || '',
+      [h.courier]: p.shipping_company || '',
+      [h.tracking]: p.tracking_number || '',
+      [h.status]: getStatusLabel(p.status || 'selected'),
+      [h.deadline]: p.submission_deadline || campaign.content_submission_deadline || ''
     }))
 
     const ws = XLSX.utils.json_to_sheet(data)
 
     // 컬럼 너비 설정
     ws['!cols'] = [
-      { wch: 15 }, // 크리에이터명
+      { wch: 18 }, // 크리에이터명
       { wch: 12 }, // 플랫폼
       { wch: 15 }, // 연락처
       { wch: 10 }, // 우편번호
-      { wch: 40 }, // 주소
+      { wch: 45 }, // 주소
       { wch: 20 }, // 상세주소
       { wch: 25 }, // 배송시 요청사항
-      { wch: 12 }, // 택배사
-      { wch: 15 }, // 송장번호
+      { wch: 15 }, // 택배사
+      { wch: 20 }, // 송장번호
       { wch: 12 }, // 상태
       { wch: 12 }  // 마감일
     ]
 
+    const sheetName = region === 'japan' ? '配送情報' : region === 'usa' ? 'Shipping_Info' : '크리에이터_배송정보'
+    const fileName = region === 'japan'
+      ? `${campaign.title}_配送情報.xlsx`
+      : region === 'usa'
+        ? `${campaign.title}_Shipping_Info.xlsx`
+        : `${campaign.title}_크리에이터_배송정보.xlsx`
+
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, '크리에이터_배송정보')
-    XLSX.writeFile(wb, `${campaign.title}_크리에이터_배송정보.xlsx`)
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    XLSX.writeFile(wb, fileName)
   }
 
   // 상태 레이블 헬퍼
@@ -836,20 +960,38 @@ export default function CampaignDetail() {
     return labels[status] || status
   }
 
-  // 송장번호 템플릿 다운로드
+  // 송장번호 템플릿 다운로드 (지역별 현지화)
   const downloadTrackingTemplate = () => {
+    const headers = {
+      korea: { name: '크리에이터명', tracking: '송장번호', courier: '택배사' },
+      japan: { name: 'クリエイター名', tracking: '送り状番号', courier: '配送業者' },
+      usa: { name: 'Creator Name', tracking: 'Tracking Number', courier: 'Carrier' }
+    }
+
+    const h = headers[region] || headers.korea
+
     const data = participants.map(p => ({
-      '크리에이터명': p.creator_name || p.applicant_name || '이름 없음',
-      '송장번호': ''
+      [h.name]: p.creator_name || p.applicant_name || (region === 'japan' ? '名前なし' : region === 'usa' ? 'No Name' : '이름 없음'),
+      [h.courier]: p.shipping_company || '',
+      [h.tracking]: p.tracking_number || ''
     }))
 
     const ws = XLSX.utils.json_to_sheet(data)
+    ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 25 }]
+
+    const sheetName = region === 'japan' ? '送り状番号' : region === 'usa' ? 'Tracking' : '송장번호'
+    const fileName = region === 'japan'
+      ? `${campaign.title}_送り状番号_テンプレート.xlsx`
+      : region === 'usa'
+        ? `${campaign.title}_Tracking_Template.xlsx`
+        : `${campaign.title}_송장번호_템플릿.xlsx`
+
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, '송장번호')
-    XLSX.writeFile(wb, `${campaign.title}_송장번호_템플릿.xlsx`)
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    XLSX.writeFile(wb, fileName)
   }
 
-  // 송장번호 엑셀 업로드
+  // 송장번호 엑셀 업로드 (지역별 현지화 지원)
   const uploadTrackingNumbers = async (file) => {
     try {
       const data = await file.arrayBuffer()
@@ -864,25 +1006,32 @@ export default function CampaignDetail() {
         applicant_name: p.applicant_name
       })))
 
+      // 지역별 컬럼명 매핑 (여러 언어 지원)
+      const nameKeys = ['크리에이터명', 'クリエイター名', 'Creator Name', 'Name', 'name']
+      const trackingKeys = ['송장번호', '送り状番号', 'Tracking Number', 'Tracking', 'tracking']
+      const courierKeys = ['택배사', '配送業者', 'Carrier', 'courier']
+
       let successCount = 0
       let failCount = 0
 
       for (const row of jsonData) {
-        const creatorName = row['크리에이터명']
-        const trackingNumber = row['송장번호']
+        // 여러 가능한 키로 값 찾기
+        const creatorName = nameKeys.reduce((val, key) => val || row[key], null)
+        const trackingNumber = trackingKeys.reduce((val, key) => val || row[key], null)
+        const courier = courierKeys.reduce((val, key) => val || row[key], null)
 
-        console.log('[DEBUG] Processing row:', { creatorName, trackingNumber })
+        console.log('[DEBUG] Processing row:', { creatorName, trackingNumber, courier })
 
         if (!creatorName || !trackingNumber) {
           console.log('[DEBUG] Skipping row - missing name or tracking number')
           continue
         }
 
-        const participant = participants.find(p => 
+        const participant = participants.find(p =>
           p.creator_name === creatorName || p.applicant_name === creatorName
         )
         console.log('[DEBUG] Found participant:', participant)
-        
+
         if (!participant) {
           console.log('[DEBUG] No matching participant found for:', creatorName)
           failCount++
@@ -890,9 +1039,14 @@ export default function CampaignDetail() {
         }
 
         try {
+          const updateData = { tracking_number: trackingNumber }
+          if (courier) {
+            updateData.shipping_company = courier
+          }
+
           const { error } = await supabase
             .from('applications')
-            .update({ tracking_number: trackingNumber })
+            .update(updateData)
             .eq('id', participant.id)
 
           if (error) {
@@ -909,10 +1063,22 @@ export default function CampaignDetail() {
       }
 
       await fetchParticipants()
-      alert(`송장번호 업로드 완료!\n성공: ${successCount}건\n실패: ${failCount}건`)
+
+      // 지역별 메시지
+      const messages = {
+        korea: `송장번호 업로드 완료!\n성공: ${successCount}건\n실패: ${failCount}건`,
+        japan: `送り状番号アップロード完了!\n成功: ${successCount}件\n失敗: ${failCount}件`,
+        usa: `Tracking upload complete!\nSuccess: ${successCount}\nFailed: ${failCount}`
+      }
+      alert(messages[region] || messages.korea)
     } catch (error) {
       console.error('Error uploading tracking numbers:', error)
-      alert('송장번호 업로드에 실패했습니다: ' + error.message)
+      const errorMessages = {
+        korea: '송장번호 업로드에 실패했습니다: ',
+        japan: '送り状番号のアップロードに失敗しました: ',
+        usa: 'Failed to upload tracking numbers: '
+      }
+      alert((errorMessages[region] || errorMessages.korea) + error.message)
     }
   }
 
@@ -3246,17 +3412,23 @@ export default function CampaignDetail() {
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="space-y-4">
                   {applications.map(app => {
                     // 이미 participants에 있는지 확인 (user_id로 비교)
-                    const isAlreadyParticipant = participants.some(p => 
+                    const isAlreadyParticipant = participants.some(p =>
                       p.user_id && app.user_id && p.user_id === app.user_id
                     )
-                    
+
                     return (
                       <CreatorCard
                         key={app.id}
                         application={app}
+                        campaignQuestions={[
+                          campaign?.questions?.[0]?.question || campaign?.question1 || '',
+                          campaign?.questions?.[1]?.question || campaign?.question2 || '',
+                          campaign?.questions?.[2]?.question || campaign?.question3 || '',
+                          campaign?.questions?.[3]?.question || campaign?.question4 || ''
+                        ]}
                         onVirtualSelect={handleVirtualSelect}
                         isConfirmed={app.status === 'selected'}
                         isAlreadyParticipant={isAlreadyParticipant}
@@ -3517,17 +3689,23 @@ export default function CampaignDetail() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="space-y-4">
                   {applications.filter(app => app.virtual_selected).map(app => {
                     // 이미 participants에 있는지 확인
-                    const isAlreadyParticipant = participants.some(p => 
+                    const isAlreadyParticipant = participants.some(p =>
                       (p.creator_name || p.applicant_name) === app.applicant_name
                     )
-                    
+
                     return (
                       <CreatorCard
                         key={app.id}
                         application={app}
+                        campaignQuestions={[
+                          campaign?.questions?.[0]?.question || campaign?.question1 || '',
+                          campaign?.questions?.[1]?.question || campaign?.question2 || '',
+                          campaign?.questions?.[2]?.question || campaign?.question3 || '',
+                          campaign?.questions?.[3]?.question || campaign?.question4 || ''
+                        ]}
                         onVirtualSelect={handleVirtualSelect}
                         isConfirmed={app.status === 'selected'}
                         isAlreadyParticipant={isAlreadyParticipant}
@@ -3656,14 +3834,64 @@ export default function CampaignDetail() {
                     </CardTitle>
                     <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
                   </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowCampaignGuidePopup(true)}
-                    className="bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    캠페인 정보 보기
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {/* 배송정보 엑셀 다운로드 */}
+                    <Button
+                      variant="outline"
+                      onClick={exportShippingInfo}
+                      className="bg-white border-green-200 hover:bg-green-50 text-green-700"
+                      disabled={participants.length === 0}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {region === 'japan' ? '配送情報' : region === 'usa' ? 'Shipping Info' : '배송정보'} Excel
+                    </Button>
+
+                    {/* 송장번호 템플릿 다운로드 */}
+                    <Button
+                      variant="outline"
+                      onClick={downloadTrackingTemplate}
+                      className="bg-white border-blue-200 hover:bg-blue-50 text-blue-700"
+                      disabled={participants.length === 0}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {region === 'japan' ? '送り状番号' : region === 'usa' ? 'Tracking #' : '송장번호'} 템플릿
+                    </Button>
+
+                    {/* 송장번호 엑셀 업로드 */}
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) {
+                            uploadTrackingNumbers(e.target.files[0])
+                            e.target.value = ''
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="outline"
+                        className="bg-white border-purple-200 hover:bg-purple-50 text-purple-700"
+                        disabled={participants.length === 0}
+                        asChild
+                      >
+                        <span>
+                          <Upload className="w-4 h-4 mr-2" />
+                          {region === 'japan' ? '送り状番号' : region === 'usa' ? 'Tracking #' : '송장번호'} 업로드
+                        </span>
+                      </Button>
+                    </label>
+
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCampaignGuidePopup(true)}
+                      className="bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      캠페인 정보 보기
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -4607,7 +4835,18 @@ export default function CampaignDetail() {
                       }}
                       className="border-purple-600 text-purple-600 hover:bg-purple-50"
                     >
-                      가이드 수정
+                      직접 수정
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowAIEditModal(true)
+                        setAIEditPrompt('')
+                      }}
+                      className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                    >
+                      <Sparkles className="w-4 h-4 mr-1" />
+                      AI로 수정
                     </Button>
                     <Button
                       onClick={async () => {
@@ -4615,7 +4854,7 @@ export default function CampaignDetail() {
                           // 추가 메시지 저장
                           const { error } = await supabase
                             .from('applications')
-                            .update({ 
+                            .update({
                               additional_message: selectedGuide.additional_message || null
                             })
                             .eq('id', selectedGuide.id)
@@ -4721,6 +4960,167 @@ export default function CampaignDetail() {
                 className="bg-orange-600 hover:bg-orange-700 text-white"
               >
                 전송
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI 가이드 수정 모달 */}
+      {showAIEditModal && selectedGuide && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full shadow-2xl">
+            <div className="px-6 py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-600" />
+                AI로 가이드 수정하기
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedGuide.creator_name || selectedGuide.applicant_name}님의 가이드를 AI가 수정합니다
+              </p>
+            </div>
+
+            <div className="px-6 py-4">
+              {/* 빠른 선택 프롬프트 */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  빠른 선택
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    '더 친근한 말투로 변경해줘',
+                    '제품 장점을 더 강조해줘',
+                    '촬영 가이드를 더 상세하게 해줘',
+                    '문장을 더 짧고 간결하게 해줘',
+                    '해시태그를 추가해줘',
+                    '주의사항을 더 명확하게 해줘'
+                  ].map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setAIEditPrompt(prompt)}
+                      className={`px-3 py-1.5 text-sm rounded-full border transition-all ${
+                        aiEditPrompt === prompt
+                          ? 'bg-indigo-100 border-indigo-400 text-indigo-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 커스텀 프롬프트 입력 */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  수정 요청사항 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={aiEditPrompt}
+                  onChange={(e) => setAIEditPrompt(e.target.value)}
+                  className="w-full h-28 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="예: 더 친근한 톤으로 변경하고, 제품의 보습 효과를 강조해줘"
+                  disabled={isAIEditing}
+                />
+              </div>
+
+              {/* 현재 가이드 미리보기 */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  현재 가이드 (참고용)
+                </label>
+                <div className="max-h-40 overflow-y-auto p-3 bg-gray-50 rounded-lg border text-sm text-gray-600">
+                  {selectedGuide.personalized_guide?.substring(0, 500)}
+                  {selectedGuide.personalized_guide?.length > 500 && '...'}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAIEditModal(false)
+                  setAIEditPrompt('')
+                }}
+                disabled={isAIEditing}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!aiEditPrompt.trim()) {
+                    alert('수정 요청사항을 입력해주세요.')
+                    return
+                  }
+
+                  setIsAIEditing(true)
+
+                  try {
+                    // AI로 가이드 재생성
+                    const regenerateResponse = await fetch('/.netlify/functions/regenerate-personalized-guide', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        existingGuide: selectedGuide.personalized_guide,
+                        regenerateRequest: aiEditPrompt,
+                        creatorAnalysis: selectedGuide.creator_analysis,
+                        productInfo: {
+                          brand: campaign.brand,
+                          product_name: campaign.product_name,
+                          title: campaign.title
+                        }
+                      })
+                    })
+
+                    if (!regenerateResponse.ok) {
+                      throw new Error('AI 수정에 실패했습니다.')
+                    }
+
+                    const { regeneratedGuide } = await regenerateResponse.json()
+
+                    // 데이터베이스에 업데이트
+                    const { error } = await supabase
+                      .from('applications')
+                      .update({
+                        personalized_guide: regeneratedGuide
+                      })
+                      .eq('id', selectedGuide.id)
+
+                    if (error) throw error
+
+                    // 로컬 상태 업데이트
+                    setSelectedGuide({ ...selectedGuide, personalized_guide: regeneratedGuide })
+                    const updatedParticipants = participants.map(p =>
+                      p.id === selectedGuide.id ? { ...p, personalized_guide: regeneratedGuide } : p
+                    )
+                    setParticipants(updatedParticipants)
+
+                    alert('가이드가 AI로 수정되었습니다!')
+                    setShowAIEditModal(false)
+                    setAIEditPrompt('')
+                    await fetchParticipants()
+                  } catch (error) {
+                    console.error('Error AI editing guide:', error)
+                    alert('AI 수정에 실패했습니다: ' + error.message)
+                  } finally {
+                    setIsAIEditing(false)
+                  }
+                }}
+                disabled={isAIEditing || !aiEditPrompt.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {isAIEditing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    수정 중...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    AI로 수정하기
+                  </>
+                )}
               </Button>
             </div>
           </div>

@@ -43,7 +43,9 @@ export default function CompanyDashboard() {
     pending: 0,
     active: 0,
     completed: 0,
-    totalSpent: 0
+    totalSpent: 0,
+    confirmedCreators: 0,
+    needsAttention: 0
   })
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [selectedRegion, setSelectedRegion] = useState('korea')
@@ -95,13 +97,12 @@ export default function CompanyDashboard() {
       // 선택된 지역의 Supabase 클라이언트 선택 (null 체크 포함)
       const supabaseClient = selectedRegion === 'korea' ? (supabaseKorea || supabaseBiz) : supabaseBiz
 
-      // 로그인한 회사의 캠페인만 가져오기 (company_email 기준)
+      // 로그인한 회사의 캠페인만 가져오기 (company_email 기준) - 통계를 위해 전체 가져오기
       const { data: campaignsData, error } = await supabaseClient
         .from('campaigns')
         .select('*')
         .eq('company_email', user.email)
         .order('created_at', { ascending: false })
-        .limit(5)
 
       console.log('[CompanyDashboard] Campaigns query result:', { campaignsData, error })
 
@@ -148,14 +149,42 @@ export default function CompanyDashboard() {
         c.approval_status !== 'pending_approval'
       ).length
       const completed = activeCampaigns.filter(c => c.status === 'completed').length
-      const totalSpent = activeCampaigns.reduce((sum, c) => {
+
+      // 진행 중인 캠페인만 예산 계산
+      const inProgressCampaigns = activeCampaigns.filter(c =>
+        (c.status === 'recruiting' ||
+        c.status === 'guide_review' ||
+        c.status === 'in_progress' ||
+        c.status === 'revision') &&
+        c.approval_status !== 'pending_approval' &&
+        !c.is_cancelled
+      )
+      const totalSpent = inProgressCampaigns.reduce((sum, c) => {
         const packagePrice = getPackagePrice(c.package_type, c.campaign_type)
         const count = c.max_participants || c.total_slots || 0
         const subtotal = packagePrice * count
         const vat = Math.floor(subtotal * 0.1)
         return sum + (subtotal + vat)
       }, 0)
-      setStats({ total, pending, active, completed, totalSpent })
+
+      // 확정된 크리에이터 수 계산
+      const confirmedCreators = Object.values(participantsData).reduce((sum, p) => sum + (p.selected || 0), 0)
+
+      // 확인 필요 항목 계산 (마감 지연, 승인 대기 등)
+      const today = new Date()
+      const needsAttention = activeCampaigns.filter(c => {
+        // 승인 대기
+        if (c.approval_status === 'pending_approval') return true
+        // 모집 마감 지연
+        const recruitDeadline = new Date(c.recruitment_deadline || c.application_deadline)
+        if (c.status === 'recruiting' && recruitDeadline < today) return true
+        // 제출 마감 지연
+        const submitDeadline = new Date(c.content_submission_deadline)
+        if (c.status === 'in_progress' && submitDeadline < today) return true
+        return false
+      }).length
+
+      setStats({ total, pending, active, completed, totalSpent, confirmedCreators, needsAttention })
     } catch (error) {
       console.error('Error fetching data:', error)
     }
@@ -360,75 +389,100 @@ export default function CompanyDashboard() {
               <p className="text-gray-500 mt-1">안녕하세요, {company?.company_name || user?.email?.split('@')[0]}님!</p>
             </div>
 
-            {/* Stats Cards Grid - 클릭으로 필터링 가능 */}
+            {/* Stats Cards Grid - 클릭 시 캠페인 목록으로 이동 */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-              {/* Total Campaigns */}
+              {/* 진행 예산 */}
               <button
-                onClick={() => setStatusFilter(statusFilter === 'all' ? null : 'all')}
-                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'all' ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
+                onClick={() => navigate('/company/campaigns?filter=active')}
+                className="stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 border-transparent hover:border-indigo-200"
               >
                 <div className="stats-card-header">
-                  <span className="stats-card-title">전체 캠페인</span>
-                  <div className="stats-card-icon bg-blue-50">
-                    <FolderOpen className="w-5 h-5 text-blue-500" />
+                  <span className="stats-card-title text-gray-600 font-medium">진행 예산</span>
+                  <div className="stats-card-icon bg-indigo-100 group-hover:bg-indigo-200 transition-colors">
+                    <Wallet className="w-5 h-5 text-indigo-600" />
                   </div>
                 </div>
-                <div className="stats-card-value">{stats.total}</div>
+                <div className="stats-card-value text-2xl md:text-3xl font-bold text-indigo-600">
+                  {(stats.totalSpent / 10000).toFixed(0)}
+                  <span className="text-base font-medium text-gray-500 ml-1">만원</span>
+                </div>
+                <span className="text-xs text-gray-400 mt-1 flex items-center gap-1 group-hover:text-indigo-500 transition-colors">
+                  진행 중 캠페인 예산 합계
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
 
-              {/* Completed */}
+              {/* 진행 캠페인 */}
               <button
-                onClick={() => setStatusFilter(statusFilter === 'completed' ? null : 'completed')}
-                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'completed' ? 'ring-2 ring-green-400 ring-offset-2' : ''}`}
+                onClick={() => navigate('/company/campaigns?filter=active')}
+                className="stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 border-transparent hover:border-blue-200"
               >
                 <div className="stats-card-header">
-                  <span className="stats-card-title">완료</span>
-                  <div className="stats-card-icon bg-green-50">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="stats-card-title text-gray-600 font-medium">진행 캠페인</span>
+                  <div className="stats-card-icon bg-blue-100 group-hover:bg-blue-200 transition-colors">
+                    <Play className="w-5 h-5 text-blue-600" />
                   </div>
                 </div>
-                <div className="stats-card-value">{stats.completed}</div>
+                <div className="stats-card-value text-2xl md:text-3xl font-bold text-blue-600">
+                  {stats.active}
+                  <span className="text-base font-medium text-gray-500 ml-1">개</span>
+                </div>
                 {stats.total > 0 && (
-                  <>
-                    <div className="progress-bar mt-3">
+                  <div className="mt-2">
+                    <div className="progress-bar h-1.5 rounded-full bg-gray-100">
                       <div
-                        className="progress-bar-fill bg-green-500"
-                        style={{ width: `${(stats.completed / stats.total) * 100}%` }}
+                        className="progress-bar-fill bg-blue-500 h-full rounded-full transition-all"
+                        style={{ width: `${(stats.active / stats.total) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500 mt-1">
-                      완료율 {Math.round((stats.completed / stats.total) * 100)}%
-                    </span>
-                  </>
+                  </div>
                 )}
+                <span className="text-xs text-gray-400 mt-1 flex items-center gap-1 group-hover:text-blue-500 transition-colors">
+                  전체 {stats.total}개 중
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
 
-              {/* In Progress */}
+              {/* 확정 크리에이터 */}
               <button
-                onClick={() => setStatusFilter(statusFilter === 'active' ? null : 'active')}
-                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'active' ? 'ring-2 ring-yellow-400 ring-offset-2' : ''}`}
+                onClick={() => navigate('/company/campaigns?filter=active')}
+                className="stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 border-transparent hover:border-green-200"
               >
                 <div className="stats-card-header">
-                  <span className="stats-card-title">진행중</span>
-                  <div className="stats-card-icon bg-yellow-50">
-                    <Clock className="w-5 h-5 text-yellow-500" />
+                  <span className="stats-card-title text-gray-600 font-medium">확정 크리에이터</span>
+                  <div className="stats-card-icon bg-green-100 group-hover:bg-green-200 transition-colors">
+                    <UserCheck className="w-5 h-5 text-green-600" />
                   </div>
                 </div>
-                <div className="stats-card-value">{stats.active}</div>
+                <div className="stats-card-value text-2xl md:text-3xl font-bold text-green-600">
+                  {stats.confirmedCreators}
+                  <span className="text-base font-medium text-gray-500 ml-1">명</span>
+                </div>
+                <span className="text-xs text-gray-400 mt-1 flex items-center gap-1 group-hover:text-green-500 transition-colors">
+                  캠페인 선정 완료
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
 
-              {/* Pending */}
+              {/* 확인 필요 */}
               <button
-                onClick={() => setStatusFilter(statusFilter === 'pending' ? null : 'pending')}
-                className={`stats-card cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left ${statusFilter === 'pending' ? 'ring-2 ring-orange-400 ring-offset-2' : ''}`}
+                onClick={() => navigate('/company/campaigns?filter=attention')}
+                className={`stats-card cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-200 text-left group border-2 ${stats.needsAttention > 0 ? 'border-red-200 bg-red-50/50' : 'border-transparent hover:border-orange-200'}`}
               >
                 <div className="stats-card-header">
-                  <span className="stats-card-title">대기중</span>
-                  <div className="stats-card-icon bg-orange-50">
-                    <AlertCircle className="w-5 h-5 text-orange-500" />
+                  <span className="stats-card-title text-gray-600 font-medium">확인 필요</span>
+                  <div className={`stats-card-icon ${stats.needsAttention > 0 ? 'bg-red-100' : 'bg-orange-100'} group-hover:bg-orange-200 transition-colors`}>
+                    <AlertCircle className={`w-5 h-5 ${stats.needsAttention > 0 ? 'text-red-600' : 'text-orange-600'}`} />
                   </div>
                 </div>
-                <div className="stats-card-value">{stats.pending}</div>
+                <div className={`stats-card-value text-2xl md:text-3xl font-bold ${stats.needsAttention > 0 ? 'text-red-600' : 'text-orange-600'}`}>
+                  {stats.needsAttention}
+                  <span className="text-base font-medium text-gray-500 ml-1">건</span>
+                </div>
+                <span className={`text-xs mt-1 flex items-center gap-1 transition-colors ${stats.needsAttention > 0 ? 'text-red-500' : 'text-gray-400 group-hover:text-orange-500'}`}>
+                  {stats.needsAttention > 0 ? '조치가 필요합니다' : '모든 캠페인 정상'}
+                  <ChevronRight className="w-3 h-3" />
+                </span>
               </button>
             </div>
 
