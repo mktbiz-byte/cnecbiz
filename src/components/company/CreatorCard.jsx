@@ -284,8 +284,8 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                         return `https://${trimmedUrl}`
                       }
 
-                      // @ 제거 (사용자가 @username 형태로 입력한 경우)
-                      const cleanUsername = trimmedUrl.startsWith('@') ? trimmedUrl.slice(1) : trimmedUrl
+                      // @ 제거 (사용자가 @username 형태로 입력한 경우, 여러 개의 @도 처리)
+                      const cleanUsername = trimmedUrl.replace(/^@+/, '')
 
                       // 사용자명만 입력된 경우 - 플랫폼별 URL 생성
                       if (platformName === 'instagram') {
