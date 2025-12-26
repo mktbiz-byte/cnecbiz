@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award, Calendar, TrendingUp, Users, Eye, Clock } from 'lucide-react'
+import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award, FileText, Calendar, TrendingUp, Users, Eye, Clock } from 'lucide-react'
 import { checkIfFeaturedCreator, GRADE_LEVELS } from '../../services/creatorGradeService'
 
 // 플랫폼 아이콘 컴포넌트
@@ -30,6 +30,89 @@ const formatFollowers = (num) => {
     return `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만`
   }
   return num?.toLocaleString() || '0'
+}
+
+// 이메일 형태인지 확인
+const isEmailFormat = (str) => {
+  if (!str) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)
+}
+
+// SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
+const normalizeSnsUrl = (url, platform) => {
+  if (!url) return null
+
+  // 이미 완전한 URL인 경우
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  // @로 시작하면 제거
+  let handle = url.trim()
+  if (handle.startsWith('@')) {
+    handle = handle.substring(1)
+  }
+
+  // 플랫폼별 URL 생성
+  switch (platform) {
+    case 'instagram':
+      return `https://www.instagram.com/${handle}`
+    case 'youtube':
+      // 유튜브는 채널 ID인지 핸들인지 확인
+      if (handle.startsWith('UC') || handle.startsWith('channel/')) {
+        return `https://www.youtube.com/channel/${handle.replace('channel/', '')}`
+      }
+      return `https://www.youtube.com/@${handle}`
+    case 'tiktok':
+      return `https://www.tiktok.com/@${handle}`
+    default:
+      return url
+  }
+}
+
+// SNS 핸들/ID 추출 (URL에서)
+const extractSnsHandle = (url) => {
+  if (!url) return null
+  const match = url.match(/(?:instagram\.com|youtube\.com|tiktok\.com)\/(?:@)?([^\/\?]+)/i)
+  if (match && match[1]) {
+    return match[1].replace('@', '')
+  }
+  if (url.startsWith('@')) {
+    return url.substring(1)
+  }
+  if (!url.includes('/') && !url.includes('.')) {
+    return url
+  }
+  return null
+}
+
+// 표시 이름 결정 (이메일이면 SNS 핸들 사용)
+const getDisplayName = (name, instagramUrl, youtubeUrl, tiktokUrl) => {
+  // 이름이 있고 이메일 형태가 아니면 사용
+  if (name && !isEmailFormat(name)) {
+    return name
+  }
+
+  // 인스타그램 핸들 사용
+  const instaHandle = extractSnsHandle(instagramUrl)
+  if (instaHandle) {
+    return `@${instaHandle}`
+  }
+
+  // 유튜브 핸들 사용
+  const youtubeHandle = extractSnsHandle(youtubeUrl)
+  if (youtubeHandle) {
+    return youtubeHandle
+  }
+
+  // 틱톡 핸들 사용
+  const tiktokHandle = extractSnsHandle(tiktokUrl)
+  if (tiktokHandle) {
+    return `@${tiktokHandle}`
+  }
+
+  // 그래도 없으면 원래 이름
+  return name || '-'
 }
 
 // 날짜 포맷팅
@@ -115,11 +198,11 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
     checkFeatured()
   }, [user_id, propFeaturedInfo])
 
-  // 지원한 채널 목록
+  // 지원한 채널 목록 (URL 정규화 적용)
   const appliedChannels = []
-  if (instagram_url) appliedChannels.push({ name: 'instagram', label: 'Instagram', url: instagram_url, followers: application.instagram_followers || 0 })
-  if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: youtube_url, followers: application.youtube_subscribers || 0 })
-  if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: tiktok_url, followers: application.tiktok_followers || 0 })
+  if (instagram_url) appliedChannels.push({ name: 'instagram', label: 'Instagram', url: normalizeSnsUrl(instagram_url, 'instagram'), followers: application.instagram_followers || 0 })
+  if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: normalizeSnsUrl(youtube_url, 'youtube'), followers: application.youtube_subscribers || 0 })
+  if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: normalizeSnsUrl(tiktok_url, 'tiktok'), followers: application.tiktok_followers || 0 })
 
   // 추천 크리에이터 여부
   const isRecommended = featuredInfo?.isRecommended || featuredInfo?.isFeatured
@@ -181,6 +264,9 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
   const leftColumnQA = questionsAndAnswers.filter((_, i) => i % 2 === 0) // Q1, Q3
   const rightColumnQA = questionsAndAnswers.filter((_, i) => i % 2 === 1) // Q2, Q4
 
+  // 표시 이름 계산
+  const displayName = getDisplayName(applicant_name, instagram_url, youtube_url, tiktok_url)
+
   return (
     <>
       {/* 스크린샷 스타일 레이아웃 */}
@@ -194,7 +280,7 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                 {application.profile_photo_url ? (
                   <img
                     src={application.profile_photo_url}
-                    alt={applicant_name}
+                    alt={displayName}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -230,7 +316,7 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
               {/* 이름 + 배지들 */}
               <div className="text-center mb-2">
                 <div className="flex items-center justify-center gap-2 flex-wrap mb-1">
-                  <h3 className="text-lg font-bold text-gray-900">{applicant_name}</h3>
+                  <h3 className="text-lg font-bold text-gray-900">{displayName}</h3>
                   {/* 협업 경험 / 첫 지원 배지 */}
                   {hasCollaborationExperience ? (
                     <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 px-1.5 py-0">
@@ -481,7 +567,7 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-20 h-20 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
                   {application.profile_photo_url ? (
-                    <img src={application.profile_photo_url} alt={applicant_name} className="w-full h-full object-cover" />
+                    <img src={application.profile_photo_url} alt={displayName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <User className="w-10 h-10 text-gray-300" />
@@ -489,7 +575,7 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">{applicant_name}</h3>
+                  <h3 className="text-xl font-bold text-gray-900">{displayName}</h3>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="text-sm text-gray-500">{age}세</span>
                     {skinTypeKorean && (

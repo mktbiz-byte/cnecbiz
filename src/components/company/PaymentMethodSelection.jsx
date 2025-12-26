@@ -4,7 +4,7 @@ import { supabaseKorea, supabaseBiz, supabaseJapan, supabaseUS } from '../../lib
 import TossPaymentWidget from '../payment/TossPaymentWidget';
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { CreditCard, Building2, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
+import { CreditCard, Building2, ArrowLeft, CheckCircle2, Info, AlertCircle, ShieldCheck } from 'lucide-react';
 
 const PaymentMethodSelection = () => {
   const [searchParams] = useSearchParams();
@@ -129,7 +129,7 @@ const PaymentMethodSelection = () => {
             {!paymentMethod && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">결제 방법을 선택해주세요</h3>
-                
+
                 {/* 카드 결제 옵션 */}
                 <button
                   onClick={() => setPaymentMethod('card')}
@@ -167,6 +167,45 @@ const PaymentMethodSelection = () => {
                     <div className="text-green-600 font-bold text-lg">선택 →</div>
                   </div>
                 </button>
+
+                {/* 환불 규정 */}
+                <div className="mt-8 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShieldCheck className="h-5 w-5 text-amber-600" />
+                    <h4 className="font-bold text-gray-800">환불 규정</h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 bg-white/60 rounded-lg p-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600 font-bold text-sm">100%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">캠페인 진행 전</p>
+                        <p className="text-sm text-gray-600">전액 환불 가능</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 bg-white/60 rounded-lg p-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                        <span className="text-amber-600 font-bold text-sm">50%</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">캠페인 진행 후</p>
+                        <p className="text-sm text-gray-600">50% 환불 가능</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-amber-200">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium">캠페인 진행 기준:</span> 크리에이터 선정 완료 시점
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

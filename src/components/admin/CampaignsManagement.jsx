@@ -69,13 +69,22 @@ const ITEMS_PER_PAGE = 20
 const calculateCreatorPoints = (campaign) => {
   if (!campaign) return 0
 
+  // 수동 설정값이 있으면 우선 사용
   if (campaign.creator_points_override) {
     return campaign.creator_points_override
   }
 
   const campaignType = campaign.campaign_type
-  const totalSlots = campaign.total_slots || 1
+  const totalSlots = campaign.total_slots || campaign.max_participants || 1
+  const region = campaign.region || 'korea'
 
+  // 일본/미국은 reward_amount 사용 (크리에이터당 보상금액)
+  if (region === 'japan' || region === 'us') {
+    // reward_amount가 1인당 금액으로 설정되어 있음
+    return campaign.reward_amount || 0
+  }
+
+  // 한국: 기존 로직 유지
   if (campaignType === '4week_challenge') {
     const weeklyTotal = (campaign.week1_reward || 0) + (campaign.week2_reward || 0) +
                        (campaign.week3_reward || 0) + (campaign.week4_reward || 0)
@@ -485,10 +494,24 @@ export default function CampaignsManagement() {
     try {
       const campaign = campaigns.find(c => c.id === campaignId)
       const supabaseClient = getSupabaseClient(campaign?.region || 'biz')
+      const region = campaign?.region || 'korea'
+
+      // 일본/미국은 reward_amount 필드 사용, 한국은 creator_points_override 사용
+      let updateData = {}
+
+      if (region === 'japan' || region === 'us') {
+        // 일본/미국: reward_amount 직접 업데이트 (1인당 보상금액)
+        // updated_at 컬럼이 없을 수 있으므로 제외
+        updateData.reward_amount = parseInt(editingPoints.value) || 0
+      } else {
+        // 한국: creator_points_override 사용 + updated_at
+        updateData.creator_points_override = parseInt(editingPoints.value) || null
+        updateData.updated_at = new Date().toISOString()
+      }
 
       const { error } = await supabaseClient
         .from('campaigns')
-        .update({ creator_points_override: parseInt(editingPoints.value) || null, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', campaignId)
 
       if (error) throw error
@@ -648,10 +671,15 @@ export default function CampaignsManagement() {
         }
       }
 
-      // 2. 캠페인 소유권 이관 - company_email과 company_id 모두 업데이트
+      // 2. 캠페인 소유권 이관 - 지역별 스키마 차이 고려
+      const campaignRegion = transferCampaign.region || 'korea'
       const updateData = {
-        company_email: transferEmail,
         updated_at: new Date().toISOString()
+      }
+
+      // US 캠페인은 company_email 컬럼이 없음
+      if (campaignRegion !== 'us') {
+        updateData.company_email = transferEmail
       }
 
       // company_id 업데이트 (필수!)
@@ -659,9 +687,26 @@ export default function CampaignsManagement() {
         updateData.company_id = targetCompanyId
         console.log('company_id 업데이트:', targetCompanyId)
       } else {
-        // company_id를 찾지 못한 경우에도 null로 설정하여 이전 소유자 연결 끊기
-        updateData.company_id = null
-        console.warn('타겟 company_id를 찾을 수 없어 null로 설정합니다.')
+        // US의 경우 user_id로 이관 시도 (user_profiles에서 조회)
+        if (campaignRegion === 'us') {
+          const { data: userProfile } = await supabaseClient
+            .from('user_profiles')
+            .select('id')
+            .eq('email', transferEmail)
+            .maybeSingle()
+
+          if (userProfile) {
+            updateData.company_id = userProfile.id
+            console.log('US: user_profiles에서 user_id 찾음:', userProfile.id)
+          } else {
+            updateData.company_id = null
+            console.warn('타겟 company_id를 찾을 수 없어 null로 설정합니다.')
+          }
+        } else {
+          // company_id를 찾지 못한 경우에도 null로 설정하여 이전 소유자 연결 끊기
+          updateData.company_id = null
+          console.warn('타겟 company_id를 찾을 수 없어 null로 설정합니다.')
+        }
       }
 
       const { error: campaignError } = await supabaseClient
@@ -672,37 +717,44 @@ export default function CampaignsManagement() {
       if (campaignError) throw campaignError
 
       // 3. 지원자 데이터의 company 관련 필드 업데이트 (applications 테이블)
-      try {
-        await supabaseClient
-          .from('applications')
-          .update({
-            company_id: targetCompanyId,
-            updated_at: new Date().toISOString()
-          })
-          .eq('campaign_id', transferCampaign.id)
+      const finalCompanyIdForApps = updateData.company_id
+      if (finalCompanyIdForApps) {
+        try {
+          await supabaseClient
+            .from('applications')
+            .update({
+              company_id: finalCompanyIdForApps,
+              updated_at: new Date().toISOString()
+            })
+            .eq('campaign_id', transferCampaign.id)
 
-        console.log('지원자 데이터 이관 완료')
-      } catch (appError) {
-        console.log('applications 테이블 업데이트 (선택적):', appError.message)
+          console.log('지원자 데이터 이관 완료')
+        } catch (appError) {
+          console.log('applications 테이블 업데이트 (선택적):', appError.message)
+        }
       }
 
       // 4. campaign_participants 테이블 업데이트 (있는 경우)
-      try {
-        await supabaseClient
-          .from('campaign_participants')
-          .update({
-            company_id: targetCompanyId,
-            updated_at: new Date().toISOString()
-          })
-          .eq('campaign_id', transferCampaign.id)
+      if (finalCompanyIdForApps) {
+        try {
+          await supabaseClient
+            .from('campaign_participants')
+            .update({
+              company_id: finalCompanyIdForApps,
+              updated_at: new Date().toISOString()
+            })
+            .eq('campaign_id', transferCampaign.id)
 
-        console.log('참여자 데이터 이관 완료')
-      } catch (partError) {
-        console.log('campaign_participants 테이블 업데이트 (선택적):', partError.message)
+          console.log('참여자 데이터 이관 완료')
+        } catch (partError) {
+          console.log('campaign_participants 테이블 업데이트 (선택적):', partError.message)
+        }
       }
 
-      const warningMsg = !targetCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.' : ''
-      alert(`캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:\n- 캠페인 소유권 (company_email: ${transferEmail})\n- company_id: ${targetCompanyId || 'null'}\n- 지원자 데이터 ${applicantCount}명${warningMsg}`)
+      const finalCompanyId = updateData.company_id
+      const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.' : ''
+      const emailInfo = campaignRegion === 'us' ? '(US는 company_email 미지원)' : `(company_email: ${transferEmail})`
+      alert(`캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:\n- 캠페인 소유권 ${emailInfo}\n- company_id: ${finalCompanyId || 'null'}\n- 지원자 데이터 ${applicantCount}명${warningMsg}`)
       setShowTransferModal(false)
       setTransferCampaign(null)
       setTransferEmail('')
@@ -1308,6 +1360,10 @@ export default function CampaignsManagement() {
                                     <PlayCircle className="w-3.5 h-3.5 mr-1" />
                                     활성화
                                   </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleStatusChange(campaign, 'paused')} disabled={confirming || campaign.status === 'paused'} className="h-8 px-3 text-xs font-medium border-gray-200 text-amber-600 hover:bg-amber-50 hover:border-amber-200">
+                                    <Pause className="w-3.5 h-3.5 mr-1" />
+                                    중지
+                                  </Button>
                                   <Button size="sm" variant="outline" onClick={() => handleDelete(campaign)} disabled={confirming} className="h-8 px-3 text-xs font-medium border-gray-200 text-red-500 hover:bg-red-50 hover:border-red-200">
                                     <Trash2 className="w-3.5 h-3.5 mr-1" />
                                     삭제
@@ -1339,7 +1395,7 @@ export default function CampaignsManagement() {
                                 {campaign.currency || '₩'}{(campaign.budget || 0).toLocaleString()}
                               </span>
                             </div>
-                            {campaign.region === 'korea' && (
+                            {['korea', 'japan', 'us'].includes(campaign.region) && (
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-violet-500">크리에이터 P</span>
                                 {editingPoints?.campaignId === campaign.id ? (
@@ -1360,7 +1416,7 @@ export default function CampaignsManagement() {
                                   </div>
                                 ) : (
                                   <span className="text-sm font-semibold text-violet-600 flex items-center gap-1">
-                                    ₩{calculateCreatorPoints(campaign).toLocaleString()}
+                                    {campaign.currency || '₩'}{calculateCreatorPoints(campaign).toLocaleString()}
                                     {isSuperAdmin && (
                                       <button onClick={() => setEditingPoints({ campaignId: campaign.id, value: calculateCreatorPoints(campaign) })} className="text-violet-300 hover:text-violet-500">
                                         <Edit size={12} />
