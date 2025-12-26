@@ -223,10 +223,10 @@ export default function AllCreatorsPage() {
       try {
         const [japanAppsResult, usAppsResult] = await Promise.allSettled([
           supabaseJapan?.from('applications')
-            .select('user_id, instagram_url, youtube_url, tiktok_url, phone')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone, phone_number')
             .order('created_at', { ascending: false }),
           supabaseUS?.from('applications')
-            .select('user_id, instagram_url, youtube_url, tiktok_url, phone')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone_number')
             .order('created_at', { ascending: false })
         ])
 
@@ -246,7 +246,7 @@ export default function AllCreatorsPage() {
                 instagram_url: creator.instagram_url || appData.instagram_url || null,
                 youtube_url: creator.youtube_url || appData.youtube_url || null,
                 tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
-                phone: creator.phone || appData.phone || null
+                phone: creator.phone || appData.phone || appData.phone_number || null
               }
             }
             return creator
@@ -269,7 +269,7 @@ export default function AllCreatorsPage() {
                 instagram_url: creator.instagram_url || appData.instagram_url || null,
                 youtube_url: creator.youtube_url || appData.youtube_url || null,
                 tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
-                phone: creator.phone || appData.phone || null
+                phone: creator.phone || appData.phone_number || null
               }
             }
             return creator
