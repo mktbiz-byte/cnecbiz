@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award } from 'lucide-react'
+import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award, FileText } from 'lucide-react'
 import { checkIfFeaturedCreator, GRADE_LEVELS } from '../../services/creatorGradeService'
 
 // 플랫폼 아이콘 컴포넌트
@@ -188,7 +188,30 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
           )}
         </div>
 
-        <div className="p-4">
+        {/* 이미지 아래 버튼들 */}
+        <div className="flex gap-2 px-4 pt-3">
+          <Button
+            onClick={handleVirtualSelect}
+            variant="outline"
+            size="sm"
+            className={`flex-1 h-8 text-xs ${virtual_selected ? 'border-blue-300 text-blue-600 bg-blue-50' : ''}`}
+          >
+            {virtual_selected ? '선택됨 ✓' : '가상선택'}
+          </Button>
+          {onViewProfile && (
+            <Button
+              onClick={() => onViewProfile(application)}
+              variant="outline"
+              size="sm"
+              className="flex-1 h-8 text-xs border-green-300 text-green-600 hover:bg-green-50"
+            >
+              <FileText className="w-3 h-3 mr-1" />
+              지원서 보기
+            </Button>
+          )}
+        </div>
+
+        <div className="p-4 pt-2">
           {/* 기본 정보 */}
           <div className="mb-3">
             <div className="flex items-center gap-2 mb-2">
@@ -251,63 +274,6 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
             )}
           </div>
 
-          {/* 질문 답변 */}
-          {answers.length > 0 && (
-            <div className="mb-2 p-3 bg-green-50 rounded-lg relative cursor-pointer group border border-green-100">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-green-700 mb-1">
-                <MessageSquare className="w-3.5 h-3.5" />
-                캠페인 질문 답변
-              </label>
-              <p className="text-xs text-gray-700 line-clamp-1">
-                {answers[0].substring(0, 40)}...
-              </p>
-              <span className="text-[10px] text-green-600 mt-1 block">마우스를 올려 전체 보기</span>
-
-              {/* 팝업 모달 */}
-              <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-sm p-4 bg-white border-2 border-green-400 rounded-xl shadow-2xl">
-                <label className="flex items-center gap-1.5 text-sm font-semibold text-green-700 mb-3">
-                  <MessageSquare className="w-4 h-4" />
-                  캠페인 질문 답변
-                </label>
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {answers.map((answer, index) => (
-                    <div key={index} className="text-sm pb-3 border-b border-gray-100 last:border-0">
-                      <span className="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded mb-1">
-                        Q{index + 1}
-                      </span>
-                      <p className="text-gray-700 whitespace-pre-wrap">{answer}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 지원자 한마디 */}
-          {additional_info && (
-            <div className="mb-3 p-3 bg-amber-50 rounded-lg relative cursor-pointer group border border-amber-100">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 mb-1">
-                <Star className="w-3.5 h-3.5" />
-                지원자 한마디
-              </label>
-              <p className="text-xs text-gray-700 line-clamp-1">
-                {additional_info.substring(0, 40)}...
-              </p>
-              <span className="text-[10px] text-amber-600 mt-1 block">마우스를 올려 전체 보기</span>
-
-              {/* 팝업 모달 */}
-              <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-sm p-4 bg-white border-2 border-amber-400 rounded-xl shadow-2xl">
-                <label className="flex items-center gap-1.5 text-sm font-semibold text-amber-700 mb-3">
-                  <Star className="w-4 h-4" />
-                  지원자 한마디
-                </label>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap max-h-80 overflow-y-auto">
-                  {additional_info}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* 액션 버튼 */}
           <div className="space-y-2">
             {isAlreadyParticipant || isConfirmed ? (
@@ -327,34 +293,14 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
                 </Button>
               </>
             ) : (
-              <>
-                <Button
-                  onClick={handleVirtualSelect}
-                  variant="outline"
-                  size="sm"
-                  className={`w-full h-9 ${virtual_selected ? 'border-blue-300 text-blue-600 bg-blue-50' : ''}`}
-                >
-                  {virtual_selected ? (
-                    <>
-                      <XCircle className="w-4 h-4 mr-1" />
-                      가상선택 취소
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 mr-1" />
-                      가상선택
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={handleConfirm}
-                  size="sm"
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white h-10 font-semibold shadow-md"
-                >
-                  <Sparkles className="w-4 h-4 mr-1" />
-                  크리에이터 확정
-                </Button>
-              </>
+              <Button
+                onClick={handleConfirm}
+                size="sm"
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white h-10 font-semibold shadow-md"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                크리에이터 확정
+              </Button>
             )}
           </div>
         </div>
