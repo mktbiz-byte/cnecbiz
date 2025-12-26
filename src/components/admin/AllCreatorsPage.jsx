@@ -79,6 +79,75 @@ const normalizeTiktokUrl = (url) => {
   return `https://www.tiktok.com/@${handle}`
 }
 
+// 이메일 형태인지 확인
+const isEmailFormat = (str) => {
+  if (!str) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)
+}
+
+// SNS 핸들/ID 추출 (URL에서)
+const extractSnsHandle = (url) => {
+  if (!url) return null
+  // URL에서 마지막 경로 추출
+  const match = url.match(/(?:instagram\.com|youtube\.com|tiktok\.com)\/(?:@)?([^\/\?]+)/i)
+  if (match && match[1]) {
+    return match[1].replace('@', '')
+  }
+  // @로 시작하는 핸들인 경우
+  if (url.startsWith('@')) {
+    return url.substring(1)
+  }
+  // 그냥 핸들인 경우
+  if (!url.includes('/') && !url.includes('.')) {
+    return url
+  }
+  return null
+}
+
+// 크리에이터 표시 이름 결정 (이메일이면 SNS 핸들 사용)
+const getDisplayName = (creator) => {
+  // 1. name 필드가 있고 이메일 형태가 아니면 사용
+  if (creator.name && !isEmailFormat(creator.name)) {
+    return creator.name
+  }
+
+  // 2. channel_name이 있고 이메일 형태가 아니면 사용
+  if (creator.channel_name && !isEmailFormat(creator.channel_name)) {
+    return creator.channel_name
+  }
+
+  // 3. full_name이 있고 이메일 형태가 아니면 사용
+  if (creator.full_name && !isEmailFormat(creator.full_name)) {
+    return creator.full_name
+  }
+
+  // 4. display_name이 있고 이메일 형태가 아니면 사용
+  if (creator.display_name && !isEmailFormat(creator.display_name)) {
+    return creator.display_name
+  }
+
+  // 5. 인스타그램 핸들 사용
+  const instaHandle = extractSnsHandle(creator.instagram_url)
+  if (instaHandle) {
+    return `@${instaHandle}`
+  }
+
+  // 6. 유튜브 핸들 사용
+  const youtubeHandle = extractSnsHandle(creator.youtube_url)
+  if (youtubeHandle) {
+    return youtubeHandle
+  }
+
+  // 7. 틱톡 핸들 사용
+  const tiktokHandle = extractSnsHandle(creator.tiktok_url)
+  if (tiktokHandle) {
+    return `@${tiktokHandle}`
+  }
+
+  // 8. 그래도 없으면 이름 또는 기본값
+  return creator.name || '-'
+}
+
 export default function AllCreatorsPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
@@ -284,7 +353,7 @@ export default function AllCreatorsPage() {
         if (error) throw error
       }
 
-      alert(`${selectedCreator.name || '크리에이터'}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
+      alert(`${getDisplayName(selectedCreator)}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
       setShowGradeModal(false)
       await fetchFeaturedCreators()
     } catch (error) {
@@ -299,7 +368,7 @@ export default function AllCreatorsPage() {
   const handleRemoveGrade = async () => {
     if (!selectedCreator) return
 
-    if (!confirm(`${selectedCreator.name || '크리에이터'}의 등급을 삭제하시겠습니까?`)) return
+    if (!confirm(`${getDisplayName(selectedCreator)}의 등급을 삭제하시겠습니까?`)) return
 
     setSavingGrade(true)
     try {
@@ -457,10 +526,10 @@ export default function AllCreatorsPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 receiverNum: phoneNumber,
-                receiverName: creator.name || '크리에이터',
+                receiverName: getDisplayName(creator),
                 templateCode: '025100001022', // 일반 알림 템플릿
                 variables: {
-                  '이름': creator.name || '크리에이터',
+                  '이름': getDisplayName(creator),
                   '내용': messageData.content.substring(0, 200)
                 }
               })
@@ -631,7 +700,7 @@ export default function AllCreatorsPage() {
 
   const exportToExcel = (data, filename, regionName) => {
     const excelData = data.map(creator => ({
-      '이름': creator.name || '-',
+      '이름': getDisplayName(creator),
       '이메일': creator.email || '-',
       '전화번호': creator.phone || '-',
       '인스타그램 URL': creator.instagram_url || '-',
@@ -791,7 +860,7 @@ export default function AllCreatorsPage() {
                   </td>
                   <td className="p-1.5">
                     <span className="text-indigo-600 hover:underline font-medium">
-                      {creator.name || '-'}
+                      {getDisplayName(creator)}
                     </span>
                   </td>
                   <td className="p-1.5">
@@ -1073,7 +1142,7 @@ export default function AllCreatorsPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-xl font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
+                    <h3 className="text-xl font-bold text-gray-900">{getDisplayName(selectedCreator)}</h3>
                     <GradeBadge creatorId={selectedCreator.id} showLabel />
                   </div>
                   <p className="text-gray-500">{selectedCreator.email}</p>
@@ -1331,7 +1400,7 @@ export default function AllCreatorsPage() {
             <div className="space-y-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><span className="font-semibold">이름:</span> {selectedCreator.name || '-'}</div>
+                  <div><span className="font-semibold">이름:</span> {getDisplayName(selectedCreator)}</div>
                   <div><span className="font-semibold">이메일:</span> {selectedCreator.email || '-'}</div>
                 </div>
               </div>
@@ -1523,7 +1592,7 @@ export default function AllCreatorsPage() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
+                  <h3 className="font-bold text-gray-900">{getDisplayName(selectedCreator)}</h3>
                   <p className="text-sm text-gray-500">{selectedCreator.email}</p>
                   {getCreatorGrade(selectedCreator.id) && (
                     <div className="mt-1">
