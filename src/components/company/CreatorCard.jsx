@@ -177,89 +177,88 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
     channel.followers > (max?.followers || 0) ? channel : max
   , appliedChannels[0])
 
+  // Q&A를 2열로 정렬 (Q1, Q3 왼쪽 | Q2, Q4 오른쪽)
+  const leftColumnQA = questionsAndAnswers.filter((_, i) => i % 2 === 0) // Q1, Q3
+  const rightColumnQA = questionsAndAnswers.filter((_, i) => i % 2 === 1) // Q2, Q4
+
   return (
     <>
-      {/* 1줄 가로형 카드 레이아웃 */}
+      {/* 스크린샷 스타일 레이아웃 */}
       <Card className={`overflow-hidden transition-all duration-200 ${virtual_selected ? 'ring-2 ring-blue-400 shadow-lg bg-blue-50/30' : 'hover:shadow-md hover:border-gray-300'}`}>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            {/* 왼쪽: 프로필 사진 (정사각형 유지) */}
-            <div className="relative w-28 h-28 rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
-              {application.profile_photo_url ? (
-                <img
-                  src={application.profile_photo_url}
-                  alt={applicant_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className="w-12 h-12 text-gray-300" />
-                </div>
-              )}
+        <CardContent className="p-5">
+          <div className="flex gap-6">
+            {/* 왼쪽: 프로필 섹션 */}
+            <div className="flex-shrink-0 w-44">
+              {/* 프로필 사진 */}
+              <div className="relative w-36 h-36 mx-auto rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 mb-3">
+                {application.profile_photo_url ? (
+                  <img
+                    src={application.profile_photo_url}
+                    alt={applicant_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-14 h-14 text-gray-300" />
+                  </div>
+                )}
 
-              {/* 가상선택 배지 */}
-              {virtual_selected && (
-                <div className="absolute top-1 left-1">
-                  <Badge className="bg-blue-500 text-white shadow-lg text-xs px-1.5 py-0.5">
-                    <CheckCircle2 className="w-3 h-3 mr-0.5" />
-                    선택
-                  </Badge>
-                </div>
-              )}
+                {/* 가상선택 배지 */}
+                {virtual_selected && (
+                  <div className="absolute top-2 left-2">
+                    <Badge className="bg-blue-500 text-white shadow-lg text-xs px-2 py-0.5">
+                      <CheckCircle2 className="w-3 h-3 mr-0.5" />
+                      선택
+                    </Badge>
+                  </div>
+                )}
 
-              {/* 크넥 추천 배지 */}
-              {isRecommended && featuredInfo && (
-                <div className="absolute bottom-1 left-1">
-                  <Badge
-                    className="text-white shadow-lg flex items-center gap-0.5 text-xs px-1.5 py-0.5"
-                    style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#F59E0B' }}
-                  >
-                    <Award className="w-3 h-3" />
-                    추천
-                  </Badge>
-                </div>
-              )}
-            </div>
+                {/* 크넥 추천 배지 */}
+                {isRecommended && featuredInfo && (
+                  <div className="absolute bottom-2 left-2">
+                    <Badge
+                      className="text-white shadow-lg flex items-center gap-0.5 text-xs px-2 py-0.5"
+                      style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#F59E0B' }}
+                    >
+                      <Award className="w-3 h-3" />
+                      추천
+                    </Badge>
+                  </div>
+                )}
+              </div>
 
-            {/* 오른쪽: 정보 영역 */}
-            <div className="flex-1 min-w-0">
-              {/* 상단: 이름, 나이, 배지들 */}
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2 flex-wrap">
+              {/* 이름 + 배지들 */}
+              <div className="text-center mb-2">
+                <div className="flex items-center justify-center gap-2 flex-wrap mb-1">
                   <h3 className="text-lg font-bold text-gray-900">{applicant_name}</h3>
-                  <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{age}세</span>
-
-                  {/* 협업 경험 배지 */}
+                  {/* 협업 경험 / 첫 지원 배지 */}
                   {hasCollaborationExperience ? (
-                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                      <TrendingUp className="w-3 h-3 mr-0.5" />
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 px-1.5 py-0">
                       협업 {collaboration_count}회
                     </Badge>
                   ) : isFirstApplication && (
-                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
-                      <Sparkles className="w-3 h-3 mr-0.5" />
+                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 px-1.5 py-0">
                       첫 지원
                     </Badge>
                   )}
-
                   {/* 피부타입 */}
                   {skinTypeKorean && (
-                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
-                      <Droplets className="w-3 h-3 mr-0.5" />
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200 px-1.5 py-0">
                       {skinTypeKorean}
                     </Badge>
                   )}
                 </div>
+                <span className="text-sm text-gray-500">{age}세</span>
+              </div>
 
-                {/* 지원일 */}
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <Calendar className="w-3 h-3" />
-                  {formatDate(created_at)} 지원
-                </div>
+              {/* 지원일 */}
+              <div className="flex items-center justify-center gap-1 text-xs text-gray-400 mb-3">
+                <Calendar className="w-3 h-3" />
+                {formatDate(created_at)} 지원
               </div>
 
               {/* SNS 채널 정보 */}
-              <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
                 {appliedChannels.map(channel => {
                   const style = getChannelStyle(channel.name)
                   const isSelected = selectedChannel === channel.name
@@ -270,82 +269,93 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                         e.stopPropagation()
                         setSelectedChannel(channel.name)
                       }}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-all border ${
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all border ${
                         isSelected
                           ? `${style.light} border-2 font-semibold`
                           : 'bg-white border-gray-200 hover:bg-gray-50'
                       }`}
                     >
-                      <div className={`w-5 h-5 rounded-full ${isSelected ? style.bg : 'bg-gray-200'} flex items-center justify-center flex-shrink-0`}>
-                        <ChannelIcon name={channel.name} className={`w-3 h-3 ${isSelected ? style.text : 'text-gray-400'}`} />
-                      </div>
+                      <ChannelIcon name={channel.name} className={`w-3.5 h-3.5 ${channel.name === 'instagram' ? 'text-pink-500' : channel.name === 'youtube' ? 'text-red-500' : 'text-gray-800'}`} />
                       <span className="font-medium">{formatFollowers(channel.followers)}</span>
-                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           window.open(channel.url, '_blank')
                         }}
-                        className="ml-1 p-0.5 hover:bg-white/50 rounded"
+                        className="p-0.5 hover:bg-white/50 rounded"
                       >
-                        <ExternalLink className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                        <ExternalLink className="w-2.5 h-2.5 text-gray-400 hover:text-gray-600" />
                       </button>
                     </button>
                   )
                 })}
               </div>
+            </div>
 
-              {/* 참여율/후기/별점 */}
-              <div className="flex flex-wrap items-center gap-3 mb-3 text-sm text-gray-600">
-                {participation_rate !== undefined && participation_rate !== null && (
-                  <div className="flex items-center gap-1">
-                    <Users className="w-4 h-4 text-indigo-500" />
-                    <span>참여율</span>
-                    <span className="font-semibold text-indigo-600">{participation_rate}%</span>
-                  </div>
-                )}
-                {(review_count !== undefined && review_count > 0) && (
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="w-4 h-4 text-green-500" />
-                    <span>후기</span>
-                    <span className="font-semibold text-green-600">{review_count}개</span>
-                  </div>
-                )}
-                {(average_rating !== undefined && average_rating > 0) && (
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span className="font-semibold text-yellow-600">{average_rating.toFixed(1)}</span>
-                  </div>
-                )}
+            {/* 오른쪽: 답변 및 버튼 영역 */}
+            <div className="flex-1 min-w-0">
+              {/* 상단 헤더 (지원일 + 버튼) */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-gray-500">답변 내용</span>
+                <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <Calendar className="w-3 h-3" />
+                  {formatDate(created_at)} 지원
+                </div>
               </div>
 
-              {/* 질문 답변 전체 표시 */}
+              {/* Q&A 2열 그리드 레이아웃 */}
               {questionsAndAnswers.length > 0 && (
-                <div className="mb-3 space-y-2">
-                  {questionsAndAnswers.map((qa, index) => (
-                    <div key={index} className="p-2.5 bg-green-50 rounded-lg text-sm border border-green-100">
-                      <p className="text-green-700 font-semibold mb-1.5">
-                        Q{index + 1}. {qa.question && qa.question.trim() ? qa.question : `질문 ${index + 1}`}
-                      </p>
-                      <p className="text-gray-700 pl-3 border-l-2 border-green-300">{qa.answer}</p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  {/* 왼쪽 컬럼 (Q1, Q3) */}
+                  <div className="space-y-3">
+                    {leftColumnQA.map((qa, idx) => {
+                      const originalIndex = idx * 2 // 0, 2
+                      return (
+                        <div key={originalIndex} className="p-3 bg-green-50 rounded-lg border border-green-100">
+                          <p className="text-green-700 font-semibold text-sm mb-1.5">
+                            Q{originalIndex + 1}. {qa.question && qa.question.trim() ? qa.question : `질문`}
+                          </p>
+                          <div className="flex items-start gap-2 text-sm text-gray-700">
+                            <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                            <span>{qa.answer}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* 오른쪽 컬럼 (Q2, Q4) */}
+                  <div className="space-y-3">
+                    {rightColumnQA.map((qa, idx) => {
+                      const originalIndex = idx * 2 + 1 // 1, 3
+                      return (
+                        <div key={originalIndex} className="p-3 bg-green-50 rounded-lg border border-green-100">
+                          <p className="text-green-700 font-semibold text-sm mb-1.5">
+                            Q{originalIndex + 1}. {qa.question && qa.question.trim() ? qa.question : `질문`}
+                          </p>
+                          <div className="flex items-start gap-2 text-sm text-gray-700">
+                            <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                            <span>{qa.answer}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 
               {/* 지원자 한마디 */}
               {additional_info && (
-                <div className="mb-3 p-2.5 bg-amber-50 rounded-lg text-sm border border-amber-100">
-                  <p className="text-amber-700 font-semibold mb-1.5 flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5" />
+                <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <p className="text-amber-700 font-semibold text-sm mb-1.5 flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-amber-500" />
                     지원자 한마디
                   </p>
-                  <p className="text-gray-700 pl-3 border-l-2 border-amber-300">{additional_info}</p>
+                  <p className="text-gray-700 text-sm">{additional_info}</p>
                 </div>
               )}
 
               {/* 액션 버튼들 */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
                 {isAlreadyParticipant || isConfirmed ? (
                   <>
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg font-medium text-sm">
@@ -378,17 +388,9 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                       ) : (
                         <>
                           <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                          가상선택
+                          가상 선택
                         </>
                       )}
-                    </Button>
-                    <Button
-                      onClick={handleConfirm}
-                      size="sm"
-                      className="h-8 text-sm bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 mr-1" />
-                      확정
                     </Button>
                   </>
                 )}
@@ -396,9 +398,8 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                 {/* 프로필 보기 버튼 */}
                 <Button
                   onClick={() => setShowProfileModal(true)}
-                  variant="ghost"
                   size="sm"
-                  className="h-8 text-sm text-gray-600 hover:text-gray-900 ml-auto"
+                  className="h-8 text-sm bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   <Eye className="w-3.5 h-3.5 mr-1" />
                   프로필 보기
