@@ -39,7 +39,7 @@ const formatDate = (dateString) => {
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant, onViewProfile, featuredInfo: propFeaturedInfo }) {
+export default function CreatorCard({ application, campaignQuestions = [], onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant, onViewProfile, featuredInfo: propFeaturedInfo }) {
   const {
     applicant_name,
     age,
@@ -74,8 +74,15 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
   }
   const skinTypeKorean = skinTypeMap[skin_type?.toLowerCase()] || skin_type
 
-  // 질문 답변 배열
-  const answers = [answer_1, answer_2, answer_3, answer_4].filter(a => a && a.trim())
+  // 질문과 답변 배열 (질문과 답변을 매칭)
+  const rawAnswers = [answer_1, answer_2, answer_3, answer_4]
+  const questionsAndAnswers = campaignQuestions.map((question, index) => ({
+    question,
+    answer: rawAnswers[index]
+  })).filter(qa => qa.answer && qa.answer.trim())
+
+  // 기존 answers 배열 (호환성 유지)
+  const answers = rawAnswers.filter(a => a && a.trim())
 
   // 로컬 상태로 메인 채널 관리
   const [selectedChannel, setSelectedChannel] = useState(savedMainChannel || '')
@@ -309,9 +316,10 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
               </div>
 
               {/* 질문 답변 미리보기 */}
-              {answers.length > 0 && (
-                <div className="mb-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600 line-clamp-1">
-                  <span className="text-green-600 font-medium">Q1:</span> {answers[0].substring(0, 50)}...
+              {questionsAndAnswers.length > 0 && (
+                <div className="mb-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600">
+                  <p className="text-green-600 font-medium mb-0.5 line-clamp-1">Q. {questionsAndAnswers[0].question}</p>
+                  <p className="text-gray-700 line-clamp-1">A. {questionsAndAnswers[0].answer.substring(0, 40)}...</p>
                 </div>
               )}
 
@@ -481,14 +489,17 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
               )}
 
               {/* 캠페인 질문 답변 */}
-              {answers.length > 0 && (
+              {questionsAndAnswers.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">캠페인 질문 답변</h4>
                   <div className="space-y-3">
-                    {answers.map((answer, index) => (
-                      <div key={index} className="p-3 bg-green-50 rounded-lg">
-                        <div className="text-xs font-medium text-green-600 mb-1">Q{index + 1}</div>
-                        <p className="text-sm text-gray-700">{answer}</p>
+                    {questionsAndAnswers.map((qa, index) => (
+                      <div key={index} className="p-3 bg-green-50 rounded-lg border border-green-100">
+                        <div className="text-xs font-semibold text-green-700 mb-2 flex items-center gap-1">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          Q{index + 1}. {qa.question}
+                        </div>
+                        <p className="text-sm text-gray-700 pl-1 border-l-2 border-green-300">{qa.answer}</p>
                       </div>
                     ))}
                   </div>
