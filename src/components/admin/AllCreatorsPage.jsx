@@ -44,39 +44,67 @@ const formatNumber = (num) => {
 // SNS URL 정규화 함수 - @id 또는 id만 있으면 전체 URL로 변환
 const normalizeInstagramUrl = (url) => {
   if (!url) return null
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
   // 이미 전체 URL인 경우
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
   // @ 제거하고 핸들만 추출
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   return `https://www.instagram.com/${handle}`
 }
 
 const normalizeYoutubeUrl = (url) => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   // @로 시작하는 핸들이면 채널 핸들로
-  if (url.startsWith('@')) {
+  if (urlStr.startsWith('@')) {
     return `https://www.youtube.com/@${handle}`
   }
-  // 그 외에는 채널 ID로 처리
-  return `https://www.youtube.com/channel/${handle}`
+  // 그 외에는 채널 핸들로 처리 (@ 추가)
+  return `https://www.youtube.com/@${handle}`
 }
 
 const normalizeTiktokUrl = (url) => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   return `https://www.tiktok.com/@${handle}`
+}
+
+// 크리에이터 데이터 필드 정규화 함수 - 각 지역 DB의 다른 필드명을 통일
+const normalizeCreatorData = (creator, region) => {
+  return {
+    ...creator,
+    // SNS URL 필드 정규화 (다양한 필드명 지원)
+    instagram_url: creator.instagram_url || creator.instagram || creator.instagram_handle || creator.instagram_id || null,
+    youtube_url: creator.youtube_url || creator.youtube || creator.youtube_handle || creator.youtube_channel || creator.youtube_id || null,
+    tiktok_url: creator.tiktok_url || creator.tiktok || creator.tiktok_handle || creator.tiktok_id || null,
+    // 전화번호 필드 정규화
+    phone: creator.phone || creator.phone_number || creator.mobile || creator.contact || null,
+    // 팔로워 수 필드 정규화
+    instagram_followers: creator.instagram_followers || creator.insta_followers || 0,
+    youtube_subscribers: creator.youtube_subscribers || creator.youtube_subs || creator.subscribers || 0,
+    tiktok_followers: creator.tiktok_followers || 0,
+    // 이름 필드 정규화
+    name: creator.name || creator.creator_name || creator.channel_name || creator.full_name || null,
+  }
 }
 
 export default function AllCreatorsPage() {
@@ -179,10 +207,15 @@ export default function AllCreatorsPage() {
           .order('created_at', { ascending: false })
       ])
 
-      const koreaData = koreaResult.status === 'fulfilled' && koreaResult.value?.data ? koreaResult.value.data : []
-      const japanData = japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : []
-      const usData = usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : []
-      const taiwanData = taiwanResult.status === 'fulfilled' && taiwanResult.value?.data ? taiwanResult.value.data : []
+      // 각 지역 데이터 필드 정규화 적용 (다른 DB 스키마 대응)
+      const koreaData = (koreaResult.status === 'fulfilled' && koreaResult.value?.data ? koreaResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'korea'))
+      const japanData = (japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'japan'))
+      const usData = (usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'us'))
+      const taiwanData = (taiwanResult.status === 'fulfilled' && taiwanResult.value?.data ? taiwanResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'taiwan'))
 
       setCreators({ korea: koreaData, japan: japanData, us: usData, taiwan: taiwanData })
       setStats({
