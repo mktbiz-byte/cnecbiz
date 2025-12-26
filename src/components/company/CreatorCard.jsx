@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award } from 'lucide-react'
+import { User, Star, CheckCircle2, XCircle, MessageSquare, Sparkles, Droplets, ExternalLink, Award, Calendar, TrendingUp, Users, Eye, Clock } from 'lucide-react'
 import { checkIfFeaturedCreator, GRADE_LEVELS } from '../../services/creatorGradeService'
 
 // 플랫폼 아이콘 컴포넌트
@@ -29,7 +29,14 @@ const formatFollowers = (num) => {
   if (num >= 10000) {
     return `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만`
   }
-  return num.toLocaleString()
+  return num?.toLocaleString() || '0'
+}
+
+// 날짜 포맷팅
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
 export default function CreatorCard({ application, onVirtualSelect, onConfirm, onCancel, isConfirmed, isAlreadyParticipant, onViewProfile, featuredInfo: propFeaturedInfo }) {
@@ -47,7 +54,14 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
     answer_3,
     answer_4,
     additional_info,
-    user_id
+    user_id,
+    created_at,
+    // 협업 관련 필드들
+    collaboration_count,
+    first_application,
+    participation_rate,
+    review_count,
+    average_rating
   } = application
 
   // 피부타입 한글 변환
@@ -68,6 +82,9 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
 
   // 추천 크리에이터 상태
   const [featuredInfo, setFeaturedInfo] = useState(propFeaturedInfo || null)
+
+  // 프로필 모달 상태
+  const [showProfileModal, setShowProfileModal] = useState(false)
 
   // 추천 크리에이터 확인
   useEffect(() => {
@@ -93,10 +110,12 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
   if (youtube_url) appliedChannels.push({ name: 'youtube', label: 'YouTube', url: youtube_url, followers: application.youtube_subscribers || 0 })
   if (tiktok_url) appliedChannels.push({ name: 'tiktok', label: 'TikTok', url: tiktok_url, followers: application.tiktok_followers || 0 })
 
-  // 평균 별점 (임시로 비활성화 - rating 필드 없음)
-  const averageRating = 0
-  // 추천 크리에이터 여부 - featuredInfo에서 가져옴
+  // 추천 크리에이터 여부
   const isRecommended = featuredInfo?.isRecommended || featuredInfo?.isFeatured
+
+  // 협업 경험 판단
+  const hasCollaborationExperience = collaboration_count && collaboration_count > 0
+  const isFirstApplication = first_application === true || (!collaboration_count && !hasCollaborationExperience)
 
   const handleVirtualSelect = () => {
     if (!selectedChannel && !virtual_selected) {
@@ -142,223 +161,353 @@ export default function CreatorCard({ application, onVirtualSelect, onConfirm, o
     }
   }
 
+  // 메인 채널 찾기 (팔로워 가장 많은 채널)
+  const mainChannel = appliedChannels.reduce((max, channel) =>
+    channel.followers > (max?.followers || 0) ? channel : max
+  , appliedChannels[0])
+
   return (
-    <Card className={`overflow-hidden transition-all duration-200 ${virtual_selected ? 'ring-2 ring-blue-400 shadow-lg' : 'hover:shadow-lg'}`}>
-      <CardContent className="p-0">
-        {/* 프로필 사진 */}
-        <div className="relative w-full aspect-square bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-          {application.profile_photo_url ? (
-            <img
-              src={application.profile_photo_url}
-              alt={applicant_name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <User className="w-20 h-20 text-gray-300" />
-            </div>
-          )}
+    <>
+      {/* 가로형 카드 레이아웃 */}
+      <Card className={`overflow-hidden transition-all duration-200 ${virtual_selected ? 'ring-2 ring-blue-400 shadow-lg bg-blue-50/30' : 'hover:shadow-md hover:border-gray-300'}`}>
+        <CardContent className="p-0">
+          <div className="flex flex-col sm:flex-row">
+            {/* 왼쪽: 프로필 사진 */}
+            <div className="relative w-full sm:w-32 h-32 sm:h-auto aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
+              {application.profile_photo_url ? (
+                <img
+                  src={application.profile_photo_url}
+                  alt={applicant_name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <User className="w-12 h-12 text-gray-300" />
+                </div>
+              )}
 
-          {/* 가상선택 배지 */}
-          {virtual_selected && (
-            <div className="absolute top-2 right-2">
-              <Badge className="bg-blue-500 text-white shadow-lg">
-                <CheckCircle2 className="w-3 h-3 mr-1" />
-                가상선택
-              </Badge>
-            </div>
-          )}
+              {/* 가상선택 배지 */}
+              {virtual_selected && (
+                <div className="absolute top-2 left-2">
+                  <Badge className="bg-blue-500 text-white shadow-lg text-xs">
+                    <CheckCircle2 className="w-3 h-3 mr-0.5" />
+                    선택
+                  </Badge>
+                </div>
+              )}
 
-          {/* 크넥 추천 배지 */}
-          {isRecommended && featuredInfo && (
-            <div className="absolute top-2 left-2">
-              <Badge
-                className="text-white shadow-lg flex items-center gap-1"
-                style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#F59E0B' }}
-              >
-                <Award className="w-3 h-3" />
-                <span className="font-bold">크넥 추천</span>
-                {featuredInfo.gradeName && (
-                  <span className="text-[10px] opacity-90 ml-0.5">
-                    {featuredInfo.gradeName}
-                  </span>
-                )}
-              </Badge>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4">
-          {/* 기본 정보 */}
-          <div className="mb-3">
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-lg font-bold text-gray-900">{applicant_name}</h3>
-              <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{age}세</span>
+              {/* 크넥 추천 배지 */}
+              {isRecommended && featuredInfo && (
+                <div className="absolute bottom-2 left-2">
+                  <Badge
+                    className="text-white shadow-lg flex items-center gap-0.5 text-xs"
+                    style={{ backgroundColor: featuredInfo.gradeInfo?.color || '#F59E0B' }}
+                  >
+                    <Award className="w-3 h-3" />
+                    추천
+                  </Badge>
+                </div>
+              )}
             </div>
 
-            {/* 채널별 팔로워 + 선택 + 링크 통합 */}
-            <div className="space-y-1.5">
-              {appliedChannels.map(channel => {
-                const style = getChannelStyle(channel.name)
-                const isSelected = selectedChannel === channel.name
-                return (
-                  <div key={channel.name} className="flex items-center gap-2">
-                    {/* 라디오 선택 */}
-                    <label
-                      className={`flex items-center gap-2 flex-1 p-2 rounded-lg cursor-pointer transition-all border ${
+            {/* 오른쪽: 정보 영역 */}
+            <div className="flex-1 p-4">
+              {/* 상단: 이름, 나이, 배지들 */}
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-lg font-bold text-gray-900">{applicant_name}</h3>
+                  <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{age}세</span>
+
+                  {/* 협업 경험 배지 */}
+                  {hasCollaborationExperience ? (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      <TrendingUp className="w-3 h-3 mr-0.5" />
+                      협업 {collaboration_count}회
+                    </Badge>
+                  ) : isFirstApplication && (
+                    <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                      <Sparkles className="w-3 h-3 mr-0.5" />
+                      첫 지원
+                    </Badge>
+                  )}
+
+                  {/* 피부타입 */}
+                  {skinTypeKorean && (
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-600 border-blue-200">
+                      <Droplets className="w-3 h-3 mr-0.5" />
+                      {skinTypeKorean}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* 지원일 */}
+                <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <Calendar className="w-3 h-3" />
+                  {formatDate(created_at)} 지원
+                </div>
+              </div>
+
+              {/* SNS 채널 정보 */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {appliedChannels.map(channel => {
+                  const style = getChannelStyle(channel.name)
+                  const isSelected = selectedChannel === channel.name
+                  return (
+                    <button
+                      key={channel.name}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedChannel(channel.name)
+                      }}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-all border ${
                         isSelected
-                          ? `${style.light} border-2`
-                          : 'bg-white border-gray-100 hover:bg-gray-50'
+                          ? `${style.light} border-2 font-semibold`
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
                       }`}
                     >
-                      <input
-                        type="radio"
-                        name={`channel-${application.id}`}
-                        value={channel.name}
-                        checked={isSelected}
-                        onChange={(e) => setSelectedChannel(e.target.value)}
-                        className="sr-only"
-                      />
-                      <div className={`w-6 h-6 rounded-full ${isSelected ? style.bg : 'bg-gray-200'} flex items-center justify-center flex-shrink-0`}>
-                        <ChannelIcon name={channel.name} className={`w-3.5 h-3.5 ${isSelected ? style.text : 'text-gray-400'}`} />
+                      <div className={`w-5 h-5 rounded-full ${isSelected ? style.bg : 'bg-gray-200'} flex items-center justify-center flex-shrink-0`}>
+                        <ChannelIcon name={channel.name} className={`w-3 h-3 ${isSelected ? style.text : 'text-gray-400'}`} />
                       </div>
-                      <span className={`text-sm ${isSelected ? 'font-semibold' : 'text-gray-700'}`}>{channel.label}</span>
-                      <span className={`text-sm ${isSelected ? 'font-bold' : 'font-medium text-gray-500'}`}>{formatFollowers(channel.followers)}명</span>
-                      {isSelected && (
-                        <CheckCircle2 className="w-4 h-4 text-green-500 ml-auto" />
-                      )}
-                    </label>
-                    {/* SNS 링크 버튼 */}
-                    <button
-                      onClick={() => window.open(channel.url, '_blank')}
-                      className={`p-2 rounded-lg ${style.light} hover:opacity-80 transition-opacity`}
-                      title={`${channel.label} 프로필 보기`}
-                    >
-                      <ExternalLink className="w-4 h-4" />
+                      <span className="font-medium">{formatFollowers(channel.followers)}</span>
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          window.open(channel.url, '_blank')
+                        }}
+                        className="ml-1 p-0.5 hover:bg-white/50 rounded"
+                      >
+                        <ExternalLink className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                      </button>
                     </button>
+                  )
+                })}
+              </div>
+
+              {/* 참여율/후기/별점 */}
+              <div className="flex flex-wrap items-center gap-3 mb-3 text-sm text-gray-600">
+                {participation_rate !== undefined && participation_rate !== null && (
+                  <div className="flex items-center gap-1">
+                    <Users className="w-4 h-4 text-indigo-500" />
+                    <span>참여율</span>
+                    <span className="font-semibold text-indigo-600">{participation_rate}%</span>
                   </div>
-                )
-              })}
-            </div>
-
-            {/* 피부타입 */}
-            {skinTypeKorean && (
-              <div className="flex items-center gap-2 mt-3 text-sm text-gray-600">
-                <Droplets className="w-4 h-4 text-blue-400" />
-                <span>피부타입:</span>
-                <span className="font-medium">{skinTypeKorean}</span>
+                )}
+                {(review_count !== undefined && review_count > 0) && (
+                  <div className="flex items-center gap-1">
+                    <MessageSquare className="w-4 h-4 text-green-500" />
+                    <span>후기</span>
+                    <span className="font-semibold text-green-600">{review_count}개</span>
+                  </div>
+                )}
+                {(average_rating !== undefined && average_rating > 0) && (
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                    <span className="font-semibold text-yellow-600">{average_rating.toFixed(1)}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* 질문 답변 */}
-          {answers.length > 0 && (
-            <div className="mb-2 p-3 bg-green-50 rounded-lg relative cursor-pointer group border border-green-100">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-green-700 mb-1">
-                <MessageSquare className="w-3.5 h-3.5" />
-                캠페인 질문 답변
-              </label>
-              <p className="text-xs text-gray-700 line-clamp-1">
-                {answers[0].substring(0, 40)}...
-              </p>
-              <span className="text-[10px] text-green-600 mt-1 block">마우스를 올려 전체 보기</span>
+              {/* 질문 답변 미리보기 */}
+              {answers.length > 0 && (
+                <div className="mb-3 p-2 bg-gray-50 rounded-lg text-xs text-gray-600 line-clamp-1">
+                  <span className="text-green-600 font-medium">Q1:</span> {answers[0].substring(0, 50)}...
+                </div>
+              )}
 
-              {/* 팝업 모달 */}
-              <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-sm p-4 bg-white border-2 border-green-400 rounded-xl shadow-2xl">
-                <label className="flex items-center gap-1.5 text-sm font-semibold text-green-700 mb-3">
-                  <MessageSquare className="w-4 h-4" />
-                  캠페인 질문 답변
-                </label>
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {answers.map((answer, index) => (
-                    <div key={index} className="text-sm pb-3 border-b border-gray-100 last:border-0">
-                      <span className="inline-block bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded mb-1">
-                        Q{index + 1}
-                      </span>
-                      <p className="text-gray-700 whitespace-pre-wrap">{answer}</p>
+              {/* 액션 버튼들 */}
+              <div className="flex items-center gap-2">
+                {isAlreadyParticipant || isConfirmed ? (
+                  <>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg font-medium text-sm">
+                      <CheckCircle2 className="w-4 h-4" />
+                      선정 완료
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+                    <Button
+                      onClick={() => onCancel && onCancel(application)}
+                      size="sm"
+                      variant="outline"
+                      className="border-red-200 text-red-600 hover:bg-red-50 h-8 text-sm"
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-1" />
+                      취소
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleVirtualSelect}
+                      variant="outline"
+                      size="sm"
+                      className={`h-8 text-sm ${virtual_selected ? 'border-blue-300 text-blue-600 bg-blue-50' : ''}`}
+                    >
+                      {virtual_selected ? (
+                        <>
+                          <XCircle className="w-3.5 h-3.5 mr-1" />
+                          선택 취소
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                          가상선택
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleConfirm}
+                      size="sm"
+                      className="h-8 text-sm bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 mr-1" />
+                      확정
+                    </Button>
+                  </>
+                )}
 
-          {/* 지원자 한마디 */}
-          {additional_info && (
-            <div className="mb-3 p-3 bg-amber-50 rounded-lg relative cursor-pointer group border border-amber-100">
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 mb-1">
-                <Star className="w-3.5 h-3.5" />
-                지원자 한마디
-              </label>
-              <p className="text-xs text-gray-700 line-clamp-1">
-                {additional_info.substring(0, 40)}...
-              </p>
-              <span className="text-[10px] text-amber-600 mt-1 block">마우스를 올려 전체 보기</span>
-
-              {/* 팝업 모달 */}
-              <div className="hidden group-hover:block absolute left-0 top-0 z-50 w-full max-w-sm p-4 bg-white border-2 border-amber-400 rounded-xl shadow-2xl">
-                <label className="flex items-center gap-1.5 text-sm font-semibold text-amber-700 mb-3">
-                  <Star className="w-4 h-4" />
-                  지원자 한마디
-                </label>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap max-h-80 overflow-y-auto">
-                  {additional_info}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* 액션 버튼 */}
-          <div className="space-y-2">
-            {isAlreadyParticipant || isConfirmed ? (
-              <>
-                <div className="flex items-center justify-center gap-2 h-10 bg-green-100 text-green-700 rounded-lg font-semibold">
-                  <CheckCircle2 className="w-5 h-5" />
-                  선정 완료
-                </div>
+                {/* 프로필 보기 버튼 */}
                 <Button
-                  onClick={() => onCancel && onCancel(application)}
+                  onClick={() => setShowProfileModal(true)}
+                  variant="ghost"
                   size="sm"
-                  variant="outline"
-                  className="w-full border-red-200 text-red-600 hover:bg-red-50 h-9"
+                  className="h-8 text-sm text-gray-600 hover:text-gray-900 ml-auto"
                 >
-                  <XCircle className="w-4 h-4 mr-1" />
-                  선정 취소
+                  <Eye className="w-3.5 h-3.5 mr-1" />
+                  프로필 보기
                 </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  onClick={handleVirtualSelect}
-                  variant="outline"
-                  size="sm"
-                  className={`w-full h-9 ${virtual_selected ? 'border-blue-300 text-blue-600 bg-blue-50' : ''}`}
-                >
-                  {virtual_selected ? (
-                    <>
-                      <XCircle className="w-4 h-4 mr-1" />
-                      가상선택 취소
-                    </>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 프로필 모달 (개인정보 제외) */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowProfileModal(false)}>
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">크리에이터 프로필</h2>
+              <button onClick={() => setShowProfileModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <XCircle className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="p-6">
+              {/* 프로필 정보 */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-20 h-20 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                  {application.profile_photo_url ? (
+                    <img src={application.profile_photo_url} alt={applicant_name} className="w-full h-full object-cover" />
                   ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 mr-1" />
-                      가상선택
-                    </>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-10 h-10 text-gray-300" />
+                    </div>
                   )}
-                </Button>
-                <Button
-                  onClick={handleConfirm}
-                  size="sm"
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white h-10 font-semibold shadow-md"
-                >
-                  <Sparkles className="w-4 h-4 mr-1" />
-                  크리에이터 확정
-                </Button>
-              </>
-            )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">{applicant_name}</h3>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-sm text-gray-500">{age}세</span>
+                    {skinTypeKorean && (
+                      <Badge variant="outline" className="text-xs">{skinTypeKorean}</Badge>
+                    )}
+                    {hasCollaborationExperience && (
+                      <Badge className="text-xs bg-green-100 text-green-700">협업 {collaboration_count}회</Badge>
+                    )}
+                    {isFirstApplication && (
+                      <Badge className="text-xs bg-amber-100 text-amber-700">첫 지원</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* SNS 채널 */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">SNS 채널</h4>
+                <div className="space-y-2">
+                  {appliedChannels.map(channel => {
+                    const style = getChannelStyle(channel.name)
+                    return (
+                      <a
+                        key={channel.name}
+                        href={channel.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className={`w-10 h-10 rounded-full ${style.bg} flex items-center justify-center`}>
+                          <ChannelIcon name={channel.name} className={`w-5 h-5 ${style.text}`} />
+                        </div>
+                        <div className="flex-1">
+                          <span className="font-medium text-gray-900">{channel.label}</span>
+                          <div className="text-sm text-gray-500">{formatFollowers(channel.followers)}명 팔로워</div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-400" />
+                      </a>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 활동 통계 */}
+              {(participation_rate || review_count || average_rating) && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">활동 통계</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {participation_rate !== undefined && (
+                      <div className="text-center p-3 bg-indigo-50 rounded-lg">
+                        <div className="text-lg font-bold text-indigo-600">{participation_rate}%</div>
+                        <div className="text-xs text-gray-500">참여율</div>
+                      </div>
+                    )}
+                    {review_count !== undefined && review_count > 0 && (
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">{review_count}개</div>
+                        <div className="text-xs text-gray-500">후기</div>
+                      </div>
+                    )}
+                    {average_rating !== undefined && average_rating > 0 && (
+                      <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                        <div className="flex items-center justify-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <span className="text-lg font-bold text-yellow-600">{average_rating.toFixed(1)}</span>
+                        </div>
+                        <div className="text-xs text-gray-500">별점</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 캠페인 질문 답변 */}
+              {answers.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">캠페인 질문 답변</h4>
+                  <div className="space-y-3">
+                    {answers.map((answer, index) => (
+                      <div key={index} className="p-3 bg-green-50 rounded-lg">
+                        <div className="text-xs font-medium text-green-600 mb-1">Q{index + 1}</div>
+                        <p className="text-sm text-gray-700">{answer}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 지원자 한마디 */}
+              {additional_info && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">지원자 한마디</h4>
+                  <div className="p-3 bg-amber-50 rounded-lg">
+                    <p className="text-sm text-gray-700">{additional_info}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </>
   )
 }
