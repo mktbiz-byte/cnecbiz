@@ -44,39 +44,69 @@ const formatNumber = (num) => {
 // SNS URL 정규화 함수 - @id 또는 id만 있으면 전체 URL로 변환
 const normalizeInstagramUrl = (url) => {
   if (!url) return null
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
   // 이미 전체 URL인 경우
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
   // @ 제거하고 핸들만 추출
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   return `https://www.instagram.com/${handle}`
 }
 
 const normalizeYoutubeUrl = (url) => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   // @로 시작하는 핸들이면 채널 핸들로
-  if (url.startsWith('@')) {
+  if (urlStr.startsWith('@')) {
     return `https://www.youtube.com/@${handle}`
   }
-  // 그 외에는 채널 ID로 처리
-  return `https://www.youtube.com/channel/${handle}`
+  // 그 외에는 채널 핸들로 처리 (@ 추가)
+  return `https://www.youtube.com/@${handle}`
 }
 
 const normalizeTiktokUrl = (url) => {
   if (!url) return null
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
+    return urlStr
   }
-  const handle = url.replace(/^@/, '').trim()
+  const handle = urlStr.replace(/^@/, '').trim()
   if (!handle) return null
   return `https://www.tiktok.com/@${handle}`
+}
+
+// 크리에이터 데이터 필드 정규화 함수 - 각 지역 DB의 다른 필드명을 통일
+const normalizeCreatorData = (creator, region) => {
+  return {
+    ...creator,
+    // SNS URL 필드 정규화 (다양한 필드명 지원)
+    instagram_url: creator.instagram_url || creator.instagram || creator.instagram_handle || creator.instagram_id || null,
+    youtube_url: creator.youtube_url || creator.youtube || creator.youtube_handle || creator.youtube_channel || creator.youtube_id || null,
+    tiktok_url: creator.tiktok_url || creator.tiktok || creator.tiktok_handle || creator.tiktok_id || null,
+    // 전화번호 필드 정규화
+    phone: creator.phone || creator.phone_number || creator.mobile || creator.contact || null,
+    // 팔로워 수 필드 정규화
+    instagram_followers: creator.instagram_followers || creator.insta_followers || 0,
+    youtube_subscribers: creator.youtube_subscribers || creator.youtube_subs || creator.subscribers || 0,
+    tiktok_followers: creator.tiktok_followers || 0,
+    // 이름 필드 정규화
+    name: creator.name || creator.creator_name || creator.channel_name || creator.full_name || null,
+    // 프로필 이미지 필드 정규화
+    profile_image: creator.profile_image || creator.profile_image_url || creator.avatar || creator.avatar_url || creator.photo || null,
+  }
 }
 
 export default function AllCreatorsPage() {
@@ -179,10 +209,75 @@ export default function AllCreatorsPage() {
           .order('created_at', { ascending: false })
       ])
 
-      const koreaData = koreaResult.status === 'fulfilled' && koreaResult.value?.data ? koreaResult.value.data : []
-      const japanData = japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : []
-      const usData = usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : []
-      const taiwanData = taiwanResult.status === 'fulfilled' && taiwanResult.value?.data ? taiwanResult.value.data : []
+      // 각 지역 데이터 필드 정규화 적용 (다른 DB 스키마 대응)
+      const koreaData = (koreaResult.status === 'fulfilled' && koreaResult.value?.data ? koreaResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'korea'))
+      let japanData = (japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'japan'))
+      let usData = (usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'us'))
+      const taiwanData = (taiwanResult.status === 'fulfilled' && taiwanResult.value?.data ? taiwanResult.value.data : [])
+        .map(c => normalizeCreatorData(c, 'taiwan'))
+
+      // 미국/일본 크리에이터의 경우 applications 테이블에서 SNS 정보 보완
+      try {
+        const [japanAppsResult, usAppsResult] = await Promise.allSettled([
+          supabaseJapan?.from('applications')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone, phone_number')
+            .order('created_at', { ascending: false }),
+          supabaseUS?.from('applications')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone_number')
+            .order('created_at', { ascending: false })
+        ])
+
+        // 일본 크리에이터 SNS 정보 보완
+        if (japanAppsResult.status === 'fulfilled' && japanAppsResult.value?.data) {
+          const japanAppsMap = new Map()
+          japanAppsResult.value.data.forEach(app => {
+            if (app.user_id && !japanAppsMap.has(app.user_id)) {
+              japanAppsMap.set(app.user_id, app)
+            }
+          })
+          japanData = japanData.map(creator => {
+            const appData = japanAppsMap.get(creator.user_id || creator.id)
+            if (appData) {
+              return {
+                ...creator,
+                instagram_url: creator.instagram_url || appData.instagram_url || null,
+                youtube_url: creator.youtube_url || appData.youtube_url || null,
+                tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
+                phone: creator.phone || appData.phone || appData.phone_number || null
+              }
+            }
+            return creator
+          })
+        }
+
+        // 미국 크리에이터 SNS 정보 보완
+        if (usAppsResult.status === 'fulfilled' && usAppsResult.value?.data) {
+          const usAppsMap = new Map()
+          usAppsResult.value.data.forEach(app => {
+            if (app.user_id && !usAppsMap.has(app.user_id)) {
+              usAppsMap.set(app.user_id, app)
+            }
+          })
+          usData = usData.map(creator => {
+            const appData = usAppsMap.get(creator.user_id || creator.id)
+            if (appData) {
+              return {
+                ...creator,
+                instagram_url: creator.instagram_url || appData.instagram_url || null,
+                youtube_url: creator.youtube_url || appData.youtube_url || null,
+                tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
+                phone: creator.phone || appData.phone_number || null
+              }
+            }
+            return creator
+          })
+        }
+      } catch (appError) {
+        console.error('applications 테이블 조회 오류:', appError)
+      }
 
       setCreators({ korea: koreaData, japan: japanData, us: usData, taiwan: taiwanData })
       setStats({
@@ -790,9 +885,27 @@ export default function AllCreatorsPage() {
                     />
                   </td>
                   <td className="p-1.5">
-                    <span className="text-indigo-600 hover:underline font-medium">
-                      {creator.name || '-'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* 프로필 이미지 */}
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                        {creator.profile_image ? (
+                          <img
+                            src={creator.profile_image}
+                            alt={creator.name || ''}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.parentElement.innerHTML = '<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>'
+                            }}
+                          />
+                        ) : (
+                          <User className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                      <span className="text-indigo-600 hover:underline font-medium">
+                        {creator.name || '-'}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-1.5">
                     <GradeBadge creatorId={creator.id} />

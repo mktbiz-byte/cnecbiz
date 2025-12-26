@@ -304,7 +304,9 @@ exports.handler = async (event) => {
     const { error: updateError } = await supabaseAdmin
       .from('points_charge_requests')
       .update({
+
         // status는 DB constraint로 인해 변경하지 않음
+
         tax_invoice_issued: true,
         tax_invoice_info: updatedTaxInvoiceInfo
       })
