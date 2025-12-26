@@ -109,6 +109,7 @@ exports.handler = async (event) => {
     const { error: updateError } = await supabaseAdmin
       .from('points_charge_requests')
       .update({
+        status: 'pending',  // 재발행을 위해 상태도 pending으로 변경
         tax_invoice_issued: false,
         tax_invoice_info: updatedTaxInvoiceInfo
       })

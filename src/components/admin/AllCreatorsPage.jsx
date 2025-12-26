@@ -212,12 +212,72 @@ export default function AllCreatorsPage() {
       // 각 지역 데이터 필드 정규화 적용 (다른 DB 스키마 대응)
       const koreaData = (koreaResult.status === 'fulfilled' && koreaResult.value?.data ? koreaResult.value.data : [])
         .map(c => normalizeCreatorData(c, 'korea'))
-      const japanData = (japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : [])
+      let japanData = (japanResult.status === 'fulfilled' && japanResult.value?.data ? japanResult.value.data : [])
         .map(c => normalizeCreatorData(c, 'japan'))
-      const usData = (usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : [])
+      let usData = (usResult.status === 'fulfilled' && usResult.value?.data ? usResult.value.data : [])
         .map(c => normalizeCreatorData(c, 'us'))
       const taiwanData = (taiwanResult.status === 'fulfilled' && taiwanResult.value?.data ? taiwanResult.value.data : [])
         .map(c => normalizeCreatorData(c, 'taiwan'))
+
+      // 미국/일본 크리에이터의 경우 applications 테이블에서 SNS 정보 보완
+      try {
+        const [japanAppsResult, usAppsResult] = await Promise.allSettled([
+          supabaseJapan?.from('applications')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone')
+            .order('created_at', { ascending: false }),
+          supabaseUS?.from('applications')
+            .select('user_id, instagram_url, youtube_url, tiktok_url, phone')
+            .order('created_at', { ascending: false })
+        ])
+
+        // 일본 크리에이터 SNS 정보 보완
+        if (japanAppsResult.status === 'fulfilled' && japanAppsResult.value?.data) {
+          const japanAppsMap = new Map()
+          japanAppsResult.value.data.forEach(app => {
+            if (app.user_id && !japanAppsMap.has(app.user_id)) {
+              japanAppsMap.set(app.user_id, app)
+            }
+          })
+          japanData = japanData.map(creator => {
+            const appData = japanAppsMap.get(creator.user_id || creator.id)
+            if (appData) {
+              return {
+                ...creator,
+                instagram_url: creator.instagram_url || appData.instagram_url || null,
+                youtube_url: creator.youtube_url || appData.youtube_url || null,
+                tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
+                phone: creator.phone || appData.phone || null
+              }
+            }
+            return creator
+          })
+        }
+
+        // 미국 크리에이터 SNS 정보 보완
+        if (usAppsResult.status === 'fulfilled' && usAppsResult.value?.data) {
+          const usAppsMap = new Map()
+          usAppsResult.value.data.forEach(app => {
+            if (app.user_id && !usAppsMap.has(app.user_id)) {
+              usAppsMap.set(app.user_id, app)
+            }
+          })
+          usData = usData.map(creator => {
+            const appData = usAppsMap.get(creator.user_id || creator.id)
+            if (appData) {
+              return {
+                ...creator,
+                instagram_url: creator.instagram_url || appData.instagram_url || null,
+                youtube_url: creator.youtube_url || appData.youtube_url || null,
+                tiktok_url: creator.tiktok_url || appData.tiktok_url || null,
+                phone: creator.phone || appData.phone || null
+              }
+            }
+            return creator
+          })
+        }
+      } catch (appError) {
+        console.error('applications 테이블 조회 오류:', appError)
+      }
 
       setCreators({ korea: koreaData, japan: japanData, us: usData, taiwan: taiwanData })
       setStats({

@@ -296,6 +296,7 @@ exports.handler = async (event) => {
     const { error: updateError } = await supabaseAdmin
       .from('points_charge_requests')
       .update({
+        status: 'issued',  // 발행 완료 상태로 변경
         tax_invoice_issued: true,
         tax_invoice_info: updatedTaxInvoiceInfo
       })

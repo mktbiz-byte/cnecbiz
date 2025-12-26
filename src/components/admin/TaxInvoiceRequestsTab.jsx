@@ -495,7 +495,7 @@ const TaxInvoiceRequestsTab = () => {
                   {isIssuing ? '발행 중...' : '발행하기 (팝빌)'}
                 </button>
               )}
-              {selectedRequest.tax_invoice_issued && (
+              {selectedRequest.status === 'issued' && (
                 <button
                   onClick={() => handleIssueInvoice(true)}
                   disabled={isIssuing}
