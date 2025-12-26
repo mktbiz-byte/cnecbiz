@@ -5019,6 +5019,49 @@ export default function CampaignDetail() {
                   )}
                 </div>
               </div>
+
+              {/* 지원서 답변 */}
+              {(selectedParticipant.answer_1 || selectedParticipant.answer_2 || selectedParticipant.answer_3 || selectedParticipant.answer_4) && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">지원서 답변</h3>
+                  <div className="space-y-3">
+                    {selectedParticipant.answer_1 && (
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-500 mb-1">질문 1</div>
+                        <div className="text-gray-800">{selectedParticipant.answer_1}</div>
+                      </div>
+                    )}
+                    {selectedParticipant.answer_2 && (
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-500 mb-1">질문 2</div>
+                        <div className="text-gray-800">{selectedParticipant.answer_2}</div>
+                      </div>
+                    )}
+                    {selectedParticipant.answer_3 && (
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-500 mb-1">질문 3</div>
+                        <div className="text-gray-800">{selectedParticipant.answer_3}</div>
+                      </div>
+                    )}
+                    {selectedParticipant.answer_4 && (
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-gray-500 mb-1">질문 4</div>
+                        <div className="text-gray-800">{selectedParticipant.answer_4}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 지원자 한마디 */}
+              {selectedParticipant.additional_info && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">지원자 한마디</h3>
+                  <div className="p-4 bg-blue-50 rounded-lg text-gray-800 whitespace-pre-wrap">
+                    {selectedParticipant.additional_info}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
