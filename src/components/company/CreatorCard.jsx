@@ -265,25 +265,41 @@ export default function CreatorCard({ application, campaignQuestions = [], onVir
                     const style = getChannelStyle(channel.name)
                     const isSelected = selectedChannel === channel.name
 
-                    // URL 유효성 검사 및 정규화
-                    const isValidUrl = channel.url && (
-                      channel.url.startsWith('http://') ||
-                      channel.url.startsWith('https://') ||
-                      channel.url.includes('instagram.com') ||
-                      channel.url.includes('youtube.com') ||
-                      channel.url.includes('tiktok.com')
-                    )
+                    // URL 정규화 함수
+                    const getNormalizedUrl = (url, platformName) => {
+                      if (!url) return '#'
 
-                    // URL 정규화 (http 없으면 추가)
-                    const normalizedUrl = channel.url?.startsWith('http')
-                      ? channel.url
-                      : channel.url?.includes('.com') || channel.url?.includes('.')
-                        ? `https://${channel.url}`
-                        : channel.name === 'instagram'
-                          ? `https://instagram.com/${channel.url}`
-                          : channel.name === 'youtube'
-                            ? `https://youtube.com/@${channel.url}`
-                            : `https://tiktok.com/@${channel.url}`
+                      const trimmedUrl = url.trim()
+
+                      // 이미 완전한 URL인 경우
+                      if (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://')) {
+                        return trimmedUrl
+                      }
+
+                      // 도메인이 포함된 경우 (instagram.com, youtube.com 등)
+                      if (trimmedUrl.includes('instagram.com') ||
+                          trimmedUrl.includes('youtube.com') ||
+                          trimmedUrl.includes('youtu.be') ||
+                          trimmedUrl.includes('tiktok.com')) {
+                        return `https://${trimmedUrl}`
+                      }
+
+                      // @ 제거 (사용자가 @username 형태로 입력한 경우)
+                      const cleanUsername = trimmedUrl.startsWith('@') ? trimmedUrl.slice(1) : trimmedUrl
+
+                      // 사용자명만 입력된 경우 - 플랫폼별 URL 생성
+                      if (platformName === 'instagram') {
+                        return `https://www.instagram.com/${cleanUsername}`
+                      } else if (platformName === 'youtube') {
+                        return `https://www.youtube.com/@${cleanUsername}`
+                      } else if (platformName === 'tiktok') {
+                        return `https://www.tiktok.com/@${cleanUsername}`
+                      }
+
+                      return `https://${trimmedUrl}`
+                    }
+
+                    const normalizedUrl = getNormalizedUrl(channel.url, channel.name)
 
                     return (
                       <div key={channel.name} className="flex items-center gap-1">
