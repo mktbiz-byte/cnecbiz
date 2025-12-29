@@ -147,16 +147,32 @@ export default function WithdrawalManagement() {
           if (!ptError && ptData && ptData.length > 0) {
             console.log('Korea DB (point_transactions)에서 출금 데이터 조회:', ptData.length, '건')
 
-            // 이미 withdrawals에서 조회된 ID 목록
-            const existingWithdrawalIds = new Set(allWithdrawals.map(w => w.id))
+            // 이미 withdrawals에서 조회된 것과 중복 체크 (user_id + amount + 날짜로 비교)
+            const existingWithdrawals = allWithdrawals.map(w => ({
+              user_id: w.user_id,
+              amount: Math.abs(w.amount || w.requested_amount || 0),
+              date: w.created_at ? new Date(w.created_at).toDateString() : ''
+            }))
 
-            // point_transactions에서 withdrawals에 없는 출금 신청 추가
+            // point_transactions에서 withdrawals에 없는 출금 신청만 추가
             const ptWithdrawals = ptData
-              .filter(pt => !pt.related_withdrawal_id || !existingWithdrawalIds.has(pt.related_withdrawal_id))
+              .filter(pt => {
+                // related_withdrawal_id가 있으면 이미 처리된 것
+                if (pt.related_withdrawal_id) return false
+
+                // user_id + amount + 날짜가 같은 withdrawal이 있으면 중복
+                const ptAmount = Math.abs(pt.amount)
+                const ptDate = pt.created_at ? new Date(pt.created_at).toDateString() : ''
+                const isDuplicate = existingWithdrawals.some(w =>
+                  w.user_id === pt.user_id &&
+                  w.amount === ptAmount &&
+                  w.date === ptDate
+                )
+                return !isDuplicate
+              })
               .map(pt => {
                 // description에서 정보 파싱: [출금신청] 10,000원 | 우리은행 1002941050782 (이지훈)
                 const desc = pt.description || ''
-                const amountMatch = desc.match(/(\d{1,3}(,\d{3})*)\s*원/)
                 const bankMatch = desc.match(/\|\s*([^\d]+)\s+(\d+)\s*\(([^)]+)\)/)
 
                 return {
