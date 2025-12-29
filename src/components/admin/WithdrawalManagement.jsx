@@ -10,7 +10,7 @@ import {
   Wallet, CheckCircle, XCircle, Clock, TrendingUp,
   Search, Filter, ChevronUp, ChevronDown, DollarSign, Download, FileText, AlertCircle
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { maskResidentNumber, decryptResidentNumber } from '../../lib/encryptionHelper'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
@@ -78,24 +78,84 @@ export default function WithdrawalManagement() {
   const fetchWithdrawals = async () => {
     setLoading(true)
     try {
-      // 먼저 출금 신청 데이터를 조회
-      const { data, error } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .select('*')
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: true })
+      let allWithdrawals = []
 
-      if (error) throw error
+      // 1. Korea DB에서 출금 신청 조회 (creator_withdrawal_requests 또는 withdrawal_requests)
+      if (supabaseKorea) {
+        try {
+          // creator_withdrawal_requests 테이블 시도
+          const { data: koreaData, error: koreaError } = await supabaseKorea
+            .from('creator_withdrawal_requests')
+            .select('*')
+            .order('created_at', { ascending: false })
 
-      // 크리에이터 정보가 없는 경우 featured_creators에서 조회
+          if (!koreaError && koreaData && koreaData.length > 0) {
+            console.log('Korea DB (creator_withdrawal_requests)에서 데이터 조회:', koreaData.length, '건')
+            const koreaWithdrawals = koreaData.map(w => ({
+              ...w,
+              region: w.region || 'korea',
+              source_db: 'korea'
+            }))
+            allWithdrawals = [...allWithdrawals, ...koreaWithdrawals]
+          } else {
+            // withdrawal_requests 테이블 시도
+            const { data: withdrawalData, error: withdrawalError } = await supabaseKorea
+              .from('withdrawal_requests')
+              .select(`
+                *,
+                user_profiles!withdrawal_requests_user_id_fkey(name, email, channel_name)
+              `)
+              .order('created_at', { ascending: false })
+
+            if (!withdrawalError && withdrawalData && withdrawalData.length > 0) {
+              console.log('Korea DB (withdrawal_requests)에서 데이터 조회:', withdrawalData.length, '건')
+              const koreaWithdrawals = withdrawalData.map(w => ({
+                ...w,
+                creator_name: w.user_profiles?.channel_name || w.user_profiles?.name || w.paypal_name || 'Unknown',
+                region: 'korea',
+                requested_points: w.amount,
+                requested_amount: w.amount,
+                final_amount: w.amount,
+                currency: 'KRW',
+                source_db: 'korea'
+              }))
+              allWithdrawals = [...allWithdrawals, ...koreaWithdrawals]
+            }
+          }
+        } catch (koreaError) {
+          console.error('Korea DB 조회 오류:', koreaError)
+        }
+      }
+
+      // 2. BIZ DB에서도 출금 신청 조회 (통합 DB)
+      try {
+        const { data: bizData, error: bizError } = await supabaseBiz
+          .from('creator_withdrawal_requests')
+          .select('*')
+          .order('priority', { ascending: false })
+          .order('created_at', { ascending: true })
+
+        if (!bizError && bizData && bizData.length > 0) {
+          console.log('BIZ DB에서 데이터 조회:', bizData.length, '건')
+          const bizWithdrawals = bizData.map(w => ({
+            ...w,
+            source_db: 'biz'
+          }))
+          allWithdrawals = [...allWithdrawals, ...bizWithdrawals]
+        }
+      } catch (bizError) {
+        console.error('BIZ DB 조회 오류:', bizError)
+      }
+
+      console.log('총 출금 신청 건수:', allWithdrawals.length)
+
+      // 3. 크리에이터 정보가 없는 경우 featured_creators에서 조회
       const withdrawalsWithCreators = await Promise.all(
-        (data || []).map(async (w) => {
-          // creator_name이 있으면 그대로 사용
+        allWithdrawals.map(async (w) => {
           if (w.creator_name) {
             return w
           }
 
-          // 없으면 featured_creators에서 조회
           if (w.creator_id) {
             const { data: creatorData } = await supabaseBiz
               .from('featured_creators')
@@ -115,7 +175,16 @@ export default function WithdrawalManagement() {
         })
       )
 
-      setWithdrawals(withdrawalsWithCreators)
+      // 중복 제거 (id 기준)
+      const uniqueWithdrawals = withdrawalsWithCreators.reduce((acc, curr) => {
+        const existing = acc.find(w => w.id === curr.id)
+        if (!existing) {
+          acc.push(curr)
+        }
+        return acc
+      }, [])
+
+      setWithdrawals(uniqueWithdrawals)
     } catch (error) {
       console.error('출금 신청 조회 오류:', error)
     } finally {
