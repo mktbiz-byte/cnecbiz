@@ -28,8 +28,8 @@ const getSupabaseClient = (region) => {
       break
     case 'biz':
     default:
-      url = process.env.VITE_SUPABASE_BIZ_URL || process.env.SUPABASE_BIZ_URL
-      key = process.env.SUPABASE_BIZ_SERVICE_ROLE_KEY
+      url = process.env.VITE_SUPABASE_BIZ_URL || process.env.SUPABASE_URL
+      key = process.env.SUPABASE_SERVICE_ROLE_KEY
       break
   }
 
@@ -66,6 +66,18 @@ exports.handler = async (event) => {
   try {
     const { campaignsByRegion } = JSON.parse(event.body || '{}')
 
+    // 환경 변수 확인 로그
+    console.log('Environment check:', {
+      hasKoreaUrl: !!process.env.VITE_SUPABASE_KOREA_URL,
+      hasKoreaKey: !!process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY,
+      hasUsUrl: !!process.env.VITE_SUPABASE_US_URL,
+      hasUsKey: !!process.env.SUPABASE_US_SERVICE_ROLE_KEY,
+      hasJapanUrl: !!process.env.VITE_SUPABASE_JAPAN_URL,
+      hasJapanKey: !!process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY,
+      hasBizUrl: !!(process.env.VITE_SUPABASE_BIZ_URL || process.env.SUPABASE_URL),
+      hasBizKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    })
+
     if (!campaignsByRegion || typeof campaignsByRegion !== 'object') {
       return {
         statusCode: 400,
@@ -73,6 +85,8 @@ exports.handler = async (event) => {
         body: JSON.stringify({ success: false, error: 'campaignsByRegion is required' })
       }
     }
+
+    console.log('Request campaignsByRegion:', JSON.stringify(campaignsByRegion))
 
     // 선정 완료 상태 목록
     const selectedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'completed']
