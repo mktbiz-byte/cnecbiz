@@ -1040,6 +1040,46 @@ export const database = {
     },
 
     /**
+     * 크리에이터에게 포인트 지급
+     * @param {string} userId - 사용자 ID
+     * @param {number} amount - 지급할 포인트 금액 (양수)
+     * @param {string} reason - 지급 사유
+     * @param {string} relatedCampaignId - 관련 캠페인 ID (선택)
+     */
+    async addPoints(userId, amount, reason = '포인트 지급', relatedCampaignId = null) {
+      return safeQuery(async () => {
+        console.log('포인트 지급:', { userId, amount, reason, relatedCampaignId })
+
+        const insertData = {
+          user_id: userId,
+          amount: Math.abs(amount), // 양수로 저장
+          transaction_type: 'admin_add',
+          description: reason,
+          platform_region: 'kr',
+          country_code: 'KR',
+          created_at: new Date().toISOString()
+        }
+
+        if (relatedCampaignId) {
+          insertData.related_campaign_id = relatedCampaignId
+        }
+
+        const { data, error } = await supabase
+          .from('point_transactions')
+          .insert([insertData])
+          .select()
+
+        if (error) {
+          console.error('포인트 지급 오류:', error)
+          throw error
+        }
+
+        console.log('포인트 지급 완료:', data)
+        return data && data.length > 0 ? data[0] : null
+      })
+    },
+
+    /**
      * 출금 신청 (withdrawals 테이블 + point_transactions 동시 생성)
      * Korea 사이트에서 출금 신청할 때 이 함수를 사용해야 함
      */
