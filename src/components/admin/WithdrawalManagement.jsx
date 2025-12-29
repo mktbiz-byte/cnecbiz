@@ -281,17 +281,31 @@ export default function WithdrawalManagement() {
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
-      
-      const { error } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          processed_by: user.id
-        })
-        .eq('id', withdrawal.id)
 
-      if (error) throw error
+      // Korea DB인 경우 supabaseKorea 사용
+      if (withdrawal.source_db === 'korea' && supabaseKorea) {
+        const { error } = await supabaseKorea
+          .from('withdrawals')
+          .update({
+            status: 'completed',
+            processed_at: new Date().toISOString(),
+            processed_by: user?.id
+          })
+          .eq('id', withdrawal.id)
+
+        if (error) throw error
+      } else {
+        const { error } = await supabaseBiz
+          .from('creator_withdrawal_requests')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            processed_by: user.id
+          })
+          .eq('id', withdrawal.id)
+
+        if (error) throw error
+      }
 
       alert('지급 완료 처리되었습니다.')
       fetchWithdrawals()
@@ -306,20 +320,35 @@ export default function WithdrawalManagement() {
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
+      const isKoreaDB = selectedWithdrawal.source_db === 'korea'
 
       if (actionType === 'approve') {
-        const { error } = await supabaseBiz
-          .from('creator_withdrawal_requests')
-          .update({
-            status: 'approved',
-            priority: priority,
-            admin_notes: adminNotes,
-            processed_by: user.id,
-            processed_at: new Date().toISOString()
-          })
-          .eq('id', selectedWithdrawal.id)
+        if (isKoreaDB && supabaseKorea) {
+          const { error } = await supabaseKorea
+            .from('withdrawals')
+            .update({
+              status: 'approved',
+              admin_notes: adminNotes,
+              processed_by: user?.id,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', selectedWithdrawal.id)
 
-        if (error) throw error
+          if (error) throw error
+        } else {
+          const { error } = await supabaseBiz
+            .from('creator_withdrawal_requests')
+            .update({
+              status: 'approved',
+              priority: priority,
+              admin_notes: adminNotes,
+              processed_by: user.id,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', selectedWithdrawal.id)
+
+          if (error) throw error
+        }
         alert('승인되었습니다.')
       } else if (actionType === 'reject') {
         if (!rejectionReason) {
@@ -327,17 +356,31 @@ export default function WithdrawalManagement() {
           return
         }
 
-        const { error } = await supabaseBiz
-          .from('creator_withdrawal_requests')
-          .update({
-            status: 'rejected',
-            rejection_reason: rejectionReason,
-            processed_by: user.id,
-            processed_at: new Date().toISOString()
-          })
-          .eq('id', selectedWithdrawal.id)
+        if (isKoreaDB && supabaseKorea) {
+          const { error } = await supabaseKorea
+            .from('withdrawals')
+            .update({
+              status: 'rejected',
+              admin_notes: rejectionReason,
+              processed_by: user?.id,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', selectedWithdrawal.id)
 
-        if (error) throw error
+          if (error) throw error
+        } else {
+          const { error } = await supabaseBiz
+            .from('creator_withdrawal_requests')
+            .update({
+              status: 'rejected',
+              rejection_reason: rejectionReason,
+              processed_by: user.id,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', selectedWithdrawal.id)
+
+          if (error) throw error
+        }
         alert('거절되었습니다. 크리에이터는 거절 사유를 확인하고 재신청할 수 있습니다.')
       }
 
