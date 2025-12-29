@@ -886,10 +886,7 @@ export const database = {
       return safeQuery(async () => {
         const { data, error } = await supabase
           .from('withdrawals')
-          .select(`
-            *,
-            user_profiles:user_id (name, email, channel_name)
-          `)
+          .select('*')
           .order('created_at', { ascending: false })
         if (error) throw error
         return data || []

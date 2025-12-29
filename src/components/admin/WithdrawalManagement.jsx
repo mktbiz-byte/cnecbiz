@@ -80,34 +80,52 @@ export default function WithdrawalManagement() {
     try {
       let allWithdrawals = []
 
-      // 1. Korea DB에서 출금 신청 조회 (withdrawals 테이블)
+      // 1. Korea DB에서 출금 신청 조회 (withdrawals 테이블) - 조인 없이 조회
       if (supabaseKorea) {
         try {
           const { data: koreaData, error: koreaError } = await supabaseKorea
             .from('withdrawals')
-            .select(`
-              *,
-              user_profiles:user_id (name, email, channel_name)
-            `)
+            .select('*')
             .order('created_at', { ascending: false })
 
           if (!koreaError && koreaData && koreaData.length > 0) {
             console.log('Korea DB (withdrawals)에서 데이터 조회:', koreaData.length, '건')
-            const koreaWithdrawals = koreaData.map(w => ({
-              ...w,
-              // 필드 매핑
-              creator_name: w.user_profiles?.channel_name || w.user_profiles?.name || w.bank_account_holder || 'Unknown',
-              region: 'korea',
-              requested_points: w.amount,
-              requested_amount: w.amount,
-              final_amount: Math.round(w.amount * 0.967), // 3.3% 세금 공제
-              currency: 'KRW',
-              // 필드명 통일
-              account_number: w.bank_account_number,
-              account_holder: w.bank_account_holder,
-              resident_registration_number: w.resident_number_encrypted,
-              source_db: 'korea'
-            }))
+
+            // user_profiles 별도 조회
+            const userIds = [...new Set(koreaData.map(w => w.user_id).filter(Boolean))]
+            let userProfiles = {}
+
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabaseKorea
+                .from('user_profiles')
+                .select('user_id, name, email, channel_name')
+                .in('user_id', userIds)
+
+              if (profiles) {
+                profiles.forEach(p => {
+                  userProfiles[p.user_id] = p
+                })
+              }
+            }
+
+            const koreaWithdrawals = koreaData.map(w => {
+              const profile = userProfiles[w.user_id]
+              return {
+                ...w,
+                // 필드 매핑
+                creator_name: profile?.channel_name || profile?.name || w.bank_account_holder || 'Unknown',
+                region: 'korea',
+                requested_points: w.amount,
+                requested_amount: w.amount,
+                final_amount: Math.round(w.amount * 0.967), // 3.3% 세금 공제
+                currency: 'KRW',
+                // 필드명 통일
+                account_number: w.bank_account_number,
+                account_holder: w.bank_account_holder,
+                resident_registration_number: w.resident_number_encrypted,
+                source_db: 'korea'
+              }
+            })
             allWithdrawals = [...allWithdrawals, ...koreaWithdrawals]
           } else if (koreaError) {
             console.error('Korea DB withdrawals 조회 오류:', koreaError)
