@@ -160,54 +160,41 @@ export default function MyCampaigns() {
     if (campaignsList.length === 0) return
 
     // Group campaigns by region
-    const byRegion = {
+    const campaignsByRegion = {
       korea: campaignsList.filter(c => c.region === 'korea').map(c => c.id),
       japan: campaignsList.filter(c => c.region === 'japan').map(c => c.id),
-      us: campaignsList.filter(c => c.region === 'us').map(c => c.id)
+      us: campaignsList.filter(c => c.region === 'us').map(c => c.id),
+      biz: campaignsList.filter(c => c.region === 'biz').map(c => c.id)
     }
 
-    const koreaClient = supabaseKorea || supabaseBiz
-    const supabaseJapan = getSupabaseClient('japan')
-    const supabaseUS = getSupabaseClient('us')
-
-    // Fetch all applications in parallel by region (single query per region)
-    const [koreaApps, japanApps, usApps] = await Promise.allSettled([
-      byRegion.korea.length > 0
-        ? koreaClient.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.korea)
-        : Promise.resolve({ data: [] }),
-      byRegion.japan.length > 0 && supabaseJapan
-        ? supabaseJapan.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.japan)
-        : Promise.resolve({ data: [] }),
-      byRegion.us.length > 0 && supabaseUS
-        ? supabaseUS.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.us)
-        : Promise.resolve({ data: [] })
-    ])
-
-    // Combine all applications
-    const allApps = [
-      ...(koreaApps.status === 'fulfilled' && koreaApps.value?.data || []),
-      ...(japanApps.status === 'fulfilled' && japanApps.value?.data || []),
-      ...(usApps.status === 'fulfilled' && usApps.value?.data || [])
-    ]
-
-    // Process into participants map
-    const participantsData = {}
-    const selectedStatuses = ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed']
-
-    allApps.forEach(app => {
-      if (!participantsData[app.campaign_id]) {
-        participantsData[app.campaign_id] = { total: 0, selected: 0, guideConfirmed: 0 }
-      }
-      participantsData[app.campaign_id].total++
-      if (selectedStatuses.includes(app.status)) {
-        participantsData[app.campaign_id].selected++
-      }
-      if (app.guide_confirmed) {
-        participantsData[app.campaign_id].guideConfirmed++
+    // 빈 지역 제거
+    Object.keys(campaignsByRegion).forEach(region => {
+      if (campaignsByRegion[region].length === 0) {
+        delete campaignsByRegion[region]
       }
     })
 
-    setParticipants(participantsData)
+    try {
+      // Netlify 함수를 통해 서비스 롤 키로 애플리케이션 통계 조회 (RLS 우회)
+      const response = await fetch('/.netlify/functions/get-application-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignsByRegion })
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.stats) {
+        setParticipants(result.stats)
+        console.log('Application stats loaded:', Object.keys(result.stats).length, 'campaigns')
+      } else {
+        console.error('Failed to load application stats:', result.error)
+        setParticipants({})
+      }
+    } catch (error) {
+      console.error('Error fetching application stats:', error)
+      setParticipants({})
+    }
   }
 
   const handleDepositConfirmationRequest = async (campaign) => {

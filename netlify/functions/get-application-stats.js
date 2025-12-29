@@ -1,0 +1,167 @@
+// 캠페인 지원자 통계 조회 - 서비스 롤 키 사용 (RLS 우회)
+const { createClient } = require('@supabase/supabase-js')
+
+// 지역별 Supabase 클라이언트 생성 (서비스 롤 키 사용)
+const getSupabaseClient = (region) => {
+  let url, key
+
+  switch (region) {
+    case 'korea':
+    case 'kr':
+      url = process.env.VITE_SUPABASE_KOREA_URL || process.env.SUPABASE_KOREA_URL
+      key = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+      break
+    case 'japan':
+    case 'jp':
+      url = process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_JAPAN_URL
+      key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY
+      break
+    case 'us':
+    case 'usa':
+      url = process.env.VITE_SUPABASE_US_URL || process.env.SUPABASE_US_URL
+      key = process.env.SUPABASE_US_SERVICE_ROLE_KEY
+      break
+    case 'taiwan':
+    case 'tw':
+      url = process.env.VITE_SUPABASE_TAIWAN_URL || process.env.SUPABASE_TAIWAN_URL
+      key = process.env.SUPABASE_TAIWAN_SERVICE_ROLE_KEY
+      break
+    case 'biz':
+    default:
+      url = process.env.VITE_SUPABASE_BIZ_URL || process.env.SUPABASE_BIZ_URL
+      key = process.env.SUPABASE_BIZ_SERVICE_ROLE_KEY
+      break
+  }
+
+  if (!url || !key) {
+    console.error(`Missing Supabase credentials for region: ${region}`)
+    return null
+  }
+
+  return createClient(url, key)
+}
+
+exports.handler = async (event) => {
+  // CORS 헤더
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  }
+
+  // OPTIONS 요청 처리
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' }
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ success: false, error: 'Method not allowed' })
+    }
+  }
+
+  try {
+    const { campaignsByRegion } = JSON.parse(event.body || '{}')
+
+    if (!campaignsByRegion || typeof campaignsByRegion !== 'object') {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ success: false, error: 'campaignsByRegion is required' })
+      }
+    }
+
+    // 선정 완료 상태 목록
+    const selectedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'completed']
+
+    // 지역별로 병렬 처리
+    const statsPromises = Object.entries(campaignsByRegion).map(async ([region, campaignIds]) => {
+      if (!campaignIds || campaignIds.length === 0) {
+        return { region, stats: {} }
+      }
+
+      const client = getSupabaseClient(region)
+      if (!client) {
+        console.error(`No client for region: ${region}`)
+        return { region, stats: {} }
+      }
+
+      try {
+        const { data, error } = await client
+          .from('applications')
+          .select('campaign_id, status, guide_confirmed')
+          .in('campaign_id', campaignIds)
+
+        if (error) {
+          console.error(`Error fetching applications from ${region}:`, error.message)
+          return { region, stats: {} }
+        }
+
+        // 캠페인별 통계 집계
+        const stats = {}
+        if (data && data.length > 0) {
+          data.forEach(app => {
+            if (!stats[app.campaign_id]) {
+              stats[app.campaign_id] = {
+                total: 0,
+                selected: 0,
+                guideConfirmed: 0,
+                completed: 0
+              }
+            }
+
+            stats[app.campaign_id].total++
+
+            if (selectedStatuses.includes(app.status)) {
+              stats[app.campaign_id].selected++
+            }
+
+            if (app.status === 'completed') {
+              stats[app.campaign_id].completed++
+            }
+
+            if (app.guide_confirmed) {
+              stats[app.campaign_id].guideConfirmed++
+            }
+          })
+        }
+
+        console.log(`${region}: ${data?.length || 0} applications found for ${campaignIds.length} campaigns`)
+        return { region, stats }
+      } catch (err) {
+        console.error(`Exception fetching from ${region}:`, err.message)
+        return { region, stats: {} }
+      }
+    })
+
+    const results = await Promise.all(statsPromises)
+
+    // 결과를 캠페인 ID별로 병합
+    const allStats = {}
+    results.forEach(({ region, stats }) => {
+      Object.entries(stats).forEach(([campaignId, stat]) => {
+        allStats[campaignId] = stat
+      })
+    })
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        stats: allStats,
+        debug: results.map(r => ({ region: r.region, count: Object.keys(r.stats).length }))
+      })
+    }
+  } catch (error) {
+    console.error('Error in get-application-stats:', error)
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: error.message })
+    }
+  }
+}
