@@ -2059,8 +2059,8 @@ export default function CampaignDetail() {
 
       if (appError) throw appError
 
-      // 3. 포인트 지급
-      const pointAmount = campaign.point || 0
+      // 3. 포인트 지급 (reward_points 또는 point 필드 사용)
+      const pointAmount = campaign.reward_points || campaign.point || 0
       if (pointAmount > 0 && submission.applications?.user_id) {
         // user_profiles의 point 업데이트
         const { data: profile, error: profileError } = await supabase

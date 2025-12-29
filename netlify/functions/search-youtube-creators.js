@@ -294,6 +294,7 @@ exports.handler = async (event, context) => {
           max_subscribers,
           page_token,
           save_results = true,
+          save_only_with_email = false, // 이메일 있는 것만 저장
           search_type = 'video' // 'video' (영상 기반) 또는 'channel' (채널명 검색)
         } = body
 
@@ -422,7 +423,16 @@ exports.handler = async (event, context) => {
         // 4. DB 저장 (옵션)
         let saveResult = null
         if (save_results && prospects.length > 0) {
-          saveResult = await saveProspects(prospects)
+          // 이메일 있는 것만 저장 옵션 처리
+          const prospectsToSave = save_only_with_email
+            ? prospects.filter(p => p.extracted_email)
+            : prospects
+
+          if (prospectsToSave.length > 0) {
+            saveResult = await saveProspects(prospectsToSave)
+          } else {
+            saveResult = { inserted: 0, updated: 0, message: 'No prospects with email to save' }
+          }
         }
 
         return {
