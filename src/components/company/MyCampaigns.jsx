@@ -223,7 +223,7 @@ export default function MyCampaigns() {
       queries.push(
         koreaClient
           .from('applications')
-          .select('campaign_id, status, guide_confirmed')
+          .select('campaign_id, status')
           .in('campaign_id', allCampaignIds)
           .then(({ data, error }) => {
             console.log('[DEBUG] Korea direct query:', { count: data?.length, error: error?.message })
@@ -240,7 +240,7 @@ export default function MyCampaigns() {
       queries.push(
         supabaseJapan
           .from('applications')
-          .select('campaign_id, status, guide_confirmed')
+          .select('campaign_id, status')
           .in('campaign_id', allCampaignIds)
           .then(({ data, error }) => {
             console.log('[DEBUG] Japan direct query:', { count: data?.length, error: error?.message })
@@ -257,7 +257,7 @@ export default function MyCampaigns() {
       queries.push(
         supabaseUS
           .from('applications')
-          .select('campaign_id, status, guide_confirmed')
+          .select('campaign_id, status')
           .in('campaign_id', allCampaignIds)
           .then(({ data, error }) => {
             console.log('[DEBUG] US direct query:', { count: data?.length, error: error?.message })
@@ -281,12 +281,11 @@ export default function MyCampaigns() {
 
     allApplications.forEach(app => {
       if (!stats[app.campaign_id]) {
-        stats[app.campaign_id] = { total: 0, selected: 0, guideConfirmed: 0, completed: 0 }
+        stats[app.campaign_id] = { total: 0, selected: 0, completed: 0 }
       }
       stats[app.campaign_id].total++
       if (selectedStatuses.includes(app.status)) stats[app.campaign_id].selected++
       if (app.status === 'completed') stats[app.campaign_id].completed++
-      if (app.guide_confirmed) stats[app.campaign_id].guideConfirmed++
     })
 
     console.log('[DEBUG] Direct query stats:', stats)

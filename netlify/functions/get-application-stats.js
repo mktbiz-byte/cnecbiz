@@ -110,7 +110,7 @@ exports.handler = async (event) => {
       try {
         const { data, error } = await client
           .from('applications')
-          .select('campaign_id, status, guide_confirmed')
+          .select('campaign_id, status')
           .in('campaign_id', allCampaignIds)
 
         if (error) {
@@ -137,7 +137,6 @@ exports.handler = async (event) => {
           allStats[app.campaign_id] = {
             total: 0,
             selected: 0,
-            guideConfirmed: 0,
             completed: 0
           }
         }
@@ -150,10 +149,6 @@ exports.handler = async (event) => {
 
         if (app.status === 'completed') {
           allStats[app.campaign_id].completed++
-        }
-
-        if (app.guide_confirmed) {
-          allStats[app.campaign_id].guideConfirmed++
         }
       })
     })
