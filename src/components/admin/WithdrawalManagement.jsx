@@ -397,7 +397,7 @@ export default function WithdrawalManagement() {
         if (isKoreaDB && supabaseKorea) {
           if (isFromPointTransactions) {
             // point_transactions에서 온 데이터는 withdrawals 테이블에 새로 생성
-            const { error } = await supabaseKorea
+            const { data: newWithdrawal, error } = await supabaseKorea
               .from('withdrawals')
               .insert([{
                 user_id: selectedWithdrawal.user_id,
@@ -410,10 +410,21 @@ export default function WithdrawalManagement() {
                 processed_by: user?.id,
                 processed_at: new Date().toISOString(),
                 platform_region: 'korea',
-                country_code: 'KR'
+                country_code: 'KR',
+                created_at: selectedWithdrawal.created_at // 원본 신청일 유지
               }])
+              .select()
+              .single()
 
             if (error) throw error
+
+            // 원본 point_transaction에 related_withdrawal_id 설정하여 중복 방지
+            if (newWithdrawal && selectedWithdrawal.id) {
+              await supabaseKorea
+                .from('point_transactions')
+                .update({ related_withdrawal_id: newWithdrawal.id })
+                .eq('id', selectedWithdrawal.id)
+            }
           } else {
             const { error } = await supabaseKorea
               .from('withdrawals')
