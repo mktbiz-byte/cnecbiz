@@ -689,12 +689,6 @@ export default function YoutuberSearchPage() {
                               <h4 className="font-medium text-gray-900 truncate">
                                 {channel.channel_name}
                               </h4>
-                              {channel.extracted_email && (
-                                <Badge className="bg-green-100 text-green-800">
-                                  <Mail className="h-3 w-3 mr-1" />
-                                  이메일 있음
-                                </Badge>
-                              )}
                             </div>
                             <p className="text-sm text-gray-500">
                               {channel.channel_handle}
@@ -713,16 +707,53 @@ export default function YoutuberSearchPage() {
                                 {formatSubscribers(channel.view_count)} 조회
                               </span>
                             </div>
+                            {/* 이메일 직접 표시 */}
+                            {channel.extracted_email ? (
+                              <div className="flex items-center gap-2 mt-2">
+                                <Mail className="h-4 w-4 text-green-600" />
+                                <a
+                                  href={`mailto:${channel.extracted_email}`}
+                                  className="text-sm font-medium text-green-600 hover:underline"
+                                >
+                                  {channel.extracted_email}
+                                </a>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(channel.extracted_email)
+                                    alert('이메일이 복사되었습니다!')
+                                  }}
+                                  className="text-xs px-2 py-0.5 bg-gray-100 rounded hover:bg-gray-200"
+                                >
+                                  복사
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 mt-2 text-sm text-gray-400">
+                                <Mail className="h-4 w-4" />
+                                <span>이메일 없음</span>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-center gap-2">
                             <a
                               href={channel.channel_url}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 text-gray-400 hover:text-red-600"
+                              title="YouTube 채널 열기"
                             >
                               <ExternalLink className="h-5 w-5" />
                             </a>
+                            {channel.saved ? (
+                              <Badge className="bg-green-100 text-green-800 text-xs">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                저장됨
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                자동저장
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       ))}
