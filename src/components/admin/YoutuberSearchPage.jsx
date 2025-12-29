@@ -76,6 +76,7 @@ export default function YoutuberSearchPage() {
   const [searchResults, setSearchResults] = useState([])
   const [nextPageToken, setNextPageToken] = useState(null)
   const [searchType, setSearchType] = useState('video') // 'video' 또는 'channel'
+  const [saveOnlyWithEmail, setSaveOnlyWithEmail] = useState(true) // 이메일 있는 것만 저장
 
   // GIF 변환 상태
   const [shortsUrl, setShortsUrl] = useState('')
@@ -174,6 +175,7 @@ export default function YoutuberSearchPage() {
           max_subscribers: maxSubscribers ? parseInt(maxSubscribers) : undefined,
           page_token: pageToken,
           save_results: true,
+          save_only_with_email: saveOnlyWithEmail, // 이메일 있는 것만 저장
           search_type: searchType // 'video' 또는 'channel'
         })
       })
@@ -314,9 +316,12 @@ export default function YoutuberSearchPage() {
       if (result.success) {
         setPreviewHtml(result.html)
         setShowPreviewModal(true)
+      } else {
+        alert('템플릿 미리보기 실패: ' + (result.error || '알 수 없는 오류'))
       }
     } catch (error) {
       console.error('Preview error:', error)
+      alert('템플릿 미리보기 중 오류가 발생했습니다: ' + error.message)
     }
   }
 
@@ -634,6 +639,22 @@ export default function YoutuberSearchPage() {
                   </div>
                 </div>
 
+                {/* 저장 옵션 */}
+                <div className="flex items-center gap-2 mb-6 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <Checkbox
+                    id="saveOnlyWithEmail"
+                    checked={saveOnlyWithEmail}
+                    onCheckedChange={setSaveOnlyWithEmail}
+                  />
+                  <label htmlFor="saveOnlyWithEmail" className="text-sm font-medium text-green-800 cursor-pointer flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    이메일 있는 크리에이터만 수집 목록에 저장
+                  </label>
+                  <span className="text-xs text-green-600 ml-2">
+                    (체크 해제 시 모든 검색 결과 저장)
+                  </span>
+                </div>
+
                 {/* 안내 메시지 */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start gap-3">
@@ -670,6 +691,11 @@ export default function YoutuberSearchPage() {
                         <span className="ml-2 text-green-600">
                           (이메일 발견: {searchResults.filter(r => r.extracted_email).length}개)
                         </span>
+                        {saveOnlyWithEmail && (
+                          <span className="ml-2 text-blue-600">
+                            → 이메일 있는 {searchResults.filter(r => r.extracted_email).length}개만 저장됨
+                          </span>
+                        )}
                       </h3>
                     </div>
 
