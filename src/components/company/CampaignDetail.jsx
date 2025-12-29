@@ -2076,6 +2076,7 @@ export default function CampaignDetail() {
             } catch (emailError) {
               console.error('Email error:', emailError)
             }
+          }
 
           successCount++
         } catch (error) {
