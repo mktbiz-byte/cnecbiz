@@ -1,16 +1,17 @@
 const { createClient } = require('@supabase/supabase-js')
 
 // US Supabase 서비스 롤 클라이언트 (RLS 우회)
-const supabaseUS = createClient(
-  process.env.SUPABASE_US_URL,
-  process.env.SUPABASE_US_SERVICE_ROLE_KEY
-)
+// 환경변수: VITE_SUPABASE_US_URL, SUPABASE_US_SERVICE_ROLE_KEY 필요
+const usUrl = process.env.VITE_SUPABASE_US_URL
+const usServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY
 
 // BIZ Supabase (인증 확인용)
-const supabaseBiz = createClient(
-  process.env.SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_BIZ_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+const bizUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL
+const bizServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+// 클라이언트 생성 (환경변수 누락 시 null)
+const supabaseUS = usUrl && usServiceKey ? createClient(usUrl, usServiceKey) : null
+const supabaseBiz = bizUrl && bizServiceKey ? createClient(bizUrl, bizServiceKey) : null
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -33,6 +34,25 @@ exports.handler = async (event) => {
   }
 
   try {
+    // 환경변수 체크
+    if (!supabaseUS) {
+      console.error('US Supabase 환경변수 누락: VITE_SUPABASE_US_URL 또는 SUPABASE_US_SERVICE_ROLE_KEY')
+      return {
+        statusCode: 503,
+        headers,
+        body: JSON.stringify({ success: false, error: 'US Supabase 설정이 필요합니다. 관리자에게 문의하세요.' })
+      }
+    }
+
+    if (!supabaseBiz) {
+      console.error('BIZ Supabase 환경변수 누락')
+      return {
+        statusCode: 503,
+        headers,
+        body: JSON.stringify({ success: false, error: 'BIZ Supabase 설정이 필요합니다. 관리자에게 문의하세요.' })
+      }
+    }
+
     // 인증 확인
     const authHeader = event.headers.authorization
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
