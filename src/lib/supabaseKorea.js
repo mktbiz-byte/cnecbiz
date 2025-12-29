@@ -1066,6 +1066,7 @@ export const database = {
           insertData.related_campaign_id = relatedCampaignId
         }
 
+        // 1. point_transactions에 기록 추가
         const { data, error } = await supabase
           .from('point_transactions')
           .insert([insertData])
@@ -1074,6 +1075,28 @@ export const database = {
         if (error) {
           console.error('포인트 처리 오류:', error)
           throw error
+        }
+
+        // 2. user_profiles.points도 업데이트 (총 포인트 동기화)
+        try {
+          // 현재 총 포인트 계산
+          const { data: transactions } = await supabase
+            .from('point_transactions')
+            .select('amount')
+            .eq('user_id', userId)
+
+          const totalPoints = (transactions || []).reduce((sum, t) => sum + (t.amount || 0), 0)
+
+          // user_profiles 업데이트
+          await supabase
+            .from('user_profiles')
+            .update({ points: totalPoints })
+            .eq('user_id', userId)
+
+          console.log('user_profiles.points 동기화 완료:', totalPoints)
+        } catch (syncError) {
+          console.error('user_profiles.points 동기화 실패 (무시):', syncError)
+          // 동기화 실패해도 트랜잭션은 성공으로 처리
         }
 
         console.log('포인트 처리 완료:', data)

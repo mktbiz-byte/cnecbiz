@@ -833,9 +833,13 @@ export default function AllCreatorsPage() {
       const actionText = amount > 0 ? '지급' : '차감'
       alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${Math.abs(amount).toLocaleString()}원이 ${actionText}되었습니다.`)
       setShowPointGrantModal(false)
+      setShowProfileModal(false)
       setPointGrantCreator(null)
       setPointGrantAmount('')
       setPointGrantReason('')
+
+      // 크리에이터 목록 새로고침
+      await fetchAllCreators()
     } catch (error) {
       console.error('포인트 지급 오류:', error)
       alert('포인트 지급에 실패했습니다: ' + error.message)
