@@ -880,16 +880,13 @@ export const database = {
     }
   },
 
-  // 출금 관련 API
+  // 출금 관련 API (withdrawals 테이블 사용)
   withdrawals: {
     async getAll() {
       return safeQuery(async () => {
         const { data, error } = await supabase
-          .from('withdrawal_requests')
-          .select(`
-            *,
-            user_profiles!withdrawal_requests_user_id_fkey(name, email)
-          `)
+          .from('withdrawals')
+          .select('*')
           .order('created_at', { ascending: false })
         if (error) throw error
         return data || []
@@ -899,7 +896,7 @@ export const database = {
     async getByUser(userId) {
       return safeQuery(async () => {
         const { data, error } = await supabase
-          .from('withdrawal_requests')
+          .from('withdrawals')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
@@ -911,30 +908,33 @@ export const database = {
     async create(withdrawalData) {
       return safeQuery(async () => {
         console.log('출금 신청 데이터:', withdrawalData)
-        
-        // withdrawal_requests 테이블에 맞는 데이터 구조
+
+        // withdrawals 테이블에 맞는 데이터 구조
         const insertData = {
           user_id: withdrawalData.user_id,
           amount: withdrawalData.amount,
-          withdrawal_method: 'paypal',
-          paypal_email: withdrawalData.paypal_email,
-          paypal_name: withdrawalData.paypal_name,
-          reason: withdrawalData.reason || 'ポイント出金申請',
-          status: 'pending'
+          bank_name: withdrawalData.bank_name,
+          bank_account_number: withdrawalData.bank_account_number || withdrawalData.account_number,
+          bank_account_holder: withdrawalData.bank_account_holder || withdrawalData.account_holder,
+          resident_number_encrypted: withdrawalData.resident_number_encrypted,
+          reason: withdrawalData.reason || '포인트 출금 신청',
+          status: 'pending',
+          platform_region: 'korea',
+          country_code: 'KR'
         }
-        
+
         console.log('삽입할 데이터:', insertData)
-        
+
         const { data, error } = await supabase
-          .from('withdrawal_requests')
+          .from('withdrawals')
           .insert([insertData])
           .select()
-          
+
         if (error) {
           console.error('출금 신청 삽입 오류:', error)
           throw error
         }
-        
+
         console.log('출금 신청 성공:', data)
         return data && data.length > 0 ? data[0] : null
       })
@@ -946,16 +946,16 @@ export const database = {
           status,
           updated_at: new Date().toISOString()
         }
-        
+
         if (status === 'completed' || status === 'rejected') {
           updateData.processed_at = new Date().toISOString()
           if (processedBy) updateData.processed_by = processedBy
         }
-        
-        if (notes) updateData.notes = notes
+
+        if (notes) updateData.admin_notes = notes
 
         const { data, error } = await supabase
-          .from('withdrawal_requests')
+          .from('withdrawals')
           .update(updateData)
           .eq('id', id)
           .select()
@@ -1016,7 +1016,7 @@ export const database = {
     async deductPoints(userId, amount, reason = '出金申請') {
       return safeQuery(async () => {
         console.log('포인트 차감:', { userId, amount, reason })
-        
+
         // point_transactions 테이블에 차감 기록 추가 (음수로 저장)
         const { data, error } = await supabase
           .from('point_transactions')
@@ -1028,14 +1028,129 @@ export const database = {
             created_at: new Date().toISOString()
           }])
           .select()
-          
+
         if (error) {
           console.error('포인트 차감 오류:', error)
           throw error
         }
-        
+
         console.log('포인트 차감 완료:', data)
         return data && data.length > 0 ? data[0] : null
+      })
+    },
+
+    /**
+     * 크리에이터에게 포인트 지급
+     * @param {string} userId - 사용자 ID
+     * @param {number} amount - 지급할 포인트 금액 (양수)
+     * @param {string} reason - 지급 사유
+     * @param {string} relatedCampaignId - 관련 캠페인 ID (선택)
+     */
+    async addPoints(userId, amount, reason = '포인트 지급', relatedCampaignId = null) {
+      return safeQuery(async () => {
+        console.log('포인트 지급:', { userId, amount, reason, relatedCampaignId })
+
+        const insertData = {
+          user_id: userId,
+          amount: Math.abs(amount), // 양수로 저장
+          transaction_type: 'admin_add',
+          description: reason,
+          platform_region: 'kr',
+          country_code: 'KR',
+          created_at: new Date().toISOString()
+        }
+
+        if (relatedCampaignId) {
+          insertData.related_campaign_id = relatedCampaignId
+        }
+
+        const { data, error } = await supabase
+          .from('point_transactions')
+          .insert([insertData])
+          .select()
+
+        if (error) {
+          console.error('포인트 지급 오류:', error)
+          throw error
+        }
+
+        console.log('포인트 지급 완료:', data)
+        return data && data.length > 0 ? data[0] : null
+      })
+    },
+
+    /**
+     * 출금 신청 (withdrawals 테이블 + point_transactions 동시 생성)
+     * Korea 사이트에서 출금 신청할 때 이 함수를 사용해야 함
+     */
+    async requestWithdrawal(withdrawalData) {
+      return safeQuery(async () => {
+        console.log('출금 신청 시작:', withdrawalData)
+
+        const {
+          user_id,
+          amount,
+          bank_name,
+          bank_account_number,
+          bank_account_holder,
+          resident_number_encrypted
+        } = withdrawalData
+
+        // 1. withdrawals 테이블에 출금 신청 레코드 생성
+        const { data: withdrawalRecord, error: withdrawalError } = await supabase
+          .from('withdrawals')
+          .insert([{
+            user_id,
+            amount,
+            bank_name,
+            bank_account_number,
+            bank_account_holder,
+            resident_number_encrypted,
+            reason: '포인트 출금 신청',
+            status: 'pending',
+            platform_region: 'korea',
+            country_code: 'KR'
+          }])
+          .select()
+          .single()
+
+        if (withdrawalError) {
+          console.error('출금 신청 레코드 생성 오류:', withdrawalError)
+          throw withdrawalError
+        }
+
+        console.log('출금 신청 레코드 생성 완료:', withdrawalRecord)
+
+        // 2. point_transactions 테이블에 포인트 차감 기록 생성
+        const description = `[출금신청] ${amount.toLocaleString()}원 | ${bank_name} ${bank_account_number} (${bank_account_holder})`
+
+        const { data: transactionRecord, error: transactionError } = await supabase
+          .from('point_transactions')
+          .insert([{
+            user_id,
+            amount: -amount,
+            transaction_type: 'withdraw',
+            description,
+            related_withdrawal_id: withdrawalRecord.id,
+            platform_region: 'kr',
+            country_code: 'KR',
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single()
+
+        if (transactionError) {
+          console.error('포인트 차감 기록 생성 오류:', transactionError)
+          // 출금 신청은 생성됐으므로 롤백하지 않고 진행
+          console.warn('포인트 트랜잭션 생성 실패했지만 출금 신청은 완료됨')
+        } else {
+          console.log('포인트 차감 기록 생성 완료:', transactionRecord)
+        }
+
+        return {
+          withdrawal: withdrawalRecord,
+          transaction: transactionRecord
+        }
       })
     }
   }

@@ -163,6 +163,7 @@ export default function WithdrawalRequest() {
 
       const withdrawalData = {
         creator_id: creator.id,
+        creator_name: creator.channel_name || creator.name || 'Unknown',
         region,
         requested_points: parseInt(formData.requested_points),
         requested_amount: requestedAmount,
