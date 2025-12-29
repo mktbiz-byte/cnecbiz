@@ -12,7 +12,7 @@ import {
   Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
   X, ExternalLink, User, MapPin, CreditCard, Calendar, ChevronLeft, ChevronRight,
   Briefcase, Award, FileCheck, Key, RefreshCw, Eye, EyeOff, Check, Copy, Loader2,
-  Crown, Sparkles, TrendingUp
+  Crown, Sparkles, TrendingUp, Gift
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -155,6 +155,12 @@ export default function AllCreatorsPage() {
   const [showGradeModal, setShowGradeModal] = useState(false)
   const [selectedGradeLevel, setSelectedGradeLevel] = useState(1)
   const [savingGrade, setSavingGrade] = useState(false)
+
+  // 포인트 지급 상태
+  const [showPointModal, setShowPointModal] = useState(false)
+  const [pointAmount, setPointAmount] = useState('')
+  const [pointReason, setPointReason] = useState('')
+  const [savingPoints, setSavingPoints] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -413,6 +419,83 @@ export default function AllCreatorsPage() {
       alert('등급 삭제에 실패했습니다: ' + error.message)
     } finally {
       setSavingGrade(false)
+    }
+  }
+
+  // 포인트 지급 모달 열기
+  const openPointModal = (creator) => {
+    setPointAmount('')
+    setPointReason('')
+    setShowPointModal(true)
+  }
+
+  // 포인트 지급
+  const handleGivePoints = async () => {
+    if (!selectedCreator) return
+
+    const amount = parseInt(pointAmount)
+    if (isNaN(amount) || amount <= 0) {
+      alert('유효한 포인트 금액을 입력해주세요.')
+      return
+    }
+
+    if (!pointReason.trim()) {
+      alert('지급 사유를 입력해주세요.')
+      return
+    }
+
+    setSavingPoints(true)
+    try {
+      // 해당 지역의 Supabase 클라이언트 선택
+      let supabaseClient
+      if (selectedCreator.dbRegion === 'korea') supabaseClient = supabaseKorea || supabaseBiz
+      else if (selectedCreator.dbRegion === 'japan') supabaseClient = supabaseJapan || supabaseBiz
+      else if (selectedCreator.dbRegion === 'us') supabaseClient = supabaseUS || supabaseBiz
+      else supabaseClient = supabaseBiz
+
+      // 현재 포인트 조회
+      const currentPoints = selectedCreator.points || 0
+      const newPoints = currentPoints + amount
+
+      // 포인트 업데이트
+      const { error: updateError } = await supabaseClient
+        .from('user_profiles')
+        .update({
+          points: newPoints,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedCreator.id)
+
+      if (updateError) throw updateError
+
+      // 포인트 이력 저장 시도 (테이블이 있는 경우)
+      try {
+        await supabaseClient
+          .from('point_history')
+          .insert({
+            user_id: selectedCreator.id,
+            amount: amount,
+            type: 'admin_grant',
+            reason: pointReason,
+            balance_after: newPoints,
+            created_at: new Date().toISOString()
+          })
+      } catch (historyError) {
+        // 이력 테이블이 없어도 무시
+        console.log('포인트 이력 저장 실패 (테이블 없음):', historyError)
+      }
+
+      alert(`${selectedCreator.name || '크리에이터'}님에게 ${amount.toLocaleString()} 포인트를 지급했습니다.\n현재 포인트: ${newPoints.toLocaleString()}`)
+      setShowPointModal(false)
+      setShowProfileModal(false)
+
+      // 크리에이터 목록 새로고침
+      await fetchAllCreators()
+    } catch (error) {
+      console.error('포인트 지급 오류:', error)
+      alert('포인트 지급에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingPoints(false)
     }
   }
 
@@ -1337,6 +1420,14 @@ export default function AllCreatorsPage() {
             </Button>
             <Button
               variant="outline"
+              onClick={() => openPointModal(selectedCreator)}
+              className="text-green-600 border-green-300 hover:bg-green-50"
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              포인트 지급
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => {
                 const grade = getCreatorGrade(selectedCreator?.id)
                 setSelectedGradeLevel(grade?.level || 1)
@@ -1717,6 +1808,112 @@ export default function AllCreatorsPage() {
                 <>
                   <Check className="w-4 h-4 mr-2" />
                   저장
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 포인트 지급 모달 */}
+      <Dialog open={showPointModal} onOpenChange={setShowPointModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-green-500" />
+              포인트 강제 지급
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedCreator && (
+            <div className="space-y-6">
+              {/* 크리에이터 정보 */}
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center overflow-hidden">
+                  {selectedCreator.profile_image ? (
+                    <img src={selectedCreator.profile_image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-7 h-7 text-green-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900">{selectedCreator.name || '이름 없음'}</h3>
+                  <p className="text-sm text-gray-500">{selectedCreator.email}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Award className="w-4 h-4 text-amber-500" />
+                    <span className="font-semibold text-amber-600">
+                      현재: {formatNumber(selectedCreator.points || 0)} P
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 포인트 금액 */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">지급할 포인트</label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={pointAmount}
+                    onChange={(e) => setPointAmount(e.target.value)}
+                    placeholder="0"
+                    className="text-xl font-bold pr-12"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">P</span>
+                </div>
+                <div className="flex gap-2">
+                  {[1000, 5000, 10000, 50000].map(amount => (
+                    <button
+                      key={amount}
+                      onClick={() => setPointAmount(String(amount))}
+                      className="flex-1 py-1.5 text-xs font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      +{formatNumber(amount)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 지급 사유 */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">지급 사유</label>
+                <Textarea
+                  value={pointReason}
+                  onChange={(e) => setPointReason(e.target.value)}
+                  placeholder="예: 이벤트 당첨, 불편 보상, 테스트 등"
+                  className="min-h-[80px]"
+                />
+              </div>
+
+              {/* 안내 메시지 */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>⚠️ 주의</strong><br />
+                  • 포인트는 즉시 지급되며 취소할 수 없습니다<br />
+                  • 지급 후 크리에이터 포인트: <strong>{formatNumber((selectedCreator.points || 0) + (parseInt(pointAmount) || 0))} P</strong>
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowPointModal(false)} disabled={savingPoints}>
+              취소
+            </Button>
+            <Button
+              onClick={handleGivePoints}
+              disabled={savingPoints || !pointAmount || !pointReason.trim()}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              {savingPoints ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  지급 중...
+                </>
+              ) : (
+                <>
+                  <Gift className="w-4 h-4 mr-2" />
+                  포인트 지급
                 </>
               )}
             </Button>
