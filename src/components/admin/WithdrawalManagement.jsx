@@ -135,6 +135,60 @@ export default function WithdrawalManagement() {
         } catch (koreaError) {
           console.error('Korea DB 조회 오류:', koreaError)
         }
+
+        // 1-2. point_transactions에서 출금 신청 조회 (withdrawals 테이블에 없는 경우 대비)
+        try {
+          const { data: ptData, error: ptError } = await supabaseKorea
+            .from('point_transactions')
+            .select('*')
+            .eq('transaction_type', 'withdraw')
+            .order('created_at', { ascending: false })
+
+          if (!ptError && ptData && ptData.length > 0) {
+            console.log('Korea DB (point_transactions)에서 출금 데이터 조회:', ptData.length, '건')
+
+            // 이미 withdrawals에서 조회된 ID 목록
+            const existingWithdrawalIds = new Set(allWithdrawals.map(w => w.id))
+
+            // point_transactions에서 withdrawals에 없는 출금 신청 추가
+            const ptWithdrawals = ptData
+              .filter(pt => !pt.related_withdrawal_id || !existingWithdrawalIds.has(pt.related_withdrawal_id))
+              .map(pt => {
+                // description에서 정보 파싱: [출금신청] 10,000원 | 우리은행 1002941050782 (이지훈)
+                const desc = pt.description || ''
+                const amountMatch = desc.match(/(\d{1,3}(,\d{3})*)\s*원/)
+                const bankMatch = desc.match(/\|\s*([^\d]+)\s+(\d+)\s*\(([^)]+)\)/)
+
+                return {
+                  id: pt.id,
+                  user_id: pt.user_id,
+                  amount: Math.abs(pt.amount),
+                  bank_name: bankMatch ? bankMatch[1].trim() : '미등록',
+                  bank_account_number: bankMatch ? bankMatch[2] : '',
+                  bank_account_holder: bankMatch ? bankMatch[3] : '',
+                  status: 'pending',
+                  created_at: pt.created_at,
+                  // 필드 매핑
+                  creator_name: bankMatch ? bankMatch[3] : 'Unknown',
+                  region: 'korea',
+                  requested_points: Math.abs(pt.amount),
+                  requested_amount: Math.abs(pt.amount),
+                  final_amount: Math.round(Math.abs(pt.amount) * 0.967),
+                  currency: 'KRW',
+                  account_number: bankMatch ? bankMatch[2] : '',
+                  account_holder: bankMatch ? bankMatch[3] : '',
+                  source_db: 'korea_pt' // point_transactions에서 온 데이터 표시
+                }
+              })
+
+            if (ptWithdrawals.length > 0) {
+              console.log('point_transactions에서 추가된 출금 신청:', ptWithdrawals.length, '건')
+              allWithdrawals = [...allWithdrawals, ...ptWithdrawals]
+            }
+          }
+        } catch (ptError) {
+          console.error('Korea DB point_transactions 조회 오류:', ptError)
+        }
       }
 
       // 2. BIZ DB에서도 출금 신청 조회 (통합 DB)
@@ -320,21 +374,43 @@ export default function WithdrawalManagement() {
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
-      const isKoreaDB = selectedWithdrawal.source_db === 'korea'
+      const isKoreaDB = selectedWithdrawal.source_db === 'korea' || selectedWithdrawal.source_db === 'korea_pt'
+      const isFromPointTransactions = selectedWithdrawal.source_db === 'korea_pt'
 
       if (actionType === 'approve') {
         if (isKoreaDB && supabaseKorea) {
-          const { error } = await supabaseKorea
-            .from('withdrawals')
-            .update({
-              status: 'approved',
-              admin_notes: adminNotes,
-              processed_by: user?.id,
-              processed_at: new Date().toISOString()
-            })
-            .eq('id', selectedWithdrawal.id)
+          if (isFromPointTransactions) {
+            // point_transactions에서 온 데이터는 withdrawals 테이블에 새로 생성
+            const { error } = await supabaseKorea
+              .from('withdrawals')
+              .insert([{
+                user_id: selectedWithdrawal.user_id,
+                amount: selectedWithdrawal.amount,
+                bank_name: selectedWithdrawal.bank_name,
+                bank_account_number: selectedWithdrawal.bank_account_number || selectedWithdrawal.account_number,
+                bank_account_holder: selectedWithdrawal.bank_account_holder || selectedWithdrawal.account_holder,
+                status: 'approved',
+                admin_notes: adminNotes,
+                processed_by: user?.id,
+                processed_at: new Date().toISOString(),
+                platform_region: 'korea',
+                country_code: 'KR'
+              }])
 
-          if (error) throw error
+            if (error) throw error
+          } else {
+            const { error } = await supabaseKorea
+              .from('withdrawals')
+              .update({
+                status: 'approved',
+                admin_notes: adminNotes,
+                processed_by: user?.id,
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', selectedWithdrawal.id)
+
+            if (error) throw error
+          }
         } else {
           const { error } = await supabaseBiz
             .from('creator_withdrawal_requests')
@@ -357,17 +433,42 @@ export default function WithdrawalManagement() {
         }
 
         if (isKoreaDB && supabaseKorea) {
-          const { error } = await supabaseKorea
-            .from('withdrawals')
-            .update({
-              status: 'rejected',
-              admin_notes: rejectionReason,
-              processed_by: user?.id,
-              processed_at: new Date().toISOString()
-            })
-            .eq('id', selectedWithdrawal.id)
+          // 1. withdrawals 상태 업데이트 (korea_pt가 아닌 경우에만)
+          if (!isFromPointTransactions) {
+            const { error } = await supabaseKorea
+              .from('withdrawals')
+              .update({
+                status: 'rejected',
+                admin_notes: rejectionReason,
+                processed_by: user?.id,
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', selectedWithdrawal.id)
 
-          if (error) throw error
+            if (error) throw error
+          }
+
+          // 2. 포인트 환불 (양수로 point_transactions에 추가)
+          const refundAmount = selectedWithdrawal.requested_amount || selectedWithdrawal.amount
+          if (refundAmount && selectedWithdrawal.user_id) {
+            const { error: refundError } = await supabaseKorea
+              .from('point_transactions')
+              .insert([{
+                user_id: selectedWithdrawal.user_id,
+                amount: Math.abs(refundAmount), // 양수로 환불
+                transaction_type: 'refund',
+                description: `[출금거절] ${Math.abs(refundAmount).toLocaleString()}원 환불 - ${rejectionReason}`,
+                related_withdrawal_id: isFromPointTransactions ? null : selectedWithdrawal.id,
+                platform_region: 'kr',
+                country_code: 'KR',
+                created_at: new Date().toISOString()
+              }])
+
+            if (refundError) {
+              console.error('포인트 환불 오류:', refundError)
+              alert('출금은 거절되었지만 포인트 환불에 실패했습니다. 수동으로 포인트를 지급해주세요.')
+            }
+          }
         } else {
           const { error } = await supabaseBiz
             .from('creator_withdrawal_requests')
@@ -381,7 +482,7 @@ export default function WithdrawalManagement() {
 
           if (error) throw error
         }
-        alert('거절되었습니다. 크리에이터는 거절 사유를 확인하고 재신청할 수 있습니다.')
+        alert('거절되었습니다. 포인트가 환불되었습니다.')
       }
 
       setShowDetailModal(false)
