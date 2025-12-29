@@ -81,7 +81,43 @@ function getRelevanceLanguage(countryCode) {
 }
 
 /**
- * YouTube Search API로 채널 검색
+ * YouTube Search API로 영상 검색 후 채널 추출
+ * - 영상 콘텐츠 기반으로 관련 크리에이터 찾기
+ */
+async function searchVideosByKeyword(keyword, apiKey, countryCode, maxResults = 50, pageToken = null) {
+  const params = {
+    part: 'snippet',
+    q: keyword,
+    type: 'video',
+    maxResults: Math.min(maxResults, 50),
+    key: apiKey,
+    regionCode: getRegionCode(countryCode),
+    relevanceLanguage: getRelevanceLanguage(countryCode),
+    order: 'relevance',
+    videoDefinition: 'high'
+  }
+
+  if (pageToken) {
+    params.pageToken = pageToken
+  }
+
+  const response = await axios.get('https://www.googleapis.com/youtube/v3/search', { params })
+
+  // 영상에서 채널 ID 추출 (중복 제거)
+  const channelIds = [...new Set(
+    (response.data.items || []).map(item => item.snippet.channelId)
+  )]
+
+  return {
+    channelIds,
+    nextPageToken: response.data.nextPageToken,
+    totalResults: response.data.pageInfo?.totalResults || 0,
+    videoCount: response.data.items?.length || 0
+  }
+}
+
+/**
+ * YouTube Search API로 채널 직접 검색 (레거시)
  */
 async function searchChannels(keyword, apiKey, countryCode, maxResults = 25, pageToken = null) {
   const params = {
@@ -249,15 +285,16 @@ exports.handler = async (event, context) => {
 
     switch (action) {
       case 'search': {
-        // 유튜버 검색
+        // 영상 콘텐츠 기반 크리에이터 검색
         const {
           keyword,
           country_code = 'US',
-          max_results = 25,
+          max_results = 50,
           min_subscribers = 0,
           max_subscribers,
           page_token,
-          save_results = true
+          save_results = true,
+          search_type = 'video' // 'video' (영상 기반) 또는 'channel' (채널명 검색)
         } = body
 
         if (!keyword) {
@@ -277,33 +314,74 @@ exports.handler = async (event, context) => {
           }
         }
 
-        // 1. 채널 검색
-        const searchResult = await searchChannels(
-          keyword,
-          apiKey,
-          country_code,
-          max_results,
-          page_token
-        )
+        let channelIds = []
+        let nextPageToken = null
+        let totalResults = 0
+        let videoCount = 0
 
-        if (!searchResult.items.length) {
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-              success: true,
-              data: {
-                channels: [],
-                nextPageToken: null,
-                totalResults: 0,
-                message: 'No channels found'
-              }
-            })
+        if (search_type === 'video') {
+          // 영상 기반 검색: 키워드 관련 영상을 올린 크리에이터 찾기
+          const searchResult = await searchVideosByKeyword(
+            keyword,
+            apiKey,
+            country_code,
+            max_results,
+            page_token
+          )
+
+          channelIds = searchResult.channelIds
+          nextPageToken = searchResult.nextPageToken
+          totalResults = searchResult.totalResults
+          videoCount = searchResult.videoCount
+
+          if (!channelIds.length) {
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({
+                success: true,
+                data: {
+                  channels: [],
+                  nextPageToken: null,
+                  totalResults: 0,
+                  videoCount: 0,
+                  message: 'No videos found for this keyword'
+                }
+              })
+            }
           }
+        } else {
+          // 채널명 검색 (레거시)
+          const searchResult = await searchChannels(
+            keyword,
+            apiKey,
+            country_code,
+            max_results,
+            page_token
+          )
+
+          if (!searchResult.items.length) {
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({
+                success: true,
+                data: {
+                  channels: [],
+                  nextPageToken: null,
+                  totalResults: 0,
+                  message: 'No channels found'
+                }
+              })
+            }
+          }
+
+          channelIds = searchResult.items.map(item => item.id.channelId)
+          nextPageToken = searchResult.nextPageToken
+          totalResults = searchResult.totalResults
         }
 
         // 2. 채널 상세 정보 조회
-        const channelIds = searchResult.items.map(item => item.id.channelId)
         const channelDetails = await getChannelDetails(channelIds, apiKey)
 
         // 3. 결과 가공 및 이메일 추출
@@ -354,8 +432,10 @@ exports.handler = async (event, context) => {
             success: true,
             data: {
               channels: prospects,
-              nextPageToken: searchResult.nextPageToken,
-              totalResults: searchResult.totalResults,
+              nextPageToken,
+              totalResults,
+              videoCount, // 검색된 영상 수
+              uniqueCreators: channelIds.length, // 중복 제거된 크리에이터 수
               emailFound: prospects.filter(p => p.extracted_email).length,
               saved: saveResult
             }

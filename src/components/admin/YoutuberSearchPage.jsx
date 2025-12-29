@@ -13,7 +13,7 @@ import {
   Search, Youtube, Mail, Send, ExternalLink, Users, Globe,
   ChevronLeft, ChevronRight, Loader2, CheckCircle, XCircle,
   Eye, Download, Filter, RefreshCw, Star, Clock, MessageSquare,
-  AlertCircle, Info, PlayCircle
+  AlertCircle, Info, PlayCircle, Video, Image, Film, Link2
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -75,6 +75,14 @@ export default function YoutuberSearchPage() {
   const [searching, setSearching] = useState(false)
   const [searchResults, setSearchResults] = useState([])
   const [nextPageToken, setNextPageToken] = useState(null)
+  const [searchType, setSearchType] = useState('video') // 'video' 또는 'channel'
+
+  // GIF 변환 상태
+  const [shortsUrl, setShortsUrl] = useState('')
+  const [startTime, setStartTime] = useState('0')
+  const [gifDuration, setGifDuration] = useState('3')
+  const [videoInfo, setVideoInfo] = useState(null)
+  const [loadingVideo, setLoadingVideo] = useState(false)
 
   // 목록 상태
   const [activeTab, setActiveTab] = useState('search')
@@ -141,7 +149,7 @@ export default function YoutuberSearchPage() {
     return session?.access_token
   }
 
-  // YouTube 채널 검색
+  // YouTube 영상/채널 검색
   const handleSearch = async (pageToken = null) => {
     if (!searchKeyword.trim()) {
       alert('검색 키워드를 입력하세요')
@@ -161,11 +169,12 @@ export default function YoutuberSearchPage() {
           action: 'search',
           keyword: searchKeyword,
           country_code: countryCode,
-          max_results: 25,
+          max_results: 50,
           min_subscribers: minSubscribers ? parseInt(minSubscribers) : 0,
           max_subscribers: maxSubscribers ? parseInt(maxSubscribers) : undefined,
           page_token: pageToken,
-          save_results: true
+          save_results: true,
+          search_type: searchType // 'video' 또는 'channel'
         })
       })
 
@@ -188,6 +197,39 @@ export default function YoutuberSearchPage() {
       alert('검색 중 오류가 발생했습니다: ' + error.message)
     } finally {
       setSearching(false)
+    }
+  }
+
+  // YouTube 쇼츠 정보 조회
+  const handleGetVideoInfo = async () => {
+    if (!shortsUrl.trim()) {
+      alert('YouTube 쇼츠 URL을 입력하세요')
+      return
+    }
+
+    setLoadingVideo(true)
+    try {
+      const response = await fetch('/.netlify/functions/youtube-to-gif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_gif_url',
+          url: shortsUrl,
+          start_time: parseInt(startTime) || 0,
+          duration: parseInt(gifDuration) || 3
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setVideoInfo(result.data)
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      alert('영상 정보 조회 실패: ' + error.message)
+    } finally {
+      setLoadingVideo(false)
     }
   }
 
@@ -471,12 +513,16 @@ export default function YoutuberSearchPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="search" className="flex items-center gap-2">
-              <Search className="h-4 w-4" />
-              유튜버 검색
+              <Video className="h-4 w-4" />
+              영상 기반 검색
             </TabsTrigger>
             <TabsTrigger value="list" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               수집 목록 ({totalCount})
+            </TabsTrigger>
+            <TabsTrigger value="gif" className="flex items-center gap-2">
+              <Film className="h-4 w-4" />
+              쇼츠 → GIF
             </TabsTrigger>
           </TabsList>
 
@@ -485,11 +531,39 @@ export default function YoutuberSearchPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  YouTube 채널 검색
+                  <Video className="h-5 w-5" />
+                  영상 콘텐츠 기반 크리에이터 검색
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {/* 검색 타입 선택 */}
+                <div className="flex gap-4 mb-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="searchType"
+                      value="video"
+                      checked={searchType === 'video'}
+                      onChange={(e) => setSearchType(e.target.value)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm font-medium">영상 콘텐츠 기반 (추천)</span>
+                    <span className="text-xs text-gray-500">- 키워드 관련 영상을 올린 크리에이터 검색</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="searchType"
+                      value="channel"
+                      checked={searchType === 'channel'}
+                      onChange={(e) => setSearchType(e.target.value)}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm font-medium">채널명 검색</span>
+                    <span className="text-xs text-gray-500">- 채널명에 키워드 포함</span>
+                  </label>
+                </div>
+
                 {/* 검색 폼 */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div className="md:col-span-2">
@@ -497,7 +571,7 @@ export default function YoutuberSearchPage() {
                       검색 키워드
                     </label>
                     <Input
-                      placeholder="예: beauty influencer, gaming, vlog..."
+                      placeholder={searchType === 'video' ? "예: beauty tutorial, gaming review, cooking..." : "예: beauty, vlog, tech..."}
                       value={searchKeyword}
                       onChange={(e) => setSearchKeyword(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -565,10 +639,22 @@ export default function YoutuberSearchPage() {
                   <div className="flex items-start gap-3">
                     <Info className="h-5 w-5 text-blue-600 mt-0.5" />
                     <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">YouTube Data API 공식 사용</p>
+                      <p className="font-medium mb-1">
+                        {searchType === 'video' ? '영상 콘텐츠 기반 검색' : '채널명 검색'}
+                      </p>
                       <ul className="list-disc list-inside space-y-1">
-                        <li>채널 설명란에 공개된 이메일만 추출합니다</li>
-                        <li>일 100회 검색 제한이 있습니다 (API 쿼타)</li>
+                        {searchType === 'video' ? (
+                          <>
+                            <li>키워드 관련 영상을 올린 크리에이터를 찾습니다</li>
+                            <li>예: "beauty tutorial" → 뷰티 튜토리얼 영상을 올린 크리에이터</li>
+                            <li>50개 영상 검색 → 중복 제거 → 크리에이터 추출</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>채널명에 키워드가 포함된 채널을 검색합니다</li>
+                          </>
+                        )}
+                        <li>채널 설명란에 공개된 이메일만 추출 (합법적 방법)</li>
                         <li>검색 결과는 자동으로 DB에 저장됩니다</li>
                       </ul>
                     </div>
@@ -905,6 +991,194 @@ export default function YoutuberSearchPage() {
                     )}
                   </>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* GIF 변환 탭 */}
+          <TabsContent value="gif">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Film className="h-5 w-5" />
+                  유튜브 쇼츠 → GIF 변환
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* 입력 폼 */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        YouTube 쇼츠 URL
+                      </label>
+                      <Input
+                        placeholder="https://youtube.com/shorts/xxxxx"
+                        value={shortsUrl}
+                        onChange={(e) => setShortsUrl(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        시작 시간 (초)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        길이 (초)
+                      </label>
+                      <Select value={gifDuration} onValueChange={setGifDuration}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2">2초</SelectItem>
+                          <SelectItem value="3">3초</SelectItem>
+                          <SelectItem value="4">4초</SelectItem>
+                          <SelectItem value="5">5초</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleGetVideoInfo}
+                    disabled={loadingVideo || !shortsUrl}
+                    className="w-full md:w-auto"
+                  >
+                    {loadingVideo ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Image className="h-4 w-4 mr-2" />
+                    )}
+                    GIF 변환 옵션 생성
+                  </Button>
+
+                  {/* 결과 */}
+                  {videoInfo && (
+                    <div className="border rounded-lg p-6 bg-gray-50">
+                      <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
+                        <Youtube className="h-5 w-5 text-red-600" />
+                        영상 정보
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* 썸네일 */}
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">썸네일 (GIF 대용 가능)</p>
+                          <img
+                            src={videoInfo.thumbnails?.high}
+                            alt="Video thumbnail"
+                            className="rounded-lg w-full"
+                          />
+                          <div className="mt-2 flex gap-2">
+                            <a
+                              href={videoInfo.thumbnails?.maxres}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 hover:underline"
+                            >
+                              고화질 다운로드
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* GIF 변환 옵션 */}
+                        <div className="space-y-4">
+                          <div>
+                            <p className="text-sm font-medium text-gray-700 mb-2">GIF 변환 서비스</p>
+                            <p className="text-xs text-gray-500 mb-3">
+                              아래 서비스에서 {startTime}초 ~ {parseInt(startTime) + parseInt(gifDuration)}초 구간을 GIF로 변환하세요
+                            </p>
+                            <div className="space-y-2">
+                              <a
+                                href={videoInfo.external_services?.ezgif}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 p-3 bg-white rounded-lg border hover:border-blue-500 transition-colors"
+                              >
+                                <ExternalLink className="h-4 w-4 text-blue-600" />
+                                <span className="font-medium">EZGIF.com</span>
+                                <span className="text-xs text-gray-500">- 무료, 5MB 이하 최적화 가능</span>
+                              </a>
+                              <a
+                                href={videoInfo.external_services?.giphy}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 p-3 bg-white rounded-lg border hover:border-purple-500 transition-colors"
+                              >
+                                <ExternalLink className="h-4 w-4 text-purple-600" />
+                                <span className="font-medium">GIPHY</span>
+                                <span className="text-xs text-gray-500">- GIF 생성 및 호스팅</span>
+                              </a>
+                              <a
+                                href={videoInfo.external_services?.makeagif}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 p-3 bg-white rounded-lg border hover:border-green-500 transition-colors"
+                              >
+                                <ExternalLink className="h-4 w-4 text-green-600" />
+                                <span className="font-medium">MakeAGif</span>
+                                <span className="text-xs text-gray-500">- YouTube URL 직접 입력</span>
+                              </a>
+                            </div>
+                          </div>
+
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p className="text-sm text-yellow-800">
+                              <strong>5MB 이하로 만들려면:</strong>
+                              <br />
+                              • 해상도: 480p 이하
+                              <br />
+                              • 길이: 3-4초
+                              <br />
+                              • 프레임: 10-15 fps
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 미리보기 임베드 */}
+                      <div className="mt-6">
+                        <p className="text-sm font-medium text-gray-700 mb-2">
+                          영상 미리보기 ({startTime}초 ~ {parseInt(startTime) + parseInt(gifDuration)}초)
+                        </p>
+                        <div className="aspect-[9/16] max-w-xs bg-black rounded-lg overflow-hidden">
+                          <iframe
+                            src={videoInfo.embed_url}
+                            className="w-full h-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 사용 안내 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">GIF 변환 방법</p>
+                        <ol className="list-decimal list-inside space-y-1">
+                          <li>YouTube 쇼츠 URL을 입력합니다</li>
+                          <li>시작 시간과 길이를 설정합니다</li>
+                          <li>"GIF 변환 옵션 생성" 버튼을 클릭합니다</li>
+                          <li>외부 서비스(EZGIF 추천)에서 GIF를 생성합니다</li>
+                          <li>5MB 이하로 최적화하여 다운로드합니다</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
