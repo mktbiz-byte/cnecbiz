@@ -792,7 +792,7 @@ export default function AllCreatorsPage() {
     setShowProfileModal(false)
   }
 
-  // 포인트 강제 지급 처리 (마이너스 지급 가능)
+  // 포인트 강제 지급 처리 (마이너스 지급 가능) - 직접 DB 업데이트 방식
   const handleGrantPoints = async () => {
     if (!pointGrantCreator) return
 
@@ -822,16 +822,40 @@ export default function AllCreatorsPage() {
 
     setGrantingPoints(true)
     try {
-      const userId = pointGrantCreator.user_id || pointGrantCreator.id
+      // 직접 DB 업데이트 방식 (이전에 잘 작동하던 방식)
+      const currentPoints = pointGrantCreator.points || 0
+      const newPoints = currentPoints + amount
 
-      await database.userPoints.addPoints(
-        userId,
-        amount,
-        pointGrantReason
-      )
+      // 포인트 업데이트
+      const { error: updateError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          points: newPoints,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pointGrantCreator.id)
+
+      if (updateError) throw updateError
+
+      // 포인트 이력 저장 시도 (point_transactions 테이블)
+      try {
+        await supabaseKorea
+          .from('point_transactions')
+          .insert({
+            user_id: pointGrantCreator.user_id || pointGrantCreator.id,
+            amount: amount,
+            transaction_type: amount > 0 ? 'admin_add' : 'admin_deduct',
+            description: pointGrantReason,
+            platform_region: 'kr',
+            country_code: 'KR',
+            created_at: new Date().toISOString()
+          })
+      } catch (historyError) {
+        console.log('포인트 이력 저장 실패 (무시):', historyError)
+      }
 
       const actionText = amount > 0 ? '지급' : '차감'
-      alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${Math.abs(amount).toLocaleString()}원이 ${actionText}되었습니다.`)
+      alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${Math.abs(amount).toLocaleString()}원이 ${actionText}되었습니다.\n현재 포인트: ${newPoints.toLocaleString()}`)
       setShowPointGrantModal(false)
       setShowProfileModal(false)
       setPointGrantCreator(null)
