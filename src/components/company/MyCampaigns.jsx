@@ -160,54 +160,136 @@ export default function MyCampaigns() {
     if (campaignsList.length === 0) return
 
     // Group campaigns by region
-    const byRegion = {
+    const campaignsByRegion = {
       korea: campaignsList.filter(c => c.region === 'korea').map(c => c.id),
       japan: campaignsList.filter(c => c.region === 'japan').map(c => c.id),
-      us: campaignsList.filter(c => c.region === 'us').map(c => c.id)
+      us: campaignsList.filter(c => c.region === 'us').map(c => c.id),
+      biz: campaignsList.filter(c => c.region === 'biz').map(c => c.id)
     }
 
+    // 빈 지역 제거
+    Object.keys(campaignsByRegion).forEach(region => {
+      if (campaignsByRegion[region].length === 0) {
+        delete campaignsByRegion[region]
+      }
+    })
+
+    console.log('[DEBUG] Fetching participants for campaigns:', {
+      totalCampaigns: campaignsList.length,
+      campaignsByRegion,
+      campaignIds: campaignsList.map(c => ({ id: c.id, region: c.region, title: c.title?.slice(0, 20) }))
+    })
+
+    try {
+      // Netlify 함수를 통해 서비스 롤 키로 애플리케이션 통계 조회 (RLS 우회)
+      const response = await fetch('/.netlify/functions/get-application-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignsByRegion })
+      })
+
+      console.log('[DEBUG] API Response status:', response.status)
+      const result = await response.json()
+      console.log('[DEBUG] API Response:', result)
+
+      if (result.success && result.stats) {
+        setParticipants(result.stats)
+        console.log('[DEBUG] Application stats loaded:', Object.keys(result.stats).length, 'campaigns with stats')
+      } else {
+        console.error('[DEBUG] API failed, trying direct DB query. Error:', result.error)
+        // Fallback: 직접 DB 쿼리
+        await fetchParticipantsDirect(campaignsList)
+      }
+    } catch (error) {
+      console.error('[DEBUG] Error fetching application stats:', error)
+      // Fallback: 직접 DB 쿼리
+      await fetchParticipantsDirect(campaignsList)
+    }
+  }
+
+  // Fallback: 직접 DB에서 applications 조회
+  const fetchParticipantsDirect = async (campaignsList) => {
+    console.log('[DEBUG] Attempting direct DB query fallback')
     const koreaClient = supabaseKorea || supabaseBiz
     const supabaseJapan = getSupabaseClient('japan')
     const supabaseUS = getSupabaseClient('us')
 
-    // Fetch all applications in parallel by region (single query per region)
-    const [koreaApps, japanApps, usApps] = await Promise.allSettled([
-      byRegion.korea.length > 0
-        ? koreaClient.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.korea)
-        : Promise.resolve({ data: [] }),
-      byRegion.japan.length > 0 && supabaseJapan
-        ? supabaseJapan.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.japan)
-        : Promise.resolve({ data: [] }),
-      byRegion.us.length > 0 && supabaseUS
-        ? supabaseUS.from('applications').select('campaign_id, status, guide_confirmed').in('campaign_id', byRegion.us)
-        : Promise.resolve({ data: [] })
-    ])
+    const allCampaignIds = campaignsList.map(c => c.id)
 
-    // Combine all applications
-    const allApps = [
-      ...(koreaApps.status === 'fulfilled' && koreaApps.value?.data || []),
-      ...(japanApps.status === 'fulfilled' && japanApps.value?.data || []),
-      ...(usApps.status === 'fulfilled' && usApps.value?.data || [])
-    ]
+    // 모든 DB에서 병렬로 applications 조회
+    const queries = []
 
-    // Process into participants map
-    const participantsData = {}
-    const selectedStatuses = ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed']
+    if (koreaClient) {
+      queries.push(
+        koreaClient
+          .from('applications')
+          .select('campaign_id, status')
+          .in('campaign_id', allCampaignIds)
+          .then(({ data, error }) => {
+            console.log('[DEBUG] Korea direct query:', { count: data?.length, error: error?.message })
+            return data || []
+          })
+          .catch(err => {
+            console.error('[DEBUG] Korea query error:', err)
+            return []
+          })
+      )
+    }
 
-    allApps.forEach(app => {
-      if (!participantsData[app.campaign_id]) {
-        participantsData[app.campaign_id] = { total: 0, selected: 0, guideConfirmed: 0 }
+    if (supabaseJapan) {
+      queries.push(
+        supabaseJapan
+          .from('applications')
+          .select('campaign_id, status')
+          .in('campaign_id', allCampaignIds)
+          .then(({ data, error }) => {
+            console.log('[DEBUG] Japan direct query:', { count: data?.length, error: error?.message })
+            return data || []
+          })
+          .catch(err => {
+            console.error('[DEBUG] Japan query error:', err)
+            return []
+          })
+      )
+    }
+
+    if (supabaseUS) {
+      queries.push(
+        supabaseUS
+          .from('applications')
+          .select('campaign_id, status')
+          .in('campaign_id', allCampaignIds)
+          .then(({ data, error }) => {
+            console.log('[DEBUG] US direct query:', { count: data?.length, error: error?.message })
+            return data || []
+          })
+          .catch(err => {
+            console.error('[DEBUG] US query error:', err)
+            return []
+          })
+      )
+    }
+
+    const results = await Promise.all(queries)
+    const allApplications = results.flat()
+
+    console.log('[DEBUG] Direct query total applications:', allApplications.length)
+
+    // 통계 집계
+    const selectedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'completed']
+    const stats = {}
+
+    allApplications.forEach(app => {
+      if (!stats[app.campaign_id]) {
+        stats[app.campaign_id] = { total: 0, selected: 0, completed: 0 }
       }
-      participantsData[app.campaign_id].total++
-      if (selectedStatuses.includes(app.status)) {
-        participantsData[app.campaign_id].selected++
-      }
-      if (app.guide_confirmed) {
-        participantsData[app.campaign_id].guideConfirmed++
-      }
+      stats[app.campaign_id].total++
+      if (selectedStatuses.includes(app.status)) stats[app.campaign_id].selected++
+      if (app.status === 'completed') stats[app.campaign_id].completed++
     })
 
-    setParticipants(participantsData)
+    console.log('[DEBUG] Direct query stats:', stats)
+    setParticipants(stats)
   }
 
   const handleDepositConfirmationRequest = async (campaign) => {

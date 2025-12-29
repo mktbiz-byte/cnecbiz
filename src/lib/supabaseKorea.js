@@ -1040,20 +1040,22 @@ export const database = {
     },
 
     /**
-     * 크리에이터에게 포인트 지급
+     * 크리에이터에게 포인트 지급/차감
      * @param {string} userId - 사용자 ID
-     * @param {number} amount - 지급할 포인트 금액 (양수)
-     * @param {string} reason - 지급 사유
+     * @param {number} amount - 포인트 금액 (양수: 지급, 음수: 차감)
+     * @param {string} reason - 지급/차감 사유
      * @param {string} relatedCampaignId - 관련 캠페인 ID (선택)
      */
     async addPoints(userId, amount, reason = '포인트 지급', relatedCampaignId = null) {
       return safeQuery(async () => {
-        console.log('포인트 지급:', { userId, amount, reason, relatedCampaignId })
+        const isDeduction = amount < 0
+        const transactionType = isDeduction ? 'admin_deduct' : 'admin_add'
+        console.log('포인트 처리:', { userId, amount, isDeduction, transactionType, reason, relatedCampaignId })
 
         const insertData = {
           user_id: userId,
-          amount: Math.abs(amount), // 양수로 저장
-          transaction_type: 'admin_add',
+          amount: amount, // 양수/음수 그대로 저장
+          transaction_type: transactionType,
           description: reason,
           platform_region: 'kr',
           country_code: 'KR',
@@ -1064,17 +1066,18 @@ export const database = {
           insertData.related_campaign_id = relatedCampaignId
         }
 
+        // 1. point_transactions에 기록 추가
         const { data, error } = await supabase
           .from('point_transactions')
           .insert([insertData])
           .select()
 
         if (error) {
-          console.error('포인트 지급 오류:', error)
+          console.error('포인트 처리 오류:', error)
           throw error
         }
 
-        console.log('포인트 지급 완료:', data)
+        console.log('포인트 처리 완료:', data)
         return data && data.length > 0 ? data[0] : null
       })
     },

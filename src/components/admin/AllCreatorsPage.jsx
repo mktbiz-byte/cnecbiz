@@ -792,13 +792,13 @@ export default function AllCreatorsPage() {
     setShowProfileModal(false)
   }
 
-  // 포인트 강제 지급 처리
+  // 포인트 강제 지급 처리 (마이너스 지급 가능) - 직접 DB 업데이트 방식
   const handleGrantPoints = async () => {
     if (!pointGrantCreator) return
 
     const amount = parseInt(pointGrantAmount)
-    if (!amount || amount <= 0) {
-      alert('지급할 포인트를 입력해주세요.')
+    if (!amount || amount === 0) {
+      alert('지급할 포인트를 입력해주세요. (마이너스 가능)')
       return
     }
 
@@ -813,21 +813,57 @@ export default function AllCreatorsPage() {
       return
     }
 
+    // 마이너스 지급 시 추가 확인
+    if (amount < 0) {
+      if (!confirm(`${Math.abs(amount).toLocaleString()}원을 차감하시겠습니까?`)) {
+        return
+      }
+    }
+
     setGrantingPoints(true)
     try {
-      const userId = pointGrantCreator.user_id || pointGrantCreator.id
+      // 직접 DB 업데이트 방식 (이전에 잘 작동하던 방식)
+      const currentPoints = pointGrantCreator.points || 0
+      const newPoints = currentPoints + amount
 
-      await database.userPoints.addPoints(
-        userId,
-        amount,
-        pointGrantReason
-      )
+      // 포인트 업데이트
+      const { error: updateError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          points: newPoints,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pointGrantCreator.id)
 
-      alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${amount.toLocaleString()}원이 지급되었습니다.`)
+      if (updateError) throw updateError
+
+      // 포인트 이력 저장 시도 (point_transactions 테이블)
+      try {
+        await supabaseKorea
+          .from('point_transactions')
+          .insert({
+            user_id: pointGrantCreator.user_id || pointGrantCreator.id,
+            amount: amount,
+            transaction_type: amount > 0 ? 'admin_add' : 'admin_deduct',
+            description: pointGrantReason,
+            platform_region: 'kr',
+            country_code: 'KR',
+            created_at: new Date().toISOString()
+          })
+      } catch (historyError) {
+        console.log('포인트 이력 저장 실패 (무시):', historyError)
+      }
+
+      const actionText = amount > 0 ? '지급' : '차감'
+      alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${Math.abs(amount).toLocaleString()}원이 ${actionText}되었습니다.\n현재 포인트: ${newPoints.toLocaleString()}`)
       setShowPointGrantModal(false)
+      setShowProfileModal(false)
       setPointGrantCreator(null)
       setPointGrantAmount('')
       setPointGrantReason('')
+
+      // 크리에이터 목록 새로고침
+      await fetchAllCreators()
     } catch (error) {
       console.error('포인트 지급 오류:', error)
       alert('포인트 지급에 실패했습니다: ' + error.message)
@@ -1481,14 +1517,6 @@ export default function AllCreatorsPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => openPointModal(selectedCreator)}
-              className="text-green-600 border-green-300 hover:bg-green-50"
-            >
-              <Gift className="w-4 h-4 mr-2" />
-              포인트 지급
-            </Button>
-            <Button
-              variant="outline"
               onClick={() => {
                 const grade = getCreatorGrade(selectedCreator?.id)
                 setSelectedGradeLevel(grade?.level || 1)
@@ -1916,17 +1944,17 @@ export default function AllCreatorsPage() {
 
               {/* 지급 금액 */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">지급 포인트 (원)</label>
+                <label className="block text-sm font-medium text-gray-700">포인트 금액 (원)</label>
                 <Input
                   type="number"
                   value={pointGrantAmount}
                   onChange={(e) => setPointGrantAmount(e.target.value)}
-                  placeholder="예: 10000"
+                  placeholder="예: 10000 (마이너스: -10000)"
                   className="text-lg"
                 />
-                {pointGrantAmount && parseInt(pointGrantAmount) > 0 && (
-                  <p className="text-sm text-green-600">
-                    {parseInt(pointGrantAmount).toLocaleString()}원 지급 예정
+                {pointGrantAmount && parseInt(pointGrantAmount) !== 0 && (
+                  <p className={`text-sm ${parseInt(pointGrantAmount) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {Math.abs(parseInt(pointGrantAmount)).toLocaleString()}원 {parseInt(pointGrantAmount) > 0 ? '지급' : '차감'} 예정
                   </p>
                 )}
               </div>
@@ -1946,9 +1974,10 @@ export default function AllCreatorsPage() {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                 <p className="text-sm text-amber-800">
                   <strong>⚠️ 주의사항</strong><br />
-                  • 포인트는 즉시 크리에이터 계정에 적립됩니다<br />
-                  • 지급 내역은 포인트 내역에서 확인 가능합니다<br />
-                  • 지급 후 취소가 어려우니 신중하게 입력해주세요
+                  • 포인트는 즉시 크리에이터 계정에 반영됩니다<br />
+                  • 마이너스(-) 입력 시 포인트가 차감됩니다<br />
+                  • 지급/차감 내역은 포인트 내역에서 확인 가능합니다<br />
+                  • 처리 후 취소가 어려우니 신중하게 입력해주세요
                 </p>
               </div>
             </div>
@@ -1961,17 +1990,17 @@ export default function AllCreatorsPage() {
             <Button
               onClick={handleGrantPoints}
               disabled={grantingPoints || !pointGrantAmount || !pointGrantReason}
-              className="bg-green-500 hover:bg-green-600"
+              className={parseInt(pointGrantAmount) < 0 ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"}
             >
               {grantingPoints ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  지급 중...
+                  처리 중...
                 </>
               ) : (
                 <>
                   <Coins className="w-4 h-4 mr-2" />
-                  포인트 지급
+                  {parseInt(pointGrantAmount) < 0 ? '포인트 차감' : '포인트 지급'}
                 </>
               )}
             </Button>

@@ -324,37 +324,48 @@ export const getApplicationStatsForCampaigns = async (campaignIds, region) => {
   }
 }
 
+// Helper function to get application stats using Netlify function (bypasses RLS)
+export const getApplicationStatsViaAPI = async (campaignsByRegion) => {
+  try {
+    const response = await fetch('/.netlify/functions/get-application-stats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignsByRegion })
+    })
+
+    const result = await response.json()
+
+    if (result.success && result.stats) {
+      return result.stats
+    } else {
+      console.error('Failed to load application stats via API:', result.error)
+      return {}
+    }
+  } catch (error) {
+    console.error('Error fetching application stats via API:', error)
+    return {}
+  }
+}
+
 // Helper function to get campaigns with application statistics (병렬 최적화 버전)
 export const getCampaignsWithStats = async () => {
   const campaigns = await getCampaignsFromAllRegions()
 
-  // 지역별로 캠페인 그룹화
+  // 지역별로 캠페인 그룹화 (캠페인 ID만 추출)
   const campaignsByRegion = {}
   campaigns.forEach(campaign => {
     if (!campaignsByRegion[campaign.region]) {
       campaignsByRegion[campaign.region] = []
     }
-    campaignsByRegion[campaign.region].push(campaign)
+    campaignsByRegion[campaign.region].push(campaign.id)
   })
 
-  // 모든 지역의 통계를 병렬로 조회
-  const statsPromises = Object.entries(campaignsByRegion).map(async ([region, regionCampaigns]) => {
-    const campaignIds = regionCampaigns.map(c => c.id)
-    const stats = await getApplicationStatsForCampaigns(campaignIds, region)
-    return { region, stats }
-  })
-
-  const allStats = await Promise.all(statsPromises)
+  // Netlify 함수를 통해 서비스 롤 키로 애플리케이션 통계 조회 (RLS 우회)
+  const stats = await getApplicationStatsViaAPI(campaignsByRegion)
 
   // 통계 결과를 캠페인에 매핑
-  const statsMap = {}
-  allStats.forEach(({ region, stats }) => {
-    statsMap[region] = stats
-  })
-
   campaigns.forEach(campaign => {
-    const regionStats = statsMap[campaign.region] || {}
-    campaign.application_stats = regionStats[campaign.id] || {
+    campaign.application_stats = stats[campaign.id] || {
       total: 0,
       selected: 0,
       completed: 0
