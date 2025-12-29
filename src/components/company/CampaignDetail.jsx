@@ -2065,7 +2065,7 @@ export default function CampaignDetail() {
         // user_profiles의 point 업데이트
         const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
-          .select('point')
+          .select('point, phone')
           .eq('id', submission.applications.user_id)
           .single()
 
@@ -2087,10 +2087,34 @@ export default function CampaignDetail() {
               description: `캠페인 영상 승인: ${campaign.title}`,
               created_at: new Date().toISOString()
             }])
+
+          // 4. 팝빌 알림톡 발송 (검수 완료)
+          if (profile.phone) {
+            try {
+              const creatorName = submission.applications?.creator_name || submission.applications?.applicant_name || '크리에이터'
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: creatorName,
+                  templateCode: '025100001016',  // 검수 완료 템플릿
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '캠페인명': campaign.title,
+                    '지급포인트': pointAmount.toLocaleString()
+                  }
+                })
+              })
+              console.log('검수 완료 알림톡 발송 성공')
+            } catch (alimtalkError) {
+              console.error('검수 완료 알림톡 발송 실패:', alimtalkError)
+            }
+          }
         }
       }
 
-      // 4. 데이터 새로고침
+      // 5. 데이터 새로고침
       await fetchVideoSubmissions()
       await fetchParticipants()
 
@@ -5365,6 +5389,38 @@ export default function CampaignDetail() {
                       .eq('id', selectedParticipant.id)
 
                     if (error) throw error
+
+                    // 팝빌 알림톡 발송 (수정 요청)
+                    if (selectedParticipant.user_id) {
+                      const { data: profile } = await supabase
+                        .from('user_profiles')
+                        .select('phone')
+                        .eq('id', selectedParticipant.user_id)
+                        .maybeSingle()
+
+                      if (profile?.phone) {
+                        try {
+                          const creatorName = selectedParticipant.creator_name || selectedParticipant.applicant_name || '크리에이터'
+                          await fetch('/.netlify/functions/send-kakao-notification', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              receiverNum: profile.phone,
+                              receiverName: creatorName,
+                              templateCode: '025100001017',  // 수정 요청 템플릿
+                              variables: {
+                                '크리에이터명': creatorName,
+                                '캠페인명': campaign.title,
+                                '수정요청내용': revisionComment.substring(0, 100)  // 최대 100자
+                              }
+                            })
+                          })
+                          console.log('수정 요청 알림톡 발송 성공')
+                        } catch (alimtalkError) {
+                          console.error('수정 요청 알림톡 발송 실패:', alimtalkError)
+                        }
+                      }
+                    }
 
                     alert('수정 요청이 전송되었습니다!')
                     setShowVideoModal(false)
