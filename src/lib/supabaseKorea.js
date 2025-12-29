@@ -880,15 +880,15 @@ export const database = {
     }
   },
 
-  // 출금 관련 API
+  // 출금 관련 API (withdrawals 테이블 사용)
   withdrawals: {
     async getAll() {
       return safeQuery(async () => {
         const { data, error } = await supabase
-          .from('withdrawal_requests')
+          .from('withdrawals')
           .select(`
             *,
-            user_profiles!withdrawal_requests_user_id_fkey(name, email)
+            user_profiles:user_id (name, email, channel_name)
           `)
           .order('created_at', { ascending: false })
         if (error) throw error
@@ -899,7 +899,7 @@ export const database = {
     async getByUser(userId) {
       return safeQuery(async () => {
         const { data, error } = await supabase
-          .from('withdrawal_requests')
+          .from('withdrawals')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
@@ -911,30 +911,33 @@ export const database = {
     async create(withdrawalData) {
       return safeQuery(async () => {
         console.log('출금 신청 데이터:', withdrawalData)
-        
-        // withdrawal_requests 테이블에 맞는 데이터 구조
+
+        // withdrawals 테이블에 맞는 데이터 구조
         const insertData = {
           user_id: withdrawalData.user_id,
           amount: withdrawalData.amount,
-          withdrawal_method: 'paypal',
-          paypal_email: withdrawalData.paypal_email,
-          paypal_name: withdrawalData.paypal_name,
-          reason: withdrawalData.reason || 'ポイント出金申請',
-          status: 'pending'
+          bank_name: withdrawalData.bank_name,
+          bank_account_number: withdrawalData.bank_account_number || withdrawalData.account_number,
+          bank_account_holder: withdrawalData.bank_account_holder || withdrawalData.account_holder,
+          resident_number_encrypted: withdrawalData.resident_number_encrypted,
+          reason: withdrawalData.reason || '포인트 출금 신청',
+          status: 'pending',
+          platform_region: 'korea',
+          country_code: 'KR'
         }
-        
+
         console.log('삽입할 데이터:', insertData)
-        
+
         const { data, error } = await supabase
-          .from('withdrawal_requests')
+          .from('withdrawals')
           .insert([insertData])
           .select()
-          
+
         if (error) {
           console.error('출금 신청 삽입 오류:', error)
           throw error
         }
-        
+
         console.log('출금 신청 성공:', data)
         return data && data.length > 0 ? data[0] : null
       })
@@ -946,16 +949,16 @@ export const database = {
           status,
           updated_at: new Date().toISOString()
         }
-        
+
         if (status === 'completed' || status === 'rejected') {
           updateData.processed_at = new Date().toISOString()
           if (processedBy) updateData.processed_by = processedBy
         }
-        
-        if (notes) updateData.notes = notes
+
+        if (notes) updateData.admin_notes = notes
 
         const { data, error } = await supabase
-          .from('withdrawal_requests')
+          .from('withdrawals')
           .update(updateData)
           .eq('id', id)
           .select()
