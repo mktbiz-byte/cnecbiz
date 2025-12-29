@@ -225,12 +225,16 @@ export default function CampaignDetail() {
       let hasPermission = isAdmin
 
       if (!hasPermission) {
-        // Check by company_email (works for all regions)
+        // Check by company_email (works for Korea, Japan)
         if (campaign.company_email === user.email) {
           hasPermission = true
         }
         // Check by user_id (set during campaign creation or transfer)
         else if (campaign.user_id === user.id) {
+          hasPermission = true
+        }
+        // Check by company_id (US campaigns use this for ownership)
+        else if (campaign.company_id === user.id) {
           hasPermission = true
         }
       }
