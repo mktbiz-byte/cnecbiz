@@ -37,6 +37,8 @@ const callUSCampaignAPI = async (action, campaignId, applicationId, data) => {
     throw new Error('인증이 필요합니다')
   }
 
+  console.log('[US API] Calling:', action, { campaignId, applicationId, data })
+
   const response = await fetch('/.netlify/functions/us-campaign-operations', {
     method: 'POST',
     headers: {
@@ -51,9 +53,21 @@ const callUSCampaignAPI = async (action, campaignId, applicationId, data) => {
     })
   })
 
-  const result = await response.json()
+  console.log('[US API] Response status:', response.status)
+
+  // 응답 텍스트 먼저 확인
+  const responseText = await response.text()
+  console.log('[US API] Response body:', responseText.substring(0, 500))
+
+  let result
+  try {
+    result = JSON.parse(responseText)
+  } catch (e) {
+    throw new Error(`API 응답 파싱 실패: ${responseText.substring(0, 200)}`)
+  }
+
   if (!result.success) {
-    throw new Error(result.error || 'API 오류가 발생했습니다')
+    throw new Error(result.error || `API 실패 (상태: ${response.status})`)
   }
   return result
 }

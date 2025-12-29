@@ -77,6 +77,8 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body)
     const { action, campaign_id, application_id, data } = body
 
+    console.log('[US API] Request:', { action, campaign_id, application_id, data, userEmail: user.email, userId: user.id })
+
     // 캠페인 소유권 확인 (company_id가 user.id와 일치하는지)
     const { data: campaign, error: campaignError } = await supabaseUS
       .from('campaigns')
@@ -84,11 +86,13 @@ exports.handler = async (event) => {
       .eq('id', campaign_id)
       .single()
 
+    console.log('[US API] Campaign lookup:', { campaign, error: campaignError?.message })
+
     if (campaignError || !campaign) {
       return {
         statusCode: 404,
         headers,
-        body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다' })
+        body: JSON.stringify({ success: false, error: `캠페인을 찾을 수 없습니다: ${campaignError?.message || 'not found'}` })
       }
     }
 
@@ -100,13 +104,15 @@ exports.handler = async (event) => {
       .maybeSingle()
 
     const isAdmin = !!adminData
+    console.log('[US API] Admin check:', { isAdmin, userEmail: user.email })
 
     // 소유권 확인 (관리자이거나 company_id가 일치)
+    console.log('[US API] Permission check:', { campaignCompanyId: campaign.company_id, userId: user.id, isAdmin })
     if (!isAdmin && campaign.company_id !== user.id) {
       return {
         statusCode: 403,
         headers,
-        body: JSON.stringify({ success: false, error: '이 캠페인에 대한 권한이 없습니다' })
+        body: JSON.stringify({ success: false, error: `이 캠페인에 대한 권한이 없습니다 (company_id: ${campaign.company_id}, user: ${user.id})` })
       }
     }
 
