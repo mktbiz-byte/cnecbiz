@@ -88,78 +88,77 @@ exports.handler = async (event) => {
 
     console.log('Request campaignsByRegion:', JSON.stringify(campaignsByRegion))
 
+    // 모든 캠페인 ID 수집
+    const allCampaignIds = []
+    Object.values(campaignsByRegion).forEach(ids => {
+      allCampaignIds.push(...ids)
+    })
+
     // 선정 완료 상태 목록
     const selectedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'completed']
 
-    // 지역별로 병렬 처리
-    const statsPromises = Object.entries(campaignsByRegion).map(async ([region, campaignIds]) => {
-      if (!campaignIds || campaignIds.length === 0) {
-        return { region, stats: {} }
-      }
+    // 모든 지역 DB에서 applications 조회 (캠페인이 어느 DB에 있든 applications는 다른 DB에 있을 수 있음)
+    const allRegions = ['korea', 'japan', 'us', 'biz']
 
+    const statsPromises = allRegions.map(async (region) => {
       const client = getSupabaseClient(region)
       if (!client) {
-        console.error(`No client for region: ${region}`)
-        return { region, stats: {} }
+        console.log(`No client for region: ${region}`)
+        return { region, data: [] }
       }
 
       try {
         const { data, error } = await client
           .from('applications')
           .select('campaign_id, status, guide_confirmed')
-          .in('campaign_id', campaignIds)
+          .in('campaign_id', allCampaignIds)
 
         if (error) {
           console.error(`Error fetching applications from ${region}:`, error.message)
-          return { region, stats: {} }
+          return { region, data: [] }
         }
 
-        // 캠페인별 통계 집계
-        const stats = {}
-        if (data && data.length > 0) {
-          data.forEach(app => {
-            if (!stats[app.campaign_id]) {
-              stats[app.campaign_id] = {
-                total: 0,
-                selected: 0,
-                guideConfirmed: 0,
-                completed: 0
-              }
-            }
-
-            stats[app.campaign_id].total++
-
-            if (selectedStatuses.includes(app.status)) {
-              stats[app.campaign_id].selected++
-            }
-
-            if (app.status === 'completed') {
-              stats[app.campaign_id].completed++
-            }
-
-            if (app.guide_confirmed) {
-              stats[app.campaign_id].guideConfirmed++
-            }
-          })
-        }
-
-        console.log(`${region}: ${data?.length || 0} applications found for ${campaignIds.length} campaigns`)
-        return { region, stats }
+        console.log(`${region}: ${data?.length || 0} applications found`)
+        return { region, data: data || [] }
       } catch (err) {
         console.error(`Exception fetching from ${region}:`, err.message)
-        return { region, stats: {} }
+        return { region, data: [] }
       }
     })
 
     const results = await Promise.all(statsPromises)
 
-    // 결과를 캠페인 ID별로 병합
+    // 모든 지역의 결과를 합쳐서 캠페인별 통계 집계
     const allStats = {}
-    results.forEach(({ region, stats }) => {
-      Object.entries(stats).forEach(([campaignId, stat]) => {
-        allStats[campaignId] = stat
+
+    results.forEach(({ region, data }) => {
+      data.forEach(app => {
+        if (!allStats[app.campaign_id]) {
+          allStats[app.campaign_id] = {
+            total: 0,
+            selected: 0,
+            guideConfirmed: 0,
+            completed: 0
+          }
+        }
+
+        allStats[app.campaign_id].total++
+
+        if (selectedStatuses.includes(app.status)) {
+          allStats[app.campaign_id].selected++
+        }
+
+        if (app.status === 'completed') {
+          allStats[app.campaign_id].completed++
+        }
+
+        if (app.guide_confirmed) {
+          allStats[app.campaign_id].guideConfirmed++
+        }
       })
     })
+
+    console.log('Total campaigns with stats:', Object.keys(allStats).length)
 
     return {
       statusCode: 200,
