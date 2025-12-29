@@ -12,7 +12,7 @@ import {
   Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
   X, ExternalLink, User, MapPin, CreditCard, Calendar, ChevronLeft, ChevronRight,
   Briefcase, Award, FileCheck, Key, RefreshCw, Eye, EyeOff, Check, Copy, Loader2,
-  Crown, Sparkles, TrendingUp, Coins
+  Crown, Sparkles, TrendingUp, Coins, Gift
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import { database } from '../../lib/supabaseKorea'
@@ -163,6 +163,12 @@ export default function AllCreatorsPage() {
   const [showGradeModal, setShowGradeModal] = useState(false)
   const [selectedGradeLevel, setSelectedGradeLevel] = useState(1)
   const [savingGrade, setSavingGrade] = useState(false)
+
+  // 포인트 지급 상태
+  const [showPointModal, setShowPointModal] = useState(false)
+  const [pointAmount, setPointAmount] = useState('')
+  const [pointReason, setPointReason] = useState('')
+  const [savingPoints, setSavingPoints] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -421,6 +427,83 @@ export default function AllCreatorsPage() {
       alert('등급 삭제에 실패했습니다: ' + error.message)
     } finally {
       setSavingGrade(false)
+    }
+  }
+
+  // 포인트 지급 모달 열기
+  const openPointModal = (creator) => {
+    setPointAmount('')
+    setPointReason('')
+    setShowPointModal(true)
+  }
+
+  // 포인트 지급
+  const handleGivePoints = async () => {
+    if (!selectedCreator) return
+
+    const amount = parseInt(pointAmount)
+    if (isNaN(amount) || amount <= 0) {
+      alert('유효한 포인트 금액을 입력해주세요.')
+      return
+    }
+
+    if (!pointReason.trim()) {
+      alert('지급 사유를 입력해주세요.')
+      return
+    }
+
+    setSavingPoints(true)
+    try {
+      // 해당 지역의 Supabase 클라이언트 선택
+      let supabaseClient
+      if (selectedCreator.dbRegion === 'korea') supabaseClient = supabaseKorea || supabaseBiz
+      else if (selectedCreator.dbRegion === 'japan') supabaseClient = supabaseJapan || supabaseBiz
+      else if (selectedCreator.dbRegion === 'us') supabaseClient = supabaseUS || supabaseBiz
+      else supabaseClient = supabaseBiz
+
+      // 현재 포인트 조회
+      const currentPoints = selectedCreator.points || 0
+      const newPoints = currentPoints + amount
+
+      // 포인트 업데이트
+      const { error: updateError } = await supabaseClient
+        .from('user_profiles')
+        .update({
+          points: newPoints,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedCreator.id)
+
+      if (updateError) throw updateError
+
+      // 포인트 이력 저장 시도 (테이블이 있는 경우)
+      try {
+        await supabaseClient
+          .from('point_history')
+          .insert({
+            user_id: selectedCreator.id,
+            amount: amount,
+            type: 'admin_grant',
+            reason: pointReason,
+            balance_after: newPoints,
+            created_at: new Date().toISOString()
+          })
+      } catch (historyError) {
+        // 이력 테이블이 없어도 무시
+        console.log('포인트 이력 저장 실패 (테이블 없음):', historyError)
+      }
+
+      alert(`${selectedCreator.name || '크리에이터'}님에게 ${amount.toLocaleString()} 포인트를 지급했습니다.\n현재 포인트: ${newPoints.toLocaleString()}`)
+      setShowPointModal(false)
+      setShowProfileModal(false)
+
+      // 크리에이터 목록 새로고침
+      await fetchAllCreators()
+    } catch (error) {
+      console.error('포인트 지급 오류:', error)
+      alert('포인트 지급에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingPoints(false)
     }
   }
 
@@ -1395,6 +1478,14 @@ export default function AllCreatorsPage() {
             >
               <Key className="w-4 h-4 mr-2" />
               비밀번호 재설정
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => openPointModal(selectedCreator)}
+              className="text-green-600 border-green-300 hover:bg-green-50"
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              포인트 지급
             </Button>
             <Button
               variant="outline"
