@@ -29,6 +29,35 @@ import {
   Trash2
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
+
+// US 캠페인 작업을 위한 API 호출 헬퍼 (RLS 우회)
+const callUSCampaignAPI = async (action, campaignId, applicationId, data) => {
+  const { data: { session } } = await supabaseBiz.auth.getSession()
+  if (!session?.access_token) {
+    throw new Error('인증이 필요합니다')
+  }
+
+  const response = await fetch('/.netlify/functions/us-campaign-operations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({
+      action,
+      campaign_id: campaignId,
+      application_id: applicationId,
+      data
+    })
+  })
+
+  const result = await response.json()
+  if (!result.success) {
+    throw new Error(result.error || 'API 오류가 발생했습니다')
+  }
+  return result
+}
+
 import CreatorCard from './CreatorCard'
 import { sendCampaignSelectedNotification, sendCampaignCancelledNotification, sendGuideDeliveredNotification } from '../../services/notifications/creatorNotifications'
 import { getAIRecommendations, generateAIRecommendations } from '../../services/aiRecommendation'
@@ -1134,17 +1163,22 @@ export default function CampaignDetail() {
         updateData.main_channel = mainChannel
       }
 
-      const { error } = await supabase
-        .from('applications')
-        .update(updateData)
-        .eq('id', applicationId)
+      // US 캠페인은 API 사용 (RLS 우회)
+      if (region === 'us') {
+        await callUSCampaignAPI('virtual_select', id, applicationId, updateData)
+      } else {
+        const { error } = await supabase
+          .from('applications')
+          .update(updateData)
+          .eq('id', applicationId)
 
-      if (error) throw error
+        if (error) throw error
+      }
 
       // 지원자 목록 업데이트
-      setApplications(prev => 
-        prev.map(app => 
-          app.id === applicationId 
+      setApplications(prev =>
+        prev.map(app =>
+          app.id === applicationId
             ? { ...app, ...updateData }
             : app
         )
@@ -1156,7 +1190,7 @@ export default function CampaignDetail() {
       }, 100)
     } catch (error) {
       console.error('Error updating virtual selection:', error)
-      alert('가상 선정 처리에 실패했습니다.')
+      alert('가상 선정 처리에 실패했습니다: ' + error.message)
     }
   }
 
@@ -1214,17 +1248,25 @@ export default function CampaignDetail() {
       
       // applications의 status를 'selected'로 업데이트 (크리에이터 관리 탭과 동일)
       console.log('Updating applications status to selected for IDs:', toAdd.map(app => app.id))
-      const { error: updateError, data: updateData } = await supabase
-        .from('applications')
-        .update({ 
-          status: 'selected',
-          virtual_selected: false 
-        })
-        .in('id', toAdd.map(app => app.id))
-        .select()
 
-      console.log('Update result:', updateData, 'Error:', updateError)
-      if (updateError) throw updateError
+      // US 캠페인은 API 사용 (RLS 우회)
+      if (region === 'us') {
+        await callUSCampaignAPI('confirm_selection', id, null, {
+          application_ids: toAdd.map(app => app.id)
+        })
+      } else {
+        const { error: updateError, data: updateData } = await supabase
+          .from('applications')
+          .update({
+            status: 'selected',
+            virtual_selected: false
+          })
+          .in('id', toAdd.map(app => app.id))
+          .select()
+
+        console.log('Update result:', updateData, 'Error:', updateError)
+        if (updateError) throw updateError
+      }
 
       // 목록 새로고침
       await fetchApplications()
@@ -1273,17 +1315,22 @@ export default function CampaignDetail() {
     
     try {
       // applications 상태를 pending으로 변경 (삭제하지 않고 상태만 변경)
-      const { error: updateError } = await supabase
-        .from('applications')
-        .update({
-          status: 'pending',
-          virtual_selected: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', cancellingApp.id)
+      // US 캠페인은 API 사용 (RLS 우회)
+      if (region === 'us') {
+        await callUSCampaignAPI('cancel_selection', id, cancellingApp.id, {})
+      } else {
+        const { error: updateError } = await supabase
+          .from('applications')
+          .update({
+            status: 'pending',
+            virtual_selected: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', cancellingApp.id)
 
-      if (updateError) throw updateError
-      
+        if (updateError) throw updateError
+      }
+
       // 알림톡 발송
       try {
         const { data: profile } = await supabase
