@@ -361,7 +361,13 @@ export const getCampaignsWithStats = async () => {
   })
 
   // Netlify 함수를 통해 서비스 롤 키로 애플리케이션 통계 조회 (RLS 우회)
-  const stats = await getApplicationStatsViaAPI(campaignsByRegion)
+  let stats = await getApplicationStatsViaAPI(campaignsByRegion)
+
+  // API 실패 또는 결과가 비어있으면 직접 DB 조회로 fallback
+  if (!stats || Object.keys(stats).length === 0) {
+    console.log('[getCampaignsWithStats] API failed, falling back to direct DB query')
+    stats = await getApplicationStatsDirectFromAllDBs(campaigns.map(c => c.id))
+  }
 
   // 통계 결과를 캠페인에 매핑
   campaigns.forEach(campaign => {
@@ -373,6 +379,51 @@ export const getCampaignsWithStats = async () => {
   })
 
   return campaigns
+}
+
+// 모든 DB에서 직접 applications 조회 (API fallback용)
+const getApplicationStatsDirectFromAllDBs = async (allCampaignIds) => {
+  const regions = ['korea', 'japan', 'us', 'biz']
+  const selectedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'completed']
+
+  const statsPromises = regions.map(async (region) => {
+    const client = getSupabaseClient(region)
+    if (!client) return []
+
+    try {
+      const { data, error } = await client
+        .from('applications')
+        .select('campaign_id, status')
+        .in('campaign_id', allCampaignIds)
+
+      if (error) {
+        console.log(`[Fallback] ${region} query error:`, error.message)
+        return []
+      }
+      console.log(`[Fallback] ${region}: ${data?.length || 0} applications`)
+      return data || []
+    } catch (err) {
+      console.log(`[Fallback] ${region} exception:`, err.message)
+      return []
+    }
+  })
+
+  const results = await Promise.all(statsPromises)
+  const allApplications = results.flat()
+
+  // 통계 집계
+  const stats = {}
+  allApplications.forEach(app => {
+    if (!stats[app.campaign_id]) {
+      stats[app.campaign_id] = { total: 0, selected: 0, completed: 0 }
+    }
+    stats[app.campaign_id].total++
+    if (selectedStatuses.includes(app.status)) stats[app.campaign_id].selected++
+    if (app.status === 'completed') stats[app.campaign_id].completed++
+  })
+
+  console.log('[Fallback] Total stats:', Object.keys(stats).length, 'campaigns with applications')
+  return stats
 }
 
 // 빠른 로딩용 - 통계 없이 캠페인만 가져오기
