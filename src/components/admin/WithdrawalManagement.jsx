@@ -80,47 +80,39 @@ export default function WithdrawalManagement() {
     try {
       let allWithdrawals = []
 
-      // 1. Korea DB에서 출금 신청 조회 (creator_withdrawal_requests 또는 withdrawal_requests)
+      // 1. Korea DB에서 출금 신청 조회 (withdrawals 테이블)
       if (supabaseKorea) {
         try {
-          // creator_withdrawal_requests 테이블 시도
           const { data: koreaData, error: koreaError } = await supabaseKorea
-            .from('creator_withdrawal_requests')
-            .select('*')
+            .from('withdrawals')
+            .select(`
+              *,
+              user_profiles:user_id (name, email, channel_name)
+            `)
             .order('created_at', { ascending: false })
 
           if (!koreaError && koreaData && koreaData.length > 0) {
-            console.log('Korea DB (creator_withdrawal_requests)에서 데이터 조회:', koreaData.length, '건')
+            console.log('Korea DB (withdrawals)에서 데이터 조회:', koreaData.length, '건')
             const koreaWithdrawals = koreaData.map(w => ({
               ...w,
-              region: w.region || 'korea',
+              // 필드 매핑
+              creator_name: w.user_profiles?.channel_name || w.user_profiles?.name || w.bank_account_holder || 'Unknown',
+              region: 'korea',
+              requested_points: w.amount,
+              requested_amount: w.amount,
+              final_amount: Math.round(w.amount * 0.967), // 3.3% 세금 공제
+              currency: 'KRW',
+              // 필드명 통일
+              account_number: w.bank_account_number,
+              account_holder: w.bank_account_holder,
+              resident_registration_number: w.resident_number_encrypted,
               source_db: 'korea'
             }))
             allWithdrawals = [...allWithdrawals, ...koreaWithdrawals]
+          } else if (koreaError) {
+            console.error('Korea DB withdrawals 조회 오류:', koreaError)
           } else {
-            // withdrawal_requests 테이블 시도
-            const { data: withdrawalData, error: withdrawalError } = await supabaseKorea
-              .from('withdrawal_requests')
-              .select(`
-                *,
-                user_profiles!withdrawal_requests_user_id_fkey(name, email, channel_name)
-              `)
-              .order('created_at', { ascending: false })
-
-            if (!withdrawalError && withdrawalData && withdrawalData.length > 0) {
-              console.log('Korea DB (withdrawal_requests)에서 데이터 조회:', withdrawalData.length, '건')
-              const koreaWithdrawals = withdrawalData.map(w => ({
-                ...w,
-                creator_name: w.user_profiles?.channel_name || w.user_profiles?.name || w.paypal_name || 'Unknown',
-                region: 'korea',
-                requested_points: w.amount,
-                requested_amount: w.amount,
-                final_amount: w.amount,
-                currency: 'KRW',
-                source_db: 'korea'
-              }))
-              allWithdrawals = [...allWithdrawals, ...koreaWithdrawals]
-            }
+            console.log('Korea DB (withdrawals): 데이터 없음')
           }
         } catch (koreaError) {
           console.error('Korea DB 조회 오류:', koreaError)
