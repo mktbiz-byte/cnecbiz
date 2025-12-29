@@ -131,13 +131,11 @@ exports.handler = async (event) => {
     switch (action) {
       // 가상 선정 토글
       case 'virtual_select':
+        // US DB는 main_channel, updated_at 컬럼이 없을 수 있음
+        const virtualSelectData = { virtual_selected: data.virtual_selected }
         result = await supabaseUS
           .from('applications')
-          .update({
-            virtual_selected: data.virtual_selected,
-            main_channel: data.main_channel || null,
-            updated_at: new Date().toISOString()
-          })
+          .update(virtualSelectData)
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
           .select()
@@ -149,8 +147,7 @@ exports.handler = async (event) => {
           .from('applications')
           .update({
             status: 'selected',
-            virtual_selected: false,
-            updated_at: new Date().toISOString()
+            virtual_selected: false
           })
           .in('id', data.application_ids)
           .eq('campaign_id', campaign_id)
@@ -163,8 +160,7 @@ exports.handler = async (event) => {
           .from('applications')
           .update({
             status: 'pending',
-            virtual_selected: false,
-            updated_at: new Date().toISOString()
+            virtual_selected: false
           })
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
@@ -176,8 +172,7 @@ exports.handler = async (event) => {
         result = await supabaseUS
           .from('applications')
           .update({
-            status: data.status,
-            updated_at: new Date().toISOString()
+            status: data.status
           })
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
@@ -190,8 +185,7 @@ exports.handler = async (event) => {
           .from('applications')
           .update({
             tracking_number: data.tracking_number,
-            shipping_company: data.shipping_company,
-            updated_at: new Date().toISOString()
+            shipping_company: data.shipping_company
           })
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
@@ -205,8 +199,7 @@ exports.handler = async (event) => {
           .update({
             personalized_guide: data.guide,
             status: data.status || 'filming',
-            additional_message: data.message || null,
-            updated_at: new Date().toISOString()
+            additional_message: data.message || null
           })
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
@@ -236,14 +229,13 @@ exports.handler = async (event) => {
           .order('created_at', { ascending: false })
         break
 
-      // 일반 업데이트
+      // 일반 업데이트 (updated_at, main_channel 제외)
       case 'update_application':
+        // US DB에 없는 컬럼 제외
+        const { updated_at, main_channel, ...safeData } = data
         result = await supabaseUS
           .from('applications')
-          .update({
-            ...data,
-            updated_at: new Date().toISOString()
-          })
+          .update(safeData)
           .eq('id', application_id)
           .eq('campaign_id', campaign_id)
           .select()
