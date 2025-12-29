@@ -728,9 +728,18 @@ export default function YoutuberSearchPage() {
                                 </button>
                               </div>
                             ) : (
-                              <div className="flex items-center gap-2 mt-2 text-sm text-gray-400">
-                                <Mail className="h-4 w-4" />
-                                <span>이메일 없음</span>
+                              <div className="flex items-center gap-2 mt-2">
+                                <Mail className="h-4 w-4 text-gray-400" />
+                                <a
+                                  href={`https://www.youtube.com/channel/${channel.channel_id}/about`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                                  title="YouTube About 페이지에서 이메일 확인"
+                                >
+                                  이메일 확인하기
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
                               </div>
                             )}
                           </div>
@@ -936,7 +945,15 @@ export default function YoutuberSearchPage() {
                                     {prospect.extracted_email}
                                   </span>
                                 ) : (
-                                  <span className="text-sm text-gray-400">없음</span>
+                                  <a
+                                    href={`https://www.youtube.com/channel/${prospect.channel_id}/about`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 hover:underline"
+                                    title="YouTube About 페이지에서 이메일 확인"
+                                  >
+                                    확인하기
+                                  </a>
                                 )}
                               </td>
                               <td className="p-3">
