@@ -21,6 +21,16 @@ const headers = {
 }
 
 exports.handler = async (event) => {
+  // 디버깅: 환경변수 상태 로깅
+  console.log('[US API] Environment check:', {
+    hasUsUrl: !!process.env.VITE_SUPABASE_US_URL,
+    hasUsKey: !!process.env.SUPABASE_US_SERVICE_ROLE_KEY,
+    hasBizUrl: !!(process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL),
+    hasBizKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    supabaseUSReady: !!supabaseUS,
+    supabaseBizReady: !!supabaseBiz
+  })
+
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' }
   }
