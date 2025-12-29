@@ -50,7 +50,8 @@ const CreateCampaignUS = () => {
     package_type: 'junior',
     total_slots: 10,
     remaining_slots: 10,
-    estimated_cost: 220000  // VAT 포함 원화
+    estimated_cost: 220000,  // VAT 포함 원화
+    reward_points: 0  // 크리에이터 지급 포인트 (패키지 선택 시 자동 계산)
   })
 
   const [processing, setProcessing] = useState(false)
@@ -197,11 +198,13 @@ const CreateCampaignUS = () => {
     if (selectedPackage) {
       setCampaignForm(prev => {
         const finalCost = calculateFinalCost(selectedPackage.price, prev.total_slots)
+        const rewardPoints = Math.floor(selectedPackage.price * 0.6)  // 1명당 포인트 (패키지 가격의 60%)
         return {
         ...prev,
         package_type: value,
         estimated_cost: finalCost,
         reward_amount: selectedPackage.rewardYen,  // 달러 보상 자동 설정
+        reward_points: rewardPoints,  // 포인트 자동 설정
         max_participants: prev.total_slots
       }
       })
@@ -457,6 +460,7 @@ ${textToTranslate}`
         category: campaignForm.category,
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,
+        reward_points: campaignForm.reward_points || 0,  // 크리에이터 지급 포인트
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
@@ -589,6 +593,7 @@ ${textToTranslate}`
         package_type: campaignForm.package_type,
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,  // 달러 보상
+        reward_points: campaignForm.reward_points || 0,  // 크리에이터 지급 포인트
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
