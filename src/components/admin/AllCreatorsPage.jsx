@@ -12,9 +12,10 @@ import {
   Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
   X, ExternalLink, User, MapPin, CreditCard, Calendar, ChevronLeft, ChevronRight,
   Briefcase, Award, FileCheck, Key, RefreshCw, Eye, EyeOff, Check, Copy, Loader2,
-  Crown, Sparkles, TrendingUp
+  Crown, Sparkles, TrendingUp, Coins
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
+import { database } from '../../lib/supabaseKorea'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
 
@@ -129,6 +130,13 @@ export default function AllCreatorsPage() {
   const [passwordCopied, setPasswordCopied] = useState(false)
   const [sendingPasswordEmail, setSendingPasswordEmail] = useState(false)
   const [passwordEmailSent, setPasswordEmailSent] = useState(false)
+
+  // 포인트 강제 지급 모달 상태
+  const [showPointGrantModal, setShowPointGrantModal] = useState(false)
+  const [pointGrantCreator, setPointGrantCreator] = useState(null)
+  const [pointGrantAmount, setPointGrantAmount] = useState('')
+  const [pointGrantReason, setPointGrantReason] = useState('')
+  const [grantingPoints, setGrantingPoints] = useState(false)
 
   const [creators, setCreators] = useState({
     korea: [],
@@ -689,6 +697,59 @@ export default function AllCreatorsPage() {
       alert('비밀번호 재설정에 실패했습니다: ' + error.message)
     } finally {
       setSendingPasswordEmail(false)
+    }
+  }
+
+  // 포인트 강제 지급 모달 열기
+  const openPointGrantModal = (creator) => {
+    setPointGrantCreator(creator)
+    setPointGrantAmount('')
+    setPointGrantReason('')
+    setShowPointGrantModal(true)
+    setShowProfileModal(false)
+  }
+
+  // 포인트 강제 지급 처리
+  const handleGrantPoints = async () => {
+    if (!pointGrantCreator) return
+
+    const amount = parseInt(pointGrantAmount)
+    if (!amount || amount <= 0) {
+      alert('지급할 포인트를 입력해주세요.')
+      return
+    }
+
+    if (!pointGrantReason.trim()) {
+      alert('지급 사유를 입력해주세요.')
+      return
+    }
+
+    // 한국 크리에이터만 포인트 지급 가능
+    if (pointGrantCreator.dbRegion !== 'korea') {
+      alert('현재 한국 크리에이터만 포인트 지급이 가능합니다.')
+      return
+    }
+
+    setGrantingPoints(true)
+    try {
+      const userId = pointGrantCreator.user_id || pointGrantCreator.id
+
+      await database.userPoints.addPoints(
+        userId,
+        amount,
+        pointGrantReason
+      )
+
+      alert(`${pointGrantCreator.name || '크리에이터'}님에게 ${amount.toLocaleString()}원이 지급되었습니다.`)
+      setShowPointGrantModal(false)
+      setPointGrantCreator(null)
+      setPointGrantAmount('')
+      setPointGrantReason('')
+    } catch (error) {
+      console.error('포인트 지급 오류:', error)
+      alert('포인트 지급에 실패했습니다: ' + error.message)
+    } finally {
+      setGrantingPoints(false)
     }
   }
 
@@ -1347,6 +1408,16 @@ export default function AllCreatorsPage() {
               <Crown className="w-4 h-4 mr-2" />
               등급 설정
             </Button>
+            {selectedCreator?.dbRegion === 'korea' && (
+              <Button
+                variant="outline"
+                onClick={() => openPointGrantModal(selectedCreator)}
+                className="text-green-600 border-green-300 hover:bg-green-50"
+              >
+                <Coins className="w-4 h-4 mr-2" />
+                포인트 지급
+              </Button>
+            )}
             <Button onClick={() => {
               setShowProfileModal(false)
               openReviewModal(selectedCreator, selectedCreator?.dbRegion)
@@ -1717,6 +1788,99 @@ export default function AllCreatorsPage() {
                 <>
                   <Check className="w-4 h-4 mr-2" />
                   저장
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 포인트 강제 지급 모달 */}
+      <Dialog open={showPointGrantModal} onOpenChange={setShowPointGrantModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-green-500" />
+              포인트 강제 지급
+            </DialogTitle>
+          </DialogHeader>
+
+          {pointGrantCreator && (
+            <div className="space-y-6">
+              {/* 크리에이터 정보 */}
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex items-center justify-center overflow-hidden">
+                  {pointGrantCreator.profile_image ? (
+                    <img src={pointGrantCreator.profile_image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-7 h-7 text-green-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">{pointGrantCreator.name || '이름 없음'}</h3>
+                  <p className="text-sm text-gray-500">{pointGrantCreator.email}</p>
+                  <p className="text-xs text-green-600 mt-1">🇰🇷 한국 크리에이터</p>
+                </div>
+              </div>
+
+              {/* 지급 금액 */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">지급 포인트 (원)</label>
+                <Input
+                  type="number"
+                  value={pointGrantAmount}
+                  onChange={(e) => setPointGrantAmount(e.target.value)}
+                  placeholder="예: 10000"
+                  className="text-lg"
+                />
+                {pointGrantAmount && parseInt(pointGrantAmount) > 0 && (
+                  <p className="text-sm text-green-600">
+                    {parseInt(pointGrantAmount).toLocaleString()}원 지급 예정
+                  </p>
+                )}
+              </div>
+
+              {/* 지급 사유 */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">지급 사유</label>
+                <Textarea
+                  value={pointGrantReason}
+                  onChange={(e) => setPointGrantReason(e.target.value)}
+                  placeholder="예: 캠페인 보상 지급, 이벤트 당첨 등"
+                  rows={3}
+                />
+              </div>
+
+              {/* 안내 메시지 */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>⚠️ 주의사항</strong><br />
+                  • 포인트는 즉시 크리에이터 계정에 적립됩니다<br />
+                  • 지급 내역은 포인트 내역에서 확인 가능합니다<br />
+                  • 지급 후 취소가 어려우니 신중하게 입력해주세요
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowPointGrantModal(false)} disabled={grantingPoints}>
+              취소
+            </Button>
+            <Button
+              onClick={handleGrantPoints}
+              disabled={grantingPoints || !pointGrantAmount || !pointGrantReason}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              {grantingPoints ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  지급 중...
+                </>
+              ) : (
+                <>
+                  <Coins className="w-4 h-4 mr-2" />
+                  포인트 지급
                 </>
               )}
             </Button>
