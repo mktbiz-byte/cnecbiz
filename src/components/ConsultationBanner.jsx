@@ -9,6 +9,23 @@ export default function ConsultationBanner() {
   const isAdminPage = location.pathname.startsWith('/admin')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabaseBiz.auth.getSession()
+      setIsLoggedIn(!!session)
+    }
+    checkAuth()
+
+    // 로그인 상태 변경 감지
+    const { data: { subscription } } = supabaseBiz.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   // Listen for custom event from other components
   useEffect(() => {
@@ -178,30 +195,57 @@ export default function ConsultationBanner() {
       <div className={`fixed bottom-24 right-6 z-50 ${
         isAdminPage ? 'hidden' : isMainPage ? '' : 'hidden md:block'
       }`}>
-        <a
-          href="https://pf.kakao.com/_xgNdxlG"
-          target="_blank"
-          rel="noopener noreferrer"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          className="group relative block"
-        >
-          {/* 글로우 효과 */}
-          <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-full blur-lg opacity-60 group-hover:opacity-80 transition-opacity" />
+        {isLoggedIn ? (
+          // 로그인 상태: 카카오톡 채널 링크로 이동
+          <a
+            href="https://pf.kakao.com/_xgNdxlG"
+            target="_blank"
+            rel="noopener noreferrer"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="group relative block"
+          >
+            {/* 글로우 효과 */}
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-full blur-lg opacity-60 group-hover:opacity-80 transition-opacity" />
 
-          {/* 메인 버튼 */}
-          <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full px-6 py-3.5 flex items-center gap-3 shadow-2xl hover:shadow-violet-500/25 transition-all duration-300 hover:scale-105">
-            <div className="relative">
-              <MessageCircle className="w-5 h-5" />
-              {/* 펄스 애니메이션 */}
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
+            {/* 메인 버튼 */}
+            <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full px-6 py-3.5 flex items-center gap-3 shadow-2xl hover:shadow-violet-500/25 transition-all duration-300 hover:scale-105">
+              <div className="relative">
+                <MessageCircle className="w-5 h-5" />
+                {/* 펄스 애니메이션 */}
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold">진행중인 캠페인 문의</p>
+              </div>
+              <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
             </div>
-            <div className="text-left">
-              <p className="text-sm font-bold">진행중인 캠페인 문의</p>
+          </a>
+        ) : (
+          // 비로그인 상태: 상담 신청 모달 열기
+          <button
+            onClick={() => setIsModalOpen(true)}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className="group relative block"
+          >
+            {/* 글로우 효과 */}
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-full blur-lg opacity-60 group-hover:opacity-80 transition-opacity" />
+
+            {/* 메인 버튼 */}
+            <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-full px-6 py-3.5 flex items-center gap-3 shadow-2xl hover:shadow-violet-500/25 transition-all duration-300 hover:scale-105">
+              <div className="relative">
+                <MessageCircle className="w-5 h-5" />
+                {/* 펄스 애니메이션 */}
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold">상담 신청하기</p>
+              </div>
+              <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
             </div>
-            <ArrowRight className={`w-5 h-5 transition-transform duration-300 ${isHovered ? 'translate-x-1' : ''}`} />
-          </div>
-        </a>
+          </button>
+        )}
       </div>
 
       {/* 상담 신청 모달 - 프리미엄 디자인 */}

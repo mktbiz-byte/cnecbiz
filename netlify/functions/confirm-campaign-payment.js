@@ -382,7 +382,9 @@ exports.handler = async (event, context) => {
 관리 페이지: https://cnectotal.netlify.app/admin/campaigns/${campaignId}`
 
     try {
-      const naverWorksUrl = 'https://www.worksapis.com/v1.0/bots/7348965/channels/281474978639476/messages'
+      const botId = process.env.NAVER_WORKS_BOT_ID || '7348965'
+      const channelId = process.env.NAVER_WORKS_CHANNEL_ID || '75c24874-e370-afd5-9da3-72918ba15a3c'
+      const naverWorksUrl = `https://www.worksapis.com/v1.0/bots/${botId}/channels/${channelId}/messages`
       const naverWorksToken = process.env.NAVER_WORKS_BOT_TOKEN
 
       if (!naverWorksToken) {
