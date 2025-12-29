@@ -749,10 +749,10 @@ export default function CampaignsManagement() {
         }
       }
 
-      // 4. campaign_participants 테이블 업데이트 (있는 경우)
-      if (finalCompanyIdForApps) {
+      // 4. campaign_participants 테이블 업데이트 (US는 해당 테이블 없음, Korea만 적용)
+      if (finalCompanyIdForApps && campaignRegion !== 'us') {
         try {
-          await supabaseClient
+          const { error: partError } = await supabaseClient
             .from('campaign_participants')
             .update({
               company_id: finalCompanyIdForApps,
@@ -760,7 +760,9 @@ export default function CampaignsManagement() {
             })
             .eq('campaign_id', transferCampaign.id)
 
-          console.log('참여자 데이터 이관 완료')
+          if (!partError) {
+            console.log('참여자 데이터 이관 완료')
+          }
         } catch (partError) {
           console.log('campaign_participants 테이블 업데이트 (선택적):', partError.message)
         }
@@ -1568,7 +1570,12 @@ export default function CampaignsManagement() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  현재 소유자: <span className="text-gray-700">{transferCampaign.company_email || '없음'}</span>
+                  현재 소유자: <span className="text-gray-700">
+                    {transferCampaign.company_email
+                      || (transferCampaign.region === 'us' && transferCampaign.company_id
+                          ? `US (ID: ${transferCampaign.company_id.slice(0, 8)}...)`
+                          : '없음')}
+                  </span>
                 </p>
               </div>
 
