@@ -166,7 +166,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         stats: allStats,
-        debug: results.map(r => ({ region: r.region, count: Object.keys(r.stats).length }))
+        debug: results.map(r => ({ region: r.region, count: r.data?.length || 0 }))
       })
     }
   } catch (error) {
