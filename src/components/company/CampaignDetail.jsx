@@ -1477,39 +1477,39 @@ export default function CampaignDetail() {
           }
 
           // 크리에이터에게 알림 발송
-          // user_id와 phone 정보 가져오기
+          // user_id와 phone, email 정보 가져오기
           const { data: profile } = await supabase
             .from('user_profiles')
-            .select('phone')
+            .select('phone, email')
             .eq('id', participant.user_id)
             .maybeSingle()
+
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
+          // 주차별 마감일 처리
+          let deadlineText = ''
+          if (campaign.campaign_type === '4week_challenge') {
+            const weekDeadlineField = `week${weekNumber}_deadline`
+            const weekDeadline = campaign[weekDeadlineField]
+            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+            deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
+          } else {
+            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+          }
 
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 주차별 마감일 처리
-              let deadlineText = ''
-              if (campaign.campaign_type === '4week_challenge') {
-                // 4주 챌린지: 해당 주차 마감일 사용
-                const weekDeadlineField = `week${weekNumber}_deadline`
-                const weekDeadline = campaign[weekDeadlineField]
-                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
-              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                // 올리브영: STEP1 마감일 사용
-                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
-              } else {
-                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
-              }
-
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   receiverNum: profile.phone,
-                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  receiverName: creatorName,
                   templateCode: '025100001012',
                   variables: {
-                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '크리에이터명': creatorName,
                     '캠페인명': campaign.title,
                     '제출기한': deadlineText
                   }
@@ -1520,9 +1520,38 @@ export default function CampaignDetail() {
             }
           }
 
+          // 이메일 발송 (가이드 전달)
+          if (profile?.email) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profile.email,
+                  subject: `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
+                  html: `
+                    <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #3B82F6;">캠페인 가이드가 전달되었습니다!</h2>
+                      <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p>참여하신 캠페인의 촬영 가이드가 전달되었습니다.</p>
+                      <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+                        <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p style="margin: 5px 0;"><strong>제출 기한:</strong> ${deadlineText}</p>
+                      </div>
+                      <p>가이드를 확인하시고 기한 내에 콘텐츠를 제출해 주세요.</p>
+                      <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                    </div>
+                  `
+                })
+              })
+            } catch (emailError) {
+              console.error('가이드 전달 이메일 발송 실패:', emailError)
+            }
+          }
+
           successCount++
         } catch (error) {
-          console.error(`Error delivering guide to ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
+          console.error(`Error delivering guide to ${creatorName}:`, error)
           errorCount++
         }
       }
@@ -1729,39 +1758,39 @@ export default function CampaignDetail() {
           }
 
           // 크리에이터에게 알림 발송
-          // user_id와 phone 정보 가져오기
+          // user_id와 phone, email 정보 가져오기
           const { data: profile } = await supabase
             .from('user_profiles')
-            .select('phone')
+            .select('phone, email')
             .eq('id', participant.user_id)
             .maybeSingle()
+
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
+          // 주차별 마감일 처리
+          let deadlineText = ''
+          if (campaign.campaign_type === '4week_challenge') {
+            const weekDeadlineField = `week${weekNumber}_deadline`
+            const weekDeadline = campaign[weekDeadlineField]
+            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+            deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
+          } else {
+            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+          }
 
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 주차별 마감일 처리
-              let deadlineText = ''
-              if (campaign.campaign_type === '4week_challenge') {
-                // 4주 챌린지: 해당 주차 마감일 사용
-                const weekDeadlineField = `week${weekNumber}_deadline`
-                const weekDeadline = campaign[weekDeadlineField]
-                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
-              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                // 올리브영: STEP1 마감일 사용
-                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
-              } else {
-                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
-              }
-
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   receiverNum: profile.phone,
-                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  receiverName: creatorName,
                   templateCode: '025100001012',
                   variables: {
-                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    '크리에이터명': creatorName,
                     '캠페인명': campaign.title,
                     '제출기한': deadlineText
                   }
@@ -1772,9 +1801,38 @@ export default function CampaignDetail() {
             }
           }
 
+          // 이메일 발송 (가이드 전달)
+          if (profile?.email) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profile.email,
+                  subject: `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
+                  html: `
+                    <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #3B82F6;">캠페인 가이드가 전달되었습니다!</h2>
+                      <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p>참여하신 캠페인의 촬영 가이드가 전달되었습니다.</p>
+                      <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+                        <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p style="margin: 5px 0;"><strong>제출 기한:</strong> ${deadlineText}</p>
+                      </div>
+                      <p>가이드를 확인하시고 기한 내에 콘텐츠를 제출해 주세요.</p>
+                      <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                    </div>
+                  `
+                })
+              })
+            } catch (emailError) {
+              console.error('가이드 전달 이메일 발송 실패:', emailError)
+            }
+          }
+
           successCount++
         } catch (error) {
-          console.error(`Error delivering guide to ${(participant.creator_name || participant.applicant_name || '크리에이터')}:`, error)
+          console.error(`Error delivering guide to ${creatorName}:`, error)
           errorCount++
         }
       }
@@ -1958,14 +2016,17 @@ export default function CampaignDetail() {
           }
           console.log('[DEBUG] Successfully updated application status:', updateData)
 
-          // user_id와 phone 정보 가져오기
+          // user_id와 phone, email 정보 가져오기
           const { data: profile } = await supabase
             .from('user_profiles')
-            .select('phone')
+            .select('phone, email')
             .eq('id', participant.user_id)
             .maybeSingle()
 
-          // 팔빌 알림톡 발송
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+          const deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+
+          // 팝빌 알림톡 발송
           if (profile?.phone) {
               try {
                 await fetch('/.netlify/functions/send-kakao-notification', {
@@ -1973,12 +2034,12 @@ export default function CampaignDetail() {
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     receiverNum: profile.phone,
-                    receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                    receiverName: creatorName,
                     templateCode: '025100001012',
                     variables: {
-                      '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
+                      '크리에이터명': creatorName,
                       '캠페인명': campaign.title,
-                      '제출기한': campaign.content_submission_deadline || '미정'
+                      '제출기한': deadlineText
                     }
                   })
                 })
@@ -1988,26 +2049,34 @@ export default function CampaignDetail() {
           }
 
           // 이메일 발송
-          try {
+          const emailTo = profile?.email || participant.creator_email
+          if (emailTo) {
+            try {
               await fetch('/.netlify/functions/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  to: participant.creator_email,
-                  subject: '[CNEC] 선정되신 캠페인 가이드 전달',
+                  to: emailTo,
+                  subject: `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
                   html: `
-                    <h2>${(participant.creator_name || participant.applicant_name || '크리에이터')}님, 선정되신 캠페인의 촬영 가이드가 전달되었습니다.</h2>
-                    <p><strong>캠페인:</strong> ${campaign.title}</p>
-                    <p><strong>영상 제출 기한:</strong> ${campaign.content_submission_deadline || '미정'}</p>
-                    <p>크리에이터 대시보드에서 가이드를 확인하시고, 가이드에 따라 촬영을 진행해 주세요.</p>
-                    <p>기한 내 미제출 시 패널티가 부과될 수 있습니다.</p>
-                    <p>문의: 1833-6025</p>
+                    <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #3B82F6;">캠페인 가이드가 전달되었습니다!</h2>
+                      <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p>참여하신 캠페인의 촬영 가이드가 전달되었습니다.</p>
+                      <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
+                        <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p style="margin: 5px 0;"><strong>제출 기한:</strong> ${deadlineText}</p>
+                      </div>
+                      <p>가이드를 확인하시고 기한 내에 콘텐츠를 제출해 주세요.</p>
+                      <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                    </div>
                   `
                 })
               })
             } catch (emailError) {
               console.error('Email error:', emailError)
             }
+          }
 
           successCount++
         } catch (error) {
@@ -2065,7 +2134,7 @@ export default function CampaignDetail() {
         // user_profiles의 point 업데이트
         const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
-          .select('point')
+          .select('point, phone, email')
           .eq('id', submission.applications.user_id)
           .single()
 
@@ -2087,10 +2156,65 @@ export default function CampaignDetail() {
               description: `캠페인 영상 승인: ${campaign.title}`,
               created_at: new Date().toISOString()
             }])
+
+          const creatorName = submission.applications?.creator_name || submission.applications?.applicant_name || '크리에이터'
+
+          // 4. 팝빌 알림톡 발송 (검수 완료)
+          if (profile.phone) {
+            try {
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: creatorName,
+                  templateCode: '025100001016',  // 검수 완료 템플릿
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '캠페인명': campaign.title,
+                    '지급포인트': pointAmount.toLocaleString()
+                  }
+                })
+              })
+              console.log('검수 완료 알림톡 발송 성공')
+            } catch (alimtalkError) {
+              console.error('검수 완료 알림톡 발송 실패:', alimtalkError)
+            }
+          }
+
+          // 5. 이메일 발송 (검수 완료)
+          if (profile.email) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profile.email,
+                  subject: `[CNEC] 영상 검수 완료 - ${campaign.title}`,
+                  html: `
+                    <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #10B981;">영상 검수가 완료되었습니다!</h2>
+                      <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p>참여하신 캠페인의 영상 검수가 완료되었습니다.</p>
+                      <div style="background: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p style="margin: 5px 0;"><strong>지급 포인트:</strong> ${pointAmount.toLocaleString()}P</p>
+                      </div>
+                      <p>지급된 포인트는 마이페이지에서 확인하실 수 있습니다.</p>
+                      <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                    </div>
+                  `
+                })
+              })
+              console.log('검수 완료 이메일 발송 성공')
+            } catch (emailError) {
+              console.error('검수 완료 이메일 발송 실패:', emailError)
+            }
+          }
         }
       }
 
-      // 4. 데이터 새로고침
+      // 5. 데이터 새로고침
       await fetchVideoSubmissions()
       await fetchParticipants()
 
@@ -5365,6 +5489,71 @@ export default function CampaignDetail() {
                       .eq('id', selectedParticipant.id)
 
                     if (error) throw error
+
+                    // 팝빌 알림톡 및 이메일 발송 (수정 요청)
+                    if (selectedParticipant.user_id) {
+                      const { data: profile } = await supabase
+                        .from('user_profiles')
+                        .select('phone, email')
+                        .eq('id', selectedParticipant.user_id)
+                        .maybeSingle()
+
+                      const creatorName = selectedParticipant.creator_name || selectedParticipant.applicant_name || '크리에이터'
+
+                      // 알림톡 발송
+                      if (profile?.phone) {
+                        try {
+                          await fetch('/.netlify/functions/send-kakao-notification', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              receiverNum: profile.phone,
+                              receiverName: creatorName,
+                              templateCode: '025100001017',  // 수정 요청 템플릿
+                              variables: {
+                                '크리에이터명': creatorName,
+                                '캠페인명': campaign.title,
+                                '수정요청내용': revisionComment.substring(0, 100)  // 최대 100자
+                              }
+                            })
+                          })
+                          console.log('수정 요청 알림톡 발송 성공')
+                        } catch (alimtalkError) {
+                          console.error('수정 요청 알림톡 발송 실패:', alimtalkError)
+                        }
+                      }
+
+                      // 이메일 발송
+                      if (profile?.email) {
+                        try {
+                          await fetch('/.netlify/functions/send-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              to: profile.email,
+                              subject: `[CNEC] 영상 수정 요청 - ${campaign.title}`,
+                              html: `
+                                <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                                  <h2 style="color: #F59E0B;">영상 수정이 요청되었습니다</h2>
+                                  <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                                  <p>참여하신 캠페인의 영상에 대해 수정이 요청되었습니다.</p>
+                                  <div style="background: #FEF3C7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #F59E0B;">
+                                    <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
+                                    <p style="margin: 10px 0 5px 0;"><strong>수정 요청 내용:</strong></p>
+                                    <p style="margin: 5px 0; white-space: pre-wrap;">${revisionComment}</p>
+                                  </div>
+                                  <p>수정 후 다시 제출해 주세요.</p>
+                                  <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                                </div>
+                              `
+                            })
+                          })
+                          console.log('수정 요청 이메일 발송 성공')
+                        } catch (emailError) {
+                          console.error('수정 요청 이메일 발송 실패:', emailError)
+                        }
+                      }
+                    }
 
                     alert('수정 요청이 전송되었습니다!')
                     setShowVideoModal(false)

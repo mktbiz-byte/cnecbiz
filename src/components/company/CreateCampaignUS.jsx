@@ -460,7 +460,7 @@ ${textToTranslate}`
         category: campaignForm.category,
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,
-        reward_points: campaignForm.reward_points || 0,  // 크리에이터 지급 포인트
+        // reward_points는 DB에 컬럼이 없으므로 저장하지 않음 (reward_amount로 대체)
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
@@ -593,7 +593,7 @@ ${textToTranslate}`
         package_type: campaignForm.package_type,
         image_url: campaignForm.image_url || '',
         reward_amount: campaignForm.reward_amount,  // 달러 보상
-        reward_points: campaignForm.reward_points || 0,  // 크리에이터 지급 포인트
+        // reward_points는 DB에 컬럼이 없으므로 저장하지 않음 (reward_amount로 대체)
         max_participants: campaignForm.total_slots,
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.total_slots,
