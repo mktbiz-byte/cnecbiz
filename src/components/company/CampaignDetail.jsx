@@ -2266,7 +2266,8 @@ export default function CampaignDetail() {
               hour: '2-digit',
               minute: '2-digit'
             })
-            const naverWorksMessage = `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P\n\n${koreanDate}`
+            const snsUploadUrl = submission.sns_upload_url || ''
+            const naverWorksMessage = `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P${snsUploadUrl ? `\n\nSNS 업로드 링크:\n${snsUploadUrl}` : ''}\n\n${koreanDate}`
 
             await fetch('/.netlify/functions/send-naver-works-message', {
               method: 'POST',
