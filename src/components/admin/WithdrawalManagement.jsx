@@ -991,9 +991,19 @@ export default function WithdrawalManagement() {
                                     <span className="font-medium">신청일:</span> {new Date(withdrawal.created_at).toLocaleDateString('ko-KR')}
                                   </div>
                                   {withdrawal.region === 'korea' ? (
-                                    <div>
-                                      <span className="font-medium">계좌:</span> {withdrawal.bank_name} {withdrawal.account_number}
-                                    </div>
+                                    <>
+                                      <div>
+                                        <span className="font-medium">계좌:</span> {withdrawal.bank_name} {withdrawal.account_number}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium">주민번호:</span>{' '}
+                                        {withdrawal.resident_registration_number ? (
+                                          <span className="text-green-600">등록됨 ✓</span>
+                                        ) : (
+                                          <span className="text-red-500">미등록</span>
+                                        )}
+                                      </div>
+                                    </>
                                   ) : (
                                     <div>
                                       <span className="font-medium">PayPal:</span> {withdrawal.paypal_email}
