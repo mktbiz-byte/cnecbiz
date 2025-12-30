@@ -115,6 +115,7 @@ exports.handler = async (event) => {
             .from(tableName)
             .select('campaign_id, status')
             .in('campaign_id', allCampaignIds)
+            .limit(50000)  // Supabase 기본 1000행 제한 해제
 
           if (error) {
             // 테이블이 존재하지 않는 경우 무시
