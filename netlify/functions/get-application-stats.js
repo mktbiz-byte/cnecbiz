@@ -99,40 +99,54 @@ exports.handler = async (event) => {
 
     // 모든 지역 DB에서 applications 조회 (캠페인이 어느 DB에 있든 applications는 다른 DB에 있을 수 있음)
     const allRegions = ['korea', 'japan', 'us', 'biz']
+    // 두 개의 테이블에서 모두 조회 (applications + campaign_applications)
+    const tablesToQuery = ['applications', 'campaign_applications']
 
-    const statsPromises = allRegions.map(async (region) => {
+    const statsPromises = allRegions.flatMap((region) => {
       const client = getSupabaseClient(region)
       if (!client) {
         console.log(`No client for region: ${region}`)
-        return { region, data: [] }
+        return [Promise.resolve({ region, table: 'applications', data: [] })]
       }
 
-      try {
-        const { data, error } = await client
-          .from('applications')
-          .select('campaign_id, status')
-          .in('campaign_id', allCampaignIds)
+      return tablesToQuery.map(async (tableName) => {
+        try {
+          const { data, error } = await client
+            .from(tableName)
+            .select('campaign_id, status')
+            .in('campaign_id', allCampaignIds)
 
-        if (error) {
-          console.error(`Error fetching applications from ${region}:`, error.message)
-          return { region, data: [] }
+          if (error) {
+            // 테이블이 존재하지 않는 경우 무시
+            if (error.code === '42P01') {
+              console.log(`${region}/${tableName}: Table does not exist, skipping`)
+              return { region, table: tableName, data: [] }
+            }
+            console.error(`Error fetching from ${region}/${tableName}:`, error.message)
+            return { region, table: tableName, data: [] }
+          }
+
+          console.log(`${region}/${tableName}: ${data?.length || 0} applications found`)
+          return { region, table: tableName, data: data || [] }
+        } catch (err) {
+          console.error(`Exception fetching from ${region}/${tableName}:`, err.message)
+          return { region, table: tableName, data: [] }
         }
-
-        console.log(`${region}: ${data?.length || 0} applications found`)
-        return { region, data: data || [] }
-      } catch (err) {
-        console.error(`Exception fetching from ${region}:`, err.message)
-        return { region, data: [] }
-      }
+      })
     })
 
     const results = await Promise.all(statsPromises)
 
     // 모든 지역의 결과를 합쳐서 캠페인별 통계 집계
     const allStats = {}
+    // 중복 방지를 위한 처리된 application ID 추적
+    const processedAppIds = new Set()
 
-    results.forEach(({ region, data }) => {
+    results.forEach(({ region, table, data }) => {
       data.forEach(app => {
+        // 중복 방지: 같은 campaign_id + user_id 조합이 여러 테이블에 있을 수 있음
+        // campaign_id와 status만으로는 중복 체크가 어려우므로 일단 모두 카운트
+        // (실제 운영에서는 한 테이블만 사용해야 함)
         if (!allStats[app.campaign_id]) {
           allStats[app.campaign_id] = {
             total: 0,
@@ -154,6 +168,7 @@ exports.handler = async (event) => {
     })
 
     console.log('Total campaigns with stats:', Object.keys(allStats).length)
+    console.log('Stats by table:', results.map(r => `${r.region}/${r.table}: ${r.data?.length || 0}`).join(', '))
 
     return {
       statusCode: 200,

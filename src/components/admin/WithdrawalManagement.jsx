@@ -219,6 +219,17 @@ export default function WithdrawalManagement() {
           console.log('BIZ DB에서 데이터 조회:', bizData.length, '건')
           const bizWithdrawals = bizData.map(w => ({
             ...w,
+            // BIZ DB 필드를 표준화된 이름으로 매핑
+            region: w.region || 'korea',
+            requested_points: w.requested_points || w.amount,
+            requested_amount: w.requested_amount || w.amount,
+            final_amount: w.final_amount || Math.round((w.requested_amount || w.amount || 0) * 0.967),
+            currency: w.currency || 'KRW',
+            bank_name: w.bank_name,
+            account_number: w.account_number,
+            account_holder: w.account_holder,
+            // 주민번호 필드 (BIZ DB는 resident_registration_number 사용)
+            resident_registration_number: w.resident_registration_number,
             source_db: 'biz'
           }))
           allWithdrawals = [...allWithdrawals, ...bizWithdrawals]
