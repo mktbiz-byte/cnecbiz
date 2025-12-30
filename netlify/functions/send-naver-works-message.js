@@ -179,7 +179,7 @@ exports.handler = async (event, context) => {
 
   try {
     // 요청 본문 파싱
-    const { creators, companyName, brandName, message, isAdminNotification } = JSON.parse(event.body);
+    const { creators, companyName, brandName, message, isAdminNotification, channelId: requestChannelId } = JSON.parse(event.body);
 
     // 관리자 알림인 경우 message만 사용
     if (isAdminNotification) {
@@ -205,11 +205,13 @@ exports.handler = async (event, context) => {
     const clientId = process.env.NAVER_WORKS_CLIENT_ID;
     const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
     const botId = process.env.NAVER_WORKS_BOT_ID;
-    
-    // 상담신청 알림은 별도 채널로 전송 (설정되어 있으면)
-    const channelId = isAdminNotification 
-      ? (process.env.NAVER_WORKS_CONSULTATION_CHANNEL_ID || process.env.NAVER_WORKS_CHANNEL_ID)
-      : process.env.NAVER_WORKS_CHANNEL_ID;
+
+    // 채널 ID 결정: 요청에서 제공된 채널 > 상담신청 채널 > 기본 채널
+    const channelId = requestChannelId
+      ? requestChannelId
+      : (isAdminNotification
+        ? (process.env.NAVER_WORKS_CONSULTATION_CHANNEL_ID || process.env.NAVER_WORKS_CHANNEL_ID)
+        : process.env.NAVER_WORKS_CHANNEL_ID);
     
     const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
 

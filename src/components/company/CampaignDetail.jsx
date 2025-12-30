@@ -2255,10 +2255,36 @@ export default function CampaignDetail() {
               console.error('검수 완료 이메일 발송 실패:', emailError)
             }
           }
+
+          // 6. 네이버 웍스 알림 발송 (포인트 지급 완료)
+          try {
+            const koreanDate = new Date().toLocaleString('ko-KR', {
+              timeZone: 'Asia/Seoul',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+            const naverWorksMessage = `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P\n\n${koreanDate}`
+
+            await fetch('/.netlify/functions/send-naver-works-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                isAdminNotification: true,
+                message: naverWorksMessage,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+              })
+            })
+            console.log('포인트 지급 네이버 웍스 알림 발송 성공')
+          } catch (naverWorksError) {
+            console.error('포인트 지급 네이버 웍스 알림 발송 실패:', naverWorksError)
+          }
         }
       }
 
-      // 6. 데이터 새로고침
+      // 7. 데이터 새로고침
       await fetchVideoSubmissions()
       await fetchParticipants()
 
