@@ -21,17 +21,17 @@ exports.handler = async (event) => {
     }
 
     // Supabase 클라이언트 초기화
-    const supabaseUrl = region === 'korea' 
-      ? process.env.VITE_SUPABASE_URL_KOREA
+    const supabaseUrl = region === 'korea'
+      ? process.env.VITE_SUPABASE_KOREA_URL
       : region === 'japan'
-      ? process.env.VITE_SUPABASE_URL_JAPAN
-      : process.env.VITE_SUPABASE_URL_US
+      ? process.env.VITE_SUPABASE_JAPAN_URL
+      : process.env.VITE_SUPABASE_US_URL
 
     const supabaseKey = region === 'korea'
-      ? process.env.VITE_SUPABASE_ANON_KEY_KOREA
+      ? process.env.VITE_SUPABASE_KOREA_ANON_KEY
       : region === 'japan'
-      ? process.env.VITE_SUPABASE_ANON_KEY_JAPAN
-      : process.env.VITE_SUPABASE_ANON_KEY_US
+      ? process.env.VITE_SUPABASE_JAPAN_ANON_KEY
+      : process.env.VITE_SUPABASE_US_ANON_KEY
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 

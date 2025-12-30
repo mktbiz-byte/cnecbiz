@@ -119,10 +119,10 @@ export default function WithdrawalManagement() {
                 requested_amount: w.amount,
                 final_amount: Math.round(w.amount * 0.967), // 3.3% 세금 공제
                 currency: 'KRW',
-                // 필드명 통일
+                // 필드명 통일 (두 테이블의 필드명이 다름)
                 account_number: w.bank_account_number,
                 account_holder: w.bank_account_holder,
-                resident_registration_number: w.resident_number_encrypted,
+                resident_registration_number: w.resident_number_encrypted || w.resident_registration_number,
                 source_db: 'korea'
               }
             })
@@ -219,6 +219,17 @@ export default function WithdrawalManagement() {
           console.log('BIZ DB에서 데이터 조회:', bizData.length, '건')
           const bizWithdrawals = bizData.map(w => ({
             ...w,
+            // BIZ DB 필드를 표준화된 이름으로 매핑
+            region: w.region || 'korea',
+            requested_points: w.requested_points || w.amount,
+            requested_amount: w.requested_amount || w.amount,
+            final_amount: w.final_amount || Math.round((w.requested_amount || w.amount || 0) * 0.967),
+            currency: w.currency || 'KRW',
+            bank_name: w.bank_name,
+            account_number: w.account_number,
+            account_holder: w.account_holder,
+            // 주민번호 필드 (BIZ DB는 resident_registration_number 사용)
+            resident_registration_number: w.resident_registration_number,
             source_db: 'biz'
           }))
           allWithdrawals = [...allWithdrawals, ...bizWithdrawals]
@@ -991,9 +1002,19 @@ export default function WithdrawalManagement() {
                                     <span className="font-medium">신청일:</span> {new Date(withdrawal.created_at).toLocaleDateString('ko-KR')}
                                   </div>
                                   {withdrawal.region === 'korea' ? (
-                                    <div>
-                                      <span className="font-medium">계좌:</span> {withdrawal.bank_name} {withdrawal.account_number}
-                                    </div>
+                                    <>
+                                      <div>
+                                        <span className="font-medium">계좌:</span> {withdrawal.bank_name} {withdrawal.account_number}
+                                      </div>
+                                      <div>
+                                        <span className="font-medium">주민번호:</span>{' '}
+                                        {withdrawal.resident_registration_number ? (
+                                          <span className="text-green-600">등록됨 ✓</span>
+                                        ) : (
+                                          <span className="text-red-500">미등록</span>
+                                        )}
+                                      </div>
+                                    </>
                                   ) : (
                                     <div>
                                       <span className="font-medium">PayPal:</span> {withdrawal.paypal_email}

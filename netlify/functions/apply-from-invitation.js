@@ -4,8 +4,8 @@ const supabaseUrl = process.env.VITE_SUPABASE_URL_BIZ;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-const supabaseKoreaUrl = process.env.VITE_SUPABASE_URL_KOREA;
-const supabaseKoreaServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY_KOREA;
+const supabaseKoreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
+const supabaseKoreaServiceKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY;
 const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
   ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
   : null;

@@ -999,6 +999,35 @@ const CampaignCreationKorea = () => {
         const campaignId = insertData.id
         console.log('[CreateCampaign] Campaign created with ID:', campaignId)
 
+        // 네이버 웍스 알림 발송 (캠페인 생성 완료 - 검수 요청)
+        try {
+          const koreanDate = new Date().toLocaleString('ko-KR', {
+            timeZone: 'Asia/Seoul',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+          const campaignTypeLabel = campaignForm.campaign_type === 'oliveyoung' ? '올영세일'
+            : campaignForm.campaign_type === '4week_challenge' ? '4주 챌린지'
+            : '일반'
+          const naverWorksMessage = `[캠페인 생성 완료 - 검수 요청]\n\n캠페인: ${autoTitle}\n타입: ${campaignTypeLabel}\n브랜드: ${campaignForm.brand}\n상품: ${campaignForm.product_name}\n\n기업 이메일: ${userEmail || '미등록'}\n\n${koreanDate}`
+
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              message: naverWorksMessage,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+            })
+          })
+          console.log('캠페인 생성 네이버 웍스 알림 발송 성공')
+        } catch (naverWorksError) {
+          console.error('캠페인 생성 네이버 웍스 알림 발송 실패:', naverWorksError)
+        }
+
         // 포인트 시스템 제거: 모든 결제는 계좌이체로 진행
         // 입금 확인 요청은 InvoicePage에서 세금계산서 신청 시에만 생성
         setSuccess(`캐페인이 생성되었습니다! 크리에이터 가이드를 작성해주세요.`)

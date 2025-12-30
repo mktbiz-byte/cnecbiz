@@ -385,27 +385,33 @@ export const getCampaignsWithStats = async () => {
 const getApplicationStatsDirectFromAllDBs = async (allCampaignIds) => {
   const regions = ['korea', 'japan', 'us', 'biz']
   const selectedStatuses = ['selected', 'virtual_selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'completed']
+  // 두 개의 테이블 모두 조회
+  const tablesToQuery = ['applications', 'campaign_applications']
 
-  const statsPromises = regions.map(async (region) => {
+  const statsPromises = regions.flatMap((region) => {
     const client = getSupabaseClient(region)
-    if (!client) return []
+    if (!client) return [Promise.resolve([])]
 
-    try {
-      const { data, error } = await client
-        .from('applications')
-        .select('campaign_id, status')
-        .in('campaign_id', allCampaignIds)
+    return tablesToQuery.map(async (tableName) => {
+      try {
+        const { data, error } = await client
+          .from(tableName)
+          .select('campaign_id, status')
+          .in('campaign_id', allCampaignIds)
 
-      if (error) {
-        console.log(`[Fallback] ${region} query error:`, error.message)
+        if (error) {
+          // 테이블이 없는 경우 무시
+          if (error.code === '42P01') return []
+          console.log(`[Fallback] ${region}/${tableName} query error:`, error.message)
+          return []
+        }
+        console.log(`[Fallback] ${region}/${tableName}: ${data?.length || 0} applications`)
+        return data || []
+      } catch (err) {
+        console.log(`[Fallback] ${region}/${tableName} exception:`, err.message)
         return []
       }
-      console.log(`[Fallback] ${region}: ${data?.length || 0} applications`)
-      return data || []
-    } catch (err) {
-      console.log(`[Fallback] ${region} exception:`, err.message)
-      return []
-    }
+    })
   })
 
   const results = await Promise.all(statsPromises)

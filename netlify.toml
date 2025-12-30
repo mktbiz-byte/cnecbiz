@@ -22,6 +22,9 @@
 [functions."scheduled-youtube-update-check"]
   schedule = "0 0 * * *"  # 매일 오전 9시 (한국시간 = UTC+9)
 
+[functions."scheduled-campaign-deadline-notification"]
+  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 캠페인 모집 마감 알림
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -222,6 +222,34 @@ export default function VideoReviewView() {
 
       if (updateError) throw updateError
 
+      // 네이버 웍스 알림 발송 (영상 재제출 완료)
+      try {
+        const koreanDate = new Date().toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+        const campaignTitle = submission?.applications?.campaigns?.title || '캠페인'
+        const creatorName = submission?.applications?.applicant_name || '크리에이터'
+        const naverWorksMessage = `[영상 재제출 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n\n${koreanDate}`
+
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            message: naverWorksMessage,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+          })
+        })
+        console.log('영상 재제출 네이버 웍스 알림 발송 성공')
+      } catch (naverWorksError) {
+        console.error('영상 재제출 네이버 웍스 알림 발송 실패:', naverWorksError)
+      }
+
       alert('영상이 성공적으로 업로드되었습니다!')
       loadSubmission()
     } catch (error) {

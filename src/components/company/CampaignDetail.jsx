@@ -2106,6 +2106,8 @@ export default function CampaignDetail() {
   // 영상 검수 완료 및 포인트 지급
   const handleVideoApproval = async (submission) => {
     try {
+      const videoClient = supabaseKorea || supabaseBiz
+
       // 1. video_submissions 상태 업데이트
       const { error: videoError } = await supabase
         .from('video_submissions')
@@ -2118,19 +2120,61 @@ export default function CampaignDetail() {
 
       if (videoError) throw videoError
 
-      // 2. applications 상태 업데이트
-      const { error: appError } = await supabase
-        .from('applications')
-        .update({
-          status: 'completed'
-        })
-        .eq('id', submission.application_id)
+      // 다중 영상 캠페인 타입 체크 (4주 챌린지: 4개, 올영: 2개)
+      const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+      const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+      const isMultiVideoChallenge = is4WeekChallenge || isOliveyoung
+      const requiredVideos = is4WeekChallenge ? [1, 2, 3, 4] : isOliveyoung ? [1, 2] : [1]
 
-      if (appError) throw appError
+      let allVideosCompleted = false
+      let currentWeek = submission.week_number || 1
 
-      // 3. 포인트 지급 (reward_points 또는 point 필드 사용)
+      if (isMultiVideoChallenge) {
+        // 해당 application의 모든 주차/영상 조회
+        const { data: allSubmissions, error: submissionsError } = await videoClient
+          .from('video_submissions')
+          .select('week_number, status')
+          .eq('application_id', submission.application_id)
+          .eq('campaign_id', campaign.id)
+
+        if (submissionsError) {
+          console.error('Error fetching all submissions:', submissionsError)
+        } else {
+          // 현재 승인하는 영상을 포함하여 모든 필수 영상이 approved인지 확인
+          const weekStatuses = {}
+          allSubmissions.forEach(sub => {
+            // 현재 승인하는 영상은 approved로 처리
+            if (sub.week_number === currentWeek) {
+              weekStatuses[sub.week_number] = 'approved'
+            } else {
+              weekStatuses[sub.week_number] = sub.status
+            }
+          })
+
+          // 모든 필수 영상이 approved인지 확인
+          allVideosCompleted = requiredVideos.every(week => weekStatuses[week] === 'approved')
+          const challengeType = is4WeekChallenge ? '4주 챌린지' : '올영'
+          console.log(`${challengeType} 완료 여부 체크:`, { weekStatuses, allVideosCompleted, currentWeek, requiredVideos })
+        }
+      }
+
+      // 2. applications 상태 업데이트 (다중 영상 캠페인은 모든 영상 완료 시에만)
+      if (!isMultiVideoChallenge || allVideosCompleted) {
+        const { error: appError } = await supabase
+          .from('applications')
+          .update({
+            status: 'completed'
+          })
+          .eq('id', submission.application_id)
+
+        if (appError) throw appError
+      }
+
+      // 3. 포인트 지급 (다중 영상 캠페인은 모든 영상 완료 시에만)
       const pointAmount = campaign.reward_points || campaign.point || 0
-      if (pointAmount > 0 && submission.applications?.user_id) {
+      const shouldAwardPoints = !isMultiVideoChallenge || allVideosCompleted
+
+      if (shouldAwardPoints && pointAmount > 0 && submission.applications?.user_id) {
         // user_profiles의 point 업데이트
         const { data: profile, error: profileError } = await supabase
           .from('user_profiles')
@@ -2211,14 +2255,56 @@ export default function CampaignDetail() {
               console.error('검수 완료 이메일 발송 실패:', emailError)
             }
           }
+
+          // 6. 네이버 웍스 알림 발송 (포인트 지급 완료)
+          try {
+            const koreanDate = new Date().toLocaleString('ko-KR', {
+              timeZone: 'Asia/Seoul',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+            const snsUploadUrl = submission.sns_upload_url || ''
+            const naverWorksMessage = `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P${snsUploadUrl ? `\n\nSNS 업로드 링크:\n${snsUploadUrl}` : ''}\n\n${koreanDate}`
+
+            await fetch('/.netlify/functions/send-naver-works-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                isAdminNotification: true,
+                message: naverWorksMessage,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+              })
+            })
+            console.log('포인트 지급 네이버 웍스 알림 발송 성공')
+          } catch (naverWorksError) {
+            console.error('포인트 지급 네이버 웍스 알림 발송 실패:', naverWorksError)
+          }
         }
       }
 
-      // 5. 데이터 새로고침
+      // 7. 데이터 새로고침
       await fetchVideoSubmissions()
       await fetchParticipants()
 
-      alert(`영상이 승인되었습니다. ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : ''}`)
+      // 알림 메시지 생성
+      let alertMessage = ''
+      if (isMultiVideoChallenge) {
+        const challengeName = is4WeekChallenge ? '4주 챌린지' : '올영 캠페인'
+        const videoLabel = is4WeekChallenge ? `${currentWeek}주차` : `${currentWeek}번째`
+        const totalVideos = is4WeekChallenge ? 4 : 2
+
+        if (allVideosCompleted) {
+          alertMessage = `${videoLabel} 영상이 승인되었습니다. ${challengeName}이(가) 완료되어 ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : '완료 처리되었습니다.'}`
+        } else {
+          alertMessage = `${videoLabel} 영상이 승인되었습니다. (${totalVideos}개 영상 모두 완료 시 포인트가 지급됩니다)`
+        }
+      } else {
+        alertMessage = `영상이 승인되었습니다. ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : ''}`
+      }
+      alert(alertMessage)
     } catch (error) {
       console.error('Error approving video:', error)
       alert('영상 승인에 실패했습니다: ' + error.message)
