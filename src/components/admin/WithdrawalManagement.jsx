@@ -119,10 +119,10 @@ export default function WithdrawalManagement() {
                 requested_amount: w.amount,
                 final_amount: Math.round(w.amount * 0.967), // 3.3% 세금 공제
                 currency: 'KRW',
-                // 필드명 통일
+                // 필드명 통일 (두 테이블의 필드명이 다름)
                 account_number: w.bank_account_number,
                 account_holder: w.bank_account_holder,
-                resident_registration_number: w.resident_number_encrypted,
+                resident_registration_number: w.resident_number_encrypted || w.resident_registration_number,
                 source_db: 'korea'
               }
             })
