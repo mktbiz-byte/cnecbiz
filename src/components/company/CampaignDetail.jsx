@@ -26,7 +26,10 @@ import {
   RefreshCw,
   Camera,
   Hash,
-  Trash2
+  Trash2,
+  Copy,
+  Link,
+  ExternalLink
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 
@@ -4493,36 +4496,242 @@ export default function CampaignDetail() {
           <TabsContent value="completed">
             <Card>
               <CardHeader>
-                <CardTitle>완료된 크리에이터</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    완료된 크리에이터
+                    <Badge className="bg-green-100 text-green-700 ml-2">
+                      {participants.filter(p => ['approved', 'completed'].includes(p.status)).length}명
+                    </Badge>
+                  </CardTitle>
+                  {participants.filter(p => ['approved', 'completed'].includes(p.status)).length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+                      onClick={async () => {
+                        const completedParticipants = participants.filter(p => ['approved', 'completed'].includes(p.status))
+                        const completedSubmissions = videoSubmissions.filter(sub =>
+                          sub.status === 'approved' &&
+                          completedParticipants.some(p => p.user_id === sub.user_id)
+                        )
+
+                        if (completedSubmissions.length === 0) {
+                          alert('다운로드할 영상이 없습니다.')
+                          return
+                        }
+
+                        alert(`총 ${completedSubmissions.length}개의 영상을 다운로드합니다. 순차적으로 다운로드됩니다.`)
+
+                        for (const sub of completedSubmissions) {
+                          try {
+                            const response = await fetch(signedVideoUrls[sub.id] || sub.video_file_url)
+                            const blob = await response.blob()
+                            const blobUrl = window.URL.createObjectURL(blob)
+                            const participant = completedParticipants.find(p => p.user_id === sub.user_id)
+                            const creatorName = participant?.creator_name || participant?.applicant_name || 'creator'
+                            const weekLabel = sub.week_number ? `_week${sub.week_number}` : (sub.video_number ? `_v${sub.video_number}` : '')
+
+                            const link = document.createElement('a')
+                            link.href = blobUrl
+                            link.download = `${creatorName}${weekLabel}_${new Date(sub.submitted_at).toISOString().split('T')[0]}.mp4`
+                            document.body.appendChild(link)
+                            link.click()
+                            document.body.removeChild(link)
+                            window.URL.revokeObjectURL(blobUrl)
+
+                            await new Promise(resolve => setTimeout(resolve, 500))
+                          } catch (error) {
+                            console.error('Download failed:', error)
+                          }
+                        }
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-1" />
+                      전체 영상 다운로드
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                    {participants.filter(p => ['approved', 'completed'].includes(p.status)).length === 0 ? (
+                {participants.filter(p => ['approved', 'completed'].includes(p.status)).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    아직 완료된 크리에이터가 없습니다.
+                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>아직 완료된 크리에이터가 없습니다.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {participants.filter(p => ['approved', 'completed'].includes(p.status)).map(participant => (
-                      <div key={participant.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold">{(participant.creator_name || participant.applicant_name || '크리에이터')}</h4>
-                            <p className="text-sm text-gray-600">{participant.creator_platform}</p>
-                            {participant.content_url && (
-                              <a 
-                                href={participant.content_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-sm text-blue-600 hover:underline"
-                              >
-                                콘텐츠 보기
-                              </a>
-                            )}
+                  <div className="space-y-6">
+                    {participants.filter(p => ['approved', 'completed'].includes(p.status)).map(participant => {
+                      // 해당 크리에이터의 승인된 영상들
+                      const creatorSubmissions = videoSubmissions.filter(
+                        sub => sub.user_id === participant.user_id && sub.status === 'approved'
+                      ).sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
+
+                      return (
+                        <div key={participant.id} className="border rounded-xl p-5 bg-gradient-to-r from-green-50 to-emerald-50 shadow-sm">
+                          {/* 크리에이터 헤더 */}
+                          <div className="flex items-center justify-between mb-4 pb-4 border-b border-green-200">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                {(participant.creator_name || participant.applicant_name || 'C').charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-lg text-gray-900">{participant.creator_name || participant.applicant_name || '크리에이터'}</h4>
+                                <p className="text-sm text-gray-600">{participant.creator_platform || '플랫폼 미지정'}</p>
+                              </div>
+                            </div>
+                            <Badge className="bg-green-600 text-white px-3 py-1">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              완료
+                            </Badge>
                           </div>
-                          <Badge className="bg-green-100 text-green-700">완료</Badge>
+
+                          {/* 영상 목록 */}
+                          {creatorSubmissions.length > 0 ? (
+                            <div className="space-y-4">
+                              {creatorSubmissions.map((submission, idx) => (
+                                <div key={submission.id} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+                                  <div className="flex items-start justify-between gap-4">
+                                    {/* 영상 정보 */}
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Video className="w-4 h-4 text-purple-600" />
+                                        <span className="font-semibold text-gray-800">
+                                          {submission.week_number ? `${submission.week_number}주차 영상` :
+                                           submission.video_number ? `영상 ${submission.video_number}` :
+                                           `영상 ${idx + 1}`}
+                                        </span>
+                                        {submission.version && submission.version > 1 && (
+                                          <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                        )}
+                                      </div>
+
+                                      {/* SNS 업로드 URL */}
+                                      {submission.sns_upload_url && (
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <Link className="w-4 h-4 text-blue-500" />
+                                          <a
+                                            href={submission.sns_upload_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-blue-600 hover:underline truncate max-w-md"
+                                          >
+                                            {submission.sns_upload_url}
+                                          </a>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 px-2 text-blue-600 hover:bg-blue-50"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(submission.sns_upload_url)
+                                              alert('SNS 링크가 복사되었습니다!')
+                                            }}
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      )}
+
+                                      {/* 파트너십 광고 코드 */}
+                                      {submission.partnership_code && (
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <Hash className="w-4 h-4 text-orange-500" />
+                                          <span className="text-sm text-gray-600">광고코드:</span>
+                                          <code className="text-sm bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-mono">
+                                            {submission.partnership_code}
+                                          </code>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 px-2 text-orange-600 hover:bg-orange-50"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(submission.partnership_code)
+                                              alert('광고코드가 복사되었습니다!')
+                                            }}
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      )}
+
+                                      {/* 제출일/승인일 */}
+                                      <div className="text-xs text-gray-500 mt-2">
+                                        제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                        {submission.approved_at && (
+                                          <span className="ml-2">
+                                            · 승인: {new Date(submission.approved_at).toLocaleDateString('ko-KR')}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* 버튼 그룹 */}
+                                    <div className="flex flex-col gap-2">
+                                      {/* 영상 다운로드 */}
+                                      <Button
+                                        size="sm"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                        onClick={async () => {
+                                          try {
+                                            const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
+                                            const blob = await response.blob()
+                                            const blobUrl = window.URL.createObjectURL(blob)
+                                            const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                            const weekLabel = submission.week_number ? `_week${submission.week_number}` : (submission.video_number ? `_v${submission.video_number}` : '')
+
+                                            const link = document.createElement('a')
+                                            link.href = blobUrl
+                                            link.download = `${creatorName}${weekLabel}_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                            document.body.appendChild(link)
+                                            link.click()
+                                            document.body.removeChild(link)
+                                            window.URL.revokeObjectURL(blobUrl)
+                                          } catch (error) {
+                                            console.error('Download failed:', error)
+                                            window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
+                                          }
+                                        }}
+                                      >
+                                        <Download className="w-4 h-4 mr-1" />
+                                        다운로드
+                                      </Button>
+
+                                      {/* SNS 링크 열기 */}
+                                      {submission.sns_upload_url && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                          onClick={() => window.open(submission.sns_upload_url, '_blank')}
+                                        >
+                                          <ExternalLink className="w-4 h-4 mr-1" />
+                                          SNS 보기
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 text-gray-500 bg-white rounded-lg">
+                              <p className="text-sm">제출된 영상 파일이 없습니다.</p>
+                              {participant.content_url && (
+                                <a
+                                  href={participant.content_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                  콘텐츠 URL 보기
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
