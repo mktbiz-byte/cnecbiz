@@ -3690,7 +3690,7 @@ export default function CampaignDetail() {
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="space-y-4">
                   {applications.map(app => {
                     // 이미 participants에 있는지 확인 (user_id로 비교)
                     const isAlreadyParticipant = participants.some(p =>
@@ -3967,7 +3967,7 @@ export default function CampaignDetail() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="space-y-4">
                   {applications.filter(app => app.virtual_selected).map(app => {
                     // 이미 participants에 있는지 확인
                     const isAlreadyParticipant = participants.some(p =>
