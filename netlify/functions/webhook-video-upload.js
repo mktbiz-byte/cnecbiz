@@ -135,32 +135,32 @@ exports.handler = async (event) => {
     let companyPhone = null;
     let companyName = campaign.brand || '기업';
 
-    // companies 테이블에서 조회
+    // Korea DB companies 테이블에서 조회 (컬럼명: company_name, phone)
     if (campaign.company_id) {
       const { data: company } = await supabaseKorea
         .from('companies')
-        .select('company_name, phone, representative_phone')
+        .select('company_name, phone')
         .eq('user_id', campaign.company_id)
         .single();
 
       if (company) {
-        companyPhone = company.phone || company.representative_phone;
+        companyPhone = company.phone;
         companyName = company.company_name || companyName;
         console.log('companies 테이블에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
-    // user_profiles에서 조회 (fallback)
+    // Korea DB user_profiles에서 조회 (fallback) - 컬럼명: name, phone
     if (!companyPhone && campaign.company_id) {
       const { data: profile } = await supabaseKorea
         .from('user_profiles')
-        .select('phone, full_name')
+        .select('phone, name')
         .eq('id', campaign.company_id)
         .single();
 
       if (profile?.phone) {
         companyPhone = profile.phone;
-        companyName = profile.full_name || companyName;
+        companyName = profile.name || companyName;
         console.log('user_profiles에서 정보 찾음:', { companyPhone, companyName });
       }
     }

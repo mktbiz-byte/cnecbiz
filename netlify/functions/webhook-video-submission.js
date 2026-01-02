@@ -114,17 +114,17 @@ exports.handler = async (event) => {
       };
     }
 
-    // 2. 크리에이터 정보 조회
+    // 2. 크리에이터 정보 조회 (Korea DB: name 컬럼 사용)
     let creatorName = '크리에이터';
     if (record.user_id) {
       const { data: profile } = await supabaseKorea
         .from('user_profiles')
-        .select('full_name, name')
+        .select('name')
         .eq('id', record.user_id)
         .single();
 
       if (profile) {
-        creatorName = profile.full_name || profile.name || '크리에이터';
+        creatorName = profile.name || '크리에이터';
       }
     }
 
@@ -137,28 +137,28 @@ exports.handler = async (event) => {
       company_email: campaign.company_email
     });
 
-    // companies 테이블에서 조회
+    // Korea DB companies 테이블에서 조회 (컬럼명: company_name, phone)
     if (campaign.company_id) {
       const { data: company, error: companyError } = await supabaseKorea
         .from('companies')
-        .select('company_name, phone, representative_phone')
+        .select('company_name, phone')
         .eq('user_id', campaign.company_id)
         .single();
 
       console.log('companies 테이블 조회 결과:', { company, error: companyError?.message });
 
       if (company) {
-        companyPhone = company.phone || company.representative_phone;
+        companyPhone = company.phone;
         companyName = company.company_name || companyName;
         console.log('companies 테이블에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
-    // user_profiles에서 조회 (fallback)
+    // Korea DB user_profiles에서 조회 (fallback) - 컬럼명: name, phone
     if (!companyPhone && campaign.company_id) {
       const { data: profile, error: profileError } = await supabaseKorea
         .from('user_profiles')
-        .select('phone, full_name')
+        .select('phone, name')
         .eq('id', campaign.company_id)
         .single();
 
@@ -166,7 +166,7 @@ exports.handler = async (event) => {
 
       if (profile?.phone) {
         companyPhone = profile.phone;
-        companyName = profile.full_name || companyName;
+        companyName = profile.name || companyName;
         console.log('user_profiles에서 정보 찾음:', { companyPhone, companyName });
       }
     }
