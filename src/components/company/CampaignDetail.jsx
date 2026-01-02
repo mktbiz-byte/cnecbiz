@@ -4626,31 +4626,34 @@ export default function CampaignDetail() {
                                         )}
                                       </div>
 
-                                      {/* SNS 업로드 URL */}
-                                      {submission.sns_upload_url && (
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <Link className="w-4 h-4 text-blue-500" />
-                                          <a
-                                            href={submission.sns_upload_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm text-blue-600 hover:underline truncate max-w-md"
-                                          >
-                                            {submission.sns_upload_url}
-                                          </a>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 px-2 text-blue-600 hover:bg-blue-50"
-                                            onClick={() => {
-                                              navigator.clipboard.writeText(submission.sns_upload_url)
-                                              alert('SNS 링크가 복사되었습니다!')
-                                            }}
-                                          >
-                                            <Copy className="w-3 h-3" />
-                                          </Button>
-                                        </div>
-                                      )}
+                                      {/* SNS 업로드 URL (video_submissions 또는 campaign_participants에서) */}
+                                      {(() => {
+                                        const snsUrl = submission.sns_upload_url || participant.sns_upload_url
+                                        return snsUrl ? (
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Link className="w-4 h-4 text-blue-500" />
+                                            <a
+                                              href={snsUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-sm text-blue-600 hover:underline truncate max-w-md"
+                                            >
+                                              {snsUrl}
+                                            </a>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 px-2 text-blue-600 hover:bg-blue-50"
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(snsUrl)
+                                                alert('SNS 링크가 복사되었습니다!')
+                                              }}
+                                            >
+                                              <Copy className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        ) : null
+                                      })()}
 
                                       {/* 파트너십 광고 코드 (campaign_participants 테이블에 저장됨) */}
                                       {participant.partnership_code && (
@@ -4750,12 +4753,12 @@ export default function CampaignDetail() {
                                       )}
 
                                       {/* SNS 링크 열기 */}
-                                      {submission.sns_upload_url && (
+                                      {(submission.sns_upload_url || participant.sns_upload_url) && (
                                         <Button
                                           size="sm"
                                           variant="outline"
                                           className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                                          onClick={() => window.open(submission.sns_upload_url, '_blank')}
+                                          onClick={() => window.open(submission.sns_upload_url || participant.sns_upload_url, '_blank')}
                                         >
                                           <ExternalLink className="w-4 h-4 mr-1" />
                                           SNS 보기
@@ -4768,7 +4771,8 @@ export default function CampaignDetail() {
                                           size="sm"
                                           className="bg-purple-600 hover:bg-purple-700 text-white"
                                           onClick={async () => {
-                                            if (!submission.sns_upload_url) {
+                                            const snsUrl = submission.sns_upload_url || participant.sns_upload_url
+                                            if (!snsUrl) {
                                               alert('SNS 업로드 URL이 등록되지 않았습니다.\n\n크리에이터가 SNS 업로드 완료 후 다시 시도해주세요.')
                                               return
                                             }
