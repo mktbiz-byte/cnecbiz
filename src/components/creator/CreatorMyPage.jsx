@@ -114,7 +114,7 @@ const CreatorMyPage = () => {
 
       if (updateError) throw updateError
 
-      // 네이버 웍스 알림 발송 (영상 업로드 완료)
+      // 기업에게 알림톡 및 네이버 웍스 알림 발송
       try {
         const koreanDate = new Date().toLocaleString('ko-KR', {
           timeZone: 'Asia/Seoul',
@@ -124,9 +124,68 @@ const CreatorMyPage = () => {
           hour: '2-digit',
           minute: '2-digit'
         })
-        const campaignTitle = selectedCampaign?.campaigns?.title || selectedCampaign?.title || '캠페인'
+        const campaign = selectedCampaign?.campaigns || selectedCampaign
+        const campaignTitle = campaign?.title || '캠페인'
         const creatorName = user?.email || '크리에이터'
-        const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
+
+        // 기업 정보 조회 (전화번호, 회사명)
+        let companyPhone = null
+        let companyName = campaign?.brand || '기업'
+
+        if (campaign?.company_id) {
+          // companies 테이블에서 조회
+          const { data: company } = await supabaseKorea
+            .from('companies')
+            .select('company_name, phone, representative_phone')
+            .eq('user_id', campaign.company_id)
+            .single()
+
+          if (company) {
+            companyPhone = company.phone || company.representative_phone
+            companyName = company.company_name || campaign?.brand || '기업'
+          }
+
+          // companies에서 전화번호가 없으면 user_profiles에서 조회
+          if (!companyPhone) {
+            const { data: profile } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', campaign.company_id)
+              .single()
+
+            if (profile) {
+              companyPhone = profile.phone
+            }
+          }
+        }
+
+        // 1. 기업에게 카카오 알림톡 발송 (검수 요청)
+        if (companyPhone) {
+          try {
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyPhone,
+                receiverName: companyName,
+                templateCode: '025100001008', // 영상 촬영 완료 검수 요청
+                variables: {
+                  '회사명': companyName,
+                  '캠페인명': campaignTitle,
+                  '크리에이터명': creatorName
+                }
+              })
+            })
+            console.log('영상 업로드 기업 알림톡 발송 성공')
+          } catch (kakaoError) {
+            console.error('영상 업로드 기업 알림톡 발송 실패:', kakaoError)
+          }
+        } else {
+          console.log('기업 전화번호 없음 - 알림톡 발송 생략')
+        }
+
+        // 2. 네이버 웍스 알림 발송 (관리자용)
+        const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n기업: ${companyName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
 
         await fetch('/.netlify/functions/send-naver-works-message', {
           method: 'POST',
@@ -138,8 +197,8 @@ const CreatorMyPage = () => {
           })
         })
         console.log('영상 업로드 네이버 웍스 알림 발송 성공')
-      } catch (naverWorksError) {
-        console.error('영상 업로드 네이버 웍스 알림 발송 실패:', naverWorksError)
+      } catch (notificationError) {
+        console.error('영상 업로드 알림 발송 실패:', notificationError)
       }
 
       alert('영상이 성공적으로 업로드되었습니다!')
