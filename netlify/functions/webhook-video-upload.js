@@ -20,17 +20,6 @@ const { createClient } = require('@supabase/supabase-js');
  * }
  */
 
-// Supabase 클라이언트 초기화
-const supabaseKorea = createClient(
-  process.env.VITE_SUPABASE_KOREA_URL,
-  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-);
-
-const supabaseBiz = createClient(
-  process.env.VITE_SUPABASE_BIZ_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
-);
-
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -45,6 +34,17 @@ exports.handler = async (event) => {
 
   console.log('=== 영상 업로드 Webhook 시작 ===');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
+
+  // Supabase 클라이언트를 핸들러 내부에서 생성 (환경변수 로딩 문제 해결)
+  const supabaseKorea = createClient(
+    process.env.VITE_SUPABASE_KOREA_URL,
+    process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+  );
+
+  const supabaseBiz = createClient(
+    process.env.VITE_SUPABASE_BIZ_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
+  );
 
   try {
     // Webhook Secret 검증 (선택적)

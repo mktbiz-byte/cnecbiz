@@ -12,16 +12,6 @@ const { createClient } = require('@supabase/supabase-js');
  * 5. URL: https://cnecbiz.com/.netlify/functions/webhook-video-submission
  */
 
-const supabaseKorea = createClient(
-  process.env.VITE_SUPABASE_KOREA_URL,
-  process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-);
-
-const supabaseBiz = createClient(
-  process.env.VITE_SUPABASE_BIZ_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
-);
-
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -34,6 +24,17 @@ exports.handler = async (event) => {
   }
 
   console.log('=== video_submissions Webhook 시작 ===');
+
+  // Supabase 클라이언트를 핸들러 내부에서 생성 (환경변수 로딩 문제 해결)
+  const supabaseKorea = createClient(
+    process.env.VITE_SUPABASE_KOREA_URL,
+    process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
+  );
+
+  const supabaseBiz = createClient(
+    process.env.VITE_SUPABASE_BIZ_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
+  );
 
   try {
     const body = JSON.parse(event.body);
