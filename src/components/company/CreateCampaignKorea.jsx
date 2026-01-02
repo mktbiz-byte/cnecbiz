@@ -300,7 +300,7 @@ const CampaignCreationKorea = () => {
 
         const { data: company, error } = await supabaseBiz
           .from('companies')
-          .select('id, phone, ceo_name, business_type, business_category, company_postal_code, company_address')
+          .select('id, phone, notification_phone, ceo_name, business_type, business_category, company_postal_code, company_address')
           .eq('user_id', user.id)
           .single()
 
@@ -309,9 +309,15 @@ const CampaignCreationKorea = () => {
           return
         }
 
-        console.log('[CreateCampaignKorea] Company info loaded:', company)
-        console.log('[CreateCampaignKorea] Company id:', company?.id, 'phone:', company?.phone)
-        setCompanyInfo(company)
+        // phone이 없으면 notification_phone 사용
+        const companyWithPhone = {
+          ...company,
+          phone: company?.phone || company?.notification_phone
+        }
+
+        console.log('[CreateCampaignKorea] Company info loaded:', companyWithPhone)
+        console.log('[CreateCampaignKorea] Company id:', companyWithPhone?.id, 'phone:', companyWithPhone?.phone)
+        setCompanyInfo(companyWithPhone)
 
         // 세금계산서 필수 필드 체크 (대표자명, 업태, 종목, 우편번호, 주소)
         const isComplete = !!(

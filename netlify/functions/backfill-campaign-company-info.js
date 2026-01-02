@@ -123,20 +123,24 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 2. BIZ DB에서 모든 companies 조회
+    // 2. BIZ DB에서 모든 companies 조회 (phone, notification_phone 모두)
     const { data: companies, error: companiesError } = await supabaseBiz
       .from('companies')
-      .select('id, email, phone, user_id');
+      .select('id, email, phone, notification_phone, user_id');
 
     if (companiesError) throw companiesError;
 
-    // 이메일/user_id 기반 매핑
+    // 이메일/user_id 기반 매핑 (phone이 없으면 notification_phone 사용)
     const companyByEmail = {};
     const companyByUserId = {};
 
     companies?.forEach(company => {
-      if (company.email) companyByEmail[company.email.toLowerCase()] = company;
-      if (company.user_id) companyByUserId[company.user_id] = company;
+      const companyWithPhone = {
+        ...company,
+        phone: company.phone || company.notification_phone
+      };
+      if (company.email) companyByEmail[company.email.toLowerCase()] = companyWithPhone;
+      if (company.user_id) companyByUserId[company.user_id] = companyWithPhone;
     });
 
     // 3. 각 캠페인 업데이트
