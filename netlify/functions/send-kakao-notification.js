@@ -351,9 +351,18 @@ exports.handler = async (event) => {
 
     // 팝빌 알림톡 발송
     const receiptNum = Date.now().toString();
-    
+
+    // 템플릿 코드에 따라 plusFriendID 결정
+    // 기업용 템플릿: @크넥 (025100000912~025100001010)
+    // 크리에이터용 템플릿: @크넥_크리에이터 (025100001011~025100001022, 025110000796~)
+    const companyTemplates = [
+      '025100000912', '025100000918', '025100000919', '025100000942', '025100000943',
+      '025100001005', '025100001006', '025100001007', '025100001008', '025100001009', '025100001010'
+    ];
+    const plusFriendID = companyTemplates.includes(templateCode) ? '@크넥' : '@크넥_크리에이터';
+
     const kakaoMessage = {
-      plusFriendID: '@크넥_크리에이터크넥',
+      plusFriendID: plusFriendID,
       templateCode: templateCode,
       receiverNum: receiverNum,
       receiverName: receiverName || '',
@@ -365,6 +374,7 @@ exports.handler = async (event) => {
     };
 
     console.log('[INFO] Sending Kakao message:', kakaoMessage);
+    console.log('[INFO] Using plusFriendID:', plusFriendID);
 
     // 팡빌 API 호출
     const result = await new Promise((resolve, reject) => {

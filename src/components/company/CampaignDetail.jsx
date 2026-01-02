@@ -5673,6 +5673,9 @@ export default function CampaignDetail() {
                     <div key={index} className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
+                          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">
+                            V{file.version || index + 1}
+                          </span>
                           <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
                           <span className="text-sm font-medium">{file.name}</span>
                         </div>

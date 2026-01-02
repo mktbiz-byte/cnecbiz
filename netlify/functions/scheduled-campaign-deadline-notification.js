@@ -7,11 +7,13 @@
  * 기능:
  * - 오늘이 모집 마감일(application_deadline)인 캠페인 조회
  * - 해당 캠페인의 기업에게 카카오톡 알림 발송
+ * - 해당 캠페인의 기업에게 이메일 발송
  * - 템플릿: 025100001006 (모집 마감 크리에이터 선정 요청)
  */
 
 const { createClient } = require('@supabase/supabase-js');
 const popbill = require('popbill');
+const nodemailer = require('nodemailer');
 
 // 팝빌 전역 설정
 popbill.config({
@@ -39,6 +41,88 @@ const createSupabaseClient = () => {
     );
   }
   return null;
+};
+
+// 이메일 발송 함수
+const sendEmail = async (to, companyName, campaignTitle, applicantCount) => {
+  const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+  const senderName = process.env.GMAIL_SENDER_NAME || 'CNEC';
+
+  if (!gmailAppPassword) {
+    console.log('GMAIL_APP_PASSWORD 환경변수 미설정 - 이메일 발송 생략');
+    return { success: false, reason: 'GMAIL_APP_PASSWORD 미설정' };
+  }
+
+  const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '');
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: gmailEmail,
+      pass: cleanPassword
+    }
+  });
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+    .highlight-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .stat { font-size: 36px; font-weight: bold; color: #667eea; }
+    .button { display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin-top: 20px; }
+    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📢 캠페인 모집 마감 안내</h1>
+    </div>
+    <div class="content">
+      <p><strong>${companyName}</strong>님, 안녕하세요!</p>
+      <p>신청하신 캠페인의 크리에이터 모집이 마감되었습니다.</p>
+
+      <div class="highlight-box">
+        <p><strong>캠페인:</strong> ${campaignTitle}</p>
+        <p><strong>지원 크리에이터:</strong> <span class="stat">${applicantCount}</span>명</p>
+      </div>
+
+      <p>관리자 페이지에서 지원한 크리에이터 리스트를 확인하시고, 최종 선정을 진행해 주세요.</p>
+
+      <a href="https://cnec.co.kr/company/campaigns" class="button">크리에이터 선정하기 →</a>
+
+      <div class="footer">
+        <p>문의: 1833-6025 | mkt_biz@cnec.co.kr</p>
+        <p>© CNEC. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const mailOptions = {
+    from: `"${senderName}" <${gmailEmail}>`,
+    to: to,
+    subject: `[CNEC] ${campaignTitle} 캠페인 모집 마감 - 크리에이터 선정을 진행해 주세요`,
+    html: htmlContent
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`이메일 발송 성공: ${to}`, info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error(`이메일 발송 실패: ${to}`, error.message);
+    return { success: false, error: error.message };
+  }
 };
 
 // 카카오톡 알림 발송 함수
@@ -149,69 +233,105 @@ exports.handler = async (event, context) => {
 
         console.log(`지원자 수: ${applicantCount || 0}명`);
 
-        // 기업 정보 조회 (전화번호, 회사명)
+        // 기업 정보 조회 (전화번호, 회사명, 이메일)
         let companyPhone = null;
+        let companyEmail = campaign.company_email || null;
         let companyName = campaign.brand || '기업';
 
         if (campaign.company_id) {
           const { data: company, error: companyError } = await supabase
             .from('companies')
-            .select('company_name, phone, representative_phone')
+            .select('company_name, phone, representative_phone, email')
             .eq('user_id', campaign.company_id)
             .single();
 
           if (!companyError && company) {
             companyPhone = company.phone || company.representative_phone;
             companyName = company.company_name || campaign.brand || '기업';
+            companyEmail = companyEmail || company.email;
           }
         }
 
-        // 회사 전화번호가 없으면 user_profiles에서 조회
-        if (!companyPhone && campaign.company_id) {
+        // 회사 전화번호/이메일이 없으면 user_profiles에서 조회
+        if ((!companyPhone || !companyEmail) && campaign.company_id) {
           const { data: profile, error: profileError } = await supabase
             .from('user_profiles')
-            .select('phone')
+            .select('phone, email')
             .eq('id', campaign.company_id)
             .single();
 
           if (!profileError && profile) {
-            companyPhone = profile.phone;
+            companyPhone = companyPhone || profile.phone;
+            companyEmail = companyEmail || profile.email;
           }
         }
 
-        if (!companyPhone) {
-          console.log(`전화번호 없음 - 캠페인: ${campaign.title}, 회사: ${companyName}`);
+        // 알림 발송 결과 추적
+        let kakaoSent = false;
+        let emailSent = false;
+
+        // 1. 카카오톡 알림 발송
+        if (companyPhone) {
+          try {
+            const variables = {
+              '회사명': companyName,
+              '캠페인명': campaign.title,
+              '지원자수': (applicantCount || 0).toString()
+            };
+
+            await sendKakaoNotification(
+              companyPhone,
+              companyName,
+              '025100001006',
+              variables
+            );
+            kakaoSent = true;
+            console.log(`알림톡 발송 완료: ${companyName} (${companyPhone})`);
+          } catch (kakaoError) {
+            console.error(`알림톡 발송 실패: ${companyName}`, kakaoError.message);
+          }
+        } else {
+          console.log(`전화번호 없음 - 알림톡 발송 생략: ${companyName}`);
+        }
+
+        // 2. 이메일 발송
+        if (companyEmail) {
+          try {
+            const emailResult = await sendEmail(
+              companyEmail,
+              companyName,
+              campaign.title,
+              applicantCount || 0
+            );
+            emailSent = emailResult.success;
+            console.log(`이메일 발송 ${emailSent ? '완료' : '실패'}: ${companyEmail}`);
+          } catch (emailError) {
+            console.error(`이메일 발송 실패: ${companyEmail}`, emailError.message);
+          }
+        } else {
+          console.log(`이메일 없음 - 이메일 발송 생략: ${companyName}`);
+        }
+
+        // 결과 기록
+        if (!kakaoSent && !emailSent) {
           results.push({
             campaignId: campaign.id,
             campaignTitle: campaign.title,
+            companyName: companyName,
             status: 'skipped',
-            reason: '전화번호 없음'
+            reason: '연락처 없음 (전화번호/이메일 모두 없음)'
           });
-          continue;
+        } else {
+          results.push({
+            campaignId: campaign.id,
+            campaignTitle: campaign.title,
+            companyName: companyName,
+            applicantCount: applicantCount || 0,
+            status: 'sent',
+            kakaoSent: kakaoSent,
+            emailSent: emailSent
+          });
         }
-
-        // 카카오톡 알림 발송
-        const variables = {
-          '회사명': companyName,
-          '캠페인명': campaign.title,
-          '지원자수': (applicantCount || 0).toString()
-        };
-
-        await sendKakaoNotification(
-          companyPhone,
-          companyName,
-          '025100001006',
-          variables
-        );
-
-        console.log(`알림 발송 완료: ${companyName} (${companyPhone})`);
-        results.push({
-          campaignId: campaign.id,
-          campaignTitle: campaign.title,
-          companyName: companyName,
-          applicantCount: applicantCount || 0,
-          status: 'sent'
-        });
 
       } catch (error) {
         console.error(`캠페인 처리 실패 (${campaign.id}):`, error);

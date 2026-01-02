@@ -76,22 +76,42 @@ exports.handler = async (event) => {
 
     const kakaoService = popbill.KakaoService()
 
-    // 알림톡 발송 메시지 구성
-    const message = `[CNEC] 영상 수정 요청
+    // 오늘 날짜 (한국시간)
+    const today = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
+    // 재제출 기한 (7일 후)
+    const resubmitDeadline = new Date()
+    resubmitDeadline.setDate(resubmitDeadline.getDate() + 7)
+    const resubmitDate = resubmitDeadline.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
 
-안녕하세요, ${creatorName || '크리에이터'}님!
+    // 알림톡 발송 메시지 구성 (팝빌 템플릿 025100001016과 100% 동일해야 함)
+    // 템플릿의 #{변수명}을 실제 값으로 치환
+    const templateContent = `[CNEC] 제출하신 영상 수정 요청
+#{크리에이터명}님, 제출하신 영상에 수정 요청이 있습니다.
+캠페인: #{캠페인명}
+수정 요청일: #{요청일}
+크리에이터 대시보드에서 수정 사항을 확인하시고, 영상을 수정하여 재제출해 주세요.
+재제출 기한: #{재제출기한}
+문의: 1833-6025`
 
-'${campaignTitle || '캠페인'}' 영상에 ${feedbackCount || 0}건의 수정 요청이 등록되었습니다.
+    // 변수 치환
+    const variables = {
+      '크리에이터명': creatorName || '크리에이터',
+      '캠페인명': campaignTitle || '캠페인',
+      '요청일': today,
+      '재제출기한': resubmitDate
+    }
 
-CNEC 크리에이터 페이지에서 확인해 주세요.
-https://cnec.co.kr/creator/submissions`
+    let message = templateContent
+    for (const [key, value] of Object.entries(variables)) {
+      message = message.replace(new RegExp(`#\\{${key}\\}`, 'g'), value)
+    }
 
     // 알림톡 발송 시도
     try {
       const result = await new Promise((resolve, reject) => {
         kakaoService.sendATS(
           CorpNum,                           // 사업자번호
-          'video_review_request',            // 템플릿 코드
+          '025100001016',                    // 템플릿 코드 (영상 수정 요청 알림)
           process.env.POPBILL_SENDER_NUM || '0212345678', // 발신번호
           message,                           // 템플릿 내용
           '[CNEC] 영상 수정 요청',           // 대체문자 제목

@@ -158,7 +158,7 @@ function App() {
         <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/company/campaigns/:id/invoice" element={<InvoicePage />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
-        <Route path="/company/creators" element={<CreatorManagement />} />
+        {/* <Route path="/company/creators" element={<CreatorManagement />} /> */} {/* 임시 비활성화 */}
         <Route path="/company/campaigns/:id/edit" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/video-review/:submissionId" element={<VideoReview />} />
