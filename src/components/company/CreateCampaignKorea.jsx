@@ -300,7 +300,7 @@ const CampaignCreationKorea = () => {
 
         const { data: company, error } = await supabaseBiz
           .from('companies')
-          .select('ceo_name, business_type, business_category, company_postal_code, company_address')
+          .select('id, phone, ceo_name, business_type, business_category, company_postal_code, company_address')
           .eq('user_id', user.id)
           .single()
 
@@ -970,6 +970,13 @@ const CampaignCreationKorea = () => {
       if (!isAdmin) {
         campaignData.company_id = currentUser.id
         campaignData.company_email = userEmail
+        // BIZ DB의 companies 테이블 id와 phone 추가
+        if (companyInfo?.id) {
+          campaignData.company_biz_id = companyInfo.id
+        }
+        if (companyInfo?.phone) {
+          campaignData.company_phone = companyInfo.phone
+        }
       }
 
       const client = supabaseKorea || supabaseBiz
