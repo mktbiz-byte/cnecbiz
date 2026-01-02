@@ -2106,12 +2106,12 @@ export default function CampaignDetail() {
     }
   }
   
-  // 영상 검수 완료 및 포인트 지급
+  // 영상 검수 완료 (포인트 지급 없음 - 최종 확정 시 지급)
   const handleVideoApproval = async (submission) => {
     try {
       const videoClient = supabaseKorea || supabaseBiz
 
-      // 1. video_submissions 상태 업데이트
+      // 1. video_submissions 상태 업데이트 (approved로 변경)
       const { error: videoError } = await supabase
         .from('video_submissions')
         .update({
@@ -2123,76 +2123,100 @@ export default function CampaignDetail() {
 
       if (videoError) throw videoError
 
-      // 다중 영상 캠페인 타입 체크 (4주 챌린지: 4개, 올영: 2개)
+      // 다중 영상 캠페인 타입 체크
       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
       const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
       const isMultiVideoChallenge = is4WeekChallenge || isOliveyoung
       const requiredVideos = is4WeekChallenge ? [1, 2, 3, 4] : isOliveyoung ? [1, 2] : [1]
 
-      let allVideosCompleted = false
+      let allVideosApproved = false
       let currentWeek = submission.week_number || 1
 
       if (isMultiVideoChallenge) {
-        // 해당 application의 모든 주차/영상 조회
-        const { data: allSubmissions, error: submissionsError } = await videoClient
+        const { data: allSubmissions } = await videoClient
           .from('video_submissions')
           .select('week_number, status')
           .eq('application_id', submission.application_id)
           .eq('campaign_id', campaign.id)
 
-        if (submissionsError) {
-          console.error('Error fetching all submissions:', submissionsError)
-        } else {
-          // 현재 승인하는 영상을 포함하여 모든 필수 영상이 approved인지 확인
+        if (allSubmissions) {
           const weekStatuses = {}
           allSubmissions.forEach(sub => {
-            // 현재 승인하는 영상은 approved로 처리
             if (sub.week_number === currentWeek) {
               weekStatuses[sub.week_number] = 'approved'
             } else {
               weekStatuses[sub.week_number] = sub.status
             }
           })
-
-          // 모든 필수 영상이 approved인지 확인
-          allVideosCompleted = requiredVideos.every(week => weekStatuses[week] === 'approved')
-          const challengeType = is4WeekChallenge ? '4주 챌린지' : '올영'
-          console.log(`${challengeType} 완료 여부 체크:`, { weekStatuses, allVideosCompleted, currentWeek, requiredVideos })
+          allVideosApproved = requiredVideos.every(week => weekStatuses[week] === 'approved')
         }
       }
 
-      // 2. applications 상태 업데이트 (다중 영상 캠페인은 모든 영상 완료 시에만)
-      if (!isMultiVideoChallenge || allVideosCompleted) {
-        const { error: appError } = await supabase
+      // 2. applications 상태를 approved로 (completed가 아닌 approved - 최종 확정 대기)
+      if (!isMultiVideoChallenge || allVideosApproved) {
+        await supabase
           .from('applications')
-          .update({
-            status: 'completed'
-          })
+          .update({ status: 'approved' })
           .eq('id', submission.application_id)
-
-        if (appError) throw appError
       }
 
-      // 3. 포인트 지급 (다중 영상 캠페인은 모든 영상 완료 시에만)
-      const pointAmount = campaign.reward_points || campaign.point || 0
-      const shouldAwardPoints = !isMultiVideoChallenge || allVideosCompleted
+      await fetchVideoSubmissions()
+      await fetchParticipants()
 
-      if (shouldAwardPoints && pointAmount > 0 && submission.applications?.user_id) {
-        // user_profiles의 point 업데이트
-        const { data: profile, error: profileError } = await supabase
+      // 알림 메시지 (포인트 금액 표시 안함)
+      if (isMultiVideoChallenge) {
+        const videoLabel = is4WeekChallenge ? `${currentWeek}주차` : `${currentWeek}번째`
+        const totalVideos = is4WeekChallenge ? 4 : 2
+        if (allVideosApproved) {
+          alert(`${videoLabel} 영상이 승인되었습니다.\n\nSNS 업로드를 확인한 후 '최종 확정' 버튼을 눌러주세요.`)
+        } else {
+          alert(`${videoLabel} 영상이 승인되었습니다. (${totalVideos}개 영상 모두 승인 후 최종 확정이 가능합니다)`)
+        }
+      } else {
+        alert('영상이 승인되었습니다.\n\nSNS 업로드를 확인한 후 \'최종 확정\' 버튼을 눌러주세요.')
+      }
+    } catch (error) {
+      console.error('Error approving video:', error)
+      alert('영상 승인에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 최종 확정 및 포인트 지급 (SNS 업로드 확인 후)
+  const handleFinalConfirmation = async (submission) => {
+    try {
+      const videoClient = supabaseKorea || supabaseBiz
+      const pointAmount = campaign.reward_points || campaign.point || 0
+
+      // 1. video_submissions를 completed로 업데이트
+      await videoClient
+        .from('video_submissions')
+        .update({
+          status: 'completed',
+          final_confirmed_at: new Date().toISOString()
+        })
+        .eq('id', submission.id)
+
+      // 2. applications를 completed로 업데이트
+      await supabase
+        .from('applications')
+        .update({ status: 'completed' })
+        .eq('id', submission.application_id)
+
+      // 3. 포인트 지급
+      if (pointAmount > 0 && submission.applications?.user_id) {
+        const { data: profile } = await supabase
           .from('user_profiles')
           .select('point, phone, email')
           .eq('id', submission.applications.user_id)
           .single()
 
-        if (!profileError && profile) {
+        if (profile) {
           const newPoint = (profile.point || 0) + pointAmount
           await supabase
             .from('user_profiles')
             .update({ point: newPoint })
             .eq('id', submission.applications.user_id)
 
-          // point_history 기록
           await supabase
             .from('point_history')
             .insert([{
@@ -2200,13 +2224,13 @@ export default function CampaignDetail() {
               campaign_id: campaign.id,
               amount: pointAmount,
               type: 'earn',
-              description: `캠페인 영상 승인: ${campaign.title}`,
+              description: `캠페인 완료: ${campaign.title}`,
               created_at: new Date().toISOString()
             }])
 
           const creatorName = submission.applications?.creator_name || submission.applications?.applicant_name || '크리에이터'
 
-          // 4. 팝빌 알림톡 발송 (검수 완료)
+          // 크리에이터에게 알림톡 발송
           if (profile.phone) {
             try {
               await fetch('/.netlify/functions/send-kakao-notification', {
@@ -2215,7 +2239,7 @@ export default function CampaignDetail() {
                 body: JSON.stringify({
                   receiverNum: profile.phone,
                   receiverName: creatorName,
-                  templateCode: '025100001016',  // 검수 완료 템플릿
+                  templateCode: '025100001016',
                   variables: {
                     '크리에이터명': creatorName,
                     '캠페인명': campaign.title,
@@ -2223,13 +2247,12 @@ export default function CampaignDetail() {
                   }
                 })
               })
-              console.log('검수 완료 알림톡 발송 성공')
-            } catch (alimtalkError) {
-              console.error('검수 완료 알림톡 발송 실패:', alimtalkError)
+            } catch (e) {
+              console.error('알림톡 발송 실패:', e)
             }
           }
 
-          // 5. 이메일 발송 (검수 완료)
+          // 크리에이터에게 이메일 발송
           if (profile.email) {
             try {
               await fetch('/.netlify/functions/send-email', {
@@ -2237,80 +2260,49 @@ export default function CampaignDetail() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   to: profile.email,
-                  subject: `[CNEC] 영상 검수 완료 - ${campaign.title}`,
+                  subject: `[CNEC] 캠페인 완료 - ${campaign.title}`,
                   html: `
-                    <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <h2 style="color: #10B981;">영상 검수가 완료되었습니다!</h2>
-                      <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
-                      <p>참여하신 캠페인의 영상 검수가 완료되었습니다.</p>
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #10B981;">캠페인이 완료되었습니다!</h2>
+                      <p>${creatorName}님, 참여하신 캠페인이 완료되어 포인트가 지급되었습니다.</p>
                       <div style="background: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                        <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
-                        <p style="margin: 5px 0;"><strong>지급 포인트:</strong> ${pointAmount.toLocaleString()}P</p>
+                        <p><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p><strong>지급 포인트:</strong> ${pointAmount.toLocaleString()}P</p>
                       </div>
-                      <p>지급된 포인트는 마이페이지에서 확인하실 수 있습니다.</p>
-                      <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
                     </div>
                   `
                 })
               })
-              console.log('검수 완료 이메일 발송 성공')
-            } catch (emailError) {
-              console.error('검수 완료 이메일 발송 실패:', emailError)
+            } catch (e) {
+              console.error('이메일 발송 실패:', e)
             }
           }
 
-          // 6. 네이버 웍스 알림 발송 (포인트 지급 완료)
+          // 네이버 웍스 알림
           try {
-            const koreanDate = new Date().toLocaleString('ko-KR', {
-              timeZone: 'Asia/Seoul',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
-            const snsUploadUrl = submission.sns_upload_url || ''
-            const naverWorksMessage = `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P${snsUploadUrl ? `\n\nSNS 업로드 링크:\n${snsUploadUrl}` : ''}\n\n${koreanDate}`
-
             await fetch('/.netlify/functions/send-naver-works-message', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 isAdminNotification: true,
-                message: naverWorksMessage,
-                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                message: `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
               })
             })
-            console.log('포인트 지급 네이버 웍스 알림 발송 성공')
-          } catch (naverWorksError) {
-            console.error('포인트 지급 네이버 웍스 알림 발송 실패:', naverWorksError)
+          } catch (e) {
+            console.error('네이버 웍스 알림 실패:', e)
           }
         }
       }
 
-      // 7. 데이터 새로고침
       await fetchVideoSubmissions()
       await fetchParticipants()
 
-      // 알림 메시지 생성
-      let alertMessage = ''
-      if (isMultiVideoChallenge) {
-        const challengeName = is4WeekChallenge ? '4주 챌린지' : '올영 캠페인'
-        const videoLabel = is4WeekChallenge ? `${currentWeek}주차` : `${currentWeek}번째`
-        const totalVideos = is4WeekChallenge ? 4 : 2
-
-        if (allVideosCompleted) {
-          alertMessage = `${videoLabel} 영상이 승인되었습니다. ${challengeName}이(가) 완료되어 ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : '완료 처리되었습니다.'}`
-        } else {
-          alertMessage = `${videoLabel} 영상이 승인되었습니다. (${totalVideos}개 영상 모두 완료 시 포인트가 지급됩니다)`
-        }
-      } else {
-        alertMessage = `영상이 승인되었습니다. ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : ''}`
-      }
-      alert(alertMessage)
+      // 기업에게는 포인트 금액 안 보여줌
+      alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
     } catch (error) {
-      console.error('Error approving video:', error)
-      alert('영상 승인에 실패했습니다: ' + error.message)
+      console.error('Error in final confirmation:', error)
+      alert('최종 확정에 실패했습니다: ' + error.message)
     }
   }
   
@@ -4473,7 +4465,7 @@ export default function CampaignDetail() {
                                 size="sm"
                                 className="w-full bg-green-600 hover:bg-green-700 text-white"
                                 onClick={async () => {
-                                  if (!confirm('이 영상을 검수 완료하시겠습니까? 포인트가 지급됩니다.')) return
+                                  if (!confirm('이 영상을 검수 완료하시겠습니까?\n\nSNS 업로드 확인 후 "최종 확정" 버튼을 눌러주세요.')) return
                                   await handleVideoApproval(submission)
                                 }}
                               >
@@ -4740,6 +4732,33 @@ export default function CampaignDetail() {
                                           <ExternalLink className="w-4 h-4 mr-1" />
                                           SNS 보기
                                         </Button>
+                                      )}
+
+                                      {/* 최종 확정 버튼 - approved 상태이고 final_confirmed_at이 없을 때 표시 */}
+                                      {submission.status === 'approved' && !submission.final_confirmed_at && (
+                                        <Button
+                                          size="sm"
+                                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                                          onClick={async () => {
+                                            if (!submission.sns_upload_url) {
+                                              alert('SNS 업로드 URL이 등록되지 않았습니다.\n\n크리에이터가 SNS 업로드 완료 후 다시 시도해주세요.')
+                                              return
+                                            }
+                                            if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
+                                            await handleFinalConfirmation(submission)
+                                          }}
+                                        >
+                                          <CheckCircle className="w-4 h-4 mr-1" />
+                                          최종 확정
+                                        </Button>
+                                      )}
+
+                                      {/* 최종 확정 완료 표시 */}
+                                      {submission.final_confirmed_at && (
+                                        <Badge className="bg-purple-100 text-purple-700 px-3 py-1">
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                          확정 완료
+                                        </Badge>
                                       )}
                                     </div>
                                   </div>
