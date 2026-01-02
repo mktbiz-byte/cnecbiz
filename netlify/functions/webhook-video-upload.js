@@ -35,16 +35,33 @@ exports.handler = async (event) => {
   console.log('=== 영상 업로드 Webhook 시작 ===');
   console.log('Headers:', JSON.stringify(event.headers, null, 2));
 
-  // Supabase 클라이언트를 핸들러 내부에서 생성 (환경변수 로딩 문제 해결)
-  const supabaseKorea = createClient(
-    process.env.VITE_SUPABASE_KOREA_URL,
-    process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY
-  );
+  // 환경변수 확인 (디버깅용)
+  console.log('환경변수 확인:', {
+    VITE_SUPABASE_KOREA_URL: !!process.env.VITE_SUPABASE_KOREA_URL,
+    SUPABASE_KOREA_SERVICE_ROLE_KEY: !!process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VITE_SUPABASE_BIZ_URL: !!process.env.VITE_SUPABASE_BIZ_URL,
+    SUPABASE_SERVICE_ROLE_KEY_BIZ: !!process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
+  });
 
-  const supabaseBiz = createClient(
-    process.env.VITE_SUPABASE_BIZ_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ
-  );
+  // Supabase 클라이언트를 핸들러 내부에서 생성 (환경변수 로딩 문제 해결)
+  // Fallback 패턴 적용
+  const koreaUrl = process.env.VITE_SUPABASE_KOREA_URL;
+  const koreaKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const bizUrl = process.env.VITE_SUPABASE_BIZ_URL || process.env.VITE_SUPABASE_URL_BIZ;
+  const bizKey = process.env.SUPABASE_SERVICE_ROLE_KEY_BIZ || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!koreaUrl || !koreaKey) {
+    console.error('Korea Supabase 환경변수 누락:', { koreaUrl: !!koreaUrl, koreaKey: !!koreaKey });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Korea Supabase 환경변수가 설정되지 않았습니다.' })
+    };
+  }
+
+  const supabaseKorea = createClient(koreaUrl, koreaKey);
+  const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : null;
 
   try {
     // Webhook Secret 검증 (선택적)
@@ -149,7 +166,7 @@ exports.handler = async (event) => {
     }
 
     // BIZ DB에서 조회 (fallback)
-    if (!companyPhone && campaign.company_email) {
+    if (!companyPhone && campaign.company_email && supabaseBiz) {
       const { data: bizCompany } = await supabaseBiz
         .from('companies')
         .select('company_name, phone, representative_phone')
