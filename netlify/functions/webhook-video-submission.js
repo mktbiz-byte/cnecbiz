@@ -137,37 +137,20 @@ exports.handler = async (event) => {
       company_email: campaign.company_email
     });
 
-    // BIZ DB에서 조회 (기업 가입은 BIZ에서만 함)
+    // BIZ DB companies 테이블에서 조회 (컬럼: company_name, phone, email)
     if (campaign.company_email && supabaseBiz) {
       const { data: bizCompany, error: bizError } = await supabaseBiz
         .from('companies')
-        .select('company_name, phone, representative_phone')
+        .select('company_name, phone')
         .eq('email', campaign.company_email)
         .single();
 
       console.log('BIZ DB companies 조회 결과:', { bizCompany, error: bizError?.message });
 
       if (bizCompany) {
-        companyPhone = bizCompany.phone || bizCompany.representative_phone;
+        companyPhone = bizCompany.phone;
         companyName = bizCompany.company_name || companyName;
         console.log('BIZ DB에서 정보 찾음:', { companyPhone, companyName });
-      }
-    }
-
-    // BIZ DB user_profiles에서 조회 (fallback)
-    if (!companyPhone && campaign.company_id && supabaseBiz) {
-      const { data: profile, error: profileError } = await supabaseBiz
-        .from('user_profiles')
-        .select('phone, full_name')
-        .eq('id', campaign.company_id)
-        .single();
-
-      console.log('BIZ DB user_profiles 조회 결과:', { profile, error: profileError?.message });
-
-      if (profile?.phone) {
-        companyPhone = profile.phone;
-        companyName = profile.full_name || companyName;
-        console.log('BIZ DB user_profiles에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
