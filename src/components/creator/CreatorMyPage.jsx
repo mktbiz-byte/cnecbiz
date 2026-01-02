@@ -128,17 +128,25 @@ const CreatorMyPage = () => {
         const campaignTitle = campaign?.title || '캠페인'
         const creatorName = user?.email || '크리에이터'
 
+        // 디버그 로그
+        console.log('=== 영상 업로드 알림 발송 시작 ===')
+        console.log('selectedCampaign:', selectedCampaign)
+        console.log('campaign:', campaign)
+        console.log('company_id:', campaign?.company_id)
+
         // 기업 정보 조회 (전화번호, 회사명)
         let companyPhone = null
         let companyName = campaign?.brand || '기업'
 
         if (campaign?.company_id) {
           // companies 테이블에서 조회
-          const { data: company } = await supabaseKorea
+          const { data: company, error: companyError } = await supabaseKorea
             .from('companies')
             .select('company_name, phone, representative_phone')
             .eq('user_id', campaign.company_id)
             .single()
+
+          console.log('companies 조회 결과:', company, 'error:', companyError)
 
           if (company) {
             companyPhone = company.phone || company.representative_phone
@@ -147,22 +155,30 @@ const CreatorMyPage = () => {
 
           // companies에서 전화번호가 없으면 user_profiles에서 조회
           if (!companyPhone) {
-            const { data: profile } = await supabaseKorea
+            const { data: profile, error: profileError } = await supabaseKorea
               .from('user_profiles')
               .select('phone')
               .eq('id', campaign.company_id)
               .single()
 
+            console.log('user_profiles 조회 결과:', profile, 'error:', profileError)
+
             if (profile) {
               companyPhone = profile.phone
             }
           }
+        } else {
+          console.log('company_id가 없음!')
         }
+
+        console.log('최종 기업 정보 - 이름:', companyName, '전화:', companyPhone)
 
         // 1. 기업에게 카카오 알림톡 발송 (검수 요청)
         if (companyPhone) {
           try {
-            await fetch('/.netlify/functions/send-kakao-notification', {
+            console.log('알림톡 발송 시도:', { companyPhone, companyName, campaignTitle, creatorName })
+
+            const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -176,9 +192,17 @@ const CreatorMyPage = () => {
                 }
               })
             })
-            console.log('영상 업로드 기업 알림톡 발송 성공')
+
+            const kakaoResult = await kakaoResponse.json()
+            console.log('알림톡 응답:', kakaoResult)
+
+            if (kakaoResponse.ok && kakaoResult.success) {
+              console.log('영상 업로드 기업 알림톡 발송 성공')
+            } else {
+              console.error('영상 업로드 기업 알림톡 발송 실패:', kakaoResult.error)
+            }
           } catch (kakaoError) {
-            console.error('영상 업로드 기업 알림톡 발송 실패:', kakaoError)
+            console.error('영상 업로드 기업 알림톡 발송 에러:', kakaoError)
           }
         } else {
           console.log('기업 전화번호 없음 - 알림톡 발송 생략')
