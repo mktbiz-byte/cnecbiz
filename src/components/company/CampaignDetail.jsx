@@ -479,9 +479,33 @@ export default function CampaignDetail() {
         }
       })
 
-      console.log('Fetched participants:', enrichedData)
-      console.log('Participants count:', enrichedData?.length || 0)
-      setParticipants(enrichedData || [])
+      // Korea DB의 campaign_participants에서 partnership_code 가져오기
+      let partnershipData = []
+      if (supabaseKorea) {
+        const { data: cpData, error: cpError } = await supabaseKorea
+          .from('campaign_participants')
+          .select('user_id, partnership_code, sns_upload_url')
+          .eq('campaign_id', id)
+
+        if (!cpError && cpData) {
+          partnershipData = cpData
+          console.log('Fetched partnership data from Korea DB:', cpData)
+        }
+      }
+
+      // partnership_code 병합
+      const finalData = enrichedData.map(app => {
+        const partnerInfo = partnershipData.find(p => p.user_id === app.user_id)
+        return {
+          ...app,
+          partnership_code: partnerInfo?.partnership_code || app.partnership_code,
+          sns_upload_url: partnerInfo?.sns_upload_url || app.sns_upload_url
+        }
+      })
+
+      console.log('Fetched participants:', finalData)
+      console.log('Participants count:', finalData?.length || 0)
+      setParticipants(finalData || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
     }
@@ -4410,12 +4434,16 @@ export default function CampaignDetail() {
                                 </div>
                               )}
                               
-                              {submission.partnership_code && (
-                                <div>
-                                  <p className="text-gray-500">파트너십 광고 코드</p>
-                                  <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{submission.partnership_code}</p>
-                                </div>
-                              )}
+                              {(() => {
+                                const participant = participants.find(p => p.user_id === submission.user_id)
+                                const partnershipCode = participant?.partnership_code || submission.partnership_code
+                                return partnershipCode ? (
+                                  <div>
+                                    <p className="text-gray-500">파트너십 광고 코드</p>
+                                    <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{partnershipCode}</p>
+                                  </div>
+                                ) : null
+                              })()}
                             </div>
                             
                             <div className="flex flex-col gap-2 pt-4">
@@ -4624,20 +4652,20 @@ export default function CampaignDetail() {
                                         </div>
                                       )}
 
-                                      {/* 파트너십 광고 코드 */}
-                                      {submission.partnership_code && (
+                                      {/* 파트너십 광고 코드 (campaign_participants 테이블에 저장됨) */}
+                                      {participant.partnership_code && (
                                         <div className="flex items-center gap-2 mb-2">
                                           <Hash className="w-4 h-4 text-orange-500" />
                                           <span className="text-sm text-gray-600">광고코드:</span>
                                           <code className="text-sm bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-mono">
-                                            {submission.partnership_code}
+                                            {participant.partnership_code}
                                           </code>
                                           <Button
                                             size="sm"
                                             variant="ghost"
                                             className="h-6 px-2 text-orange-600 hover:bg-orange-50"
                                             onClick={() => {
-                                              navigator.clipboard.writeText(submission.partnership_code)
+                                              navigator.clipboard.writeText(participant.partnership_code)
                                               alert('광고코드가 복사되었습니다!')
                                             }}
                                           >
