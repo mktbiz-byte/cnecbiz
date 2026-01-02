@@ -309,6 +309,8 @@ const CampaignCreationKorea = () => {
           return
         }
 
+        console.log('[CreateCampaignKorea] Company info loaded:', company)
+        console.log('[CreateCampaignKorea] Company id:', company?.id, 'phone:', company?.phone)
         setCompanyInfo(company)
 
         // 세금계산서 필수 필드 체크 (대표자명, 업태, 종목, 우편번호, 주소)
@@ -971,11 +973,14 @@ const CampaignCreationKorea = () => {
         campaignData.company_id = currentUser.id
         campaignData.company_email = userEmail
         // BIZ DB의 companies 테이블 id와 phone 추가
+        console.log('[CreateCampaignKorea] Saving - companyInfo:', companyInfo)
         if (companyInfo?.id) {
           campaignData.company_biz_id = companyInfo.id
+          console.log('[CreateCampaignKorea] Setting company_biz_id:', companyInfo.id)
         }
         if (companyInfo?.phone) {
           campaignData.company_phone = companyInfo.phone
+          console.log('[CreateCampaignKorea] Setting company_phone:', companyInfo.phone)
         }
       }
 
