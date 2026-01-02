@@ -190,7 +190,8 @@ exports.handler = async (event) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          roomId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
+          isAdminNotification: true,
+          channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
           message: `📹 영상 제출 알림 (cnec.co.kr)\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n버전: V${record.version || 1}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
         })
       });
