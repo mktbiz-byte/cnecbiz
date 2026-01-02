@@ -83,14 +83,28 @@ exports.handler = async (event) => {
     resubmitDeadline.setDate(resubmitDeadline.getDate() + 7)
     const resubmitDate = resubmitDeadline.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
 
-    // 알림톡 발송 메시지 구성 (템플릿 025100001016에 맞춤)
-    const message = `[CNEC] 제출하신 영상 수정 요청
-${creatorName || '크리에이터'}님, 제출하신 영상에 수정 요청이 있습니다.
-캠페인: ${campaignTitle || '캠페인'}
-수정 요청일: ${today}
+    // 알림톡 발송 메시지 구성 (팝빌 템플릿 025100001016과 100% 동일해야 함)
+    // 템플릿의 #{변수명}을 실제 값으로 치환
+    const templateContent = `[CNEC] 제출하신 영상 수정 요청
+#{크리에이터명}님, 제출하신 영상에 수정 요청이 있습니다.
+캠페인: #{캠페인명}
+수정 요청일: #{요청일}
 크리에이터 대시보드에서 수정 사항을 확인하시고, 영상을 수정하여 재제출해 주세요.
-재제출 기한: ${resubmitDate}
+재제출 기한: #{재제출기한}
 문의: 1833-6025`
+
+    // 변수 치환
+    const variables = {
+      '크리에이터명': creatorName || '크리에이터',
+      '캠페인명': campaignTitle || '캠페인',
+      '요청일': today,
+      '재제출기한': resubmitDate
+    }
+
+    let message = templateContent
+    for (const [key, value] of Object.entries(variables)) {
+      message = message.replace(new RegExp(`#\\{${key}\\}`, 'g'), value)
+    }
 
     // 알림톡 발송 시도
     try {
