@@ -4667,34 +4667,67 @@ export default function CampaignDetail() {
 
                                     {/* 버튼 그룹 */}
                                     <div className="flex flex-col gap-2">
-                                      {/* 영상 다운로드 */}
-                                      <Button
-                                        size="sm"
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                        onClick={async () => {
-                                          try {
-                                            const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
-                                            const blob = await response.blob()
-                                            const blobUrl = window.URL.createObjectURL(blob)
-                                            const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                            const weekLabel = submission.week_number ? `_week${submission.week_number}` : (submission.video_number ? `_v${submission.video_number}` : '')
+                                      {/* 클린본 다운로드 */}
+                                      {submission.clean_video_url && (
+                                        <Button
+                                          size="sm"
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                          onClick={async () => {
+                                            try {
+                                              const response = await fetch(submission.clean_video_url)
+                                              const blob = await response.blob()
+                                              const blobUrl = window.URL.createObjectURL(blob)
+                                              const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                              const weekLabel = submission.week_number ? `_week${submission.week_number}` : (submission.video_number ? `_v${submission.video_number}` : '')
 
-                                            const link = document.createElement('a')
-                                            link.href = blobUrl
-                                            link.download = `${creatorName}${weekLabel}_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                            document.body.appendChild(link)
-                                            link.click()
-                                            document.body.removeChild(link)
-                                            window.URL.revokeObjectURL(blobUrl)
-                                          } catch (error) {
-                                            console.error('Download failed:', error)
-                                            window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
-                                          }
-                                        }}
-                                      >
-                                        <Download className="w-4 h-4 mr-1" />
-                                        다운로드
-                                      </Button>
+                                              const link = document.createElement('a')
+                                              link.href = blobUrl
+                                              link.download = `${creatorName}${weekLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                              document.body.appendChild(link)
+                                              link.click()
+                                              document.body.removeChild(link)
+                                              window.URL.revokeObjectURL(blobUrl)
+                                            } catch (error) {
+                                              console.error('Download failed:', error)
+                                              window.open(submission.clean_video_url, '_blank')
+                                            }
+                                          }}
+                                        >
+                                          <Download className="w-4 h-4 mr-1" />
+                                          클린본
+                                        </Button>
+                                      )}
+
+                                      {/* 편집본 다운로드 */}
+                                      {submission.video_file_url && (
+                                        <Button
+                                          size="sm"
+                                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                                          onClick={async () => {
+                                            try {
+                                              const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
+                                              const blob = await response.blob()
+                                              const blobUrl = window.URL.createObjectURL(blob)
+                                              const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                              const weekLabel = submission.week_number ? `_week${submission.week_number}` : (submission.video_number ? `_v${submission.video_number}` : '')
+
+                                              const link = document.createElement('a')
+                                              link.href = blobUrl
+                                              link.download = `${creatorName}${weekLabel}_편집본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                              document.body.appendChild(link)
+                                              link.click()
+                                              document.body.removeChild(link)
+                                              window.URL.revokeObjectURL(blobUrl)
+                                            } catch (error) {
+                                              console.error('Download failed:', error)
+                                              window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
+                                            }
+                                          }}
+                                        >
+                                          <Download className="w-4 h-4 mr-1" />
+                                          편집본
+                                        </Button>
+                                      )}
 
                                       {/* SNS 링크 열기 */}
                                       {submission.sns_upload_url && (
