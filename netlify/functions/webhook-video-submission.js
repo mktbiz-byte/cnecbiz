@@ -186,7 +186,7 @@ exports.handler = async (event) => {
 
     // 5. 네이버 웍스 알림
     try {
-      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-notification`, {
+      const worksResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -194,6 +194,8 @@ exports.handler = async (event) => {
           message: `📹 영상 제출 알림 (cnec.co.kr)\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n버전: V${record.version || 1}\n제출 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
         })
       });
+      const worksResult = await worksResponse.json();
+      console.log('네이버 웍스 결과:', worksResult);
     } catch (e) {
       console.error('네이버 웍스 오류:', e);
     }

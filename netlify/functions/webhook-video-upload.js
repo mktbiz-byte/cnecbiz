@@ -198,7 +198,7 @@ exports.handler = async (event) => {
 
     // 5. 네이버 웍스 알림 발송
     try {
-      const naverResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-notification`, {
+      const naverResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
