@@ -79,12 +79,31 @@ const CreatorMyPage = () => {
     try {
       setUploading(true)
 
+      // 기존 video_files 조회하여 버전 계산
+      const { data: existingData } = await supabaseKorea
+        .from('campaign_participants')
+        .select('video_files')
+        .eq('id', participantId)
+        .single()
+
+      const existingFiles = existingData?.video_files || []
+
+      // 현재 최대 버전 번호 계산
+      let maxVersion = 0
+      if (existingFiles.length > 0) {
+        existingFiles.forEach(file => {
+          if (file.version && file.version > maxVersion) {
+            maxVersion = file.version
+          }
+        })
+      }
+
       const uploadedFiles = []
-      
+
       for (const file of files) {
         const fileExt = file.name.split('.').pop()
         const fileName = `${participantId}/${Date.now()}.${fileExt}`
-        
+
         const { data, error } = await supabaseKorea.storage
           .from('campaign-videos')
           .upload(fileName, file)
@@ -95,19 +114,25 @@ const CreatorMyPage = () => {
           .from('campaign-videos')
           .getPublicUrl(fileName)
 
+        // 새 버전 번호 할당
+        maxVersion++
         uploadedFiles.push({
           name: file.name,
           path: fileName,
           url: publicUrl,
-          uploaded_at: new Date().toISOString()
+          uploaded_at: new Date().toISOString(),
+          version: maxVersion  // 버전 번호 추가
         })
       }
+
+      // 기존 파일 + 새 파일을 합쳐서 저장 (버전 히스토리 유지)
+      const allFiles = [...existingFiles, ...uploadedFiles]
 
       // 업로드된 파일 정보를 DB에 저장
       const { error: updateError } = await supabaseKorea
         .from('campaign_participants')
         .update({
-          video_files: uploadedFiles,
+          video_files: allFiles,
           video_status: 'uploaded'
         })
         .eq('id', participantId)
@@ -701,10 +726,14 @@ const CreatorMyPage = () => {
                     )}
                   </div>
                   {campaign.video_files && campaign.video_files.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      {/* 버전별 영상 목록 */}
                       {campaign.video_files.map((file, index) => (
                         <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                           <div className="flex items-center">
+                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">
+                              V{file.version || index + 1}
+                            </span>
                             <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
                             <span className="text-sm text-gray-700">{file.name}</span>
                           </div>
@@ -719,6 +748,17 @@ const CreatorMyPage = () => {
                           </a>
                         </div>
                       ))}
+                      {/* 수정본 업로드 버튼 */}
+                      <button
+                        onClick={() => {
+                          setSelectedCampaign(campaign)
+                          setShowUploadModal(true)
+                        }}
+                        className="w-full px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 flex items-center justify-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        수정본 업로드 (V{(campaign.video_files.reduce((max, f) => Math.max(max, f.version || 0), 0) || campaign.video_files.length) + 1})
+                      </button>
                     </div>
                   ) : (
                     <button
