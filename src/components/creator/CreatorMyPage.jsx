@@ -185,18 +185,28 @@ const CreatorMyPage = () => {
         }
 
         // 2. 네이버 웍스 알림 발송 (관리자용)
-        const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n기업: ${companyName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
+        try {
+          const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n기업: ${companyName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
 
-        await fetch('/.netlify/functions/send-naver-works-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            message: naverWorksMessage,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+          const naverWorksResponse = await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              message: naverWorksMessage,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+            })
           })
-        })
-        console.log('영상 업로드 네이버 웍스 알림 발송 성공')
+
+          const naverWorksResult = await naverWorksResponse.json()
+          if (naverWorksResponse.ok && naverWorksResult.success) {
+            console.log('영상 업로드 네이버 웍스 알림 발송 성공')
+          } else {
+            console.error('영상 업로드 네이버 웍스 알림 발송 실패:', naverWorksResult.error || naverWorksResult.details)
+          }
+        } catch (naverWorksError) {
+          console.error('영상 업로드 네이버 웍스 알림 발송 오류:', naverWorksError)
+        }
       } catch (notificationError) {
         console.error('영상 업로드 알림 발송 실패:', notificationError)
       }
