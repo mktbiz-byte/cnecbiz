@@ -132,30 +132,59 @@ exports.handler = async (event) => {
     let companyPhone = null;
     let companyName = campaign.brand || '기업';
 
+    console.log('기업 정보 조회 시작:', {
+      company_id: campaign.company_id,
+      company_email: campaign.company_email
+    });
+
+    // companies 테이블에서 조회
     if (campaign.company_id) {
-      const { data: company } = await supabaseKorea
+      const { data: company, error: companyError } = await supabaseKorea
         .from('companies')
         .select('company_name, phone, representative_phone')
         .eq('user_id', campaign.company_id)
         .single();
 
+      console.log('companies 테이블 조회 결과:', { company, error: companyError?.message });
+
       if (company) {
         companyPhone = company.phone || company.representative_phone;
         companyName = company.company_name || companyName;
+        console.log('companies 테이블에서 정보 찾음:', { companyPhone, companyName });
+      }
+    }
+
+    // user_profiles에서 조회 (fallback)
+    if (!companyPhone && campaign.company_id) {
+      const { data: profile, error: profileError } = await supabaseKorea
+        .from('user_profiles')
+        .select('phone, full_name')
+        .eq('id', campaign.company_id)
+        .single();
+
+      console.log('user_profiles 조회 결과:', { profile, error: profileError?.message });
+
+      if (profile?.phone) {
+        companyPhone = profile.phone;
+        companyName = profile.full_name || companyName;
+        console.log('user_profiles에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
     // BIZ DB fallback
     if (!companyPhone && campaign.company_email && supabaseBiz) {
-      const { data: bizCompany } = await supabaseBiz
+      const { data: bizCompany, error: bizError } = await supabaseBiz
         .from('companies')
         .select('company_name, phone, representative_phone')
         .eq('email', campaign.company_email)
         .single();
 
+      console.log('BIZ DB 조회 결과:', { bizCompany, error: bizError?.message });
+
       if (bizCompany) {
         companyPhone = bizCompany.phone || bizCompany.representative_phone;
         companyName = bizCompany.company_name || companyName;
+        console.log('BIZ DB에서 정보 찾음:', { companyPhone, companyName });
       }
     }
 
