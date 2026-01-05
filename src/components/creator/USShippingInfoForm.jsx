@@ -125,32 +125,27 @@ const USShippingInfoForm = () => {
         return
       }
 
-      // applications 테이블 업데이트
-      const { error: updateError } = await supabase
-        .from('applications')
-        .update({
-          phone_number: formData.phone_number,
-          postal_code: formData.postal_code,
-          address: formData.address,
-          detail_address: formData.detail_address
-        })
-        .eq('id', applicationId)
-
-      if (updateError) throw updateError
-
-      // user_profiles도 업데이트 (선택적)
-      if (application?.user_id) {
-        await supabase
-          .from('user_profiles')
-          .update({
+      // 서버 함수를 통해 저장 (service role key 사용으로 RLS 우회)
+      const response = await fetch('/.netlify/functions/submit-us-shipping-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          application_id: applicationId,
+          token: token,
+          shipping_data: {
             phone_number: formData.phone_number,
-            phone: formData.phone_number,
             postal_code: formData.postal_code,
-            shipping_address: formData.address,
             address: formData.address,
             detail_address: formData.detail_address
-          })
-          .eq('user_id', application.user_id)
+          }
+        })
+      })
+
+      const result = await response.json()
+      console.log('[SHIPPING] Submit result:', result)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save')
       }
 
       setSubmitted(true)
