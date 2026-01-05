@@ -91,14 +91,22 @@ exports.handler = async (event) => {
       throw new Error('Applications not found')
     }
 
-    // 이메일 트랜스포터 설정
+    // Gmail SMTP 설정 (send-email.js와 동일)
+    const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr'
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD
+    const senderName = process.env.GMAIL_SENDER_NAME || 'CNEC'
+
+    if (!gmailAppPassword) {
+      throw new Error('GMAIL_APP_PASSWORD 환경변수가 설정되지 않았습니다')
+    }
+
+    const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '')
+
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
+      service: 'gmail',
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
+        user: gmailEmail,
+        pass: cleanPassword
       }
     })
 
@@ -193,7 +201,7 @@ exports.handler = async (event) => {
 
       try {
         await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'CNEC <noreply@cnec.io>',
+          from: `"${senderName}" <${gmailEmail}>`,
           to: app.email,
           subject: `[CNEC] You're Selected! Please Submit Your Shipping Info - ${campaign.title}`,
           html: emailHtml
