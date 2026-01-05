@@ -630,6 +630,22 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
+      // US 지역 디버깅: applications 테이블의 실제 필드 구조 확인
+      if (data && data.length > 0) {
+        console.log('[DEBUG US] applications 테이블 필드 목록:', Object.keys(data[0]))
+        console.log('[DEBUG US] 첫 번째 application 전체 데이터:', JSON.stringify(data[0], null, 2))
+        console.log('[DEBUG US] 주소/연락처 관련 필드 확인:', {
+          phone: data[0].phone,
+          phone_number: data[0].phone_number,
+          creator_phone: data[0].creator_phone,
+          shipping_phone: data[0].shipping_phone,
+          address: data[0].address,
+          shipping_address: data[0].shipping_address,
+          postal_code: data[0].postal_code,
+          detail_address: data[0].detail_address
+        })
+      }
+
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
       const { data: allProfiles, error: profilesError } = await supabase
         .from('user_profiles')
