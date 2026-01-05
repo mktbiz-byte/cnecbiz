@@ -29,7 +29,8 @@ import {
   Trash2,
   Copy,
   Link,
-  ExternalLink
+  ExternalLink,
+  Mail
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 
@@ -140,6 +141,7 @@ export default function CampaignDetail() {
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
+  const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -951,6 +953,61 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error updating tracking number:', error)
       alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
+  // US 캠페인: 배송정보 요청 이메일 발송
+  const handleRequestShippingInfo = async () => {
+    if (participants.length === 0) {
+      alert('선정된 크리에이터가 없습니다.')
+      return
+    }
+
+    // 주소/연락처가 없는 크리에이터만 필터링
+    const creatorsWithoutShipping = participants.filter(p =>
+      !p.phone_number || !p.address
+    )
+
+    if (creatorsWithoutShipping.length === 0) {
+      alert('모든 크리에이터가 이미 배송정보를 입력했습니다.')
+      return
+    }
+
+    if (!confirm(`${creatorsWithoutShipping.length}명의 크리에이터에게 배송정보 입력 요청 이메일을 발송하시겠습니까?`)) {
+      return
+    }
+
+    setRequestingShippingInfo(true)
+    try {
+      const { data: { session } } = await supabaseBiz.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('로그인이 필요합니다')
+      }
+
+      const response = await fetch('/.netlify/functions/request-us-shipping-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          application_ids: creatorsWithoutShipping.map(p => p.id),
+          campaign_id: id
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(result.message)
+      } else {
+        throw new Error(result.error || 'Failed to send emails')
+      }
+    } catch (error) {
+      console.error('Error requesting shipping info:', error)
+      alert('이메일 발송에 실패했습니다: ' + error.message)
+    } finally {
+      setRequestingShippingInfo(false)
     }
   }
 
@@ -4154,6 +4211,19 @@ export default function CampaignDetail() {
                     <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {/* US 캠페인: 배송정보 요청 이메일 발송 */}
+                    {region === 'us' && (
+                      <Button
+                        variant="outline"
+                        onClick={handleRequestShippingInfo}
+                        className="bg-white border-orange-200 hover:bg-orange-50 text-orange-700"
+                        disabled={participants.length === 0 || requestingShippingInfo}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {requestingShippingInfo ? 'Sending...' : 'Request Shipping Info'}
+                      </Button>
+                    )}
+
                     {/* 배송정보 엑셀 다운로드 */}
                     <Button
                       variant="outline"
