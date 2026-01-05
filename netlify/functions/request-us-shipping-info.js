@@ -1,5 +1,12 @@
 const { createClient } = require('@supabase/supabase-js')
 const nodemailer = require('nodemailer')
+const crypto = require('crypto')
+
+// 토큰 생성 함수 (application_id + secret 해시)
+const generateShippingToken = (applicationId) => {
+  const secret = process.env.SHIPPING_TOKEN_SECRET || 'cnec-shipping-secret-2024'
+  return crypto.createHmac('sha256', secret).update(applicationId).digest('hex').substring(0, 32)
+}
 
 // US Supabase
 const usUrl = process.env.VITE_SUPABASE_US_URL
@@ -120,7 +127,8 @@ exports.handler = async (event) => {
         continue
       }
 
-      const shippingFormUrl = `${baseUrl}/us-shipping-info?id=${app.id}`
+      const token = generateShippingToken(app.id)
+      const shippingFormUrl = `${baseUrl}/us-shipping-info?id=${app.id}&token=${token}`
 
       const emailHtml = `
 <!DOCTYPE html>
