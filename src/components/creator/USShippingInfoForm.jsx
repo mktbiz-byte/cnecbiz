@@ -12,11 +12,15 @@ import { CheckCircle, Package, Phone, MapPin, Loader2 } from 'lucide-react'
  * - 확정된 크리에이터에게 이메일로 링크 발송
  * - 크리에이터가 연락처/주소 입력
  * - applications 테이블에 저장
+ * - id=test 일 때 테스트 모드 (DB 저장 없이 테스트)
  */
 const USShippingInfoForm = () => {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
   const applicationId = searchParams.get('id')
+
+  // 테스트 모드: id=test 일 때 활성화
+  const isTestMode = applicationId === 'test'
 
   const supabase = getSupabaseClient('us')
 
@@ -35,13 +39,26 @@ const USShippingInfoForm = () => {
   })
 
   useEffect(() => {
-    if (applicationId) {
+    if (isTestMode) {
+      // 테스트 모드: 가상 데이터 설정
+      setApplication({
+        id: 'test-application-id',
+        applicant_name: 'Test Creator',
+        email: 'test@example.com',
+        user_id: null
+      })
+      setCampaign({
+        title: 'Test Campaign - Product Review',
+        brand: 'Test Brand Inc.'
+      })
+      setLoading(false)
+    } else if (applicationId) {
       loadApplicationData()
     } else {
       setError('Invalid link. Please contact support.')
       setLoading(false)
     }
-  }, [applicationId])
+  }, [applicationId, isTestMode])
 
   const loadApplicationData = async () => {
     try {
@@ -100,6 +117,14 @@ const USShippingInfoForm = () => {
     setError('')
 
     try {
+      // 테스트 모드: DB 저장 없이 성공 처리
+      if (isTestMode) {
+        console.log('[TEST MODE] Shipping info submitted:', formData)
+        await new Promise(resolve => setTimeout(resolve, 1000)) // 1초 딜레이
+        setSubmitted(true)
+        return
+      }
+
       // applications 테이블 업데이트
       const { error: updateError } = await supabase
         .from('applications')
@@ -216,6 +241,13 @@ const USShippingInfoForm = () => {
           </CardHeader>
 
           <CardContent className="p-6">
+            {/* 테스트 모드 배너 */}
+            {isTestMode && (
+              <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg p-3 mb-6 text-sm text-center">
+                <strong>TEST MODE</strong> - 실제 DB에 저장되지 않습니다
+              </div>
+            )}
+
             {/* 캠페인 정보 */}
             {campaign && (
               <div className="bg-purple-50 rounded-lg p-4 mb-6">
