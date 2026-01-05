@@ -79,12 +79,31 @@ const CreatorMyPage = () => {
     try {
       setUploading(true)
 
+      // 기존 video_files 조회하여 버전 계산
+      const { data: existingData } = await supabaseKorea
+        .from('campaign_participants')
+        .select('video_files')
+        .eq('id', participantId)
+        .single()
+
+      const existingFiles = existingData?.video_files || []
+
+      // 현재 최대 버전 번호 계산
+      let maxVersion = 0
+      if (existingFiles.length > 0) {
+        existingFiles.forEach(file => {
+          if (file.version && file.version > maxVersion) {
+            maxVersion = file.version
+          }
+        })
+      }
+
       const uploadedFiles = []
-      
+
       for (const file of files) {
         const fileExt = file.name.split('.').pop()
         const fileName = `${participantId}/${Date.now()}.${fileExt}`
-        
+
         const { data, error } = await supabaseKorea.storage
           .from('campaign-videos')
           .upload(fileName, file)
@@ -95,26 +114,32 @@ const CreatorMyPage = () => {
           .from('campaign-videos')
           .getPublicUrl(fileName)
 
+        // 새 버전 번호 할당
+        maxVersion++
         uploadedFiles.push({
           name: file.name,
           path: fileName,
           url: publicUrl,
-          uploaded_at: new Date().toISOString()
+          uploaded_at: new Date().toISOString(),
+          version: maxVersion  // 버전 번호 추가
         })
       }
+
+      // 기존 파일 + 새 파일을 합쳐서 저장 (버전 히스토리 유지)
+      const allFiles = [...existingFiles, ...uploadedFiles]
 
       // 업로드된 파일 정보를 DB에 저장
       const { error: updateError } = await supabaseKorea
         .from('campaign_participants')
         .update({
-          video_files: uploadedFiles,
+          video_files: allFiles,
           video_status: 'uploaded'
         })
         .eq('id', participantId)
 
       if (updateError) throw updateError
 
-      // 네이버 웍스 알림 발송 (영상 업로드 완료)
+      // 기업에게 알림톡 및 네이버 웍스 알림 발송
       try {
         const koreanDate = new Date().toLocaleString('ko-KR', {
           timeZone: 'Asia/Seoul',
@@ -124,22 +149,115 @@ const CreatorMyPage = () => {
           hour: '2-digit',
           minute: '2-digit'
         })
-        const campaignTitle = selectedCampaign?.campaigns?.title || selectedCampaign?.title || '캠페인'
+        const campaign = selectedCampaign?.campaigns || selectedCampaign
+        const campaignTitle = campaign?.title || '캠페인'
         const creatorName = user?.email || '크리에이터'
-        const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
 
-        await fetch('/.netlify/functions/send-naver-works-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            message: naverWorksMessage,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+        // 디버그 로그
+        console.log('=== 영상 업로드 알림 발송 시작 ===')
+        console.log('selectedCampaign:', selectedCampaign)
+        console.log('campaign:', campaign)
+        console.log('company_id:', campaign?.company_id)
+
+        // 기업 정보 조회 (전화번호, 회사명)
+        let companyPhone = null
+        let companyName = campaign?.brand || '기업'
+
+        if (campaign?.company_id) {
+          // companies 테이블에서 조회
+          const { data: company, error: companyError } = await supabaseKorea
+            .from('companies')
+            .select('company_name, phone, representative_phone')
+            .eq('user_id', campaign.company_id)
+            .single()
+
+          console.log('companies 조회 결과:', company, 'error:', companyError)
+
+          if (company) {
+            companyPhone = company.phone || company.representative_phone
+            companyName = company.company_name || campaign?.brand || '기업'
+          }
+
+          // companies에서 전화번호가 없으면 user_profiles에서 조회
+          if (!companyPhone) {
+            const { data: profile, error: profileError } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', campaign.company_id)
+              .single()
+
+            console.log('user_profiles 조회 결과:', profile, 'error:', profileError)
+
+            if (profile) {
+              companyPhone = profile.phone
+            }
+          }
+        } else {
+          console.log('company_id가 없음!')
+        }
+
+        console.log('최종 기업 정보 - 이름:', companyName, '전화:', companyPhone)
+
+        // 1. 기업에게 카카오 알림톡 발송 (검수 요청)
+        if (companyPhone) {
+          try {
+            console.log('알림톡 발송 시도:', { companyPhone, companyName, campaignTitle, creatorName })
+
+            const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyPhone,
+                receiverName: companyName,
+                templateCode: '025100001008', // 영상 촬영 완료 검수 요청
+                variables: {
+                  '회사명': companyName,
+                  '캠페인명': campaignTitle,
+                  '크리에이터명': creatorName
+                }
+              })
+            })
+
+            const kakaoResult = await kakaoResponse.json()
+            console.log('알림톡 응답:', kakaoResult)
+
+            if (kakaoResponse.ok && kakaoResult.success) {
+              console.log('영상 업로드 기업 알림톡 발송 성공')
+            } else {
+              console.error('영상 업로드 기업 알림톡 발송 실패:', kakaoResult.error)
+            }
+          } catch (kakaoError) {
+            console.error('영상 업로드 기업 알림톡 발송 에러:', kakaoError)
+          }
+        } else {
+          console.log('기업 전화번호 없음 - 알림톡 발송 생략')
+        }
+
+        // 2. 네이버 웍스 알림 발송 (관리자용)
+        try {
+          const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n기업: ${companyName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
+
+          const naverWorksResponse = await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              message: naverWorksMessage,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+            })
           })
-        })
-        console.log('영상 업로드 네이버 웍스 알림 발송 성공')
-      } catch (naverWorksError) {
-        console.error('영상 업로드 네이버 웍스 알림 발송 실패:', naverWorksError)
+
+          const naverWorksResult = await naverWorksResponse.json()
+          if (naverWorksResponse.ok && naverWorksResult.success) {
+            console.log('영상 업로드 네이버 웍스 알림 발송 성공')
+          } else {
+            console.error('영상 업로드 네이버 웍스 알림 발송 실패:', naverWorksResult.error || naverWorksResult.details)
+          }
+        } catch (naverWorksError) {
+          console.error('영상 업로드 네이버 웍스 알림 발송 오류:', naverWorksError)
+        }
+      } catch (notificationError) {
+        console.error('영상 업로드 알림 발송 실패:', notificationError)
       }
 
       alert('영상이 성공적으로 업로드되었습니다!')
@@ -608,10 +726,14 @@ const CreatorMyPage = () => {
                     )}
                   </div>
                   {campaign.video_files && campaign.video_files.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      {/* 버전별 영상 목록 */}
                       {campaign.video_files.map((file, index) => (
                         <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                           <div className="flex items-center">
+                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">
+                              V{file.version || index + 1}
+                            </span>
                             <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
                             <span className="text-sm text-gray-700">{file.name}</span>
                           </div>
@@ -626,6 +748,17 @@ const CreatorMyPage = () => {
                           </a>
                         </div>
                       ))}
+                      {/* 수정본 업로드 버튼 */}
+                      <button
+                        onClick={() => {
+                          setSelectedCampaign(campaign)
+                          setShowUploadModal(true)
+                        }}
+                        className="w-full px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 flex items-center justify-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        수정본 업로드 (V{(campaign.video_files.reduce((max, f) => Math.max(max, f.version || 0), 0) || campaign.video_files.length) + 1})
+                      </button>
                     </div>
                   ) : (
                     <button
