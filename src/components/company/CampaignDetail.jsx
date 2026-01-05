@@ -706,9 +706,18 @@ export default function CampaignDetail() {
             // SNS URL도 병합
             instagram_url: profile.instagram_url || app.instagram_url,
             youtube_url: profile.youtube_url || app.youtube_url,
-            tiktok_url: profile.tiktok_url || app.tiktok_url
+            tiktok_url: profile.tiktok_url || app.tiktok_url,
+            // 연락처/주소 정보 병합 (US 등 해외 지역용)
+            phone: profile.phone || profile.phone_number || app.phone || app.phone_number || '',
+            phone_number: profile.phone_number || profile.phone || app.phone_number || app.phone || '',
+            shipping_phone: profile.phone || profile.phone_number || app.shipping_phone || app.phone || '',
+            creator_phone: profile.phone || profile.phone_number || app.creator_phone || '',
+            address: profile.address || profile.shipping_address || app.address || app.shipping_address || '',
+            shipping_address: profile.shipping_address || profile.address || app.shipping_address || app.address || '',
+            postal_code: profile.postal_code || app.postal_code || '',
+            detail_address: profile.detail_address || profile.address_detail || app.detail_address || ''
           }
-          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url)
+          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url, 'Phone:', enriched.phone, 'Address:', enriched.address)
           return enriched
         }
 
