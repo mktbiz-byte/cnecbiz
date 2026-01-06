@@ -423,42 +423,42 @@ export default function CampaignDetail() {
       if (combinedData.length === 0 && supabaseKorea) {
         console.log('[fetchParticipants] BIZ DB empty, trying Korea DB...')
 
-        // 1. campaign_participants 테이블
+        // 1. 먼저 applications 테이블 (cnec-kr은 여기에 저장)
         try {
-          const { data: cpData, error: cpError } = await supabaseKorea
-            .from('campaign_participants')
+          const { data: appData, error: appError } = await supabaseKorea
+            .from('applications')
             .select('*')
             .eq('campaign_id', id)
 
-          if (cpError) {
-            console.log('[fetchParticipants] Korea campaign_participants error:', cpError.message)
-          } else if (cpData && cpData.length > 0) {
-            combinedData = cpData
-            console.log('[fetchParticipants] Got from Korea campaign_participants:', cpData.length)
+          if (appError) {
+            console.log('[fetchParticipants] Korea applications error:', appError.message)
+          } else if (appData && appData.length > 0) {
+            // 상태 필터링 (sns_uploaded 추가 - 4주/올영에서 SNS URL 입력 완료 상태)
+            combinedData = appData.filter(a =>
+              ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(a.status)
+            )
+            console.log('[fetchParticipants] Got from Korea applications:', combinedData.length, 'filtered from', appData.length)
           }
         } catch (e) {
-          console.log('[fetchParticipants] campaign_participants exception:', e.message)
+          console.log('[fetchParticipants] applications exception:', e.message)
         }
 
-        // 2. 아직 없으면 applications 테이블
+        // 2. applications에서 못 찾았으면 campaign_participants 테이블
         if (combinedData.length === 0) {
           try {
-            const { data: appData, error: appError } = await supabaseKorea
-              .from('applications')
+            const { data: cpData, error: cpError } = await supabaseKorea
+              .from('campaign_participants')
               .select('*')
               .eq('campaign_id', id)
 
-            if (appError) {
-              console.log('[fetchParticipants] Korea applications error:', appError.message)
-            } else if (appData && appData.length > 0) {
-              // 상태 필터링
-              combinedData = appData.filter(a =>
-                ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'].includes(a.status)
-              )
-              console.log('[fetchParticipants] Got from Korea applications:', combinedData.length)
+            if (cpError) {
+              console.log('[fetchParticipants] Korea campaign_participants error:', cpError.message)
+            } else if (cpData && cpData.length > 0) {
+              combinedData = cpData
+              console.log('[fetchParticipants] Got from Korea campaign_participants:', cpData.length)
             }
           } catch (e) {
-            console.log('[fetchParticipants] applications exception:', e.message)
+            console.log('[fetchParticipants] campaign_participants exception:', e.message)
           }
         }
       }
@@ -561,15 +561,16 @@ export default function CampaignDetail() {
         }
       })
 
-      // Korea DB에서 SNS URL 데이터 가져오기 (campaign_participants와 applications 모두 시도)
+      // Korea DB에서 SNS URL 데이터 가져오기 (applications 우선 - cnec-kr은 여기에 저장)
       let partnershipData = []
       console.log('[fetchParticipants] supabaseKorea available:', !!supabaseKorea)
       console.log('[fetchParticipants] Campaign ID:', id)
 
       if (supabaseKorea) {
-        // 1. 먼저 campaign_participants 테이블에서 시도
-        const { data: cpData, error: cpError } = await supabaseKorea
-          .from('campaign_participants')
+        // 1. 먼저 applications 테이블에서 시도 (cnec-kr은 여기에 저장)
+        console.log('[fetchParticipants] Trying Korea DB applications table first...')
+        const { data: appData, error: appError } = await supabaseKorea
+          .from('applications')
           .select(`
             user_id, partnership_code, sns_upload_url,
             step1_url, step2_url, step3_url,
@@ -579,18 +580,18 @@ export default function CampaignDetail() {
           `)
           .eq('campaign_id', id)
 
-        if (cpError) {
-          console.log('[fetchParticipants] campaign_participants error:', cpError.message)
-        } else if (cpData && cpData.length > 0) {
-          partnershipData = cpData
-          console.log('[fetchParticipants] campaign_participants records:', cpData.length)
+        if (appError) {
+          console.log('[fetchParticipants] Korea applications error:', appError.message)
+        } else if (appData && appData.length > 0) {
+          partnershipData = appData
+          console.log('[fetchParticipants] Korea applications records:', appData.length)
         }
 
-        // 2. campaign_participants에서 못 찾았으면 applications 테이블에서도 시도
+        // 2. applications에서 못 찾았으면 campaign_participants 테이블에서 시도
         if (partnershipData.length === 0) {
-          console.log('[fetchParticipants] Trying Korea DB applications table...')
-          const { data: appData, error: appError } = await supabaseKorea
-            .from('applications')
+          console.log('[fetchParticipants] Trying Korea DB campaign_participants table...')
+          const { data: cpData, error: cpError } = await supabaseKorea
+            .from('campaign_participants')
             .select(`
               user_id, partnership_code, sns_upload_url,
               step1_url, step2_url, step3_url,
@@ -600,11 +601,11 @@ export default function CampaignDetail() {
             `)
             .eq('campaign_id', id)
 
-          if (appError) {
-            console.log('[fetchParticipants] Korea applications error:', appError.message)
-          } else if (appData && appData.length > 0) {
-            partnershipData = appData
-            console.log('[fetchParticipants] Korea applications records:', appData.length)
+          if (cpError) {
+            console.log('[fetchParticipants] campaign_participants error:', cpError.message)
+          } else if (cpData && cpData.length > 0) {
+            partnershipData = cpData
+            console.log('[fetchParticipants] campaign_participants records:', cpData.length)
           }
         }
 
@@ -5447,10 +5448,10 @@ JSON만 출력.`
 
                   // 완료 섹션에 표시할 참가자 필터
                   // - 일반 캠페인: approved/completed 상태
-                  // - 멀티비디오 캠페인: approved/completed 상태 OR SNS URL이 하나라도 입력된 경우
+                  // - 멀티비디오 캠페인: approved/completed/sns_uploaded 상태 OR SNS URL이 하나라도 입력된 경우
                   // - campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시 (데이터 직접 입력 대응)
                   const completedSectionParticipants = participants.filter(p => {
-                    if (['approved', 'completed'].includes(p.status)) return true
+                    if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
                     // 4주 챌린지 URL이 있으면 표시
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
@@ -5528,7 +5529,7 @@ JSON만 출력.`
                   // 완료 섹션에 표시할 참가자 필터
                   // campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시
                   const completedSectionParticipants = participants.filter(p => {
-                    if (['approved', 'completed'].includes(p.status)) return true
+                    if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
                     // 4주 챌린지 URL이 있으면 표시
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
