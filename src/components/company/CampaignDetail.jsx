@@ -3578,13 +3578,13 @@ JSON만 출력.`
       )
     }
 
-    // 상태별 카운트
+    // 상태별 카운트 (sns_uploaded: 4주/올영 SNS 업로드 완료 상태 포함)
     const statusCounts = {
       guideWaiting: filteredParticipants.filter(p => ['selected', 'guide_confirmation'].includes(p.status)).length,
       filming: filteredParticipants.filter(p => p.status === 'filming').length,
       revision: filteredParticipants.filter(p => p.status === 'revision_requested').length,
       submitted: filteredParticipants.filter(p => p.status === 'video_submitted').length,
-      approved: filteredParticipants.filter(p => ['approved', 'completed'].includes(p.status)).length
+      approved: filteredParticipants.filter(p => ['approved', 'completed', 'sns_uploaded'].includes(p.status)).length
     }
 
     // 상태 설정
@@ -3634,6 +3634,13 @@ JSON만 출력.`
         },
         completed: {
           label: '완료',
+          icon: CheckCircle,
+          bgClass: 'bg-gradient-to-r from-emerald-500 to-green-600',
+          textClass: 'text-white',
+          dotClass: 'bg-green-300'
+        },
+        sns_uploaded: {
+          label: 'SNS 업로드',
           icon: CheckCircle,
           bgClass: 'bg-gradient-to-r from-emerald-500 to-green-600',
           textClass: 'text-white',
@@ -5665,31 +5672,10 @@ JSON만 출력.`
                   })
 
                   if (completedSectionParticipants.length === 0) {
-                    // 디버깅: 전체 참가자 상태 확인
-                    const debugInfo = {
-                      totalParticipants: participants.length,
-                      campaignType: campaign.campaign_type,
-                      participantsWithWeekUrls: participants.filter(p => p.week1_url || p.week2_url || p.week3_url || p.week4_url).length,
-                      participantsWithStepUrls: participants.filter(p => p.step1_url || p.step2_url || p.step3_url).length,
-                      participantsApproved: participants.filter(p => ['approved', 'completed'].includes(p.status)).length,
-                      statuses: [...new Set(participants.map(p => p.status))]
-                    }
-                    console.log('완료 섹션 디버그:', debugInfo)
-
                     return (
                       <div className="text-center py-12 text-gray-500">
                         <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                         <p>아직 완료된 크리에이터가 없습니다.</p>
-                        {/* 디버그 정보 (개발용) */}
-                        <div className="mt-4 text-xs text-gray-400 bg-gray-50 p-3 rounded-lg text-left max-w-md mx-auto">
-                          <p>📊 디버그 정보:</p>
-                          <p>- 전체 참가자: {participants.length}명</p>
-                          <p>- 캠페인 타입: {campaign.campaign_type || '미설정'}</p>
-                          <p>- week*_url 있음: {participants.filter(p => p.week1_url || p.week2_url || p.week3_url || p.week4_url).length}명</p>
-                          <p>- step*_url 있음: {participants.filter(p => p.step1_url || p.step2_url || p.step3_url).length}명</p>
-                          <p>- approved/completed: {participants.filter(p => ['approved', 'completed'].includes(p.status)).length}명</p>
-                          <p>- 상태들: {[...new Set(participants.map(p => p.status))].join(', ') || '없음'}</p>
-                        </div>
                       </div>
                     )
                   }
