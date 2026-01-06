@@ -64,6 +64,7 @@ import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
 import SceneGuideEditor from './components/admin/SceneGuideEditor'
+import CreatorSceneGuideEditor from './components/admin/CreatorSceneGuideEditor'
 import AdminCampaignGuides from './components/admin/AdminCampaignGuides'
 import GuidePDFManager from './components/admin/GuidePDFManager'
 import CreatorsManagement from './components/admin/CreatorsManagement'
@@ -204,6 +205,7 @@ function App() {
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaigns/:id/guides" element={<AdminCampaignGuides />} />
         <Route path="/admin/campaigns/:id/scene-guide" element={<SceneGuideEditor />} />
+        <Route path="/admin/campaigns/:id/creator-guide" element={<CreatorSceneGuideEditor />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<FeaturedCreatorManagementPageNew />} />

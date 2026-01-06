@@ -497,16 +497,6 @@ export default function AdminCampaignDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* US/Japan: Scene Guide Editor Button */}
-              {(region === 'us' || region === 'japan') && (
-                <Button
-                  onClick={() => navigate(`/admin/campaigns/${id}/scene-guide?id=${id}&region=${region}`)}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  씬 가이드 작성
-                </Button>
-              )}
               <Button
                 onClick={() => navigate(`/admin/campaigns/${id}/edit?region=${region}`)}
                 className="bg-blue-600 hover:bg-blue-700"
@@ -789,11 +779,12 @@ export default function AdminCampaignDetail() {
                       </div>
                     </div>
                   )}
-                  <ApplicationList 
-                    applications={selectedApplications} 
+                  <ApplicationList
+                    applications={selectedApplications}
                     getStatusBadge={getStatusBadge}
                     onViewDetails={setSelectedApplication}
                     campaign={campaign}
+                    region={region}
                     onGenerateGuide={(app) => handleGeneratePersonalizedGuides([app])}
                     generatingGuides={generatingGuides}
                     setSelectedGuide={setSelectedGuide}
@@ -942,7 +933,10 @@ export default function AdminCampaignDetail() {
 }
 
 // 크리에이터 목록 컴포넌트
-function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, onGenerateGuide, generatingGuides, setSelectedGuide, setShowGuideModal }) {
+function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, region, onGenerateGuide, generatingGuides, setSelectedGuide, setShowGuideModal }) {
+  const navigate = useNavigate()
+  const campaignId = campaign?.id
+
   if (applications.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -952,20 +946,51 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
     )
   }
 
+  // US/Japan 캠페인 여부
+  const isUSorJapan = region === 'us' || region === 'japan'
+
   return (
     <div className="space-y-4">
       {applications.map((app) => (
         <div key={app.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <h4 className="font-semibold text-lg">
                   {app.applicant_name || app.creator_name || app.user_name || '크리에이터'}
                 </h4>
                 {getStatusBadge(app.status)}
-                
-                {/* 기획형 캠페인일 경우 개별 AI 가이드 생성 버튼 */}
-                {campaign?.campaign_type === 'planned' && (
+
+                {/* US/Japan 캠페인: 씬 가이드 작성 버튼 */}
+                {isUSorJapan && (
+                  <div className="flex gap-2 ml-2">
+                    <Button
+                      size="sm"
+                      onClick={() => navigate(`/admin/campaigns/${campaignId}/creator-guide?applicationId=${app.id}&region=${region}`)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      <FileText className="w-3 h-3 mr-1" />
+                      씬 가이드 작성
+                    </Button>
+                    {app.personalized_guide && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedGuide(app)
+                          setShowGuideModal(true)
+                        }}
+                        className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        가이드 보기
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* 기획형 캠페인(한국)일 경우 개별 AI 가이드 생성 버튼 */}
+                {!isUSorJapan && campaign?.campaign_type === 'planned' && (
                   <div className="flex gap-2 ml-2">
                     {onGenerateGuide && (
                       <Button
