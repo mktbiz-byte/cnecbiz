@@ -5325,15 +5325,37 @@ JSON만 출력.`
           <TabsContent value="completed">
             <Card>
               <CardHeader>
+                {(() => {
+                  // 멀티비디오 캠페인 여부 체크
+                  const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                  const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
+
+                  // 완료 섹션에 표시할 참가자 필터
+                  // - 일반 캠페인: approved/completed 상태
+                  // - 멀티비디오 캠페인: approved/completed 상태 OR SNS URL이 하나라도 입력된 경우
+                  const completedSectionParticipants = participants.filter(p => {
+                    if (['approved', 'completed'].includes(p.status)) return true
+                    if (isMultiVideoCampaign) {
+                      if (is4WeekChallenge) {
+                        return p.week1_url || p.week2_url || p.week3_url || p.week4_url
+                      } else if (isOliveyoung) {
+                        return p.step1_url || p.step2_url || p.step3_url
+                      }
+                    }
+                    return false
+                  })
+
+                  return (
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-green-600" />
                     완료된 크리에이터
                     <Badge className="bg-green-100 text-green-700 ml-2">
-                      {participants.filter(p => ['approved', 'completed'].includes(p.status)).length}명
+                      {completedSectionParticipants.length}명
                     </Badge>
                   </CardTitle>
-                  {participants.filter(p => ['approved', 'completed'].includes(p.status)).length > 0 && (
+                  {completedSectionParticipants.length > 0 && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -5381,16 +5403,41 @@ JSON만 출력.`
                     </Button>
                   )}
                 </div>
+                  )
+                })()}
               </CardHeader>
               <CardContent>
-                {participants.filter(p => ['approved', 'completed'].includes(p.status)).length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>아직 완료된 크리에이터가 없습니다.</p>
-                  </div>
-                ) : (
+                {(() => {
+                  // 멀티비디오 캠페인 여부 체크 (CardContent용)
+                  const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                  const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
+
+                  // 완료 섹션에 표시할 참가자 필터
+                  const completedSectionParticipants = participants.filter(p => {
+                    if (['approved', 'completed'].includes(p.status)) return true
+                    if (isMultiVideoCampaign) {
+                      if (is4WeekChallenge) {
+                        return p.week1_url || p.week2_url || p.week3_url || p.week4_url
+                      } else if (isOliveyoung) {
+                        return p.step1_url || p.step2_url || p.step3_url
+                      }
+                    }
+                    return false
+                  })
+
+                  if (completedSectionParticipants.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>아직 완료된 크리에이터가 없습니다.</p>
+                      </div>
+                    )
+                  }
+
+                  return (
                   <div className="space-y-6">
-                    {participants.filter(p => ['approved', 'completed'].includes(p.status)).map(participant => {
+                    {completedSectionParticipants.map(participant => {
                       // 해당 크리에이터의 승인된 영상들
                       const creatorSubmissions = videoSubmissions.filter(
                         sub => sub.user_id === participant.user_id && sub.status === 'approved'
@@ -5857,7 +5904,8 @@ JSON만 출력.`
                       )
                     })}
                   </div>
-                )}
+                  )
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
