@@ -4938,9 +4938,9 @@ JSON만 출력.`
                     return acc
                   }, {})
                   
-                  // Sort each group by submitted_at (oldest first)
+                  // Sort each group by submitted_at (newest first - 최신 영상이 먼저 보이도록)
                   Object.keys(groupedByUser).forEach(userId => {
-                    groupedByUser[userId].sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
+                    groupedByUser[userId].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
                   })
                   
                   if (Object.keys(groupedByUser).length === 0) {
@@ -4984,7 +4984,7 @@ JSON만 출력.`
                               </div>
                               {submissions.length > 1 && (
                                 <div className="flex gap-2">
-                                  {submissions.map((_, index) => (
+                                  {submissions.map((sub, index) => (
                                     <button
                                       key={index}
                                       onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [userId]: index }))}
@@ -4994,7 +4994,7 @@ JSON만 출력.`
                                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                       }`}
                                     >
-                                      v{index + 1}
+                                      v{sub.version || (submissions.length - index)}
                                     </button>
                                   ))}
                                 </div>
