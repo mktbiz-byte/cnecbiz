@@ -1,31 +1,44 @@
 import { createClient } from '@supabase/supabase-js'
 
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json'
+}
+
 // Netlify Function to save personalized guide using service_role_key
 export async function handler(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' }
+  }
+
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers,
       body: JSON.stringify({ error: 'Method not allowed' })
     }
   }
 
   try {
-    const { 
+    const {
       region,           // 'korea', 'japan', 'us'
       applicationId,    // application row ID
       guide             // personalized guide content
     } = JSON.parse(event.body)
-    
+
     if (!region || !applicationId || !guide) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({ error: 'Missing required parameters' })
       }
     }
 
     // Get the appropriate Supabase URL and service_role_key based on region
     let supabaseUrl, serviceRoleKey
-    
+
     switch (region) {
       case 'korea':
         supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL
@@ -42,15 +55,27 @@ export async function handler(event) {
       default:
         return {
           statusCode: 400,
+          headers,
           body: JSON.stringify({ error: 'Invalid region' })
         }
     }
+
+    console.log('[save-personalized-guide] Config check:', {
+      region,
+      hasUrl: !!supabaseUrl,
+      hasKey: !!serviceRoleKey,
+      applicationId
+    })
 
     if (!supabaseUrl || !serviceRoleKey) {
       console.error('Missing Supabase credentials:', { region, supabaseUrl: !!supabaseUrl, serviceRoleKey: !!serviceRoleKey })
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Supabase configuration not found' })
+        headers,
+        body: JSON.stringify({
+          error: 'Supabase configuration not found',
+          details: `region=${region}, hasUrl=${!!supabaseUrl}, hasKey=${!!serviceRoleKey}`
+        })
       }
     }
 
@@ -73,25 +98,29 @@ export async function handler(event) {
       console.error('Supabase update error:', error)
       return {
         statusCode: 500,
-        body: JSON.stringify({ 
+        headers,
+        body: JSON.stringify({
           error: 'Failed to save guide',
-          details: error.message 
+          details: error.message,
+          code: error.code,
+          hint: error.hint
         })
       }
     }
 
+    console.log('[save-personalized-guide] Update result:', { dataLength: data?.length, applicationId })
+
     if (!data || data.length === 0) {
       return {
         statusCode: 404,
+        headers,
         body: JSON.stringify({ error: 'Application not found' })
       }
     }
 
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         success: true,
         data: data[0]
@@ -102,9 +131,10 @@ export async function handler(event) {
     console.error('Save guide error:', error)
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
+      headers,
+      body: JSON.stringify({
         error: 'Failed to save personalized guide',
-        message: error.message 
+        message: error.message
       })
     }
   }
