@@ -199,6 +199,15 @@ export default function CampaignDetail() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
   const [creatorForSetup, setCreatorForSetup] = useState(null)
+  // Address editing state
+  const [editingAddressFor, setEditingAddressFor] = useState(null)
+  const [addressFormData, setAddressFormData] = useState({
+    phone_number: '',
+    postal_code: '',
+    address: '',
+    detail_address: ''
+  })
+  const [savingAddress, setSavingAddress] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
@@ -953,6 +962,55 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error updating tracking number:', error)
       alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
+  // 주소 편집 시작
+  const handleStartEditAddress = (participant) => {
+    setEditingAddressFor(participant.id)
+    setAddressFormData({
+      phone_number: participant.phone_number || participant.phone || '',
+      postal_code: participant.postal_code || '',
+      address: participant.address || '',
+      detail_address: participant.detail_address || ''
+    })
+  }
+
+  // 주소 저장
+  const handleSaveAddress = async () => {
+    if (!editingAddressFor) return
+
+    setSavingAddress(true)
+    try {
+      const updateData = {
+        phone_number: addressFormData.phone_number,
+        phone: addressFormData.phone_number, // 호환성 위해 phone 필드도 업데이트
+        postal_code: addressFormData.postal_code,
+        address: addressFormData.address,
+        detail_address: addressFormData.detail_address
+      }
+
+      const { error } = await supabase
+        .from('applications')
+        .update(updateData)
+        .eq('id', editingAddressFor)
+
+      if (error) throw error
+
+      // 로컬 상태 업데이트
+      setParticipants(prev => prev.map(p =>
+        p.id === editingAddressFor
+          ? { ...p, ...updateData }
+          : p
+      ))
+
+      setEditingAddressFor(null)
+      alert('주소가 저장되었습니다.')
+    } catch (error) {
+      console.error('Error saving address:', error)
+      alert('주소 저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingAddress(false)
     }
   }
 
@@ -3049,11 +3107,84 @@ export default function CampaignDetail() {
                           <span>{shippingPhone || '연락처 미입력'}</span>
                         </div>
 
-                        {/* 배송 주소 - 전체 표시 */}
+                        {/* 배송 주소 - 전체 표시 + 수정 버튼 */}
                         <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg min-w-0 flex-shrink">
                           <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
                           <span className="break-all">{shippingAddress || '주소 미입력'}</span>
+                          <button
+                            onClick={() => handleStartEditAddress(participant)}
+                            className="ml-1 p-0.5 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded"
+                            title="주소 수정"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
                         </div>
+
+                        {/* 주소 수정 폼 (인라인) */}
+                        {editingAddressFor === participant.id && (
+                          <div className="w-full mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-gray-600">연락처</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.phone_number}
+                                  onChange={(e) => setAddressFormData({...addressFormData, phone_number: e.target.value})}
+                                  placeholder="+1 123 456 7890"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-600">우편번호</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.postal_code}
+                                  onChange={(e) => setAddressFormData({...addressFormData, postal_code: e.target.value})}
+                                  placeholder="92081"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">주소</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.address}
+                                  onChange={(e) => setAddressFormData({...addressFormData, address: e.target.value})}
+                                  placeholder="2027 Jewell Ridge, Vista, CA"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">상세주소</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.detail_address}
+                                  onChange={(e) => setAddressFormData({...addressFormData, detail_address: e.target.value})}
+                                  placeholder="Apt 4B"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingAddressFor(null)}
+                                className="text-xs px-2 py-1 h-auto"
+                              >
+                                취소
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleSaveAddress}
+                                disabled={savingAddress}
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-auto"
+                              >
+                                {savingAddress ? '저장 중...' : '저장'}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* 택배사 + 송장번호 인라인 */}
                         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg">
