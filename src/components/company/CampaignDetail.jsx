@@ -213,6 +213,8 @@ export default function CampaignDetail() {
   // Bulk guide generation state
   const [isGeneratingBulkGuides, setIsGeneratingBulkGuides] = useState(false)
   const [bulkGuideProgress, setBulkGuideProgress] = useState({ current: 0, total: 0 })
+  // Bulk guide email sending state
+  const [sendingBulkGuideEmail, setSendingBulkGuideEmail] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
@@ -1243,6 +1245,114 @@ JSON만 출력.`
     await fetchParticipants()
 
     alert(`가이드 생성 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+  }
+
+  // US/Japan 캠페인: 선택된 크리에이터에게 가이드 이메일 일괄 발송
+  const handleBulkGuideEmailSend = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('가이드를 발송할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    // 선택된 크리에이터 중 가이드가 있는 크리에이터만 필터링
+    const participantsWithGuide = participants.filter(p =>
+      selectedParticipants.includes(p.id) && p.personalized_guide
+    )
+
+    if (participantsWithGuide.length === 0) {
+      alert('선택된 크리에이터 중 가이드가 생성된 크리에이터가 없습니다.\n먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    // 이메일이 없는 크리에이터 확인
+    const creatorsWithoutEmail = participantsWithGuide.filter(p => !p.email)
+    if (creatorsWithoutEmail.length > 0) {
+      const skipCount = creatorsWithoutEmail.length
+      if (!confirm(`${participantsWithGuide.length}명 중 ${skipCount}명은 이메일이 없어 발송되지 않습니다.\n${participantsWithGuide.length - skipCount}명에게 가이드 이메일을 발송하시겠습니까?`)) {
+        return
+      }
+    } else {
+      if (!confirm(`${participantsWithGuide.length}명의 크리에이터에게 가이드 이메일을 발송하시겠습니까?`)) {
+        return
+      }
+    }
+
+    setSendingBulkGuideEmail(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      const isJapan = region === 'japan'
+      const targetLanguageKey = isJapan ? 'labelJa' : 'labelEn'
+
+      for (const participant of participantsWithGuide) {
+        if (!participant.email) {
+          failCount++
+          continue
+        }
+
+        try {
+          // personalized_guide 파싱
+          const guide = typeof participant.personalized_guide === 'string'
+            ? JSON.parse(participant.personalized_guide)
+            : participant.personalized_guide
+
+          // 가이드 내용 준비
+          const guideContent = {
+            campaign_title: campaign?.title || campaign?.product_name,
+            brand_name: campaign?.brand_name || campaign?.brand,
+            dialogue_style: guide.dialogue_style,
+            tempo: guide.tempo,
+            mood: guide.mood,
+            scenes: (guide.scenes || []).map(scene => ({
+              order: scene.order,
+              scene_type: scene.scene_type,
+              scene_description: scene.scene_description_translated || scene.scene_description,
+              dialogue: scene.dialogue_translated || scene.dialogue,
+              shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
+            })),
+            required_dialogues: guide.required_dialogues || [],
+            required_scenes: guide.required_scenes || []
+          }
+
+          const response = await fetch('/.netlify/functions/send-scene-guide-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaign_id: id,
+              region,
+              guide_content: guideContent,
+              creators: [{
+                id: participant.id,
+                name: participant.applicant_name || participant.creator_name,
+                email: participant.email
+              }]
+            })
+          })
+
+          if (response.ok) {
+            successCount++
+          } else {
+            failCount++
+            console.error(`Email failed for ${participant.email}:`, await response.text())
+          }
+        } catch (err) {
+          failCount++
+          console.error(`Error sending email to ${participant.email}:`, err)
+        }
+      }
+
+      if (successCount > 0) {
+        alert(`가이드 이메일 발송 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+      } else {
+        alert('가이드 이메일 발송에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Bulk email error:', error)
+      alert('이메일 발송 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setSendingBulkGuideEmail(false)
+    }
   }
 
   // US 캠페인: 배송정보 요청 이메일 발송
@@ -3234,24 +3344,44 @@ JSON만 출력.`
               </span>
               {/* US/Japan 캠페인: 가이드 전체 생성 버튼 */}
               {(region === 'us' || region === 'japan') && (
-                <Button
-                  onClick={handleBulkGuideGeneration}
-                  disabled={isGeneratingBulkGuides}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
-                  size="sm"
-                >
-                  {isGeneratingBulkGuides ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      가이드 전체 생성
-                    </>
-                  )}
-                </Button>
+                <>
+                  <Button
+                    onClick={handleBulkGuideGeneration}
+                    disabled={isGeneratingBulkGuides}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                    size="sm"
+                  >
+                    {isGeneratingBulkGuides ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        가이드 전체 생성
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleBulkGuideEmailSend}
+                    disabled={sendingBulkGuideEmail}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                    size="sm"
+                  >
+                    {sendingBulkGuideEmail ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        발송 중...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-1" />
+                        가이드 이메일 발송
+                      </>
+                    )}
+                  </Button>
+                </>
               )}
             </div>
           )}

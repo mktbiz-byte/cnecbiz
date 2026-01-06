@@ -75,6 +75,7 @@ export default function CompanySceneGuideEditor() {
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [translating, setTranslating] = useState(false)
+  const [translatingScene, setTranslatingScene] = useState(null) // 씬별 번역 상태
   const [sendingEmail, setSendingEmail] = useState(false)
 
   // Style settings
@@ -498,6 +499,84 @@ JSON만 출력하세요.`
     }
   }
 
+  // AI Translation for a single scene
+  const handleTranslateScene = async (index) => {
+    setTranslatingScene(index)
+    setError('')
+
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
+
+      const targetLang = region === 'japan' ? '일본어' : '영어'
+      const scene = scenes[index]
+
+      if (!scene.scene_description && !scene.dialogue && !scene.shooting_tip) {
+        throw new Error('번역할 내용이 없습니다.')
+      }
+
+      const prompt = `다음 촬영 가이드 내용을 ${targetLang}로 자연스럽게 번역해주세요.
+크리에이터가 이해하기 쉽게 자연스러운 표현을 사용해주세요.
+
+[씬 ${index + 1}]
+촬영장면: ${scene.scene_description || '(없음)'}
+대사: ${scene.dialogue || '(없음)'}
+촬영팁: ${scene.shooting_tip || '(없음)'}
+
+응답 형식 (JSON):
+{
+  "scene_description_translated": "번역된 촬영장면",
+  "dialogue_translated": "번역된 대사",
+  "shooting_tip_translated": "번역된 촬영팁"
+}
+
+JSON만 출력하세요.`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+          })
+        }
+      )
+
+      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+      const data = await response.json()
+      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+
+      // Parse JSON response
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다.')
+
+      const translation = JSON.parse(jsonMatch[0])
+
+      // Update the specific scene with translation
+      setScenes(prev => {
+        const newScenes = [...prev]
+        newScenes[index] = {
+          ...newScenes[index],
+          scene_description_translated: translation.scene_description_translated || '',
+          dialogue_translated: translation.dialogue_translated || '',
+          shooting_tip_translated: translation.shooting_tip_translated || ''
+        }
+        return newScenes
+      })
+
+      setSuccess(`씬 ${index + 1} ${targetLang} 번역 완료!`)
+      setTimeout(() => setSuccess(''), 2000)
+    } catch (err) {
+      console.error('Translation error:', err)
+      setError(`씬 ${index + 1} 번역 실패: ` + err.message)
+    } finally {
+      setTranslatingScene(null)
+    }
+  }
+
   // Save guide to application
   const handleSave = async () => {
     setSaving(true)
@@ -914,13 +993,27 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                           </span>
                           씬 {scene.order}
                         </CardTitle>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                           <Input
                             value={scene.scene_type}
                             onChange={(e) => handleSceneChange(index, 'scene_type', e.target.value)}
                             placeholder="씬 타입 (예: 인트로, 제품 소개)"
                             className="w-40"
                           />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTranslateScene(index)}
+                            disabled={translatingScene === index}
+                            className="text-blue-600 hover:text-blue-700 border-blue-300 hover:bg-blue-50"
+                            title={`이 씬 ${targetLanguageLabel} 번역`}
+                          >
+                            {translatingScene === index ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Globe className="w-4 h-4" />
+                            )}
+                          </Button>
                           {scenes.length > 5 && (
                             <Button
                               variant="ghost"
