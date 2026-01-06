@@ -257,6 +257,9 @@ export default function CompanySceneGuideEditor() {
       const prompt = `당신은 UGC(User Generated Content) 영상 촬영 가이드 전문가입니다.
 ${isJapan ? '일본' : '미국'} 시장을 타겟으로 크리에이터를 위한 10개의 촬영 씬 가이드를 작성해주세요.
 
+⚠️ 중요: 모든 내용(scene_description, dialogue, shooting_tip)은 반드시 한국어로 작성해주세요!
+대사(dialogue)도 한국어로 작성하세요. 번역은 별도로 진행됩니다.
+
 [캠페인 정보]
 - 제품명: ${productName}
 - 브랜드: ${brandName}
@@ -293,6 +296,7 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 4. 필수 대사와 필수 촬영장면은 반드시 가이드에 포함
 5. 각 씬은 자연스럽게 연결되어야 함
 6. 마지막 씬은 CTA(Call to Action)로 마무리
+7. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
 
 응답 형식 (반드시 JSON으로만):
 {
@@ -300,9 +304,9 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
     {
       "order": 1,
       "scene_type": "훅 (3초 집중)",
-      "scene_description": "이 씬에서 촬영해야 할 장면 설명",
-      "dialogue": "크리에이터가 말해야 할 대사",
-      "shooting_tip": "촬영 팁"
+      "scene_description": "이 씬에서 촬영해야 할 장면 설명 (한국어)",
+      "dialogue": "크리에이터가 말해야 할 대사 (한국어)",
+      "shooting_tip": "촬영 팁 (한국어)"
     }
   ]
 }

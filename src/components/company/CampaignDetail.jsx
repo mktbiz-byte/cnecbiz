@@ -1078,6 +1078,9 @@ export default function CampaignDetail() {
         const prompt = `당신은 UGC 영상 촬영 가이드 전문가입니다.
 ${isJapan ? '일본' : '미국'} 시장을 타겟으로 10개의 촬영 씬 가이드를 작성해주세요.
 
+⚠️ 중요: 모든 내용(scene_description, dialogue, shooting_tip)은 반드시 한국어로 작성!
+대사(dialogue)도 한국어로 작성하세요. 번역은 별도로 진행됩니다.
+
 [캠페인 정보]
 - 제품명: ${productName}
 - 브랜드: ${brandName}
@@ -1096,9 +1099,10 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 3. 📍 ${isJapan ? '일본' : '미국'} 라이프스타일 반영
 4. 필수 대사/촬영장면 반드시 포함
 5. 마지막 씬은 CTA로 마무리
+6. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
 
 응답 형식 (JSON만):
-{"scenes": [{"order": 1, "scene_type": "훅", "scene_description": "장면 설명", "dialogue": "대사", "shooting_tip": "촬영 팁"}]}
+{"scenes": [{"order": 1, "scene_type": "훅", "scene_description": "장면 설명 (한국어)", "dialogue": "대사 (한국어)", "shooting_tip": "촬영 팁 (한국어)"}]}
 JSON만 출력.`
 
         const response = await fetch(
