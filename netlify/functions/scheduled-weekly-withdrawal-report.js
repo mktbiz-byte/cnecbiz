@@ -218,7 +218,7 @@ exports.handler = async (event, context) => {
     const { monday, sunday } = getLastWeekRange();
     console.log(`[Report Period] ${monday.toISOString()} ~ ${sunday.toISOString()}`);
 
-    // BIZ DB에서 출금 신청 조회
+    // BIZ DB에서 출금 신청 조회 (creator_withdrawal_requests)
     const { data: bizWithdrawals, error: bizError } = await supabaseBiz
       .from('creator_withdrawal_requests')
       .select('*')
@@ -228,7 +228,20 @@ exports.handler = async (event, context) => {
       .order('created_at', { ascending: true });
 
     if (bizError) {
-      console.error('BIZ DB 조회 오류:', bizError);
+      console.error('BIZ DB (creator_withdrawal_requests) 조회 오류:', bizError);
+    }
+
+    // BIZ DB에서 출금 신청 조회 (withdrawal_requests)
+    const { data: wrWithdrawals, error: wrError } = await supabaseBiz
+      .from('withdrawal_requests')
+      .select('*')
+      .gte('created_at', monday.toISOString())
+      .lte('created_at', sunday.toISOString())
+      .in('status', ['pending', 'approved'])
+      .order('created_at', { ascending: true });
+
+    if (wrError) {
+      console.error('BIZ DB (withdrawal_requests) 조회 오류:', wrError);
     }
 
     // Korea DB에서 출금 신청 조회
@@ -245,22 +258,54 @@ exports.handler = async (event, context) => {
     }
 
     // 데이터 통합
-    const allWithdrawals = [
-      ...(bizWithdrawals || []).map(w => ({
-        ...w,
-        source: 'biz',
-        name: w.account_holder || 'Unknown',
-        amount: w.requested_amount || w.amount || 0
-      })),
-      ...(koreaWithdrawals || []).map(w => ({
-        ...w,
-        source: 'korea',
-        name: w.bank_account_holder || 'Unknown',
-        amount: w.amount || 0,
-        bank_name: w.bank_name,
-        account_number: w.bank_account_number
-      }))
-    ];
+    const existingIds = new Set();
+    const allWithdrawals = [];
+
+    // BIZ DB creator_withdrawal_requests
+    (bizWithdrawals || []).forEach(w => {
+      if (!existingIds.has(w.id)) {
+        existingIds.add(w.id);
+        allWithdrawals.push({
+          ...w,
+          source: 'biz',
+          name: w.account_holder || w.creator_name || 'Unknown',
+          amount: w.requested_amount || w.amount || 0,
+          resident_registration_number: w.resident_registration_number
+        });
+      }
+    });
+
+    // BIZ DB withdrawal_requests
+    (wrWithdrawals || []).forEach(w => {
+      if (!existingIds.has(w.id)) {
+        existingIds.add(w.id);
+        allWithdrawals.push({
+          ...w,
+          source: 'biz_wr',
+          name: w.bank_account_holder || w.account_holder || 'Unknown',
+          amount: w.amount || w.requested_amount || 0,
+          bank_name: w.bank_name,
+          account_number: w.bank_account_number || w.account_number,
+          resident_registration_number: w.resident_registration_number || w.resident_number_encrypted || w.resident_number
+        });
+      }
+    });
+
+    // Korea DB withdrawals
+    (koreaWithdrawals || []).forEach(w => {
+      if (!existingIds.has(w.id)) {
+        existingIds.add(w.id);
+        allWithdrawals.push({
+          ...w,
+          source: 'korea',
+          name: w.bank_account_holder || 'Unknown',
+          amount: w.amount || 0,
+          bank_name: w.bank_name,
+          account_number: w.bank_account_number,
+          resident_registration_number: w.resident_number_encrypted || w.resident_registration_number || w.resident_number
+        });
+      }
+    });
 
     if (allWithdrawals.length === 0) {
       console.log('[Report] 지난주 출금 신청이 없습니다.');
@@ -287,11 +332,16 @@ exports.handler = async (event, context) => {
       totalAmount += grossAmount;
       totalNetAmount += netAmount;
 
-      // 주민번호 복호화 (BIZ DB만)
+      // 주민번호 복호화 (암호화된 경우)
       let residentNum = '';
-      if (w.source === 'biz' && w.resident_registration_number) {
-        residentNum = await decryptResidentNumber(w.resident_registration_number);
-        residentNum = maskResidentNumber(residentNum);
+      if (w.resident_registration_number) {
+        try {
+          residentNum = await decryptResidentNumber(w.resident_registration_number);
+          residentNum = maskResidentNumber(residentNum);
+        } catch (e) {
+          console.log(`[Info] 주민번호 복호화 실패 (source: ${w.source}):`, e.message);
+          residentNum = '복호화실패';
+        }
       }
 
       detailLines.push(
