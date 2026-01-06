@@ -263,6 +263,22 @@ export async function sendCampaignCancelledNotification(receiverNum, receiverNam
   );
 }
 
+/**
+ * 프로필 등록 요청 알림
+ * @param {string} receiverNum - 수신번호
+ * @param {string} receiverName - 수신자 이름
+ */
+export async function sendProfileCompletionRequestNotification(receiverNum, receiverName) {
+  return await sendKakaoNotification(
+    receiverNum,
+    receiverName,
+    POPBILL_TEMPLATES.CREATOR.PROFILE_COMPLETION_REQUEST.code,
+    {
+      '회원명': receiverName
+    }
+  );
+}
+
 export default {
   sendCreatorSignupNotification,
   sendCampaignSelectedNotification,
@@ -277,5 +293,6 @@ export default {
   sendWithdrawalRequestedNotification,
   sendWithdrawalCompletedNotification,
   sendWithdrawalRejectedNotification,
-  sendSubmissionDelayWarningNotification
+  sendSubmissionDelayWarningNotification,
+  sendProfileCompletionRequestNotification
 };

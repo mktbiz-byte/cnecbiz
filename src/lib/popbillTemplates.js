@@ -167,7 +167,15 @@ export const POPBILL_TEMPLATES = {
       description: '출금 신청 거절 및 사유 안내',
       params: ['크리에이터명', '거절사유']
     },
-    
+
+    // 프로필 등록 안내
+    PROFILE_COMPLETION_REQUEST: {
+      code: '025120000931',
+      name: '프로필 안내장',
+      description: '프로필 등록 요청 알림',
+      params: ['회원명']
+    },
+
     // 패널티 관련
     DEADLINE_OVERDUE: {
       code: '025100001021',

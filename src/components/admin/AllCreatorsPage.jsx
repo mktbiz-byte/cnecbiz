@@ -123,6 +123,10 @@ export default function AllCreatorsPage() {
   const [messageData, setMessageData] = useState({ type: 'email', subject: '', content: '' })
   const [sendingMessage, setSendingMessage] = useState(false)
 
+  // 프로필 완료 요청 모달 상태
+  const [showProfileRequestModal, setShowProfileRequestModal] = useState(false)
+  const [sendingProfileRequest, setSendingProfileRequest] = useState(false)
+
   // 비밀번호 재설정 모달 상태
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false)
   const [passwordResetCreator, setPasswordResetCreator] = useState(null)
@@ -739,6 +743,119 @@ export default function AllCreatorsPage() {
     }
   }
 
+  // 프로필 완료 요청 모달 열기 (한국 크리에이터만)
+  const openProfileRequestModal = () => {
+    const koreanCreators = selectedCreators.filter(c => c.dbRegion === 'korea')
+    if (koreanCreators.length === 0) {
+      alert('한국 크리에이터를 선택해주세요. 프로필 완료 요청은 한국 크리에이터에게만 발송됩니다.')
+      return
+    }
+    setShowProfileRequestModal(true)
+  }
+
+  // 프로필 완료 요청 발송 (알림톡 + 이메일 동시 발송)
+  const handleSendProfileRequest = async () => {
+    const koreanCreators = selectedCreators.filter(c => c.dbRegion === 'korea')
+    if (koreanCreators.length === 0) {
+      alert('한국 크리에이터가 없습니다.')
+      return
+    }
+
+    setSendingProfileRequest(true)
+    let kakaoSuccess = 0
+    let emailSuccess = 0
+    let kakaoFail = 0
+    let emailFail = 0
+
+    try {
+      for (const creator of koreanCreators) {
+        const creatorName = creator.name || '크리에이터'
+
+        // 알림톡 발송
+        if (creator.phone) {
+          try {
+            const phoneNumber = creator.phone.replace(/-/g, '')
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: phoneNumber,
+                receiverName: creatorName,
+                templateCode: '025120000931', // 프로필 안내장 템플릿
+                variables: {
+                  '회원명': creatorName
+                }
+              })
+            })
+            kakaoSuccess++
+          } catch (err) {
+            console.error(`알림톡 발송 실패 (${creator.phone}):`, err)
+            kakaoFail++
+          }
+        } else {
+          kakaoFail++
+        }
+
+        // 이메일 발송
+        if (creator.email) {
+          try {
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: creator.email,
+                subject: '[크넥] 프로필 설정을 완료해주세요!',
+                html: `
+                  <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                      <h1 style="color: white; margin: 0; font-size: 24px;">CNEC</h1>
+                      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">프로필 설정 안내</p>
+                    </div>
+                    <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+                      <p style="color: #4b5563; line-height: 1.8;">안녕하세요, ${creatorName}님!</p>
+                      <p style="color: #4b5563; line-height: 1.8;">크넥에 가입해 주셔서 감사합니다.</p>
+                      <p style="color: #4b5563; line-height: 1.8;">캠페인 참여를 위해 <strong>프로필 설정을 완료</strong>해주세요.</p>
+                      <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">프로필에서 다음 정보를 입력해주세요:</p>
+                        <ul style="color: #4b5563; margin: 0; padding-left: 20px;">
+                          <li>SNS 채널 정보 (인스타그램, 유튜브, 틱톡 등)</li>
+                          <li>출금을 위한 계좌 정보</li>
+                          <li>세금 신고를 위한 주민등록번호</li>
+                        </ul>
+                      </div>
+                      <div style="text-align: center; margin: 30px 0;">
+                        <a href="https://creator.cnec.co.kr/mypage" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-weight: bold;">프로필 설정하러 가기</a>
+                      </div>
+                      <p style="color: #9ca3af; font-size: 12px; margin-top: 30px;">본 메일은 발신 전용입니다.</p>
+                    </div>
+                    <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; text-align: center;">
+                      <p style="color: #9ca3af; font-size: 12px; margin: 0;">© 2025 CNEC. All rights reserved.</p>
+                    </div>
+                  </div>
+                `
+              })
+            })
+            emailSuccess++
+          } catch (err) {
+            console.error(`이메일 발송 실패 (${creator.email}):`, err)
+            emailFail++
+          }
+        } else {
+          emailFail++
+        }
+      }
+
+      alert(`프로필 완료 요청 발송 완료!\n\n알림톡: 성공 ${kakaoSuccess}건, 실패 ${kakaoFail}건\n이메일: 성공 ${emailSuccess}건, 실패 ${emailFail}건`)
+      setShowProfileRequestModal(false)
+      setSelectedCreators([])
+    } catch (error) {
+      console.error('프로필 완료 요청 발송 오류:', error)
+      alert('프로필 완료 요청 발송 중 오류가 발생했습니다.')
+    } finally {
+      setSendingProfileRequest(false)
+    }
+  }
+
   const openReviewModal = (creator, region) => {
     setSelectedCreator({ ...creator, dbRegion: region })
     setReviewData({ rating: creator.rating || 0, review: creator.company_review || '' })
@@ -1307,6 +1424,13 @@ export default function AllCreatorsPage() {
                           메시지 발송
                         </Button>
                         <Button
+                          onClick={openProfileRequestModal}
+                          className="bg-amber-500 hover:bg-amber-600"
+                        >
+                          <User className="w-4 h-4 mr-2" />
+                          프로필 완료 요청
+                        </Button>
+                        <Button
                           variant="outline"
                           onClick={() => setSelectedCreators([])}
                         >
@@ -1780,6 +1904,58 @@ export default function AllCreatorsPage() {
             </Button>
             <Button onClick={handleSendMessage} disabled={sendingMessage} className="bg-indigo-500 hover:bg-indigo-600">
               {sendingMessage ? '발송 중...' : '발송하기'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 프로필 완료 요청 모달 */}
+      <Dialog open={showProfileRequestModal} onOpenChange={setShowProfileRequestModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-amber-500" />
+              프로필 완료 요청 발송
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-sm text-amber-800">
+                선택한 <strong>한국 크리에이터</strong>에게 프로필 완료 요청을 발송합니다.
+              </p>
+              <p className="text-sm text-amber-700 mt-2">
+                • <strong>알림톡</strong>과 <strong>이메일</strong>이 동시에 발송됩니다.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">발송 대상:</p>
+              <div className="max-h-40 overflow-y-auto">
+                {selectedCreators
+                  .filter(c => c.dbRegion === 'korea')
+                  .map((c, idx) => (
+                    <div key={idx} className="text-sm text-gray-600 flex items-center gap-2 py-1">
+                      <span className="font-medium">{c.name || '이름없음'}</span>
+                      <span className="text-gray-400">|</span>
+                      <span>{c.phone || '전화번호 없음'}</span>
+                      <span className="text-gray-400">|</span>
+                      <span>{c.email || '이메일 없음'}</span>
+                    </div>
+                  ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                총 {selectedCreators.filter(c => c.dbRegion === 'korea').length}명에게 발송됩니다.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProfileRequestModal(false)} disabled={sendingProfileRequest}>
+              취소
+            </Button>
+            <Button onClick={handleSendProfileRequest} disabled={sendingProfileRequest} className="bg-amber-500 hover:bg-amber-600">
+              {sendingProfileRequest ? '발송 중...' : '발송하기'}
             </Button>
           </DialogFooter>
         </DialogContent>
