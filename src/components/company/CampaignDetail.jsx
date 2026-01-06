@@ -20,6 +20,7 @@ import {
   MapPin,
   Truck,
   Sparkles,
+  Loader2,
   MessageSquare,
   Calendar,
   Download,
@@ -208,6 +209,9 @@ export default function CampaignDetail() {
     detail_address: ''
   })
   const [savingAddress, setSavingAddress] = useState(false)
+  // Bulk guide generation state
+  const [isGeneratingBulkGuides, setIsGeneratingBulkGuides] = useState(false)
+  const [bulkGuideProgress, setBulkGuideProgress] = useState({ current: 0, total: 0 })
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
@@ -1012,6 +1016,155 @@ export default function CampaignDetail() {
     } finally {
       setSavingAddress(false)
     }
+  }
+
+  // US/Japan 캠페인: 선택된 크리에이터 전체 가이드 생성
+  const handleBulkGuideGeneration = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('가이드를 생성할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedParticipants.length}명의 크리에이터에게 AI 가이드를 생성하시겠습니까?`)) {
+      return
+    }
+
+    setIsGeneratingBulkGuides(true)
+    setBulkGuideProgress({ current: 0, total: selectedParticipants.length })
+
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+    if (!apiKey) {
+      alert('API 키가 설정되지 않았습니다.')
+      setIsGeneratingBulkGuides(false)
+      return
+    }
+
+    const isJapan = region === 'japan'
+    const regionContext = isJapan
+      ? `[일본 시장 특성]
+- 일본 소비자의 라이프스타일에 맞게 작성
+- 정중하고 세련된 표현 사용
+- 제품의 섬세한 디테일과 품질 강조
+- 미니멀하고 깔끔한 촬영 스타일`
+      : `[미국 시장 특성]
+- 미국 소비자의 라이프스타일에 맞게 작성
+- 직접적이고 자신감 있는 표현 사용
+- 실용적인 효과와 결과 강조
+- 역동적이고 밝은 촬영 스타일`
+
+    const productName = campaign?.product_name || campaign?.title || '제품'
+    const brandName = campaign?.brand_name || campaign?.brand || '브랜드'
+    const productInfo = campaign?.product_info || campaign?.description || campaign?.product_description || ''
+    const category = campaign?.category || ''
+    const guidelines = campaign?.guidelines || ''
+    const dialogueSource = campaign?.required_dialogues || campaign?.required_dialogue || ''
+    const reqDialogues = Array.isArray(dialogueSource) ? dialogueSource.join('\n- ') : dialogueSource
+    const scenesSource = campaign?.required_scenes || ''
+    const reqScenes = Array.isArray(scenesSource) ? scenesSource.join('\n- ') : scenesSource
+
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < selectedParticipants.length; i++) {
+      const participantId = selectedParticipants[i]
+      const participant = participants.find(p => p.id === participantId)
+
+      if (!participant) continue
+
+      setBulkGuideProgress({ current: i + 1, total: selectedParticipants.length })
+
+      try {
+        const prompt = `당신은 UGC 영상 촬영 가이드 전문가입니다.
+${isJapan ? '일본' : '미국'} 시장을 타겟으로 10개의 촬영 씬 가이드를 작성해주세요.
+
+[캠페인 정보]
+- 제품명: ${productName}
+- 브랜드: ${brandName}
+- 카테고리: ${category}
+- 제품 설명: ${productInfo}
+${guidelines ? `- 가이드라인: ${guidelines}` : ''}
+
+${regionContext}
+
+${reqDialogues ? `[필수 대사 - 반드시 포함]\n- ${reqDialogues}` : ''}
+${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
+
+[핵심 요청사항]
+1. ⚡ 첫 번째 씬은 반드시 "훅(Hook)" - 3초 내 시청자 관심 집중
+2. 🔄 B&A(Before & After) 중심 구성
+3. 📍 ${isJapan ? '일본' : '미국'} 라이프스타일 반영
+4. 필수 대사/촬영장면 반드시 포함
+5. 마지막 씬은 CTA로 마무리
+
+응답 형식 (JSON만):
+{"scenes": [{"order": 1, "scene_type": "훅", "scene_description": "장면 설명", "dialogue": "대사", "shooting_tip": "촬영 팁"}]}
+JSON만 출력.`
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+            })
+          }
+        )
+
+        if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+        const data = await response.json()
+        const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+
+        if (!jsonMatch) throw new Error('JSON 파싱 실패')
+
+        const result = JSON.parse(jsonMatch[0])
+
+        if (result.scenes && Array.isArray(result.scenes)) {
+          const guideData = {
+            scenes: result.scenes.map((scene, idx) => ({
+              order: idx + 1,
+              scene_type: scene.scene_type || '',
+              scene_description: scene.scene_description || '',
+              scene_description_translated: '',
+              dialogue: scene.dialogue || '',
+              dialogue_translated: '',
+              shooting_tip: scene.shooting_tip || '',
+              shooting_tip_translated: ''
+            })),
+            dialogue_style: 'natural',
+            tempo: 'normal',
+            mood: 'bright',
+            updated_at: new Date().toISOString()
+          }
+
+          const { error } = await supabase
+            .from('applications')
+            .update({ personalized_guide: guideData })
+            .eq('id', participantId)
+
+          if (error) throw error
+          successCount++
+        }
+      } catch (err) {
+        console.error(`Guide generation failed for ${participant.applicant_name || participant.creator_name}:`, err)
+        failCount++
+      }
+
+      // Rate limiting - 1초 대기
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+
+    setIsGeneratingBulkGuides(false)
+    setBulkGuideProgress({ current: 0, total: 0 })
+    setSelectedParticipants([])
+
+    // Refresh data
+    await fetchParticipants()
+
+    alert(`가이드 생성 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
   }
 
   // US 캠페인: 배송정보 요청 이메일 발송
@@ -2997,9 +3150,32 @@ export default function CampaignDetail() {
             </span>
           </label>
           {selectedParticipants.length > 0 && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-              {selectedParticipants.length}명 선택됨
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                {selectedParticipants.length}명 선택됨
+              </span>
+              {/* US/Japan 캠페인: 가이드 전체 생성 버튼 */}
+              {(region === 'us' || region === 'japan') && (
+                <Button
+                  onClick={handleBulkGuideGeneration}
+                  disabled={isGeneratingBulkGuides}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                  size="sm"
+                >
+                  {isGeneratingBulkGuides ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-1" />
+                      가이드 전체 생성
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           )}
         </div>
 

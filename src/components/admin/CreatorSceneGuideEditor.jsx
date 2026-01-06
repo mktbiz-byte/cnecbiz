@@ -468,8 +468,7 @@ JSON만 출력하세요.`
       const { error } = await supabase
         .from('applications')
         .update({
-          personalized_guide: guideData,
-          guide_generated_at: new Date().toISOString()
+          personalized_guide: guideData
         })
         .eq('id', applicationId)
 
