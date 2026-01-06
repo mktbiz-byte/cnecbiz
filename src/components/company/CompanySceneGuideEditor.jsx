@@ -73,6 +73,7 @@ export default function CompanySceneGuideEditor() {
   const [application, setApplication] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const [translating, setTranslating] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
 
@@ -127,11 +128,19 @@ export default function CompanySceneGuideEditor() {
       setApplication(appData)
 
       // Load campaign-level settings as defaults
-      if (campaignData.required_dialogues && Array.isArray(campaignData.required_dialogues)) {
-        setRequiredDialogues(campaignData.required_dialogues)
+      if (campaignData.required_dialogues) {
+        if (Array.isArray(campaignData.required_dialogues)) {
+          setRequiredDialogues(campaignData.required_dialogues)
+        } else if (typeof campaignData.required_dialogues === 'string') {
+          setRequiredDialogues(campaignData.required_dialogues.split('\n').filter(d => d.trim()))
+        }
       }
-      if (campaignData.required_scenes && Array.isArray(campaignData.required_scenes)) {
-        setRequiredScenes(campaignData.required_scenes)
+      if (campaignData.required_scenes) {
+        if (Array.isArray(campaignData.required_scenes)) {
+          setRequiredScenes(campaignData.required_scenes)
+        } else if (typeof campaignData.required_scenes === 'string') {
+          setRequiredScenes(campaignData.required_scenes.split('\n').filter(s => s.trim()))
+        }
       }
       if (campaignData.video_tempo) setTempo(campaignData.video_tempo)
       if (campaignData.video_tone) setMood(campaignData.video_tone)
@@ -198,6 +207,119 @@ export default function CompanySceneGuideEditor() {
       ...scene,
       order: i + 1
     })))
+  }
+
+  // AI Auto-Generate Scene Guide
+  const handleAutoGenerate = async () => {
+    setGenerating(true)
+    setError('')
+
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
+
+      // Get style labels
+      const styleLabel = DIALOGUE_STYLES.find(s => s.value === dialogueStyle)?.label || '자연스러운'
+      const tempoLabel = TEMPO_OPTIONS.find(t => t.value === tempo)?.label || '보통'
+      const moodLabel = MOOD_OPTIONS.find(m => m.value === mood)?.label || '밝고 경쾌한'
+
+      // Campaign info for context
+      const productName = campaign?.product_name || campaign?.title || '제품'
+      const brandName = campaign?.brand_name || campaign?.brand || '브랜드'
+      const productInfo = campaign?.product_info || campaign?.description || ''
+      const category = campaign?.category || ''
+      const videoLength = campaign?.video_length || '60초'
+
+      // Required elements
+      const reqDialogues = requiredDialogues.filter(d => d.trim()).join('\n- ')
+      const reqScenes = requiredScenes.filter(s => s.trim()).join('\n- ')
+
+      const prompt = `당신은 UGC(User Generated Content) 영상 촬영 가이드 전문가입니다.
+다음 정보를 바탕으로 크리에이터를 위한 10개의 촬영 씬 가이드를 작성해주세요.
+
+[캠페인 정보]
+- 제품명: ${productName}
+- 브랜드: ${brandName}
+- 카테고리: ${category}
+- 영상 길이: ${videoLength}
+- 제품 설명: ${productInfo}
+
+[스타일 설정]
+- 대사 스타일: ${styleLabel}
+- 템포: ${tempoLabel}
+- 분위기: ${moodLabel}
+
+${reqDialogues ? `[필수 대사]\n- ${reqDialogues}` : ''}
+
+${reqScenes ? `[필수 촬영장면]\n- ${reqScenes}` : ''}
+
+[요청사항]
+1. 각 씬은 자연스럽게 연결되어야 합니다
+2. 첫 씬은 훅(Hook)으로 시청자의 관심을 끌어야 합니다
+3. 제품의 장점과 사용법을 자연스럽게 보여주세요
+4. 마지막 씬은 CTA(Call to Action)로 마무리하세요
+5. 필수 대사와 필수 촬영장면은 반드시 포함해주세요
+6. 대사는 크리에이터가 자연스럽게 말할 수 있도록 작성해주세요
+
+응답 형식 (반드시 JSON으로만):
+{
+  "scenes": [
+    {
+      "order": 1,
+      "scene_type": "씬 유형 (예: 훅, 인트로, 제품 소개, 사용법, 효과, 리뷰, CTA 등)",
+      "scene_description": "이 씬에서 촬영해야 할 장면 설명",
+      "dialogue": "크리에이터가 말해야 할 대사",
+      "shooting_tip": "촬영 팁 (카메라 앵글, 조명, 배경 등)"
+    }
+  ]
+}
+
+JSON만 출력하세요.`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+          })
+        }
+      )
+
+      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+      const data = await response.json()
+      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+
+      // Parse JSON response
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) throw new Error('가이드 생성 결과를 파싱할 수 없습니다.')
+
+      const result = JSON.parse(jsonMatch[0])
+
+      if (result.scenes && Array.isArray(result.scenes)) {
+        setScenes(result.scenes.map((scene, i) => ({
+          order: i + 1,
+          scene_type: scene.scene_type || '',
+          scene_description: scene.scene_description || '',
+          scene_description_translated: '',
+          dialogue: scene.dialogue || '',
+          dialogue_translated: '',
+          shooting_tip: scene.shooting_tip || '',
+          shooting_tip_translated: ''
+        })))
+      }
+
+      setSuccess('AI 가이드 생성이 완료되었습니다! 내용을 검토하고 필요시 수정해주세요.')
+      setTimeout(() => setSuccess(''), 5000)
+    } catch (err) {
+      console.error('Generation error:', err)
+      setError('가이드 생성 중 오류가 발생했습니다: ' + err.message)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   // AI Translation
@@ -658,6 +780,32 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
 
             {/* Right: Scene Editor (2 columns) */}
             <div className="lg:col-span-2 space-y-4">
+              {/* AI Auto-Generate Button */}
+              <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  <span className="font-semibold text-purple-900">AI 가이드 자동 작성</span>
+                  <span className="text-sm text-purple-700">- 캠페인 정보 기반 10개 씬 생성</span>
+                </div>
+                <Button
+                  onClick={handleAutoGenerate}
+                  disabled={generating}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      생성 중...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      AI 자동 작성
+                    </>
+                  )}
+                </Button>
+              </div>
+
               {/* Translation Button */}
               <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-2">
