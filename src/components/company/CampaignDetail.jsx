@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Video,
   Edit3,
+  Edit2,
   Upload,
   X,
   MapPin,
@@ -217,6 +218,16 @@ export default function CampaignDetail() {
   const [sendingBulkGuideEmail, setSendingBulkGuideEmail] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
+  // Admin SNS/Ad code edit state
+  const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
+  const [adminSnsEditData, setAdminSnsEditData] = useState({
+    submissionId: null,
+    participantId: null,
+    snsUrl: '',
+    adCode: '',
+    isEditMode: false
+  })
+  const [savingAdminSnsEdit, setSavingAdminSnsEdit] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
   const [singleWeekGuideData, setSingleWeekGuideData] = useState({ required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' })
   const [showSingleWeekModal, setShowSingleWeekModal] = useState(false)
@@ -2812,7 +2823,81 @@ JSON만 출력.`
       alert('최종 확정에 실패했습니다: ' + error.message)
     }
   }
-  
+
+  // 관리자용: SNS URL 및 광고코드 수정 후 최종 확정
+  const handleAdminSnsEdit = async () => {
+    if (!adminSnsEditData.snsUrl.trim()) {
+      alert('SNS URL을 입력해주세요.')
+      return
+    }
+
+    // 수정 모드일 때는 확인 없이 저장만
+    if (!adminSnsEditData.isEditMode) {
+      if (!confirm('SNS 정보를 저장하고 최종 확정하시겠습니까?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) {
+        return
+      }
+    }
+
+    setSavingAdminSnsEdit(true)
+    try {
+      const videoClient = supabaseKorea || supabaseBiz
+
+      // video_submissions 테이블에 SNS URL 업데이트
+      if (adminSnsEditData.submissionId) {
+        await videoClient
+          .from('video_submissions')
+          .update({ sns_upload_url: adminSnsEditData.snsUrl.trim() })
+          .eq('id', adminSnsEditData.submissionId)
+      }
+
+      // applications 테이블에 SNS URL 및 광고코드 업데이트
+      if (adminSnsEditData.participantId) {
+        const updateData = { sns_upload_url: adminSnsEditData.snsUrl.trim() }
+        if (adminSnsEditData.adCode.trim()) {
+          updateData.partnership_code = adminSnsEditData.adCode.trim()
+        }
+        await supabase
+          .from('applications')
+          .update(updateData)
+          .eq('id', adminSnsEditData.participantId)
+      }
+
+      setShowAdminSnsEditModal(false)
+
+      // 수정 모드일 때는 저장만 하고 종료
+      if (adminSnsEditData.isEditMode) {
+        setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+        await fetchVideoSubmissions()
+        await fetchParticipants()
+        alert('저장되었습니다.')
+        return
+      }
+
+      // 신규 등록 모드일 때는 최종 확정 진행
+      const submissionId = adminSnsEditData.submissionId
+      const { data: submission } = await videoClient
+        .from('video_submissions')
+        .select('*')
+        .eq('id', submissionId)
+        .single()
+
+      setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+
+      if (submission) {
+        await handleFinalConfirmation(submission)
+      } else {
+        await fetchVideoSubmissions()
+        await fetchParticipants()
+        alert('SNS 정보가 저장되었습니다.')
+      }
+    } catch (error) {
+      console.error('Error saving admin SNS edit:', error)
+      alert('저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingAdminSnsEdit(false)
+    }
+  }
+
   // 크리에이터별 맞춤 가이드 생성성
   const generatePersonalizedGuides = async (participantIds) => {
     try {
@@ -5291,12 +5376,52 @@ JSON만 출력.`
                                             >
                                               <Copy className="w-3 h-3" />
                                             </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 px-2 text-gray-500 hover:bg-gray-100"
+                                              onClick={() => {
+                                                setAdminSnsEditData({
+                                                  submissionId: submission.id,
+                                                  participantId: participant.id,
+                                                  snsUrl: snsUrl,
+                                                  adCode: participant.partnership_code || '',
+                                                  isEditMode: true
+                                                })
+                                                setShowAdminSnsEditModal(true)
+                                              }}
+                                            >
+                                              <Edit2 className="w-3 h-3" />
+                                            </Button>
                                           </div>
-                                        ) : null
+                                        ) : (
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Link className="w-4 h-4 text-gray-400" />
+                                            <span className="text-sm text-gray-400">SNS URL 미등록</span>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 px-2 text-blue-600 hover:bg-blue-50"
+                                              onClick={() => {
+                                                setAdminSnsEditData({
+                                                  submissionId: submission.id,
+                                                  participantId: participant.id,
+                                                  snsUrl: '',
+                                                  adCode: participant.partnership_code || '',
+                                                  isEditMode: false
+                                                })
+                                                setShowAdminSnsEditModal(true)
+                                              }}
+                                            >
+                                              <Edit2 className="w-3 h-3 mr-1" />
+                                              입력
+                                            </Button>
+                                          </div>
+                                        )
                                       })()}
 
                                       {/* 파트너십 광고 코드 (campaign_participants 테이블에 저장됨) */}
-                                      {participant.partnership_code && (
+                                      {participant.partnership_code ? (
                                         <div className="flex items-center gap-2 mb-2">
                                           <Hash className="w-4 h-4 text-orange-500" />
                                           <span className="text-sm text-gray-600">광고코드:</span>
@@ -5314,6 +5439,11 @@ JSON만 출력.`
                                           >
                                             <Copy className="w-3 h-3" />
                                           </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <Hash className="w-4 h-4 text-gray-400" />
+                                          <span className="text-sm text-gray-400">광고코드 미등록</span>
                                         </div>
                                       )}
 
@@ -5413,7 +5543,15 @@ JSON만 출력.`
                                           onClick={async () => {
                                             const snsUrl = submission.sns_upload_url || participant.sns_upload_url
                                             if (!snsUrl) {
-                                              alert('SNS 업로드 URL이 등록되지 않았습니다.\n\n크리에이터가 SNS 업로드 완료 후 다시 시도해주세요.')
+                                              // SNS URL이 없으면 관리자가 직접 입력할 수 있는 모달 표시
+                                              setAdminSnsEditData({
+                                                submissionId: submission.id,
+                                                participantId: participant.id,
+                                                snsUrl: '',
+                                                adCode: participant.partnership_code || '',
+                                                isEditMode: false
+                                              })
+                                              setShowAdminSnsEditModal(true)
                                               return
                                             }
                                             if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
@@ -7580,6 +7718,86 @@ JSON만 출력.`
                     <Trash2 className="w-4 h-4 mr-2" />
                     삭제하기
                   </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 관리자용 SNS URL/광고코드 편집 모달 */}
+      {showAdminSnsEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold">SNS 정보 {adminSnsEditData.isEditMode ? '수정' : '입력'}</h3>
+              <button
+                onClick={() => {
+                  setShowAdminSnsEditModal(false)
+                  setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {!adminSnsEditData.isEditMode && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                  <p className="font-medium mb-1">📌 SNS URL이 등록되지 않았습니다</p>
+                  <p>크리에이터가 등록하지 않은 경우 관리자가 직접 입력할 수 있습니다.</p>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  SNS 업로드 URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={adminSnsEditData.snsUrl}
+                  onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, snsUrl: e.target.value }))}
+                  placeholder="https://www.instagram.com/reel/..."
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  광고코드 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={adminSnsEditData.adCode}
+                  onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, adCode: e.target.value }))}
+                  placeholder="광고코드 입력"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAdminSnsEditModal(false)
+                  setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+                }}
+                disabled={savingAdminSnsEdit}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={handleAdminSnsEdit}
+                disabled={savingAdminSnsEdit || !adminSnsEditData.snsUrl.trim()}
+              >
+                {savingAdminSnsEdit ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    저장 중...
+                  </>
+                ) : adminSnsEditData.isEditMode ? (
+                  '저장'
+                ) : (
+                  '저장 후 최종 확정'
                 )}
               </Button>
             </div>
