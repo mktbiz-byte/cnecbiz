@@ -6149,6 +6149,136 @@ JSON만 출력.`
                               {/* 멀티비디오 캠페인: videoSubmissions 없어도 SNS URL 표시 */}
                               {isMultiVideoCampaign && multiVideoStatus.length > 0 ? (
                                 <div className="space-y-4">
+                                  {/* 영상 다운로드 섹션 (최신 버전만) */}
+                                  {(() => {
+                                    // 해당 참가자의 모든 video_submissions 가져오기
+                                    const participantVideos = videoSubmissions.filter(
+                                      sub => sub.user_id === participant.user_id
+                                    )
+
+                                    // 주차별/비디오별로 그룹화하고 최신 버전만 선택
+                                    const latestVideos = []
+                                    if (is4WeekChallenge) {
+                                      for (let week = 1; week <= 4; week++) {
+                                        const weekVideos = participantVideos
+                                          .filter(v => v.week_number === week)
+                                          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                        if (weekVideos.length > 0) {
+                                          latestVideos.push({ ...weekVideos[0], label: `${week}주차` })
+                                        }
+                                      }
+                                    } else {
+                                      // 올리브영: video_number로 구분
+                                      for (let num = 1; num <= 2; num++) {
+                                        const numVideos = participantVideos
+                                          .filter(v => v.video_number === num)
+                                          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                        if (numVideos.length > 0) {
+                                          latestVideos.push({ ...numVideos[0], label: `영상 ${num}` })
+                                        }
+                                      }
+                                    }
+
+                                    if (latestVideos.length === 0) {
+                                      return null
+                                    }
+
+                                    return (
+                                      <div className="space-y-2">
+                                        <h5 className="font-semibold text-gray-700 flex items-center gap-2">
+                                          <Video className="w-4 h-4 text-purple-500" />
+                                          영상 다운로드 (최신 버전)
+                                        </h5>
+                                        <div className="space-y-3">
+                                          {latestVideos.map((video, idx) => (
+                                            <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                                              <div className="flex items-center justify-between mb-2">
+                                                <span className="font-medium text-sm text-gray-700">
+                                                  {video.label}
+                                                  {video.version && video.version > 1 && (
+                                                    <Badge variant="outline" className="ml-2 text-xs">v{video.version}</Badge>
+                                                  )}
+                                                </span>
+                                                <span className="text-xs text-gray-500">
+                                                  {new Date(video.created_at).toLocaleDateString('ko-KR')}
+                                                </span>
+                                              </div>
+                                              <div className="flex gap-2">
+                                                {/* 클린본 다운로드 */}
+                                                {video.clean_video_url ? (
+                                                  <Button
+                                                    size="sm"
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1"
+                                                    onClick={async () => {
+                                                      try {
+                                                        const response = await fetch(video.clean_video_url)
+                                                        const blob = await response.blob()
+                                                        const blobUrl = window.URL.createObjectURL(blob)
+                                                        const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                        const link = document.createElement('a')
+                                                        link.href = blobUrl
+                                                        link.download = `${creatorName}_${video.label}_클린본.mp4`
+                                                        document.body.appendChild(link)
+                                                        link.click()
+                                                        document.body.removeChild(link)
+                                                        window.URL.revokeObjectURL(blobUrl)
+                                                      } catch (error) {
+                                                        console.error('Download failed:', error)
+                                                        window.open(video.clean_video_url, '_blank')
+                                                      }
+                                                    }}
+                                                  >
+                                                    <Download className="w-3 h-3 mr-1" />
+                                                    클린본
+                                                  </Button>
+                                                ) : (
+                                                  <Button size="sm" variant="outline" disabled className="flex-1 text-gray-400">
+                                                    <Download className="w-3 h-3 mr-1" />
+                                                    클린본 없음
+                                                  </Button>
+                                                )}
+                                                {/* 편집본 다운로드 */}
+                                                {video.video_file_url ? (
+                                                  <Button
+                                                    size="sm"
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                                                    onClick={async () => {
+                                                      try {
+                                                        const videoUrl = signedVideoUrls[video.id] || video.video_file_url
+                                                        const response = await fetch(videoUrl)
+                                                        const blob = await response.blob()
+                                                        const blobUrl = window.URL.createObjectURL(blob)
+                                                        const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                        const link = document.createElement('a')
+                                                        link.href = blobUrl
+                                                        link.download = `${creatorName}_${video.label}_편집본.mp4`
+                                                        document.body.appendChild(link)
+                                                        link.click()
+                                                        document.body.removeChild(link)
+                                                        window.URL.revokeObjectURL(blobUrl)
+                                                      } catch (error) {
+                                                        console.error('Download failed:', error)
+                                                        window.open(signedVideoUrls[video.id] || video.video_file_url, '_blank')
+                                                      }
+                                                    }}
+                                                  >
+                                                    <Download className="w-3 h-3 mr-1" />
+                                                    편집본
+                                                  </Button>
+                                                ) : (
+                                                  <Button size="sm" variant="outline" disabled className="flex-1 text-gray-400">
+                                                    <Download className="w-3 h-3 mr-1" />
+                                                    편집본 없음
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )
+                                  })()}
+
                                   {/* SNS URL 목록 */}
                                   <div className="space-y-2">
                                     <h5 className="font-semibold text-gray-700 flex items-center gap-2">
