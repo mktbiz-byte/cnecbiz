@@ -515,7 +515,13 @@ export default function CampaignDetail() {
       if (supabaseKorea) {
         const { data: cpData, error: cpError } = await supabaseKorea
           .from('campaign_participants')
-          .select('user_id, partnership_code, sns_upload_url')
+          .select(`
+            user_id, partnership_code, sns_upload_url,
+            step1_url, step2_url, step3_url,
+            step1_2_partnership_code, step3_partnership_code,
+            week1_url, week2_url, week3_url, week4_url,
+            week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code
+          `)
           .eq('campaign_id', id)
 
         if (!cpError && cpData) {
@@ -524,13 +530,28 @@ export default function CampaignDetail() {
         }
       }
 
-      // partnership_code 병합
+      // partnership_code 및 올영/4주챌린지 필드 병합
       const finalData = enrichedData.map(app => {
         const partnerInfo = partnershipData.find(p => p.user_id === app.user_id)
         return {
           ...app,
           partnership_code: partnerInfo?.partnership_code || app.partnership_code,
-          sns_upload_url: partnerInfo?.sns_upload_url || app.sns_upload_url
+          sns_upload_url: partnerInfo?.sns_upload_url || app.sns_upload_url,
+          // 올리브영 필드
+          step1_url: partnerInfo?.step1_url || app.step1_url,
+          step2_url: partnerInfo?.step2_url || app.step2_url,
+          step3_url: partnerInfo?.step3_url || app.step3_url,
+          step1_2_partnership_code: partnerInfo?.step1_2_partnership_code || app.step1_2_partnership_code,
+          step3_partnership_code: partnerInfo?.step3_partnership_code || app.step3_partnership_code,
+          // 4주 챌린지 필드
+          week1_url: partnerInfo?.week1_url || app.week1_url,
+          week2_url: partnerInfo?.week2_url || app.week2_url,
+          week3_url: partnerInfo?.week3_url || app.week3_url,
+          week4_url: partnerInfo?.week4_url || app.week4_url,
+          week1_partnership_code: partnerInfo?.week1_partnership_code || app.week1_partnership_code,
+          week2_partnership_code: partnerInfo?.week2_partnership_code || app.week2_partnership_code,
+          week3_partnership_code: partnerInfo?.week3_partnership_code || app.week3_partnership_code,
+          week4_partnership_code: partnerInfo?.week4_partnership_code || app.week4_partnership_code
         }
       })
 
@@ -2835,7 +2856,56 @@ JSON만 출력.`
 
   // 관리자용: SNS URL 및 광고코드 수정 후 최종 확정
   const handleAdminSnsEdit = async () => {
-    if (!adminSnsEditData.snsUrl.trim()) {
+    // 멀티비디오 캠페인 편집 (올리브영/4주 챌린지)
+    if (adminSnsEditData.isMultiVideoEdit) {
+      if (!confirm('SNS 정보를 저장하시겠습니까?')) return
+
+      setSavingAdminSnsEdit(true)
+      try {
+        const updateData = {}
+        const campaignType = adminSnsEditData.campaignType
+
+        if (campaignType === '4week_challenge') {
+          // 4주 챌린지
+          if (adminSnsEditData.week1_url) updateData.week1_url = adminSnsEditData.week1_url.trim()
+          if (adminSnsEditData.week2_url) updateData.week2_url = adminSnsEditData.week2_url.trim()
+          if (adminSnsEditData.week3_url) updateData.week3_url = adminSnsEditData.week3_url.trim()
+          if (adminSnsEditData.week4_url) updateData.week4_url = adminSnsEditData.week4_url.trim()
+          if (adminSnsEditData.week1_partnership_code) updateData.week1_partnership_code = adminSnsEditData.week1_partnership_code.trim()
+          if (adminSnsEditData.week2_partnership_code) updateData.week2_partnership_code = adminSnsEditData.week2_partnership_code.trim()
+          if (adminSnsEditData.week3_partnership_code) updateData.week3_partnership_code = adminSnsEditData.week3_partnership_code.trim()
+          if (adminSnsEditData.week4_partnership_code) updateData.week4_partnership_code = adminSnsEditData.week4_partnership_code.trim()
+        } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+          // 올리브영
+          if (adminSnsEditData.step1_url) updateData.step1_url = adminSnsEditData.step1_url.trim()
+          if (adminSnsEditData.step2_url) updateData.step2_url = adminSnsEditData.step2_url.trim()
+          if (adminSnsEditData.step3_url) updateData.step3_url = adminSnsEditData.step3_url.trim()
+          if (adminSnsEditData.step1_2_partnership_code) updateData.step1_2_partnership_code = adminSnsEditData.step1_2_partnership_code.trim()
+          if (adminSnsEditData.step3_partnership_code) updateData.step3_partnership_code = adminSnsEditData.step3_partnership_code.trim()
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await supabase
+            .from('applications')
+            .update(updateData)
+            .eq('id', adminSnsEditData.participantId)
+        }
+
+        setShowAdminSnsEditModal(false)
+        setAdminSnsEditData({})
+        await fetchParticipants()
+        alert('저장되었습니다.')
+      } catch (error) {
+        console.error('Error saving multi-video SNS edit:', error)
+        alert('저장에 실패했습니다: ' + error.message)
+      } finally {
+        setSavingAdminSnsEdit(false)
+      }
+      return
+    }
+
+    // 기존 단일 영상 캠페인 편집
+    if (!adminSnsEditData.snsUrl?.trim()) {
       alert('SNS URL을 입력해주세요.')
       return
     }
@@ -2854,7 +2924,7 @@ JSON만 출력.`
       // video_submissions 테이블에 SNS URL 및 광고코드 업데이트
       if (adminSnsEditData.submissionId) {
         const updateData = { sns_upload_url: adminSnsEditData.snsUrl.trim() }
-        if (adminSnsEditData.adCode.trim()) {
+        if (adminSnsEditData.adCode?.trim()) {
           updateData.ad_code = adminSnsEditData.adCode.trim()
           updateData.partnership_code = adminSnsEditData.adCode.trim() // 호환성
         }
@@ -2867,7 +2937,7 @@ JSON만 출력.`
       // applications 테이블에도 SNS URL 및 광고코드 업데이트 (단일 영상용 호환성)
       if (adminSnsEditData.participantId) {
         const updateData = { sns_upload_url: adminSnsEditData.snsUrl.trim() }
-        if (adminSnsEditData.adCode.trim()) {
+        if (adminSnsEditData.adCode?.trim()) {
           updateData.partnership_code = adminSnsEditData.adCode.trim()
         }
         await supabase
@@ -5332,10 +5402,35 @@ JSON만 출력.`
                       const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
                       const requiredVideoCount = is4WeekChallenge ? 4 : isOliveyoung ? 2 : 1
 
-                      // 모든 영상이 SNS URL + 광고코드를 가지고 있는지 체크
-                      const allVideosHaveSnsUrl = creatorSubmissions.length >= requiredVideoCount &&
-                        creatorSubmissions.every(sub => sub.sns_upload_url)
-                      const allVideosHaveAdCode = creatorSubmissions.every(sub => sub.ad_code || sub.partnership_code)
+                      // 멀티비디오 캠페인의 SNS URL/광고코드 체크 (campaign_participants 테이블 컬럼 사용)
+                      let allVideosHaveSnsUrl = false
+                      let allVideosHaveAdCode = false
+                      let multiVideoStatus = []
+
+                      if (is4WeekChallenge) {
+                        // 4주 챌린지: week1_url ~ week4_url, week1_partnership_code ~ week4_partnership_code
+                        multiVideoStatus = [
+                          { week: 1, url: participant.week1_url, code: participant.week1_partnership_code },
+                          { week: 2, url: participant.week2_url, code: participant.week2_partnership_code },
+                          { week: 3, url: participant.week3_url, code: participant.week3_partnership_code },
+                          { week: 4, url: participant.week4_url, code: participant.week4_partnership_code }
+                        ]
+                        allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
+                        allVideosHaveAdCode = multiVideoStatus.every(s => s.code)
+                      } else if (isOliveyoung) {
+                        // 올리브영: step1_url, step2_url, step3_url (3개), step1_2_partnership_code, step3_partnership_code (2개)
+                        multiVideoStatus = [
+                          { step: 1, url: participant.step1_url, code: participant.step1_2_partnership_code },
+                          { step: 2, url: participant.step2_url, code: participant.step1_2_partnership_code },
+                          { step: 3, url: participant.step3_url, code: participant.step3_partnership_code }
+                        ]
+                        allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
+                        allVideosHaveAdCode = participant.step1_2_partnership_code && participant.step3_partnership_code
+                      } else {
+                        // 일반/기획형: sns_upload_url, partnership_code
+                        allVideosHaveSnsUrl = !!participant.sns_upload_url || creatorSubmissions.every(sub => sub.sns_upload_url)
+                        allVideosHaveAdCode = !!participant.partnership_code || creatorSubmissions.every(sub => sub.ad_code || sub.partnership_code)
+                      }
 
                       // 이미 최종 확정된 영상이 있는지 체크
                       const hasConfirmedVideo = creatorSubmissions.some(sub => sub.final_confirmed_at)
@@ -5611,60 +5706,122 @@ JSON만 출력.`
                               {/* 멀티비디오 캠페인 전체 최종 확정 버튼 */}
                               {isMultiVideoCampaign && !allVideosConfirmed && (
                                 <div className="mt-4 pt-4 border-t border-gray-200">
-                                  {/* 영상별 상태 요약 */}
+                                  {/* 영상별 상태 요약 - 멀티비디오 캠페인용 */}
                                   <div className="mb-3 p-3 bg-gray-50 rounded-lg">
                                     <p className="text-sm font-medium text-gray-700 mb-2">
-                                      {is4WeekChallenge ? '4주 챌린지' : '올리브영'} 영상 현황 ({creatorSubmissions.length}/{requiredVideoCount})
+                                      {is4WeekChallenge ? '4주 챌린지' : '올리브영'} SNS 업로드 현황
                                     </p>
                                     <div className="grid grid-cols-2 gap-2 text-xs">
-                                      {Array.from({ length: requiredVideoCount }, (_, i) => {
-                                        const sub = creatorSubmissions.find(s => (s.week_number || s.video_number || i + 1) === i + 1)
+                                      {multiVideoStatus.map((status, i) => {
+                                        const label = is4WeekChallenge ? `${status.week}주차` : `STEP${status.step}`
                                         return (
-                                          <div key={i} className={`flex items-center gap-1 ${sub ? 'text-green-600' : 'text-gray-400'}`}>
-                                            {sub ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                            <span>{is4WeekChallenge ? `${i + 1}주차` : `영상 ${i + 1}`}</span>
-                                            {sub && (
-                                              <span className="ml-1">
-                                                {sub.sns_upload_url ? '✓SNS' : '⚠SNS없음'}
-                                                {(sub.ad_code || sub.partnership_code) ? ' ✓코드' : ' ⚠코드없음'}
-                                              </span>
-                                            )}
+                                          <div key={i} className="flex items-center gap-1">
+                                            <span className={status.url ? 'text-green-600' : 'text-gray-400'}>
+                                              {status.url ? <CheckCircle className="w-3 h-3 inline" /> : <Clock className="w-3 h-3 inline" />}
+                                              <span className="ml-1">{label}</span>
+                                            </span>
+                                            <span className={`ml-1 ${status.url ? 'text-green-600' : 'text-orange-500'}`}>
+                                              {status.url ? '✓URL' : '⚠URL없음'}
+                                            </span>
+                                            <span className={`ml-1 ${status.code ? 'text-green-600' : 'text-orange-500'}`}>
+                                              {status.code ? '✓코드' : '⚠코드없음'}
+                                            </span>
                                           </div>
                                         )
                                       })}
                                     </div>
+                                    {/* 광고코드 요약 */}
+                                    <div className="mt-2 pt-2 border-t border-gray-200 text-xs">
+                                      {is4WeekChallenge ? (
+                                        <div className="space-y-1">
+                                          <p className={participant.week1_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            1주차 광고코드: {participant.week1_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.week2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            2주차 광고코드: {participant.week2_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.week3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            3주차 광고코드: {participant.week3_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.week4_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            4주차 광고코드: {participant.week4_partnership_code || '미등록'}
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-1">
+                                          <p className={participant.step1_2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            STEP1~2 광고코드: {participant.step1_2_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.step3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            STEP3 광고코드: {participant.step3_partnership_code || '미등록'}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* 전체 최종 확정 버튼 */}
-                                  {creatorSubmissions.length >= requiredVideoCount ? (
-                                    allVideosHaveSnsUrl ? (
-                                      <Button
-                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                                        onClick={async () => {
-                                          const missingAdCodes = creatorSubmissions.filter(s => !s.ad_code && !s.partnership_code)
-                                          if (missingAdCodes.length > 0) {
-                                            if (!confirm(`${missingAdCodes.length}개 영상에 광고코드가 없습니다.\n\n광고코드 없이 최종 확정하시겠습니까?`)) return
-                                          }
-                                          if (!confirm(`${requiredVideoCount}개 영상 전체를 최종 확정하시겠습니까?\n\n크리에이터에게 포인트가 지급됩니다.`)) return
+                                  {allVideosHaveSnsUrl ? (
+                                    <Button
+                                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                                      onClick={async () => {
+                                        // 광고코드 체크 (campaign_participants 기준)
+                                        if (!allVideosHaveAdCode) {
+                                          const adCodeWarning = is4WeekChallenge
+                                            ? '일부 주차에 광고코드가 없습니다.'
+                                            : '일부 STEP에 광고코드가 없습니다.'
+                                          if (!confirm(`${adCodeWarning}\n\n광고코드 없이 최종 확정하시겠습니까?`)) return
+                                        }
+                                        const videoCount = is4WeekChallenge ? 4 : isOliveyoung ? 3 : creatorSubmissions.length
+                                        if (!confirm(`전체 최종 확정하시겠습니까?\n\n크리에이터에게 포인트가 지급됩니다.`)) return
 
-                                          // 모든 영상 한 번에 최종 확정 (마지막 영상에서만 포인트 지급)
-                                          for (let i = 0; i < creatorSubmissions.length; i++) {
-                                            const isLastVideo = i === creatorSubmissions.length - 1
-                                            await handleFinalConfirmation(creatorSubmissions[i], !isLastVideo)
+                                        // 모든 영상 한 번에 최종 확정 (마지막 영상에서만 포인트 지급)
+                                        for (let i = 0; i < creatorSubmissions.length; i++) {
+                                          const isLastVideo = i === creatorSubmissions.length - 1
+                                          await handleFinalConfirmation(creatorSubmissions[i], !isLastVideo)
+                                        }
+                                      }}
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      전체 최종 확정
+                                    </Button>
+                                  ) : (
+                                    <div className="text-center text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                                      ⚠️ 모든 {is4WeekChallenge ? '주차' : 'STEP'}에 SNS URL이 등록되어야 최종 확정이 가능합니다.
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-2 text-blue-600 border-blue-300"
+                                        onClick={() => {
+                                          // 기존 값들을 미리 채워서 모달 열기
+                                          const editData = {
+                                            participantId: participant.id,
+                                            campaignType: campaign.campaign_type,
+                                            isMultiVideoEdit: true
                                           }
+                                          if (campaign.campaign_type === '4week_challenge') {
+                                            editData.week1_url = participant.week1_url || ''
+                                            editData.week2_url = participant.week2_url || ''
+                                            editData.week3_url = participant.week3_url || ''
+                                            editData.week4_url = participant.week4_url || ''
+                                            editData.week1_partnership_code = participant.week1_partnership_code || ''
+                                            editData.week2_partnership_code = participant.week2_partnership_code || ''
+                                            editData.week3_partnership_code = participant.week3_partnership_code || ''
+                                            editData.week4_partnership_code = participant.week4_partnership_code || ''
+                                          } else {
+                                            editData.step1_url = participant.step1_url || ''
+                                            editData.step2_url = participant.step2_url || ''
+                                            editData.step3_url = participant.step3_url || ''
+                                            editData.step1_2_partnership_code = participant.step1_2_partnership_code || ''
+                                            editData.step3_partnership_code = participant.step3_partnership_code || ''
+                                          }
+                                          setAdminSnsEditData(editData)
+                                          setShowAdminSnsEditModal(true)
                                         }}
                                       >
-                                        <CheckCircle className="w-4 h-4 mr-2" />
-                                        전체 최종 확정 ({requiredVideoCount}개 영상)
+                                        <Edit2 className="w-3 h-3 mr-1" />
+                                        관리자 입력
                                       </Button>
-                                    ) : (
-                                      <div className="text-center text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
-                                        ⚠️ 모든 영상에 SNS URL이 등록되어야 최종 확정이 가능합니다.
-                                      </div>
-                                    )
-                                  ) : (
-                                    <div className="text-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-                                      {requiredVideoCount}개 영상 중 {creatorSubmissions.length}개 제출됨 (대기 중)
                                     </div>
                                   )}
                                 </div>
@@ -7833,13 +7990,17 @@ JSON만 출력.`
       {/* 관리자용 SNS URL/광고코드 편집 모달 */}
       {showAdminSnsEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h3 className="text-lg font-semibold">SNS 정보 {adminSnsEditData.isEditMode ? '수정' : '입력'}</h3>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
+              <h3 className="text-lg font-semibold">
+                {adminSnsEditData.isMultiVideoEdit
+                  ? (adminSnsEditData.campaignType === '4week_challenge' ? '4주 챌린지' : '올리브영') + ' SNS 정보 입력'
+                  : `SNS 정보 ${adminSnsEditData.isEditMode ? '수정' : '입력'}`}
+              </h3>
               <button
                 onClick={() => {
                   setShowAdminSnsEditModal(false)
-                  setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+                  setAdminSnsEditData({})
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -7847,43 +8008,124 @@ JSON만 출력.`
               </button>
             </div>
             <div className="p-6 space-y-4">
-              {!adminSnsEditData.isEditMode && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                  <p className="font-medium mb-1">📌 SNS URL이 등록되지 않았습니다</p>
-                  <p>크리에이터가 등록하지 않은 경우 관리자가 직접 입력할 수 있습니다.</p>
-                </div>
+              {/* 멀티비디오 캠페인용 입력 폼 */}
+              {adminSnsEditData.isMultiVideoEdit ? (
+                <>
+                  {adminSnsEditData.campaignType === '4week_challenge' ? (
+                    // 4주 챌린지 입력 폼
+                    <>
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week} className="border rounded-lg p-4 space-y-3">
+                          <h4 className="font-medium text-gray-800">{week}주차</h4>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">SNS URL</label>
+                            <input
+                              type="url"
+                              value={adminSnsEditData[`week${week}_url`] || ''}
+                              onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, [`week${week}_url`]: e.target.value }))}
+                              placeholder={`https://www.instagram.com/reel/...`}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">광고코드</label>
+                            <input
+                              type="text"
+                              value={adminSnsEditData[`week${week}_partnership_code`] || ''}
+                              onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, [`week${week}_partnership_code`]: e.target.value }))}
+                              placeholder="광고코드 입력"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    // 올리브영 입력 폼
+                    <>
+                      {[1, 2, 3].map(step => (
+                        <div key={step} className="border rounded-lg p-4 space-y-3">
+                          <h4 className="font-medium text-gray-800">STEP {step} {step === 3 ? '(스토리)' : '(영상)'}</h4>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">SNS URL</label>
+                            <input
+                              type="url"
+                              value={adminSnsEditData[`step${step}_url`] || ''}
+                              onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, [`step${step}_url`]: e.target.value }))}
+                              placeholder={`https://www.instagram.com/reel/...`}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <div className="border rounded-lg p-4 space-y-3 bg-orange-50">
+                        <h4 className="font-medium text-gray-800">광고코드</h4>
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">STEP 1~2 광고코드</label>
+                          <input
+                            type="text"
+                            value={adminSnsEditData.step1_2_partnership_code || ''}
+                            onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, step1_2_partnership_code: e.target.value }))}
+                            placeholder="STEP 1~2 공통 광고코드"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">STEP 3 광고코드</label>
+                          <input
+                            type="text"
+                            value={adminSnsEditData.step3_partnership_code || ''}
+                            onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, step3_partnership_code: e.target.value }))}
+                            placeholder="STEP 3 광고코드"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                // 기존 단일 영상 캠페인 입력 폼
+                <>
+                  {!adminSnsEditData.isEditMode && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                      <p className="font-medium mb-1">📌 SNS URL이 등록되지 않았습니다</p>
+                      <p>크리에이터가 등록하지 않은 경우 관리자가 직접 입력할 수 있습니다.</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SNS 업로드 URL <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={adminSnsEditData.snsUrl || ''}
+                      onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, snsUrl: e.target.value }))}
+                      placeholder="https://www.instagram.com/reel/..."
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      광고코드 (선택)
+                    </label>
+                    <input
+                      type="text"
+                      value={adminSnsEditData.adCode || ''}
+                      onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, adCode: e.target.value }))}
+                      placeholder="광고코드 입력"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </>
               )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  SNS 업로드 URL <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="url"
-                  value={adminSnsEditData.snsUrl}
-                  onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, snsUrl: e.target.value }))}
-                  placeholder="https://www.instagram.com/reel/..."
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  광고코드 (선택)
-                </label>
-                <input
-                  type="text"
-                  value={adminSnsEditData.adCode}
-                  onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, adCode: e.target.value }))}
-                  placeholder="광고코드 입력"
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
-              </div>
             </div>
-            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3 sticky bottom-0">
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowAdminSnsEditModal(false)
-                  setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+                  setAdminSnsEditData({})
                 }}
                 disabled={savingAdminSnsEdit}
               >
@@ -7892,13 +8134,15 @@ JSON만 출력.`
               <Button
                 className="bg-purple-600 hover:bg-purple-700 text-white"
                 onClick={handleAdminSnsEdit}
-                disabled={savingAdminSnsEdit || !adminSnsEditData.snsUrl.trim()}
+                disabled={savingAdminSnsEdit || (!adminSnsEditData.isMultiVideoEdit && !adminSnsEditData.snsUrl?.trim())}
               >
                 {savingAdminSnsEdit ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     저장 중...
                   </>
+                ) : adminSnsEditData.isMultiVideoEdit ? (
+                  '저장'
                 ) : adminSnsEditData.isEditMode ? (
                   '저장'
                 ) : (
