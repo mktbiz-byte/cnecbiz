@@ -34,11 +34,22 @@ exports.handler = async (event) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Email transporter setup
+    const gmailUser = process.env.GMAIL_EMAIL || process.env.GMAIL_USER || 'mkt_biz@cnec.co.kr'
+    const gmailPassword = process.env.GMAIL_APP_PASSWORD
+
+    if (!gmailPassword) {
+      console.error('[send-scene-guide-email] GMAIL_APP_PASSWORD not set')
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Gmail configuration missing' })
+      }
+    }
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
+        user: gmailUser,
+        pass: gmailPassword.trim().replace(/\s/g, '')
       }
     })
 
@@ -288,7 +299,7 @@ exports.handler = async (event) => {
           : `[Creator Guide] ${guide_content.campaign_title}`
 
         await transporter.sendMail({
-          from: `"CNEC BIZ" <${process.env.GMAIL_USER}>`,
+          from: `"CNEC BIZ" <${gmailUser}>`,
           to: creator.email,
           subject,
           html: emailHtml
