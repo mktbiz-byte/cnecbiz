@@ -2885,10 +2885,24 @@ JSON만 출력.`
         }
 
         if (Object.keys(updateData).length > 0) {
+          // BIZ DB applications 테이블 업데이트
           await supabase
             .from('applications')
             .update(updateData)
             .eq('id', adminSnsEditData.participantId)
+
+          // Korea DB campaign_participants 테이블에도 업데이트 (user_id로 매칭)
+          if (supabaseKorea && adminSnsEditData.userId) {
+            const { error: koreaError } = await supabaseKorea
+              .from('campaign_participants')
+              .update(updateData)
+              .eq('campaign_id', id)
+              .eq('user_id', adminSnsEditData.userId)
+
+            if (koreaError) {
+              console.error('Korea DB update error:', koreaError)
+            }
+          }
         }
 
         setShowAdminSnsEditModal(false)
@@ -5334,15 +5348,13 @@ JSON만 출력.`
                   // 완료 섹션에 표시할 참가자 필터
                   // - 일반 캠페인: approved/completed 상태
                   // - 멀티비디오 캠페인: approved/completed 상태 OR SNS URL이 하나라도 입력된 경우
+                  // - campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시 (데이터 직접 입력 대응)
                   const completedSectionParticipants = participants.filter(p => {
                     if (['approved', 'completed'].includes(p.status)) return true
-                    if (isMultiVideoCampaign) {
-                      if (is4WeekChallenge) {
-                        return p.week1_url || p.week2_url || p.week3_url || p.week4_url
-                      } else if (isOliveyoung) {
-                        return p.step1_url || p.step2_url || p.step3_url
-                      }
-                    }
+                    // 4주 챌린지 URL이 있으면 표시
+                    if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
+                    // 올리브영 URL이 있으면 표시
+                    if (p.step1_url || p.step2_url || p.step3_url) return true
                     return false
                   })
 
@@ -5414,15 +5426,13 @@ JSON만 출력.`
                   const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
 
                   // 완료 섹션에 표시할 참가자 필터
+                  // campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시
                   const completedSectionParticipants = participants.filter(p => {
                     if (['approved', 'completed'].includes(p.status)) return true
-                    if (isMultiVideoCampaign) {
-                      if (is4WeekChallenge) {
-                        return p.week1_url || p.week2_url || p.week3_url || p.week4_url
-                      } else if (isOliveyoung) {
-                        return p.step1_url || p.step2_url || p.step3_url
-                      }
-                    }
+                    // 4주 챌린지 URL이 있으면 표시
+                    if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
+                    // 올리브영 URL이 있으면 표시
+                    if (p.step1_url || p.step2_url || p.step3_url) return true
                     return false
                   })
 
@@ -5843,6 +5853,7 @@ JSON만 출력.`
                                           // 기존 값들을 미리 채워서 모달 열기
                                           const editData = {
                                             participantId: participant.id,
+                                            userId: participant.user_id,
                                             campaignType: campaign.campaign_type,
                                             isMultiVideoEdit: true
                                           }
