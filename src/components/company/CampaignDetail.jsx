@@ -1118,56 +1118,67 @@ JSON만 출력.`
         const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
         const jsonMatch = responseText.match(/\{[\s\S]*\}/)
 
-        if (!jsonMatch) throw new Error('JSON 파싱 실패')
+        if (!jsonMatch) {
+          console.error('[Bulk Guide] JSON 파싱 실패 - responseText:', responseText.substring(0, 500))
+          throw new Error('JSON 파싱 실패')
+        }
 
         const result = JSON.parse(jsonMatch[0])
 
-        if (result.scenes && Array.isArray(result.scenes)) {
-          const guideData = {
-            scenes: result.scenes.map((scene, idx) => ({
-              order: idx + 1,
-              scene_type: scene.scene_type || '',
-              scene_description: scene.scene_description || '',
-              scene_description_translated: '',
-              dialogue: scene.dialogue || '',
-              dialogue_translated: '',
-              shooting_tip: scene.shooting_tip || '',
-              shooting_tip_translated: ''
-            })),
-            dialogue_style: 'natural',
-            tempo: 'normal',
-            mood: 'bright',
-            updated_at: new Date().toISOString()
-          }
-
-          // US/Japan 캠페인은 API 사용 (RLS 우회)
-          if (region === 'us' || region === 'japan') {
-            const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                region: region,
-                applicationId: participantId,
-                guide: guideData
-              })
-            })
-
-            if (!saveResponse.ok) {
-              const errorData = await saveResponse.json()
-              throw new Error(errorData.error || 'Failed to save guide')
-            }
-          } else {
-            const { error } = await supabase
-              .from('applications')
-              .update({ personalized_guide: guideData })
-              .eq('id', participantId)
-
-            if (error) throw error
-          }
-          successCount++
+        if (!result.scenes || !Array.isArray(result.scenes)) {
+          console.error('[Bulk Guide] scenes 배열 없음 - result:', result)
+          throw new Error('AI 응답에 scenes 배열이 없습니다')
         }
+
+        const guideData = {
+          scenes: result.scenes.map((scene, idx) => ({
+            order: idx + 1,
+            scene_type: scene.scene_type || '',
+            scene_description: scene.scene_description || '',
+            scene_description_translated: '',
+            dialogue: scene.dialogue || '',
+            dialogue_translated: '',
+            shooting_tip: scene.shooting_tip || '',
+            shooting_tip_translated: ''
+          })),
+          dialogue_style: 'natural',
+          tempo: 'normal',
+          mood: 'bright',
+          updated_at: new Date().toISOString()
+        }
+
+        console.log('[Bulk Guide] 저장 시작 - region:', region, 'participantId:', participantId)
+
+        // US/Japan 캠페인은 API 사용 (RLS 우회)
+        if (region === 'us' || region === 'japan') {
+          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              region: region,
+              applicationId: participantId,
+              guide: guideData
+            })
+          })
+
+          const saveResult = await saveResponse.json()
+          console.log('[Bulk Guide] 저장 결과:', saveResponse.ok, saveResult)
+
+          if (!saveResponse.ok) {
+            throw new Error(saveResult.error || saveResult.details || 'Failed to save guide')
+          }
+        } else {
+          const { error } = await supabase
+            .from('applications')
+            .update({ personalized_guide: guideData })
+            .eq('id', participantId)
+
+          if (error) throw error
+        }
+        successCount++
+        console.log('[Bulk Guide] 성공 - participant:', participant.applicant_name || participant.creator_name)
       } catch (err) {
-        console.error(`Guide generation failed for ${participant.applicant_name || participant.creator_name}:`, err)
+        console.error(`[Bulk Guide] 실패 - ${participant.applicant_name || participant.creator_name}:`, err.message, err)
         failCount++
       }
 
