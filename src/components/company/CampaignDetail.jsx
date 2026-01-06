@@ -490,6 +490,8 @@ export default function CampaignDetail() {
           ...app,
           applicant_name: resolvedName,
           profile_photo_url: profileImage || null,
+          // 이메일 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
+          email: profile?.email || app.email || app.applicant_email,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
           youtube_url: profile?.youtube_url || app.youtube_url,
