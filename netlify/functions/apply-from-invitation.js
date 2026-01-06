@@ -10,6 +10,20 @@ const supabaseKorea = supabaseKoreaUrl && supabaseKoreaServiceKey
   ? createClient(supabaseKoreaUrl, supabaseKoreaServiceKey)
   : null;
 
+// US Supabase
+const supabaseUSUrl = process.env.VITE_SUPABASE_US_URL;
+const supabaseUSServiceKey = process.env.SUPABASE_US_SERVICE_ROLE_KEY;
+const supabaseUS = supabaseUSUrl && supabaseUSServiceKey
+  ? createClient(supabaseUSUrl, supabaseUSServiceKey)
+  : null;
+
+// Japan Supabase
+const supabaseJapanUrl = process.env.VITE_SUPABASE_JAPAN_URL;
+const supabaseJapanServiceKey = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY;
+const supabaseJapan = supabaseJapanUrl && supabaseJapanServiceKey
+  ? createClient(supabaseJapanUrl, supabaseJapanServiceKey)
+  : null;
+
 /**
  * 초대장을 통한 캠페인 신청 처리
  * - 초대장 상태 업데이트 (pending → accepted)
@@ -66,25 +80,86 @@ exports.handler = async (event) => {
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '크리에이터 정보를 찾을 수 없습니다.' }) };
     }
 
-    // 2-1. 크리에이터 이메일이 없으면 auth.users에서 가져오기
-    let creatorEmail = creator.email;
-    if (!creatorEmail && creator.user_id) {
-      const { data: authUser } = await supabase.auth.admin.getUserById(creator.user_id);
-      if (authUser?.user?.email) {
-        creatorEmail = authUser.user.email;
-        // featured_creators에도 이메일 업데이트
-        await supabase
-          .from('featured_creators')
-          .update({ email: creatorEmail })
-          .eq('id', creatorId);
+    const creatorName = creator.name || creator.creator_name || '크리에이터';
+
+    // 3. 캠페인 정보 - 지역에 따라 적절한 클라이언트 선택
+    // 먼저 US/Japan Supabase에서 캠페인 찾기 시도
+    let campaign = null;
+    let campaignClient = null;
+    let campaignRegion = 'korea';
+
+    // US Supabase에서 캠페인 확인
+    if (supabaseUS) {
+      const { data: usCampaign } = await supabaseUS.from('campaigns').select('*').eq('id', campaignId).single();
+      if (usCampaign) {
+        campaign = usCampaign;
+        campaignClient = supabaseUS;
+        campaignRegion = 'us';
       }
     }
 
-    const creatorName = creator.name || creator.creator_name || '크리에이터';
+    // Japan Supabase에서 캠페인 확인
+    if (!campaign && supabaseJapan) {
+      const { data: japanCampaign } = await supabaseJapan.from('campaigns').select('*').eq('id', campaignId).single();
+      if (japanCampaign) {
+        campaign = japanCampaign;
+        campaignClient = supabaseJapan;
+        campaignRegion = 'japan';
+      }
+    }
 
-    // 3. 캠페인 정보
-    const client = supabaseKorea || supabase;
-    const { data: campaign } = await client.from('campaigns').select('*').eq('id', campaignId).single();
+    // Korea Supabase에서 캠페인 확인
+    if (!campaign) {
+      const client = supabaseKorea || supabase;
+      const { data: koreaCampaign } = await client.from('campaigns').select('*').eq('id', campaignId).single();
+      if (koreaCampaign) {
+        campaign = koreaCampaign;
+        campaignClient = client;
+        campaignRegion = 'korea';
+      }
+    }
+
+    // 3-1. 크리에이터 이메일이 없으면 해당 지역 auth.users에서 가져오기
+    let creatorEmail = creator.email;
+    if (!creatorEmail && creator.user_id) {
+      // 캠페인 지역의 Supabase에서 이메일 가져오기
+      const regionalClient = campaignRegion === 'us' ? supabaseUS :
+                             campaignRegion === 'japan' ? supabaseJapan : supabase;
+
+      if (regionalClient) {
+        try {
+          const { data: authUser } = await regionalClient.auth.admin.getUserById(creator.user_id);
+          if (authUser?.user?.email) {
+            creatorEmail = authUser.user.email;
+            console.log(`[INFO] Found email from ${campaignRegion} auth.users: ${creatorEmail}`);
+            // featured_creators에도 이메일 업데이트
+            await supabase
+              .from('featured_creators')
+              .update({ email: creatorEmail })
+              .eq('id', creatorId);
+          }
+        } catch (e) {
+          console.log(`[INFO] Could not fetch from ${campaignRegion} auth.users:`, e.message);
+        }
+      }
+
+      // 여전히 이메일이 없으면 cnecbiz auth.users에서 시도
+      if (!creatorEmail) {
+        try {
+          const { data: authUser } = await supabase.auth.admin.getUserById(creator.user_id);
+          if (authUser?.user?.email) {
+            creatorEmail = authUser.user.email;
+            console.log(`[INFO] Found email from cnecbiz auth.users: ${creatorEmail}`);
+            await supabase
+              .from('featured_creators')
+              .update({ email: creatorEmail })
+              .eq('id', creatorId);
+          }
+        } catch (e) {
+          console.log('[INFO] Could not fetch from cnecbiz auth.users:', e.message);
+        }
+      }
+    }
 
     if (!campaign) {
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '캠페인을 찾을 수 없습니다.' }) };
@@ -110,8 +185,8 @@ exports.handler = async (event) => {
       .update({ status: 'accepted', accepted_at: new Date().toISOString() })
       .eq('id', invitationId);
 
-    // 7. applications 테이블에 추가
-    const { data: application } = await client
+    // 7. applications 테이블에 추가 (캠페인이 있는 지역의 Supabase에)
+    const { data: application } = await campaignClient
       .from('applications')
       .insert({
         campaign_id: campaignId,
