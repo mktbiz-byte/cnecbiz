@@ -487,6 +487,21 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
             </CardContent>
           </Card>
 
+          {/* Disclaimer Notice */}
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-white text-sm font-bold">!</span>
+              </div>
+              <div>
+                <p className="font-semibold text-amber-800 mb-1">주의사항</p>
+                <p className="text-amber-700 text-sm">
+                  본 가이드는 100% 동일하게 촬영이 아닌 크리에이터의 스타일에 맞게 변경되어 촬영될 수 있습니다.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Alerts */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">

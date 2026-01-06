@@ -129,6 +129,26 @@ exports.handler = async (event) => {
         </p>
       </div>
 
+      <!-- Disclaimer Notice -->
+      <div style="background: #FFFBEB; border: 1px solid #F59E0B; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+          <div style="width: 24px; height: 24px; background: #F59E0B; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span style="color: white; font-weight: bold; font-size: 14px;">!</span>
+          </div>
+          <div>
+            <p style="margin: 0 0 4px 0; font-weight: 600; color: #92400E; font-size: 14px;">
+              ${isJapanese ? '注意事項' : 'Notice'}
+            </p>
+            <p style="margin: 0; color: #B45309; font-size: 13px;">
+              ${isJapanese
+                ? 'このガイドは100%同一に撮影するものではなく、クリエイターのスタイルに合わせて変更して撮影することができます。'
+                : 'This guide does not need to be followed exactly. You may adapt the content to match your personal style and creativity.'
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Style Info -->
       <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <h3 style="margin: 0 0 16px 0; color: #1F2937; font-size: 16px;">🎬 ${isJapanese ? '動画スタイル' : 'Video Style'}</h3>
