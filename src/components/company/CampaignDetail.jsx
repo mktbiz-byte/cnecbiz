@@ -1140,11 +1140,22 @@ JSON만 출력.`
             updated_at: new Date().toISOString()
           }
 
-          // US 캠페인은 API 사용 (RLS 우회)
-          if (region === 'us') {
-            await callUSCampaignAPI('update_application', id, participantId, {
-              personalized_guide: guideData
+          // US/Japan 캠페인은 API 사용 (RLS 우회)
+          if (region === 'us' || region === 'japan') {
+            const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                region: region,
+                applicationId: participantId,
+                guide: guideData
+              })
             })
+
+            if (!saveResponse.ok) {
+              const errorData = await saveResponse.json()
+              throw new Error(errorData.error || 'Failed to save guide')
+            }
           } else {
             const { error } = await supabase
               .from('applications')

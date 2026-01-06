@@ -468,14 +468,32 @@ JSON만 출력하세요.`
         updated_at: new Date().toISOString()
       }
 
-      const { error } = await supabase
-        .from('applications')
-        .update({
-          personalized_guide: guideData
+      // US/Japan 캠페인은 API 사용 (RLS 우회)
+      if (region === 'us' || region === 'japan') {
+        const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            region: region,
+            applicationId: applicationId,
+            guide: guideData
+          })
         })
-        .eq('id', applicationId)
 
-      if (error) throw error
+        if (!saveResponse.ok) {
+          const errorData = await saveResponse.json()
+          throw new Error(errorData.error || 'Failed to save guide')
+        }
+      } else {
+        const { error } = await supabase
+          .from('applications')
+          .update({
+            personalized_guide: guideData
+          })
+          .eq('id', applicationId)
+
+        if (error) throw error
+      }
 
       setSuccess('가이드가 저장되었습니다!')
       setTimeout(() => setSuccess(''), 3000)
