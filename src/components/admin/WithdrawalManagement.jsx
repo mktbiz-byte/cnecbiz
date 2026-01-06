@@ -543,9 +543,12 @@ export default function WithdrawalManagement() {
           return
         }
 
+        console.log('거절 처리 시작 - source_db:', selectedWithdrawal.source_db, 'id:', selectedWithdrawal.id)
+
         if (isKoreaDB && supabaseKorea) {
           // 1. withdrawals 상태 업데이트 (korea_pt가 아닌 경우에만)
           if (!isFromPointTransactions) {
+            console.log('withdrawals 테이블 업데이트...')
             const { error } = await supabaseKorea
               .from('withdrawals')
               .update({
@@ -556,7 +559,24 @@ export default function WithdrawalManagement() {
               })
               .eq('id', selectedWithdrawal.id)
 
-            if (error) throw error
+            if (error) {
+              console.error('withdrawals 업데이트 오류:', error)
+              throw error
+            }
+            console.log('withdrawals 업데이트 완료')
+          } else {
+            // point_transactions에서 온 데이터는 related_withdrawal_id를 설정하여 중복 방지
+            console.log('point_transactions 처리 완료 표시...')
+            const { error: ptUpdateError } = await supabaseKorea
+              .from('point_transactions')
+              .update({
+                related_withdrawal_id: 'rejected_' + new Date().getTime() // 거절 처리됨 표시
+              })
+              .eq('id', selectedWithdrawal.id)
+
+            if (ptUpdateError) {
+              console.error('point_transactions 업데이트 오류:', ptUpdateError)
+            }
           }
 
           // 2. 포인트 환불 (양수로 point_transactions에 추가)
