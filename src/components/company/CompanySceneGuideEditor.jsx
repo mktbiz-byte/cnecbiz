@@ -128,18 +128,21 @@ export default function CompanySceneGuideEditor() {
       setApplication(appData)
 
       // Load campaign-level settings as defaults
-      if (campaignData.required_dialogues) {
-        if (Array.isArray(campaignData.required_dialogues)) {
-          setRequiredDialogues(campaignData.required_dialogues)
-        } else if (typeof campaignData.required_dialogues === 'string') {
-          setRequiredDialogues(campaignData.required_dialogues.split('\n').filter(d => d.trim()))
+      // Check both plural and singular field names for compatibility
+      const dialogueSource = campaignData.required_dialogues || campaignData.required_dialogue
+      if (dialogueSource) {
+        if (Array.isArray(dialogueSource)) {
+          setRequiredDialogues(dialogueSource)
+        } else if (typeof dialogueSource === 'string') {
+          setRequiredDialogues(dialogueSource.split('\n').filter(d => d.trim()))
         }
       }
-      if (campaignData.required_scenes) {
-        if (Array.isArray(campaignData.required_scenes)) {
-          setRequiredScenes(campaignData.required_scenes)
-        } else if (typeof campaignData.required_scenes === 'string') {
-          setRequiredScenes(campaignData.required_scenes.split('\n').filter(s => s.trim()))
+      const scenesSource = campaignData.required_scenes
+      if (scenesSource) {
+        if (Array.isArray(scenesSource)) {
+          setRequiredScenes(scenesSource)
+        } else if (typeof scenesSource === 'string') {
+          setRequiredScenes(scenesSource.split('\n').filter(s => s.trim()))
         }
       }
       if (campaignData.video_tempo) setTempo(campaignData.video_tempo)
@@ -226,16 +229,33 @@ export default function CompanySceneGuideEditor() {
       // Campaign info for context
       const productName = campaign?.product_name || campaign?.title || '제품'
       const brandName = campaign?.brand_name || campaign?.brand || '브랜드'
-      const productInfo = campaign?.product_info || campaign?.description || ''
+      const productInfo = campaign?.product_info || campaign?.description || campaign?.product_description || ''
       const category = campaign?.category || ''
       const videoLength = campaign?.video_length || '60초'
+      const guidelines = campaign?.guidelines || ''
 
       // Required elements
       const reqDialogues = requiredDialogues.filter(d => d.trim()).join('\n- ')
       const reqScenes = requiredScenes.filter(s => s.trim()).join('\n- ')
 
+      // Region-specific context
+      const isJapan = region === 'japan'
+      const regionContext = isJapan
+        ? `[일본 시장 특성]
+- 일본 소비자의 라이프스타일에 맞게 작성
+- 정중하고 세련된 표현 사용
+- 제품의 섬세한 디테일과 품질 강조
+- 미니멀하고 깔끔한 촬영 스타일
+- 자연스럽고 차분한 톤 유지`
+        : `[미국 시장 특성]
+- 미국 소비자의 라이프스타일에 맞게 작성
+- 직접적이고 자신감 있는 표현 사용
+- 실용적인 효과와 결과 강조
+- 역동적이고 밝은 촬영 스타일
+- 친근하고 에너지 넘치는 톤`
+
       const prompt = `당신은 UGC(User Generated Content) 영상 촬영 가이드 전문가입니다.
-다음 정보를 바탕으로 크리에이터를 위한 10개의 촬영 씬 가이드를 작성해주세요.
+${isJapan ? '일본' : '미국'} 시장을 타겟으로 크리에이터를 위한 10개의 촬영 씬 가이드를 작성해주세요.
 
 [캠페인 정보]
 - 제품명: ${productName}
@@ -243,33 +263,46 @@ export default function CompanySceneGuideEditor() {
 - 카테고리: ${category}
 - 영상 길이: ${videoLength}
 - 제품 설명: ${productInfo}
+${guidelines ? `- 가이드라인: ${guidelines}` : ''}
+
+${regionContext}
 
 [스타일 설정]
 - 대사 스타일: ${styleLabel}
 - 템포: ${tempoLabel}
 - 분위기: ${moodLabel}
 
-${reqDialogues ? `[필수 대사]\n- ${reqDialogues}` : ''}
+${reqDialogues ? `[필수 대사 - 반드시 포함]\n- ${reqDialogues}` : ''}
 
-${reqScenes ? `[필수 촬영장면]\n- ${reqScenes}` : ''}
+${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 
-[요청사항]
-1. 각 씬은 자연스럽게 연결되어야 합니다
-2. 첫 씬은 훅(Hook)으로 시청자의 관심을 끌어야 합니다
-3. 제품의 장점과 사용법을 자연스럽게 보여주세요
-4. 마지막 씬은 CTA(Call to Action)로 마무리하세요
-5. 필수 대사와 필수 촬영장면은 반드시 포함해주세요
-6. 대사는 크리에이터가 자연스럽게 말할 수 있도록 작성해주세요
+[핵심 요청사항]
+1. ⚡ 첫 번째 씬은 반드시 "훅(Hook)"으로 시작 - 3초 내에 시청자의 관심을 확 끌어야 함
+   - 충격적인 Before 상태 또는 놀라운 결과 먼저 보여주기
+   - "이 제품 없이 어떻게 살았지?" 같은 강렬한 오프닝
+
+2. 🔄 B&A(Before & After) 중심 구성
+   - 제품 사용 전 문제/고민 상황 명확히 보여주기
+   - 제품 사용 과정 상세히
+   - 사용 후 변화/효과를 드라마틱하게 표현
+
+3. 📍 ${isJapan ? '일본' : '미국'} 라이프스타일 반영
+   - ${isJapan ? '일본식 집, 욕실, 화장대 등 일본 생활환경에서 촬영' : '미국식 집, 욕실, 주방 등 미국 생활환경에서 촬영'}
+   - ${isJapan ? '일본 소비자가 공감할 수 있는 상황과 표현' : '미국 소비자가 공감할 수 있는 상황과 표현'}
+
+4. 필수 대사와 필수 촬영장면은 반드시 가이드에 포함
+5. 각 씬은 자연스럽게 연결되어야 함
+6. 마지막 씬은 CTA(Call to Action)로 마무리
 
 응답 형식 (반드시 JSON으로만):
 {
   "scenes": [
     {
       "order": 1,
-      "scene_type": "씬 유형 (예: 훅, 인트로, 제품 소개, 사용법, 효과, 리뷰, CTA 등)",
+      "scene_type": "훅 (3초 집중)",
       "scene_description": "이 씬에서 촬영해야 할 장면 설명",
       "dialogue": "크리에이터가 말해야 할 대사",
-      "shooting_tip": "촬영 팁 (카메라 앵글, 조명, 배경 등)"
+      "shooting_tip": "촬영 팁"
     }
   ]
 }
