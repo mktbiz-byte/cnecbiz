@@ -241,18 +241,45 @@ export default function WithdrawalManagement() {
 
             // withdrawal_requests의 주민번호를 user_id 기준으로 매핑
             const wrResidentNumbers = {}
+            // 계좌정보(예금주+계좌번호)로도 매핑
+            const wrResidentByAccount = {}
             krWrData.forEach(w => {
-              if (w.resident_number_encrypted && w.user_id) {
-                wrResidentNumbers[w.user_id] = w.resident_number_encrypted
+              if (w.resident_number_encrypted) {
+                if (w.user_id) {
+                  wrResidentNumbers[w.user_id] = w.resident_number_encrypted
+                }
+                // 예금주명+계좌번호로 매핑 (대소문자/공백 제거)
+                if (w.bank_account_holder && w.bank_account_number) {
+                  const key = `${w.bank_account_holder.trim()}_${w.bank_account_number.replace(/\D/g, '')}`
+                  wrResidentByAccount[key] = w.resident_number_encrypted
+                }
               }
             })
 
+            console.log('주민번호 매핑 - user_id:', Object.keys(wrResidentNumbers).length, '건, 계좌정보:', Object.keys(wrResidentByAccount).length, '건')
+
             // 기존 withdrawals 항목에 주민번호 병합 (없는 경우에만)
             allWithdrawals = allWithdrawals.map(w => {
-              if (!w.resident_registration_number && w.user_id && wrResidentNumbers[w.user_id]) {
-                return {
-                  ...w,
-                  resident_registration_number: wrResidentNumbers[w.user_id]
+              if (!w.resident_registration_number) {
+                // 1. user_id로 매칭 시도
+                if (w.user_id && wrResidentNumbers[w.user_id]) {
+                  return {
+                    ...w,
+                    resident_registration_number: wrResidentNumbers[w.user_id]
+                  }
+                }
+                // 2. 계좌정보로 매칭 시도
+                const holder = w.bank_account_holder || w.account_holder
+                const accountNum = w.bank_account_number || w.account_number
+                if (holder && accountNum) {
+                  const key = `${holder.trim()}_${accountNum.replace(/\D/g, '')}`
+                  if (wrResidentByAccount[key]) {
+                    console.log('계좌정보로 주민번호 매칭 성공:', holder)
+                    return {
+                      ...w,
+                      resident_registration_number: wrResidentByAccount[key]
+                    }
+                  }
                 }
               }
               return w
