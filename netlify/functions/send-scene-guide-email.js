@@ -7,6 +7,67 @@
 const { createClient } = require('@supabase/supabase-js')
 const nodemailer = require('nodemailer')
 
+// Korean to English/Japanese scene type translations
+const SCENE_TYPE_TRANSLATIONS = {
+  // Korean -> English
+  en: {
+    '훅': 'Hook',
+    '인트로': 'Intro',
+    '본문': 'Main',
+    '마무리': 'Outro',
+    '엔딩': 'Ending',
+    '제품 소개': 'Product Intro',
+    '제품소개': 'Product Intro',
+    '리뷰': 'Review',
+    '후기': 'Review',
+    'CTA': 'CTA',
+    '콜투액션': 'Call to Action',
+    '전환': 'Transition',
+    '오프닝': 'Opening',
+    '클로징': 'Closing',
+    '효과': 'Effects',
+    '언박싱': 'Unboxing',
+    '사용법': 'How to Use',
+    '비교': 'Comparison',
+    '결과': 'Result',
+    '추천': 'Recommendation'
+  },
+  // Korean -> Japanese
+  ja: {
+    '훅': 'フック',
+    '인트로': 'イントロ',
+    '본문': 'メイン',
+    '마무리': 'まとめ',
+    '엔딩': 'エンディング',
+    '제품 소개': '商品紹介',
+    '제품소개': '商品紹介',
+    '리뷰': 'レビュー',
+    '후기': 'レビュー',
+    'CTA': 'CTA',
+    '콜투액션': 'コールトゥアクション',
+    '전환': '転換',
+    '오프닝': 'オープニング',
+    '클로징': 'クロージング',
+    '효과': 'エフェクト',
+    '언박싱': '開封',
+    '사용법': '使い方',
+    '비교': '比較',
+    '결과': '結果',
+    '추천': 'おすすめ'
+  }
+}
+
+// Translate scene type based on region
+function translateSceneType(sceneType, region) {
+  if (!sceneType) return ''
+
+  const lang = region === 'japan' ? 'ja' : 'en'
+  const translations = SCENE_TYPE_TRANSLATIONS[lang]
+
+  // Return translated value if exists, otherwise return original (might already be in target language)
+  return translations[sceneType] || sceneType
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) }
@@ -71,7 +132,7 @@ exports.handler = async (event) => {
                   </td>
                   <td valign="middle" style="padding-left: 8px;">
                     <span style="font-weight: bold; font-size: 15px; color: #1F2937;">Scene ${scene.order}</span>
-                    ${scene.scene_type ? `<br><span style="background: #E0E7FF; color: #4338CA; padding: 2px 8px; border-radius: 4px; font-size: 11px; display: inline-block; margin-top: 4px;">${scene.scene_type}</span>` : ''}
+                    ${scene.scene_type ? `<br><span style="background: #E0E7FF; color: #4338CA; padding: 2px 8px; border-radius: 4px; font-size: 11px; display: inline-block; margin-top: 4px;">${translateSceneType(scene.scene_type, region)}</span>` : ''}
                   </td>
                 </tr>
               </table>
