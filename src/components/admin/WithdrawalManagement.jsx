@@ -91,25 +91,42 @@ export default function WithdrawalManagement() {
           if (!koreaError && koreaData && koreaData.length > 0) {
             console.log('Korea DB (withdrawals)에서 데이터 조회:', koreaData.length, '건')
 
-            // user_profiles 별도 조회
+            // user_profiles 별도 조회 (user_id 또는 id로 조회 시도)
             const userIds = [...new Set(koreaData.map(w => w.user_id).filter(Boolean))]
             let userProfiles = {}
 
             if (userIds.length > 0) {
-              const { data: profiles } = await supabaseKorea
+              // 먼저 id로 조회 시도
+              let { data: profiles, error: profileError } = await supabaseKorea
                 .from('user_profiles')
-                .select('user_id, name, email, channel_name')
-                .in('user_id', userIds)
+                .select('id, user_id, name, email, channel_name')
+                .in('id', userIds)
+
+              // id로 조회 실패시 user_id로 재시도
+              if (profileError || !profiles || profiles.length === 0) {
+                const { data: profiles2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('id, user_id, name, email, channel_name')
+                  .in('user_id', userIds)
+                profiles = profiles2
+              }
 
               if (profiles) {
                 profiles.forEach(p => {
-                  userProfiles[p.user_id] = p
+                  // id와 user_id 둘 다로 매핑
+                  if (p.id) userProfiles[p.id] = p
+                  if (p.user_id) userProfiles[p.user_id] = p
                 })
               }
             }
 
             const koreaWithdrawals = koreaData.map(w => {
               const profile = userProfiles[w.user_id]
+              // 주민번호는 나중에 BIZ DB creator_withdrawal_requests에서 매칭됨
+              const residentNumber = w.resident_number_encrypted ||
+                                     w.resident_registration_number ||
+                                     w.resident_number ||
+                                     null
               return {
                 ...w,
                 // 필드 매핑
@@ -122,7 +139,7 @@ export default function WithdrawalManagement() {
                 // 필드명 통일 (두 테이블의 필드명이 다름)
                 account_number: w.bank_account_number,
                 account_holder: w.bank_account_holder,
-                resident_registration_number: w.resident_number_encrypted || w.resident_registration_number,
+                resident_registration_number: residentNumber,
                 source_db: 'korea'
               }
             })
@@ -205,9 +222,65 @@ export default function WithdrawalManagement() {
         } catch (ptError) {
           console.error('Korea DB point_transactions 조회 오류:', ptError)
         }
+
+        // 1-3. BIZ DB creator_withdrawal_requests에서 주민번호 매핑 데이터 조회
+        // (주민번호는 BIZ DB의 creator_withdrawal_requests.resident_registration_number에 저장됨)
+        try {
+          console.log('BIZ DB에서 주민번호 매핑 데이터 조회 시작...')
+          const { data: bizWrData, error: bizWrError } = await supabaseBiz
+            .from('creator_withdrawal_requests')
+            .select('id, bank_name, account_number, account_holder, resident_registration_number, creator_id')
+            .not('resident_registration_number', 'is', null)
+
+          if (bizWrError) {
+            console.error('BIZ DB 주민번호 조회 오류:', bizWrError)
+          }
+
+          console.log('BIZ DB 주민번호 데이터:', bizWrData?.length || 0, '건')
+
+          if (bizWrData && bizWrData.length > 0) {
+            console.log('BIZ DB에서 주민번호 있는 출금 신청:', bizWrData.length, '건')
+
+            // 계좌정보(예금주+계좌번호)로 주민번호 매핑
+            const wrResidentByAccount = {}
+            bizWrData.forEach(w => {
+              if (w.resident_registration_number) {
+                // 예금주명+계좌번호로 매핑
+                if (w.account_holder && w.account_number) {
+                  const key = `${w.account_holder.trim()}_${w.account_number.replace(/\D/g, '')}`
+                  wrResidentByAccount[key] = w.resident_registration_number
+                }
+              }
+            })
+
+            console.log('계좌정보 기반 주민번호 매핑:', Object.keys(wrResidentByAccount).length, '건')
+
+            // 기존 withdrawals 항목에 주민번호 병합 (없는 경우에만)
+            allWithdrawals = allWithdrawals.map(w => {
+              if (!w.resident_registration_number) {
+                // 계좌정보로 매칭 시도
+                const holder = w.bank_account_holder || w.account_holder
+                const accountNum = w.bank_account_number || w.account_number
+                if (holder && accountNum) {
+                  const key = `${holder.trim()}_${accountNum.replace(/\D/g, '')}`
+                  if (wrResidentByAccount[key]) {
+                    console.log('계좌정보로 주민번호 매칭 성공:', holder)
+                    return {
+                      ...w,
+                      resident_registration_number: wrResidentByAccount[key]
+                    }
+                  }
+                }
+              }
+              return w
+            })
+          }
+        } catch (bizWrError) {
+          console.error('BIZ DB 주민번호 매핑 조회 오류:', bizWrError)
+        }
       }
 
-      // 2. BIZ DB에서도 출금 신청 조회 (통합 DB)
+      // 2. BIZ DB에서도 출금 신청 조회 (통합 DB - creator_withdrawal_requests)
       try {
         const { data: bizData, error: bizError } = await supabaseBiz
           .from('creator_withdrawal_requests')
@@ -216,7 +289,7 @@ export default function WithdrawalManagement() {
           .order('created_at', { ascending: true })
 
         if (!bizError && bizData && bizData.length > 0) {
-          console.log('BIZ DB에서 데이터 조회:', bizData.length, '건')
+          console.log('BIZ DB (creator_withdrawal_requests)에서 데이터 조회:', bizData.length, '건')
           const bizWithdrawals = bizData.map(w => ({
             ...w,
             // BIZ DB 필드를 표준화된 이름으로 매핑
@@ -235,7 +308,7 @@ export default function WithdrawalManagement() {
           allWithdrawals = [...allWithdrawals, ...bizWithdrawals]
         }
       } catch (bizError) {
-        console.error('BIZ DB 조회 오류:', bizError)
+        console.error('BIZ DB (creator_withdrawal_requests) 조회 오류:', bizError)
       }
 
       console.log('총 출금 신청 건수:', allWithdrawals.length)

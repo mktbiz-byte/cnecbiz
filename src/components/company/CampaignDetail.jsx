@@ -20,6 +20,7 @@ import {
   MapPin,
   Truck,
   Sparkles,
+  Loader2,
   MessageSquare,
   Calendar,
   Download,
@@ -86,6 +87,7 @@ import FourWeekGuideManager from './FourWeekGuideManager'
 
 import FourWeekGuideViewer from './FourWeekGuideViewer'
 import PersonalizedGuideViewer from './PersonalizedGuideViewer'
+import USJapanGuideViewer from './USJapanGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
@@ -199,6 +201,20 @@ export default function CampaignDetail() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
   const [creatorForSetup, setCreatorForSetup] = useState(null)
+  // Address editing state
+  const [editingAddressFor, setEditingAddressFor] = useState(null)
+  const [addressFormData, setAddressFormData] = useState({
+    phone_number: '',
+    postal_code: '',
+    address: '',
+    detail_address: ''
+  })
+  const [savingAddress, setSavingAddress] = useState(false)
+  // Bulk guide generation state
+  const [isGeneratingBulkGuides, setIsGeneratingBulkGuides] = useState(false)
+  const [bulkGuideProgress, setBulkGuideProgress] = useState({ current: 0, total: 0 })
+  // Bulk guide email sending state
+  const [sendingBulkGuideEmail, setSendingBulkGuideEmail] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
@@ -953,6 +969,389 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error updating tracking number:', error)
       alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
+  // 주소 편집 시작
+  const handleStartEditAddress = (participant) => {
+    setEditingAddressFor(participant.id)
+    setAddressFormData({
+      phone_number: participant.phone_number || participant.phone || '',
+      postal_code: participant.postal_code || '',
+      address: participant.address || '',
+      detail_address: participant.detail_address || ''
+    })
+  }
+
+  // 주소 저장
+  const handleSaveAddress = async () => {
+    if (!editingAddressFor) return
+
+    setSavingAddress(true)
+    try {
+      const updateData = {
+        phone_number: addressFormData.phone_number,
+        phone: addressFormData.phone_number, // 호환성 위해 phone 필드도 업데이트
+        postal_code: addressFormData.postal_code,
+        address: addressFormData.address,
+        detail_address: addressFormData.detail_address
+      }
+
+      const { error } = await supabase
+        .from('applications')
+        .update(updateData)
+        .eq('id', editingAddressFor)
+
+      if (error) throw error
+
+      // 로컬 상태 업데이트
+      setParticipants(prev => prev.map(p =>
+        p.id === editingAddressFor
+          ? { ...p, ...updateData }
+          : p
+      ))
+
+      setEditingAddressFor(null)
+      alert('주소가 저장되었습니다.')
+    } catch (error) {
+      console.error('Error saving address:', error)
+      alert('주소 저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingAddress(false)
+    }
+  }
+
+  // US/Japan 캠페인: 선택된 크리에이터 전체 가이드 생성
+  const handleBulkGuideGeneration = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('가이드를 생성할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedParticipants.length}명의 크리에이터에게 AI 가이드를 생성하시겠습니까?`)) {
+      return
+    }
+
+    setIsGeneratingBulkGuides(true)
+    setBulkGuideProgress({ current: 0, total: selectedParticipants.length })
+
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+    if (!apiKey) {
+      alert('API 키가 설정되지 않았습니다.')
+      setIsGeneratingBulkGuides(false)
+      return
+    }
+
+    const isJapan = region === 'japan'
+    const regionContext = isJapan
+      ? `[일본 시장 특성]
+- 일본 소비자의 라이프스타일에 맞게 작성
+- 정중하고 세련된 표현 사용
+- 제품의 섬세한 디테일과 품질 강조
+- 미니멀하고 깔끔한 촬영 스타일`
+      : `[미국 시장 특성]
+- 미국 소비자의 라이프스타일에 맞게 작성
+- 직접적이고 자신감 있는 표현 사용
+- 실용적인 효과와 결과 강조
+- 역동적이고 밝은 촬영 스타일`
+
+    const productName = campaign?.product_name || campaign?.title || '제품'
+    const brandName = campaign?.brand_name || campaign?.brand || '브랜드'
+    const productInfo = campaign?.product_info || campaign?.description || campaign?.product_description || ''
+    const category = campaign?.category || ''
+    const guidelines = campaign?.guidelines || ''
+    const dialogueSource = campaign?.required_dialogues || campaign?.required_dialogue || ''
+    const reqDialogues = Array.isArray(dialogueSource) ? dialogueSource.join('\n- ') : dialogueSource
+    const scenesSource = campaign?.required_scenes || ''
+    const reqScenes = Array.isArray(scenesSource) ? scenesSource.join('\n- ') : scenesSource
+
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < selectedParticipants.length; i++) {
+      const participantId = selectedParticipants[i]
+      const participant = participants.find(p => p.id === participantId)
+
+      if (!participant) continue
+
+      setBulkGuideProgress({ current: i + 1, total: selectedParticipants.length })
+
+      try {
+        const prompt = `당신은 UGC 영상 촬영 가이드 전문가입니다.
+${isJapan ? '일본' : '미국'} 시장을 타겟으로 10개의 촬영 씬 가이드를 작성해주세요.
+
+⚠️ 중요: 모든 내용(scene_description, dialogue, shooting_tip)은 반드시 한국어로 작성!
+대사(dialogue)도 한국어로 작성하세요. 번역은 별도로 진행됩니다.
+
+[캠페인 정보]
+- 제품명: ${productName}
+- 브랜드: ${brandName}
+- 카테고리: ${category}
+- 제품 설명: ${productInfo}
+${guidelines ? `- 가이드라인: ${guidelines}` : ''}
+
+${regionContext}
+
+${reqDialogues ? `[필수 대사 - 반드시 포함]\n- ${reqDialogues}` : ''}
+${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
+
+[핵심 요청사항]
+1. ⚡ 첫 번째 씬은 반드시 "훅(Hook)" - 3초 내 시청자 관심 집중
+2. 🔄 B&A(Before & After) 중심 구성
+3. 📍 ${isJapan ? '일본' : '미국'} 라이프스타일 반영
+4. 필수 대사/촬영장면 반드시 포함
+5. 마지막 씬은 CTA로 마무리
+6. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
+
+응답 형식 (JSON만):
+{"scenes": [{"order": 1, "scene_type": "훅", "scene_description": "장면 설명 (한국어)", "dialogue": "대사 (한국어)", "shooting_tip": "촬영 팁 (한국어)"}]}
+JSON만 출력.`
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+            })
+          }
+        )
+
+        if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+        const data = await response.json()
+        const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+
+        if (!jsonMatch) {
+          console.error('[Bulk Guide] JSON 파싱 실패 - responseText:', responseText.substring(0, 500))
+          throw new Error('JSON 파싱 실패')
+        }
+
+        const result = JSON.parse(jsonMatch[0])
+
+        if (!result.scenes || !Array.isArray(result.scenes)) {
+          console.error('[Bulk Guide] scenes 배열 없음 - result:', result)
+          throw new Error('AI 응답에 scenes 배열이 없습니다')
+        }
+
+        // 자동 번역 - 영어(US) 또는 일본어(Japan)
+        const targetLang = isJapan ? '일본어' : '영어'
+        const translatePrompt = `다음 촬영 가이드의 각 항목을 ${targetLang}로 번역해주세요.
+자연스럽고 현지화된 표현을 사용하세요.
+
+번역할 내용:
+${result.scenes.map((s, i) => `장면 ${i + 1}:
+- 장면 설명: ${s.scene_description}
+- 대사: ${s.dialogue}
+- 촬영 팁: ${s.shooting_tip}`).join('\n\n')}
+
+응답 형식 (JSON만):
+{"translations": [{"scene_description": "번역된 장면 설명", "dialogue": "번역된 대사", "shooting_tip": "번역된 촬영 팁"}]}
+JSON만 출력.`
+
+        let translations = []
+        try {
+          const transResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: translatePrompt }] }],
+                generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+              })
+            }
+          )
+
+          if (transResponse.ok) {
+            const transData = await transResponse.json()
+            const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
+            const transMatch = transText.match(/\{[\s\S]*\}/)
+            if (transMatch) {
+              const transResult = JSON.parse(transMatch[0])
+              translations = transResult.translations || []
+            }
+          }
+          console.log('[Bulk Guide] 번역 완료 - translations:', translations.length)
+        } catch (transErr) {
+          console.error('[Bulk Guide] 번역 실패:', transErr)
+        }
+
+        const guideData = {
+          scenes: result.scenes.map((scene, idx) => ({
+            order: idx + 1,
+            scene_type: scene.scene_type || '',
+            scene_description: scene.scene_description || '',
+            scene_description_translated: translations[idx]?.scene_description || '',
+            dialogue: scene.dialogue || '',
+            dialogue_translated: translations[idx]?.dialogue || '',
+            shooting_tip: scene.shooting_tip || '',
+            shooting_tip_translated: translations[idx]?.shooting_tip || ''
+          })),
+          dialogue_style: 'natural',
+          tempo: 'normal',
+          mood: 'bright',
+          target_language: isJapan ? 'japanese' : 'english',
+          updated_at: new Date().toISOString()
+        }
+
+        console.log('[Bulk Guide] 저장 시작 - region:', region, 'participantId:', participantId)
+
+        // US/Japan 캠페인은 API 사용 (RLS 우회)
+        if (region === 'us' || region === 'japan') {
+          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              region: region,
+              applicationId: participantId,
+              guide: guideData
+            })
+          })
+
+          const saveResult = await saveResponse.json()
+          console.log('[Bulk Guide] 저장 결과:', saveResponse.ok, saveResult)
+
+          if (!saveResponse.ok) {
+            throw new Error(saveResult.error || saveResult.details || 'Failed to save guide')
+          }
+        } else {
+          const { error } = await supabase
+            .from('applications')
+            .update({ personalized_guide: guideData })
+            .eq('id', participantId)
+
+          if (error) throw error
+        }
+        successCount++
+        console.log('[Bulk Guide] 성공 - participant:', participant.applicant_name || participant.creator_name)
+      } catch (err) {
+        console.error(`[Bulk Guide] 실패 - ${participant.applicant_name || participant.creator_name}:`, err.message, err)
+        failCount++
+      }
+
+      // Rate limiting - 2초 대기 (생성 + 번역으로 API 2회 호출)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+
+    setIsGeneratingBulkGuides(false)
+    setBulkGuideProgress({ current: 0, total: 0 })
+    setSelectedParticipants([])
+
+    // Refresh data
+    await fetchParticipants()
+
+    alert(`가이드 생성 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+  }
+
+  // US/Japan 캠페인: 선택된 크리에이터에게 가이드 이메일 일괄 발송
+  const handleBulkGuideEmailSend = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('가이드를 발송할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    // 선택된 크리에이터 중 가이드가 있는 크리에이터만 필터링
+    const participantsWithGuide = participants.filter(p =>
+      selectedParticipants.includes(p.id) && p.personalized_guide
+    )
+
+    if (participantsWithGuide.length === 0) {
+      alert('선택된 크리에이터 중 가이드가 생성된 크리에이터가 없습니다.\n먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    // 이메일이 없는 크리에이터 확인
+    const creatorsWithoutEmail = participantsWithGuide.filter(p => !p.email)
+    if (creatorsWithoutEmail.length > 0) {
+      const skipCount = creatorsWithoutEmail.length
+      if (!confirm(`${participantsWithGuide.length}명 중 ${skipCount}명은 이메일이 없어 발송되지 않습니다.\n${participantsWithGuide.length - skipCount}명에게 가이드 이메일을 발송하시겠습니까?`)) {
+        return
+      }
+    } else {
+      if (!confirm(`${participantsWithGuide.length}명의 크리에이터에게 가이드 이메일을 발송하시겠습니까?`)) {
+        return
+      }
+    }
+
+    setSendingBulkGuideEmail(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      const isJapan = region === 'japan'
+      const targetLanguageKey = isJapan ? 'labelJa' : 'labelEn'
+
+      for (const participant of participantsWithGuide) {
+        if (!participant.email) {
+          failCount++
+          continue
+        }
+
+        try {
+          // personalized_guide 파싱
+          const guide = typeof participant.personalized_guide === 'string'
+            ? JSON.parse(participant.personalized_guide)
+            : participant.personalized_guide
+
+          // 가이드 내용 준비
+          const guideContent = {
+            campaign_title: campaign?.title || campaign?.product_name,
+            brand_name: campaign?.brand_name || campaign?.brand,
+            dialogue_style: guide.dialogue_style,
+            tempo: guide.tempo,
+            mood: guide.mood,
+            scenes: (guide.scenes || []).map(scene => ({
+              order: scene.order,
+              scene_type: scene.scene_type,
+              scene_description: scene.scene_description_translated || scene.scene_description,
+              dialogue: scene.dialogue_translated || scene.dialogue,
+              shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
+            })),
+            required_dialogues: guide.required_dialogues || [],
+            required_scenes: guide.required_scenes || []
+          }
+
+          const response = await fetch('/.netlify/functions/send-scene-guide-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaign_id: id,
+              region,
+              guide_content: guideContent,
+              creators: [{
+                id: participant.id,
+                name: participant.applicant_name || participant.creator_name,
+                email: participant.email
+              }]
+            })
+          })
+
+          if (response.ok) {
+            successCount++
+          } else {
+            failCount++
+            console.error(`Email failed for ${participant.email}:`, await response.text())
+          }
+        } catch (err) {
+          failCount++
+          console.error(`Error sending email to ${participant.email}:`, err)
+        }
+      }
+
+      if (successCount > 0) {
+        alert(`가이드 이메일 발송 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+      } else {
+        alert('가이드 이메일 발송에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Bulk email error:', error)
+      alert('이메일 발송 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setSendingBulkGuideEmail(false)
     }
   }
 
@@ -2939,9 +3338,52 @@ export default function CampaignDetail() {
             </span>
           </label>
           {selectedParticipants.length > 0 && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-              {selectedParticipants.length}명 선택됨
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                {selectedParticipants.length}명 선택됨
+              </span>
+              {/* US/Japan 캠페인: 가이드 전체 생성 버튼 */}
+              {(region === 'us' || region === 'japan') && (
+                <>
+                  <Button
+                    onClick={handleBulkGuideGeneration}
+                    disabled={isGeneratingBulkGuides}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                    size="sm"
+                  >
+                    {isGeneratingBulkGuides ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        가이드 전체 생성
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleBulkGuideEmailSend}
+                    disabled={sendingBulkGuideEmail}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                    size="sm"
+                  >
+                    {sendingBulkGuideEmail ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        발송 중...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-1" />
+                        가이드 이메일 발송
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
           )}
         </div>
 
@@ -3049,11 +3491,84 @@ export default function CampaignDetail() {
                           <span>{shippingPhone || '연락처 미입력'}</span>
                         </div>
 
-                        {/* 배송 주소 - 전체 표시 */}
+                        {/* 배송 주소 - 전체 표시 + 수정 버튼 */}
                         <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg min-w-0 flex-shrink">
                           <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
                           <span className="break-all">{shippingAddress || '주소 미입력'}</span>
+                          <button
+                            onClick={() => handleStartEditAddress(participant)}
+                            className="ml-1 p-0.5 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded"
+                            title="주소 수정"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
                         </div>
+
+                        {/* 주소 수정 폼 (인라인) */}
+                        {editingAddressFor === participant.id && (
+                          <div className="w-full mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-gray-600">연락처</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.phone_number}
+                                  onChange={(e) => setAddressFormData({...addressFormData, phone_number: e.target.value})}
+                                  placeholder="+1 123 456 7890"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-600">우편번호</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.postal_code}
+                                  onChange={(e) => setAddressFormData({...addressFormData, postal_code: e.target.value})}
+                                  placeholder="92081"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">주소</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.address}
+                                  onChange={(e) => setAddressFormData({...addressFormData, address: e.target.value})}
+                                  placeholder="2027 Jewell Ridge, Vista, CA"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">상세주소</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.detail_address}
+                                  onChange={(e) => setAddressFormData({...addressFormData, detail_address: e.target.value})}
+                                  placeholder="Apt 4B"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingAddressFor(null)}
+                                className="text-xs px-2 py-1 h-auto"
+                              >
+                                취소
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleSaveAddress}
+                                disabled={savingAddress}
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-auto"
+                              >
+                                {savingAddress ? '저장 중...' : '저장'}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* 택배사 + 송장번호 인라인 */}
                         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg">
@@ -3136,6 +3651,34 @@ export default function CampaignDetail() {
                               >
                                 <Sparkles className="w-3 h-3 mr-1" />
                                 AI 가이드 생성
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* US/Japan 캠페인: 씬 가이드 작성 버튼 */}
+                        {(region === 'us' || region === 'japan') && (
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/company/campaigns/scene-guide?id=${id}&applicationId=${participant.id}&region=${region}`)}
+                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              씬 가이드 작성
+                            </Button>
+                            {participant.personalized_guide && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedGuide(participant)
+                                  setShowGuideModal(true)
+                                }}
+                                className="text-purple-600 border-purple-500 hover:bg-purple-50 text-xs px-3 py-1 h-auto"
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                가이드 보기
                               </Button>
                             )}
                           </div>
@@ -5302,56 +5845,145 @@ export default function CampaignDetail() {
                               </div>
                             )}
 
-                            {/* 촬영 씬 */}
+                            {/* 촬영 씬 - Support both shooting_scenes and scenes format */}
                             <div className="bg-gray-50 p-4 rounded-lg">
-                              <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
+                              <h4 className="font-semibold mb-3">
+                                촬영 씬 ({(guideData.scenes || guideData.shooting_scenes)?.length || 0}개)
+                                {(region === 'us' || region === 'japan') && (
+                                  <span className="ml-2 text-sm font-normal text-blue-600">
+                                    ({region === 'japan' ? '일본어' : '영어'} 번역 포함)
+                                  </span>
+                                )}
+                              </h4>
                               <div className="space-y-4">
-                                {(guideData.shooting_scenes || []).map((scene, idx) => (
-                                  <div key={idx} className="bg-white p-3 rounded border">
-                                    <div className="font-medium text-sm mb-2">씬 {scene.order}</div>
-                                    <div className="space-y-2 text-sm">
-                                      <div>
-                                        <span className="text-gray-600">타입:</span>
+                                {(guideData.scenes || guideData.shooting_scenes || []).map((scene, idx) => {
+                                  const scenesKey = guideData.scenes ? 'scenes' : 'shooting_scenes';
+                                  const isUSJapan = region === 'us' || region === 'japan';
+                                  const targetLang = region === 'japan' ? '일본어' : '영어';
+
+                                  return (
+                                    <div key={idx} className="bg-white p-4 rounded border">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <span className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                          {scene.order || idx + 1}
+                                        </span>
                                         <input
                                           type="text"
                                           value={scene.scene_type || ''}
                                           onChange={(e) => {
                                             const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].scene_type = e.target.value;
+                                            updated[scenesKey][idx].scene_type = e.target.value;
                                             setEditedGuideContent(JSON.stringify(updated, null, 2));
                                           }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
+                                          className="px-3 py-1.5 border rounded-lg text-sm flex-1"
+                                          placeholder="씬 타입 (예: 훅, 제품 소개)"
                                         />
                                       </div>
-                                      <div>
-                                        <span className="text-gray-600">장면 설명:</span>
-                                        <textarea
-                                          value={scene.scene_description || ''}
-                                          onChange={(e) => {
-                                            const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].scene_description = e.target.value;
-                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
-                                          }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
-                                          rows={2}
-                                        />
+
+                                      {/* Scene Description - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">장면 설명 (한국어)</label>
+                                          <textarea
+                                            value={scene.scene_description || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].scene_description = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg resize-none"
+                                            rows={3}
+                                            placeholder="촬영해야 할 장면 설명"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-blue-600 font-medium mb-1">장면 설명 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.scene_description_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].scene_description_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-blue-200 rounded-lg resize-none bg-blue-50"
+                                              rows={3}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
-                                      <div>
-                                        <span className="text-gray-600">대사:</span>
-                                        <textarea
-                                          value={scene.dialogue || ''}
-                                          onChange={(e) => {
-                                            const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].dialogue = e.target.value;
-                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
-                                          }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
-                                          rows={2}
-                                        />
+
+                                      {/* Dialogue - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">대사 (한국어)</label>
+                                          <textarea
+                                            value={scene.dialogue || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].dialogue = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg resize-none"
+                                            rows={3}
+                                            placeholder="크리에이터가 말할 대사"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-green-600 font-medium mb-1">대사 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.dialogue_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].dialogue_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-green-200 rounded-lg resize-none bg-green-50"
+                                              rows={3}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Shooting Tip - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">촬영 팁 (한국어)</label>
+                                          <input
+                                            type="text"
+                                            value={scene.shooting_tip || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].shooting_tip = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                            placeholder="촬영 팁 (선택)"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-amber-600 font-medium mb-1">촬영 팁 ({targetLang})</label>
+                                            <input
+                                              type="text"
+                                              value={scene.shooting_tip_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].shooting_tip_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-amber-200 rounded-lg bg-amber-50"
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
 
@@ -5390,33 +6022,74 @@ export default function CampaignDetail() {
                     })()}
                   </div>
                 ) : (
-                  <PersonalizedGuideViewer
-                    guide={selectedGuide.personalized_guide}
-                    creator={selectedGuide}
-                    onSave={async (updatedGuide) => {
-                      const { error } = await supabase
-                        .from('applications')
-                        .update({
-                          personalized_guide: updatedGuide
-                        })
-                        .eq('id', selectedGuide.id)
+                  /* Use different viewer based on region */
+                  (region === 'us' || region === 'japan') ? (
+                    <USJapanGuideViewer
+                      guide={selectedGuide.personalized_guide}
+                      creator={selectedGuide}
+                      region={region}
+                      onSave={async (updatedGuide) => {
+                        // US/Japan use API to bypass RLS
+                        try {
+                          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              region: region,
+                              applicationId: selectedGuide.id,
+                              guide: updatedGuide
+                            })
+                          })
 
-                      if (error) {
-                        console.error('가이드 저장 실패:', error)
-                        throw new Error('데이터베이스 저장 실패: ' + error.message)
-                      }
+                          if (!saveResponse.ok) {
+                            const errorData = await saveResponse.json()
+                            throw new Error(errorData.error || 'Failed to save guide')
+                          }
 
-                      // Update local state
-                      setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
-                      const updatedParticipants = participants.map(p =>
-                        p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
-                      )
-                      setParticipants(updatedParticipants)
+                          // Update local state
+                          setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                          const updatedParticipants = participants.map(p =>
+                            p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                          )
+                          setParticipants(updatedParticipants)
 
-                      // Refresh participants to ensure data consistency
-                      await fetchParticipants()
-                    }}
-                  />
+                          // Refresh participants to ensure data consistency
+                          await fetchParticipants()
+                        } catch (error) {
+                          console.error('가이드 저장 실패:', error)
+                          throw new Error('데이터베이스 저장 실패: ' + error.message)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <PersonalizedGuideViewer
+                      guide={selectedGuide.personalized_guide}
+                      creator={selectedGuide}
+                      onSave={async (updatedGuide) => {
+                        const { error } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: updatedGuide
+                          })
+                          .eq('id', selectedGuide.id)
+
+                        if (error) {
+                          console.error('가이드 저장 실패:', error)
+                          throw new Error('데이터베이스 저장 실패: ' + error.message)
+                        }
+
+                        // Update local state
+                        setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                        const updatedParticipants = participants.map(p =>
+                          p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                        )
+                        setParticipants(updatedParticipants)
+
+                        // Refresh participants to ensure data consistency
+                        await fetchParticipants()
+                      }}
+                    />
+                  )
                 )}
               </div>
             </div>
@@ -5466,13 +6139,41 @@ export default function CampaignDetail() {
                     <Button
                       onClick={async () => {
                         try {
-                          await supabase
-                            .from('applications')
-                            .update({
-                              personalized_guide: editedGuideContent
+                          // Parse the content to ensure it's valid JSON if it's a string
+                          let guideToSave = editedGuideContent
+                          if (typeof editedGuideContent === 'string') {
+                            try {
+                              guideToSave = JSON.parse(editedGuideContent)
+                            } catch (e) {
+                              // If parse fails, keep as string
+                            }
+                          }
+
+                          // US/Japan use API to bypass RLS
+                          if (region === 'us' || region === 'japan') {
+                            const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                region: region,
+                                applicationId: selectedGuide.id,
+                                guide: guideToSave
+                              })
                             })
-                            .eq('id', selectedGuide.id)
-                          
+
+                            if (!saveResponse.ok) {
+                              const errorData = await saveResponse.json()
+                              throw new Error(errorData.error || 'Failed to save guide')
+                            }
+                          } else {
+                            await supabase
+                              .from('applications')
+                              .update({
+                                personalized_guide: guideToSave
+                              })
+                              .eq('id', selectedGuide.id)
+                          }
+
                           alert('가이드가 저장되었습니다.')
                           setEditingGuide(false)
                           await fetchParticipants()
@@ -5480,7 +6181,7 @@ export default function CampaignDetail() {
                           setSelectedGuide(null)
                         } catch (error) {
                           console.error('Error saving guide:', error)
-                          alert('저장에 실패했습니다.')
+                          alert('저장에 실패했습니다: ' + error.message)
                         }
                       }}
                       className="bg-green-600 hover:bg-green-700"
@@ -5494,7 +6195,13 @@ export default function CampaignDetail() {
                       variant="outline"
                       onClick={() => {
                         setEditingGuide(true)
-                        setEditedGuideContent(selectedGuide.personalized_guide || '')
+                        // Properly convert object to JSON string if needed
+                        const guide = selectedGuide.personalized_guide
+                        if (typeof guide === 'object' && guide !== null) {
+                          setEditedGuideContent(JSON.stringify(guide, null, 2))
+                        } else {
+                          setEditedGuideContent(guide || '')
+                        }
                       }}
                       className="border-purple-600 text-purple-600 hover:bg-purple-50"
                     >

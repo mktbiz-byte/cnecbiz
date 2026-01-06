@@ -39,7 +39,10 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
     )
   }
 
-  if (!guideData.shooting_scenes || !Array.isArray(guideData.shooting_scenes)) {
+  // Support both old format (shooting_scenes) and new format (scenes)
+  const scenes = guideData.shooting_scenes || guideData.scenes
+
+  if (!scenes || !Array.isArray(scenes)) {
     return (
       <div className="text-center py-12">
         <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center">
@@ -49,6 +52,12 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
         <p className="text-sm text-gray-400">가이드를 다시 생성해주세요</p>
       </div>
     )
+  }
+
+  // Normalize the data to use shooting_scenes
+  const normalizedData = {
+    ...guideData,
+    shooting_scenes: scenes
   }
 
   const handleEdit = () => {
@@ -76,7 +85,7 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
     setIsEditing(false)
   }
 
-  const displayData = isEditing ? editedGuide : guideData
+  const displayData = isEditing ? editedGuide : normalizedData
 
   // Scene type badge styles
   const getSceneTypeStyle = (type) => {
@@ -239,7 +248,12 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                         placeholder="장면 설명"
                       />
                     ) : (
-                      <p className="text-sm text-gray-800">{scene.scene_description}</p>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-800">{scene.scene_description}</p>
+                        {scene.scene_description_translated && (
+                          <p className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">{scene.scene_description_translated}</p>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -256,9 +270,14 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                         placeholder="대사"
                       />
                     ) : (
-                      <div className="flex items-start gap-1.5">
-                        <MessageSquare className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm text-gray-700 italic">"{scene.dialogue}"</span>
+                      <div className="space-y-1">
+                        <div className="flex items-start gap-1.5">
+                          <MessageSquare className="w-3.5 h-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 italic">"{scene.dialogue}"</span>
+                        </div>
+                        {scene.dialogue_translated && (
+                          <p className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded italic">"{scene.dialogue_translated}"</p>
+                        )}
                       </div>
                     )}
                   </td>
@@ -276,9 +295,14 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                         placeholder="촬영 팁"
                       />
                     ) : (
-                      <div className="flex items-start gap-1.5">
-                        <Lightbulb className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-xs text-gray-500">{scene.shooting_tip}</span>
+                      <div className="space-y-1">
+                        <div className="flex items-start gap-1.5">
+                          <Lightbulb className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-xs text-gray-500">{scene.shooting_tip}</span>
+                        </div>
+                        {scene.shooting_tip_translated && (
+                          <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">{scene.shooting_tip_translated}</p>
+                        )}
                       </div>
                     )}
                   </td>
