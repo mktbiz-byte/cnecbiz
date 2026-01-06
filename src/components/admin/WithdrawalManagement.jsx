@@ -91,19 +91,31 @@ export default function WithdrawalManagement() {
           if (!koreaError && koreaData && koreaData.length > 0) {
             console.log('Korea DB (withdrawals)에서 데이터 조회:', koreaData.length, '건')
 
-            // user_profiles 별도 조회
+            // user_profiles 별도 조회 (user_id 또는 id로 조회 시도)
             const userIds = [...new Set(koreaData.map(w => w.user_id).filter(Boolean))]
             let userProfiles = {}
 
             if (userIds.length > 0) {
-              const { data: profiles } = await supabaseKorea
+              // 먼저 id로 조회 시도
+              let { data: profiles, error: profileError } = await supabaseKorea
                 .from('user_profiles')
-                .select('user_id, name, email, channel_name')
-                .in('user_id', userIds)
+                .select('id, user_id, name, email, channel_name')
+                .in('id', userIds)
+
+              // id로 조회 실패시 user_id로 재시도
+              if (profileError || !profiles || profiles.length === 0) {
+                const { data: profiles2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('id, user_id, name, email, channel_name')
+                  .in('user_id', userIds)
+                profiles = profiles2
+              }
 
               if (profiles) {
                 profiles.forEach(p => {
-                  userProfiles[p.user_id] = p
+                  // id와 user_id 둘 다로 매핑
+                  if (p.id) userProfiles[p.id] = p
+                  if (p.user_id) userProfiles[p.user_id] = p
                 })
               }
             }
@@ -214,12 +226,19 @@ export default function WithdrawalManagement() {
         // 1-3. BIZ DB creator_withdrawal_requests에서 주민번호 매핑 데이터 조회
         // (주민번호는 BIZ DB의 creator_withdrawal_requests.resident_registration_number에 저장됨)
         try {
+          console.log('BIZ DB에서 주민번호 매핑 데이터 조회 시작...')
           const { data: bizWrData, error: bizWrError } = await supabaseBiz
             .from('creator_withdrawal_requests')
             .select('id, bank_name, account_number, account_holder, resident_registration_number, creator_id')
             .not('resident_registration_number', 'is', null)
 
-          if (!bizWrError && bizWrData && bizWrData.length > 0) {
+          if (bizWrError) {
+            console.error('BIZ DB 주민번호 조회 오류:', bizWrError)
+          }
+
+          console.log('BIZ DB 주민번호 데이터:', bizWrData?.length || 0, '건')
+
+          if (bizWrData && bizWrData.length > 0) {
             console.log('BIZ DB에서 주민번호 있는 출금 신청:', bizWrData.length, '건')
 
             // 계좌정보(예금주+계좌번호)로 주민번호 매핑
