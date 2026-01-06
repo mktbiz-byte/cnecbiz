@@ -1140,12 +1140,19 @@ JSON만 출력.`
             updated_at: new Date().toISOString()
           }
 
-          const { error } = await supabase
-            .from('applications')
-            .update({ personalized_guide: guideData })
-            .eq('id', participantId)
+          // US 캠페인은 API 사용 (RLS 우회)
+          if (region === 'us') {
+            await callUSCampaignAPI('update_application', id, participantId, {
+              personalized_guide: guideData
+            })
+          } else {
+            const { error } = await supabase
+              .from('applications')
+              .update({ personalized_guide: guideData })
+              .eq('id', participantId)
 
-          if (error) throw error
+            if (error) throw error
+          }
           successCount++
         }
       } catch (err) {
