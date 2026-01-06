@@ -160,6 +160,13 @@ export const POPBILL_TEMPLATES = {
       description: '출금 완료 및 입금 확인 안내',
       params: ['크리에이터명', '입금일']
     },
+
+    WITHDRAWAL_REJECTED: {
+      code: '026010000736',
+      name: '출금 거절 안내',
+      description: '출금 신청 거절 및 사유 안내',
+      params: ['크리에이터명', '거절사유']
+    },
     
     // 패널티 관련
     DEADLINE_OVERDUE: {

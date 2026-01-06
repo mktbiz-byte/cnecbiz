@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { maskResidentNumber, decryptResidentNumber } from '../../lib/encryptionHelper'
+import { sendWithdrawalRejectedNotification } from '../../services/notifications/creatorNotifications'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
 
@@ -543,9 +544,12 @@ export default function WithdrawalManagement() {
           return
         }
 
+        console.log('거절 처리 시작 - source_db:', selectedWithdrawal.source_db, 'id:', selectedWithdrawal.id)
+
         if (isKoreaDB && supabaseKorea) {
           // 1. withdrawals 상태 업데이트 (korea_pt가 아닌 경우에만)
           if (!isFromPointTransactions) {
+            console.log('withdrawals 테이블 업데이트...')
             const { error } = await supabaseKorea
               .from('withdrawals')
               .update({
@@ -556,7 +560,28 @@ export default function WithdrawalManagement() {
               })
               .eq('id', selectedWithdrawal.id)
 
-            if (error) throw error
+            if (error) {
+              console.error('withdrawals 업데이트 오류:', error)
+              throw error
+            }
+            console.log('withdrawals 업데이트 완료')
+          } else {
+            // point_transactions에서 온 데이터는 related_withdrawal_id를 설정하여 중복 방지
+            // UUID 형식이어야 함 - 거절용 고정 UUID 사용
+            console.log('point_transactions 처리 완료 표시...')
+            const rejectedUUID = '00000000-0000-0000-0000-' + String(new Date().getTime()).slice(-12).padStart(12, '0')
+            const { error: ptUpdateError } = await supabaseKorea
+              .from('point_transactions')
+              .update({
+                related_withdrawal_id: rejectedUUID // 거절 처리됨 표시 (UUID 형식)
+              })
+              .eq('id', selectedWithdrawal.id)
+
+            if (ptUpdateError) {
+              console.error('point_transactions 업데이트 오류:', ptUpdateError)
+            } else {
+              console.log('point_transactions 거절 처리 완료:', rejectedUUID)
+            }
           }
 
           // 2. 포인트 환불 (양수로 point_transactions에 추가)
@@ -593,6 +618,47 @@ export default function WithdrawalManagement() {
 
           if (error) throw error
         }
+
+        // 알림톡 발송 (크리에이터 전화번호 조회 후 발송)
+        try {
+          let creatorPhone = null
+          const creatorName = selectedWithdrawal.creator_name || selectedWithdrawal.account_holder || 'Unknown'
+
+          // 전화번호 조회
+          if (selectedWithdrawal.user_id && supabaseKorea) {
+            const { data: profileData } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', selectedWithdrawal.user_id)
+              .maybeSingle()
+
+            creatorPhone = profileData?.phone
+
+            // id로 못 찾으면 user_id로 재시도
+            if (!creatorPhone) {
+              const { data: profileData2 } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone')
+                .eq('user_id', selectedWithdrawal.user_id)
+                .maybeSingle()
+              creatorPhone = profileData2?.phone
+            }
+          }
+
+          if (creatorPhone) {
+            console.log('출금 거절 알림톡 발송:', creatorName, creatorPhone)
+            await sendWithdrawalRejectedNotification(creatorPhone, creatorName, {
+              reason: rejectionReason
+            })
+            console.log('출금 거절 알림톡 발송 완료')
+          } else {
+            console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+          }
+        } catch (notifyError) {
+          console.error('알림톡 발송 오류:', notifyError)
+          // 알림톡 실패해도 거절 처리는 완료된 것으로 처리
+        }
+
         alert('거절되었습니다. 포인트가 환불되었습니다.')
       }
 
