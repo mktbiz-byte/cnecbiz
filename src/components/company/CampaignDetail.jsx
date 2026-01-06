@@ -402,12 +402,12 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // BIZ DB에서 applications 가져오기
+      // BIZ DB에서 applications 가져오기 (sns_uploaded: 4주/올영에서 SNS URL 입력 완료 상태)
       const { data, error } = await supabase
         .from('applications')
         .select('*')
         .eq('campaign_id', id)
-        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'])
+        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
