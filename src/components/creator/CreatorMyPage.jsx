@@ -727,9 +727,9 @@ const CreatorMyPage = () => {
                   </div>
                   {campaign.video_files && campaign.video_files.length > 0 ? (
                     <div className="space-y-3">
-                      {/* 버전별 영상 목록 */}
-                      {campaign.video_files.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                      {/* 버전별 영상 목록 (최신 버전부터 표시) */}
+                      {[...campaign.video_files].sort((a, b) => (b.version || 0) - (a.version || 0)).map((file, index) => (
+                        <div key={file.version || index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                           <div className="flex items-center">
                             <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">
                               V{file.version || index + 1}
