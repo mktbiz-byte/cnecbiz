@@ -1130,20 +1130,64 @@ JSON만 출력.`
           throw new Error('AI 응답에 scenes 배열이 없습니다')
         }
 
+        // 자동 번역 - 영어(US) 또는 일본어(Japan)
+        const targetLang = isJapan ? '일본어' : '영어'
+        const translatePrompt = `다음 촬영 가이드의 각 항목을 ${targetLang}로 번역해주세요.
+자연스럽고 현지화된 표현을 사용하세요.
+
+번역할 내용:
+${result.scenes.map((s, i) => `장면 ${i + 1}:
+- 장면 설명: ${s.scene_description}
+- 대사: ${s.dialogue}
+- 촬영 팁: ${s.shooting_tip}`).join('\n\n')}
+
+응답 형식 (JSON만):
+{"translations": [{"scene_description": "번역된 장면 설명", "dialogue": "번역된 대사", "shooting_tip": "번역된 촬영 팁"}]}
+JSON만 출력.`
+
+        let translations = []
+        try {
+          const transResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: translatePrompt }] }],
+                generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+              })
+            }
+          )
+
+          if (transResponse.ok) {
+            const transData = await transResponse.json()
+            const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
+            const transMatch = transText.match(/\{[\s\S]*\}/)
+            if (transMatch) {
+              const transResult = JSON.parse(transMatch[0])
+              translations = transResult.translations || []
+            }
+          }
+          console.log('[Bulk Guide] 번역 완료 - translations:', translations.length)
+        } catch (transErr) {
+          console.error('[Bulk Guide] 번역 실패:', transErr)
+        }
+
         const guideData = {
           scenes: result.scenes.map((scene, idx) => ({
             order: idx + 1,
             scene_type: scene.scene_type || '',
             scene_description: scene.scene_description || '',
-            scene_description_translated: '',
+            scene_description_translated: translations[idx]?.scene_description || '',
             dialogue: scene.dialogue || '',
-            dialogue_translated: '',
+            dialogue_translated: translations[idx]?.dialogue || '',
             shooting_tip: scene.shooting_tip || '',
-            shooting_tip_translated: ''
+            shooting_tip_translated: translations[idx]?.shooting_tip || ''
           })),
           dialogue_style: 'natural',
           tempo: 'normal',
           mood: 'bright',
+          target_language: isJapan ? 'japanese' : 'english',
           updated_at: new Date().toISOString()
         }
 
@@ -1182,8 +1226,8 @@ JSON만 출력.`
         failCount++
       }
 
-      // Rate limiting - 1초 대기
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Rate limiting - 2초 대기 (생성 + 번역으로 API 2회 호출)
+      await new Promise(resolve => setTimeout(resolve, 2000))
     }
 
     setIsGeneratingBulkGuides(false)

@@ -333,19 +333,61 @@ JSON만 출력하세요.`
       const result = JSON.parse(jsonMatch[0])
 
       if (result.scenes && Array.isArray(result.scenes)) {
+        // 자동 번역 - 영어(US) 또는 일본어(Japan)
+        const targetLang = isJapan ? '일본어' : '영어'
+        const translatePrompt = `다음 촬영 가이드의 각 항목을 ${targetLang}로 번역해주세요.
+자연스럽고 현지화된 표현을 사용하세요.
+
+번역할 내용:
+${result.scenes.map((s, i) => `장면 ${i + 1}:
+- 장면 설명: ${s.scene_description}
+- 대사: ${s.dialogue}
+- 촬영 팁: ${s.shooting_tip}`).join('\n\n')}
+
+응답 형식 (JSON만):
+{"translations": [{"scene_description": "번역된 장면 설명", "dialogue": "번역된 대사", "shooting_tip": "번역된 촬영 팁"}]}
+JSON만 출력.`
+
+        let translations = []
+        try {
+          const transResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: translatePrompt }] }],
+                generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+              })
+            }
+          )
+
+          if (transResponse.ok) {
+            const transData = await transResponse.json()
+            const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
+            const transMatch = transText.match(/\{[\s\S]*\}/)
+            if (transMatch) {
+              const transResult = JSON.parse(transMatch[0])
+              translations = transResult.translations || []
+            }
+          }
+        } catch (transErr) {
+          console.error('번역 실패:', transErr)
+        }
+
         setScenes(result.scenes.map((scene, i) => ({
           order: i + 1,
           scene_type: scene.scene_type || '',
           scene_description: scene.scene_description || '',
-          scene_description_translated: '',
+          scene_description_translated: translations[i]?.scene_description || '',
           dialogue: scene.dialogue || '',
-          dialogue_translated: '',
+          dialogue_translated: translations[i]?.dialogue || '',
           shooting_tip: scene.shooting_tip || '',
-          shooting_tip_translated: ''
+          shooting_tip_translated: translations[i]?.shooting_tip || ''
         })))
       }
 
-      setSuccess('AI 가이드 생성이 완료되었습니다! 내용을 검토하고 필요시 수정해주세요.')
+      setSuccess(`AI 가이드 생성 및 ${isJapan ? '일본어' : '영어'} 번역이 완료되었습니다! 내용을 검토하고 필요시 수정해주세요.`)
       setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
       console.error('Generation error:', err)
