@@ -2714,18 +2714,26 @@ JSON만 출력.`
         })
         .eq('id', submission.id)
 
-      // 2. applications를 completed로 업데이트
+      // 2. application 정보 가져오기 (user_id 포함)
+      const { data: applicationData } = await supabase
+        .from('applications')
+        .select('id, user_id, creator_name, applicant_name')
+        .eq('id', submission.application_id)
+        .single()
+
+      // 3. applications를 completed로 업데이트
       await supabase
         .from('applications')
         .update({ status: 'completed' })
         .eq('id', submission.application_id)
 
-      // 3. 포인트 지급
-      if (pointAmount > 0 && submission.applications?.user_id) {
+      // 4. 포인트 지급
+      const userId = applicationData?.user_id || submission.user_id
+      if (pointAmount > 0 && userId) {
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('point, phone, email')
-          .eq('id', submission.applications.user_id)
+          .eq('id', userId)
           .single()
 
         if (profile) {
@@ -2733,12 +2741,12 @@ JSON만 출력.`
           await supabase
             .from('user_profiles')
             .update({ point: newPoint })
-            .eq('id', submission.applications.user_id)
+            .eq('id', userId)
 
           await supabase
             .from('point_history')
             .insert([{
-              user_id: submission.applications.user_id,
+              user_id: userId,
               campaign_id: campaign.id,
               amount: pointAmount,
               type: 'earn',
@@ -2746,7 +2754,7 @@ JSON만 출력.`
               created_at: new Date().toISOString()
             }])
 
-          const creatorName = submission.applications?.creator_name || submission.applications?.applicant_name || '크리에이터'
+          const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
           // 크리에이터에게 알림톡 발송
           if (profile.phone) {
@@ -2757,7 +2765,7 @@ JSON만 출력.`
                 body: JSON.stringify({
                   receiverNum: profile.phone,
                   receiverName: creatorName,
-                  templateCode: '025100001016',
+                  templateCode: '025100001019',
                   variables: {
                     '크리에이터명': creatorName,
                     '캠페인명': campaign.title,
