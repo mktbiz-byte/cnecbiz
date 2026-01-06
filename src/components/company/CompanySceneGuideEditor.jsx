@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
+import { getSupabaseClient } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Textarea } from '../ui/textarea'
 import { Input } from '../ui/input'
@@ -16,35 +16,35 @@ import {
   Send,
   Save,
   Mail,
-  Eye,
   Loader2,
   Trash2,
   Copy,
-  CheckCircle
+  CheckCircle,
+  User
 } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 
 // Style presets
 const DIALOGUE_STYLES = [
-  { value: 'natural', label: '자연스러운 (Natural)', labelEn: 'Natural and conversational' },
-  { value: 'enthusiastic', label: '열정적인 (Enthusiastic)', labelEn: 'Energetic and excited' },
-  { value: 'professional', label: '전문적인 (Professional)', labelEn: 'Expert and informative' },
-  { value: 'friendly', label: '친근한 (Friendly)', labelEn: 'Warm and approachable' },
-  { value: 'storytelling', label: '스토리텔링 (Storytelling)', labelEn: 'Narrative and engaging' }
+  { value: 'natural', label: '자연스러운 (Natural)', labelEn: 'Natural and conversational', labelJa: '自然な会話調' },
+  { value: 'enthusiastic', label: '열정적인 (Enthusiastic)', labelEn: 'Energetic and excited', labelJa: '熱狂的でエネルギッシュ' },
+  { value: 'professional', label: '전문적인 (Professional)', labelEn: 'Expert and informative', labelJa: '専門的で情報豊富' },
+  { value: 'friendly', label: '친근한 (Friendly)', labelEn: 'Warm and approachable', labelJa: '温かく親しみやすい' },
+  { value: 'storytelling', label: '스토리텔링 (Storytelling)', labelEn: 'Narrative and engaging', labelJa: '物語調で魅力的' }
 ]
 
 const TEMPO_OPTIONS = [
-  { value: 'fast', label: '빠름 (Fast)', labelEn: 'Fast-paced, dynamic' },
-  { value: 'normal', label: '보통 (Normal)', labelEn: 'Natural pace' },
-  { value: 'slow', label: '느림 (Slow)', labelEn: 'Calm and relaxed' }
+  { value: 'fast', label: '빠름 (Fast)', labelEn: 'Fast-paced, dynamic', labelJa: 'テンポ良く、ダイナミック' },
+  { value: 'normal', label: '보통 (Normal)', labelEn: 'Natural pace', labelJa: '自然なペース' },
+  { value: 'slow', label: '느림 (Slow)', labelEn: 'Calm and relaxed', labelJa: '落ち着いてリラックス' }
 ]
 
 const MOOD_OPTIONS = [
-  { value: 'bright', label: '밝고 경쾌한', labelEn: 'Bright and cheerful' },
-  { value: 'calm', label: '차분하고 진지한', labelEn: 'Calm and serious' },
-  { value: 'emotional', label: '감성적인', labelEn: 'Emotional and touching' },
-  { value: 'humorous', label: '유머러스한', labelEn: 'Humorous and fun' },
-  { value: 'luxurious', label: '고급스러운', labelEn: 'Luxurious and elegant' }
+  { value: 'bright', label: '밝고 경쾌한', labelEn: 'Bright and cheerful', labelJa: '明るく快活' },
+  { value: 'calm', label: '차분하고 진지한', labelEn: 'Calm and serious', labelJa: '落ち着いて真剣' },
+  { value: 'emotional', label: '감성적인', labelEn: 'Emotional and touching', labelJa: '感動的' },
+  { value: 'humorous', label: '유머러스한', labelEn: 'Humorous and fun', labelJa: 'ユーモラスで楽しい' },
+  { value: 'luxurious', label: '고급스러운', labelEn: 'Luxurious and elegant', labelJa: '高級感がありエレガント' }
 ]
 
 // Default 10 scenes template
@@ -63,12 +63,14 @@ export default function CompanySceneGuideEditor() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const campaignId = searchParams.get('id')
+  const applicationId = searchParams.get('applicationId')
   const region = searchParams.get('region') || 'us'
 
   const supabase = getSupabaseClient(region)
 
-  // Campaign data
+  // Data
   const [campaign, setCampaign] = useState(null)
+  const [application, setApplication] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [translating, setTranslating] = useState(false)
@@ -86,10 +88,6 @@ export default function CompanySceneGuideEditor() {
   const [requiredDialogues, setRequiredDialogues] = useState([])
   const [requiredScenes, setRequiredScenes] = useState([])
 
-  // Selected creators for email
-  const [selectedCreators, setSelectedCreators] = useState([])
-  const [creators, setCreators] = useState([])
-
   // Messages
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -99,62 +97,70 @@ export default function CompanySceneGuideEditor() {
   const targetLanguageLabel = region === 'japan' ? '일본어' : '영어'
 
   useEffect(() => {
-    if (campaignId) {
-      loadCampaignData()
-      loadCreators()
+    if (campaignId && applicationId) {
+      loadData()
     }
-  }, [campaignId])
+  }, [campaignId, applicationId])
 
-  const loadCampaignData = async () => {
+  const loadData = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
+
+      // Load campaign data
+      const { data: campaignData, error: campaignError } = await supabase
         .from('campaigns')
         .select('*')
         .eq('id', campaignId)
         .single()
 
-      if (error) throw error
+      if (campaignError) throw campaignError
+      setCampaign(campaignData)
 
-      setCampaign(data)
-
-      // Load existing required elements from campaign
-      if (data.required_dialogues && Array.isArray(data.required_dialogues)) {
-        setRequiredDialogues(data.required_dialogues)
-      }
-      if (data.required_scenes && Array.isArray(data.required_scenes)) {
-        setRequiredScenes(data.required_scenes)
-      }
-
-      // Load existing style settings
-      if (data.video_tempo) setTempo(data.video_tempo)
-      if (data.video_tone) setMood(data.video_tone)
-      if (data.dialogue_style) setDialogueStyle(data.dialogue_style)
-
-      // Load existing scene guide if available
-      if (data.scene_guide && Array.isArray(data.scene_guide)) {
-        setScenes(data.scene_guide)
-      }
-    } catch (err) {
-      console.error('Error loading campaign:', err)
-      setError('캠페인 정보를 불러오는데 실패했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadCreators = async () => {
-    try {
-      const { data, error } = await supabase
+      // Load application data
+      const { data: appData, error: appError } = await supabase
         .from('applications')
         .select('*')
-        .eq('campaign_id', campaignId)
-        .in('status', ['approved', 'virtual_selected', 'selected'])
+        .eq('id', applicationId)
+        .single()
 
-      if (error) throw error
-      setCreators(data || [])
+      if (appError) throw appError
+      setApplication(appData)
+
+      // Load campaign-level settings as defaults
+      if (campaignData.required_dialogues && Array.isArray(campaignData.required_dialogues)) {
+        setRequiredDialogues(campaignData.required_dialogues)
+      }
+      if (campaignData.required_scenes && Array.isArray(campaignData.required_scenes)) {
+        setRequiredScenes(campaignData.required_scenes)
+      }
+      if (campaignData.video_tempo) setTempo(campaignData.video_tempo)
+      if (campaignData.video_tone) setMood(campaignData.video_tone)
+      if (campaignData.dialogue_style) setDialogueStyle(campaignData.dialogue_style)
+
+      // Load existing creator guide if available
+      if (appData.personalized_guide) {
+        try {
+          const guide = typeof appData.personalized_guide === 'string'
+            ? JSON.parse(appData.personalized_guide)
+            : appData.personalized_guide
+
+          if (guide.scenes && Array.isArray(guide.scenes)) {
+            setScenes(guide.scenes)
+          }
+          if (guide.dialogue_style) setDialogueStyle(guide.dialogue_style)
+          if (guide.tempo) setTempo(guide.tempo)
+          if (guide.mood) setMood(guide.mood)
+          if (guide.required_dialogues) setRequiredDialogues(guide.required_dialogues)
+          if (guide.required_scenes) setRequiredScenes(guide.required_scenes)
+        } catch (e) {
+          console.error('Error parsing guide:', e)
+        }
+      }
     } catch (err) {
-      console.error('Error loading creators:', err)
+      console.error('Error loading data:', err)
+      setError('데이터를 불러오는데 실패했습니다.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -291,26 +297,29 @@ JSON만 출력하세요.`
     }
   }
 
-  // Save guide
+  // Save guide to application
   const handleSave = async () => {
     setSaving(true)
     setError('')
 
     try {
-      const updateData = {
-        scene_guide: scenes,
+      const guideData = {
+        scenes: scenes,
         dialogue_style: dialogueStyle,
-        video_tempo: tempo,
-        video_tone: mood,
+        tempo: tempo,
+        mood: mood,
         required_dialogues: requiredDialogues.filter(d => d.trim()),
         required_scenes: requiredScenes.filter(s => s.trim()),
         updated_at: new Date().toISOString()
       }
 
       const { error } = await supabase
-        .from('campaigns')
-        .update(updateData)
-        .eq('id', campaignId)
+        .from('applications')
+        .update({
+          personalized_guide: guideData,
+          guide_generated_at: new Date().toISOString()
+        })
+        .eq('id', applicationId)
 
       if (error) throw error
 
@@ -325,12 +334,7 @@ JSON만 출력하세요.`
   }
 
   // Send guide via email
-  const handleSendGuideEmail = async () => {
-    if (selectedCreators.length === 0) {
-      setError('가이드를 전송할 크리에이터를 선택해주세요.')
-      return
-    }
-
+  const handleSendEmail = async () => {
     setSendingEmail(true)
     setError('')
 
@@ -339,22 +343,19 @@ JSON만 출력하세요.`
       const guideContent = {
         campaign_title: campaign?.title || campaign?.product_name,
         brand_name: campaign?.brand_name || campaign?.brand,
-        dialogue_style: DIALOGUE_STYLES.find(s => s.value === dialogueStyle)?.labelEn,
-        tempo: TEMPO_OPTIONS.find(t => t.value === tempo)?.labelEn,
-        mood: MOOD_OPTIONS.find(m => m.value === mood)?.labelEn,
+        dialogue_style: DIALOGUE_STYLES.find(s => s.value === dialogueStyle)?.[region === 'japan' ? 'labelJa' : 'labelEn'],
+        tempo: TEMPO_OPTIONS.find(t => t.value === tempo)?.[region === 'japan' ? 'labelJa' : 'labelEn'],
+        mood: MOOD_OPTIONS.find(m => m.value === mood)?.[region === 'japan' ? 'labelJa' : 'labelEn'],
         scenes: scenes.map(scene => ({
           order: scene.order,
           scene_type: scene.scene_type,
-          scene_description: region === 'japan' ? scene.scene_description_translated : scene.scene_description_translated || scene.scene_description,
-          dialogue: region === 'japan' ? scene.dialogue_translated : scene.dialogue_translated || scene.dialogue,
-          shooting_tip: region === 'japan' ? scene.shooting_tip_translated : scene.shooting_tip_translated || scene.shooting_tip
+          scene_description: scene.scene_description_translated || scene.scene_description,
+          dialogue: scene.dialogue_translated || scene.dialogue,
+          shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
         })),
         required_dialogues: requiredDialogues,
         required_scenes: requiredScenes
       }
-
-      // Get selected creator emails
-      const selectedCreatorData = creators.filter(c => selectedCreators.includes(c.id))
 
       const response = await fetch('/.netlify/functions/send-scene-guide-email', {
         method: 'POST',
@@ -363,11 +364,11 @@ JSON만 출력하세요.`
           campaign_id: campaignId,
           region,
           guide_content: guideContent,
-          creators: selectedCreatorData.map(c => ({
-            id: c.id,
-            name: c.applicant_name || c.creator_name,
-            email: c.email
-          }))
+          creators: [{
+            id: application.id,
+            name: application.applicant_name || application.creator_name,
+            email: application.email
+          }]
         })
       })
 
@@ -376,8 +377,7 @@ JSON만 출력하세요.`
         throw new Error(errorData.error || 'Email sending failed')
       }
 
-      setSuccess(`${selectedCreators.length}명의 크리에이터에게 가이드가 전송되었습니다!`)
-      setSelectedCreators([])
+      setSuccess('가이드가 이메일로 전송되었습니다!')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       console.error('Email error:', err)
@@ -417,6 +417,8 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
     )
   }
 
+  const creatorName = application?.applicant_name || application?.creator_name || '크리에이터'
+
   return (
     <>
       <CompanyNavigation />
@@ -427,15 +429,15 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
             <div className="flex items-center gap-4">
               <Button
                 variant="outline"
-                onClick={() => navigate(`/company/campaigns`)}
+                onClick={() => navigate(`/company/campaigns/${campaignId}?region=${region}`)}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 뒤로
               </Button>
               <div>
                 <h1 className="text-2xl font-bold flex items-center gap-2">
-                  <FileText className="w-6 h-6 text-purple-600" />
-                  씬 가이드 에디터
+                  <User className="w-6 h-6 text-purple-600" />
+                  {creatorName}님 씬 가이드
                 </h1>
                 <p className="text-gray-600 mt-1">
                   {campaign?.title || campaign?.product_name} - {region === 'japan' ? '일본' : '미국'} 캠페인
@@ -447,10 +449,60 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                 <Copy className="w-4 h-4 mr-2" />
                 복사
               </Button>
+              <Button
+                variant="outline"
+                onClick={handleSendEmail}
+                disabled={sendingEmail || !application?.email}
+              >
+                {sendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                이메일 전송
+              </Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 저장
               </Button>
+            </div>
+          </div>
+
+          {/* Creator Info */}
+          <Card className="mb-6 bg-purple-50 border-purple-200">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <User className="w-5 h-5 text-purple-600" />
+                  <span className="font-semibold">{creatorName}</span>
+                </div>
+                {application?.email && (
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">이메일:</span> {application.email}
+                  </div>
+                )}
+                {application?.instagram_url && (
+                  <a
+                    href={application.instagram_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Instagram
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Disclaimer Notice */}
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-white text-sm font-bold">!</span>
+              </div>
+              <div>
+                <p className="font-semibold text-amber-800 mb-1">주의사항</p>
+                <p className="text-amber-700 text-sm">
+                  본 가이드는 100% 동일하게 촬영이 아닌 크리에이터의 스타일에 맞게 변경되어 촬영될 수 있습니다.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -599,54 +651,6 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                     className="w-full"
                   >
                     <Plus className="w-4 h-4 mr-1" /> 추가
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Email Send Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Mail className="w-5 h-5 text-blue-500" />
-                    가이드 이메일 전송
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-gray-600">선정된 크리에이터에게 가이드를 이메일로 전송합니다.</p>
-                  <div className="max-h-40 overflow-y-auto space-y-2 border rounded-lg p-2">
-                    {creators.length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-2">선정된 크리에이터가 없습니다</p>
-                    ) : (
-                      creators.map(creator => (
-                        <label key={creator.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedCreators.includes(creator.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedCreators(prev => [...prev, creator.id])
-                              } else {
-                                setSelectedCreators(prev => prev.filter(id => id !== creator.id))
-                              }
-                            }}
-                            className="rounded"
-                          />
-                          <span className="text-sm">{creator.applicant_name || creator.creator_name}</span>
-                        </label>
-                      ))
-                    )}
-                  </div>
-                  <Button
-                    onClick={handleSendGuideEmail}
-                    disabled={sendingEmail || selectedCreators.length === 0}
-                    className="w-full"
-                  >
-                    {sendingEmail ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4 mr-2" />
-                    )}
-                    {selectedCreators.length > 0 ? `${selectedCreators.length}명에게 전송` : '전송'}
                   </Button>
                 </CardContent>
               </Card>

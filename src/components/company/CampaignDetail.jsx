@@ -3141,6 +3141,34 @@ export default function CampaignDetail() {
                           </div>
                         )}
 
+                        {/* US/Japan 캠페인: 씬 가이드 작성 버튼 */}
+                        {(region === 'us' || region === 'japan') && (
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/company/campaigns/scene-guide?id=${id}&applicationId=${participant.id}&region=${region}`)}
+                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              씬 가이드 작성
+                            </Button>
+                            {participant.personalized_guide && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedGuide(participant)
+                                  setShowGuideModal(true)
+                                }}
+                                className="text-purple-600 border-purple-500 hover:bg-purple-50 text-xs px-3 py-1 h-auto"
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                가이드 보기
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
                         {/* 4주 챌린지 가이드 섹션 - 인라인 버튼 */}
                         {campaign.campaign_type === '4week_challenge' && (
                           <div className="flex items-center gap-1.5">
