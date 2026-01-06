@@ -567,16 +567,20 @@ export default function WithdrawalManagement() {
             console.log('withdrawals 업데이트 완료')
           } else {
             // point_transactions에서 온 데이터는 related_withdrawal_id를 설정하여 중복 방지
+            // UUID 형식이어야 함 - 거절용 고정 UUID 사용
             console.log('point_transactions 처리 완료 표시...')
+            const rejectedUUID = '00000000-0000-0000-0000-' + String(new Date().getTime()).slice(-12).padStart(12, '0')
             const { error: ptUpdateError } = await supabaseKorea
               .from('point_transactions')
               .update({
-                related_withdrawal_id: 'rejected_' + new Date().getTime() // 거절 처리됨 표시
+                related_withdrawal_id: rejectedUUID // 거절 처리됨 표시 (UUID 형식)
               })
               .eq('id', selectedWithdrawal.id)
 
             if (ptUpdateError) {
               console.error('point_transactions 업데이트 오류:', ptUpdateError)
+            } else {
+              console.log('point_transactions 거절 처리 완료:', rejectedUUID)
             }
           }
 
