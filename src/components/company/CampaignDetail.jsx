@@ -2955,6 +2955,133 @@ JSON만 출력.`
     }
   }
 
+  // 멀티비디오 캠페인 최종 확정 (videoSubmissions가 없는 경우 - 올영/4주 applications에서 직접 처리)
+  const handleMultiVideoFinalConfirmationWithoutSubmissions = async (participant, videoCount) => {
+    try {
+      const pointAmount = campaign.reward_points || campaign.point || 0
+      const userId = participant.user_id
+
+      // 1. Korea DB의 applications 상태 업데이트
+      if (supabaseKorea) {
+        await supabaseKorea
+          .from('applications')
+          .update({
+            status: 'completed',
+            final_confirmed_at: new Date().toISOString()
+          })
+          .eq('id', participant.id)
+      }
+
+      // 2. BIZ DB의 applications 상태 업데이트 (있으면)
+      await supabase
+        .from('applications')
+        .update({
+          status: 'completed',
+          final_confirmed_at: new Date().toISOString()
+        })
+        .eq('id', participant.id)
+
+      // 3. 포인트 지급
+      if (pointAmount > 0 && userId) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('point, phone, email')
+          .eq('id', userId)
+          .single()
+
+        if (profile) {
+          const newPoint = (profile.point || 0) + pointAmount
+          await supabase
+            .from('user_profiles')
+            .update({ point: newPoint })
+            .eq('id', userId)
+
+          await supabase
+            .from('point_history')
+            .insert([{
+              user_id: userId,
+              campaign_id: campaign.id,
+              amount: pointAmount,
+              type: 'earn',
+              description: `캠페인 완료: ${campaign.title}`,
+              created_at: new Date().toISOString()
+            }])
+
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
+          // 크리에이터에게 알림톡 발송
+          if (profile.phone) {
+            try {
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: creatorName,
+                  templateCode: '025100001019',
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '캠페인명': campaign.title,
+                    '지급포인트': pointAmount.toLocaleString()
+                  }
+                })
+              })
+            } catch (e) {
+              console.error('알림톡 발송 실패:', e)
+            }
+          }
+
+          // 크리에이터에게 이메일 발송
+          if (profile.email) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profile.email,
+                  subject: `[CNEC] 캠페인 완료 - ${campaign.title}`,
+                  html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #10B981;">캠페인이 완료되었습니다!</h2>
+                      <p>${creatorName}님, 참여하신 캠페인이 완료되어 포인트가 지급되었습니다.</p>
+                      <div style="background: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p><strong>지급 포인트:</strong> ${pointAmount.toLocaleString()}P</p>
+                      </div>
+                    </div>
+                  `
+                })
+              })
+            } catch (e) {
+              console.error('이메일 발송 실패:', e)
+            }
+          }
+
+          // 네이버 웍스 알림
+          try {
+            await fetch('/.netlify/functions/send-naver-works-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                isAdminNotification: true,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                message: `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+              })
+            })
+          } catch (e) {
+            console.error('네이버 웍스 알림 실패:', e)
+          }
+        }
+      }
+
+      await fetchParticipants()
+      alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
+    } catch (error) {
+      console.error('Error in multi-video final confirmation:', error)
+      alert('최종 확정에 실패했습니다: ' + error.message)
+    }
+  }
+
   // 관리자용: SNS URL 및 광고코드 수정 후 최종 확정
   const handleAdminSnsEdit = async () => {
     // 멀티비디오 캠페인 편집 (올리브영/4주 챌린지)
@@ -6018,18 +6145,164 @@ JSON만 출력.`
                               )}
                             </div>
                           ) : (
-                            <div className="text-center py-4 text-gray-500 bg-white rounded-lg">
-                              <p className="text-sm">제출된 영상 파일이 없습니다.</p>
-                              {participant.content_url && (
-                                <a
-                                  href={participant.content_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                  콘텐츠 URL 보기
-                                </a>
+                            <div className="bg-white rounded-lg p-4">
+                              {/* 멀티비디오 캠페인: videoSubmissions 없어도 SNS URL 표시 */}
+                              {isMultiVideoCampaign && multiVideoStatus.length > 0 ? (
+                                <div className="space-y-4">
+                                  {/* SNS URL 목록 */}
+                                  <div className="space-y-2">
+                                    <h5 className="font-semibold text-gray-700 flex items-center gap-2">
+                                      <Link className="w-4 h-4 text-blue-500" />
+                                      SNS 업로드 URL
+                                    </h5>
+                                    {is4WeekChallenge ? (
+                                      <div className="space-y-1 text-sm">
+                                        {[1, 2, 3, 4].map(week => {
+                                          const url = participant[`week${week}_url`]
+                                          return (
+                                            <div key={week} className="flex items-center gap-2">
+                                              <span className={url ? 'text-green-600' : 'text-orange-500'}>
+                                                {week}주차:
+                                              </span>
+                                              {url ? (
+                                                <a href={url} target="_blank" rel="noopener noreferrer"
+                                                   className="text-blue-600 hover:underline truncate max-w-xs">
+                                                  {url}
+                                                </a>
+                                              ) : (
+                                                <span className="text-gray-400">미등록</span>
+                                              )}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-1 text-sm">
+                                        {[1, 2, 3].map(step => {
+                                          const url = participant[`step${step}_url`]
+                                          return (
+                                            <div key={step} className="flex items-center gap-2">
+                                              <span className={url ? 'text-green-600' : 'text-orange-500'}>
+                                                STEP{step}:
+                                              </span>
+                                              {url ? (
+                                                <a href={url} target="_blank" rel="noopener noreferrer"
+                                                   className="text-blue-600 hover:underline truncate max-w-xs">
+                                                  {url}
+                                                </a>
+                                              ) : (
+                                                <span className="text-gray-400">미등록</span>
+                                              )}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* 광고코드 목록 */}
+                                  <div className="space-y-2">
+                                    <h5 className="font-semibold text-gray-700 flex items-center gap-2">
+                                      <Hash className="w-4 h-4 text-orange-500" />
+                                      광고코드
+                                    </h5>
+                                    {is4WeekChallenge ? (
+                                      <div className="space-y-1 text-sm">
+                                        {[1, 2, 3, 4].map(week => {
+                                          const code = participant[`week${week}_partnership_code`]
+                                          return (
+                                            <p key={week} className={code ? 'text-green-600' : 'text-orange-500'}>
+                                              {week}주차 광고코드: {code || '미등록'}
+                                            </p>
+                                          )
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-1 text-sm">
+                                        <p className={participant.step1_2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                          STEP1~2 광고코드: {participant.step1_2_partnership_code || '미등록'}
+                                        </p>
+                                        <p className={participant.step3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                          STEP3 광고코드: {participant.step3_partnership_code || '미등록'}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* 전체 최종 확정 버튼 */}
+                                  {allVideosHaveSnsUrl ? (
+                                    <Button
+                                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                                      onClick={async () => {
+                                        if (!allVideosHaveAdCode) {
+                                          const adCodeWarning = is4WeekChallenge
+                                            ? '일부 주차에 광고코드가 없습니다.'
+                                            : '일부 STEP에 광고코드가 없습니다.'
+                                          if (!confirm(`${adCodeWarning}\n\n광고코드 없이 최종 확정하시겠습니까?`)) return
+                                        }
+                                        if (!confirm(`전체 최종 확정하시겠습니까?\n\n크리에이터에게 포인트가 지급됩니다.`)) return
+                                        // 포인트 지급 로직 호출 (videoSubmissions 없는 경우)
+                                        await handleMultiVideoFinalConfirmationWithoutSubmissions(participant, is4WeekChallenge ? 4 : 3)
+                                      }}
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      전체 최종 확정
+                                    </Button>
+                                  ) : (
+                                    <div className="text-center text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                                      ⚠️ 모든 {is4WeekChallenge ? '주차' : 'STEP'}에 SNS URL이 등록되어야 최종 확정이 가능합니다.
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-2 text-blue-600 border-blue-300"
+                                        onClick={() => {
+                                          const editData = {
+                                            participantId: participant.id,
+                                            userId: participant.user_id,
+                                            campaignType: campaign.campaign_type,
+                                            isMultiVideoEdit: true
+                                          }
+                                          if (campaign.campaign_type === '4week_challenge') {
+                                            editData.week1_url = participant.week1_url || ''
+                                            editData.week2_url = participant.week2_url || ''
+                                            editData.week3_url = participant.week3_url || ''
+                                            editData.week4_url = participant.week4_url || ''
+                                            editData.week1_partnership_code = participant.week1_partnership_code || ''
+                                            editData.week2_partnership_code = participant.week2_partnership_code || ''
+                                            editData.week3_partnership_code = participant.week3_partnership_code || ''
+                                            editData.week4_partnership_code = participant.week4_partnership_code || ''
+                                          } else {
+                                            editData.step1_url = participant.step1_url || ''
+                                            editData.step2_url = participant.step2_url || ''
+                                            editData.step3_url = participant.step3_url || ''
+                                            editData.step1_2_partnership_code = participant.step1_2_partnership_code || ''
+                                            editData.step3_partnership_code = participant.step3_partnership_code || ''
+                                          }
+                                          setAdminSnsEditData(editData)
+                                          setShowAdminSnsEditModal(true)
+                                        }}
+                                      >
+                                        <Edit2 className="w-3 h-3 mr-1" />
+                                        관리자 입력
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-center py-4 text-gray-500">
+                                  <p className="text-sm">제출된 영상 파일이 없습니다.</p>
+                                  {participant.content_url && (
+                                    <a
+                                      href={participant.content_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                      콘텐츠 URL 보기
+                                    </a>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
