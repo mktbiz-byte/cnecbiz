@@ -3,7 +3,7 @@
  * Supabase pgcrypto 사용
  */
 
-import { supabaseBiz } from './supabaseClients'
+import { supabaseBiz, supabaseKorea } from './supabaseClients'
 
 // 암호화 키 (환경변수에서 가져오기, 없으면 기본값)
 const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'cnec-default-encryption-key-2024'
@@ -39,13 +39,36 @@ export async function decryptResidentNumber(encryptedText) {
   if (!encryptedText) return null
 
   try {
+    // 1. BIZ DB로 복호화 시도
     const { data, error } = await supabaseBiz.rpc('decrypt_text', {
       encrypted: encryptedText,
       key: ENCRYPTION_KEY
     })
 
-    if (error) throw error
-    return data
+    if (!error && data) return data
+
+    // 2. BIZ DB 실패시 Korea DB로 시도
+    console.log('BIZ DB 복호화 실패, Korea DB로 시도...')
+    if (supabaseKorea) {
+      const { data: koreaData, error: koreaError } = await supabaseKorea.rpc('decrypt_text', {
+        encrypted: encryptedText,
+        key: ENCRYPTION_KEY
+      })
+
+      if (!koreaError && koreaData) return koreaData
+    }
+
+    // 3. 둘 다 실패시 다른 키로 시도 (기본키)
+    const defaultKey = 'cnec-default-encryption-key-2024'
+    if (ENCRYPTION_KEY !== defaultKey) {
+      const { data: retryData } = await supabaseBiz.rpc('decrypt_text', {
+        encrypted: encryptedText,
+        key: defaultKey
+      })
+      if (retryData) return retryData
+    }
+
+    throw new Error('모든 복호화 시도 실패')
   } catch (error) {
     console.error('복호화 오류:', error)
     throw new Error('주민등록번호 복호화에 실패했습니다.')
