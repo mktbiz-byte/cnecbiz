@@ -880,32 +880,6 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                 </Button>
               </div>
 
-              {/* Translation Button */}
-              <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-blue-600" />
-                  <span className="font-semibold text-blue-900">AI {targetLanguageLabel} 번역</span>
-                  <span className="text-sm text-blue-700">- 모든 씬을 자동으로 번역합니다</span>
-                </div>
-                <Button
-                  onClick={handleTranslateAll}
-                  disabled={translating}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {translating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      번역 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      {targetLanguageLabel}로 번역
-                    </>
-                  )}
-                </Button>
-              </div>
-
               {/* Scenes List */}
               <div className="space-y-4">
                 {scenes.map((scene, index) => (
