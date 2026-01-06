@@ -108,12 +108,30 @@ export default function WithdrawalManagement() {
               }
             }
 
+            // user_profiles에서 주민번호 조회
+            let userProfilesWithResident = {}
+            if (userIds.length > 0) {
+              const { data: profilesWithResident } = await supabaseKorea
+                .from('user_profiles')
+                .select('user_id, resident_number_encrypted')
+                .in('user_id', userIds)
+
+              if (profilesWithResident) {
+                profilesWithResident.forEach(p => {
+                  if (p.resident_number_encrypted) {
+                    userProfilesWithResident[p.user_id] = p.resident_number_encrypted
+                  }
+                })
+              }
+            }
+
             const koreaWithdrawals = koreaData.map(w => {
               const profile = userProfiles[w.user_id]
-              // 주민번호 필드 매핑 (여러 필드명 지원)
+              // 주민번호 필드 매핑: withdrawal → user_profiles 순서로 확인
               const residentNumber = w.resident_number_encrypted ||
                                      w.resident_registration_number ||
                                      w.resident_number ||
+                                     userProfilesWithResident[w.user_id] ||
                                      null
               return {
                 ...w,
@@ -209,6 +227,77 @@ export default function WithdrawalManagement() {
           }
         } catch (ptError) {
           console.error('Korea DB point_transactions 조회 오류:', ptError)
+        }
+
+        // 1-3. Korea DB withdrawal_requests 테이블에서도 조회 (주민번호가 여기에 저장됨)
+        try {
+          const { data: krWrData, error: krWrError } = await supabaseKorea
+            .from('withdrawal_requests')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+          if (!krWrError && krWrData && krWrData.length > 0) {
+            console.log('Korea DB (withdrawal_requests)에서 데이터 조회:', krWrData.length, '건')
+
+            // withdrawal_requests의 주민번호를 user_id 기준으로 매핑
+            const wrResidentNumbers = {}
+            krWrData.forEach(w => {
+              if (w.resident_number_encrypted && w.user_id) {
+                wrResidentNumbers[w.user_id] = w.resident_number_encrypted
+              }
+            })
+
+            // 기존 withdrawals 항목에 주민번호 병합 (없는 경우에만)
+            allWithdrawals = allWithdrawals.map(w => {
+              if (!w.resident_registration_number && w.user_id && wrResidentNumbers[w.user_id]) {
+                return {
+                  ...w,
+                  resident_registration_number: wrResidentNumbers[w.user_id]
+                }
+              }
+              return w
+            })
+
+            // 이미 추가된 user_id + amount + 날짜 조합 확인
+            const existingWithdrawals = allWithdrawals.map(w => ({
+              user_id: w.user_id,
+              amount: Math.abs(w.amount || w.requested_amount || 0),
+              date: w.created_at ? new Date(w.created_at).toDateString() : ''
+            }))
+
+            const krWrWithdrawals = krWrData
+              .filter(w => {
+                const wrAmount = Math.abs(w.amount || 0)
+                const wrDate = w.created_at ? new Date(w.created_at).toDateString() : ''
+                const isDuplicate = existingWithdrawals.some(e =>
+                  e.user_id === w.user_id &&
+                  e.amount === wrAmount &&
+                  e.date === wrDate
+                )
+                return !isDuplicate
+              })
+              .map(w => ({
+                ...w,
+                creator_name: w.bank_account_holder || 'Unknown',
+                region: 'korea',
+                requested_points: w.amount,
+                requested_amount: w.amount,
+                final_amount: Math.round((w.amount || 0) * 0.967),
+                currency: 'KRW',
+                account_number: w.bank_account_number,
+                account_holder: w.bank_account_holder,
+                // withdrawal_requests 테이블의 resident_number_encrypted 사용
+                resident_registration_number: w.resident_number_encrypted,
+                source_db: 'korea_wr'
+              }))
+
+            if (krWrWithdrawals.length > 0) {
+              console.log('Korea withdrawal_requests에서 추가된 출금 신청:', krWrWithdrawals.length, '건')
+              allWithdrawals = [...allWithdrawals, ...krWrWithdrawals]
+            }
+          }
+        } catch (krWrError) {
+          console.error('Korea DB withdrawal_requests 조회 오류:', krWrError)
         }
       }
 

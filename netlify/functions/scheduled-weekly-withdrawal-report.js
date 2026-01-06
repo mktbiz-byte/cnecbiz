@@ -244,7 +244,7 @@ exports.handler = async (event, context) => {
       console.error('BIZ DB (withdrawal_requests) 조회 오류:', wrError);
     }
 
-    // Korea DB에서 출금 신청 조회
+    // Korea DB에서 출금 신청 조회 (withdrawals 테이블)
     const { data: koreaWithdrawals, error: koreaError } = await supabaseKorea
       .from('withdrawals')
       .select('*')
@@ -254,8 +254,52 @@ exports.handler = async (event, context) => {
       .order('created_at', { ascending: true });
 
     if (koreaError) {
-      console.error('Korea DB 조회 오류:', koreaError);
+      console.error('Korea DB (withdrawals) 조회 오류:', koreaError);
     }
+
+    // Korea DB에서 출금 신청 조회 (withdrawal_requests 테이블 - 주민번호가 여기에 저장됨)
+    const { data: koreaWrWithdrawals, error: koreaWrError } = await supabaseKorea
+      .from('withdrawal_requests')
+      .select('*')
+      .gte('created_at', monday.toISOString())
+      .lte('created_at', sunday.toISOString())
+      .in('status', ['pending', 'approved'])
+      .order('created_at', { ascending: true });
+
+    if (koreaWrError) {
+      console.error('Korea DB (withdrawal_requests) 조회 오류:', koreaWrError);
+    }
+
+    // Korea DB user_profiles에서 주민번호 조회 (fallback)
+    const allUserIds = [
+      ...((koreaWithdrawals || []).map(w => w.user_id).filter(Boolean)),
+      ...((koreaWrWithdrawals || []).map(w => w.user_id).filter(Boolean))
+    ];
+    const uniqueUserIds = [...new Set(allUserIds)];
+
+    let userProfileResidentNumbers = {};
+    if (uniqueUserIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseKorea
+        .from('user_profiles')
+        .select('user_id, resident_number_encrypted')
+        .in('user_id', uniqueUserIds);
+
+      if (!profilesError && profiles) {
+        profiles.forEach(p => {
+          if (p.resident_number_encrypted) {
+            userProfileResidentNumbers[p.user_id] = p.resident_number_encrypted;
+          }
+        });
+      }
+    }
+
+    // withdrawal_requests에서 주민번호 매핑
+    let wrResidentNumbers = {};
+    (koreaWrWithdrawals || []).forEach(w => {
+      if (w.resident_number_encrypted && w.user_id) {
+        wrResidentNumbers[w.user_id] = w.resident_number_encrypted;
+      }
+    });
 
     // 데이터 통합
     const existingIds = new Set();
@@ -295,6 +339,13 @@ exports.handler = async (event, context) => {
     (koreaWithdrawals || []).forEach(w => {
       if (!existingIds.has(w.id)) {
         existingIds.add(w.id);
+        // 주민번호: withdrawal → withdrawal_requests → user_profiles 순서로 확인
+        const residentNum = w.resident_number_encrypted ||
+                           w.resident_registration_number ||
+                           w.resident_number ||
+                           wrResidentNumbers[w.user_id] ||
+                           userProfileResidentNumbers[w.user_id] ||
+                           null;
         allWithdrawals.push({
           ...w,
           source: 'korea',
@@ -302,7 +353,23 @@ exports.handler = async (event, context) => {
           amount: w.amount || 0,
           bank_name: w.bank_name,
           account_number: w.bank_account_number,
-          resident_registration_number: w.resident_number_encrypted || w.resident_registration_number || w.resident_number
+          resident_registration_number: residentNum
+        });
+      }
+    });
+
+    // Korea DB withdrawal_requests (중복 제외한 것만 추가)
+    (koreaWrWithdrawals || []).forEach(w => {
+      if (!existingIds.has(w.id)) {
+        existingIds.add(w.id);
+        allWithdrawals.push({
+          ...w,
+          source: 'korea_wr',
+          name: w.bank_account_holder || 'Unknown',
+          amount: w.amount || 0,
+          bank_name: w.bank_name,
+          account_number: w.bank_account_number,
+          resident_registration_number: w.resident_number_encrypted || userProfileResidentNumbers[w.user_id] || null
         });
       }
     });
