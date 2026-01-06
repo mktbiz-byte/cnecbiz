@@ -66,6 +66,20 @@ exports.handler = async (event) => {
       return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: '크리에이터 정보를 찾을 수 없습니다.' }) };
     }
 
+    // 2-1. 크리에이터 이메일이 없으면 auth.users에서 가져오기
+    let creatorEmail = creator.email;
+    if (!creatorEmail && creator.user_id) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(creator.user_id);
+      if (authUser?.user?.email) {
+        creatorEmail = authUser.user.email;
+        // featured_creators에도 이메일 업데이트
+        await supabase
+          .from('featured_creators')
+          .update({ email: creatorEmail })
+          .eq('id', creatorId);
+      }
+    }
+
     const creatorName = creator.name || creator.creator_name || '크리에이터';
 
     // 3. 캠페인 정보
@@ -103,7 +117,7 @@ exports.handler = async (event) => {
         campaign_id: campaignId,
         creator_id: creator.user_id || creator.id,
         name: creatorName,
-        email: creator.email,
+        email: creatorEmail,
         phone: creator.phone,
         instagram_handle: creator.instagram_handle,
         instagram_followers: creator.followers,
