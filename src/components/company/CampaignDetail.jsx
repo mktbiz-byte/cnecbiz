@@ -412,44 +412,56 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
-      // Korea DB에서도 applications/campaign_participants 가져오기 (올영/4주챌린지용)
-      let koreaParticipants = []
-      if (supabaseKorea) {
-        // campaign_participants 테이블에서 가져오기
-        const { data: cpData, error: cpError } = await supabaseKorea
-          .from('campaign_participants')
-          .select('*')
-          .eq('campaign_id', id)
+      // BIZ DB 결과
+      let combinedData = data || []
+      console.log('[fetchParticipants] BIZ DB participants:', combinedData.length)
+      if (combinedData.length > 0) {
+        console.log('[fetchParticipants] Participant statuses:', combinedData.map(p => p.status))
+      }
 
-        if (!cpError && cpData && cpData.length > 0) {
-          koreaParticipants = cpData
-          console.log('[fetchParticipants] Korea campaign_participants:', cpData.length)
-        } else {
-          // applications 테이블에서 가져오기
-          const { data: appData, error: appError } = await supabaseKorea
-            .from('applications')
+      // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
+      if (combinedData.length === 0 && supabaseKorea) {
+        console.log('[fetchParticipants] BIZ DB empty, trying Korea DB...')
+
+        // 1. campaign_participants 테이블
+        try {
+          const { data: cpData, error: cpError } = await supabaseKorea
+            .from('campaign_participants')
             .select('*')
             .eq('campaign_id', id)
-            .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'])
 
-          if (!appError && appData && appData.length > 0) {
-            koreaParticipants = appData
-            console.log('[fetchParticipants] Korea applications:', appData.length)
+          if (cpError) {
+            console.log('[fetchParticipants] Korea campaign_participants error:', cpError.message)
+          } else if (cpData && cpData.length > 0) {
+            combinedData = cpData
+            console.log('[fetchParticipants] Got from Korea campaign_participants:', cpData.length)
+          }
+        } catch (e) {
+          console.log('[fetchParticipants] campaign_participants exception:', e.message)
+        }
+
+        // 2. 아직 없으면 applications 테이블
+        if (combinedData.length === 0) {
+          try {
+            const { data: appData, error: appError } = await supabaseKorea
+              .from('applications')
+              .select('*')
+              .eq('campaign_id', id)
+
+            if (appError) {
+              console.log('[fetchParticipants] Korea applications error:', appError.message)
+            } else if (appData && appData.length > 0) {
+              // 상태 필터링
+              combinedData = appData.filter(a =>
+                ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'].includes(a.status)
+              )
+              console.log('[fetchParticipants] Got from Korea applications:', combinedData.length)
+            }
+          } catch (e) {
+            console.log('[fetchParticipants] applications exception:', e.message)
           }
         }
       }
-
-      // BIZ DB에 없으면 Korea DB 데이터 사용
-      let combinedData = data || []
-      if (combinedData.length === 0 && koreaParticipants.length > 0) {
-        console.log('[fetchParticipants] Using Korea DB participants (BIZ DB was empty)')
-        combinedData = koreaParticipants
-      } else if (combinedData.length > 0) {
-        // BIZ DB에 있으면 Korea DB의 SNS URL 등 필드만 병합
-        console.log('[fetchParticipants] Using BIZ DB participants, will merge Korea data later')
-      }
-
-      console.log('[fetchParticipants] Combined participants:', combinedData.length)
 
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
       const { data: allProfiles, error: profilesError } = await supabase
