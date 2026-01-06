@@ -402,7 +402,7 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // 모든 지역에서 applications 테이블 사용, 선정된 크리에이터만 표시
+      // BIZ DB에서 applications 가져오기
       const { data, error } = await supabase
         .from('applications')
         .select('*')
@@ -411,6 +411,45 @@ export default function CampaignDetail() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
+
+      // Korea DB에서도 applications/campaign_participants 가져오기 (올영/4주챌린지용)
+      let koreaParticipants = []
+      if (supabaseKorea) {
+        // campaign_participants 테이블에서 가져오기
+        const { data: cpData, error: cpError } = await supabaseKorea
+          .from('campaign_participants')
+          .select('*')
+          .eq('campaign_id', id)
+
+        if (!cpError && cpData && cpData.length > 0) {
+          koreaParticipants = cpData
+          console.log('[fetchParticipants] Korea campaign_participants:', cpData.length)
+        } else {
+          // applications 테이블에서 가져오기
+          const { data: appData, error: appError } = await supabaseKorea
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', id)
+            .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'])
+
+          if (!appError && appData && appData.length > 0) {
+            koreaParticipants = appData
+            console.log('[fetchParticipants] Korea applications:', appData.length)
+          }
+        }
+      }
+
+      // BIZ DB에 없으면 Korea DB 데이터 사용
+      let combinedData = data || []
+      if (combinedData.length === 0 && koreaParticipants.length > 0) {
+        console.log('[fetchParticipants] Using Korea DB participants (BIZ DB was empty)')
+        combinedData = koreaParticipants
+      } else if (combinedData.length > 0) {
+        // BIZ DB에 있으면 Korea DB의 SNS URL 등 필드만 병합
+        console.log('[fetchParticipants] Using BIZ DB participants, will merge Korea data later')
+      }
+
+      console.log('[fetchParticipants] Combined participants:', combinedData.length)
 
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
       const { data: allProfiles, error: profilesError } = await supabase
@@ -427,7 +466,7 @@ export default function CampaignDetail() {
       }
 
       // user_id가 있는 경우 user_profiles에서 프로필 사진 가져오기
-      const enrichedData = (data || []).map((app) => {
+      const enrichedData = combinedData.map((app) => {
         // 먼저 app에 이미 있는 프로필 사진 확인
         console.log('App fields for', app.applicant_name, ':', {
           user_id: app.user_id,
