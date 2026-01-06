@@ -510,12 +510,13 @@ export default function CampaignDetail() {
         }
       })
 
-      // Korea DB의 campaign_participants에서 partnership_code 가져오기
+      // Korea DB에서 SNS URL 데이터 가져오기 (campaign_participants와 applications 모두 시도)
       let partnershipData = []
       console.log('[fetchParticipants] supabaseKorea available:', !!supabaseKorea)
       console.log('[fetchParticipants] Campaign ID:', id)
 
       if (supabaseKorea) {
+        // 1. 먼저 campaign_participants 테이블에서 시도
         const { data: cpData, error: cpError } = await supabaseKorea
           .from('campaign_participants')
           .select(`
@@ -528,19 +529,45 @@ export default function CampaignDetail() {
           .eq('campaign_id', id)
 
         if (cpError) {
-          console.error('[fetchParticipants] Korea DB error:', cpError)
-        } else if (cpData) {
+          console.log('[fetchParticipants] campaign_participants error:', cpError.message)
+        } else if (cpData && cpData.length > 0) {
           partnershipData = cpData
-          console.log('[fetchParticipants] Korea DB records:', cpData.length)
-          if (cpData.length > 0) {
-            console.log('[fetchParticipants] First record SNS URLs:', {
-              step1: cpData[0].step1_url,
-              step2: cpData[0].step2_url,
-              step3: cpData[0].step3_url,
-              week1: cpData[0].week1_url,
-              week2: cpData[0].week2_url
-            })
+          console.log('[fetchParticipants] campaign_participants records:', cpData.length)
+        }
+
+        // 2. campaign_participants에서 못 찾았으면 applications 테이블에서도 시도
+        if (partnershipData.length === 0) {
+          console.log('[fetchParticipants] Trying Korea DB applications table...')
+          const { data: appData, error: appError } = await supabaseKorea
+            .from('applications')
+            .select(`
+              user_id, partnership_code, sns_upload_url,
+              step1_url, step2_url, step3_url,
+              step1_2_partnership_code, step3_partnership_code,
+              week1_url, week2_url, week3_url, week4_url,
+              week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code
+            `)
+            .eq('campaign_id', id)
+
+          if (appError) {
+            console.log('[fetchParticipants] Korea applications error:', appError.message)
+          } else if (appData && appData.length > 0) {
+            partnershipData = appData
+            console.log('[fetchParticipants] Korea applications records:', appData.length)
           }
+        }
+
+        // 결과 로깅
+        if (partnershipData.length > 0) {
+          console.log('[fetchParticipants] First record SNS URLs:', {
+            step1: partnershipData[0].step1_url,
+            step2: partnershipData[0].step2_url,
+            step3: partnershipData[0].step3_url,
+            week1: partnershipData[0].week1_url,
+            week2: partnershipData[0].week2_url
+          })
+        } else {
+          console.warn('[fetchParticipants] No partnership data found in Korea DB')
         }
       } else {
         console.warn('[fetchParticipants] supabaseKorea not available')
