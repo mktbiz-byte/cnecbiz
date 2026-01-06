@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { maskResidentNumber, decryptResidentNumber } from '../../lib/encryptionHelper'
+import { sendWithdrawalRejectedNotification } from '../../services/notifications/creatorNotifications'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
 
@@ -613,6 +614,47 @@ export default function WithdrawalManagement() {
 
           if (error) throw error
         }
+
+        // 알림톡 발송 (크리에이터 전화번호 조회 후 발송)
+        try {
+          let creatorPhone = null
+          const creatorName = selectedWithdrawal.creator_name || selectedWithdrawal.account_holder || 'Unknown'
+
+          // 전화번호 조회
+          if (selectedWithdrawal.user_id && supabaseKorea) {
+            const { data: profileData } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', selectedWithdrawal.user_id)
+              .maybeSingle()
+
+            creatorPhone = profileData?.phone
+
+            // id로 못 찾으면 user_id로 재시도
+            if (!creatorPhone) {
+              const { data: profileData2 } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone')
+                .eq('user_id', selectedWithdrawal.user_id)
+                .maybeSingle()
+              creatorPhone = profileData2?.phone
+            }
+          }
+
+          if (creatorPhone) {
+            console.log('출금 거절 알림톡 발송:', creatorName, creatorPhone)
+            await sendWithdrawalRejectedNotification(creatorPhone, creatorName, {
+              reason: rejectionReason
+            })
+            console.log('출금 거절 알림톡 발송 완료')
+          } else {
+            console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+          }
+        } catch (notifyError) {
+          console.error('알림톡 발송 오류:', notifyError)
+          // 알림톡 실패해도 거절 처리는 완료된 것으로 처리
+        }
+
         alert('거절되었습니다. 포인트가 환불되었습니다.')
       }
 

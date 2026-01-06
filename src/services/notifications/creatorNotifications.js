@@ -208,6 +208,24 @@ export async function sendWithdrawalCompletedNotification(receiverNum, receiverN
 }
 
 /**
+ * 출금 거절 알림
+ * @param {string} receiverNum - 수신번호
+ * @param {string} receiverName - 수신자 이름
+ * @param {Object} withdrawalData - 출금 데이터 (reason 포함)
+ */
+export async function sendWithdrawalRejectedNotification(receiverNum, receiverName, withdrawalData) {
+  return await sendKakaoNotification(
+    receiverNum,
+    receiverName,
+    POPBILL_TEMPLATES.CREATOR.WITHDRAWAL_REJECTED.code,
+    {
+      '크리에이터명': receiverName,
+      '거절사유': withdrawalData.reason
+    }
+  );
+}
+
+/**
  * 제출 지연 경고 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
@@ -258,5 +276,6 @@ export default {
   sendPointAwardedNotification,
   sendWithdrawalRequestedNotification,
   sendWithdrawalCompletedNotification,
+  sendWithdrawalRejectedNotification,
   sendSubmissionDelayWarningNotification
 };
