@@ -29,7 +29,8 @@ import {
   Trash2,
   Copy,
   Link,
-  ExternalLink
+  ExternalLink,
+  Mail
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 
@@ -140,6 +141,7 @@ export default function CampaignDetail() {
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
+  const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -630,6 +632,22 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
+      // US 지역 디버깅: applications 테이블의 실제 필드 구조 확인
+      if (data && data.length > 0) {
+        console.log('[DEBUG US] applications 테이블 필드 목록:', Object.keys(data[0]))
+        console.log('[DEBUG US] 첫 번째 application 전체 데이터:', JSON.stringify(data[0], null, 2))
+        console.log('[DEBUG US] 주소/연락처 관련 필드 확인:', {
+          phone: data[0].phone,
+          phone_number: data[0].phone_number,
+          creator_phone: data[0].creator_phone,
+          shipping_phone: data[0].shipping_phone,
+          address: data[0].address,
+          shipping_address: data[0].shipping_address,
+          postal_code: data[0].postal_code,
+          detail_address: data[0].detail_address
+        })
+      }
+
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
       const { data: allProfiles, error: profilesError } = await supabase
         .from('user_profiles')
@@ -706,9 +724,18 @@ export default function CampaignDetail() {
             // SNS URL도 병합
             instagram_url: profile.instagram_url || app.instagram_url,
             youtube_url: profile.youtube_url || app.youtube_url,
-            tiktok_url: profile.tiktok_url || app.tiktok_url
+            tiktok_url: profile.tiktok_url || app.tiktok_url,
+            // 연락처/주소 정보 병합 (US 등 해외 지역용)
+            phone: profile.phone || profile.phone_number || app.phone || app.phone_number || '',
+            phone_number: profile.phone_number || profile.phone || app.phone_number || app.phone || '',
+            shipping_phone: profile.phone || profile.phone_number || app.shipping_phone || app.phone || '',
+            creator_phone: profile.phone || profile.phone_number || app.creator_phone || '',
+            address: profile.address || profile.shipping_address || app.address || app.shipping_address || '',
+            shipping_address: profile.shipping_address || profile.address || app.shipping_address || app.address || '',
+            postal_code: profile.postal_code || app.postal_code || '',
+            detail_address: profile.detail_address || profile.address_detail || app.detail_address || ''
           }
-          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url)
+          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url, 'Phone:', enriched.phone, 'Address:', enriched.address)
           return enriched
         }
 
@@ -926,6 +953,61 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error updating tracking number:', error)
       alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
+  // US 캠페인: 배송정보 요청 이메일 발송
+  const handleRequestShippingInfo = async () => {
+    if (participants.length === 0) {
+      alert('선정된 크리에이터가 없습니다.')
+      return
+    }
+
+    // 주소/연락처가 없는 크리에이터만 필터링
+    const creatorsWithoutShipping = participants.filter(p =>
+      !p.phone_number || !p.address
+    )
+
+    if (creatorsWithoutShipping.length === 0) {
+      alert('모든 크리에이터가 이미 배송정보를 입력했습니다.')
+      return
+    }
+
+    if (!confirm(`${creatorsWithoutShipping.length}명의 크리에이터에게 배송정보 입력 요청 이메일을 발송하시겠습니까?`)) {
+      return
+    }
+
+    setRequestingShippingInfo(true)
+    try {
+      const { data: { session } } = await supabaseBiz.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('로그인이 필요합니다')
+      }
+
+      const response = await fetch('/.netlify/functions/request-us-shipping-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          application_ids: creatorsWithoutShipping.map(p => p.id),
+          campaign_id: id
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(result.message)
+      } else {
+        throw new Error(result.error || 'Failed to send emails')
+      }
+    } catch (error) {
+      console.error('Error requesting shipping info:', error)
+      alert('이메일 발송에 실패했습니다: ' + error.message)
+    } finally {
+      setRequestingShippingInfo(false)
     }
   }
 
@@ -4129,6 +4211,19 @@ export default function CampaignDetail() {
                     <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {/* US 캠페인: 배송정보 요청 이메일 발송 */}
+                    {region === 'us' && (
+                      <Button
+                        variant="outline"
+                        onClick={handleRequestShippingInfo}
+                        className="bg-white border-orange-200 hover:bg-orange-50 text-orange-700"
+                        disabled={participants.length === 0 || requestingShippingInfo}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {requestingShippingInfo ? 'Sending...' : 'Request Shipping Info'}
+                      </Button>
+                    )}
+
                     {/* 배송정보 엑셀 다운로드 */}
                     <Button
                       variant="outline"

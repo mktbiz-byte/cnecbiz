@@ -138,6 +138,10 @@ export default function AllCreatorsPage() {
   const [pointGrantReason, setPointGrantReason] = useState('')
   const [grantingPoints, setGrantingPoints] = useState(false)
 
+  // 캠페인 이력 상태
+  const [creatorCampaigns, setCreatorCampaigns] = useState({ inProgress: [], completed: [] })
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
+
   const [creators, setCreators] = useState({
     korea: [],
     japan: [],
@@ -587,9 +591,74 @@ export default function AllCreatorsPage() {
   }
 
   // 프로필 모달 열기
-  const openProfileModal = (creator) => {
+  const openProfileModal = async (creator) => {
     setSelectedCreator(creator)
     setShowProfileModal(true)
+    setCreatorCampaigns({ inProgress: [], completed: [] })
+    setLoadingCampaigns(true)
+
+    try {
+      // 지역에 따른 Supabase 클라이언트 선택
+      const getSupabaseClient = (region) => {
+        switch (region) {
+          case 'korea': return supabaseKorea
+          case 'japan': return supabaseJapan
+          case 'us': return supabaseUS
+          default: return supabaseKorea
+        }
+      }
+
+      const supabase = getSupabaseClient(creator.dbRegion)
+
+      // applications 테이블에서 크리에이터의 캠페인 이력 조회
+      const { data: applications, error } = await supabase
+        .from('applications')
+        .select(`
+          id,
+          status,
+          created_at,
+          campaign_id,
+          campaigns (
+            id,
+            title,
+            brand,
+            status,
+            created_at
+          )
+        `)
+        .eq('user_id', creator.user_id || creator.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Failed to fetch campaign history:', error)
+        setLoadingCampaigns(false)
+        return
+      }
+
+      // 진행중/완료 분류
+      const inProgressStatuses = ['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected']
+      const completedStatuses = ['completed']
+
+      const inProgress = applications?.filter(app =>
+        inProgressStatuses.includes(app.status) && app.campaigns
+      ).map(app => ({
+        ...app,
+        campaign: app.campaigns
+      })) || []
+
+      const completed = applications?.filter(app =>
+        completedStatuses.includes(app.status) && app.campaigns
+      ).map(app => ({
+        ...app,
+        campaign: app.campaigns
+      })) || []
+
+      setCreatorCampaigns({ inProgress, completed })
+    } catch (err) {
+      console.error('Error fetching campaign history:', err)
+    } finally {
+      setLoadingCampaigns(false)
+    }
   }
 
   // 메시지 발송 모달 열기
@@ -1500,6 +1569,102 @@ export default function AllCreatorsPage() {
                   </p>
                 </div>
               )}
+
+              {/* 캠페인 이력 */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" /> 캠페인 이력
+                </h4>
+
+                {loadingCampaigns ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    <span className="ml-2 text-gray-500 text-sm">캠페인 이력 조회중...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 진행중인 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-blue-600 mb-2 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> 진행중 ({creatorCampaigns.inProgress.length})
+                      </h5>
+                      {creatorCampaigns.inProgress.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.inProgress.map((app) => (
+                            <div
+                              key={app.id}
+                              className="bg-white border border-blue-100 rounded-lg p-3 hover:border-blue-300 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setShowProfileModal(false)
+                                navigate(`/company/campaigns/${app.campaign_id}?region=${selectedCreator.dbRegion}`)
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                    {app.status === 'selected' && '선정됨'}
+                                    {app.status === 'approved' && '승인됨'}
+                                    {app.status === 'filming' && '촬영중'}
+                                    {app.status === 'video_submitted' && '영상제출'}
+                                    {app.status === 'revision_requested' && '수정요청'}
+                                    {app.status === 'guide_confirmation' && '가이드확인'}
+                                    {app.status === 'virtual_selected' && '가상선정'}
+                                    {!['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected'].includes(app.status) && app.status}
+                                  </span>
+                                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">진행중인 캠페인이 없습니다.</p>
+                      )}
+                    </div>
+
+                    {/* 완료된 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-emerald-600 mb-2 flex items-center gap-1">
+                        <CheckSquare className="w-3 h-3" /> 완료 ({creatorCampaigns.completed.length})
+                      </h5>
+                      {creatorCampaigns.completed.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.completed.slice(0, 5).map((app) => (
+                            <div
+                              key={app.id}
+                              className="bg-white border border-emerald-100 rounded-lg p-3 hover:border-emerald-300 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setShowProfileModal(false)
+                                navigate(`/company/campaigns/${app.campaign_id}?region=${selectedCreator.dbRegion}`)
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">완료</span>
+                                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {creatorCampaigns.completed.length > 5 && (
+                            <p className="text-xs text-gray-400 text-center">외 {creatorCampaigns.completed.length - 5}건 더 있음</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">완료된 캠페인이 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

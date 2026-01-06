@@ -83,6 +83,7 @@ import FeaturedCreatorsPage from './components/company/FeaturedCreatorsPage'
 import FeaturedCreatorProfile from './components/company/FeaturedCreatorProfile'
 import CreatorProfilePage from './components/company/CreatorProfilePage'
 import WithdrawalRequest from './components/creator/WithdrawalRequest'
+import USShippingInfoForm from './components/creator/USShippingInfoForm'
 import TaxOfficePage from './components/tax/TaxOfficePage'
 import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
@@ -124,6 +125,7 @@ function App() {
         <Route path="/campaigns/intro/4week" element={<FourWeekChallengeCampaignIntro />} />
         <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/invitation/:id" element={<InvitationLanding />} />
+        <Route path="/us-shipping-info" element={<USShippingInfoForm />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />
         <Route path="/signup" element={<SignupWithVerification />} />
