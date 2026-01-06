@@ -87,6 +87,7 @@ import FourWeekGuideManager from './FourWeekGuideManager'
 
 import FourWeekGuideViewer from './FourWeekGuideViewer'
 import PersonalizedGuideViewer from './PersonalizedGuideViewer'
+import USJapanGuideViewer from './USJapanGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
@@ -5710,56 +5711,145 @@ JSON만 출력.`
                               </div>
                             )}
 
-                            {/* 촬영 씬 */}
+                            {/* 촬영 씬 - Support both shooting_scenes and scenes format */}
                             <div className="bg-gray-50 p-4 rounded-lg">
-                              <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
+                              <h4 className="font-semibold mb-3">
+                                촬영 씬 ({(guideData.scenes || guideData.shooting_scenes)?.length || 0}개)
+                                {(region === 'us' || region === 'japan') && (
+                                  <span className="ml-2 text-sm font-normal text-blue-600">
+                                    ({region === 'japan' ? '일본어' : '영어'} 번역 포함)
+                                  </span>
+                                )}
+                              </h4>
                               <div className="space-y-4">
-                                {(guideData.shooting_scenes || []).map((scene, idx) => (
-                                  <div key={idx} className="bg-white p-3 rounded border">
-                                    <div className="font-medium text-sm mb-2">씬 {scene.order}</div>
-                                    <div className="space-y-2 text-sm">
-                                      <div>
-                                        <span className="text-gray-600">타입:</span>
+                                {(guideData.scenes || guideData.shooting_scenes || []).map((scene, idx) => {
+                                  const scenesKey = guideData.scenes ? 'scenes' : 'shooting_scenes';
+                                  const isUSJapan = region === 'us' || region === 'japan';
+                                  const targetLang = region === 'japan' ? '일본어' : '영어';
+
+                                  return (
+                                    <div key={idx} className="bg-white p-4 rounded border">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <span className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                          {scene.order || idx + 1}
+                                        </span>
                                         <input
                                           type="text"
                                           value={scene.scene_type || ''}
                                           onChange={(e) => {
                                             const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].scene_type = e.target.value;
+                                            updated[scenesKey][idx].scene_type = e.target.value;
                                             setEditedGuideContent(JSON.stringify(updated, null, 2));
                                           }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
+                                          className="px-3 py-1.5 border rounded-lg text-sm flex-1"
+                                          placeholder="씬 타입 (예: 훅, 제품 소개)"
                                         />
                                       </div>
-                                      <div>
-                                        <span className="text-gray-600">장면 설명:</span>
-                                        <textarea
-                                          value={scene.scene_description || ''}
-                                          onChange={(e) => {
-                                            const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].scene_description = e.target.value;
-                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
-                                          }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
-                                          rows={2}
-                                        />
+
+                                      {/* Scene Description - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">장면 설명 (한국어)</label>
+                                          <textarea
+                                            value={scene.scene_description || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].scene_description = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg resize-none"
+                                            rows={3}
+                                            placeholder="촬영해야 할 장면 설명"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-blue-600 font-medium mb-1">장면 설명 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.scene_description_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].scene_description_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-blue-200 rounded-lg resize-none bg-blue-50"
+                                              rows={3}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
-                                      <div>
-                                        <span className="text-gray-600">대사:</span>
-                                        <textarea
-                                          value={scene.dialogue || ''}
-                                          onChange={(e) => {
-                                            const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].dialogue = e.target.value;
-                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
-                                          }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
-                                          rows={2}
-                                        />
+
+                                      {/* Dialogue - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">대사 (한국어)</label>
+                                          <textarea
+                                            value={scene.dialogue || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].dialogue = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg resize-none"
+                                            rows={3}
+                                            placeholder="크리에이터가 말할 대사"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-green-600 font-medium mb-1">대사 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.dialogue_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].dialogue_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-green-200 rounded-lg resize-none bg-green-50"
+                                              rows={3}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Shooting Tip - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">촬영 팁 (한국어)</label>
+                                          <input
+                                            type="text"
+                                            value={scene.shooting_tip || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].shooting_tip = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                            placeholder="촬영 팁 (선택)"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-amber-600 font-medium mb-1">촬영 팁 ({targetLang})</label>
+                                            <input
+                                              type="text"
+                                              value={scene.shooting_tip_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].shooting_tip_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-amber-200 rounded-lg bg-amber-50"
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
 
@@ -5798,33 +5888,74 @@ JSON만 출력.`
                     })()}
                   </div>
                 ) : (
-                  <PersonalizedGuideViewer
-                    guide={selectedGuide.personalized_guide}
-                    creator={selectedGuide}
-                    onSave={async (updatedGuide) => {
-                      const { error } = await supabase
-                        .from('applications')
-                        .update({
-                          personalized_guide: updatedGuide
-                        })
-                        .eq('id', selectedGuide.id)
+                  /* Use different viewer based on region */
+                  (region === 'us' || region === 'japan') ? (
+                    <USJapanGuideViewer
+                      guide={selectedGuide.personalized_guide}
+                      creator={selectedGuide}
+                      region={region}
+                      onSave={async (updatedGuide) => {
+                        // US/Japan use API to bypass RLS
+                        try {
+                          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              region: region,
+                              applicationId: selectedGuide.id,
+                              guide: updatedGuide
+                            })
+                          })
 
-                      if (error) {
-                        console.error('가이드 저장 실패:', error)
-                        throw new Error('데이터베이스 저장 실패: ' + error.message)
-                      }
+                          if (!saveResponse.ok) {
+                            const errorData = await saveResponse.json()
+                            throw new Error(errorData.error || 'Failed to save guide')
+                          }
 
-                      // Update local state
-                      setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
-                      const updatedParticipants = participants.map(p =>
-                        p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
-                      )
-                      setParticipants(updatedParticipants)
+                          // Update local state
+                          setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                          const updatedParticipants = participants.map(p =>
+                            p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                          )
+                          setParticipants(updatedParticipants)
 
-                      // Refresh participants to ensure data consistency
-                      await fetchParticipants()
-                    }}
-                  />
+                          // Refresh participants to ensure data consistency
+                          await fetchParticipants()
+                        } catch (error) {
+                          console.error('가이드 저장 실패:', error)
+                          throw new Error('데이터베이스 저장 실패: ' + error.message)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <PersonalizedGuideViewer
+                      guide={selectedGuide.personalized_guide}
+                      creator={selectedGuide}
+                      onSave={async (updatedGuide) => {
+                        const { error } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: updatedGuide
+                          })
+                          .eq('id', selectedGuide.id)
+
+                        if (error) {
+                          console.error('가이드 저장 실패:', error)
+                          throw new Error('데이터베이스 저장 실패: ' + error.message)
+                        }
+
+                        // Update local state
+                        setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                        const updatedParticipants = participants.map(p =>
+                          p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                        )
+                        setParticipants(updatedParticipants)
+
+                        // Refresh participants to ensure data consistency
+                        await fetchParticipants()
+                      }}
+                    />
+                  )
                 )}
               </div>
             </div>
@@ -5874,13 +6005,41 @@ JSON만 출력.`
                     <Button
                       onClick={async () => {
                         try {
-                          await supabase
-                            .from('applications')
-                            .update({
-                              personalized_guide: editedGuideContent
+                          // Parse the content to ensure it's valid JSON if it's a string
+                          let guideToSave = editedGuideContent
+                          if (typeof editedGuideContent === 'string') {
+                            try {
+                              guideToSave = JSON.parse(editedGuideContent)
+                            } catch (e) {
+                              // If parse fails, keep as string
+                            }
+                          }
+
+                          // US/Japan use API to bypass RLS
+                          if (region === 'us' || region === 'japan') {
+                            const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                region: region,
+                                applicationId: selectedGuide.id,
+                                guide: guideToSave
+                              })
                             })
-                            .eq('id', selectedGuide.id)
-                          
+
+                            if (!saveResponse.ok) {
+                              const errorData = await saveResponse.json()
+                              throw new Error(errorData.error || 'Failed to save guide')
+                            }
+                          } else {
+                            await supabase
+                              .from('applications')
+                              .update({
+                                personalized_guide: guideToSave
+                              })
+                              .eq('id', selectedGuide.id)
+                          }
+
                           alert('가이드가 저장되었습니다.')
                           setEditingGuide(false)
                           await fetchParticipants()
@@ -5888,7 +6047,7 @@ JSON만 출력.`
                           setSelectedGuide(null)
                         } catch (error) {
                           console.error('Error saving guide:', error)
-                          alert('저장에 실패했습니다.')
+                          alert('저장에 실패했습니다: ' + error.message)
                         }
                       }}
                       className="bg-green-600 hover:bg-green-700"
@@ -5902,7 +6061,13 @@ JSON만 출력.`
                       variant="outline"
                       onClick={() => {
                         setEditingGuide(true)
-                        setEditedGuideContent(selectedGuide.personalized_guide || '')
+                        // Properly convert object to JSON string if needed
+                        const guide = selectedGuide.personalized_guide
+                        if (typeof guide === 'object' && guide !== null) {
+                          setEditedGuideContent(JSON.stringify(guide, null, 2))
+                        } else {
+                          setEditedGuideContent(guide || '')
+                        }
                       }}
                       className="border-purple-600 text-purple-600 hover:bg-purple-50"
                     >
