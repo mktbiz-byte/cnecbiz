@@ -497,6 +497,16 @@ export default function AdminCampaignDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* US/Japan: Scene Guide Editor Button */}
+              {(region === 'us' || region === 'japan') && (
+                <Button
+                  onClick={() => navigate(`/admin/campaigns/${id}/scene-guide?id=${id}&region=${region}`)}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  씬 가이드 작성
+                </Button>
+              )}
               <Button
                 onClick={() => navigate(`/admin/campaigns/${id}/edit?region=${region}`)}
                 className="bg-blue-600 hover:bg-blue-700"

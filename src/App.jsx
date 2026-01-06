@@ -25,6 +25,7 @@ import CampaignGuideEditor from './components/company/CampaignGuideEditor'
 import CampaignConfirmation from './components/company/CampaignConfirmation'
 import CampaignGuideJapan from './components/company/CampaignGuideJapan'
 import CampaignGuideUS from './components/company/CampaignGuideUS'
+import CompanySceneGuideEditor from './components/company/CompanySceneGuideEditor'
 import AdvancedGuideJapan from './components/company/AdvancedGuideJapan'
 import GuideReview from './components/company/GuideReview'
 import CampaignGuideReview from './components/company/CampaignGuideReview'
@@ -62,6 +63,7 @@ import ConsultationManagement from './components/admin/ConsultationManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
+import SceneGuideEditor from './components/admin/SceneGuideEditor'
 import AdminCampaignGuides from './components/admin/AdminCampaignGuides'
 import GuidePDFManager from './components/admin/GuidePDFManager'
 import CreatorsManagement from './components/admin/CreatorsManagement'
@@ -144,6 +146,7 @@ function App() {
         <Route path="/company/campaigns/confirmation" element={<CampaignConfirmation />} />
         <Route path="/company/campaigns/guide/japan" element={<CampaignGuideJapan />} />
         <Route path="/company/campaigns/guide/us" element={<CampaignGuideUS />} />
+        <Route path="/company/campaigns/scene-guide" element={<CompanySceneGuideEditor />} />
         <Route path="/company/campaigns/guide/japan/advanced" element={<AdvancedGuideJapan />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns/guide/oliveyoung" element={<CampaignGuideOliveYoung />} />
@@ -200,6 +203,7 @@ function App() {
         <Route path="/admin/campaigns/:id" element={<AdminCampaignDetail />} />
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaigns/:id/guides" element={<AdminCampaignGuides />} />
+        <Route path="/admin/campaigns/:id/scene-guide" element={<SceneGuideEditor />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<FeaturedCreatorManagementPageNew />} />
