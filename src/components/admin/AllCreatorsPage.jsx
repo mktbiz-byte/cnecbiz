@@ -174,6 +174,11 @@ export default function AllCreatorsPage() {
   const [pointReason, setPointReason] = useState('')
   const [savingPoints, setSavingPoints] = useState(false)
 
+  // 프로필 등록 요청 상태
+  const [showProfileRequestModal, setShowProfileRequestModal] = useState(false)
+  const [profileRequestOptions, setProfileRequestOptions] = useState({ kakao: true, email: true })
+  const [sendingProfileRequest, setSendingProfileRequest] = useState(false)
+
   useEffect(() => {
     checkAuth()
     fetchAllCreators()
@@ -739,6 +744,138 @@ export default function AllCreatorsPage() {
     }
   }
 
+  // 한국 크리에이터에게 프로필 등록 요청 발송
+  const handleSendProfileRegistrationRequest = async () => {
+    const koreanCreators = selectedCreators.filter(c => c.dbRegion === 'korea')
+    if (koreanCreators.length === 0) {
+      alert('선택된 한국 크리에이터가 없습니다.')
+      return
+    }
+
+    if (!profileRequestOptions.kakao && !profileRequestOptions.email) {
+      alert('발송 방식을 하나 이상 선택해주세요.')
+      return
+    }
+
+    setSendingProfileRequest(true)
+    let kakaoSuccessCount = 0
+    let kakaoFailCount = 0
+    let emailSuccessCount = 0
+    let emailFailCount = 0
+
+    try {
+      for (const creator of koreanCreators) {
+        const creatorName = creator.name || '크리에이터'
+
+        // 카카오 알림톡 발송
+        if (profileRequestOptions.kakao && creator.phone) {
+          try {
+            const phoneNumber = creator.phone.replace(/-/g, '')
+            const response = await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: phoneNumber,
+                receiverName: creatorName,
+                templateCode: '025120000931',
+                variables: {
+                  '회원명': creatorName
+                }
+              })
+            })
+            const result = await response.json()
+            if (result.success) {
+              kakaoSuccessCount++
+            } else {
+              kakaoFailCount++
+              console.error(`카카오 발송 실패 (${creatorName}):`, result.error)
+            }
+          } catch (err) {
+            kakaoFailCount++
+            console.error(`카카오 발송 오류 (${creatorName}):`, err)
+          }
+        }
+
+        // 이메일 발송
+        if (profileRequestOptions.email && creator.email) {
+          try {
+            const response = await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: creator.email,
+                subject: '[크넥] 기업의 주목도를 3배 높이는 프로필 설정, 하셨나요?',
+                html: `
+                  <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                      <h1 style="color: white; margin: 0; font-size: 24px;">CNEC</h1>
+                      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">프로필 등록 안내</p>
+                    </div>
+                    <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+                      <p style="color: #4b5563; line-height: 1.8;">안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p style="color: #4b5563; line-height: 1.8;">회원 가입을 축하 드립니다.</p>
+                      <p style="color: #4b5563; line-height: 1.8;">기업들이 <strong>${creatorName}</strong>님의 역량을 한눈에 파악하고 더 많은 기회를 제안할 수 있도록 프로필을 완성해주세요.</p>
+
+                      <div style="background: #fef3c7; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="color: #92400e; font-weight: bold; margin: 0 0 10px 0;">💡 특히, 프로필 사진은 기업의 제안율을 높이는 가장 중요한 요소입니다.</p>
+                        <p style="color: #92400e; margin: 0;">지금 바로 사진을 등록하고 기업의 러브콜을 받아보세요!</p>
+                      </div>
+
+                      <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="color: #1f2937; font-weight: bold; margin: 0 0 10px 0;">📝 지금 해야 할 일:</p>
+                        <ul style="color: #4b5563; margin: 0; padding-left: 20px;">
+                          <li style="margin-bottom: 5px;">프로필 사진 등록 (필수!)</li>
+                          <li>피부타입 및 SNS 정보 입력!</li>
+                        </ul>
+                      </div>
+
+                      <p style="color: #4b5563; line-height: 1.8;">기업은 크리에이터의 프로필을 확인할 수 있습니다.</p>
+                      <p style="color: #ef4444; line-height: 1.8;"><strong>프로필이 없을 경우 지원시 선정률이 낮을 수 있습니다.</strong></p>
+
+                      <div style="text-align: center; margin-top: 30px;">
+                        <a href="https://cnectotal.netlify.app/creator/profile" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">프로필 등록하기</a>
+                      </div>
+                    </div>
+                    <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; text-align: center;">
+                      <p style="color: #9ca3af; font-size: 12px; margin: 0;">© 2025 CNEC. All rights reserved.</p>
+                      <p style="color: #9ca3af; font-size: 12px; margin: 5px 0 0 0;">문의: 1833-6025</p>
+                    </div>
+                  </div>
+                `
+              })
+            })
+            const result = await response.json()
+            if (result.success !== false) {
+              emailSuccessCount++
+            } else {
+              emailFailCount++
+              console.error(`이메일 발송 실패 (${creatorName}):`, result.error)
+            }
+          } catch (err) {
+            emailFailCount++
+            console.error(`이메일 발송 오류 (${creatorName}):`, err)
+          }
+        }
+      }
+
+      let resultMessage = '발송 완료!\n'
+      if (profileRequestOptions.kakao) {
+        resultMessage += `알림톡: 성공 ${kakaoSuccessCount}건, 실패 ${kakaoFailCount}건\n`
+      }
+      if (profileRequestOptions.email) {
+        resultMessage += `이메일: 성공 ${emailSuccessCount}건, 실패 ${emailFailCount}건`
+      }
+      alert(resultMessage)
+      setShowProfileRequestModal(false)
+      setSelectedCreators([])
+    } catch (error) {
+      console.error('프로필 등록 요청 발송 오류:', error)
+      alert('프로필 등록 요청 발송 중 오류가 발생했습니다.')
+    } finally {
+      setSendingProfileRequest(false)
+    }
+  }
+
   const openReviewModal = (creator, region) => {
     setSelectedCreator({ ...creator, dbRegion: region })
     setReviewData({ rating: creator.rating || 0, review: creator.company_review || '' })
@@ -1295,7 +1432,7 @@ export default function AllCreatorsPage() {
                   </div>
                   <div className="flex gap-2">
                     {selectedCreators.length > 0 && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm text-gray-600 bg-indigo-100 px-3 py-1 rounded-full">
                           {selectedCreators.length}명 선택됨
                         </span>
@@ -1306,6 +1443,19 @@ export default function AllCreatorsPage() {
                           <Send className="w-4 h-4 mr-2" />
                           메시지 발송
                         </Button>
+                        {/* 한국 크리에이터가 선택된 경우에만 프로필 등록 요청 버튼 표시 */}
+                        {selectedCreators.some(c => c.dbRegion === 'korea') && (
+                          <Button
+                            onClick={() => {
+                              setProfileRequestOptions({ kakao: true, email: true })
+                              setShowProfileRequestModal(true)
+                            }}
+                            className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                          >
+                            <User className="w-4 h-4 mr-2" />
+                            프로필 등록 요청
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           onClick={() => setSelectedCreators([])}
@@ -2166,6 +2316,117 @@ export default function AllCreatorsPage() {
                 <>
                   <Coins className="w-4 h-4 mr-2" />
                   {parseInt(pointGrantAmount) < 0 ? '포인트 차감' : '포인트 지급'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 프로필 등록 요청 모달 */}
+      <Dialog open={showProfileRequestModal} onOpenChange={setShowProfileRequestModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-yellow-500" />
+              프로필 등록 요청 발송
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* 발송 대상 안내 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-sm text-blue-800">
+                <strong>📢 발송 대상:</strong> 선택된 <strong>한국 크리에이터</strong>에게만 발송됩니다.
+              </p>
+              <p className="text-xs text-blue-600 mt-2">
+                선택됨: {selectedCreators.length}명 중 한국 크리에이터 {selectedCreators.filter(c => c.dbRegion === 'korea').length}명
+              </p>
+            </div>
+
+            {/* 발송 방식 선택 */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">발송 방식</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all hover:border-yellow-300 ${profileRequestOptions.kakao ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}">
+                  <input
+                    type="checkbox"
+                    checked={profileRequestOptions.kakao}
+                    onChange={(e) => setProfileRequestOptions(prev => ({ ...prev, kakao: e.target.checked }))}
+                    className="w-5 h-5 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
+                      <MessageSquare className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">카카오 알림톡</p>
+                      <p className="text-xs text-gray-500">전화번호가 있는 크리에이터에게 발송</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all hover:border-indigo-300 ${profileRequestOptions.email ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'}">
+                  <input
+                    type="checkbox"
+                    checked={profileRequestOptions.email}
+                    onChange={(e) => setProfileRequestOptions(prev => ({ ...prev, email: e.target.checked }))}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">이메일</p>
+                      <p className="text-xs text-gray-500">이메일이 있는 크리에이터에게 발송</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* 발송 내용 미리보기 */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">📋 발송 내용 미리보기</p>
+              <div className="text-xs text-gray-600 space-y-1 bg-white p-3 rounded-lg border">
+                <p><strong>[크넥] 기업의 주목도를 3배 높이는 프로필 설정, 하셨나요?</strong></p>
+                <p>안녕하세요, [크리에이터명]님 회원 가입을 축하 드립니다.</p>
+                <p>기업들이 역량을 한눈에 파악하고 더 많은 기회를 제안할 수 있도록 프로필을 완성해주세요.</p>
+                <p className="text-amber-600">• 프로필 사진 등록 (필수!)</p>
+                <p className="text-amber-600">• 피부타입 및 SNS 정보 입력!</p>
+              </div>
+            </div>
+
+            {/* 주의사항 */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-sm text-amber-800">
+                <strong>⚠️ 주의사항</strong><br />
+                • 한국 크리에이터에게만 발송됩니다<br />
+                • 알림톡은 전화번호가 있는 크리에이터에게만 발송됩니다<br />
+                • 이메일은 이메일 주소가 있는 크리에이터에게만 발송됩니다
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowProfileRequestModal(false)} disabled={sendingProfileRequest}>
+              취소
+            </Button>
+            <Button
+              onClick={handleSendProfileRegistrationRequest}
+              disabled={sendingProfileRequest || (!profileRequestOptions.kakao && !profileRequestOptions.email)}
+              className="bg-yellow-500 hover:bg-yellow-600"
+            >
+              {sendingProfileRequest ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  발송 중...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  발송하기 ({selectedCreators.filter(c => c.dbRegion === 'korea').length}명)
                 </>
               )}
             </Button>
