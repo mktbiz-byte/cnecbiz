@@ -3,7 +3,7 @@
  * 등급 계산, 뱃지 관리, 등급 업데이트 기능 제공
  */
 
-import { supabaseBiz, getSupabaseClient } from '../lib/supabaseClients'
+import { supabaseKorea, getSupabaseClient } from '../lib/supabaseClients'
 
 // 등급 정의
 export const GRADE_LEVELS = {
@@ -272,7 +272,7 @@ export function calculateInitialGrade(creator) {
 export async function saveCreatorGrade(creatorId, gradeData) {
   try {
     // featured_creators 테이블 업데이트
-    const { error: updateError } = await supabaseBiz
+    const { error: updateError } = await supabaseKorea
       .from('featured_creators')
       .update({
         cnec_grade_level: gradeData.gradeLevel,
@@ -285,7 +285,7 @@ export async function saveCreatorGrade(creatorId, gradeData) {
     if (updateError) throw updateError
 
     // creator_grades 테이블 upsert
-    const { error: gradeError } = await supabaseBiz
+    const { error: gradeError } = await supabaseKorea
       .from('creator_grades')
       .upsert({
         creator_id: creatorId,
@@ -322,7 +322,7 @@ export async function saveCreatorGrade(creatorId, gradeData) {
 export async function checkIfFeaturedCreator(creatorUserId, region = 'korea') {
   try {
     // featured_creators 테이블에서 확인
-    const { data, error } = await supabaseBiz
+    const { data, error } = await supabaseKorea
       .from('featured_creators')
       .select('id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended, is_active')
       .eq('source_user_id', creatorUserId)
@@ -441,7 +441,7 @@ export async function registerFeaturedCreator(creator, region) {
       is_cnec_recommended: initialGrade.gradeLevel >= 2
     }
 
-    const { data, error } = await supabaseBiz
+    const { data, error } = await supabaseKorea
       .from('featured_creators')
       .insert([featuredCreator])
       .select()
