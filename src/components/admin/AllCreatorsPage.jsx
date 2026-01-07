@@ -322,7 +322,7 @@ export default function AllCreatorsPage() {
     try {
       const { data, error } = await supabaseBiz
         .from('featured_creators')
-        .select('source_user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended')
+        .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended')
         .eq('is_active', true)
 
       if (error) {
@@ -338,7 +338,7 @@ export default function AllCreatorsPage() {
 
   // 크리에이터의 등급 정보 가져오기
   const getCreatorGrade = (creatorId) => {
-    const featured = featuredCreators.find(fc => fc.source_user_id === creatorId)
+    const featured = featuredCreators.find(fc => fc.user_id === creatorId)
     if (featured && featured.cnec_grade_level) {
       return {
         level: featured.cnec_grade_level,
@@ -357,7 +357,7 @@ export default function AllCreatorsPage() {
     setSavingGrade(true)
     try {
       const gradeInfo = GRADE_LEVELS[selectedGradeLevel]
-      const existingFeatured = featuredCreators.find(fc => fc.source_user_id === selectedCreator.id)
+      const existingFeatured = featuredCreators.find(fc => fc.user_id === selectedCreator.id)
 
       if (existingFeatured) {
         // 기존 등급 업데이트
@@ -368,30 +368,24 @@ export default function AllCreatorsPage() {
             cnec_grade_name: gradeInfo.name,
             is_cnec_recommended: selectedGradeLevel >= 2
           })
-          .eq('source_user_id', selectedCreator.id)
+          .eq('user_id', selectedCreator.id)
 
         if (error) throw error
       } else {
-        // 새로 등록
-        const regionMap = { korea: 'KR', japan: 'JP', us: 'US', taiwan: 'TW' }
+        // 새로 등록 (featured_creators 테이블 구조에 맞게)
         const { error } = await supabaseBiz
           .from('featured_creators')
           .insert({
-            source_user_id: selectedCreator.id,
-            source_country: regionMap[selectedCreator.dbRegion] || 'KR',
+            user_id: selectedCreator.id,
             name: selectedCreator.name || selectedCreator.channel_name || '',
-            email: selectedCreator.email,
-            phone: selectedCreator.phone,
-            profile_image_url: selectedCreator.profile_image,
-            instagram_handle: selectedCreator.instagram_url?.split('/').pop(),
+            profile_photo_url: selectedCreator.profile_image,
+            instagram_url: selectedCreator.instagram_url,
             instagram_followers: selectedCreator.instagram_followers || 0,
-            youtube_handle: selectedCreator.youtube_url?.split('/').pop(),
+            youtube_url: selectedCreator.youtube_url,
             youtube_subscribers: selectedCreator.youtube_subscribers || 0,
-            tiktok_handle: selectedCreator.tiktok_url?.split('/').pop(),
+            tiktok_url: selectedCreator.tiktok_url,
             tiktok_followers: selectedCreator.tiktok_followers || 0,
-            primary_country: regionMap[selectedCreator.dbRegion] || 'KR',
-            active_regions: [selectedCreator.dbRegion],
-            featured_type: 'manual',
+            bio: selectedCreator.bio,
             is_active: true,
             cnec_grade_level: selectedGradeLevel,
             cnec_grade_name: gradeInfo.name,
