@@ -317,10 +317,10 @@ export default function AllCreatorsPage() {
     }
   }
 
-  // 등급 크리에이터 데이터 로드 (brand site DB)
+  // 등급 크리에이터 데이터 로드 (Korea DB)
   const fetchFeaturedCreators = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('featured_creators')
         .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended')
         .eq('is_active', true)
@@ -361,7 +361,7 @@ export default function AllCreatorsPage() {
 
       if (existingFeatured) {
         // 기존 등급 업데이트
-        const { error } = await supabaseBiz
+        const { error } = await supabaseKorea
           .from('featured_creators')
           .update({
             cnec_grade_level: selectedGradeLevel,
@@ -373,7 +373,7 @@ export default function AllCreatorsPage() {
         if (error) throw error
       } else {
         // 새로 등록 (featured_creators 테이블 구조에 맞게)
-        const { error } = await supabaseBiz
+        const { error } = await supabaseKorea
           .from('featured_creators')
           .insert({
             user_id: selectedCreator.id,
@@ -415,10 +415,10 @@ export default function AllCreatorsPage() {
 
     setSavingGrade(true)
     try {
-      const { error } = await supabaseBiz
+      const { error } = await supabaseKorea
         .from('featured_creators')
         .delete()
-        .eq('source_user_id', selectedCreator.id)
+        .eq('user_id', selectedCreator.id)
 
       if (error) throw error
 
