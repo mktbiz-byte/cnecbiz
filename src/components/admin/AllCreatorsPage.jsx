@@ -396,12 +396,11 @@ export default function AllCreatorsPage() {
         if (error) throw error
       }
 
-      // user_profiles 테이블에도 등급 동기화
+      // user_profiles 테이블에도 등급 동기화 (cnec_grade_level만 존재)
       const { error: profileError } = await supabaseKorea
         .from('user_profiles')
         .update({
-          cnec_grade_level: selectedGradeLevel,
-          cnec_grade_name: gradeInfo.name
+          cnec_grade_level: selectedGradeLevel
         })
         .eq('id', selectedCreator.id)
 
@@ -435,12 +434,11 @@ export default function AllCreatorsPage() {
 
       if (error) throw error
 
-      // user_profiles 테이블에서도 등급 초기화
+      // user_profiles 테이블에서도 등급 초기화 (cnec_grade_level만 존재)
       const { error: profileError } = await supabaseKorea
         .from('user_profiles')
         .update({
-          cnec_grade_level: null,
-          cnec_grade_name: null
+          cnec_grade_level: null
         })
         .eq('id', selectedCreator.id)
 
