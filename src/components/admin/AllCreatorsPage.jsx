@@ -1686,8 +1686,8 @@ export default function AllCreatorsPage() {
 
       {/* 프로필 모달 */}
       <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-indigo-500" />
               크리에이터 프로필
@@ -1695,7 +1695,7 @@ export default function AllCreatorsPage() {
           </DialogHeader>
 
           {selectedCreator && (
-            <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+            <div className="flex-1 overflow-y-auto space-y-6 py-2 -mx-6 px-6">
               {/* 기본 정보 */}
               <div className="flex items-start gap-4">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center overflow-hidden">
@@ -1940,7 +1940,7 @@ export default function AllCreatorsPage() {
             </div>
           )}
 
-          <DialogFooter className="flex-shrink-0 border-t pt-4 flex-col sm:flex-row gap-2">
+          <div className="border-t pt-4 mt-4 flex flex-wrap gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowProfileModal(false)}>
               닫기
             </Button>
@@ -1981,7 +1981,7 @@ export default function AllCreatorsPage() {
               <Star className="w-4 h-4 mr-2" />
               평가하기
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
