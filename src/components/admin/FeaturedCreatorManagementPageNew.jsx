@@ -15,7 +15,7 @@ import {
   TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2, Search, Crown
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import {
   GRADE_LEVELS,
   BADGE_TYPES,
@@ -81,6 +81,32 @@ export default function FeaturedCreatorManagementPageNew() {
   const [selectedGradedCreator, setSelectedGradedCreator] = useState(null)
   const [gradeFilter, setGradeFilter] = useState('all')
 
+  // 프로필 편집 모달 state
+  const [showProfileEditModal, setShowProfileEditModal] = useState(false)
+  const [editingCreator, setEditingCreator] = useState(null)
+  const [profileFormData, setProfileFormData] = useState({
+    bio: '',
+    categories: [],
+    rating: 0
+  })
+  const [savingProfile, setSavingProfile] = useState(false)
+
+  // 크리에이터 카테고리 목록
+  const CREATOR_CATEGORIES = [
+    { id: 'skincare', name: '스킨케어', emoji: '🧴' },
+    { id: 'makeup', name: '색조', emoji: '💄' },
+    { id: 'diet', name: '다이어트', emoji: '🏃' },
+    { id: 'haircare', name: '헤어케어', emoji: '💇' },
+    { id: 'fashion', name: '패션', emoji: '👗' },
+    { id: 'lifestyle', name: '라이프스타일', emoji: '🏠' },
+    { id: 'food', name: '먹방/요리', emoji: '🍳' },
+    { id: 'family', name: '가족출연', emoji: '👨‍👩‍👧' },
+    { id: 'pet', name: '반려동물', emoji: '🐶' },
+    { id: 'travel', name: '여행', emoji: '✈️' },
+    { id: 'tech', name: '테크/IT', emoji: '📱' },
+    { id: 'game', name: '게임', emoji: '🎮' }
+  ]
+
   // Registered creator selection
   const [showCreatorSelectModal, setShowCreatorSelectModal] = useState(false)
   const [selectedRegionForSearch, setSelectedRegionForSearch] = useState('korea')
@@ -94,11 +120,11 @@ export default function FeaturedCreatorManagementPageNew() {
     loadGradedCreators()
   }, [])
 
-  // 등급제 크리에이터 목록 로드
+  // 등급제 크리에이터 목록 로드 (Korea Supabase)
   const loadGradedCreators = async () => {
     setLoadingGraded(true)
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('featured_creators')
         .select('*')
         .eq('is_active', true)
@@ -112,7 +138,7 @@ export default function FeaturedCreatorManagementPageNew() {
       console.error('등급제 크리에이터 로드 오류:', err)
       // 테이블에 컬럼이 없는 경우 전체 크리에이터 로드
       try {
-        const { data } = await supabaseBiz
+        const { data } = await supabaseKorea
           .from('featured_creators')
           .select('*')
           .eq('is_active', true)
@@ -160,11 +186,11 @@ export default function FeaturedCreatorManagementPageNew() {
     }
   }
 
-  // 등급 수동 업데이트
+  // 등급 수동 업데이트 (Korea Supabase)
   const handleUpdateGrade = async (creatorId, newGradeLevel, isManualMuse = false) => {
     try {
       const gradeName = GRADE_LEVELS[newGradeLevel].name
-      const { error } = await supabaseBiz
+      const { error } = await supabaseKorea
         .from('featured_creators')
         .update({
           cnec_grade_level: newGradeLevel,
@@ -181,6 +207,56 @@ export default function FeaturedCreatorManagementPageNew() {
       console.error('등급 업데이트 오류:', err)
       alert('등급 업데이트 중 오류가 발생했습니다.')
     }
+  }
+
+  // 프로필 편집 모달 열기
+  const openProfileEditModal = (creator) => {
+    setEditingCreator(creator)
+    setProfileFormData({
+      bio: creator.bio || '',
+      categories: creator.categories || [],
+      rating: creator.rating || 0
+    })
+    setShowProfileEditModal(true)
+  }
+
+  // 프로필 저장 (Korea Supabase)
+  const handleSaveProfile = async () => {
+    if (!editingCreator) return
+
+    setSavingProfile(true)
+    try {
+      const { error } = await supabaseKorea
+        .from('featured_creators')
+        .update({
+          bio: profileFormData.bio,
+          categories: profileFormData.categories,
+          rating: parseFloat(profileFormData.rating) || 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingCreator.id)
+
+      if (error) throw error
+
+      alert('프로필이 저장되었습니다.')
+      setShowProfileEditModal(false)
+      await loadGradedCreators()
+    } catch (err) {
+      console.error('프로필 저장 오류:', err)
+      alert('프로필 저장에 실패했습니다: ' + err.message)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  // 카테고리 토글
+  const toggleCategory = (categoryId) => {
+    setProfileFormData(prev => ({
+      ...prev,
+      categories: prev.categories.includes(categoryId)
+        ? prev.categories.filter(c => c !== categoryId)
+        : [...prev.categories, categoryId]
+    }))
   }
 
   // 등급별 필터링된 크리에이터 목록
@@ -1216,6 +1292,16 @@ export default function FeaturedCreatorManagementPageNew() {
                                     size="sm"
                                     variant="outline"
                                     className="h-8"
+                                    onClick={() => openProfileEditModal(creator)}
+                                    title="프로필 편집"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8"
                                     onClick={() => handleDelete(creator.id)}
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -1223,6 +1309,35 @@ export default function FeaturedCreatorManagementPageNew() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* 카테고리 표시 */}
+                            {creator.categories && creator.categories.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {creator.categories.map(catId => {
+                                  const cat = CREATOR_CATEGORIES.find(c => c.id === catId)
+                                  return cat ? (
+                                    <span key={catId} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+                                      {cat.emoji} {cat.name}
+                                    </span>
+                                  ) : null
+                                })}
+                              </div>
+                            )}
+
+                            {/* 소개글 미리보기 */}
+                            {creator.bio && (
+                              <div className="mt-2 text-xs text-gray-600 line-clamp-2">
+                                {creator.bio}
+                              </div>
+                            )}
+
+                            {/* 평점 표시 */}
+                            {creator.rating > 0 && (
+                              <div className="mt-2 flex items-center gap-1 text-xs">
+                                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                                <span className="font-semibold">{creator.rating.toFixed(1)}</span>
+                              </div>
+                            )}
 
                             {/* 통계 */}
                             <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs text-center">
@@ -1845,6 +1960,107 @@ export default function FeaturedCreatorManagementPageNew() {
               setGradedSearchQuery('')
             }}>
               닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 프로필 편집 모달 */}
+      <Dialog open={showProfileEditModal} onOpenChange={setShowProfileEditModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-blue-500" />
+              크리에이터 프로필 편집
+            </DialogTitle>
+            <DialogDescription>
+              {editingCreator?.name || editingCreator?.channel_name}님의 프로필을 편집합니다
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* 소개글 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">소개글</Label>
+              <Textarea
+                value={profileFormData.bio}
+                onChange={(e) => setProfileFormData(prev => ({ ...prev, bio: e.target.value }))}
+                placeholder="크리에이터 소개글을 입력하세요..."
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-gray-500">최대 500자까지 입력 가능합니다</p>
+            </div>
+
+            {/* 주력 카테고리 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">주력 카테고리 (다중 선택)</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {CREATOR_CATEGORIES.map(category => (
+                  <Button
+                    key={category.id}
+                    type="button"
+                    variant={profileFormData.categories.includes(category.id) ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleCategory(category.id)}
+                    className={`justify-start ${profileFormData.categories.includes(category.id) ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                  >
+                    <span className="mr-1">{category.emoji}</span>
+                    {category.name}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500">
+                선택된 카테고리: {profileFormData.categories.length}개
+              </p>
+            </div>
+
+            {/* 평점 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">평점</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={profileFormData.rating}
+                  onChange={(e) => setProfileFormData(prev => ({ ...prev, rating: e.target.value }))}
+                  className="w-24"
+                />
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <Star
+                      key={star}
+                      className={`w-5 h-5 cursor-pointer ${
+                        star <= Math.round(profileFormData.rating)
+                          ? 'text-yellow-500 fill-yellow-500'
+                          : 'text-gray-300'
+                      }`}
+                      onClick={() => setProfileFormData(prev => ({ ...prev, rating: star }))}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm text-gray-500">
+                  {profileFormData.rating > 0 ? `${parseFloat(profileFormData.rating).toFixed(1)} / 5.0` : '미평가'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProfileEditModal(false)} disabled={savingProfile}>
+              취소
+            </Button>
+            <Button onClick={handleSaveProfile} disabled={savingProfile}>
+              {savingProfile ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                '저장하기'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
