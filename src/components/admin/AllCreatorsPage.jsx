@@ -396,6 +396,19 @@ export default function AllCreatorsPage() {
         if (error) throw error
       }
 
+      // user_profiles 테이블에도 등급 동기화
+      const { error: profileError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          cnec_grade_level: selectedGradeLevel,
+          cnec_grade_name: gradeInfo.name
+        })
+        .eq('id', selectedCreator.id)
+
+      if (profileError) {
+        console.warn('user_profiles 등급 동기화 실패:', profileError)
+      }
+
       alert(`${selectedCreator.name || '크리에이터'}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
       setShowGradeModal(false)
       await fetchFeaturedCreators()
@@ -421,6 +434,19 @@ export default function AllCreatorsPage() {
         .eq('user_id', selectedCreator.id)
 
       if (error) throw error
+
+      // user_profiles 테이블에서도 등급 초기화
+      const { error: profileError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          cnec_grade_level: null,
+          cnec_grade_name: null
+        })
+        .eq('id', selectedCreator.id)
+
+      if (profileError) {
+        console.warn('user_profiles 등급 초기화 실패:', profileError)
+      }
 
       alert('등급이 삭제되었습니다.')
       setShowGradeModal(false)
