@@ -325,7 +325,7 @@ export async function checkIfFeaturedCreator(creatorUserId, region = 'korea') {
     const { data, error } = await supabaseKorea
       .from('featured_creators')
       .select('id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended, is_active')
-      .eq('source_user_id', creatorUserId)
+      .eq('user_id', creatorUserId)
       .eq('is_active', true)
       .single()
 
@@ -418,7 +418,7 @@ export async function registerFeaturedCreator(creator, region) {
     const initialGrade = calculateInitialGrade(creator)
 
     const featuredCreator = {
-      source_user_id: creator.id || creator.user_id,
+      user_id: creator.id || creator.user_id,
       source_country: region.toUpperCase().substring(0, 2),
       name: creator.name || creator.channel_name,
       email: creator.email,
