@@ -1399,6 +1399,95 @@ export default function FeaturedCreatorManagementPageNew() {
                               </div>
                             )}
 
+                            {/* 등록된 영상 미리보기 */}
+                            {((creator.representative_videos && creator.representative_videos.length > 0) ||
+                              (creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0)) && (
+                              <div className="mt-3 space-y-2">
+                                {/* 대표 영상 */}
+                                {creator.representative_videos && creator.representative_videos.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                      <span className="text-red-500">▶</span> 대표영상 ({creator.representative_videos.length})
+                                    </div>
+                                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                                      {creator.representative_videos.slice(0, 4).map((url, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group"
+                                          onClick={() => setPreviewVideoUrl(url)}
+                                        >
+                                          {getYouTubeThumbnail(url) ? (
+                                            <img
+                                              src={getYouTubeThumbnail(url)}
+                                              alt={`영상 ${idx + 1}`}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                                              {idx + 1}
+                                            </div>
+                                          )}
+                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
+                                              <span className="text-white text-xs ml-0.5">▶</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {creator.representative_videos.length > 4 && (
+                                        <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                                          +{creator.representative_videos.length - 4}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 크넥 협업 영상 */}
+                                {creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                      <span className="text-blue-500">★</span> 크넥협업 ({creator.cnec_collab_videos.length})
+                                    </div>
+                                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                                      {creator.cnec_collab_videos.slice(0, 4).map((url, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group"
+                                          onClick={() => setPreviewVideoUrl(url)}
+                                        >
+                                          {getYouTubeThumbnail(url) ? (
+                                            <img
+                                              src={getYouTubeThumbnail(url)}
+                                              alt={`협업 ${idx + 1}`}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                                              {idx + 1}
+                                            </div>
+                                          )}
+                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
+                                              <span className="text-white text-xs ml-0.5">▶</span>
+                                            </div>
+                                          </div>
+                                          <div className="absolute bottom-0.5 left-0.5 bg-blue-600 text-white text-[8px] px-1 rounded">
+                                            CNEC
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {creator.cnec_collab_videos.length > 4 && (
+                                        <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                                          +{creator.cnec_collab_videos.length - 4}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             {/* 통계 */}
                             <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs text-center">
                               <div>
