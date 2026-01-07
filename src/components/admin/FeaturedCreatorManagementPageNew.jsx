@@ -2116,8 +2116,8 @@ export default function FeaturedCreatorManagementPageNew() {
 
       {/* 프로필 편집 모달 */}
       <Dialog open={showProfileEditModal} onOpenChange={setShowProfileEditModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Edit className="w-5 h-5 text-blue-500" />
               크리에이터 프로필 편집
@@ -2127,7 +2127,7 @@ export default function FeaturedCreatorManagementPageNew() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="flex-1 overflow-y-auto space-y-4 py-4 pr-2">
             {/* 소개글 */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">소개글</Label>
@@ -2135,216 +2135,210 @@ export default function FeaturedCreatorManagementPageNew() {
                 value={profileFormData.bio}
                 onChange={(e) => setProfileFormData(prev => ({ ...prev, bio: e.target.value }))}
                 placeholder="크리에이터 소개글을 입력하세요..."
-                rows={4}
+                rows={3}
                 className="resize-none"
               />
-              <p className="text-xs text-gray-500">최대 500자까지 입력 가능합니다</p>
             </div>
 
-            {/* 주력 카테고리 */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">주력 카테고리 (다중 선택)</Label>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {CREATOR_CATEGORIES.map(category => (
-                  <Button
-                    key={category.id}
-                    type="button"
-                    variant={profileFormData.categories.includes(category.id) ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleCategory(category.id)}
-                    className={`justify-start ${profileFormData.categories.includes(category.id) ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                  >
-                    <span className="mr-1">{category.emoji}</span>
-                    {category.name}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500">
-                선택된 카테고리: {profileFormData.categories.length}개
-              </p>
-            </div>
-
-            {/* 평점 */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">평점</Label>
-              <div className="flex items-center gap-4">
-                <Input
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={profileFormData.rating}
-                  onChange={(e) => setProfileFormData(prev => ({ ...prev, rating: e.target.value }))}
-                  className="w-24"
-                />
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <Star
-                      key={star}
-                      className={`w-5 h-5 cursor-pointer ${
-                        star <= Math.round(profileFormData.rating)
-                          ? 'text-yellow-500 fill-yellow-500'
-                          : 'text-gray-300'
+            {/* 주력 카테고리 + 평점 (가로 배치) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 주력 카테고리 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">주력 카테고리</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CREATOR_CATEGORIES.map(category => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => toggleCategory(category.id)}
+                      className={`px-2 py-1 rounded-full text-xs transition-all ${
+                        profileFormData.categories.includes(category.id)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
-                      onClick={() => setProfileFormData(prev => ({ ...prev, rating: star }))}
-                    />
+                    >
+                      {category.emoji} {category.name}
+                    </button>
                   ))}
                 </div>
-                <span className="text-sm text-gray-500">
-                  {profileFormData.rating > 0 ? `${parseFloat(profileFormData.rating).toFixed(1)} / 5.0` : '미평가'}
-                </span>
+              </div>
+
+              {/* 평점 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">평점</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={profileFormData.rating}
+                    onChange={(e) => setProfileFormData(prev => ({ ...prev, rating: e.target.value }))}
+                    className="w-20 h-8"
+                  />
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Star
+                        key={star}
+                        className={`w-5 h-5 cursor-pointer ${
+                          star <= Math.round(profileFormData.rating)
+                            ? 'text-yellow-500 fill-yellow-500'
+                            : 'text-gray-300'
+                        }`}
+                        onClick={() => setProfileFormData(prev => ({ ...prev, rating: star }))}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* 대표 영상 (YouTube Shorts) */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                <span className="text-red-500">▶</span> 대표 영상 (YouTube Shorts)
-              </Label>
-              <p className="text-xs text-gray-500">크리에이터의 대표 영상 URL을 등록하세요 (최대 5개)</p>
-              <div className="flex gap-2">
-                <Input
-                  id="representative-video-input"
-                  placeholder="https://youtube.com/shorts/..."
-                  className="flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addVideoUrl('representative', e.target.value)
-                      e.target.value = ''
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const input = document.getElementById('representative-video-input')
-                    if (input.value) {
-                      addVideoUrl('representative', input.value)
-                      input.value = ''
-                    }
-                  }}
-                  disabled={profileFormData.representative_videos.length >= 5}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-              {profileFormData.representative_videos.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-                  {profileFormData.representative_videos.map((url, index) => (
-                    <div key={index} className="relative group">
-                      <div
-                        className="aspect-[9/16] bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
-                        onClick={() => setPreviewVideoUrl(url)}
-                      >
-                        {getYouTubeThumbnail(url) ? (
-                          <img
-                            src={getYouTubeThumbnail(url)}
-                            alt={`대표영상 ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            영상 {index + 1}
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
-                            <span className="text-white text-xl ml-1">▶</span>
+            {/* 영상 섹션 (가로 스크롤) */}
+            <div className="space-y-3 pt-2 border-t">
+              {/* 대표 영상 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-1">
+                    <span className="text-red-500">▶</span> 대표영상
+                    <span className="text-gray-400 font-normal">({profileFormData.representative_videos.length}/5)</span>
+                  </Label>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="representative-video-input"
+                    placeholder="YouTube Shorts URL 입력 후 Enter"
+                    className="flex-1 h-8 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addVideoUrl('representative', e.target.value)
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      const input = document.getElementById('representative-video-input')
+                      if (input.value) {
+                        addVideoUrl('representative', input.value)
+                        input.value = ''
+                      }
+                    }}
+                    disabled={profileFormData.representative_videos.length >= 5}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {profileFormData.representative_videos.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {profileFormData.representative_videos.map((url, index) => (
+                      <div key={index} className="relative group flex-shrink-0">
+                        <div
+                          className="w-16 h-24 bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
+                          onClick={() => setPreviewVideoUrl(url)}
+                        >
+                          {getYouTubeThumbnail(url) ? (
+                            <img src={getYouTubeThumbnail(url)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">{index + 1}</div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
+                              <span className="text-white text-sm ml-0.5">▶</span>
+                            </div>
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeVideoUrl('representative', index) }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                        >
+                          ×
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeVideoUrl('representative', index)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            {/* 크넥 협업 영상 */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold flex items-center gap-2">
-                <span className="text-blue-500">★</span> 크넥 협업 영상
-              </Label>
-              <p className="text-xs text-gray-500">크넥과 협업한 캠페인 영상 URL을 등록하세요 (최대 10개)</p>
-              <div className="flex gap-2">
-                <Input
-                  id="collab-video-input"
-                  placeholder="https://youtube.com/shorts/..."
-                  className="flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addVideoUrl('collab', e.target.value)
-                      e.target.value = ''
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const input = document.getElementById('collab-video-input')
-                    if (input.value) {
-                      addVideoUrl('collab', input.value)
-                      input.value = ''
-                    }
-                  }}
-                  disabled={profileFormData.cnec_collab_videos.length >= 10}
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-              {profileFormData.cnec_collab_videos.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-                  {profileFormData.cnec_collab_videos.map((url, index) => (
-                    <div key={index} className="relative group">
-                      <div
-                        className="aspect-[9/16] bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
-                        onClick={() => setPreviewVideoUrl(url)}
-                      >
-                        {getYouTubeThumbnail(url) ? (
-                          <img
-                            src={getYouTubeThumbnail(url)}
-                            alt={`협업영상 ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                            협업 {index + 1}
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-                            <span className="text-white text-lg ml-0.5">▶</span>
-                          </div>
-                        </div>
-                        <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded">
-                          CNEC
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeVideoUrl('collab', index)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+              {/* 크넥 협업 영상 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-1">
+                    <span className="text-blue-500">★</span> 크넥 협업영상
+                    <span className="text-gray-400 font-normal">({profileFormData.cnec_collab_videos.length}/10)</span>
+                  </Label>
                 </div>
-              )}
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="collab-video-input"
+                    placeholder="YouTube Shorts URL 입력 후 Enter"
+                    className="flex-1 h-8 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addVideoUrl('collab', e.target.value)
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      const input = document.getElementById('collab-video-input')
+                      if (input.value) {
+                        addVideoUrl('collab', input.value)
+                        input.value = ''
+                      }
+                    }}
+                    disabled={profileFormData.cnec_collab_videos.length >= 10}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {profileFormData.cnec_collab_videos.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {profileFormData.cnec_collab_videos.map((url, index) => (
+                      <div key={index} className="relative group flex-shrink-0">
+                        <div
+                          className="w-16 h-24 bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
+                          onClick={() => setPreviewVideoUrl(url)}
+                        >
+                          {getYouTubeThumbnail(url) ? (
+                            <img src={getYouTubeThumbnail(url)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">{index + 1}</div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                              <span className="text-white text-sm ml-0.5">▶</span>
+                            </div>
+                          </div>
+                          <div className="absolute bottom-0.5 left-0.5 bg-blue-600 text-white text-[8px] px-1 rounded">CNEC</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeVideoUrl('collab', index) }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
             <Button variant="outline" onClick={() => setShowProfileEditModal(false)} disabled={savingProfile}>
               취소
             </Button>
