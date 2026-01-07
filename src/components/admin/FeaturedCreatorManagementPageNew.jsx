@@ -87,9 +87,12 @@ export default function FeaturedCreatorManagementPageNew() {
   const [profileFormData, setProfileFormData] = useState({
     bio: '',
     categories: [],
-    rating: 0
+    rating: 0,
+    representative_videos: [], // 대표 영상 URLs
+    cnec_collab_videos: [] // 크넥 협업 영상 URLs
   })
   const [savingProfile, setSavingProfile] = useState(false)
+  const [previewVideoUrl, setPreviewVideoUrl] = useState(null) // 영상 미리보기
 
   // 크리에이터 카테고리 목록
   const CREATOR_CATEGORIES = [
@@ -215,9 +218,63 @@ export default function FeaturedCreatorManagementPageNew() {
     setProfileFormData({
       bio: creator.bio || '',
       categories: creator.categories || [],
-      rating: creator.rating || 0
+      rating: creator.rating || 0,
+      representative_videos: creator.representative_videos || [],
+      cnec_collab_videos: creator.cnec_collab_videos || []
     })
+    setPreviewVideoUrl(null)
     setShowProfileEditModal(true)
+  }
+
+  // YouTube URL을 embed URL로 변환
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return null
+    // YouTube Shorts URL 처리
+    const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/)
+    if (shortsMatch) {
+      return `https://www.youtube.com/embed/${shortsMatch[1]}`
+    }
+    // 일반 YouTube URL 처리
+    const watchMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+    if (watchMatch) {
+      return `https://www.youtube.com/embed/${watchMatch[1]}`
+    }
+    return null
+  }
+
+  // YouTube 썸네일 URL 가져오기
+  const getYouTubeThumbnail = (url) => {
+    if (!url) return null
+    const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/)
+    if (shortsMatch) {
+      return `https://img.youtube.com/vi/${shortsMatch[1]}/mqdefault.jpg`
+    }
+    const watchMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+    if (watchMatch) {
+      return `https://img.youtube.com/vi/${watchMatch[1]}/mqdefault.jpg`
+    }
+    return null
+  }
+
+  // 영상 URL 추가
+  const addVideoUrl = (type, url) => {
+    if (!url.trim()) return
+    const field = type === 'representative' ? 'representative_videos' : 'cnec_collab_videos'
+    if (!profileFormData[field].includes(url)) {
+      setProfileFormData(prev => ({
+        ...prev,
+        [field]: [...prev[field], url.trim()]
+      }))
+    }
+  }
+
+  // 영상 URL 삭제
+  const removeVideoUrl = (type, index) => {
+    const field = type === 'representative' ? 'representative_videos' : 'cnec_collab_videos'
+    setProfileFormData(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }))
   }
 
   // 프로필 저장 (Korea Supabase)
@@ -232,6 +289,8 @@ export default function FeaturedCreatorManagementPageNew() {
           bio: profileFormData.bio,
           categories: profileFormData.categories,
           rating: parseFloat(profileFormData.rating) || 0,
+          representative_videos: profileFormData.representative_videos,
+          cnec_collab_videos: profileFormData.cnec_collab_videos,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingCreator.id)
@@ -240,6 +299,7 @@ export default function FeaturedCreatorManagementPageNew() {
 
       alert('프로필이 저장되었습니다.')
       setShowProfileEditModal(false)
+      setPreviewVideoUrl(null)
       await loadGradedCreators()
     } catch (err) {
       console.error('프로필 저장 오류:', err)
@@ -2046,6 +2106,153 @@ export default function FeaturedCreatorManagementPageNew() {
                 </span>
               </div>
             </div>
+
+            {/* 대표 영상 (YouTube Shorts) */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <span className="text-red-500">▶</span> 대표 영상 (YouTube Shorts)
+              </Label>
+              <p className="text-xs text-gray-500">크리에이터의 대표 영상 URL을 등록하세요 (최대 5개)</p>
+              <div className="flex gap-2">
+                <Input
+                  id="representative-video-input"
+                  placeholder="https://youtube.com/shorts/..."
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addVideoUrl('representative', e.target.value)
+                      e.target.value = ''
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const input = document.getElementById('representative-video-input')
+                    if (input.value) {
+                      addVideoUrl('representative', input.value)
+                      input.value = ''
+                    }
+                  }}
+                  disabled={profileFormData.representative_videos.length >= 5}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {profileFormData.representative_videos.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                  {profileFormData.representative_videos.map((url, index) => (
+                    <div key={index} className="relative group">
+                      <div
+                        className="aspect-[9/16] bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
+                        onClick={() => setPreviewVideoUrl(url)}
+                      >
+                        {getYouTubeThumbnail(url) ? (
+                          <img
+                            src={getYouTubeThumbnail(url)}
+                            alt={`대표영상 ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            영상 {index + 1}
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
+                            <span className="text-white text-xl ml-1">▶</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeVideoUrl('representative', index)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 크넥 협업 영상 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <span className="text-blue-500">★</span> 크넥 협업 영상
+              </Label>
+              <p className="text-xs text-gray-500">크넥과 협업한 캠페인 영상 URL을 등록하세요 (최대 10개)</p>
+              <div className="flex gap-2">
+                <Input
+                  id="collab-video-input"
+                  placeholder="https://youtube.com/shorts/..."
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addVideoUrl('collab', e.target.value)
+                      e.target.value = ''
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const input = document.getElementById('collab-video-input')
+                    if (input.value) {
+                      addVideoUrl('collab', input.value)
+                      input.value = ''
+                    }
+                  }}
+                  disabled={profileFormData.cnec_collab_videos.length >= 10}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              {profileFormData.cnec_collab_videos.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                  {profileFormData.cnec_collab_videos.map((url, index) => (
+                    <div key={index} className="relative group">
+                      <div
+                        className="aspect-[9/16] bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
+                        onClick={() => setPreviewVideoUrl(url)}
+                      >
+                        {getYouTubeThumbnail(url) ? (
+                          <img
+                            src={getYouTubeThumbnail(url)}
+                            alt={`협업영상 ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                            협업 {index + 1}
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
+                            <span className="text-white text-lg ml-0.5">▶</span>
+                          </div>
+                        </div>
+                        <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded">
+                          CNEC
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeVideoUrl('collab', index)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
@@ -2063,6 +2270,30 @@ export default function FeaturedCreatorManagementPageNew() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 영상 미리보기 모달 */}
+      <Dialog open={!!previewVideoUrl} onOpenChange={() => setPreviewVideoUrl(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden bg-black">
+          <div className="relative">
+            <button
+              onClick={() => setPreviewVideoUrl(null)}
+              className="absolute top-2 right-2 z-10 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center"
+            >
+              ×
+            </button>
+            {previewVideoUrl && getYouTubeEmbedUrl(previewVideoUrl) && (
+              <div className="aspect-[9/16] max-h-[80vh]">
+                <iframe
+                  src={`${getYouTubeEmbedUrl(previewVideoUrl)}?autoplay=1`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
