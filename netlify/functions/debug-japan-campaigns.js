@@ -73,12 +73,12 @@ exports.handler = async (event, context) => {
       jan8Result.error = jan8Error.message;
     }
 
-    // 1/8 마감 + active/recruiting/approved 캠페인 조회
+    // 1/8 마감 + active/approved 캠페인 조회 (프론트엔드 "진행중" 필터와 동일)
     const { data: jan8ActiveCampaigns, error: jan8ActiveError } = await supabase
       .from('campaigns')
       .select('id, title, status, application_deadline, created_at')
       .eq('application_deadline', '2026-01-08')
-      .in('status', ['active', 'recruiting', 'approved'])
+      .in('status', ['active', 'approved'])
       .limit(50);
 
     let jan8ActiveResult = { count: 0, campaigns: [] };

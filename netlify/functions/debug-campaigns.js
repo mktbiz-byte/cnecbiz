@@ -69,7 +69,7 @@ exports.handler = async (event, context) => {
       const { data: campaigns, error } = await supabase
         .from('campaigns')
         .select(selectQuery)
-        .in('status', ['active', 'recruiting', 'approved'])
+        .in('status', ['active', 'approved'])  // 프론트엔드 "진행중" 필터와 동일
         .order('created_at', { ascending: false })
         .limit(20);
 

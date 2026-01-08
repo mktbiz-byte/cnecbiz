@@ -350,7 +350,7 @@ exports.handler = async (event, context) => {
           status
         `)
         .eq('application_deadline', today)
-        .in('status', ['active', 'recruiting', 'approved']);
+        .in('status', ['active', 'approved']);  // 프론트엔드 "진행중" 필터와 동일
 
       if (campaignError) {
         console.error(`${region.name} 캠페인 조회 오류:`, campaignError);
