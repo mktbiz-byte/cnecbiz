@@ -99,14 +99,21 @@ async function saveMessageToDB(supabase, messageData) {
       .eq('line_user_id', messageData.line_user_id)
       .single();
 
+    const insertData = {
+      line_user_id: messageData.line_user_id,
+      direction: messageData.direction,
+      message_type: messageData.message_type || 'text',
+      content: messageData.content
+    };
+
+    // line_message_id가 있으면 추가 (중복 방지용)
+    if (messageData.line_message_id) {
+      insertData.line_message_id = messageData.line_message_id;
+    }
+
     const { error } = await supabase
       .from('line_messages')
-      .insert({
-        line_user_id: messageData.line_user_id,
-        direction: messageData.direction,
-        message_type: messageData.message_type || 'text',
-        content: messageData.content
-      });
+      .insert(insertData);
 
     if (error) {
       console.error('Save message error:', error);
@@ -204,15 +211,29 @@ exports.handler = async (event) => {
       // 3. Message 이벤트 (메시지 수신)
       else if (eventType === 'message' && webhookEvent.message) {
         const message = webhookEvent.message;
+        const messageId = message.id; // LINE 메시지 고유 ID
+
+        // 중복 처리 방지: 이미 처리된 메시지인지 확인
+        const { data: existingMsg } = await supabase
+          .from('line_messages')
+          .select('id')
+          .eq('line_message_id', messageId)
+          .single();
+
+        if (existingMsg) {
+          console.log(`[LINE Webhook] 이미 처리된 메시지 - messageId: ${messageId}`);
+          continue; // 다음 이벤트로 건너뛰기
+        }
 
         if (message.type === 'text') {
           const text = message.text.trim();
           const profile = await getUserProfile(userId, accessToken);
           const displayName = profile?.displayName || '알 수 없음';
 
-          // 수신 메시지 DB에 저장
+          // 수신 메시지 DB에 저장 (line_message_id 포함)
           await saveMessageToDB(supabase, {
             line_user_id: userId,
+            line_message_id: messageId,
             direction: 'incoming',
             message_type: 'text',
             content: text,
