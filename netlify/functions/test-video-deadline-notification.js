@@ -65,41 +65,67 @@ exports.handler = async (event, context) => {
       { date: in2DaysStr, label: '2일 후' },
       { date: in3DaysStr, label: '3일 후' }
     ]) {
-      const { data: applications, error: appError } = await supabase
-        .from('applications')
-        .select(`
-          id,
-          user_id,
-          campaign_id,
-          submission_deadline,
-          status,
-          campaigns (
-            id,
-            title,
-            company_id,
-            campaign_type
-          )
-        `)
-        .eq('submission_deadline', date)
-        .neq('status', 'completed')
-        .in('status', ['selected', 'approved', 'guide_approved']);
+      // 1단계: 해당 날짜가 content_submission_deadline인 캠페인 찾기
+      const { data: campaigns, error: campaignError } = await supabase
+        .from('campaigns')
+        .select('id, title, company_id, campaign_type, content_submission_deadline')
+        .eq('content_submission_deadline', date)
+        .in('status', ['active', 'recruiting', 'approved']);
 
-      if (appError) {
-        console.error(`Applications 조회 오류 (${date}):`, appError);
+      if (campaignError) {
+        console.error(`캠페인 조회 오류 (${date}):`, campaignError);
         results.push({
           date,
           label,
-          error: appError.message,
+          error: campaignError.message,
           count: 0
         });
         continue;
       }
 
-      console.log(`${label} (${date}): ${applications?.length || 0}건 발견`);
+      if (!campaigns || campaigns.length === 0) {
+        console.log(`${label} (${date}): 해당 날짜에 마감되는 캠페인 없음`);
+        results.push({
+          date,
+          label,
+          count: 0,
+          applications: []
+        });
+        continue;
+      }
 
-      // 각 application의 크리에이터 정보 확인
+      console.log(`${label} (${date}): ${campaigns.length}개 캠페인 발견`);
+
+      // 2단계: 각 캠페인의 applications 가져오기
+      const allApplications = [];
+
+      for (const campaign of campaigns) {
+        const { data: applications, error: appError } = await supabase
+          .from('applications')
+          .select('id, user_id, campaign_id, status')
+          .eq('campaign_id', campaign.id)
+          .neq('status', 'completed')
+          .in('status', ['selected', 'approved', 'guide_approved']);
+
+        if (appError) {
+          console.error(`Applications 조회 오류 (campaign ${campaign.id}):`, appError);
+          continue;
+        }
+
+        // 각 application에 campaign 정보 추가
+        if (applications && applications.length > 0) {
+          applications.forEach(app => {
+            app.campaigns = campaign;
+          });
+          allApplications.push(...applications);
+        }
+      }
+
+      console.log(`${label} (${date}): ${allApplications.length}건 application 발견`);
+
+      // 각 application의 크리에이터 정보 및 영상 제출 현황 확인
       const applicationsWithCreators = [];
-      for (const app of applications || []) {
+      for (const app of allApplications) {
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('name, channel_name, phone, email')
@@ -152,7 +178,7 @@ exports.handler = async (event, context) => {
       results.push({
         date,
         label,
-        count: applications?.length || 0,
+        count: allApplications.length,
         applications: applicationsWithCreators
       });
     }

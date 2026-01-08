@@ -522,45 +522,53 @@ exports.handler = async (event, context) => {
     for (const { date, templateCode, label } of deadlineDates) {
       console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
 
-      // 해당 날짜에 마감되는 applications 조회
-      // 영상이 업로드 확정되지 않은 크리에이터만 대상
-      const { data: applications, error: appError } = await supabase
-        .from('applications')
-        .select(`
-          id,
-          user_id,
-          campaign_id,
-          submission_deadline,
-          status,
-          campaigns (
-            id,
-            title,
-            company_id,
-            campaign_type
-          )
-        `)
-        .eq('submission_deadline', date)
-        .neq('status', 'completed')
-        .in('status', ['selected', 'approved', 'guide_approved'])
+      // 1단계: 해당 날짜가 content_submission_deadline인 캠페인 찾기
+      const { data: campaigns, error: campaignError } = await supabase
+        .from('campaigns')
+        .select('id, title, company_id, campaign_type, content_submission_deadline')
+        .eq('content_submission_deadline', date)
+        .in('status', ['active', 'recruiting', 'approved']);
 
-      if (appError) {
-        console.error(`Applications 조회 오류 (${date}):`, appError);
+      if (campaignError) {
+        console.error(`캠페인 조회 오류 (${date}):`, campaignError);
         continue;
       }
 
-      console.log(`${label} 대상: ${applications?.length || 0}건`);
-
-      if (!applications || applications.length === 0) {
-        console.log(`${label} 알림 대상 없음`);
+      if (!campaigns || campaigns.length === 0) {
+        console.log(`${label}: 해당 날짜에 마감되는 캠페인 없음`);
         continue;
       }
 
-      // 각 application에 대해 알림 발송
-      for (const app of applications) {
-        try {
-          const campaignName = app.campaigns?.title || '캠페인';
+      console.log(`${label}: ${campaigns.length}개 캠페인 발견`);
 
-          // user_profiles에서 크리에이터 정보 조회 (email 포함)
+      // 2단계: 각 캠페인의 applications 가져오기 및 알림 발송
+      for (const campaign of campaigns) {
+        const { data: applications, error: appError } = await supabase
+          .from('applications')
+          .select('id, user_id, campaign_id, status')
+          .eq('campaign_id', campaign.id)
+          .neq('status', 'completed')
+          .in('status', ['selected', 'approved', 'guide_approved']);
+
+        if (appError) {
+          console.error(`Applications 조회 오류 (campaign ${campaign.id}):`, appError);
+          continue;
+        }
+
+        if (!applications || applications.length === 0) {
+          console.log(`${label} - ${campaign.title}: 알림 대상 없음`);
+          continue;
+        }
+
+        console.log(`${label} - ${campaign.title}: ${applications.length}건 대상`);
+
+        // 각 application에 대해 알림 발송
+        for (const app of applications) {
+          try {
+            const campaignName = campaign.title;
+            const campaignType = campaign.campaign_type;
+
+            // user_profiles에서 크리에이터 정보 조회 (email 포함)
           const { data: profile, error: profileError } = await supabase
             .from('user_profiles')
             .select('name, channel_name, phone, email')
@@ -596,7 +604,6 @@ exports.handler = async (event, context) => {
           const creatorEmail = creatorProfile.email;
 
           // 캠페인 타입에 따른 필요 영상 개수 확인
-          const campaignType = app.campaigns?.campaign_type;
           let requiredVideoCount = 1; // 기본값
           if (campaignType === '4week_challenge') {
             requiredVideoCount = 4;
@@ -696,8 +703,8 @@ exports.handler = async (event, context) => {
             });
 
             // 캠페인별 크리에이터 그룹화 (기업 이메일용)
-            const campaignId = app.campaign_id;
-            const companyId = app.campaigns?.company_id;
+            const campaignId = campaign.id;
+            const companyId = campaign.company_id;
             if (!campaignCreatorsMap[campaignId]) {
               campaignCreatorsMap[campaignId] = {
                 campaignName,
@@ -723,17 +730,18 @@ exports.handler = async (event, context) => {
               error: '알림톡/이메일 모두 발송 실패'
             });
           }
-        } catch (error) {
-          console.error(`Application 처리 오류 (${app.id}):`, error);
-          allResults.push({
-            applicationId: app.id,
-            deadline: date,
-            label,
-            status: 'failed',
-            error: error.message
-          });
-        }
-      }
+          } catch (error) {
+            console.error(`Application 처리 오류 (${app.id}):`, error);
+            allResults.push({
+              applicationId: app.id,
+              deadline: date,
+              label,
+              status: 'failed',
+              error: error.message
+            });
+          }
+        } // end of applications loop
+      } // end of campaigns loop
     }
 
     console.log('\n=== 크리에이터 알림 완료 ===');
