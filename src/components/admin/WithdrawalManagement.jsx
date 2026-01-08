@@ -15,6 +15,7 @@ import { maskResidentNumber, decryptResidentNumber } from '../../lib/encryptionH
 import { sendWithdrawalRejectedNotification } from '../../services/notifications/creatorNotifications'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
+import axios from 'axios'
 
 export default function WithdrawalManagement() {
   const navigate = useNavigate()
@@ -537,6 +538,61 @@ export default function WithdrawalManagement() {
 
           if (error) throw error
         }
+
+        // 알림톡 발송 (크리에이터 전화번호 조회 후 발송)
+        try {
+          let creatorPhone = null
+          const creatorName = selectedWithdrawal.creator_name || selectedWithdrawal.account_holder || 'Unknown'
+          const withdrawalAmount = selectedWithdrawal.requested_amount || selectedWithdrawal.amount || 0
+
+          // 전화번호 조회
+          if (selectedWithdrawal.user_id && supabaseKorea) {
+            const { data: profileData } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', selectedWithdrawal.user_id)
+              .maybeSingle()
+
+            creatorPhone = profileData?.phone
+
+            // id로 못 찾으면 user_id로 재시도
+            if (!creatorPhone) {
+              const { data: profileData2 } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone')
+                .eq('user_id', selectedWithdrawal.user_id)
+                .maybeSingle()
+              creatorPhone = profileData2?.phone
+            }
+          }
+
+          if (creatorPhone) {
+            console.log('출금 승인 알림톡 발송:', creatorName, creatorPhone)
+            // 출금 승인 알림톡 발송 - 템플릿 025100001019 사용
+            const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+            await axios.post(
+              `${baseUrl}/.netlify/functions/send-kakao-notification`,
+              {
+                receiverNum: creatorPhone,
+                receiverName: creatorName,
+                templateCode: '025100001019',
+                variables: {
+                  '크리에이터명': creatorName,
+                  '출금금액': withdrawalAmount.toLocaleString(),
+                  '신청일': new Date().toLocaleDateString('ko-KR')
+                }
+              },
+              { timeout: 8000 }
+            )
+            console.log('출금 승인 알림톡 발송 완료')
+          } else {
+            console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+          }
+        } catch (notifyError) {
+          console.error('알림톡 발송 오류:', notifyError)
+          // 알림톡 실패해도 승인 처리는 완료된 것으로 처리
+        }
+
         alert('승인되었습니다.')
       } else if (actionType === 'reject') {
         if (!rejectionReason) {

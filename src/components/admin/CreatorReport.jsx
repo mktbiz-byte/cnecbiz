@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, TrendingUp, Users, Video, Eye, ThumbsUp, MessageCircle, Sparkles, Save, Send } from 'lucide-react'
+import { ArrowLeft, TrendingUp, Users, Video, Eye, ThumbsUp, MessageCircle, Sparkles, Save, Send, AlertCircle } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -26,15 +26,102 @@ export default function CreatorReport() {
   const [managerComment, setManagerComment] = useState('')
   const [savedReports, setSavedReports] = useState([])
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [channelId, setChannelId] = useState(null)
 
   useEffect(() => {
     loadCreatorData()
     loadSavedReports()
   }, [creatorId])
 
+  // YouTube URL에서 채널 ID 추출
+  const extractYouTubeChannelId = (url) => {
+    if (!url) return null
+
+    try {
+      // URL 패턴들
+      // https://www.youtube.com/@username
+      // https://www.youtube.com/channel/UC...
+      // https://www.youtube.com/c/channelname
+      // https://youtube.com/@username
+
+      const urlObj = new URL(url)
+      const pathname = urlObj.pathname
+
+      // /channel/CHANNEL_ID 형식
+      if (pathname.includes('/channel/')) {
+        const match = pathname.match(/\/channel\/([^\/\?]+)/)
+        if (match) return match[1]
+      }
+
+      // /@username 형식 - 이 경우 YouTube API로 채널 ID를 가져와야 함
+      if (pathname.includes('/@')) {
+        const username = pathname.replace('/@', '').split('/')[0]
+        return `@${username}` // @ 형식 그대로 반환
+      }
+
+      // /c/channelname 형식
+      if (pathname.includes('/c/')) {
+        const channelName = pathname.replace('/c/', '').split('/')[0]
+        return channelName
+      }
+
+      // /user/username 형식
+      if (pathname.includes('/user/')) {
+        const username = pathname.replace('/user/', '').split('/')[0]
+        return username
+      }
+
+      return null
+    } catch (err) {
+      console.error('URL 파싱 오류:', err)
+      return null
+    }
+  }
+
+  // YouTube @ 핸들이나 커스텀 URL을 채널 ID로 변환
+  const resolveChannelId = async (identifier, apiKey) => {
+    // 이미 UC로 시작하는 채널 ID면 그대로 반환
+    if (identifier && identifier.startsWith('UC')) {
+      return identifier
+    }
+
+    try {
+      // @ 핸들인 경우
+      if (identifier && identifier.startsWith('@')) {
+        const handle = identifier.substring(1)
+        // YouTube Data API v3에서 forHandle 파라미터 사용
+        const response = await fetch(
+          `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle=${handle}&key=${apiKey}`
+        )
+        const result = await response.json()
+        if (result.items && result.items.length > 0) {
+          return result.items[0].id
+        }
+      }
+
+      // 커스텀 URL이나 사용자명인 경우
+      if (identifier) {
+        const response = await fetch(
+          `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${identifier}&key=${apiKey}`
+        )
+        const result = await response.json()
+        if (result.items && result.items.length > 0) {
+          return result.items[0].id
+        }
+      }
+
+      return null
+    } catch (err) {
+      console.error('채널 ID 변환 오류:', err)
+      return null
+    }
+  }
+
   const loadCreatorData = async () => {
     try {
       setLoading(true)
+      setError(null)
 
       // 크리에이터 정보 로드
       const { data: creatorData, error: creatorError } = await supabaseBiz
@@ -48,14 +135,43 @@ export default function CreatorReport() {
 
       setCreator(creatorData)
 
-      // YouTube 데이터가 있으면 통계 가져오기
-      if (creatorData.platform === 'youtube' && creatorData.platform_id) {
-        await fetchYouTubeStats(creatorData)
+      // YouTube 데이터 가져오기
+      if (creatorData.platform === 'youtube') {
+        const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY
+
+        // platform_id가 있으면 사용, 없으면 URL에서 추출
+        let extractedChannelId = creatorData.platform_id
+
+        if (!extractedChannelId && creatorData.platform_url) {
+          console.log('URL에서 채널 ID 추출 시도:', creatorData.platform_url)
+          extractedChannelId = extractYouTubeChannelId(creatorData.platform_url)
+        }
+
+        if (extractedChannelId && apiKey) {
+          // @ 핸들이나 커스텀 URL을 실제 채널 ID로 변환
+          const resolvedId = await resolveChannelId(extractedChannelId, apiKey)
+          if (resolvedId) {
+            setChannelId(resolvedId)
+            // 채널 ID를 creatorData에 임시 저장 (UI용)
+            creatorData.resolved_channel_id = resolvedId
+            await fetchYouTubeStats({ ...creatorData, platform_id: resolvedId })
+          } else if (extractedChannelId.startsWith('UC')) {
+            // 이미 채널 ID 형식이면 바로 사용
+            setChannelId(extractedChannelId)
+            await fetchYouTubeStats(creatorData)
+          } else {
+            setError('YouTube 채널 ID를 확인할 수 없습니다. 채널 URL을 확인해주세요.')
+          }
+        } else if (!apiKey) {
+          setError('YouTube API 키가 설정되지 않았습니다. Gemini AI 분석만 사용 가능합니다.')
+        } else {
+          setError('YouTube 채널 정보가 없습니다. platform_url을 확인해주세요.')
+        }
       }
 
     } catch (err) {
       console.error('데이터 로드 실패:', err)
-      alert('크리에이터 정보를 불러오는데 실패했습니다.')
+      setError(err.message || '크리에이터 정보를 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
     }
@@ -145,7 +261,8 @@ export default function CreatorReport() {
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY
       if (!apiKey) {
-        alert('Gemini API 키가 설정되지 않았습니다.')
+        alert('Gemini API 키가 설정되지 않았습니다. 환경 변수를 확인해주세요.')
+        setLoadingAI(false)
         return
       }
 
@@ -154,7 +271,10 @@ export default function CreatorReport() {
 - 구독자: ${stats.subscriberCount.toLocaleString()}명
 - 총 영상: ${stats.videoCount}개
 - 총 조회수: ${stats.viewCount.toLocaleString()}회
-` : ''
+` : `
+**채널 통계:** YouTube API 데이터를 가져올 수 없어 직접 채널을 방문하여 분석해주세요.
+- 채널 URL: ${creator.platform_url}
+`
 
       const videosInfo = videos.length > 0 ? `
 **최근 영상 (최대 10개):**
@@ -163,7 +283,16 @@ ${videos.map((v, i) => `${i + 1}. ${v.title}
    - 좋아요: ${v.likeCount.toLocaleString()}
    - 댓글: ${v.commentCount.toLocaleString()}
    - 게시일: ${new Date(v.publishedAt).toLocaleDateString()}`).join('\n\n')}
-` : ''
+` : `
+**최근 영상:** YouTube API 데이터를 가져올 수 없습니다. 아래 URL에서 직접 채널을 확인하여 최근 영상을 분석해주세요.
+- 채널 URL: ${creator.platform_url}
+
+이 채널을 직접 방문하여 다음 정보를 확인하고 분석해주세요:
+1. 구독자 수와 총 영상 개수
+2. 최근 10개 영상의 제목, 조회수, 업로드 날짜
+3. 영상의 평균 좋아요 수와 댓글 수
+4. 채널의 주요 콘텐츠 카테고리와 스타일
+`
       
       const prompt = `당신은 한국 뷰티/라이프스타일 YouTube 채널 전문 컨설턴트입니다. 아래 실제 데이터를 기반으로 **구체적인 근거와 함께 실행 가능한 인사이트**를 제공해주세요.
 
@@ -378,30 +507,52 @@ JSON 형식으로 응답:
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* 헤더 */}
         <div className="mb-6">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => navigate('/admin/creators')}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             크리에이터 목록으로
           </Button>
-          
+
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{creator.creator_name}</h1>
               <p className="text-gray-600 mt-1">{creator.platform_url}</p>
+              {channelId && (
+                <p className="text-sm text-gray-500 mt-1">채널 ID: {channelId}</p>
+              )}
             </div>
-            <Button 
+            <Button
               onClick={generateAIAnalysis}
               disabled={loadingAI}
               className="bg-gradient-to-r from-purple-600 to-blue-600"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              {loadingAI ? 'AI 분석 중...' : 'AI 분석 생성'}
+              {loadingAI ? 'Gemini AI 분석 중...' : 'Gemini AI 분석 생성'}
             </Button>
           </div>
         </div>
+
+        {/* 에러 메시지 */}
+        {error && (
+          <Card className="mb-6 border-yellow-300 bg-yellow-50">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">주의</p>
+                  <p className="text-sm text-yellow-700 mt-1">{error}</p>
+                  <p className="text-sm text-yellow-600 mt-2">
+                    Gemini AI는 YouTube 데이터 없이도 채널 URL을 기반으로 분석할 수 있습니다.
+                    "Gemini AI 분석 생성" 버튼을 클릭하세요.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 채널 통계 */}
         {stats && (

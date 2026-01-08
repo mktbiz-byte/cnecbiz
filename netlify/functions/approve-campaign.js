@@ -4,6 +4,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
+const { sendNotification, generateEmailHtml } = require('./send-notification-helper')
 
 // Supabase 클라이언트 생성 함수
 function getSupabaseClient(region) {
@@ -229,15 +230,11 @@ exports.handler = async (event, context) => {
 
     console.log('[approve-campaign] Campaign approved successfully')
 
-    // 알림 발송 (카카오톡 + 이메일)
+    // 알림 발송 (카카오톡 + 이메일) - Popbill 사용
     try {
-      const alimtalkApiKey = process.env.ALIMTALK_API_KEY
-      const alimtalkUserId = process.env.ALIMTALK_USER_ID
-      const alimtalkSenderKey = process.env.ALIMTALK_SENDER_KEY
-      
       // 알림톡 템플릿 코드
       const templateCode = '025100001005' // [CNEC] 신청하신 캠페인 승인 완료
-      
+
       // 날짜 포맷팅
       const formatDate = (dateString) => {
         if (!dateString) return '-'
@@ -255,134 +252,24 @@ exports.handler = async (event, context) => {
 
       console.log('[approve-campaign] Sending notification with variables:', variables)
 
-      // 알림톡 전송
-      if (alimtalkApiKey && alimtalkUserId && alimtalkSenderKey && company.phone) {
-        console.log('[approve-campaign] Sending Alimtalk to:', company.phone)
-        
-        // 메시지 본문 (변수 직접 치환)
-        const message = `[CNEC] 신청하신 캠페인 승인 완료
+      // 이메일 HTML 생성
+      const emailHtml = generateEmailHtml(templateCode, variables)
 
-#{회사명}님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.
-
-캠페인: #{캠페인명}
-모집 기간: #{시작일} ~ #{마감일}
-모집 인원: #{모집인원}명
-
-관리자 페이지에서 진행 상황을 확인하실 수 있습니다.
-
-문의: 1833-6025`
-        
-        const alimtalkParams = {
-          apikey: alimtalkApiKey,
-          userid: alimtalkUserId,
-          senderkey: alimtalkSenderKey,
-          tpl_code: templateCode,
-          sender: '18336025',
-          receiver_1: company.phone.replace(/-/g, ''),
-          subject_1: '[CNEC] 신청하신 캠페인 승인 완료',
-          message_1: message,
-          button_1: JSON.stringify({
-            button: [{
-              name: '관리자 페이지',
-              linkType: 'WL',
-              linkTypeName: '웹링크',
-              linkMo: 'https://cnectotal.netlify.app/company/campaigns',
-              linkPc: 'https://cnectotal.netlify.app/company/campaigns'
-            }]
-          }),
-          emtitle_1: '회사명',
-          emoption_1: variables['회사명'],
-          emtitle_2: '캠페인명',
-          emoption_2: variables['캠페인명'],
-          emtitle_3: '시작일',
-          emoption_3: variables['시작일'],
-          emtitle_4: '마감일',
-          emoption_4: variables['마감일'],
-          emtitle_5: '모집인원',
-          emoption_5: variables['모집인원']
-        }
-        
-        console.log('[approve-campaign] Alimtalk params:', JSON.stringify(alimtalkParams, null, 2))
-        
-        const alimtalkResponse = await fetch('https://kakaoapi.aligo.in/akv10/alimtalk/send/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: new URLSearchParams(alimtalkParams).toString()
+      // 알림 전송 (Popbill 카카오톡 + 이메일)
+      if (company.phone || company.email) {
+        await sendNotification({
+          receiverNum: company.phone,
+          receiverEmail: company.email,
+          receiverName: company.company_name,
+          templateCode,
+          variables,
+          emailSubject: emailHtml.subject,
+          emailHtml: emailHtml.html
         })
-
-        const alimtalkResult = await alimtalkResponse.json()
-        console.log('[approve-campaign] Alimtalk response:', JSON.stringify(alimtalkResult, null, 2))
-        
-        if (alimtalkResult.code !== 0) {
-          console.error('[approve-campaign] Alimtalk failed:', alimtalkResult.message)
-        }
+        console.log('[approve-campaign] Notification sent successfully')
       } else {
-        console.log('[approve-campaign] Alimtalk credentials missing:', {
-          hasApiKey: !!alimtalkApiKey,
-          hasUserId: !!alimtalkUserId,
-          hasSenderKey: !!alimtalkSenderKey,
-          hasPhone: !!company.phone,
-          phone: company.phone
-        })
+        console.log('[approve-campaign] No phone or email found')
       }
-
-      // 이메일 전송
-      if (company.email) {
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-            <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <h2 style="color: #4F46E5; margin-bottom: 20px;">[CNEC] 신청하신 캠페인 승인 완료</h2>
-              <p style="font-size: 16px; line-height: 1.6; color: #333;">
-                ${variables['회사명']}님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.
-              </p>
-              <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 10px 0;"><strong>캠페인:</strong> ${variables['캠페인명']}</p>
-                <p style="margin: 10px 0;"><strong>모집 기간:</strong> ${variables['시작일']} ~ ${variables['마감일']}</p>
-                <p style="margin: 10px 0;"><strong>모집 인원:</strong> ${variables['모집인원']}명</p>
-              </div>
-              <p style="font-size: 14px; color: #666; margin-top: 20px;">
-                관리자 페이지에서 진행 상황을 확인하실 수 있습니다.
-              </p>
-              <a href="https://cnectotal.netlify.app/company/campaigns" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 20px;">
-                관리자 페이지 바로가기
-              </a>
-              <p style="font-size: 12px; color: #999; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-                문의: 1833-6025
-              </p>
-            </div>
-          </div>
-        `
-
-        const gmailUser = process.env.GMAIL_USER
-        const gmailAppPassword = process.env.GMAIL_APP_PASSWORD
-
-        if (gmailUser && gmailAppPassword) {
-          const nodemailer = require('nodemailer')
-          
-          const transporter = nodemailer.createTransporter({
-            service: 'gmail',
-            auth: {
-              user: gmailUser,
-              pass: gmailAppPassword
-            }
-          })
-
-          await transporter.sendMail({
-            from: `"CNEC" <${gmailUser}>`,
-            to: company.email,
-            subject: '[CNEC] 신청하신 캠페인 승인 완료',
-            html: emailHtml
-          })
-
-          console.log('[approve-campaign] Email sent successfully')
-        } else {
-          console.log('[approve-campaign] Gmail credentials missing')
-        }
-      }
-
-      console.log('[approve-campaign] Notification sent successfully')
     } catch (notifError) {
       console.error('[approve-campaign] Notification error:', notifError)
       // 알림 발송 실패해도 승인은 완료
