@@ -99,16 +99,20 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
       return;
     }
 
+    const emailData = {
+      to: creator.email,
+      creatorName: creator.name || creator.creator_name || 'クリエイター',
+      language: region === 'japan' ? 'ja' : 'ko'
+    };
+
+    console.log('[LINE Invite Email] 발송 데이터:', emailData);
+
     setSendingInvite(true);
     try {
       const response = await fetch('/.netlify/functions/send-line-invitation-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: creator.email,
-          creatorName: creator.name || creator.creator_name || 'クリエイター',
-          language: region === 'japan' ? 'ja' : 'ko'
-        })
+        body: JSON.stringify(emailData)
       });
 
       if (response.ok) {
