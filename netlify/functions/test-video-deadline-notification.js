@@ -73,6 +73,7 @@ exports.handler = async (event, context) => {
           campaign_id,
           video_submission_deadline,
           video_submitted,
+          video_confirmed,
           status,
           campaigns (
             id,
@@ -81,7 +82,7 @@ exports.handler = async (event, context) => {
           )
         `)
         .eq('video_submission_deadline', date)
-        .or('video_submitted.is.null,video_submitted.eq.false')
+        .or('video_submitted.is.null,video_submitted.eq.false,video_confirmed.is.null,video_confirmed.eq.false')
         .in('status', ['selected', 'approved', 'guide_approved']);
 
       if (appError) {
@@ -122,7 +123,9 @@ exports.handler = async (event, context) => {
           creator_name: creatorProfile?.channel_name || creatorProfile?.name || 'Unknown',
           phone: creatorProfile?.phone || null,
           email: creatorProfile?.email || null,
-          status: app.status
+          status: app.status,
+          video_submitted: app.video_submitted,
+          video_confirmed: app.video_confirmed
         });
       }
 

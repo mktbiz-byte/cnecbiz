@@ -523,6 +523,7 @@ exports.handler = async (event, context) => {
       console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
 
       // 해당 날짜에 마감되는 applications 조회
+      // 영상이 업로드 확정되지 않은 크리에이터만 대상
       const { data: applications, error: appError } = await supabase
         .from('applications')
         .select(`
@@ -531,6 +532,7 @@ exports.handler = async (event, context) => {
           campaign_id,
           video_submission_deadline,
           video_submitted,
+          video_confirmed,
           status,
           campaigns (
             id,
@@ -539,7 +541,7 @@ exports.handler = async (event, context) => {
           )
         `)
         .eq('video_submission_deadline', date)
-        .or('video_submitted.is.null,video_submitted.eq.false')
+        .or('video_confirmed.is.null,video_confirmed.eq.false')
         .in('status', ['selected', 'approved', 'guide_approved'])
 
       if (appError) {
