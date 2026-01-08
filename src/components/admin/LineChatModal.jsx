@@ -196,7 +196,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
         {isLineConnected ? (
           <>
             {/* 메시지 영역 */}
-            <ScrollArea className="flex-1 min-h-[300px] max-h-[400px] border rounded-lg p-3">
+            <div className="h-[350px] overflow-y-auto border rounded-lg p-3 bg-white">
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -233,7 +233,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
                   <div ref={messagesEndRef} />
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
             {/* 메시지 입력 */}
             <div className="flex gap-2 mt-2">
