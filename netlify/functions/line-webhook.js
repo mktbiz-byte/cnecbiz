@@ -61,7 +61,8 @@ async function notifyNaverWorks(message) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
-        channelId: LINE_MESSAGE_CHANNEL_ID
+        channelId: LINE_MESSAGE_CHANNEL_ID,
+        isAdminNotification: true
       })
     });
     return response.ok;
