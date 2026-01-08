@@ -411,25 +411,41 @@ exports.handler = async (event, context) => {
 
         // 1. company_id로 companies 테이블에서 조회
         if (campaign.company_id) {
-          const { data: company, error: companyError } = await supabase
+          // 1-1. user_id로 조회 (company_id는 auth user.id를 저장)
+          const { data: companyByUserId, error: companyError1 } = await supabase
             .from('companies')
             .select('company_name, phone, representative_phone, email')
             .eq('user_id', campaign.company_id)
-            .single();
+            .maybeSingle();
 
-          if (!companyError && company) {
-            companyPhone = company.phone || company.representative_phone;
-            companyName = company.company_name || campaign.brand || '기업';
-            companyEmail = companyEmail || company.email;
+          if (!companyError1 && companyByUserId) {
+            companyPhone = companyByUserId.phone || companyByUserId.representative_phone;
+            companyName = companyByUserId.company_name || campaign.brand || '기업';
+            companyEmail = companyEmail || companyByUserId.email;
           }
 
-          // user_profiles에서도 조회
+          // 1-2. user_id로 못 찾으면 id로 재시도 (레거시 데이터 호환)
+          if (!companyPhone && !companyEmail) {
+            const { data: companyById, error: companyError2 } = await supabase
+              .from('companies')
+              .select('company_name, phone, representative_phone, email')
+              .eq('id', campaign.company_id)
+              .maybeSingle();
+
+            if (!companyError2 && companyById) {
+              companyPhone = companyById.phone || companyById.representative_phone;
+              companyName = companyById.company_name || campaign.brand || '기업';
+              companyEmail = companyEmail || companyById.email;
+            }
+          }
+
+          // 1-3. user_profiles에서도 조회
           if (!companyPhone || !companyEmail) {
             const { data: profile, error: profileError } = await supabase
               .from('user_profiles')
               .select('phone, email')
               .eq('id', campaign.company_id)
-              .single();
+              .maybeSingle();
 
             if (!profileError && profile) {
               companyPhone = companyPhone || profile.phone;

@@ -789,20 +789,40 @@ exports.handler = async (event, context) => {
         }
         const supabase = createClient(regionConfig.url, regionConfig.key);
 
-        // companies 테이블에서 기업 정보 조회
-        const { data: company, error: companyError } = await supabase
-          .from('companies')
-          .select('company_name, email')
-          .eq('id', campaignData.companyId)
-          .maybeSingle();
-
+        // companies 테이블에서 기업 정보 조회 (company_id는 auth user의 id이므로 user_id로 조회)
         let companyEmail = null;
         let companyName = '기업';
 
-        if (companyError || !company) {
+        // 1. user_id로 companies 테이블 조회 (company_id는 auth user.id를 저장)
+        const { data: companyByUserId, error: companyError1 } = await supabase
+          .from('companies')
+          .select('company_name, email')
+          .eq('user_id', campaignData.companyId)
+          .maybeSingle();
+
+        if (!companyError1 && companyByUserId) {
+          companyEmail = companyByUserId.email;
+          companyName = companyByUserId.company_name || '기업';
+        }
+
+        // 2. user_id로 못 찾으면 id로 재시도 (레거시 데이터 호환)
+        if (!companyEmail) {
+          const { data: companyById, error: companyError2 } = await supabase
+            .from('companies')
+            .select('company_name, email')
+            .eq('id', campaignData.companyId)
+            .maybeSingle();
+
+          if (!companyError2 && companyById) {
+            companyEmail = companyById.email;
+            companyName = companyById.company_name || '기업';
+          }
+        }
+
+        // 3. 아직도 못 찾으면 user_profiles에서 조회
+        if (!companyEmail) {
           console.log(`companies 테이블에서 기업 정보 없음 (campaign_id: ${campaignId}), user_profiles 조회 시도`);
 
-          // user_profiles에서 기업 정보 조회 시도
           const { data: profile } = await supabase
             .from('user_profiles')
             .select('name, email')
@@ -813,9 +833,6 @@ exports.handler = async (event, context) => {
             companyEmail = profile.email;
             companyName = profile.name || '기업';
           }
-        } else {
-          companyEmail = company.email;
-          companyName = company.company_name || '기업';
         }
 
         if (!companyEmail) {
