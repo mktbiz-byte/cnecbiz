@@ -13,8 +13,8 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
-  const url = process.env.SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_JAPAN_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  const url = process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_JAPAN_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   console.log('[LINE Webhook] Supabase URL:', url ? url.substring(0, 30) + '...' : 'NOT SET');
 
