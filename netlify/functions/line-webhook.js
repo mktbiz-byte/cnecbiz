@@ -102,13 +102,9 @@ async function saveMessageToDB(supabase, messageData) {
       .from('line_messages')
       .insert({
         line_user_id: messageData.line_user_id,
-        creator_id: lineUser?.creator_id || null,
         direction: messageData.direction,
         message_type: messageData.message_type || 'text',
-        message_content: messageData.message_content,
-        template_type: messageData.template_type || null,
-        reply_token: messageData.reply_token || null,
-        status: 'delivered'
+        content: messageData.content
       });
 
     if (error) {
@@ -218,7 +214,7 @@ exports.handler = async (event) => {
             line_user_id: userId,
             direction: 'incoming',
             message_type: 'text',
-            message_content: text,
+            content: text,
             reply_token: replyToken
           });
 

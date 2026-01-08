@@ -111,11 +111,9 @@ exports.handler = async (event) => {
           .from('line_messages')
           .insert({
             line_user_id: targetUserId,
-            creator_id: creatorId || null,
             direction: 'outgoing',
             message_type: 'text',
-            message_content: message,
-            status: 'delivered'
+            content: message
           });
       }
 
