@@ -15,7 +15,7 @@ import {
   TrendingUp, Users, Award, DollarSign, Sparkles, CheckCircle2, Search, Crown
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
-import { supabaseBiz, getSupabaseClient } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 import {
   GRADE_LEVELS,
   BADGE_TYPES,
@@ -81,6 +81,35 @@ export default function FeaturedCreatorManagementPageNew() {
   const [selectedGradedCreator, setSelectedGradedCreator] = useState(null)
   const [gradeFilter, setGradeFilter] = useState('all')
 
+  // 프로필 편집 모달 state
+  const [showProfileEditModal, setShowProfileEditModal] = useState(false)
+  const [editingCreator, setEditingCreator] = useState(null)
+  const [profileFormData, setProfileFormData] = useState({
+    bio: '',
+    categories: [],
+    rating: 0,
+    representative_videos: [], // 대표 영상 URLs
+    cnec_collab_videos: [] // 크넥 협업 영상 URLs
+  })
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [previewVideoUrl, setPreviewVideoUrl] = useState(null) // 영상 미리보기
+
+  // 크리에이터 카테고리 목록
+  const CREATOR_CATEGORIES = [
+    { id: 'skincare', name: '스킨케어', emoji: '🧴' },
+    { id: 'makeup', name: '색조', emoji: '💄' },
+    { id: 'diet', name: '다이어트', emoji: '🏃' },
+    { id: 'haircare', name: '헤어케어', emoji: '💇' },
+    { id: 'fashion', name: '패션', emoji: '👗' },
+    { id: 'lifestyle', name: '라이프스타일', emoji: '🏠' },
+    { id: 'food', name: '먹방/요리', emoji: '🍳' },
+    { id: 'family', name: '가족출연', emoji: '👨‍👩‍👧' },
+    { id: 'pet', name: '반려동물', emoji: '🐶' },
+    { id: 'travel', name: '여행', emoji: '✈️' },
+    { id: 'tech', name: '테크/IT', emoji: '📱' },
+    { id: 'game', name: '게임', emoji: '🎮' }
+  ]
+
   // Registered creator selection
   const [showCreatorSelectModal, setShowCreatorSelectModal] = useState(false)
   const [selectedRegionForSearch, setSelectedRegionForSearch] = useState('korea')
@@ -94,11 +123,11 @@ export default function FeaturedCreatorManagementPageNew() {
     loadGradedCreators()
   }, [])
 
-  // 등급제 크리에이터 목록 로드
+  // 등급제 크리에이터 목록 로드 (Korea Supabase)
   const loadGradedCreators = async () => {
     setLoadingGraded(true)
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('featured_creators')
         .select('*')
         .eq('is_active', true)
@@ -112,7 +141,7 @@ export default function FeaturedCreatorManagementPageNew() {
       console.error('등급제 크리에이터 로드 오류:', err)
       // 테이블에 컬럼이 없는 경우 전체 크리에이터 로드
       try {
-        const { data } = await supabaseBiz
+        const { data } = await supabaseKorea
           .from('featured_creators')
           .select('*')
           .eq('is_active', true)
@@ -160,11 +189,11 @@ export default function FeaturedCreatorManagementPageNew() {
     }
   }
 
-  // 등급 수동 업데이트
+  // 등급 수동 업데이트 (Korea Supabase)
   const handleUpdateGrade = async (creatorId, newGradeLevel, isManualMuse = false) => {
     try {
       const gradeName = GRADE_LEVELS[newGradeLevel].name
-      const { error } = await supabaseBiz
+      const { error } = await supabaseKorea
         .from('featured_creators')
         .update({
           cnec_grade_level: newGradeLevel,
@@ -181,6 +210,113 @@ export default function FeaturedCreatorManagementPageNew() {
       console.error('등급 업데이트 오류:', err)
       alert('등급 업데이트 중 오류가 발생했습니다.')
     }
+  }
+
+  // 프로필 편집 모달 열기
+  const openProfileEditModal = (creator) => {
+    setEditingCreator(creator)
+    setProfileFormData({
+      bio: creator.bio || '',
+      categories: creator.categories || [],
+      rating: creator.rating || 0,
+      representative_videos: creator.representative_videos || [],
+      cnec_collab_videos: creator.cnec_collab_videos || []
+    })
+    setPreviewVideoUrl(null)
+    setShowProfileEditModal(true)
+  }
+
+  // YouTube URL을 embed URL로 변환
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return null
+    // YouTube Shorts URL 처리
+    const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/)
+    if (shortsMatch) {
+      return `https://www.youtube.com/embed/${shortsMatch[1]}`
+    }
+    // 일반 YouTube URL 처리
+    const watchMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+    if (watchMatch) {
+      return `https://www.youtube.com/embed/${watchMatch[1]}`
+    }
+    return null
+  }
+
+  // YouTube 썸네일 URL 가져오기
+  const getYouTubeThumbnail = (url) => {
+    if (!url) return null
+    const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/)
+    if (shortsMatch) {
+      return `https://img.youtube.com/vi/${shortsMatch[1]}/mqdefault.jpg`
+    }
+    const watchMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+    if (watchMatch) {
+      return `https://img.youtube.com/vi/${watchMatch[1]}/mqdefault.jpg`
+    }
+    return null
+  }
+
+  // 영상 URL 추가
+  const addVideoUrl = (type, url) => {
+    if (!url.trim()) return
+    const field = type === 'representative' ? 'representative_videos' : 'cnec_collab_videos'
+    if (!profileFormData[field].includes(url)) {
+      setProfileFormData(prev => ({
+        ...prev,
+        [field]: [...prev[field], url.trim()]
+      }))
+    }
+  }
+
+  // 영상 URL 삭제
+  const removeVideoUrl = (type, index) => {
+    const field = type === 'representative' ? 'representative_videos' : 'cnec_collab_videos'
+    setProfileFormData(prev => ({
+      ...prev,
+      [field]: prev[field].filter((_, i) => i !== index)
+    }))
+  }
+
+  // 프로필 저장 (Korea Supabase)
+  const handleSaveProfile = async () => {
+    if (!editingCreator) return
+
+    setSavingProfile(true)
+    try {
+      const { error } = await supabaseKorea
+        .from('featured_creators')
+        .update({
+          bio: profileFormData.bio,
+          categories: profileFormData.categories,
+          rating: parseFloat(profileFormData.rating) || 0,
+          representative_videos: profileFormData.representative_videos,
+          cnec_collab_videos: profileFormData.cnec_collab_videos,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingCreator.id)
+
+      if (error) throw error
+
+      alert('프로필이 저장되었습니다.')
+      setShowProfileEditModal(false)
+      setPreviewVideoUrl(null)
+      await loadGradedCreators()
+    } catch (err) {
+      console.error('프로필 저장 오류:', err)
+      alert('프로필 저장에 실패했습니다: ' + err.message)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  // 카테고리 토글
+  const toggleCategory = (categoryId) => {
+    setProfileFormData(prev => ({
+      ...prev,
+      categories: prev.categories.includes(categoryId)
+        ? prev.categories.filter(c => c !== categoryId)
+        : [...prev.categories, categoryId]
+    }))
   }
 
   // 등급별 필터링된 크리에이터 목록
@@ -373,7 +509,7 @@ export default function FeaturedCreatorManagementPageNew() {
       
       const newCreator = {
         // Required fields
-        source_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID for CAPI-only creators
+        user_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID for CAPI-only creators
         source_country: formData.regions[0] || 'korea',
         name: channelName,
         primary_country: formData.regions[0] || 'korea',
@@ -635,7 +771,7 @@ export default function FeaturedCreatorManagementPageNew() {
       // 1. featured_creators에 먼저 저장
       const newCreator = {
         // Required fields for featured_creators table
-        source_user_id: crypto.randomUUID(), // 고유 UUID 생성
+        user_id: crypto.randomUUID(), // 고유 UUID 생성
         source_country: cnecPlusFormData.creator_region === 'korea' ? 'KR' :
                         cnecPlusFormData.creator_region === 'japan' ? 'JP' :
                         cnecPlusFormData.creator_region === 'us' ? 'US' : 'TW',
@@ -1216,6 +1352,16 @@ export default function FeaturedCreatorManagementPageNew() {
                                     size="sm"
                                     variant="outline"
                                     className="h-8"
+                                    onClick={() => openProfileEditModal(creator)}
+                                    title="프로필 편집"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8"
                                     onClick={() => handleDelete(creator.id)}
                                   >
                                     <Trash2 className="w-3 h-3" />
@@ -1223,6 +1369,124 @@ export default function FeaturedCreatorManagementPageNew() {
                                 </div>
                               </div>
                             </div>
+
+                            {/* 카테고리 표시 */}
+                            {creator.categories && creator.categories.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {creator.categories.map(catId => {
+                                  const cat = CREATOR_CATEGORIES.find(c => c.id === catId)
+                                  return cat ? (
+                                    <span key={catId} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">
+                                      {cat.emoji} {cat.name}
+                                    </span>
+                                  ) : null
+                                })}
+                              </div>
+                            )}
+
+                            {/* 소개글 미리보기 */}
+                            {creator.bio && (
+                              <div className="mt-2 text-xs text-gray-600 line-clamp-2">
+                                {creator.bio}
+                              </div>
+                            )}
+
+                            {/* 평점 표시 */}
+                            {creator.rating > 0 && (
+                              <div className="mt-2 flex items-center gap-1 text-xs">
+                                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                                <span className="font-semibold">{creator.rating.toFixed(1)}</span>
+                              </div>
+                            )}
+
+                            {/* 등록된 영상 미리보기 */}
+                            {((creator.representative_videos && creator.representative_videos.length > 0) ||
+                              (creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0)) && (
+                              <div className="mt-3 space-y-2">
+                                {/* 대표 영상 */}
+                                {creator.representative_videos && creator.representative_videos.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                      <span className="text-red-500">▶</span> 대표영상 ({creator.representative_videos.length})
+                                    </div>
+                                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                                      {creator.representative_videos.slice(0, 4).map((url, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group"
+                                          onClick={() => setPreviewVideoUrl(url)}
+                                        >
+                                          {getYouTubeThumbnail(url) ? (
+                                            <img
+                                              src={getYouTubeThumbnail(url)}
+                                              alt={`영상 ${idx + 1}`}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                                              {idx + 1}
+                                            </div>
+                                          )}
+                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
+                                              <span className="text-white text-xs ml-0.5">▶</span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {creator.representative_videos.length > 4 && (
+                                        <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                                          +{creator.representative_videos.length - 4}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 크넥 협업 영상 */}
+                                {creator.cnec_collab_videos && creator.cnec_collab_videos.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                      <span className="text-blue-500">★</span> 크넥협업 ({creator.cnec_collab_videos.length})
+                                    </div>
+                                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                                      {creator.cnec_collab_videos.slice(0, 4).map((url, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="w-12 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer relative group"
+                                          onClick={() => setPreviewVideoUrl(url)}
+                                        >
+                                          {getYouTubeThumbnail(url) ? (
+                                            <img
+                                              src={getYouTubeThumbnail(url)}
+                                              alt={`협업 ${idx + 1}`}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                                              {idx + 1}
+                                            </div>
+                                          )}
+                                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
+                                              <span className="text-white text-xs ml-0.5">▶</span>
+                                            </div>
+                                          </div>
+                                          <div className="absolute bottom-0.5 left-0.5 bg-blue-600 text-white text-[8px] px-1 rounded">
+                                            CNEC
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {creator.cnec_collab_videos.length > 4 && (
+                                        <div className="w-12 h-16 flex-shrink-0 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
+                                          +{creator.cnec_collab_videos.length - 4}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
                             {/* 통계 */}
                             <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs text-center">
@@ -1847,6 +2111,272 @@ export default function FeaturedCreatorManagementPageNew() {
               닫기
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 프로필 편집 모달 */}
+      <Dialog open={showProfileEditModal} onOpenChange={setShowProfileEditModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-blue-500" />
+              크리에이터 프로필 편집
+            </DialogTitle>
+            <DialogDescription>
+              {editingCreator?.name || editingCreator?.channel_name}님의 프로필을 편집합니다
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-4 pr-2">
+            {/* 소개글 */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">소개글</Label>
+              <Textarea
+                value={profileFormData.bio}
+                onChange={(e) => setProfileFormData(prev => ({ ...prev, bio: e.target.value }))}
+                placeholder="크리에이터 소개글을 입력하세요..."
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+
+            {/* 주력 카테고리 + 평점 (가로 배치) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 주력 카테고리 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">주력 카테고리</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CREATOR_CATEGORIES.map(category => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => toggleCategory(category.id)}
+                      className={`px-2 py-1 rounded-full text-xs transition-all ${
+                        profileFormData.categories.includes(category.id)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {category.emoji} {category.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 평점 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">평점</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={profileFormData.rating}
+                    onChange={(e) => setProfileFormData(prev => ({ ...prev, rating: e.target.value }))}
+                    className="w-20 h-8"
+                  />
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Star
+                        key={star}
+                        className={`w-5 h-5 cursor-pointer ${
+                          star <= Math.round(profileFormData.rating)
+                            ? 'text-yellow-500 fill-yellow-500'
+                            : 'text-gray-300'
+                        }`}
+                        onClick={() => setProfileFormData(prev => ({ ...prev, rating: star }))}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 영상 섹션 (가로 스크롤) */}
+            <div className="space-y-3 pt-2 border-t">
+              {/* 대표 영상 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-1">
+                    <span className="text-red-500">▶</span> 대표영상
+                    <span className="text-gray-400 font-normal">({profileFormData.representative_videos.length}/5)</span>
+                  </Label>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="representative-video-input"
+                    placeholder="YouTube Shorts URL 입력 후 Enter"
+                    className="flex-1 h-8 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addVideoUrl('representative', e.target.value)
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      const input = document.getElementById('representative-video-input')
+                      if (input.value) {
+                        addVideoUrl('representative', input.value)
+                        input.value = ''
+                      }
+                    }}
+                    disabled={profileFormData.representative_videos.length >= 5}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {profileFormData.representative_videos.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {profileFormData.representative_videos.map((url, index) => (
+                      <div key={index} className="relative group flex-shrink-0">
+                        <div
+                          className="w-16 h-24 bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
+                          onClick={() => setPreviewVideoUrl(url)}
+                        >
+                          {getYouTubeThumbnail(url) ? (
+                            <img src={getYouTubeThumbnail(url)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">{index + 1}</div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
+                              <span className="text-white text-sm ml-0.5">▶</span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeVideoUrl('representative', index) }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 크넥 협업 영상 */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-1">
+                    <span className="text-blue-500">★</span> 크넥 협업영상
+                    <span className="text-gray-400 font-normal">({profileFormData.cnec_collab_videos.length}/10)</span>
+                  </Label>
+                </div>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="collab-video-input"
+                    placeholder="YouTube Shorts URL 입력 후 Enter"
+                    className="flex-1 h-8 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addVideoUrl('collab', e.target.value)
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => {
+                      const input = document.getElementById('collab-video-input')
+                      if (input.value) {
+                        addVideoUrl('collab', input.value)
+                        input.value = ''
+                      }
+                    }}
+                    disabled={profileFormData.cnec_collab_videos.length >= 10}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {profileFormData.cnec_collab_videos.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {profileFormData.cnec_collab_videos.map((url, index) => (
+                      <div key={index} className="relative group flex-shrink-0">
+                        <div
+                          className="w-16 h-24 bg-gray-100 rounded-lg overflow-hidden cursor-pointer relative"
+                          onClick={() => setPreviewVideoUrl(url)}
+                        >
+                          {getYouTubeThumbnail(url) ? (
+                            <img src={getYouTubeThumbnail(url)} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">{index + 1}</div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                              <span className="text-white text-sm ml-0.5">▶</span>
+                            </div>
+                          </div>
+                          <div className="absolute bottom-0.5 left-0.5 bg-blue-600 text-white text-[8px] px-1 rounded">CNEC</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); removeVideoUrl('collab', index) }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-shrink-0 border-t pt-4">
+            <Button variant="outline" onClick={() => setShowProfileEditModal(false)} disabled={savingProfile}>
+              취소
+            </Button>
+            <Button onClick={handleSaveProfile} disabled={savingProfile}>
+              {savingProfile ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                '저장하기'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 영상 미리보기 모달 */}
+      <Dialog open={!!previewVideoUrl} onOpenChange={() => setPreviewVideoUrl(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden bg-black">
+          <div className="relative">
+            <button
+              onClick={() => setPreviewVideoUrl(null)}
+              className="absolute top-2 right-2 z-10 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center"
+            >
+              ×
+            </button>
+            {previewVideoUrl && getYouTubeEmbedUrl(previewVideoUrl) && (
+              <div className="aspect-[9/16] max-h-[80vh]">
+                <iframe
+                  src={`${getYouTubeEmbedUrl(previewVideoUrl)}?autoplay=1`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>

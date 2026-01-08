@@ -168,6 +168,12 @@ export default function AllCreatorsPage() {
   const [selectedGradeLevel, setSelectedGradeLevel] = useState(1)
   const [savingGrade, setSavingGrade] = useState(false)
 
+  // 일괄 등급 변경 상태
+  const [showBulkGradeModal, setShowBulkGradeModal] = useState(false)
+  const [bulkGradeLevel, setBulkGradeLevel] = useState(1)
+  const [savingBulkGrade, setSavingBulkGrade] = useState(false)
+  const [bulkGradeProgress, setBulkGradeProgress] = useState({ current: 0, total: 0 })
+
   // 포인트 지급 상태
   const [showPointModal, setShowPointModal] = useState(false)
   const [pointAmount, setPointAmount] = useState('')
@@ -317,12 +323,12 @@ export default function AllCreatorsPage() {
     }
   }
 
-  // 등급 크리에이터 데이터 로드 (brand site DB)
+  // 등급 크리에이터 데이터 로드 (Korea DB)
   const fetchFeaturedCreators = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('featured_creators')
-        .select('source_user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended')
+        .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended')
         .eq('is_active', true)
 
       if (error) {
@@ -338,7 +344,7 @@ export default function AllCreatorsPage() {
 
   // 크리에이터의 등급 정보 가져오기
   const getCreatorGrade = (creatorId) => {
-    const featured = featuredCreators.find(fc => fc.source_user_id === creatorId)
+    const featured = featuredCreators.find(fc => fc.user_id === creatorId)
     if (featured && featured.cnec_grade_level) {
       return {
         level: featured.cnec_grade_level,
@@ -357,41 +363,35 @@ export default function AllCreatorsPage() {
     setSavingGrade(true)
     try {
       const gradeInfo = GRADE_LEVELS[selectedGradeLevel]
-      const existingFeatured = featuredCreators.find(fc => fc.source_user_id === selectedCreator.id)
+      const existingFeatured = featuredCreators.find(fc => fc.user_id === selectedCreator.id)
 
       if (existingFeatured) {
         // 기존 등급 업데이트
-        const { error } = await supabaseBiz
+        const { error } = await supabaseKorea
           .from('featured_creators')
           .update({
             cnec_grade_level: selectedGradeLevel,
             cnec_grade_name: gradeInfo.name,
             is_cnec_recommended: selectedGradeLevel >= 2
           })
-          .eq('source_user_id', selectedCreator.id)
+          .eq('user_id', selectedCreator.id)
 
         if (error) throw error
       } else {
-        // 새로 등록
-        const regionMap = { korea: 'KR', japan: 'JP', us: 'US', taiwan: 'TW' }
-        const { error } = await supabaseBiz
+        // 새로 등록 (featured_creators 테이블 구조에 맞게)
+        const { error } = await supabaseKorea
           .from('featured_creators')
           .insert({
-            source_user_id: selectedCreator.id,
-            source_country: regionMap[selectedCreator.dbRegion] || 'KR',
+            user_id: selectedCreator.id,
             name: selectedCreator.name || selectedCreator.channel_name || '',
-            email: selectedCreator.email,
-            phone: selectedCreator.phone,
-            profile_image_url: selectedCreator.profile_image,
-            instagram_handle: selectedCreator.instagram_url?.split('/').pop(),
+            profile_photo_url: selectedCreator.profile_image,
+            instagram_url: selectedCreator.instagram_url,
             instagram_followers: selectedCreator.instagram_followers || 0,
-            youtube_handle: selectedCreator.youtube_url?.split('/').pop(),
+            youtube_url: selectedCreator.youtube_url,
             youtube_subscribers: selectedCreator.youtube_subscribers || 0,
-            tiktok_handle: selectedCreator.tiktok_url?.split('/').pop(),
+            tiktok_url: selectedCreator.tiktok_url,
             tiktok_followers: selectedCreator.tiktok_followers || 0,
-            primary_country: regionMap[selectedCreator.dbRegion] || 'KR',
-            active_regions: [selectedCreator.dbRegion],
-            featured_type: 'manual',
+            bio: selectedCreator.bio,
             is_active: true,
             cnec_grade_level: selectedGradeLevel,
             cnec_grade_name: gradeInfo.name,
@@ -400,6 +400,18 @@ export default function AllCreatorsPage() {
           })
 
         if (error) throw error
+      }
+
+      // user_profiles 테이블에도 등급 동기화 (cnec_grade_level만 존재)
+      const { error: profileError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          cnec_grade_level: selectedGradeLevel
+        })
+        .eq('id', selectedCreator.id)
+
+      if (profileError) {
+        console.warn('user_profiles 등급 동기화 실패:', profileError)
       }
 
       alert(`${selectedCreator.name || '크리에이터'}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
@@ -421,12 +433,24 @@ export default function AllCreatorsPage() {
 
     setSavingGrade(true)
     try {
-      const { error } = await supabaseBiz
+      const { error } = await supabaseKorea
         .from('featured_creators')
         .delete()
-        .eq('source_user_id', selectedCreator.id)
+        .eq('user_id', selectedCreator.id)
 
       if (error) throw error
+
+      // user_profiles 테이블에서도 등급 초기화 (cnec_grade_level만 존재)
+      const { error: profileError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          cnec_grade_level: null
+        })
+        .eq('id', selectedCreator.id)
+
+      if (profileError) {
+        console.warn('user_profiles 등급 초기화 실패:', profileError)
+      }
 
       alert('등급이 삭제되었습니다.')
       setShowGradeModal(false)
@@ -436,6 +460,92 @@ export default function AllCreatorsPage() {
       alert('등급 삭제에 실패했습니다: ' + error.message)
     } finally {
       setSavingGrade(false)
+    }
+  }
+
+  // 일괄 등급 변경
+  const handleBulkGradeChange = async () => {
+    const koreanCreators = selectedCreators.filter(c => c.dbRegion === 'korea')
+    if (koreanCreators.length === 0) {
+      alert('한국 크리에이터를 선택해주세요. (등급 시스템은 한국 크리에이터만 지원합니다)')
+      return
+    }
+
+    setSavingBulkGrade(true)
+    setBulkGradeProgress({ current: 0, total: koreanCreators.length })
+
+    const gradeInfo = GRADE_LEVELS[bulkGradeLevel]
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      for (let i = 0; i < koreanCreators.length; i++) {
+        const creator = koreanCreators[i]
+        setBulkGradeProgress({ current: i + 1, total: koreanCreators.length })
+
+        try {
+          const existingFeatured = featuredCreators.find(fc => fc.user_id === creator.id)
+
+          if (existingFeatured) {
+            // 기존 등급 업데이트
+            const { error } = await supabaseKorea
+              .from('featured_creators')
+              .update({
+                cnec_grade_level: bulkGradeLevel,
+                cnec_grade_name: gradeInfo.name,
+                is_cnec_recommended: bulkGradeLevel >= 2
+              })
+              .eq('user_id', creator.id)
+
+            if (error) throw error
+          } else {
+            // 새로 등록
+            const { error } = await supabaseKorea
+              .from('featured_creators')
+              .insert({
+                user_id: creator.id,
+                name: creator.name || creator.channel_name || '',
+                profile_photo_url: creator.profile_image,
+                instagram_url: creator.instagram_url,
+                instagram_followers: creator.instagram_followers || 0,
+                youtube_url: creator.youtube_url,
+                youtube_subscribers: creator.youtube_subscribers || 0,
+                tiktok_url: creator.tiktok_url,
+                tiktok_followers: creator.tiktok_followers || 0,
+                bio: creator.bio,
+                is_active: true,
+                cnec_grade_level: bulkGradeLevel,
+                cnec_grade_name: gradeInfo.name,
+                cnec_total_score: 0,
+                is_cnec_recommended: bulkGradeLevel >= 2
+              })
+
+            if (error) throw error
+          }
+
+          // user_profiles 테이블에도 등급 동기화
+          await supabaseKorea
+            .from('user_profiles')
+            .update({ cnec_grade_level: bulkGradeLevel })
+            .eq('id', creator.id)
+
+          successCount++
+        } catch (err) {
+          console.error(`${creator.name || creator.email} 등급 변경 실패:`, err)
+          failCount++
+        }
+      }
+
+      alert(`일괄 등급 변경 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+      setShowBulkGradeModal(false)
+      setSelectedCreators([])
+      await fetchFeaturedCreators()
+    } catch (error) {
+      console.error('일괄 등급 변경 오류:', error)
+      alert('일괄 등급 변경에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingBulkGrade(false)
+      setBulkGradeProgress({ current: 0, total: 0 })
     }
   }
 
@@ -1445,16 +1555,28 @@ export default function AllCreatorsPage() {
                         </Button>
                         {/* 한국 크리에이터가 선택된 경우에만 프로필 등록 요청 버튼 표시 */}
                         {selectedCreators.some(c => c.dbRegion === 'korea') && (
-                          <Button
-                            onClick={() => {
-                              setProfileRequestOptions({ kakao: true, email: true })
-                              setShowProfileRequestModal(true)
-                            }}
-                            className="bg-yellow-500 hover:bg-yellow-600 text-white"
-                          >
-                            <User className="w-4 h-4 mr-2" />
-                            프로필 등록 요청
-                          </Button>
+                          <>
+                            <Button
+                              onClick={() => {
+                                setProfileRequestOptions({ kakao: true, email: true })
+                                setShowProfileRequestModal(true)
+                              }}
+                              className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                            >
+                              <User className="w-4 h-4 mr-2" />
+                              프로필 등록 요청
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setBulkGradeLevel(1)
+                                setShowBulkGradeModal(true)
+                              }}
+                              className="bg-purple-500 hover:bg-purple-600 text-white"
+                            >
+                              <Crown className="w-4 h-4 mr-2" />
+                              일괄 등급 변경
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="outline"
@@ -1564,7 +1686,7 @@ export default function AllCreatorsPage() {
 
       {/* 프로필 모달 */}
       <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-indigo-500" />
@@ -1573,7 +1695,7 @@ export default function AllCreatorsPage() {
           </DialogHeader>
 
           {selectedCreator && (
-            <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto space-y-6 py-2 -mx-6 px-6">
               {/* 기본 정보 */}
               <div className="flex items-start gap-4">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center overflow-hidden">
@@ -1818,7 +1940,7 @@ export default function AllCreatorsPage() {
             </div>
           )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="border-t pt-4 mt-4 flex flex-wrap gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowProfileModal(false)}>
               닫기
             </Button>
@@ -1859,7 +1981,7 @@ export default function AllCreatorsPage() {
               <Star className="w-4 h-4 mr-2" />
               평가하기
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -2222,6 +2344,124 @@ export default function AllCreatorsPage() {
                 <>
                   <Check className="w-4 h-4 mr-2" />
                   저장
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 일괄 등급 변경 모달 */}
+      <Dialog open={showBulkGradeModal} onOpenChange={setShowBulkGradeModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-purple-500" />
+              일괄 등급 변경
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* 선택된 크리에이터 정보 */}
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">선택된 크리에이터</span>
+                <span className="text-lg font-bold text-purple-600">
+                  {selectedCreators.filter(c => c.dbRegion === 'korea').length}명
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                (한국 크리에이터만 등급 변경 가능)
+              </p>
+              {selectedCreators.filter(c => c.dbRegion !== 'korea').length > 0 && (
+                <p className="text-xs text-orange-500 mt-1">
+                  ⚠️ 다른 지역 크리에이터 {selectedCreators.filter(c => c.dbRegion !== 'korea').length}명은 제외됩니다
+                </p>
+              )}
+            </div>
+
+            {/* 등급 선택 */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">변경할 등급 선택</label>
+              <div className="grid grid-cols-1 gap-2">
+                {Object.entries(GRADE_LEVELS).map(([level, info]) => (
+                  <button
+                    key={level}
+                    onClick={() => setBulkGradeLevel(parseInt(level))}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                      bulkGradeLevel === parseInt(level)
+                        ? `${info.borderClass} ${info.lightBg}`
+                        : 'border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-full ${info.bgClass} flex items-center justify-center text-white`}>
+                      {level === '5' ? <Crown className="w-5 h-5" /> :
+                       level === '4' ? <Sparkles className="w-5 h-5" /> :
+                       level === '3' ? <TrendingUp className="w-5 h-5" /> :
+                       <span className="font-bold">{level}</span>}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className={`font-bold ${info.textClass}`}>Lv.{level} {info.name}</p>
+                      <p className="text-xs text-gray-500">{info.label}</p>
+                    </div>
+                    {bulkGradeLevel === parseInt(level) && (
+                      <Check className={`w-5 h-5 ${info.textClass}`} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 진행 상황 */}
+            {savingBulkGrade && bulkGradeProgress.total > 0 && (
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-purple-800">진행 중...</span>
+                  <span className="text-sm text-purple-600">
+                    {bulkGradeProgress.current} / {bulkGradeProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-purple-200 rounded-full h-2">
+                  <div
+                    className="bg-purple-500 h-2 rounded-full transition-all"
+                    style={{ width: `${(bulkGradeProgress.current / bulkGradeProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 안내 메시지 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-sm text-blue-800">
+                <strong>💡 안내</strong><br />
+                • 선택된 모든 한국 크리에이터의 등급이 변경됩니다<br />
+                • GLOW(Lv.2) 이상은 추천 크리에이터로 표시됩니다
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkGradeModal(false)}
+              disabled={savingBulkGrade}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleBulkGradeChange}
+              disabled={savingBulkGrade || selectedCreators.filter(c => c.dbRegion === 'korea').length === 0}
+              className="bg-purple-500 hover:bg-purple-600"
+            >
+              {savingBulkGrade ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  변경 중...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  {selectedCreators.filter(c => c.dbRegion === 'korea').length}명 등급 변경
                 </>
               )}
             </Button>
