@@ -45,6 +45,10 @@ export default function WithdrawalManagement() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
 
+  // 체크박스 일괄 선택
+  const [checkedWithdrawals, setCheckedWithdrawals] = useState(new Set())
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+
   useEffect(() => {
     checkAuth()
     fetchWithdrawals()
@@ -53,6 +57,11 @@ export default function WithdrawalManagement() {
   useEffect(() => {
     calculateStats()
   }, [withdrawals])
+
+  // 탭/국가 변경 시 체크박스 초기화
+  useEffect(() => {
+    setCheckedWithdrawals(new Set())
+  }, [selectedStatus, selectedCountry])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -570,6 +579,280 @@ export default function WithdrawalManagement() {
     } catch (error) {
       console.error('완료 처리 오류:', error)
       alert('완료 처리 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 체크박스 핸들러
+  const handleCheckWithdrawal = (withdrawalId) => {
+    setCheckedWithdrawals(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(withdrawalId)) {
+        newSet.delete(withdrawalId)
+      } else {
+        newSet.add(withdrawalId)
+      }
+      return newSet
+    })
+  }
+
+  const handleCheckAll = (withdrawalsList) => {
+    if (checkedWithdrawals.size === withdrawalsList.length) {
+      setCheckedWithdrawals(new Set())
+    } else {
+      setCheckedWithdrawals(new Set(withdrawalsList.map(w => w.id)))
+    }
+  }
+
+  // 일괄 승인 함수
+  const handleBulkApprove = async () => {
+    const selectedList = getFilteredWithdrawals().filter(w => checkedWithdrawals.has(w.id) && w.status === 'pending')
+    if (selectedList.length === 0) {
+      alert('승인할 출금 신청을 선택해주세요. (대기 상태만 승인 가능)')
+      return
+    }
+
+    if (!confirm(`선택한 ${selectedList.length}건을 일괄 승인하시겠습니까?\n\n각 크리에이터에게 알림톡이 발송됩니다.`)) return
+
+    setBulkProcessing(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+
+      for (const withdrawal of selectedList) {
+        try {
+          const isKoreaDB = withdrawal.source_db === 'korea'
+
+          // DB 업데이트
+          if (isKoreaDB && supabaseKorea) {
+            const { error } = await supabaseKorea
+              .from('withdrawals')
+              .update({
+                status: 'approved',
+                processed_by: user?.id,
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          } else {
+            const { error } = await supabaseBiz
+              .from('creator_withdrawal_requests')
+              .update({
+                status: 'approved',
+                approved_at: new Date().toISOString(),
+                approved_by: user.id
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          }
+
+          // 알림톡 발송
+          try {
+            let creatorPhone = null
+            const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+            const withdrawalAmount = withdrawal.requested_amount || withdrawal.amount || 0
+
+            if (withdrawal.user_id && supabaseKorea) {
+              const { data: profileData } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone')
+                .eq('id', withdrawal.user_id)
+                .maybeSingle()
+              creatorPhone = profileData?.phone
+
+              if (!creatorPhone) {
+                const { data: profileData2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('phone')
+                  .eq('user_id', withdrawal.user_id)
+                  .maybeSingle()
+                creatorPhone = profileData2?.phone
+              }
+            }
+
+            if (creatorPhone) {
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-kakao-notification`,
+                {
+                  receiverNum: creatorPhone,
+                  receiverName: creatorName,
+                  templateCode: '025100001019',
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '출금금액': withdrawalAmount.toLocaleString(),
+                    '신청일': new Date().toLocaleDateString('ko-KR')
+                  }
+                },
+                { timeout: 8000 }
+              )
+              console.log(`알림톡 발송 완료: ${creatorName}`)
+            }
+          } catch (notifyError) {
+            console.error('알림톡 발송 오류:', notifyError)
+          }
+
+          successCount++
+        } catch (err) {
+          console.error(`승인 실패 (${withdrawal.id}):`, err)
+          failCount++
+        }
+      }
+
+      alert(`일괄 승인 완료\n\n성공: ${successCount}건\n실패: ${failCount}건`)
+      setCheckedWithdrawals(new Set())
+      fetchWithdrawals()
+    } catch (error) {
+      console.error('일괄 승인 오류:', error)
+      alert('일괄 승인 중 오류가 발생했습니다.')
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  // 일괄 지급완료 함수
+  const handleBulkComplete = async () => {
+    const selectedList = getFilteredWithdrawals().filter(w => checkedWithdrawals.has(w.id) && w.status === 'approved')
+    if (selectedList.length === 0) {
+      alert('지급 완료할 출금 신청을 선택해주세요. (승인 상태만 지급완료 가능)')
+      return
+    }
+
+    if (!confirm(`선택한 ${selectedList.length}건을 일괄 지급완료 처리하시겠습니까?\n\n각 크리에이터에게 알림톡과 이메일이 발송됩니다.`)) return
+
+    setBulkProcessing(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+      const today = new Date().toLocaleDateString('ko-KR')
+
+      for (const withdrawal of selectedList) {
+        try {
+          const isKoreaDB = withdrawal.source_db === 'korea'
+
+          // DB 업데이트
+          if (isKoreaDB && supabaseKorea) {
+            const { error } = await supabaseKorea
+              .from('withdrawals')
+              .update({
+                status: 'completed',
+                processed_at: new Date().toISOString(),
+                processed_by: user?.id
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          } else {
+            const { error } = await supabaseBiz
+              .from('creator_withdrawal_requests')
+              .update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                processed_by: user.id
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          }
+
+          // 알림톡 + 이메일 발송
+          try {
+            let creatorPhone = null
+            let creatorEmail = null
+            const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+            const withdrawalAmount = withdrawal.requested_amount || withdrawal.amount || 0
+
+            if (withdrawal.user_id && supabaseKorea) {
+              const { data: profileData } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone, email')
+                .eq('id', withdrawal.user_id)
+                .maybeSingle()
+
+              creatorPhone = profileData?.phone
+              creatorEmail = profileData?.email
+
+              if (!creatorPhone && !creatorEmail) {
+                const { data: profileData2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('phone, email')
+                  .eq('user_id', withdrawal.user_id)
+                  .maybeSingle()
+                creatorPhone = profileData2?.phone
+                creatorEmail = profileData2?.email
+              }
+            }
+
+            // 알림톡 발송 - 템플릿 025100001020 (출금 완료)
+            if (creatorPhone) {
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-kakao-notification`,
+                {
+                  receiverNum: creatorPhone,
+                  receiverName: creatorName,
+                  templateCode: '025100001020',
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '입금일': today
+                  }
+                },
+                { timeout: 8000 }
+              )
+              console.log(`알림톡 발송 완료: ${creatorName}`)
+            }
+
+            // 이메일 발송
+            if (creatorEmail) {
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-email`,
+                {
+                  to: creatorEmail,
+                  subject: '[CNEC] 출금 신청이 완료되었습니다',
+                  html: `
+                    <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #1a1a1a; margin-bottom: 20px;">출금 완료 안내</h2>
+                      <p style="color: #333; line-height: 1.6;">안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p style="color: #333; line-height: 1.6;">신청하신 출금이 완료되었습니다.</p>
+                      <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0;"><strong>출금 금액:</strong> ${withdrawalAmount.toLocaleString()}원</p>
+                        <p style="margin: 0;"><strong>입금일:</strong> ${today}</p>
+                      </div>
+                      <p style="color: #333; line-height: 1.6;">등록하신 계좌로 입금되었습니다.<br/>크리에이터 대시보드에서 출금 내역을 확인하실 수 있습니다.</p>
+                      <p style="color: #666; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 드림</p>
+                      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                      <p style="color: #999; font-size: 12px;">문의: 1833-6025</p>
+                    </div>
+                  `
+                },
+                { timeout: 10000 }
+              )
+              console.log(`이메일 발송 완료: ${creatorName}`)
+            }
+          } catch (notifyError) {
+            console.error('알림 발송 오류:', notifyError)
+          }
+
+          successCount++
+        } catch (err) {
+          console.error(`지급완료 실패 (${withdrawal.id}):`, err)
+          failCount++
+        }
+      }
+
+      alert(`일괄 지급완료 처리 완료\n\n성공: ${successCount}건\n실패: ${failCount}건`)
+      setCheckedWithdrawals(new Set())
+      fetchWithdrawals()
+    } catch (error) {
+      console.error('일괄 지급완료 오류:', error)
+      alert('일괄 지급완료 중 오류가 발생했습니다.')
+    } finally {
+      setBulkProcessing(false)
     }
   }
 
@@ -1256,9 +1539,43 @@ export default function WithdrawalManagement() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle>
-                          {getCountryLabel(country)} - {getStatusBadge(selectedStatus).props.children} ({filteredWithdrawals.length}건)
-                        </CardTitle>
+                        <div className="flex items-center gap-4">
+                          <CardTitle>
+                            {getCountryLabel(country)} - {getStatusBadge(selectedStatus).props.children} ({filteredWithdrawals.length}건)
+                          </CardTitle>
+                          {checkedWithdrawals.size > 0 && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                              {checkedWithdrawals.size}건 선택됨
+                            </Badge>
+                          )}
+                        </div>
+                        {/* 일괄 처리 버튼 */}
+                        <div className="flex items-center gap-2">
+                          {selectedStatus === 'pending' && filteredWithdrawals.length > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleBulkApprove}
+                              disabled={checkedWithdrawals.size === 0 || bulkProcessing}
+                              className="bg-blue-50 text-blue-600 hover:bg-blue-100"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              {bulkProcessing ? '처리 중...' : `일괄 승인 (${checkedWithdrawals.size})`}
+                            </Button>
+                          )}
+                          {selectedStatus === 'approved' && filteredWithdrawals.length > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleBulkComplete}
+                              disabled={checkedWithdrawals.size === 0 || bulkProcessing}
+                              className="bg-green-50 text-green-600 hover:bg-green-100"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              {bulkProcessing ? '처리 중...' : `일괄 지급완료 (${checkedWithdrawals.size})`}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -1270,11 +1587,38 @@ export default function WithdrawalManagement() {
                         </div>
                       ) : (
                         <div className="space-y-4">
+                          {/* 전체 선택 체크박스 */}
+                          {(selectedStatus === 'pending' || selectedStatus === 'approved') && (
+                            <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg border border-gray-200">
+                              <input
+                                type="checkbox"
+                                checked={checkedWithdrawals.size === filteredWithdrawals.length && filteredWithdrawals.length > 0}
+                                onChange={() => handleCheckAll(filteredWithdrawals)}
+                                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-sm font-medium text-gray-700">
+                                전체 선택 ({filteredWithdrawals.length}건)
+                              </span>
+                            </div>
+                          )}
                           {filteredWithdrawals.map((withdrawal) => (
                             <div
                               key={withdrawal.id}
-                              className="flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                              className={`flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border ${
+                                checkedWithdrawals.has(withdrawal.id) ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+                              }`}
                             >
+                              {/* 체크박스 */}
+                              {(withdrawal.status === 'pending' || withdrawal.status === 'approved') && (
+                                <div className="mr-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={checkedWithdrawals.has(withdrawal.id)}
+                                    onChange={() => handleCheckWithdrawal(withdrawal.id)}
+                                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                </div>
+                              )}
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-3">
                                   <h3 className="text-lg font-bold">
