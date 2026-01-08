@@ -65,7 +65,7 @@ export async function sendVideoSubmitReminder3Days(receiverNum, receiverName, re
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_3DAYS.code,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_3DAYS.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
@@ -84,7 +84,7 @@ export async function sendVideoSubmitReminder2Days(receiverNum, receiverName, re
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_2DAYS.code,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_2DAYS.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
@@ -103,7 +103,7 @@ export async function sendVideoSubmitReminderToday(receiverNum, receiverName, re
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_TODAY.code,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_TODAY.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
@@ -235,7 +235,7 @@ export async function sendSubmissionDelayWarningNotification(receiverNum, receiv
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.SUBMISSION_DELAY_WARNING.code,
+    POPBILL_TEMPLATES.CREATOR.DEADLINE_OVERDUE.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': delayData.campaignName,

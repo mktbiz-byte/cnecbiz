@@ -25,6 +25,9 @@
 [functions."scheduled-campaign-deadline-notification"]
   schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 캠페인 모집 마감 알림
 
+[functions."scheduled-video-deadline-notification"]
+  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 영상 제출 마감일 알림
+
 [functions."auto-confirm-videos"]
   schedule = "0 15 * * *"  # 매일 자정 (한국시간 = UTC+9) - 3일 경과 영상 자동 확정
 
