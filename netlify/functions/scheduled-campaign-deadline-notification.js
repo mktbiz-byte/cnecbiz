@@ -337,18 +337,21 @@ exports.handler = async (event, context) => {
       const supabase = createClient(region.url, region.key);
       console.log(`${region.name} 지역에서 캠페인 조회 중...`);
 
+      // 리전별 스키마 차이 처리: 기본 컬럼만 조회
+      let selectQuery = 'id, title, status, application_deadline';
+
+      // 추가 컬럼은 리전에 따라 조건부로 포함
+      if (region.name === 'korea') {
+        selectQuery += ', brand, product_name, company_id, company_email';
+      } else if (region.name === 'us') {
+        selectQuery += ', brand, product_name, company_id';  // company_email 없음
+      } else if (region.name === 'japan') {
+        selectQuery += ', brand, product_name';  // company_id, company_email 없음
+      }
+
       const { data: campaigns, error: campaignError } = await supabase
         .from('campaigns')
-        .select(`
-          id,
-          title,
-          brand,
-          product_name,
-          company_id,
-          company_email,
-          application_deadline,
-          status
-        `)
+        .select(selectQuery)
         .eq('application_deadline', today)
         .in('status', ['active', 'approved']);  // 프론트엔드 "진행중" 필터와 동일
 
