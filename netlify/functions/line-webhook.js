@@ -291,8 +291,8 @@ exports.handler = async (event) => {
               }, accessToken);
             }
           } else {
-            // 일반 메시지 - 네이버 웍스 알림 (임시 비활성화 - 재전송 문제 해결 후 활성화)
-            // await notifyNaverWorks(`💬 LINE 메시지 수신\n\n보낸 사람: ${displayName}\nUser ID: ${userId}\n메시지: ${text}\n시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+            // 일반 메시지 - 네이버 웍스로 알림 (isRedelivery 체크로 중복 방지됨)
+            await notifyNaverWorks(`💬 LINE 메시지 수신\n\n보낸 사람: ${displayName}\nUser ID: ${userId}\n메시지: ${text}\n시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
 
             await replyMessage(replyToken, {
               type: 'text',
