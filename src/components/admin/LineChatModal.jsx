@@ -210,7 +210,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{msg.message_content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                         <p className={`text-xs mt-1 flex items-center gap-1 ${
                           msg.direction === 'outgoing' ? 'text-green-100' : 'text-gray-400'
                         }`}>
