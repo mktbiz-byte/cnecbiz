@@ -409,6 +409,7 @@ exports.handler = async (event, context) => {
         let companyEmail = campaign.company_email || null;
         let companyName = campaign.brand || '기업';
 
+        // 1. company_id로 companies 테이블에서 조회
         if (campaign.company_id) {
           const { data: company, error: companyError } = await supabase
             .from('companies')
@@ -421,19 +422,33 @@ exports.handler = async (event, context) => {
             companyName = company.company_name || campaign.brand || '기업';
             companyEmail = companyEmail || company.email;
           }
+
+          // user_profiles에서도 조회
+          if (!companyPhone || !companyEmail) {
+            const { data: profile, error: profileError } = await supabase
+              .from('user_profiles')
+              .select('phone, email')
+              .eq('id', campaign.company_id)
+              .single();
+
+            if (!profileError && profile) {
+              companyPhone = companyPhone || profile.phone;
+              companyEmail = companyEmail || profile.email;
+            }
+          }
         }
 
-        // 회사 전화번호/이메일이 없으면 user_profiles에서 조회
-        if ((!companyPhone || !companyEmail) && campaign.company_id) {
-          const { data: profile, error: profileError } = await supabase
-            .from('user_profiles')
-            .select('phone, email')
-            .eq('id', campaign.company_id)
-            .single();
+        // 2. company_email로 companies 테이블에서 조회 (일본 등 company_id 없는 경우)
+        if ((!companyPhone || !companyName || companyName === '기업') && companyEmail) {
+          const { data: company, error: companyError } = await supabase
+            .from('companies')
+            .select('company_name, phone, representative_phone, email')
+            .eq('email', companyEmail)
+            .maybeSingle();
 
-          if (!profileError && profile) {
-            companyPhone = companyPhone || profile.phone;
-            companyEmail = companyEmail || profile.email;
+          if (!companyError && company) {
+            companyPhone = companyPhone || company.phone || company.representative_phone;
+            companyName = company.company_name || companyName;
           }
         }
 
