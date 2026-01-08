@@ -11,12 +11,14 @@ const { createClient } = require('@supabase/supabase-js');
  * - NAVER_WORKS_* : 네이버 웍스 알림용 (선택)
  */
 
-// Supabase 클라이언트
+// Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
-  return createClient(
-    process.env.SUPABASE_URL || process.env.VITE_SUPABASE_JAPAN_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
-  );
+  const url = process.env.SUPABASE_JAPAN_URL || process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_JAPAN_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+  console.log('[LINE Webhook] Supabase URL:', url ? url.substring(0, 30) + '...' : 'NOT SET');
+
+  return createClient(url, key);
 };
 
 // LINE 서명 검증
@@ -226,11 +228,15 @@ exports.handler = async (event) => {
             // 크리에이터 테이블에서 이메일로 검색
             const { data: creator, error } = await supabase
               .from('creators')
-              .select('id, creator_name, email')
+              .select('id, name, creator_name, email')
               .eq('email', text.toLowerCase())
               .single();
 
+            console.log('Creator search result:', { creator, error, searchEmail: text.toLowerCase() });
+
             if (creator) {
+              const creatorName = creator.name || creator.creator_name || '크리에이터';
+
               // 크리에이터와 LINE User ID 연동
               await supabase
                 .from('creators')
@@ -240,15 +246,19 @@ exports.handler = async (event) => {
               // line_users 테이블도 업데이트
               await supabase
                 .from('line_users')
-                .update({ creator_id: creator.id, linked_at: new Date().toISOString() })
+                .update({
+                  creator_id: creator.id,
+                  email: creator.email,
+                  linked_at: new Date().toISOString()
+                })
                 .eq('line_user_id', userId);
 
               await replyMessage(replyToken, {
                 type: 'text',
-                text: `✅ 연동 완료!\n\n${creator.creator_name}님의 계정과 LINE이 연동되었습니다.\n앞으로 캠페인 선정, 정산 알림을 LINE으로 받으실 수 있습니다.`
+                text: `✅ 연동 완료!\n\n${creatorName}님의 계정과 LINE이 연동되었습니다.\n앞으로 캠페인 선정, 정산 알림을 LINE으로 받으실 수 있습니다.`
               }, accessToken);
 
-              await notifyNaverWorks(`🔗 LINE 계정 연동\n\n크리에이터: ${creator.creator_name}\n이메일: ${creator.email}\nLINE: ${displayName}`);
+              await notifyNaverWorks(`🔗 LINE 계정 연동\n\n크리에이터: ${creatorName}\n이메일: ${creator.email}\nLINE: ${displayName}`);
             } else {
               await replyMessage(replyToken, {
                 type: 'text',
