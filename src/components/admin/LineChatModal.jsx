@@ -267,30 +267,29 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
               </p>
             </div>
 
-            {inviteSent ? (
-              <div className="flex items-center gap-2 text-green-600">
+            {inviteSent && (
+              <div className="flex items-center gap-2 text-green-600 mb-2">
                 <CheckCircle className="w-5 h-5" />
                 <span>초대 이메일 발송 완료!</span>
               </div>
-            ) : (
-              <Button
-                onClick={sendInviteEmail}
-                disabled={sendingInvite || !creator?.email}
-                className="bg-green-500 hover:bg-green-600"
-              >
-                {sendingInvite ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    발송 중...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-4 h-4 mr-2" />
-                    LINE 친구 추가 안내 이메일 발송
-                  </>
-                )}
-              </Button>
             )}
+            <Button
+              onClick={sendInviteEmail}
+              disabled={sendingInvite || !creator?.email}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              {sendingInvite ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  발송 중...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  {inviteSent ? '초대 이메일 다시 발송' : 'LINE 친구 추가 안내 이메일 발송'}
+                </>
+              )}
+            </Button>
           </div>
         )}
 
