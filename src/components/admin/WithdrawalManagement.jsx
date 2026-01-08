@@ -437,9 +437,10 @@ export default function WithdrawalManagement() {
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
+      const isKoreaDB = withdrawal.source_db === 'korea'
 
       // Korea DB인 경우 supabaseKorea 사용
-      if (withdrawal.source_db === 'korea' && supabaseKorea) {
+      if (isKoreaDB && supabaseKorea) {
         const { error } = await supabaseKorea
           .from('withdrawals')
           .update({
@@ -461,6 +462,107 @@ export default function WithdrawalManagement() {
           .eq('id', withdrawal.id)
 
         if (error) throw error
+      }
+
+      // 알림톡 + 이메일 발송 (크리에이터 정보 조회 후 발송)
+      try {
+        let creatorPhone = null
+        let creatorEmail = null
+        const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+        const withdrawalAmount = withdrawal.requested_amount || withdrawal.amount || 0
+        const today = new Date().toLocaleDateString('ko-KR')
+
+        // 전화번호/이메일 조회
+        if (withdrawal.user_id && supabaseKorea) {
+          const { data: profileData } = await supabaseKorea
+            .from('user_profiles')
+            .select('phone, email')
+            .eq('id', withdrawal.user_id)
+            .maybeSingle()
+
+          creatorPhone = profileData?.phone
+          creatorEmail = profileData?.email
+
+          // id로 못 찾으면 user_id로 재시도
+          if (!creatorPhone && !creatorEmail) {
+            const { data: profileData2 } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone, email')
+              .eq('user_id', withdrawal.user_id)
+              .maybeSingle()
+            creatorPhone = profileData2?.phone
+            creatorEmail = profileData2?.email
+          }
+        }
+
+        const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+
+        // 1. 알림톡 발송 - 템플릿 025100001020 (출금 완료 알림)
+        if (creatorPhone) {
+          console.log('출금 완료 알림톡 발송:', creatorName, creatorPhone)
+          await axios.post(
+            `${baseUrl}/.netlify/functions/send-kakao-notification`,
+            {
+              receiverNum: creatorPhone,
+              receiverName: creatorName,
+              templateCode: '025100001020',
+              variables: {
+                '크리에이터명': creatorName,
+                '입금일': today
+              }
+            },
+            { timeout: 8000 }
+          )
+          console.log('출금 완료 알림톡 발송 완료')
+        } else {
+          console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+        }
+
+        // 2. 이메일 발송
+        if (creatorEmail) {
+          console.log('출금 완료 이메일 발송:', creatorName, creatorEmail)
+          await axios.post(
+            `${baseUrl}/.netlify/functions/send-email`,
+            {
+              to: creatorEmail,
+              subject: '[CNEC] 출금 신청이 완료되었습니다',
+              html: `
+                <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #1a1a1a; margin-bottom: 20px;">출금 완료 안내</h2>
+                  <p style="color: #333; line-height: 1.6;">
+                    안녕하세요, <strong>${creatorName}</strong>님!
+                  </p>
+                  <p style="color: #333; line-height: 1.6;">
+                    신청하신 출금이 완료되었습니다.
+                  </p>
+                  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0;"><strong>출금 금액:</strong> ${withdrawalAmount.toLocaleString()}원</p>
+                    <p style="margin: 0;"><strong>입금일:</strong> ${today}</p>
+                  </div>
+                  <p style="color: #333; line-height: 1.6;">
+                    등록하신 계좌로 입금되었습니다.<br/>
+                    크리에이터 대시보드에서 출금 내역을 확인하실 수 있습니다.
+                  </p>
+                  <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                    감사합니다.<br/>
+                    CNEC 드림
+                  </p>
+                  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                  <p style="color: #999; font-size: 12px;">
+                    문의: 1833-6025
+                  </p>
+                </div>
+              `
+            },
+            { timeout: 10000 }
+          )
+          console.log('출금 완료 이메일 발송 완료')
+        } else {
+          console.log('크리에이터 이메일 없음, 이메일 미발송')
+        }
+      } catch (notifyError) {
+        console.error('알림 발송 오류:', notifyError)
+        // 알림 실패해도 완료 처리는 성공한 것으로 처리
       }
 
       alert('지급 완료 처리되었습니다.')
