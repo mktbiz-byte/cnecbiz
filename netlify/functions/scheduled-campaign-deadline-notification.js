@@ -14,6 +14,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const popbill = require('popbill');
 const nodemailer = require('nodemailer');
+const https = require('https');
+const crypto = require('crypto');
 
 // 팝빌 전역 설정
 popbill.config({
@@ -32,13 +34,151 @@ const kakaoService = popbill.KakaoService();
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
 
-// Supabase 클라이언트 초기화
+// 네이버 웍스 Private Key
+const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJjOEJZfc9xbDh
+MpcJ6WPATGZDNPwKpRDIe4vJvEhkQeZC0UA8M0VmpBtM0nyuRtW6sRy0+Qk5Y3Cr
+veKKt2ZRAqV43wdYJpwxptx5GhWGX0FwAeDrItsEVrbAXnBjGEMtWzMks1cA0nxQ
+M7wc39d4IznKOJ0HqlkisPdRZnT0I3reaj7MW5B6GM3mscUC6pBLmPHClXdcWhft
+HirX8U0Y+l7EHtK8w92jFaR7SMy62LKYjC8Pyo6tnI4Wp4Q3OxCZ9WuGEhIP45EC
+wrgP8APCf4VoR1048gLmITUpF/Bm0t/idvl7Ebam4KJJm6E2w4+dEQvLx883lXq1
+L0gYXVYDAgMBAAECggEABQAjzTHkcnnnK48vxCUwPmMm3mAAKNtzkSXPkA/F1Ab2
+iY3bhCLZg/RqYPuP8Fr9joY6ahsLqYrYDsrFRh/KwBPKuzb9XaiHk4vKSI7nHdBb
+NUY2qF7TBEaKfjdZnnvJnuR2XmC8td6DCxJdhnHfTLHDC0tgSgJl98BgQnrCSBRV
+84vJqCr7Ouf56Oio1Fo8E7krYmqjsB3BaoKamuGUaAcAwUSEOpGSIsfP2aYOOZmk
+aNgWo8Lr19VIr4iWccqjA/CJ83/fk84bE4Bae1lKzjQY4WFKmGSdeOn/3cVr76fY
+Gt7qIBgWhe8DnKE6q3umNpAI5gC8j6mPhEbxmMUFsQKBgQDOkoC728Ay1PWoqP64
+ldniGatvTvHDTVgU/kRipEXO8xzCGj+C21cKoniF1a0bI4fWTSUTtASURZKvuXAQ
+Ij55GueWO5WjHAwskOacTYjUNpa8GlDDcBpSy/mYfNIh+IJE7bTO/rKX+wyJCAKp
+klz7FkS4dykWwAww3KHDGkNblQKBgQD5xsH2Ma/tkHrekV5i3A0mLBBJheYgkwgR
+YDSbkcp2pw+OIuby0bZlXiRrkDYBoCdLXyl4lmkmXwtcgOmuRpFnixb7YsJ7mTR1
+gqNunttaczTRQkkanxZe77qKIYV1dtnumjn6x5hU0+Q6sJ5uPbLUahrQ9ocD+eD0
+icJwkf/FNwKBgDHuRYGi900SHqL63j79saGuNLr96QAdFNpWL29sZ5dDOkNMludp
+Xxup89ndsS7rIq1RDlI55BV2z6L7/rNXo6QgNbQhiOTZJbQr/iHvt9AbtcmXzse+
+tA4pUZZjLWOarto8XsTd2YtU2k3RCtu0Dhd+5XN1EhB2sTuqSMtg8MEVAoGBAJ8Y
+itNWMskPDjRWQ9iUcYuu5XDvaPW2sZzfuqKc6mlJYA8ZDCH+kj9fB7O716qRaHYJ
+11CH/dIDGCmDs1Tefh+F6M2WymoP2+o9m/wKE445c5sWrZnXW1h9OkRhtbBsU8Q3
+WFb0a4MctHLtrPxrME08iHgxjy5pK3CXjtJFLLVhAoGAXjlxrXUIHcbaeFJ78J/G
+rv6RBqA2rzQOE0aaf/UcNnIAqJ4TUmgBfZ4TpXNkNHJ7YanXYdcKKVd2jGhoiZdH
+h6Nfro2bqUE96CvNn+L5pTCHXUFZML8W02ZpgRLaRvXrt2HeHy3QUCqkHqxpm2rs
+skmeYX6UpJwnuTP2xN5NDDI=
+-----END PRIVATE KEY-----`;
+
+// 네이버 웍스 JWT 생성 함수
+function generateNaverWorksJWT(clientId, serviceAccount) {
+  const now = Math.floor(Date.now() / 1000);
+
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT'
+  };
+
+  const payload = {
+    iss: clientId,
+    sub: serviceAccount,
+    iat: now,
+    exp: now + 3600,
+    scope: 'bot'
+  };
+
+  const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
+  const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+
+  const signatureInput = `${base64Header}.${base64Payload}`;
+  const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), NAVER_WORKS_PRIVATE_KEY);
+  const base64Signature = signature.toString('base64url');
+
+  return `${signatureInput}.${base64Signature}`;
+}
+
+// 네이버 웍스 Access Token 발급 함수
+async function getNaverWorksAccessToken(clientId, clientSecret, serviceAccount) {
+  return new Promise((resolve, reject) => {
+    const jwt = generateNaverWorksJWT(clientId, serviceAccount);
+
+    const postData = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+      client_id: clientId,
+      client_secret: clientSecret,
+      scope: 'bot'
+    }).toString();
+
+    const options = {
+      hostname: 'auth.worksmobile.com',
+      path: '/oauth2/v2.0/token',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          const response = JSON.parse(data);
+          resolve(response.access_token);
+        } else {
+          reject(new Error(`Failed to get access token: ${res.statusCode} ${data}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+// 네이버 웍스 메시지 전송 함수
+async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
+  return new Promise((resolve, reject) => {
+    const postData = JSON.stringify({
+      content: {
+        type: 'text',
+        text: message
+      }
+    });
+
+    const options = {
+      hostname: 'www.worksapis.com',
+      path: `/v1.0/bots/${botId}/channels/${channelId}/messages`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode === 201 || res.statusCode === 200) {
+          resolve({ success: true, data });
+        } else {
+          reject(new Error(`Failed to send message: ${res.statusCode} ${data}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+// Supabase 클라이언트 초기화 - SERVICE_ROLE_KEY 사용
 const createSupabaseClient = () => {
-  if (process.env.VITE_SUPABASE_KOREA_URL && process.env.VITE_SUPABASE_KOREA_ANON_KEY) {
-    return createClient(
-      process.env.VITE_SUPABASE_KOREA_URL,
-      process.env.VITE_SUPABASE_KOREA_ANON_KEY
-    );
+  const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL;
+  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    return createClient(supabaseUrl, supabaseKey);
   }
   return null;
 };
@@ -346,6 +486,75 @@ exports.handler = async (event, context) => {
 
     console.log('\n=== 캠페인 모집 마감 알림 스케줄러 완료 ===');
     console.log('결과:', JSON.stringify(results, null, 2));
+
+    // 네이버 웍스로 보고서 전송
+    try {
+      const clientId = process.env.NAVER_WORKS_CLIENT_ID;
+      const clientSecret = process.env.NAVER_WORKS_CLIENT_SECRET;
+      const botId = process.env.NAVER_WORKS_BOT_ID;
+      const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
+      const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
+
+      if (clientId && clientSecret && botId && channelId && results.length > 0) {
+        // 보고서 메시지 작성
+        const sentCampaigns = results.filter(r => r.status === 'sent');
+        const failedCampaigns = results.filter(r => r.status === 'failed');
+        const skippedCampaigns = results.filter(r => r.status === 'skipped');
+
+        const koreanDate = new Date().toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        let reportMessage = `📢 캠페인 모집 마감 알림톡 발송 완료 보고\n\n`;
+        reportMessage += `일시: ${koreanDate}\n`;
+        reportMessage += `총 처리: ${campaigns.length}개 캠페인\n\n`;
+
+        if (sentCampaigns.length > 0) {
+          reportMessage += `✅ 발송 완료 (${sentCampaigns.length}개):\n`;
+          sentCampaigns.forEach(c => {
+            const kakaoStatus = c.kakaoSent ? '카톡✓' : '카톡✗';
+            const emailStatus = c.emailSent ? '메일✓' : '메일✗';
+            reportMessage += `  • ${c.companyName} - ${c.campaignTitle}\n`;
+            reportMessage += `    지원자: ${c.applicantCount}명 | ${kakaoStatus} ${emailStatus}\n`;
+          });
+          reportMessage += `\n`;
+        }
+
+        if (skippedCampaigns.length > 0) {
+          reportMessage += `⚠️ 발송 생략 (${skippedCampaigns.length}개):\n`;
+          skippedCampaigns.forEach(c => {
+            reportMessage += `  • ${c.companyName} - ${c.campaignTitle}\n`;
+            reportMessage += `    사유: ${c.reason}\n`;
+          });
+          reportMessage += `\n`;
+        }
+
+        if (failedCampaigns.length > 0) {
+          reportMessage += `❌ 발송 실패 (${failedCampaigns.length}개):\n`;
+          failedCampaigns.forEach(c => {
+            reportMessage += `  • ${c.campaignTitle}\n`;
+            reportMessage += `    오류: ${c.error}\n`;
+          });
+        }
+
+        // Access Token 발급 및 메시지 전송
+        const accessToken = await getNaverWorksAccessToken(clientId, clientSecret, serviceAccount);
+        await sendNaverWorksMessage(accessToken, botId, channelId, reportMessage);
+        console.log('네이버 웍스 보고서 전송 완료');
+      } else if (!clientId || !clientSecret || !botId || !channelId) {
+        console.log('네이버 웍스 설정이 없어 보고서 전송 생략');
+      } else {
+        console.log('처리된 캠페인이 없어 네이버 웍스 보고서 전송 생략');
+      }
+    } catch (worksError) {
+      console.error('네이버 웍스 보고서 전송 실패:', worksError);
+      // 보고서 전송 실패해도 스케줄러는 성공으로 처리
+    }
 
     return {
       statusCode: 200,
