@@ -77,7 +77,6 @@ exports.handler = async (event, context) => {
           campaigns (
             id,
             title,
-            campaign_name,
             company_id
           )
         `)
@@ -119,7 +118,7 @@ exports.handler = async (event, context) => {
 
         applicationsWithCreators.push({
           application_id: app.id,
-          campaign: app.campaigns?.title || app.campaigns?.campaign_name,
+          campaign: app.campaigns?.title || '캠페인',
           creator_name: creatorProfile?.channel_name || creatorProfile?.name || 'Unknown',
           phone: creatorProfile?.phone || null,
           email: creatorProfile?.email || null,

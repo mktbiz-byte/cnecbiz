@@ -535,7 +535,6 @@ exports.handler = async (event, context) => {
           campaigns (
             id,
             title,
-            campaign_name,
             company_id
           )
         `)
@@ -558,7 +557,7 @@ exports.handler = async (event, context) => {
       // 각 application에 대해 알림 발송
       for (const app of applications) {
         try {
-          const campaignName = app.campaigns?.title || app.campaigns?.campaign_name || '캠페인';
+          const campaignName = app.campaigns?.title || '캠페인';
 
           // user_profiles에서 크리에이터 정보 조회 (email 포함)
           const { data: profile, error: profileError } = await supabase
