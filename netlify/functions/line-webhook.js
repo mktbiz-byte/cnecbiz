@@ -225,25 +225,19 @@ exports.handler = async (event) => {
           // 이메일 형식 체크 (크리에이터 계정 연동)
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (emailRegex.test(text)) {
-            // 크리에이터 테이블에서 이메일로 검색
+            // users 테이블에서 이메일로 검색 (일본 DB는 users 테이블 사용)
             const { data: creator, error } = await supabase
-              .from('creators')
-              .select('id, name, creator_name, email')
+              .from('users')
+              .select('id, name, email')
               .eq('email', text.toLowerCase())
               .single();
 
-            console.log('Creator search result:', { creator, error, searchEmail: text.toLowerCase() });
+            console.log('User search result:', { creator, error, searchEmail: text.toLowerCase() });
 
             if (creator) {
-              const creatorName = creator.name || creator.creator_name || '크리에이터';
+              const creatorName = creator.name || '크리에이터';
 
-              // 크리에이터와 LINE User ID 연동
-              await supabase
-                .from('creators')
-                .update({ line_user_id: userId })
-                .eq('id', creator.id);
-
-              // line_users 테이블도 업데이트
+              // line_users 테이블 업데이트
               await supabase
                 .from('line_users')
                 .update({
