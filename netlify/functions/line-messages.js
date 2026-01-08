@@ -10,8 +10,8 @@ const { createClient } = require('@supabase/supabase-js');
 
 const getSupabase = () => {
   return createClient(
-    process.env.SUPABASE_URL || process.env.VITE_SUPABASE_JAPAN_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+    process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_JAPAN_URL || process.env.SUPABASE_URL,
+    process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 };
 
@@ -36,13 +36,7 @@ exports.handler = async (event) => {
 
       let query = supabase
         .from('line_messages')
-        .select(`
-          *,
-          line_users!line_messages_line_user_id_fkey (
-            display_name,
-            profile_picture_url
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
@@ -83,7 +77,7 @@ exports.handler = async (event) => {
       }
 
       // 발송 API 호출
-      const sendResponse = await fetch(`${process.env.URL || 'https://cnectotal.netlify.app'}/.netlify/functions/send-line-message`, {
+      const sendResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-line-message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -107,7 +101,7 @@ exports.handler = async (event) => {
 
       // 발송 메시지 DB에 저장
       const targetUserId = lineUserId || (await supabase
-        .from('creators')
+        .from('user_profiles')
         .select('line_user_id')
         .eq('id', creatorId)
         .single()).data?.line_user_id;
