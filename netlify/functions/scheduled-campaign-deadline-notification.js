@@ -346,7 +346,7 @@ exports.handler = async (event, context) => {
       } else if (region.name === 'us') {
         selectQuery += ', brand, product_name, company_id';  // company_email 없음
       } else if (region.name === 'japan') {
-        selectQuery += ', brand, product_name';  // company_id, company_email 없음
+        selectQuery += ', brand, product_name, company_email';  // company_id 없음
       }
 
       const { data: campaigns, error: campaignError } = await supabase
