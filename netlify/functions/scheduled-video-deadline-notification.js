@@ -483,11 +483,6 @@ exports.handler = async (event, context) => {
   console.log('실행 시간:', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
 
   try {
-    const supabase = createSupabaseClient();
-    if (!supabase) {
-      throw new Error('Supabase 클라이언트 초기화 실패');
-    }
-
     // 오늘 날짜 (한국 시간 기준)
     const now = new Date();
     const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -509,6 +504,13 @@ exports.handler = async (event, context) => {
     console.log('2일 후:', in2DaysStr);
     console.log('3일 후:', in3DaysStr);
 
+    // 다중 지역 Supabase 클라이언트 설정
+    const regions = [
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY },
+      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY },
+      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY }
+    ];
+
     // 3일 후, 2일 후, 당일 마감되는 영상 제출 조회
     const deadlineDates = [
       { date: in3DaysStr, templateCode: '025100001013', label: '3일 전' },
@@ -522,27 +524,47 @@ exports.handler = async (event, context) => {
     for (const { date, templateCode, label } of deadlineDates) {
       console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
 
-      // 1단계: 해당 날짜가 content_submission_deadline인 캠페인 찾기
-      const { data: campaigns, error: campaignError } = await supabase
-        .from('campaigns')
-        .select('id, title, company_id, campaign_type, content_submission_deadline')
-        .eq('content_submission_deadline', date)
-        .in('status', ['active', 'recruiting', 'approved']);
+      // 1단계: 모든 지역에서 해당 날짜가 content_submission_deadline인 캠페인 찾기
+      let allCampaigns = [];
+      for (const region of regions) {
+        if (!region.url || !region.key) {
+          console.log(`${region.name} Supabase 미설정 - 건너뜀`);
+          continue;
+        }
 
-      if (campaignError) {
-        console.error(`캠페인 조회 오류 (${date}):`, campaignError);
-        continue;
+        const supabase = createClient(region.url, region.key);
+        const { data: campaigns, error: campaignError } = await supabase
+          .from('campaigns')
+          .select('id, title, company_id, campaign_type, content_submission_deadline')
+          .eq('content_submission_deadline', date)
+          .in('status', ['active', 'recruiting', 'approved']);
+
+        if (campaignError) {
+          console.error(`${region.name} 캠페인 조회 오류 (${date}):`, campaignError);
+          continue;
+        }
+
+        if (campaigns && campaigns.length > 0) {
+          console.log(`${region.name} ${label}: ${campaigns.length}개 캠페인 발견`);
+          campaigns.forEach(c => c.region = region.name);
+          allCampaigns.push(...campaigns);
+        }
       }
 
+      const campaigns = allCampaigns;
       if (!campaigns || campaigns.length === 0) {
-        console.log(`${label}: 해당 날짜에 마감되는 캠페인 없음`);
+        console.log(`${label}: 해당 날짜에 마감되는 캠페인 없음 (모든 지역)`);
         continue;
       }
 
-      console.log(`${label}: ${campaigns.length}개 캠페인 발견`);
+      console.log(`${label}: 전체 ${campaigns.length}개 캠페인 발견`);
 
       // 2단계: 각 캠페인의 applications 가져오기 및 알림 발송
       for (const campaign of campaigns) {
+        // 해당 캠페인의 지역 Supabase 클라이언트 생성
+        const regionConfig = regions.find(r => r.name === campaign.region);
+        const supabase = createClient(regionConfig.url, regionConfig.key);
+
         const { data: applications, error: appError } = await supabase
           .from('applications')
           .select('id, user_id, campaign_id, status')
@@ -556,11 +578,11 @@ exports.handler = async (event, context) => {
         }
 
         if (!applications || applications.length === 0) {
-          console.log(`${label} - ${campaign.title}: 알림 대상 없음`);
+          console.log(`${label} - ${campaign.title} (${campaign.region}): 알림 대상 없음`);
           continue;
         }
 
-        console.log(`${label} - ${campaign.title}: ${applications.length}건 대상`);
+        console.log(`${label} - ${campaign.title} (${campaign.region}): ${applications.length}건 대상`);
 
         // 각 application에 대해 알림 발송
         for (const app of applications) {

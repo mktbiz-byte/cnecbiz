@@ -29,11 +29,6 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const supabase = createSupabaseClient();
-    if (!supabase) {
-      throw new Error('Supabase 클라이언트 초기화 실패');
-    }
-
     // 오늘 날짜 (한국 시간 기준)
     const now = new Date();
     const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -57,6 +52,13 @@ exports.handler = async (event, context) => {
     console.log('2일 후:', in2DaysStr);
     console.log('3일 후:', in3DaysStr);
 
+    // 다중 지역 Supabase 클라이언트 설정
+    const regions = [
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY },
+      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY },
+      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY }
+    ];
+
     // 각 날짜별로 데이터 조회
     const results = [];
 
@@ -65,26 +67,36 @@ exports.handler = async (event, context) => {
       { date: in2DaysStr, label: '2일 후' },
       { date: in3DaysStr, label: '3일 후' }
     ]) {
-      // 1단계: 해당 날짜가 content_submission_deadline인 캠페인 찾기
-      const { data: campaigns, error: campaignError } = await supabase
-        .from('campaigns')
-        .select('id, title, company_id, campaign_type, content_submission_deadline')
-        .eq('content_submission_deadline', date)
-        .in('status', ['active', 'recruiting', 'approved']);
+      // 1단계: 모든 지역에서 해당 날짜가 content_submission_deadline인 캠페인 찾기
+      let allCampaigns = [];
+      for (const region of regions) {
+        if (!region.url || !region.key) {
+          console.log(`${region.name} Supabase 미설정 - 건너뜀`);
+          continue;
+        }
 
-      if (campaignError) {
-        console.error(`캠페인 조회 오류 (${date}):`, campaignError);
-        results.push({
-          date,
-          label,
-          error: campaignError.message,
-          count: 0
-        });
-        continue;
+        const supabase = createClient(region.url, region.key);
+        const { data: campaigns, error: campaignError } = await supabase
+          .from('campaigns')
+          .select('id, title, company_id, campaign_type, content_submission_deadline')
+          .eq('content_submission_deadline', date)
+          .in('status', ['active', 'recruiting', 'approved']);
+
+        if (campaignError) {
+          console.error(`${region.name} 캠페인 조회 오류 (${date}):`, campaignError);
+          continue;
+        }
+
+        if (campaigns && campaigns.length > 0) {
+          console.log(`${region.name} ${label} (${date}): ${campaigns.length}개 캠페인 발견`);
+          campaigns.forEach(c => c.region = region.name);
+          allCampaigns.push(...campaigns);
+        }
       }
 
+      const campaigns = allCampaigns;
       if (!campaigns || campaigns.length === 0) {
-        console.log(`${label} (${date}): 해당 날짜에 마감되는 캠페인 없음`);
+        console.log(`${label} (${date}): 해당 날짜에 마감되는 캠페인 없음 (모든 지역)`);
         results.push({
           date,
           label,
@@ -94,12 +106,16 @@ exports.handler = async (event, context) => {
         continue;
       }
 
-      console.log(`${label} (${date}): ${campaigns.length}개 캠페인 발견`);
+      console.log(`${label} (${date}): 전체 ${campaigns.length}개 캠페인 발견`);
 
       // 2단계: 각 캠페인의 applications 가져오기
       const allApplications = [];
 
       for (const campaign of campaigns) {
+        // 해당 캠페인의 지역 Supabase 클라이언트 생성
+        const regionConfig = regions.find(r => r.name === campaign.region);
+        const supabase = createClient(regionConfig.url, regionConfig.key);
+
         const { data: applications, error: appError } = await supabase
           .from('applications')
           .select('id, user_id, campaign_id, status')
@@ -116,6 +132,7 @@ exports.handler = async (event, context) => {
         if (applications && applications.length > 0) {
           applications.forEach(app => {
             app.campaigns = campaign;
+            app.region = campaign.region; // 지역 정보 추가
           });
           allApplications.push(...applications);
         }
@@ -126,6 +143,10 @@ exports.handler = async (event, context) => {
       // 각 application의 크리에이터 정보 및 영상 제출 현황 확인
       const applicationsWithCreators = [];
       for (const app of allApplications) {
+        // 해당 application의 지역 Supabase 클라이언트 생성
+        const regionConfig = regions.find(r => r.name === app.region);
+        const supabase = createClient(regionConfig.url, regionConfig.key);
+
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('name, channel_name, phone, email')
@@ -164,6 +185,7 @@ exports.handler = async (event, context) => {
         applicationsWithCreators.push({
           application_id: app.id,
           campaign: app.campaigns?.title || '캠페인',
+          region: app.region,
           campaign_type: campaignType,
           creator_name: creatorProfile?.channel_name || creatorProfile?.name || 'Unknown',
           phone: creatorProfile?.phone || null,
