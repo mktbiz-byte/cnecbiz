@@ -535,7 +535,8 @@ exports.handler = async (event, context) => {
           campaigns (
             id,
             title,
-            company_id
+            company_id,
+            campaign_type
           )
         `)
         .eq('submission_deadline', date)
@@ -593,6 +594,45 @@ exports.handler = async (event, context) => {
           const creatorName = creatorProfile.channel_name || creatorProfile.name || '크리에이터';
           const creatorPhone = creatorProfile.phone;
           const creatorEmail = creatorProfile.email;
+
+          // 캠페인 타입에 따른 필요 영상 개수 확인
+          const campaignType = app.campaigns?.campaign_type;
+          let requiredVideoCount = 1; // 기본값
+          if (campaignType === '4week_challenge') {
+            requiredVideoCount = 4;
+          } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+            requiredVideoCount = 2;
+          }
+
+          // video_submissions에서 이미 제출된 영상 개수 확인
+          const { data: submittedVideos, error: videoError } = await supabase
+            .from('video_submissions')
+            .select('id, status, final_confirmed_at')
+            .eq('campaign_id', app.campaign_id)
+            .eq('user_id', app.user_id)
+            .in('status', ['approved', 'completed']);
+
+          if (videoError) {
+            console.error(`영상 제출 확인 오류 (user_id: ${app.user_id}):`, videoError);
+          }
+
+          const submittedCount = submittedVideos?.length || 0;
+
+          // 이미 필요한 모든 영상을 제출한 경우 알림 건너뜀
+          if (submittedCount >= requiredVideoCount) {
+            console.log(`✓ 영상 제출 완료: ${creatorName} (${submittedCount}/${requiredVideoCount}건) - 알림 건너뜀`);
+            allResults.push({
+              userId: app.user_id,
+              campaignName,
+              deadline: date,
+              label,
+              status: 'skipped',
+              reason: `영상 제출 완료 (${submittedCount}/${requiredVideoCount}건)`
+            });
+            continue;
+          }
+
+          console.log(`→ 영상 미제출: ${creatorName} (${submittedCount}/${requiredVideoCount}건) - 알림 발송`);
 
           // 마감일 포맷팅 (YYYY-MM-DD -> YYYY.MM.DD)
           const deadlineFormatted = date.replace(/-/g, '.');

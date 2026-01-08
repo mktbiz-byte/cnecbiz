@@ -76,7 +76,8 @@ exports.handler = async (event, context) => {
           campaigns (
             id,
             title,
-            company_id
+            company_id,
+            campaign_type
           )
         `)
         .eq('submission_deadline', date)
@@ -115,13 +116,36 @@ exports.handler = async (event, context) => {
           creatorProfile = profile2;
         }
 
+        // 캠페인 타입에 따른 필요 영상 개수 확인
+        const campaignType = app.campaigns?.campaign_type;
+        let requiredVideoCount = 1; // 기본값
+        if (campaignType === '4week_challenge') {
+          requiredVideoCount = 4;
+        } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+          requiredVideoCount = 2;
+        }
+
+        // video_submissions에서 이미 제출된 영상 개수 확인
+        const { data: submittedVideos } = await supabase
+          .from('video_submissions')
+          .select('id, status, final_confirmed_at')
+          .eq('campaign_id', app.campaign_id)
+          .eq('user_id', app.user_id)
+          .in('status', ['approved', 'completed']);
+
+        const submittedCount = submittedVideos?.length || 0;
+
         applicationsWithCreators.push({
           application_id: app.id,
           campaign: app.campaigns?.title || '캠페인',
+          campaign_type: campaignType,
           creator_name: creatorProfile?.channel_name || creatorProfile?.name || 'Unknown',
           phone: creatorProfile?.phone || null,
           email: creatorProfile?.email || null,
-          status: app.status
+          status: app.status,
+          required_videos: requiredVideoCount,
+          submitted_videos: submittedCount,
+          should_notify: submittedCount < requiredVideoCount
         });
       }
 
