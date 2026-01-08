@@ -731,6 +731,7 @@ exports.handler = async (event, context) => {
               campaignCreatorsMap[campaignId] = {
                 campaignName,
                 companyId,
+                region: campaign.region, // 지역 정보 추가
                 deadline: date,
                 daysRemaining,
                 creators: []
@@ -779,6 +780,14 @@ exports.handler = async (event, context) => {
       if (campaignData.creators.length === 0) continue;
 
       try {
+        // 해당 캠페인의 지역 Supabase 클라이언트 생성
+        const regionConfig = regions.find(r => r.name === campaignData.region);
+        if (!regionConfig) {
+          console.log(`지역 설정 없음 (campaign_id: ${campaignId}, region: ${campaignData.region})`);
+          continue;
+        }
+        const supabase = createClient(regionConfig.url, regionConfig.key);
+
         // companies 테이블에서 기업 정보 조회
         const { data: company, error: companyError } = await supabase
           .from('companies')
@@ -786,15 +795,37 @@ exports.handler = async (event, context) => {
           .eq('id', campaignData.companyId)
           .maybeSingle();
 
-        if (companyError || !company || !company.email) {
-          console.log(`기업 정보 없음 (campaign_id: ${campaignId}), 기업 이메일 건너뜀`);
+        let companyEmail = null;
+        let companyName = '기업';
+
+        if (companyError || !company) {
+          console.log(`companies 테이블에서 기업 정보 없음 (campaign_id: ${campaignId}), user_profiles 조회 시도`);
+
+          // user_profiles에서 기업 정보 조회 시도
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('name, email')
+            .eq('id', campaignData.companyId)
+            .maybeSingle();
+
+          if (profile && profile.email) {
+            companyEmail = profile.email;
+            companyName = profile.name || '기업';
+          }
+        } else {
+          companyEmail = company.email;
+          companyName = company.company_name || '기업';
+        }
+
+        if (!companyEmail) {
+          console.log(`기업 이메일 없음 (campaign_id: ${campaignId}), 기업 이메일 발송 건너뜀`);
           continue;
         }
 
         // 기업 이메일 발송
         const emailResult = await sendCompanyEmail(
-          company.email,
-          company.company_name,
+          companyEmail,
+          companyName,
           campaignData.campaignName,
           campaignData.creators,
           campaignData.deadline,
@@ -802,9 +833,9 @@ exports.handler = async (event, context) => {
         );
 
         if (emailResult.success) {
-          console.log(`✓ 기업 이메일 발송 성공: ${company.company_name} (${company.email}) - ${campaignData.campaignName}`);
+          console.log(`✓ 기업 이메일 발송 성공: ${companyName} (${companyEmail}) - ${campaignData.campaignName} (${campaignData.region})`);
         } else {
-          console.log(`✗ 기업 이메일 발송 실패: ${company.company_name}`);
+          console.log(`✗ 기업 이메일 발송 실패: ${companyName} - ${emailResult.error || emailResult.reason}`);
         }
       } catch (companyEmailError) {
         console.error(`기업 이메일 발송 오류 (campaign_id: ${campaignId}):`, companyEmailError);
