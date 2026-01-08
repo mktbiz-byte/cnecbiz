@@ -14,6 +14,7 @@ const { createClient } = require('@supabase/supabase-js');
 const popbill = require('popbill');
 const https = require('https');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 // 팝빌 전역 설정
 popbill.config({
@@ -181,6 +182,228 @@ const createSupabaseClient = () => {
   return null;
 };
 
+// 크리에이터 이메일 발송 함수
+const sendCreatorEmail = async (to, creatorName, campaignName, deadline, daysRemaining) => {
+  const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+  const senderName = process.env.GMAIL_SENDER_NAME || 'CNEC';
+
+  if (!gmailAppPassword) {
+    console.log('GMAIL_APP_PASSWORD 환경변수 미설정 - 이메일 발송 생략');
+    return { success: false, reason: 'GMAIL_APP_PASSWORD 미설정' };
+  }
+
+  const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '');
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: gmailEmail,
+      pass: cleanPassword
+    }
+  });
+
+  // 남은 기간에 따른 메시지 설정
+  let titleEmoji = '📅';
+  let titleText = '영상 제출 기한 안내';
+  let urgencyClass = 'info';
+  let urgencyText = '';
+
+  if (daysRemaining === 0) {
+    titleEmoji = '🚨';
+    titleText = '영상 제출 마감일 (오늘)';
+    urgencyClass = 'danger';
+    urgencyText = '오늘 자정까지 제출해 주세요!';
+  } else if (daysRemaining === 2) {
+    titleEmoji = '⏰';
+    titleText = '영상 제출 기한 2일 전';
+    urgencyClass = 'warning';
+    urgencyText = '2일 후 마감됩니다.';
+  } else if (daysRemaining === 3) {
+    titleEmoji = '📅';
+    titleText = '영상 제출 기한 3일 전';
+    urgencyClass = 'info';
+    urgencyText = '3일 후 마감됩니다.';
+  }
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+    .highlight-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .highlight-box.danger { border-left-color: #dc3545; }
+    .highlight-box.warning { border-left-color: #ffc107; }
+    .highlight-box.info { border-left-color: #17a2b8; }
+    .deadline { font-size: 28px; font-weight: bold; color: #667eea; }
+    .urgency { font-size: 18px; font-weight: bold; color: #dc3545; margin-top: 10px; }
+    .button { display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin-top: 20px; }
+    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+    .warning-text { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${titleEmoji} ${titleText}</h1>
+    </div>
+    <div class="content">
+      <p><strong>${creatorName}</strong>님, 안녕하세요!</p>
+      <p>참여하신 캠페인의 영상 제출 기한이 다가오고 있습니다.</p>
+
+      <div class="highlight-box ${urgencyClass}">
+        <p><strong>캠페인:</strong> ${campaignName}</p>
+        <p><strong>영상 제출 기한:</strong> <span class="deadline">${deadline}</span></p>
+        ${urgencyText ? `<p class="urgency">${urgencyText}</p>` : ''}
+      </div>
+
+      <div class="warning-text">
+        <p><strong>⚠️ 중요:</strong> 기한 내 미제출 시 패널티가 부과됩니다.</p>
+        <p>특별한 사유가 있는 경우 관리자에게 문의해주세요.</p>
+      </div>
+
+      <p>크리에이터 대시보드에서 촬영한 영상을 제출해 주세요.</p>
+
+      <a href="https://cnec.co.kr/creator/campaigns" class="button">영상 제출하기 →</a>
+
+      <div class="footer">
+        <p>문의: 1833-6025 | mkt_biz@cnec.co.kr</p>
+        <p>© CNEC. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const mailOptions = {
+    from: `"${senderName}" <${gmailEmail}>`,
+    to: to,
+    subject: `[CNEC] ${titleEmoji} ${campaignName} - ${titleText}`,
+    html: htmlContent
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`크리에이터 이메일 발송 성공: ${to}`, info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error(`크리에이터 이메일 발송 실패: ${to}`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// 기업 이메일 발송 함수 (해당 캠페인의 미제출 크리에이터 리스트)
+const sendCompanyEmail = async (to, companyName, campaignName, pendingCreators, deadline, daysRemaining) => {
+  const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+  const senderName = process.env.GMAIL_SENDER_NAME || 'CNEC';
+
+  if (!gmailAppPassword) {
+    console.log('GMAIL_APP_PASSWORD 환경변수 미설정 - 이메일 발송 생략');
+    return { success: false, reason: 'GMAIL_APP_PASSWORD 미설정' };
+  }
+
+  const cleanPassword = gmailAppPassword.trim().replace(/\s/g, '');
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: gmailEmail,
+      pass: cleanPassword
+    }
+  });
+
+  let titleText = '';
+  if (daysRemaining === 0) {
+    titleText = '영상 제출 마감일 (오늘)';
+  } else if (daysRemaining === 2) {
+    titleText = '영상 제출 기한 2일 전';
+  } else if (daysRemaining === 3) {
+    titleText = '영상 제출 기한 3일 전';
+  }
+
+  const creatorListHtml = pendingCreators.map(c =>
+    `<li><strong>${c.creatorName}</strong> - ${c.phone || '전화번호 없음'}</li>`
+  ).join('');
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+    .highlight-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
+    .stat { font-size: 36px; font-weight: bold; color: #dc3545; }
+    .creator-list { background: white; padding: 20px; border-radius: 8px; margin: 15px 0; }
+    .creator-list ul { list-style-type: none; padding: 0; }
+    .creator-list li { padding: 10px; border-bottom: 1px solid #eee; }
+    .button { display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin-top: 20px; }
+    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎬 ${titleText} - 미제출 크리에이터 현황</h1>
+    </div>
+    <div class="content">
+      <p><strong>${companyName}</strong>님, 안녕하세요!</p>
+      <p>캠페인 영상 제출 현황을 안내드립니다.</p>
+
+      <div class="highlight-box">
+        <p><strong>캠페인:</strong> ${campaignName}</p>
+        <p><strong>영상 제출 기한:</strong> ${deadline}</p>
+        <p><strong>미제출 크리에이터:</strong> <span class="stat">${pendingCreators.length}</span>명</p>
+      </div>
+
+      <div class="creator-list">
+        <p><strong>📋 미제출 크리에이터 명단:</strong></p>
+        <ul>
+          ${creatorListHtml}
+        </ul>
+      </div>
+
+      <p>필요시 크리에이터들에게 직접 연락하여 제출을 독려해 주세요.</p>
+
+      <a href="https://cnec.co.kr/company/campaigns" class="button">캠페인 관리 페이지 →</a>
+
+      <div class="footer">
+        <p>문의: 1833-6025 | mkt_biz@cnec.co.kr</p>
+        <p>© CNEC. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const mailOptions = {
+    from: `"${senderName}" <${gmailEmail}>`,
+    to: to,
+    subject: `[CNEC] ${campaignName} - ${titleText} (미제출 ${pendingCreators.length}명)`,
+    html: htmlContent
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`기업 이메일 발송 성공: ${to}`, info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error(`기업 이메일 발송 실패: ${to}`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 // 카카오톡 알림 발송 함수
 const sendKakaoNotification = (receiverNum, receiverName, templateCode, campaignName, deadline) => {
   return new Promise((resolve, reject) => {
@@ -294,6 +517,7 @@ exports.handler = async (event, context) => {
     ];
 
     const allResults = [];
+    const campaignCreatorsMap = {}; // 캠페인별 미제출 크리에이터 그룹화
 
     for (const { date, templateCode, label } of deadlineDates) {
       console.log(`\n=== ${label} 알림 처리 (마감일: ${date}) ===`);
@@ -311,7 +535,8 @@ exports.handler = async (event, context) => {
           campaigns (
             id,
             title,
-            campaign_name
+            campaign_name,
+            company_id
           )
         `)
         .eq('video_submission_deadline', date)
@@ -335,10 +560,10 @@ exports.handler = async (event, context) => {
         try {
           const campaignName = app.campaigns?.title || app.campaigns?.campaign_name || '캠페인';
 
-          // user_profiles에서 크리에이터 정보 조회
+          // user_profiles에서 크리에이터 정보 조회 (email 포함)
           const { data: profile, error: profileError } = await supabase
             .from('user_profiles')
-            .select('name, channel_name, phone')
+            .select('name, channel_name, phone, email')
             .eq('id', app.user_id)
             .maybeSingle();
 
@@ -347,13 +572,13 @@ exports.handler = async (event, context) => {
           if (!creatorProfile) {
             const { data: profile2 } = await supabase
               .from('user_profiles')
-              .select('name, channel_name, phone')
+              .select('name, channel_name, phone, email')
               .eq('user_id', app.user_id)
               .maybeSingle();
             creatorProfile = profile2;
           }
 
-          if (!creatorProfile || !creatorProfile.phone) {
+          if (!creatorProfile) {
             console.log(`크리에이터 정보 없음 (user_id: ${app.user_id}), 알림 건너뜀`);
             allResults.push({
               userId: app.user_id,
@@ -361,28 +586,63 @@ exports.handler = async (event, context) => {
               deadline: date,
               label,
               status: 'skipped',
-              reason: '크리에이터 전화번호 없음'
+              reason: '크리에이터 정보 없음'
             });
             continue;
           }
 
           const creatorName = creatorProfile.channel_name || creatorProfile.name || '크리에이터';
           const creatorPhone = creatorProfile.phone;
+          const creatorEmail = creatorProfile.email;
 
           // 마감일 포맷팅 (YYYY-MM-DD -> YYYY.MM.DD)
           const deadlineFormatted = date.replace(/-/g, '.');
 
-          // 알림톡 발송
-          try {
-            await sendKakaoNotification(
-              creatorPhone,
-              creatorName,
-              templateCode,
-              campaignName,
-              deadlineFormatted
-            );
+          // daysRemaining 계산 (0, 2, 3)
+          let daysRemaining = 0;
+          if (label === '3일 전') daysRemaining = 3;
+          else if (label === '2일 전') daysRemaining = 2;
+          else if (label === '당일') daysRemaining = 0;
 
-            console.log(`✓ 알림톡 발송 성공: ${creatorName} (${creatorPhone}) - ${campaignName}`);
+          // 카카오톡 및 이메일 발송
+          let kakaoSent = false;
+          let emailSent = false;
+
+          // 알림톡 발송
+          if (creatorPhone) {
+            try {
+              await sendKakaoNotification(
+                creatorPhone,
+                creatorName,
+                templateCode,
+                campaignName,
+                deadlineFormatted
+              );
+              console.log(`✓ 알림톡 발송 성공: ${creatorName} (${creatorPhone}) - ${campaignName}`);
+              kakaoSent = true;
+            } catch (kakaoError) {
+              console.error(`✗ 알림톡 발송 실패: ${creatorName}`, kakaoError.message);
+            }
+          }
+
+          // 이메일 발송
+          if (creatorEmail) {
+            try {
+              await sendCreatorEmail(
+                creatorEmail,
+                creatorName,
+                campaignName,
+                deadlineFormatted,
+                daysRemaining
+              );
+              console.log(`✓ 이메일 발송 성공: ${creatorName} (${creatorEmail}) - ${campaignName}`);
+              emailSent = true;
+            } catch (emailError) {
+              console.error(`✗ 이메일 발송 실패: ${creatorName}`, emailError.message);
+            }
+          }
+
+          if (kakaoSent || emailSent) {
             allResults.push({
               userId: app.user_id,
               creatorName,
@@ -390,10 +650,30 @@ exports.handler = async (event, context) => {
               deadline: date,
               label,
               status: 'sent',
-              phone: creatorPhone
+              phone: creatorPhone,
+              email: creatorEmail,
+              kakaoSent,
+              emailSent
             });
-          } catch (kakaoError) {
-            console.error(`✗ 알림톡 발송 실패: ${creatorName}`, kakaoError.message);
+
+            // 캠페인별 크리에이터 그룹화 (기업 이메일용)
+            const campaignId = app.campaign_id;
+            const companyId = app.campaigns?.company_id;
+            if (!campaignCreatorsMap[campaignId]) {
+              campaignCreatorsMap[campaignId] = {
+                campaignName,
+                companyId,
+                deadline: date,
+                daysRemaining,
+                creators: []
+              };
+            }
+            campaignCreatorsMap[campaignId].creators.push({
+              creatorName,
+              phone: creatorPhone,
+              email: creatorEmail
+            });
+          } else {
             allResults.push({
               userId: app.user_id,
               creatorName,
@@ -401,7 +681,7 @@ exports.handler = async (event, context) => {
               deadline: date,
               label,
               status: 'failed',
-              error: kakaoError.message
+              error: '알림톡/이메일 모두 발송 실패'
             });
           }
         } catch (error) {
@@ -417,12 +697,52 @@ exports.handler = async (event, context) => {
       }
     }
 
-    console.log('\n=== 영상 제출 마감일 알림 스케줄러 완료 ===');
+    console.log('\n=== 크리에이터 알림 완료 ===');
     console.log('총 처리 결과:', JSON.stringify(allResults, null, 2));
 
     const sentCount = allResults.filter(r => r.status === 'sent').length;
     const failedCount = allResults.filter(r => r.status === 'failed').length;
     const skippedCount = allResults.filter(r => r.status === 'skipped').length;
+
+    // 기업에게 캠페인별 미제출 크리에이터 리스트 이메일 발송
+    console.log('\n=== 기업 이메일 발송 시작 ===');
+    for (const [campaignId, campaignData] of Object.entries(campaignCreatorsMap)) {
+      if (campaignData.creators.length === 0) continue;
+
+      try {
+        // companies 테이블에서 기업 정보 조회
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('company_name, email')
+          .eq('id', campaignData.companyId)
+          .maybeSingle();
+
+        if (companyError || !company || !company.email) {
+          console.log(`기업 정보 없음 (campaign_id: ${campaignId}), 기업 이메일 건너뜀`);
+          continue;
+        }
+
+        // 기업 이메일 발송
+        const emailResult = await sendCompanyEmail(
+          company.email,
+          company.company_name,
+          campaignData.campaignName,
+          campaignData.creators,
+          campaignData.deadline,
+          campaignData.daysRemaining
+        );
+
+        if (emailResult.success) {
+          console.log(`✓ 기업 이메일 발송 성공: ${company.company_name} (${company.email}) - ${campaignData.campaignName}`);
+        } else {
+          console.log(`✗ 기업 이메일 발송 실패: ${company.company_name}`);
+        }
+      } catch (companyEmailError) {
+        console.error(`기업 이메일 발송 오류 (campaign_id: ${campaignId}):`, companyEmailError);
+      }
+    }
+
+    console.log('\n=== 영상 제출 마감일 알림 스케줄러 완료 ===');
 
     // 네이버 웍스로 보고서 전송
     try {
