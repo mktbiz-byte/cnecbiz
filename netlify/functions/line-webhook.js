@@ -168,6 +168,13 @@ exports.handler = async (event) => {
       const eventType = webhookEvent.type;
       const replyToken = webhookEvent.replyToken;
 
+      // LINE 재전송 체크 - 이미 처리된 이벤트는 스킵
+      const isRedelivery = webhookEvent.deliveryContext?.isRedelivery;
+      if (isRedelivery) {
+        console.log(`[LINE Webhook] 재전송 이벤트 스킵 - eventId: ${webhookEvent.webhookEventId}`);
+        continue;
+      }
+
       console.log(`Event type: ${eventType}, User ID: ${userId}`);
 
       // 1. Follow 이벤트 (친구 추가)
