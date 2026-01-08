@@ -131,6 +131,9 @@ export default function AdminCampaignEdit() {
         end_date: campaign.end_date,
         status: campaign.status,
         target_platforms: campaign.target_platforms,
+        // 캠페인 등록 기업 정보 유지 (수정 시 변경 방지)
+        company_id: campaign.company_id,
+        company_email: campaign.company_email,
         // 질문 필드
         question1: campaign.question1,
         question1_type: campaign.question1_type,
