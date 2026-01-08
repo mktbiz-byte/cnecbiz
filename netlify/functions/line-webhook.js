@@ -237,6 +237,12 @@ exports.handler = async (event) => {
             if (creator) {
               const creatorName = creator.name || '크리에이터';
 
+              // user_profiles 테이블에 line_user_id 저장
+              await supabase
+                .from('user_profiles')
+                .update({ line_user_id: userId })
+                .eq('id', creator.id);
+
               // line_users 테이블 업데이트
               await supabase
                 .from('line_users')
