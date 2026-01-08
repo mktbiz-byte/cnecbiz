@@ -898,8 +898,9 @@ export default function CampaignsManagement() {
     try {
       const supabaseClient = getSupabaseClient(campaign.region || 'korea')
 
-      // 1. company_id로 지역 DB에서 조회
+      // 1. company_id로 지역 DB에서 조회 (id 또는 user_id로 조회)
       if (campaign.company_id) {
+        // 1-1. company_id로 id 컬럼 조회
         const { data: companyData } = await supabaseClient
           .from('companies')
           .select('*')
@@ -912,7 +913,20 @@ export default function CampaignsManagement() {
           return
         }
 
-        // company_id로 supabaseBiz에서 조회
+        // 1-2. company_id로 user_id 컬럼 조회 (US 캠페인은 company_id에 auth user.id를 저장)
+        const { data: companyByUserId } = await supabaseClient
+          .from('companies')
+          .select('*')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle()
+
+        if (companyByUserId) {
+          setCompanyInfo(companyByUserId)
+          setLoadingCompanyInfo(false)
+          return
+        }
+
+        // 1-3. company_id로 supabaseBiz에서 id 조회
         const { data: bizCompanyData } = await supabaseBiz
           .from('companies')
           .select('*')
@@ -921,6 +935,19 @@ export default function CampaignsManagement() {
 
         if (bizCompanyData) {
           setCompanyInfo(bizCompanyData)
+          setLoadingCompanyInfo(false)
+          return
+        }
+
+        // 1-4. company_id로 supabaseBiz에서 user_id 조회
+        const { data: bizCompanyByUserId } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle()
+
+        if (bizCompanyByUserId) {
+          setCompanyInfo(bizCompanyByUserId)
           setLoadingCompanyInfo(false)
           return
         }
