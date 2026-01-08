@@ -1497,13 +1497,20 @@ JSON만 출력.`
       return
     }
 
-    // 주소/연락처가 없는 크리에이터만 필터링
-    const creatorsWithoutShipping = participants.filter(p =>
+    // 체크박스로 선택한 크리에이터가 없으면 알림
+    if (selectedParticipants.length === 0) {
+      alert('배송정보 요청을 보낼 크리에이터를 체크박스로 선택해주세요.')
+      return
+    }
+
+    // 선택한 크리에이터 중 주소/연락처가 없는 크리에이터만 필터링
+    const selectedCreators = participants.filter(p => selectedParticipants.includes(p.id))
+    const creatorsWithoutShipping = selectedCreators.filter(p =>
       !p.phone_number || !p.address
     )
 
     if (creatorsWithoutShipping.length === 0) {
-      alert('모든 크리에이터가 이미 배송정보를 입력했습니다.')
+      alert('선택한 크리에이터가 모두 이미 배송정보를 입력했습니다.')
       return
     }
 
