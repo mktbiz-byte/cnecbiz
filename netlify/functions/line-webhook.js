@@ -225,14 +225,14 @@ exports.handler = async (event) => {
           // 이메일 형식 체크 (크리에이터 계정 연동)
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (emailRegex.test(text)) {
-            // users 테이블에서 이메일로 검색 (일본 DB는 users 테이블 사용)
+            // user_profiles 테이블에서 이메일로 검색 (일본 DB)
             const { data: creator, error } = await supabase
-              .from('users')
-              .select('id, name, email')
+              .from('user_profiles')
+              .select('id, user_id, name, email')
               .eq('email', text.toLowerCase())
               .single();
 
-            console.log('User search result:', { creator, error, searchEmail: text.toLowerCase() });
+            console.log('User profile search result:', { creator, error, searchEmail: text.toLowerCase() });
 
             if (creator) {
               const creatorName = creator.name || '크리에이터';
