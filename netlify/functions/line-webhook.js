@@ -51,16 +51,17 @@ async function replyMessage(replyToken, messages, accessToken) {
   return response.ok;
 }
 
-// 네이버 웍스로 알림 전송
+// 네이버 웍스로 LINE 메시지 알림 전송 (전용 채널)
+const LINE_MESSAGE_CHANNEL_ID = '75c24874-e370-afd5-9da3-72918ba15a3c';
+
 async function notifyNaverWorks(message) {
   try {
-    // 내부 함수 호출 대신 직접 fetch
-    const response = await fetch(`${process.env.URL || 'https://cnectotal.netlify.app'}/.netlify/functions/send-naver-works-message`, {
+    const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
-        isAdminNotification: true
+        channelId: LINE_MESSAGE_CHANNEL_ID
       })
     });
     return response.ok;
@@ -192,8 +193,7 @@ exports.handler = async (event) => {
           text: `안녕하세요, ${displayName}님! 🎉\nCNEC BIZ 공식 LINE에 오신 것을 환영합니다.\n\n캠페인 선정, 정산 등 중요한 알림을 이 채널로 보내드립니다.\n\n크리에이터 계정과 연동하시려면 가입하신 이메일 주소를 입력해주세요.`
         }, accessToken);
 
-        // 네이버 웍스 알림
-        await notifyNaverWorks(`📱 LINE 새 친구 추가\n\n이름: ${displayName}\nUser ID: ${userId}\n시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+        // 새 친구 추가 알림 제거 (불필요)
       }
 
       // 2. Unfollow 이벤트 (친구 삭제)
@@ -258,7 +258,7 @@ exports.handler = async (event) => {
                 text: `✅ 연동 완료!\n\n${creatorName}님의 계정과 LINE이 연동되었습니다.\n앞으로 캠페인 선정, 정산 알림을 LINE으로 받으실 수 있습니다.`
               }, accessToken);
 
-              await notifyNaverWorks(`🔗 LINE 계정 연동\n\n크리에이터: ${creatorName}\n이메일: ${creator.email}\nLINE: ${displayName}`);
+              // 연동 완료 알림 제거 (불필요)
             } else {
               await replyMessage(replyToken, {
                 type: 'text',
