@@ -53,10 +53,22 @@ exports.handler = async (event, context) => {
 
       const supabase = createClient(region.url, region.key);
 
-      // 먼저 기본 컬럼만 조회 (content_submission_deadline은 한국에만 있을 수 있음)
+      // 지역별로 다른 컬럼 조회 (스키마 차이 대응)
+      let selectQuery = 'id, title, status, application_deadline, created_at';
+
+      // 한국: campaign_type, content_submission_deadline 있음
+      // 미국: campaign_type 있음, content_submission_deadline 없음
+      // 일본: 둘 다 없음
+      if (region.name === 'korea') {
+        selectQuery += ', campaign_type, content_submission_deadline';
+      } else if (region.name === 'us') {
+        selectQuery += ', campaign_type';
+      }
+      // 일본은 기본 컬럼만
+
       const { data: campaigns, error } = await supabase
         .from('campaigns')
-        .select('id, title, status, application_deadline, created_at, campaign_type')
+        .select(selectQuery)
         .in('status', ['active', 'recruiting', 'approved'])
         .order('created_at', { ascending: false })
         .limit(20);
@@ -65,20 +77,6 @@ exports.handler = async (event, context) => {
         console.error(`${region.name} 조회 오류:`, error);
         regionCounts[region.name] = { configured: true, count: 0, error: error.message };
         continue;
-      }
-
-      // 한국 DB인 경우에만 content_submission_deadline 추가 조회 시도
-      if (region.name === 'korea' && campaigns && campaigns.length > 0) {
-        for (const campaign of campaigns) {
-          const { data: detailData } = await supabase
-            .from('campaigns')
-            .select('content_submission_deadline')
-            .eq('id', campaign.id)
-            .single();
-          if (detailData) {
-            campaign.content_submission_deadline = detailData.content_submission_deadline;
-          }
-        }
       }
 
       regionCounts[region.name] = { configured: true, count: campaigns?.length || 0 };

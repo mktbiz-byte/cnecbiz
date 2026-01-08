@@ -45,9 +45,10 @@ exports.handler = async (event, context) => {
     const today = koreaTime.toISOString().split('T')[0];
 
     // 모든 캠페인 조회 (status 필터 없음, 최근 50개)
+    // 일본 DB에는 campaign_type 컬럼이 없음
     const { data: allCampaigns, error: allError } = await supabase
       .from('campaigns')
-      .select('id, title, status, application_deadline, created_at, campaign_type')
+      .select('id, title, status, application_deadline, created_at')
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -61,7 +62,7 @@ exports.handler = async (event, context) => {
     // 1/8 마감 캠페인 조회 (status 필터 없음)
     const { data: jan8Campaigns, error: jan8Error } = await supabase
       .from('campaigns')
-      .select('id, title, status, application_deadline, created_at, campaign_type')
+      .select('id, title, status, application_deadline, created_at')
       .eq('application_deadline', '2026-01-08')
       .limit(50);
 
@@ -75,7 +76,7 @@ exports.handler = async (event, context) => {
     // 1/8 마감 + active/recruiting/approved 캠페인 조회
     const { data: jan8ActiveCampaigns, error: jan8ActiveError } = await supabase
       .from('campaigns')
-      .select('id, title, status, application_deadline, created_at, campaign_type')
+      .select('id, title, status, application_deadline, created_at')
       .eq('application_deadline', '2026-01-08')
       .in('status', ['active', 'recruiting', 'approved'])
       .limit(50);

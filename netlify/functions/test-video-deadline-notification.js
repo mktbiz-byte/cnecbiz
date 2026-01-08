@@ -52,11 +52,10 @@ exports.handler = async (event, context) => {
     console.log('2일 후:', in2DaysStr);
     console.log('3일 후:', in3DaysStr);
 
-    // 다중 지역 Supabase 클라이언트 설정
+    // 영상 제출 마감일 알림은 한국만 지원
+    // (일본/미국 DB에는 content_submission_deadline, campaign_type 컬럼이 없음)
     const regions = [
-      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY },
-      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY },
-      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY }
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY }
     ];
 
     // 각 날짜별로 데이터 조회
