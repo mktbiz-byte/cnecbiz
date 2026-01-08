@@ -52,9 +52,11 @@ exports.handler = async (event, context) => {
       }
 
       const supabase = createClient(region.url, region.key);
+
+      // 먼저 기본 컬럼만 조회 (content_submission_deadline은 한국에만 있을 수 있음)
       const { data: campaigns, error } = await supabase
         .from('campaigns')
-        .select('id, title, status, application_deadline, content_submission_deadline, created_at, campaign_type')
+        .select('id, title, status, application_deadline, created_at, campaign_type')
         .in('status', ['active', 'recruiting', 'approved'])
         .order('created_at', { ascending: false })
         .limit(20);
@@ -63,6 +65,20 @@ exports.handler = async (event, context) => {
         console.error(`${region.name} 조회 오류:`, error);
         regionCounts[region.name] = { configured: true, count: 0, error: error.message };
         continue;
+      }
+
+      // 한국 DB인 경우에만 content_submission_deadline 추가 조회 시도
+      if (region.name === 'korea' && campaigns && campaigns.length > 0) {
+        for (const campaign of campaigns) {
+          const { data: detailData } = await supabase
+            .from('campaigns')
+            .select('content_submission_deadline')
+            .eq('id', campaign.id)
+            .single();
+          if (detailData) {
+            campaign.content_submission_deadline = detailData.content_submission_deadline;
+          }
+        }
       }
 
       regionCounts[region.name] = { configured: true, count: campaigns?.length || 0 };
