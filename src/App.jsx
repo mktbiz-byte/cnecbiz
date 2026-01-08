@@ -106,6 +106,7 @@ import ContractManagement from './components/company/ContractManagement'
 import Guidebook from './pages/Guidebook'
 import GuidebookManagement from './components/admin/GuidebookManagement'
 import TestKakaoNotification from './components/admin/TestKakaoNotification'
+import LineMessagesManagement from './components/admin/LineMessagesManagement'
 import TestNaverWorks from './pages/TestNaverWorks'
 import ConsultationBanner from './components/ConsultationBanner'
 
@@ -225,6 +226,7 @@ function App() {
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />
+        <Route path="/admin/line-messages" element={<LineMessagesManagement />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
 
