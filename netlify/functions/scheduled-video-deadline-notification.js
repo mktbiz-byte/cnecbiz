@@ -530,9 +530,7 @@ exports.handler = async (event, context) => {
           id,
           user_id,
           campaign_id,
-          video_submission_deadline,
-          video_submitted,
-          video_confirmed,
+          submission_deadline,
           status,
           campaigns (
             id,
@@ -540,8 +538,8 @@ exports.handler = async (event, context) => {
             company_id
           )
         `)
-        .eq('video_submission_deadline', date)
-        .or('video_confirmed.is.null,video_confirmed.eq.false')
+        .eq('submission_deadline', date)
+        .neq('status', 'completed')
         .in('status', ['selected', 'approved', 'guide_approved'])
 
       if (appError) {

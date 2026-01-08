@@ -71,9 +71,7 @@ exports.handler = async (event, context) => {
           id,
           user_id,
           campaign_id,
-          video_submission_deadline,
-          video_submitted,
-          video_confirmed,
+          submission_deadline,
           status,
           campaigns (
             id,
@@ -81,8 +79,8 @@ exports.handler = async (event, context) => {
             company_id
           )
         `)
-        .eq('video_submission_deadline', date)
-        .or('video_submitted.is.null,video_submitted.eq.false,video_confirmed.is.null,video_confirmed.eq.false')
+        .eq('submission_deadline', date)
+        .neq('status', 'completed')
         .in('status', ['selected', 'approved', 'guide_approved']);
 
       if (appError) {
@@ -123,9 +121,7 @@ exports.handler = async (event, context) => {
           creator_name: creatorProfile?.channel_name || creatorProfile?.name || 'Unknown',
           phone: creatorProfile?.phone || null,
           email: creatorProfile?.email || null,
-          status: app.status,
-          video_submitted: app.video_submitted,
-          video_confirmed: app.video_confirmed
+          status: app.status
         });
       }
 
