@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  Users, Search, Globe, Star, MessageSquare, Download,
+  Users, Search, Globe, Star, MessageSquare, MessageCircle, Download,
   Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
   X, ExternalLink, User, MapPin, CreditCard, Calendar, ChevronLeft, ChevronRight,
   Briefcase, Award, FileCheck, Key, RefreshCw, Eye, EyeOff, Check, Copy, Loader2,
@@ -17,6 +17,7 @@ import {
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import { database } from '../../lib/supabaseKorea'
 import AdminNavigation from './AdminNavigation'
+import LineChatModal from './LineChatModal'
 import * as XLSX from 'xlsx'
 
 // 등급 정의
@@ -184,6 +185,9 @@ export default function AllCreatorsPage() {
   const [showProfileRequestModal, setShowProfileRequestModal] = useState(false)
   const [profileRequestOptions, setProfileRequestOptions] = useState({ kakao: true, email: true })
   const [sendingProfileRequest, setSendingProfileRequest] = useState(false)
+
+  // LINE 채팅 모달 상태
+  const [showLineChatModal, setShowLineChatModal] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -1974,6 +1978,16 @@ export default function AllCreatorsPage() {
                 포인트 지급
               </Button>
             )}
+            {selectedCreator?.dbRegion === 'japan' && (
+              <Button
+                variant="outline"
+                onClick={() => setShowLineChatModal(true)}
+                className="text-green-600 border-green-300 hover:bg-green-50"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                LINE 채팅
+              </Button>
+            )}
             <Button onClick={() => {
               setShowProfileModal(false)
               openReviewModal(selectedCreator, selectedCreator?.dbRegion)
@@ -2673,6 +2687,14 @@ export default function AllCreatorsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* LINE 채팅 모달 */}
+      <LineChatModal
+        open={showLineChatModal}
+        onOpenChange={setShowLineChatModal}
+        creator={selectedCreator}
+        region={selectedCreator?.dbRegion || 'japan'}
+      />
     </>
   )
 }
