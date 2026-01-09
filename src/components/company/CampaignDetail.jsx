@@ -2867,14 +2867,17 @@ JSON만 출력.`
             })
             const kakaoResult = await kakaoResponse.json()
             console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
-            if (!kakaoResponse.ok) {
+            if (!kakaoResponse.ok || !kakaoResult.success) {
               console.error('알림톡 발송 실패 응답:', kakaoResult)
+              // 상세 오류 표시
+              const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
+              console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
             }
           } catch (kakaoError) {
             console.error('알림톡 발송 실패:', kakaoError)
           }
         } else {
-          console.log('알림톡 발송 스킵 - 전화번호 없음:', participant?.user_id)
+          console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: participant?.user_id, phone_number: participant?.phone_number, phone: participant?.phone })
         }
 
         // 이메일 발송
@@ -7769,10 +7772,18 @@ JSON만 출력.`
                             }
                           })
                         })
-                        console.log('✓ 영상 승인 완료 알림톡 발송')
+                        const kakaoResult = await kakaoResponse.json()
+                        console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
+                        if (!kakaoResponse.ok || !kakaoResult.success) {
+                          console.error('알림톡 발송 실패 응답:', kakaoResult)
+                          const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
+                          console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
+                        }
                       } catch (kakaoError) {
                         console.error('알림톡 발송 실패:', kakaoError)
                       }
+                    } else {
+                      console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: selectedParticipant?.user_id, phone_number: selectedParticipant?.phone_number, phone: selectedParticipant?.phone })
                     }
 
                     // 이메일 발송

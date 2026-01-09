@@ -446,12 +446,44 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[ERROR] Kakao notification error:', error);
+
+    // 상세 오류 정보 반환 (디버깅용)
+    const errorDetails = {
+      success: false,
+      error: error.message || 'Unknown error',
+      code: error.code || null,
+      debug: {
+        templateCode: error.templateCode || templateCode,
+        plusFriendID: error.plusFriendID || plusFriendID,
+        receiverNum: receiverNum ? receiverNum.slice(0, 3) + '****' + receiverNum.slice(-4) : null,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    // 팝빌 에러 코드 해석
+    if (error.code) {
+      const errorCodeMessages = {
+        '-99999999': '팝빌 서버 연결 실패',
+        '-20010': '수신번호 형식 오류',
+        '-20011': '수신번호 미입력',
+        '-20001': '템플릿 코드 미등록',
+        '-20002': '템플릿 내용 불일치',
+        '-20003': '템플릿 변수 불일치',
+        '-20004': '발신번호 미등록',
+        '-20005': '카카오채널 미연동',
+        '-20006': '잔액 부족',
+        '-99000020': '템플릿 내용 불일치 (공백/줄바꿈 포함 정확히 일치해야 함)',
+        '-11000004': '템플릿 미승인 또는 반려',
+        '-99000015': '카카오톡 발송 실패로 대체문자 발송됨'
+      };
+      errorDetails.errorDescription = errorCodeMessages[error.code] || `알 수 없는 오류 코드: ${error.code}`;
+    }
+
+    console.error('[ERROR] Error details:', JSON.stringify(errorDetails, null, 2));
+
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        success: false,
-        error: error.message
-      })
+      body: JSON.stringify(errorDetails)
     };
   }
 };
