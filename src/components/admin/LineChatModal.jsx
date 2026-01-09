@@ -32,6 +32,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
   const [sendingInvite, setSendingInvite] = useState(false);
   const [inviteSent, setInviteSent] = useState(false);
   const messagesEndRef = useRef(null);
+  const sendingRef = useRef(false); // 중복 발송 방지용
 
   const isLineConnected = !!creator?.line_user_id;
 
@@ -66,29 +67,38 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
   const sendMessage = async () => {
     if (!newMessage.trim() || !creator?.line_user_id) return;
 
+    // 중복 발송 방지
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+
     setSending(true);
+    const messageToSend = newMessage;
+    setNewMessage(''); // 즉시 입력창 비우기
+
     try {
       const response = await fetch('/.netlify/functions/line-messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           lineUserId: creator.line_user_id,
-          message: newMessage
+          message: messageToSend
         })
       });
 
       if (response.ok) {
-        setNewMessage('');
         await loadMessages();
       } else {
         const error = await response.json();
         alert('발송 실패: ' + (error.error || '알 수 없는 오류'));
+        setNewMessage(messageToSend); // 실패 시 메시지 복원
       }
     } catch (error) {
       console.error('Send message error:', error);
       alert('발송 중 오류가 발생했습니다.');
+      setNewMessage(messageToSend); // 실패 시 메시지 복원
     } finally {
       setSending(false);
+      sendingRef.current = false;
     }
   };
 
@@ -156,7 +166,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-green-500" />
@@ -186,7 +196,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
         {isLineConnected ? (
           <>
             {/* 메시지 영역 */}
-            <ScrollArea className="flex-1 min-h-[300px] max-h-[400px] border rounded-lg p-3">
+            <div className="h-[350px] overflow-y-auto border rounded-lg p-3 bg-white">
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -210,7 +220,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{msg.message_content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                         <p className={`text-xs mt-1 flex items-center gap-1 ${
                           msg.direction === 'outgoing' ? 'text-green-100' : 'text-gray-400'
                         }`}>
@@ -223,7 +233,7 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
                   <div ref={messagesEndRef} />
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
             {/* 메시지 입력 */}
             <div className="flex gap-2 mt-2">

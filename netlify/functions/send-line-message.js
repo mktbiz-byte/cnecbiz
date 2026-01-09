@@ -71,11 +71,11 @@ async function translateText(text, targetLanguage = 'ja') {
   }
 }
 
-// Supabase 클라이언트
+// Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
   return createClient(
-    process.env.SUPABASE_URL || process.env.VITE_SUPABASE_JAPAN_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+    process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_JAPAN_URL || process.env.SUPABASE_URL,
+    process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 };
 
@@ -218,20 +218,20 @@ exports.handler = async (event) => {
     // 3. creatorId로 조회
     else if (creatorId) {
       const { data: creator } = await supabase
-        .from('creators')
-        .select('line_user_id, creator_name')
+        .from('user_profiles')
+        .select('line_user_id, name')
         .eq('id', creatorId)
         .single();
 
       if (creator?.line_user_id) {
         targetUserIds = [creator.line_user_id];
-        if (templateData) templateData.creatorName = templateData.creatorName || creator.creator_name;
+        if (templateData) templateData.creatorName = templateData.creatorName || creator.name;
       }
     }
     // 4. 여러 creatorId로 조회
     else if (creatorIds && Array.isArray(creatorIds)) {
       const { data: creators } = await supabase
-        .from('creators')
+        .from('user_profiles')
         .select('line_user_id')
         .in('id', creatorIds)
         .not('line_user_id', 'is', null);
@@ -243,14 +243,14 @@ exports.handler = async (event) => {
     // 5. 이메일로 조회
     else if (creatorEmail) {
       const { data: creator } = await supabase
-        .from('creators')
-        .select('line_user_id, creator_name')
+        .from('user_profiles')
+        .select('line_user_id, name')
         .eq('email', creatorEmail.toLowerCase())
         .single();
 
       if (creator?.line_user_id) {
         targetUserIds = [creator.line_user_id];
-        if (templateData) templateData.creatorName = templateData.creatorName || creator.creator_name;
+        if (templateData) templateData.creatorName = templateData.creatorName || creator.name;
       }
     }
 

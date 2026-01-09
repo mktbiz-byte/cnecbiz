@@ -11,12 +11,14 @@ const { createClient } = require('@supabase/supabase-js');
  * - NAVER_WORKS_* : 네이버 웍스 알림용 (선택)
  */
 
-// Supabase 클라이언트
+// Supabase 클라이언트 (일본 DB)
 const getSupabase = () => {
-  return createClient(
-    process.env.SUPABASE_URL || process.env.VITE_SUPABASE_JAPAN_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
-  );
+  const url = process.env.VITE_SUPABASE_JAPAN_URL || process.env.SUPABASE_JAPAN_URL || process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  console.log('[LINE Webhook] Supabase URL:', url ? url.substring(0, 30) + '...' : 'NOT SET');
+
+  return createClient(url, key);
 };
 
 // LINE 서명 검증
@@ -49,15 +51,17 @@ async function replyMessage(replyToken, messages, accessToken) {
   return response.ok;
 }
 
-// 네이버 웍스로 알림 전송
+// 네이버 웍스로 LINE 메시지 알림 전송 (전용 채널)
+const LINE_MESSAGE_CHANNEL_ID = '75c24874-e370-afd5-9da3-72918ba15a3c';
+
 async function notifyNaverWorks(message) {
   try {
-    // 내부 함수 호출 대신 직접 fetch
-    const response = await fetch(`${process.env.URL || 'https://cnectotal.netlify.app'}/.netlify/functions/send-naver-works-message`, {
+    const response = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message,
+        channelId: LINE_MESSAGE_CHANNEL_ID,
         isAdminNotification: true
       })
     });
@@ -95,18 +99,21 @@ async function saveMessageToDB(supabase, messageData) {
       .eq('line_user_id', messageData.line_user_id)
       .single();
 
+    const insertData = {
+      line_user_id: messageData.line_user_id,
+      direction: messageData.direction,
+      message_type: messageData.message_type || 'text',
+      content: messageData.content
+    };
+
+    // line_message_id가 있으면 추가 (중복 방지용)
+    if (messageData.line_message_id) {
+      insertData.line_message_id = messageData.line_message_id;
+    }
+
     const { error } = await supabase
       .from('line_messages')
-      .insert({
-        line_user_id: messageData.line_user_id,
-        creator_id: lineUser?.creator_id || null,
-        direction: messageData.direction,
-        message_type: messageData.message_type || 'text',
-        message_content: messageData.message_content,
-        template_type: messageData.template_type || null,
-        reply_token: messageData.reply_token || null,
-        status: 'delivered'
-      });
+      .insert(insertData);
 
     if (error) {
       console.error('Save message error:', error);
@@ -161,6 +168,13 @@ exports.handler = async (event) => {
       const eventType = webhookEvent.type;
       const replyToken = webhookEvent.replyToken;
 
+      // LINE 재전송 체크 - 이미 처리된 이벤트는 스킵
+      const isRedelivery = webhookEvent.deliveryContext?.isRedelivery;
+      if (isRedelivery) {
+        console.log(`[LINE Webhook] 재전송 이벤트 스킵 - eventId: ${webhookEvent.webhookEventId}`);
+        continue;
+      }
+
       console.log(`Event type: ${eventType}, User ID: ${userId}`);
 
       // 1. Follow 이벤트 (친구 추가)
@@ -190,8 +204,7 @@ exports.handler = async (event) => {
           text: `안녕하세요, ${displayName}님! 🎉\nCNEC BIZ 공식 LINE에 오신 것을 환영합니다.\n\n캠페인 선정, 정산 등 중요한 알림을 이 채널로 보내드립니다.\n\n크리에이터 계정과 연동하시려면 가입하신 이메일 주소를 입력해주세요.`
         }, accessToken);
 
-        // 네이버 웍스 알림
-        await notifyNaverWorks(`📱 LINE 새 친구 추가\n\n이름: ${displayName}\nUser ID: ${userId}\n시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+        // 새 친구 추가 알림 제거 (불필요)
       }
 
       // 2. Unfollow 이벤트 (친구 삭제)
@@ -205,50 +218,72 @@ exports.handler = async (event) => {
       // 3. Message 이벤트 (메시지 수신)
       else if (eventType === 'message' && webhookEvent.message) {
         const message = webhookEvent.message;
+        const messageId = message.id; // LINE 메시지 고유 ID
+
+        // 중복 처리 방지: 이미 처리된 메시지인지 확인
+        const { data: existingMsg } = await supabase
+          .from('line_messages')
+          .select('id')
+          .eq('line_message_id', messageId)
+          .single();
+
+        if (existingMsg) {
+          console.log(`[LINE Webhook] 이미 처리된 메시지 - messageId: ${messageId}`);
+          continue; // 다음 이벤트로 건너뛰기
+        }
 
         if (message.type === 'text') {
           const text = message.text.trim();
           const profile = await getUserProfile(userId, accessToken);
           const displayName = profile?.displayName || '알 수 없음';
 
-          // 수신 메시지 DB에 저장
+          // 수신 메시지 DB에 저장 (line_message_id 포함)
           await saveMessageToDB(supabase, {
             line_user_id: userId,
+            line_message_id: messageId,
             direction: 'incoming',
             message_type: 'text',
-            message_content: text,
+            content: text,
             reply_token: replyToken
           });
 
           // 이메일 형식 체크 (크리에이터 계정 연동)
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (emailRegex.test(text)) {
-            // 크리에이터 테이블에서 이메일로 검색
+            // user_profiles 테이블에서 이메일로 검색 (일본 DB)
             const { data: creator, error } = await supabase
-              .from('creators')
-              .select('id, creator_name, email')
+              .from('user_profiles')
+              .select('id, user_id, name, email')
               .eq('email', text.toLowerCase())
               .single();
 
+            console.log('User profile search result:', { creator, error, searchEmail: text.toLowerCase() });
+
             if (creator) {
-              // 크리에이터와 LINE User ID 연동
+              const creatorName = creator.name || '크리에이터';
+
+              // user_profiles 테이블에 line_user_id 저장
               await supabase
-                .from('creators')
+                .from('user_profiles')
                 .update({ line_user_id: userId })
                 .eq('id', creator.id);
 
-              // line_users 테이블도 업데이트
+              // line_users 테이블 업데이트
               await supabase
                 .from('line_users')
-                .update({ creator_id: creator.id, linked_at: new Date().toISOString() })
+                .update({
+                  creator_id: creator.id,
+                  email: creator.email,
+                  linked_at: new Date().toISOString()
+                })
                 .eq('line_user_id', userId);
 
               await replyMessage(replyToken, {
                 type: 'text',
-                text: `✅ 연동 완료!\n\n${creator.creator_name}님의 계정과 LINE이 연동되었습니다.\n앞으로 캠페인 선정, 정산 알림을 LINE으로 받으실 수 있습니다.`
+                text: `✅ 연동 완료!\n\n${creatorName}님의 계정과 LINE이 연동되었습니다.\n앞으로 캠페인 선정, 정산 알림을 LINE으로 받으실 수 있습니다.`
               }, accessToken);
 
-              await notifyNaverWorks(`🔗 LINE 계정 연동\n\n크리에이터: ${creator.creator_name}\n이메일: ${creator.email}\nLINE: ${displayName}`);
+              // 연동 완료 알림 제거 (불필요)
             } else {
               await replyMessage(replyToken, {
                 type: 'text',
@@ -256,7 +291,7 @@ exports.handler = async (event) => {
               }, accessToken);
             }
           } else {
-            // 일반 메시지 - 네이버 웍스로 전달
+            // 일반 메시지 - 네이버 웍스로 알림 (isRedelivery 체크로 중복 방지됨)
             await notifyNaverWorks(`💬 LINE 메시지 수신\n\n보낸 사람: ${displayName}\nUser ID: ${userId}\n메시지: ${text}\n시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
 
             await replyMessage(replyToken, {
