@@ -291,8 +291,33 @@ exports.handler = async (event) => {
               }, accessToken);
             }
           } else {
-            // 일반 메시지 - 네이버 웍스로 알림 (isRedelivery 체크로 중복 방지됨)
-            await notifyNaverWorks(`💬 LINE 메시지 수신\n\n보낸 사람: ${displayName}\nUser ID: ${userId}\n메시지: ${text}\n시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`);
+            // 일반 메시지 - 연동된 크리에이터 정보 조회
+            const { data: linkedCreator } = await supabase
+              .from('user_profiles')
+              .select('name, email')
+              .eq('line_user_id', userId)
+              .single();
+
+            // 네이버 웍스 알림 메시지 구성
+            let notificationMessage = `💬 LINE 메시지 수신\n\n`;
+
+            if (linkedCreator) {
+              // 연동된 크리에이터인 경우 - 등록 정보 표시
+              notificationMessage += `📋 등록 정보\n`;
+              notificationMessage += `• 이름: ${linkedCreator.name || '미입력'}\n`;
+              notificationMessage += `• 이메일: ${linkedCreator.email}\n`;
+              notificationMessage += `• LINE 이름: ${displayName}\n\n`;
+            } else {
+              // 미연동 사용자인 경우
+              notificationMessage += `⚠️ 미연동 사용자\n`;
+              notificationMessage += `• LINE 이름: ${displayName}\n`;
+              notificationMessage += `• User ID: ${userId.substring(0, 15)}...\n\n`;
+            }
+
+            notificationMessage += `💬 메시지: ${text}\n`;
+            notificationMessage += `🕐 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
+
+            await notifyNaverWorks(notificationMessage);
 
             await replyMessage(replyToken, {
               type: 'text',

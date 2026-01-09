@@ -147,6 +147,13 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
     }, 100);
   };
 
+  // 메시지 변경 시 스크롤
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages]);
+
   // 시간 포맷
   const formatTime = (dateString) => {
     return new Date(dateString).toLocaleString('ko-KR', {

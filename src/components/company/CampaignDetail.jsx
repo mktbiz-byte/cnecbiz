@@ -7514,6 +7514,37 @@ JSON만 출력.`
 
                     if (error) throw error
 
+                    // 크리에이터에게 영상 승인 완료 알림톡 발송
+                    if (selectedParticipant.user_id) {
+                      const { data: profile } = await supabase
+                        .from('user_profiles')
+                        .select('phone, email, full_name')
+                        .eq('id', selectedParticipant.user_id)
+                        .single()
+
+                      if (profile?.phone) {
+                        try {
+                          await fetch('/.netlify/functions/send-kakao-notification', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              receiverNum: profile.phone.replace(/-/g, ''),
+                              receiverName: profile.full_name || selectedParticipant.creator_name,
+                              templateCode: '025100001017',
+                              variables: {
+                                '크리에이터명': profile.full_name || selectedParticipant.creator_name || '크리에이터',
+                                '캠페인명': campaign?.title || '캠페인',
+                                '업로드기한': '승인 완료 후 1일 이내'
+                              }
+                            })
+                          })
+                          console.log('✓ 영상 승인 완료 알림톡 발송')
+                        } catch (kakaoError) {
+                          console.error('알림톡 발송 실패:', kakaoError)
+                        }
+                      }
+                    }
+
                     alert('영상이 승인되었습니다!')
                     setShowVideoModal(false)
                     setSelectedParticipant(null)

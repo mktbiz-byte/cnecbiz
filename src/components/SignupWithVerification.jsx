@@ -214,23 +214,23 @@ export default function SignupWithVerification() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
-              가입 신청이 완료되었습니다
+              회원가입이 완료되었습니다!
             </h1>
 
             <p className="text-gray-600 mb-8 leading-relaxed">
-              크넥 비즈니스 플랫폼에 관심을 가져주셔서 감사합니다.
+              크넥 비즈니스 플랫폼에 오신 것을 환영합니다.
             </p>
 
             {/* Info Box */}
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 mb-8 text-left border border-indigo-100">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-5 h-5 text-indigo-600" />
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">승인 절차 안내</h3>
+                  <h3 className="font-semibold text-gray-900 mb-1">지금 바로 시작하세요!</h3>
                   <p className="text-sm text-gray-600">
-                    사전 상담을 완료하신 브랜드에 한해 계정이 승인됩니다.
+                    로그인 후 캠페인을 등록하고 크리에이터를 만나보세요.
                   </p>
                 </div>
               </div>
@@ -240,38 +240,21 @@ export default function SignupWithVerification() {
                   <MessageSquare className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-1">상담 신청</h3>
+                  <h3 className="font-semibold text-gray-900 mb-1">캠페인 등록 방법</h3>
                   <p className="text-sm text-gray-600">
-                    아직 상담 전이시라면, 담당자 연결 후 빠르게 안내해 드리겠습니다.
+                    로그인 → 캠페인 관리 → 새 캠페인 등록
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Notice */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8">
-              <p className="text-sm text-amber-800">
-                <span className="font-semibold">승인 완료 시</span> 등록하신 이메일과 휴대폰으로 안내 드립니다.
-              </p>
-            </div>
-
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                onClick={() => navigate('/')}
-                variant="outline"
-                className="flex-1 h-12 rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50"
-              >
-                홈으로 돌아가기
-              </Button>
-              <Button
-                onClick={() => {
-                  navigate('/')
-                  setTimeout(() => window.dispatchEvent(new Event('openConsultationModal')), 100)
-                }}
+                onClick={() => navigate('/login')}
                 className="flex-1 h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25"
               >
-                상담 신청하기
+                로그인하기
               </Button>
             </div>
 

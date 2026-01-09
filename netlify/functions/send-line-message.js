@@ -20,7 +20,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // Gemini API를 통한 번역
 async function translateText(text, targetLanguage = 'ja') {
-  const geminiApiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+  const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!geminiApiKey) {
     console.warn('[LINE] Gemini API key not found, skipping translation');
     return text;
@@ -34,36 +34,35 @@ async function translateText(text, targetLanguage = 'ja') {
   };
 
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    // 표준 Gemini API 엔드포인트 사용
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${geminiApiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gemini-2.0-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `당신은 전문 번역가입니다. 주어진 텍스트를 ${languageNames[targetLanguage]}로 자연스럽게 번역해주세요. 이모지와 줄바꿈은 그대로 유지하세요. 번역된 텍스트만 출력하세요.`
-          },
-          {
-            role: 'user',
-            content: text
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 1000
+        contents: [{
+          parts: [{
+            text: `다음 텍스트를 ${languageNames[targetLanguage]}로 자연스럽게 번역해주세요. 이모지와 줄바꿈은 그대로 유지하고, 번역된 텍스트만 출력하세요:\n\n${text}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1000
+        }
       })
     });
 
     if (!response.ok) {
-      console.error('[LINE] Translation API error:', await response.text());
+      const errorText = await response.text();
+      console.error('[LINE] Translation API error:', errorText);
       return text;
     }
 
     const data = await response.json();
-    const translated = data.choices?.[0]?.message?.content?.trim();
+    const translated = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+    console.log(`[LINE] Translated: "${text.substring(0, 30)}..." → "${translated?.substring(0, 30)}..."`);
     return translated || text;
   } catch (error) {
     console.error('[LINE] Translation error:', error);
