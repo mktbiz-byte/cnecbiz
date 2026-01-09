@@ -85,18 +85,28 @@ export default function CreatorPointHistory() {
         if (!koreaError && koreaData) {
           console.log('Korea DB point_transactions:', koreaData.length, '건')
 
-          // 전체 user_profiles 조회
+          // 전체 user_profiles 조회 (* 로 전체 컬럼 조회 - 다른 DB 스키마 대응)
           const { data: allProfiles } = await supabaseKorea
             .from('user_profiles')
-            .select('id, user_id, name, email, channel_name, phone')
+            .select('*')
             .limit(2000)
 
           // 프로필 맵 생성 (id와 user_id 모두 키로 사용)
+          // 필드명 정규화 (다른 DB 스키마 대응)
           const profileMap = {}
           if (allProfiles) {
             allProfiles.forEach(p => {
-              if (p.id) profileMap[p.id] = p
-              if (p.user_id) profileMap[p.user_id] = p
+              // 필드명 정규화
+              const normalizedProfile = {
+                id: p.id,
+                user_id: p.user_id,
+                name: p.name || p.creator_name || p.channel_name || p.full_name || null,
+                channel_name: p.channel_name || p.name || p.creator_name || null,
+                email: p.email || null,
+                phone: p.phone || p.phone_number || p.mobile || p.contact || null
+              }
+              if (p.id) profileMap[p.id] = normalizedProfile
+              if (p.user_id) profileMap[p.user_id] = normalizedProfile
             })
             console.log('프로필 맵 생성:', Object.keys(profileMap).length, '개 키')
           }
@@ -149,7 +159,7 @@ export default function CreatorPointHistory() {
         }
       }
 
-      // BIZ DB에서 creator_points 조회
+      // BIZ DB에서 creator_points 조회 (테이블이 없을 수 있음)
       try {
         const { data: bizData, error: bizError } = await supabaseBiz
           .from('creator_points')
@@ -157,7 +167,7 @@ export default function CreatorPointHistory() {
           .order('created_at', { ascending: false })
           .limit(500)
 
-        if (!bizError && bizData) {
+        if (!bizError && bizData && bizData.length > 0) {
           const bizTransactions = bizData.map(t => ({
             id: t.id,
             user_id: t.creator_id,
@@ -175,7 +185,8 @@ export default function CreatorPointHistory() {
           allTransactions = [...allTransactions, ...bizTransactions]
         }
       } catch (bizError) {
-        console.error('BIZ DB 조회 오류:', bizError)
+        // BIZ DB에 creator_points 테이블이 없을 수 있음 - 무시
+        console.log('BIZ DB creator_points 조회 스킵 (테이블 없을 수 있음)')
       }
 
       // 날짜순 정렬
