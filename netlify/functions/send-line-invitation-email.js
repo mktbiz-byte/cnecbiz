@@ -18,26 +18,14 @@ const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@065vdhwf';
 // SMS 템플릿
 const SMS_TEMPLATES = {
   ja: (creatorName) =>
-`【CNEC BIZ】${creatorName}様
-
-LINE公式アカウントを開設しました！
-キャンペーン選定・報酬通知を即時にお届けします。
-
-▼友だち追加はこちら
+`[CNEC] ${creatorName}様、LINE友だち追加でキャンペーン通知を受け取れます！
 ${LINE_FRIEND_URL}
-
-※追加後、ご登録メールアドレスをLINEで送信してください。`,
+追加後、メールアドレスをLINEで送信してください。`,
 
   ko: (creatorName) =>
-`【CNEC BIZ】${creatorName}님
-
-LINE 공식 계정을 개설했습니다!
-캠페인 선정/정산 알림을 즉시 받으세요.
-
-▼친구 추가
+`[CNEC] ${creatorName}님, LINE 친구추가 후 캠페인 알림을 받으세요!
 ${LINE_FRIEND_URL}
-
-※추가 후 가입 이메일을 LINE으로 보내주세요.`
+추가 후 이메일을 LINE으로 보내주세요.`
 };
 
 // 언어별 이메일 템플릿
