@@ -81,24 +81,31 @@ export default function CreatorPointHistory() {
           const userIds = [...new Set(koreaData.map(t => t.user_id).filter(Boolean))]
           let userProfiles = {}
 
+          console.log('조회할 user_ids:', userIds.slice(0, 5))
+
           if (userIds.length > 0) {
-            const { data: profiles } = await supabaseKorea
+            // 1. id로 조회
+            const { data: profiles1, error: err1 } = await supabaseKorea
               .from('user_profiles')
               .select('id, user_id, name, email, channel_name')
               .in('id', userIds)
 
-            if (profiles) {
-              profiles.forEach(p => {
+            console.log('id로 조회 결과:', profiles1?.length || 0, '건', err1)
+
+            if (profiles1) {
+              profiles1.forEach(p => {
                 if (p.id) userProfiles[p.id] = p
                 if (p.user_id) userProfiles[p.user_id] = p
               })
             }
 
-            // user_id로도 조회 시도
-            const { data: profiles2 } = await supabaseKorea
+            // 2. user_id로 조회
+            const { data: profiles2, error: err2 } = await supabaseKorea
               .from('user_profiles')
               .select('id, user_id, name, email, channel_name')
               .in('user_id', userIds)
+
+            console.log('user_id로 조회 결과:', profiles2?.length || 0, '건', err2)
 
             if (profiles2) {
               profiles2.forEach(p => {
@@ -106,6 +113,21 @@ export default function CreatorPointHistory() {
                 if (p.user_id) userProfiles[p.user_id] = p
               })
             }
+
+            // 3. 전체 user_profiles에서 name으로 매칭 시도 (description에 이름이 포함된 경우)
+            const { data: allProfiles } = await supabaseKorea
+              .from('user_profiles')
+              .select('id, user_id, name, email, channel_name')
+              .limit(1000)
+
+            if (allProfiles) {
+              allProfiles.forEach(p => {
+                if (p.id) userProfiles[p.id] = p
+                if (p.user_id) userProfiles[p.user_id] = p
+              })
+            }
+
+            console.log('총 매핑된 프로필:', Object.keys(userProfiles).length, '건')
           }
 
           setCreatorCache(prev => ({ ...prev, ...userProfiles }))
