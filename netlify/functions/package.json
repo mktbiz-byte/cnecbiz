@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Netlify functions for CNEC BIZ",
   "dependencies": {
-    "popbill": "^1.44.0"
+    "@supabase/supabase-js": "^2.75.0",
+    "nodemailer": "^7.0.10",
+    "popbill": "^1.62.0"
   }
 }
