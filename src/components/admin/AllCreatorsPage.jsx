@@ -140,7 +140,7 @@ export default function AllCreatorsPage() {
   const [grantingPoints, setGrantingPoints] = useState(false)
 
   // 캠페인 이력 상태
-  const [creatorCampaigns, setCreatorCampaigns] = useState({ inProgress: [], completed: [] })
+  const [creatorCampaigns, setCreatorCampaigns] = useState({ inProgress: [], completed: [], applied: [] })
   const [loadingCampaigns, setLoadingCampaigns] = useState(false)
 
   const [creators, setCreators] = useState({
@@ -713,7 +713,7 @@ export default function AllCreatorsPage() {
   const openProfileModal = async (creator) => {
     setSelectedCreator(creator)
     setShowProfileModal(true)
-    setCreatorCampaigns({ inProgress: [], completed: [] })
+    setCreatorCampaigns({ inProgress: [], completed: [], applied: [] })
     setLoadingCampaigns(true)
 
     try {
@@ -754,9 +754,10 @@ export default function AllCreatorsPage() {
         return
       }
 
-      // 진행중/완료 분류
+      // 진행중/완료/지원 분류
       const inProgressStatuses = ['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected']
       const completedStatuses = ['completed']
+      const appliedStatuses = ['pending', 'applied', 'rejected', 'cancelled', 'withdrawn']
 
       const inProgress = applications?.filter(app =>
         inProgressStatuses.includes(app.status) && app.campaigns
@@ -772,7 +773,14 @@ export default function AllCreatorsPage() {
         campaign: app.campaigns
       })) || []
 
-      setCreatorCampaigns({ inProgress, completed })
+      const applied = applications?.filter(app =>
+        appliedStatuses.includes(app.status) && app.campaigns
+      ).map(app => ({
+        ...app,
+        campaign: app.campaigns
+      })) || []
+
+      setCreatorCampaigns({ inProgress, completed, applied })
     } catch (err) {
       console.error('Error fetching campaign history:', err)
     } finally {
@@ -1936,6 +1944,58 @@ export default function AllCreatorsPage() {
                         </div>
                       ) : (
                         <p className="text-gray-400 text-sm">완료된 캠페인이 없습니다.</p>
+                      )}
+                    </div>
+
+                    {/* 지원한 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-1">
+                        <Send className="w-3 h-3" /> 지원 이력 ({creatorCampaigns.applied.length})
+                      </h5>
+                      {creatorCampaigns.applied.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.applied.slice(0, 5).map((app) => (
+                            <div
+                              key={app.id}
+                              className="bg-white border border-gray-200 rounded-lg p-3 hover:border-gray-400 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setShowProfileModal(false)
+                                navigate(`/company/campaigns/${app.campaign_id}?region=${selectedCreator.dbRegion}`)
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    app.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                    app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {app.status === 'pending' && '대기중'}
+                                    {app.status === 'applied' && '지원함'}
+                                    {app.status === 'rejected' && '미선정'}
+                                    {app.status === 'cancelled' && '취소됨'}
+                                    {app.status === 'withdrawn' && '지원취소'}
+                                    {!['pending', 'applied', 'rejected', 'cancelled', 'withdrawn'].includes(app.status) && app.status}
+                                  </span>
+                                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1">
+                                지원일: {new Date(app.created_at).toLocaleDateString('ko-KR')}
+                              </p>
+                            </div>
+                          ))}
+                          {creatorCampaigns.applied.length > 5 && (
+                            <p className="text-xs text-gray-400 text-center">외 {creatorCampaigns.applied.length - 5}건 더 있음</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">지원 이력이 없습니다.</p>
                       )}
                     </div>
                   </div>
