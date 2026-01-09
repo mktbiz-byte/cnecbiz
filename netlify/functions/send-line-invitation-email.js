@@ -13,19 +13,17 @@ const twilio = require('twilio');
  * }
  */
 
-const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@065vdhwf';
-const LINE_REDIRECT_URL = 'https://cnecbiz.com/line';  // 통신사 필터링 우회용
+const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@cnec';
+const LINE_ID = '@cnec';
 
-// SMS 템플릿
+// SMS 템플릿 (URL 필터링 우회를 위해 LINE ID만 사용)
 const SMS_TEMPLATES = {
   ja: (creatorName) =>
-`[CNEC] ${creatorName}様、LINE友だち追加でキャンペーン通知を受け取れます！
-${LINE_REDIRECT_URL}
-追加後、メールアドレスをLINEで送信してください。`,
+`[CNEC] ${creatorName}様、LINEで「${LINE_ID}」を検索して友だち追加！
+追加後、メールアドレスを送信してください。`,
 
   ko: (creatorName) =>
-`[CNEC] ${creatorName}님, LINE 친구추가 후 캠페인 알림을 받으세요!
-${LINE_REDIRECT_URL}
+`[CNEC] ${creatorName}님, LINE에서 「${LINE_ID}」 검색 후 친구추가!
 추가 후 이메일을 LINE으로 보내주세요.`
 };
 
@@ -85,7 +83,7 @@ const EMAIL_TEMPLATES = {
 
       <div class="qr-section">
         <p>または、LINEアプリでQRコードをスキャン</p>
-        <img src="https://qr-official.line.me/gs/M_065vdhwf_GW.png" alt="LINE QR Code" width="150" height="150" style="border: 1px solid #ddd; border-radius: 8px;">
+        <img src="https://qr-official.line.me/gs/M_cnec_GW.png" alt="LINE QR Code" width="150" height="150" style="border: 1px solid #ddd; border-radius: 8px;">
       </div>
 
       <p style="background: #fff3cd; padding: 15px; border-radius: 8px; font-size: 14px;">
