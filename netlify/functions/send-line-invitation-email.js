@@ -16,15 +16,15 @@ const twilio = require('twilio');
 const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@cnec';
 const LINE_ID = '@cnec';
 
-// SMS 템플릿 (URL 필터링 우회를 위해 LINE ID만 사용)
+// SMS 템플릿 (통신사 필터링 우회)
 const SMS_TEMPLATES = {
   ja: (creatorName) =>
-`[CNEC] ${creatorName}様、LINEで「${LINE_ID}」を検索して友だち追加！
-追加後、メールアドレスを送信してください。`,
+`[CNEC] ${creatorName}様、ラインで「${LINE_ID}」を検索して友だち追加！
+追加後メールアドレスを送信してください。`,
 
   ko: (creatorName) =>
-`[CNEC] ${creatorName}님, LINE에서 「${LINE_ID}」 검색 후 친구추가!
-추가 후 이메일을 LINE으로 보내주세요.`
+`[CNEC] ${creatorName}님, 라인 앱에서 ${LINE_ID} 검색 후 친구추가!
+추가 후 이메일을 라인으로 보내주세요.`
 };
 
 // 언어별 이메일 템플릿
