@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   MessageCircle,
   Send,
@@ -17,7 +18,10 @@ import {
   Loader2,
   ChevronLeft,
   Mail,
-  ExternalLink
+  ExternalLink,
+  Instagram,
+  Youtube,
+  Phone
 } from 'lucide-react'
 import { supabaseJapan } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -33,35 +37,34 @@ export default function LineChatManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const messagesEndRef = useRef(null)
 
+  // 프로필 모달 상태
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileData, setProfileData] = useState(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
+
   // 채팅방 목록 로드
   const loadChatRooms = async () => {
     setLoading(true)
     try {
-      // line_users 테이블에서 모든 연동된 사용자 조회
-      const { data: lineUsers, error } = await supabaseJapan
-        .from('line_users')
-        .select(`
-          line_user_id,
-          display_name,
-          creator_id,
-          email,
-          status,
-          followed_at,
-          linked_at
-        `)
-        .eq('status', 'active')
-        .order('linked_at', { ascending: false, nullsFirst: false })
+      // line_messages 테이블에서 고유한 line_user_id 추출
+      const { data: allMessages, error } = await supabaseJapan
+        .from('line_messages')
+        .select('line_user_id')
+        .order('created_at', { ascending: false })
 
       if (error) throw error
 
+      // 고유한 line_user_id 추출
+      const uniqueUserIds = [...new Set((allMessages || []).map(m => m.line_user_id))]
+
       // 각 채팅방의 최신 메시지와 읽지 않은 메시지 수 조회
       const roomsWithMessages = await Promise.all(
-        (lineUsers || []).map(async (user) => {
+        uniqueUserIds.map(async (lineUserId) => {
           // 최신 메시지 조회
           const { data: lastMessage } = await supabaseJapan
             .from('line_messages')
             .select('content, created_at, direction')
-            .eq('line_user_id', user.line_user_id)
+            .eq('line_user_id', lineUserId)
             .order('created_at', { ascending: false })
             .limit(1)
             .single()
@@ -70,29 +73,29 @@ export default function LineChatManagement() {
           const { count: unreadCount } = await supabaseJapan
             .from('line_messages')
             .select('*', { count: 'exact', head: true })
-            .eq('line_user_id', user.line_user_id)
+            .eq('line_user_id', lineUserId)
             .eq('direction', 'incoming')
-            .eq('is_read', false)
+            .is('read_at', null)
 
-          // 크리에이터 정보 조회
-          let creatorInfo = null
-          if (user.creator_id) {
-            const { data: creator } = await supabaseJapan
-              .from('user_profiles')
-              .select('name, email')
-              .eq('id', user.creator_id)
-              .single()
-            creatorInfo = creator
-          }
+          // user_profiles 테이블에서 line_user_id로 연동된 크리에이터 조회
+          const { data: creator } = await supabaseJapan
+            .from('user_profiles')
+            .select('id, name, email')
+            .eq('line_user_id', lineUserId)
+            .single()
 
           return {
-            ...user,
+            line_user_id: lineUserId,
+            display_name: creator?.name || lineUserId.substring(0, 10) + '...',
+            email: creator?.email,
             lastMessage: lastMessage?.content || '',
             lastMessageTime: lastMessage?.created_at,
             lastMessageDirection: lastMessage?.direction,
             unreadCount: unreadCount || 0,
-            creatorName: creatorInfo?.name || user.display_name,
-            creatorEmail: creatorInfo?.email || user.email
+            creatorName: creator?.name,
+            creatorEmail: creator?.email,
+            linked_at: creator ? true : false,
+            creator_id: creator?.id
           }
         })
       )
@@ -131,9 +134,10 @@ export default function LineChatManagement() {
       // 읽음 처리
       await supabaseJapan
         .from('line_messages')
-        .update({ is_read: true })
+        .update({ read_at: new Date().toISOString() })
         .eq('line_user_id', lineUserId)
         .eq('direction', 'incoming')
+        .is('read_at', null)
 
       // 채팅방 목록 업데이트 (읽지 않은 메시지 수 초기화)
       setChatRooms(prev => prev.map(room =>
@@ -216,6 +220,30 @@ export default function LineChatManagement() {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  // 프로필 모달 열기
+  const openProfileModal = async (creatorId) => {
+    if (!creatorId) return
+
+    setLoadingProfile(true)
+    setShowProfileModal(true)
+
+    try {
+      const { data, error } = await supabaseJapan
+        .from('user_profiles')
+        .select('*')
+        .eq('id', creatorId)
+        .single()
+
+      if (error) throw error
+      setProfileData(data)
+    } catch (error) {
+      console.error('Load profile error:', error)
+      setProfileData(null)
+    } finally {
+      setLoadingProfile(false)
+    }
   }
 
   // 검색 필터
@@ -412,9 +440,9 @@ export default function LineChatManagement() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(`/admin/all-creators?search=${selectedRoom.creatorEmail}`, '_blank')}
+                          onClick={() => openProfileModal(selectedRoom.creator_id)}
                         >
-                          <ExternalLink className="w-4 h-4 mr-1" />
+                          <User className="w-4 h-4 mr-1" />
                           프로필
                         </Button>
                       )}
@@ -498,6 +526,127 @@ export default function LineChatManagement() {
           </Card>
         </div>
       </div>
+
+      {/* 프로필 모달 */}
+      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              크리에이터 프로필
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingProfile ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : profileData ? (
+            <div className="space-y-4">
+              {/* 기본 정보 */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {profileData.profile_image ? (
+                    <img src={profileData.profile_image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">{profileData.name || '이름 없음'}</h3>
+                  <p className="text-sm text-gray-500">{profileData.email}</p>
+                  {profileData.phone && (
+                    <p className="text-sm text-gray-500 flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {profileData.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* SNS 정보 */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-gray-700">SNS</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {profileData.instagram_url && (
+                    <a
+                      href={profileData.instagram_url.startsWith('http') ? profileData.instagram_url : `https://instagram.com/${profileData.instagram_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-pink-600 hover:underline"
+                    >
+                      <Instagram className="w-4 h-4" />
+                      {profileData.instagram_url}
+                    </a>
+                  )}
+                  {profileData.youtube_url && (
+                    <a
+                      href={profileData.youtube_url.startsWith('http') ? profileData.youtube_url : `https://youtube.com/${profileData.youtube_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-red-600 hover:underline"
+                    >
+                      <Youtube className="w-4 h-4" />
+                      {profileData.youtube_url}
+                    </a>
+                  )}
+                  {profileData.tiktok_url && (
+                    <a
+                      href={profileData.tiktok_url.startsWith('http') ? profileData.tiktok_url : `https://tiktok.com/@${profileData.tiktok_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-gray-800 hover:underline"
+                    >
+                      <span className="w-4 h-4 text-center font-bold">T</span>
+                      {profileData.tiktok_url}
+                    </a>
+                  )}
+                  {!profileData.instagram_url && !profileData.youtube_url && !profileData.tiktok_url && (
+                    <p className="text-sm text-gray-400">SNS 정보 없음</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 팔로워 정보 */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-lg font-semibold text-pink-600">
+                    {profileData.instagram_followers?.toLocaleString() || '-'}
+                  </p>
+                  <p className="text-xs text-gray-500">Instagram</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-lg font-semibold text-red-600">
+                    {profileData.youtube_subscribers?.toLocaleString() || '-'}
+                  </p>
+                  <p className="text-xs text-gray-500">YouTube</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-lg font-semibold text-gray-800">
+                    {profileData.tiktok_followers?.toLocaleString() || '-'}
+                  </p>
+                  <p className="text-xs text-gray-500">TikTok</p>
+                </div>
+              </div>
+
+              {/* 가입일 */}
+              <div className="text-sm text-gray-500 pt-2 border-t">
+                가입일: {profileData.created_at ? new Date(profileData.created_at).toLocaleDateString('ko-KR') : '-'}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              프로필 정보를 불러올 수 없습니다.
+            </div>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button variant="outline" onClick={() => setShowProfileModal(false)}>
+              닫기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
