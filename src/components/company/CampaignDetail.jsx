@@ -180,7 +180,8 @@ export default function CampaignDetail() {
   const [isGeneratingAllGuides, setIsGeneratingAllGuides] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
-  const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id: version_index}
+  const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id_step: version_index}
+  const [selectedVideoSteps, setSelectedVideoSteps] = useState({}) // {user_id: step_number (week or video number)}
   const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
   const [showIndividualMessageModal, setShowIndividualMessageModal] = useState(false)
   const [individualMessage, setIndividualMessage] = useState('')
@@ -5399,7 +5400,7 @@ JSON만 출력.`
                 </div>
 
                 {(() => {
-                  // Group video submissions by user_id (and week_number for 4week_challenge)
+                  // Group video submissions by user_id only
                   // Show all non-approved submissions (submitted, video_submitted, revision_requested, resubmitted, pending, null)
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
@@ -5408,31 +5409,17 @@ JSON만 출력.`
                   // 캠페인 타입 확인
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
                   const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                  const isMultiStepCampaign = is4WeekChallenge || isOliveyoung
 
-                  // 4주 챌린지: user_id + week_number로 그룹화
-                  // 올리브영: user_id + video_number로 그룹화
-                  // 그 외: user_id로만 그룹화
+                  // user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
-                    let groupKey
-                    if (is4WeekChallenge) {
-                      groupKey = `${submission.user_id}_week${submission.week_number || 1}`
-                    } else if (isOliveyoung) {
-                      groupKey = `${submission.user_id}_video${submission.video_number || 1}`
-                    } else {
-                      groupKey = submission.user_id
+                    if (!acc[submission.user_id]) {
+                      acc[submission.user_id] = []
                     }
-                    if (!acc[groupKey]) {
-                      acc[groupKey] = []
-                    }
-                    acc[groupKey].push(submission)
+                    acc[submission.user_id].push(submission)
                     return acc
                   }, {})
 
-                  // Sort each group by submitted_at (newest first - 최신 영상이 먼저 보이도록)
-                  Object.keys(groupedByUser).forEach(groupKey => {
-                    groupedByUser[groupKey].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
-                  })
-                  
                   if (Object.keys(groupedByUser).length === 0) {
                     return (
                       <div className="text-center py-12 text-gray-500">
@@ -5440,77 +5427,109 @@ JSON만 출력.`
                       </div>
                     )
                   }
-                  
-                  // 4주 챌린지/올리브영인 경우 순서대로 정렬
-                  const sortedEntries = Object.entries(groupedByUser).sort((a, b) => {
-                    if (is4WeekChallenge) {
-                      // week 번호로 정렬 (week1, week2, week3, week4)
-                      const weekA = parseInt(a[0].match(/_week(\d+)/)?.[1] || '0')
-                      const weekB = parseInt(b[0].match(/_week(\d+)/)?.[1] || '0')
-                      return weekA - weekB
-                    } else if (isOliveyoung) {
-                      // video 번호로 정렬 (video1, video2)
-                      const videoA = parseInt(a[0].match(/_video(\d+)/)?.[1] || '0')
-                      const videoB = parseInt(b[0].match(/_video(\d+)/)?.[1] || '0')
-                      return videoA - videoB
-                    }
-                    return 0
-                  })
 
                   return (
                     <div className="space-y-6">
-                      {sortedEntries.map(([groupKey, submissions]) => {
-                        const selectedVersion = selectedVideoVersions[groupKey] || 0
-                        const submission = submissions[selectedVersion]
+                      {Object.entries(groupedByUser).map(([userId, userSubmissions]) => {
+                        // 멀티스텝 캠페인인 경우 주차/영상번호별로 다시 그룹화
+                        const submissionsByStep = {}
+                        if (is4WeekChallenge) {
+                          userSubmissions.forEach(sub => {
+                            const step = sub.week_number || 1
+                            if (!submissionsByStep[step]) submissionsByStep[step] = []
+                            submissionsByStep[step].push(sub)
+                          })
+                        } else if (isOliveyoung) {
+                          userSubmissions.forEach(sub => {
+                            const step = sub.video_number || 1
+                            if (!submissionsByStep[step]) submissionsByStep[step] = []
+                            submissionsByStep[step].push(sub)
+                          })
+                        } else {
+                          submissionsByStep[1] = userSubmissions
+                        }
+
+                        // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저)
+                        Object.keys(submissionsByStep).forEach(step => {
+                          submissionsByStep[step].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+                        })
+
+                        const availableSteps = Object.keys(submissionsByStep).map(Number).sort((a, b) => a - b)
+                        const selectedStep = selectedVideoSteps[userId] || availableSteps[0]
+                        const stepSubmissions = submissionsByStep[selectedStep] || []
+                        const versionKey = `${userId}_${selectedStep}`
+                        const selectedVersion = selectedVideoVersions[versionKey] || 0
+                        const submission = stepSubmissions[selectedVersion]
+
+                        if (!submission) return null
+
                         return (
-                      <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
+                      <div key={userId} className="border rounded-lg p-6 bg-white shadow-sm">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <div>
                                 <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
-                                <div className="flex gap-2 mt-1">
-                                  {submission.video_number && (
-                                    <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded">
-                                      영상 {submission.video_number}
-                                    </span>
-                                  )}
-                                  {submission.week_number && (
-                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                                      {submission.week_number}주차
-                                    </span>
-                                  )}
-                                  {submission.version && (
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
-                                      V{submission.version}
-                                    </span>
-                                  )}
-                                </div>
                               </div>
-                              {submissions.length > 1 && (
-                                <div className="flex gap-2">
-                                  {submissions.map((sub, index) => (
-                                    <button
-                                      key={index}
-                                      onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [groupKey]: index }))}
-                                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                                        selectedVersion === index
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                      }`}
-                                    >
-                                      v{sub.version || (submissions.length - index)}
-                                    </button>
-                                  ))}
-                                </div>
+                            </div>
+
+                            {/* 주차/영상번호 탭 (4주 챌린지, 올리브영) */}
+                            {isMultiStepCampaign && availableSteps.length > 0 && (
+                              <div className="flex gap-2 mb-3">
+                                {availableSteps.map(step => (
+                                  <button
+                                    key={step}
+                                    onClick={() => setSelectedVideoSteps(prev => ({ ...prev, [userId]: step }))}
+                                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                      selectedStep === step
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                    }`}
+                                  >
+                                    {is4WeekChallenge ? `${step}주차` : `영상 ${step}`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* 버전 탭 */}
+                            {stepSubmissions.length > 1 && (
+                              <div className="flex gap-2 mb-3">
+                                {stepSubmissions.map((sub, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [versionKey]: index }))}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                      selectedVersion === index
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                  >
+                                    v{sub.version || (stepSubmissions.length - index)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* 현재 선택된 주차/버전 표시 */}
+                            <div className="flex gap-2 mb-3">
+                              {isMultiStepCampaign && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                                  {is4WeekChallenge ? `${selectedStep}주차` : `영상 ${selectedStep}`}
+                                </span>
+                              )}
+                              {submission.version && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
+                                  V{submission.version}
+                                </span>
                               )}
                             </div>
-                            
+
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                                 <video
-                                  key={`${groupKey}-${selectedVersion}-${submission.id}`}
+                                  key={`${userId}-${selectedStep}-${selectedVersion}-${submission.id}`}
                                   controls
                                   autoPlay
                                   muted
@@ -5523,7 +5542,7 @@ JSON만 출력.`
                                 </video>
                               </div>
                             )}
-                            
+
                             <div className="mt-4 space-y-2">
                               {submission.sns_title && (
                                 <div>
@@ -5539,7 +5558,7 @@ JSON만 출력.`
                               )}
                             </div>
                           </div>
-                          
+
                           {/* 오른쪽: 정보 및 버튼 */}
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
