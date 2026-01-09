@@ -2777,8 +2777,7 @@ JSON만 출력.`
         .update({
           status: 'approved',
           approved_at: new Date().toISOString(),
-          reviewed_at: new Date().toISOString(),
-          upload_deadline: inputDeadline
+          reviewed_at: new Date().toISOString()
         })
         .eq('id', submission.id)
 
