@@ -19,8 +19,9 @@ const LINE_ID = '@cnec';
 // SMS 템플릿 (통신사 필터링 우회)
 const SMS_TEMPLATES = {
   ja: (creatorName) =>
-`[CNEC] ${creatorName}様、ラインで「${LINE_ID}」を検索して友だち追加！
-追加後メールアドレスを送信してください。`,
+`[CNEC] ${creatorName}様、LINEで「${LINE_ID}」を検索して友だち追加！
+追加後メールアドレスを送信してください。
+※文字化けの場合はメールをご確認ください。`,
 
   ko: (creatorName) =>
 `[CNEC] ${creatorName}님, 메신저 앱에서 ${LINE_ID} 검색 후 친구추가!
