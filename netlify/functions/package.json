@@ -1,0 +1,8 @@
+{
+  "name": "cnecbiz-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for CNEC BIZ",
+  "dependencies": {
+    "popbill": "^1.44.0"
+  }
+}
