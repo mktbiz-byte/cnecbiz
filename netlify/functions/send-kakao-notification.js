@@ -7,10 +7,21 @@ const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
 const POPBILL_USER_ID = process.env.POPBILL_USER_ID || '';
 
-// 팝빌 카카오톡 서비스 초기화 (credentials 직접 전달 방식)
-const kakaoService = popbill.KakaoService(POPBILL_LINK_ID, POPBILL_SECRET_KEY);
+// 팝빌 전역 설정 (sendATS_one 사용 시 필수)
+popbill.config({
+  LinkID: POPBILL_LINK_ID,
+  SecretKey: POPBILL_SECRET_KEY,
+  IsTest: false, // 운영환경
+  IPRestrictOnOff: true,
+  UseStaticIP: false,
+  UseLocalTimeYN: true
+});
 
-console.log('Popbill Kakao service initialized');
+// 팝빌 카카오톡 서비스 초기화
+const kakaoService = popbill.KakaoService();
+
+console.log('Popbill Kakao service initialized with config');
+console.log('POPBILL_LINK_ID:', POPBILL_LINK_ID);
 console.log('POPBILL_CORP_NUM:', POPBILL_CORP_NUM);
 console.log('POPBILL_SENDER_NUM:', POPBILL_SENDER_NUM);
 
