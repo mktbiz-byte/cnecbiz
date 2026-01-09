@@ -63,12 +63,15 @@ exports.handler = async (event) => {
       }
     }
 
-    // Popbill 서비스 초기화
+    // Popbill 서비스 초기화 (send-kakao-notification.js와 동일한 설정)
     const popbill = require('popbill')
     popbill.config({
       LinkID,
       SecretKey,
-      IsTest: process.env.NODE_ENV !== 'production',
+      IsTest: process.env.POPBILL_TEST_MODE === 'true',
+      IPRestrictOnOff: true,
+      UseStaticIP: false,
+      UseLocalTimeYN: true,
       defaultErrorHandler: (error) => {
         console.error('[Popbill Error]', error)
       }
