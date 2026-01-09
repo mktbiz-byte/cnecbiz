@@ -283,7 +283,13 @@ exports.handler = async (event) => {
                 text: `✅ 연동 완료!\n\n${creatorName}님의 계정과 LINE이 연동되었습니다.\n앞으로 캠페인 선정, 정산 알림을 LINE으로 받으실 수 있습니다.`
               }, accessToken);
 
-              // 연동 완료 알림 제거 (불필요)
+              // 연동 완료 네이버 웍스 알림
+              const linkNotification = `🔗 LINE 계정 연동 완료\n\n` +
+                `👤 크리에이터: ${creatorName}\n` +
+                `📧 이메일: ${creator.email}\n` +
+                `💬 LINE 이름: ${displayName}\n` +
+                `🕐 연동 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
+              await notifyNaverWorks(linkNotification);
             } else {
               await replyMessage(replyToken, {
                 type: 'text',
