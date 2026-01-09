@@ -4,8 +4,7 @@
 
 [functions]
   directory = "netlify/functions"
-  node_bundler = "nft"
-  included_files = ["node_modules/popbill/**"]
+  node_bundler = "none"
 
 # Scheduled Functions
 [functions."scheduled-collect-transactions"]
