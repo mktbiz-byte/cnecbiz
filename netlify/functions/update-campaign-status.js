@@ -6,7 +6,6 @@
  */
 
 const { createClient } = require('@supabase/supabase-js')
-const { sendNotification, generateEmailHtml } = require('./send-notification-helper')
 
 // Supabase 클라이언트 생성 함수
 function getSupabaseClient(region) {
@@ -159,7 +158,7 @@ exports.handler = async (event, context) => {
     // active로 변경 시 캠페인 승인 알림톡 발송 (한국 캠페인만)
     if (newStatus === 'active' && (region === 'korea' || region === 'kr')) {
       try {
-        // 캠페인 정보 조회
+        // 알림톡 발송을 위해 send-kakao-notification 함수 직접 호출
         const { data: campaign } = await supabaseClient
           .from('campaigns')
           .select('*')
@@ -167,7 +166,6 @@ exports.handler = async (event, context) => {
           .single()
 
         if (campaign) {
-          // 회사 정보 조회
           let company = null
 
           if (campaign.company_id) {
@@ -188,8 +186,8 @@ exports.handler = async (event, context) => {
             company = companyData
           }
 
-          if (company && (company.phone || company.email)) {
-            const templateCode = '025100001005' // 캠페인 승인 완료
+          if (company && company.phone) {
+            const templateCode = '025100001005'
 
             const formatDate = (dateString) => {
               if (!dateString) return '-'
@@ -207,26 +205,25 @@ exports.handler = async (event, context) => {
 
             console.log('[update-campaign-status] Sending approval notification:', variables)
 
-            const emailHtml = generateEmailHtml(templateCode, variables)
-
-            await sendNotification({
-              receiverNum: company.phone,
-              receiverEmail: company.email,
-              receiverName: company.company_name,
-              templateCode,
-              variables,
-              emailSubject: emailHtml.subject,
-              emailHtml: emailHtml.html
+            // HTTP로 send-kakao-notification 호출 (내장 fetch 사용)
+            const kakaoResponse = await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-kakao-notification`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: company.phone,
+                receiverName: company.company_name,
+                templateCode,
+                variables
+              })
             })
-
-            console.log('[update-campaign-status] Approval notification sent successfully')
+            const kakaoResult = await kakaoResponse.json()
+            console.log('[update-campaign-status] Kakao notification result:', kakaoResult)
           } else {
-            console.log('[update-campaign-status] No company contact info found')
+            console.log('[update-campaign-status] No company phone found')
           }
         }
       } catch (notifError) {
         console.error('[update-campaign-status] Notification error:', notifError)
-        // 알림 발송 실패해도 상태 변경은 완료
       }
     }
 
