@@ -1,17 +1,44 @@
 const nodemailer = require('nodemailer');
+const twilio = require('twilio');
 
 /**
- * LINE 친구 추가 요청 이메일 발송 (일본 크리에이터용)
+ * LINE 친구 추가 요청 이메일 + SMS 발송 (일본 크리에이터용)
  *
  * POST /.netlify/functions/send-line-invitation-email
  * Body: {
  *   to: "creator@email.com",
+ *   phone: "+819012345678" (선택, SMS 발송용),
  *   creatorName: "크리에이터 이름",
  *   language: "ja" | "ko" | "en" (기본: ja)
  * }
  */
 
 const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@065vdhwf';
+
+// SMS 템플릿
+const SMS_TEMPLATES = {
+  ja: (creatorName) =>
+`【CNEC BIZ】${creatorName}様
+
+LINE公式アカウントを開設しました！
+キャンペーン選定・報酬通知を即時にお届けします。
+
+▼友だち追加はこちら
+${LINE_FRIEND_URL}
+
+※追加後、ご登録メールアドレスをLINEで送信してください。`,
+
+  ko: (creatorName) =>
+`【CNEC BIZ】${creatorName}님
+
+LINE 공식 계정을 개설했습니다!
+캠페인 선정/정산 알림을 즉시 받으세요.
+
+▼친구 추가
+${LINE_FRIEND_URL}
+
+※추가 후 가입 이메일을 LINE으로 보내주세요.`
+};
 
 // 언어별 이메일 템플릿
 const EMAIL_TEMPLATES = {
@@ -163,58 +190,121 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { to, creatorName, language = 'ja' } = JSON.parse(event.body);
+    const { to, phone, creatorName, language = 'ja' } = JSON.parse(event.body);
 
-    if (!to) {
+    if (!to && !phone) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: '이메일 주소가 필요합니다.' })
+        body: JSON.stringify({ error: '이메일 주소 또는 전화번호가 필요합니다.' })
       };
     }
 
-    const template = EMAIL_TEMPLATES[language] || EMAIL_TEMPLATES.ja;
+    const results = {
+      email: null,
+      sms: null
+    };
 
-    const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
-    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const name = creatorName || 'クリエイター';
 
-    if (!gmailAppPassword) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Gmail 설정이 필요합니다.' })
-      };
-    }
+    // 1. 이메일 발송
+    if (to) {
+      try {
+        const template = EMAIL_TEMPLATES[language] || EMAIL_TEMPLATES.ja;
+        const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+        const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: gmailEmail,
-        pass: gmailAppPassword.trim().replace(/\s/g, '')
+        if (gmailAppPassword) {
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: gmailEmail,
+              pass: gmailAppPassword.trim().replace(/\s/g, '')
+            }
+          });
+
+          const info = await transporter.sendMail({
+            from: `"CNEC BIZ" <${gmailEmail}>`,
+            to,
+            subject: template.subject,
+            html: template.html(name)
+          });
+
+          console.log('[LINE Invitation] Email sent to:', to, 'MessageId:', info.messageId);
+          results.email = { success: true, messageId: info.messageId, to };
+        } else {
+          console.warn('[LINE Invitation] Gmail not configured');
+          results.email = { success: false, error: 'Gmail not configured' };
+        }
+      } catch (emailError) {
+        console.error('[LINE Invitation] Email error:', emailError);
+        results.email = { success: false, error: emailError.message };
       }
-    });
+    }
 
-    const info = await transporter.sendMail({
-      from: `"CNEC BIZ" <${gmailEmail}>`,
-      to,
-      subject: template.subject,
-      html: template.html(creatorName || 'クリエイター')
-    });
+    // 2. SMS 발송
+    if (phone) {
+      try {
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
-    console.log('[LINE Invitation Email] Sent to:', to, 'MessageId:', info.messageId);
+        if (accountSid && authToken && messagingServiceSid) {
+          // 전화번호 형식 정리
+          let phoneNumber = phone.replace(/[^0-9+]/g, '');
+
+          // 일본 번호 처리 (0으로 시작하면 +81로 변환)
+          if (phoneNumber.startsWith('0') && phoneNumber.length === 11) {
+            phoneNumber = '+81' + phoneNumber.substring(1);
+          }
+          // + 없으면 추가
+          if (!phoneNumber.startsWith('+')) {
+            if (phoneNumber.startsWith('81')) {
+              phoneNumber = '+' + phoneNumber;
+            } else if (phoneNumber.startsWith('1') && phoneNumber.length === 11) {
+              phoneNumber = '+' + phoneNumber;
+            }
+          }
+
+          const smsTemplate = SMS_TEMPLATES[language] || SMS_TEMPLATES.ja;
+          const smsMessage = smsTemplate(name);
+
+          const client = twilio(accountSid, authToken);
+          const smsResult = await client.messages.create({
+            body: smsMessage,
+            messagingServiceSid: messagingServiceSid,
+            to: phoneNumber
+          });
+
+          console.log('[LINE Invitation] SMS sent to:', phoneNumber, 'SID:', smsResult.sid);
+          results.sms = { success: true, messageSid: smsResult.sid, to: phoneNumber };
+        } else {
+          console.warn('[LINE Invitation] Twilio not configured');
+          results.sms = { success: false, error: 'Twilio not configured' };
+        }
+      } catch (smsError) {
+        console.error('[LINE Invitation] SMS error:', smsError);
+        results.sms = { success: false, error: smsError.message, code: smsError.code };
+      }
+    }
+
+    // 결과 반환
+    const anySuccess = results.email?.success || results.sms?.success;
 
     return {
-      statusCode: 200,
+      statusCode: anySuccess ? 200 : 500,
       headers,
       body: JSON.stringify({
-        success: true,
-        messageId: info.messageId,
-        to
+        success: anySuccess,
+        results,
+        message: anySuccess
+          ? `발송 완료: ${results.email?.success ? '이메일' : ''}${results.email?.success && results.sms?.success ? ' + ' : ''}${results.sms?.success ? 'SMS' : ''}`
+          : '발송 실패'
       })
     };
 
   } catch (error) {
-    console.error('[LINE Invitation Email] Error:', error);
+    console.error('[LINE Invitation] Error:', error);
     return {
       statusCode: 500,
       headers,
