@@ -7767,9 +7767,9 @@ JSON만 출력.`
                       // 알림톡 발송
                       if (profile?.phone) {
                         try {
-                          // 재제출 기한: 오늘 + 3일
+                          // 재제출 기한: 오늘 + 2일
                           const resubmitDate = new Date()
-                          resubmitDate.setDate(resubmitDate.getDate() + 3)
+                          resubmitDate.setDate(resubmitDate.getDate() + 2)
                           const resubmitDeadline = resubmitDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
 
                           await fetch('/.netlify/functions/send-kakao-notification', {

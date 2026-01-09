@@ -78,9 +78,9 @@ exports.handler = async (event) => {
 
     // 오늘 날짜 (한국시간)
     const today = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
-    // 재제출 기한 (7일 후)
+    // 재제출 기한 (2일 후)
     const resubmitDeadline = new Date()
-    resubmitDeadline.setDate(resubmitDeadline.getDate() + 7)
+    resubmitDeadline.setDate(resubmitDeadline.getDate() + 2)
     const resubmitDate = resubmitDeadline.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
 
     // 알림톡 발송 메시지 구성 (팝빌 템플릿 025100001016과 100% 동일해야 함)
