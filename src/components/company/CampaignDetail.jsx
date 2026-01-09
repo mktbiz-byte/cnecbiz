@@ -5712,12 +5712,18 @@ JSON만 출력.`
                   // - 일반 캠페인: approved/completed 상태
                   // - 멀티비디오 캠페인: approved/completed/sns_uploaded 상태 OR SNS URL이 하나라도 입력된 경우
                   // - campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시 (데이터 직접 입력 대응)
+                  // - video_submissions에 approved된 영상이 있는 경우도 포함
                   const completedSectionParticipants = participants.filter(p => {
                     if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
                     // 4주 챌린지 URL이 있으면 표시
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
+                    // video_submissions에 approved된 영상이 있으면 표시
+                    const hasApprovedVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && v.status === 'approved'
+                    )
+                    if (hasApprovedVideo) return true
                     return false
                   })
 
@@ -5790,12 +5796,18 @@ JSON만 출력.`
 
                   // 완료 섹션에 표시할 참가자 필터
                   // campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시
+                  // video_submissions에 approved된 영상이 있는 경우도 포함
                   const completedSectionParticipants = participants.filter(p => {
                     if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
                     // 4주 챌린지 URL이 있으면 표시
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
+                    // video_submissions에 approved된 영상이 있으면 표시
+                    const hasApprovedVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && v.status === 'approved'
+                    )
+                    if (hasApprovedVideo) return true
                     return false
                   })
 
