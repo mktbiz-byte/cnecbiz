@@ -5409,15 +5409,17 @@ JSON만 출력.`
 
                 {(() => {
                   // Group video submissions by user_id only
-                  // Show all non-approved submissions (submitted, video_submitted, revision_requested, resubmitted, pending, null)
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
-                  const filteredSubmissions = videoSubmissions.filter(v => !['approved', 'completed', 'rejected'].includes(v.status))
 
                   // 캠페인 타입 확인
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
                   const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
                   const isMultiStepCampaign = is4WeekChallenge || isOliveyoung
+
+                  // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
+                  // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
+                  const filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
 
                   // user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
@@ -5570,7 +5572,9 @@ JSON만 출력.`
                           {/* 오른쪽: 정보 및 버튼 */}
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              {submission.status === 'submitted' ? (
+                              {submission.status === 'approved' ? (
+                                <Badge className="bg-green-100 text-green-700">검수 완료</Badge>
+                              ) : submission.status === 'submitted' ? (
                                 <Badge className="bg-blue-100 text-blue-700">검토 대기</Badge>
                               ) : (
                                 <Badge className="bg-yellow-100 text-yellow-700">수정 요청됨</Badge>
@@ -5652,26 +5656,35 @@ JSON만 출력.`
                                 </svg>
                                 영상 다운로드
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => {
-                                  navigate(`/video-review/${submission.id}`)
-                                }}
-                              >
-                                영상 수정 요청하기
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                                onClick={async () => {
-                                  if (!confirm('이 영상을 검수 완료하시겠습니까?\n\nSNS 업로드 확인 후 "최종 확정" 버튼을 눌러주세요.')) return
-                                  await handleVideoApproval(submission)
-                                }}
-                              >
-                                검수 완료
-                              </Button>
+                              {submission.status !== 'approved' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => {
+                                      navigate(`/video-review/${submission.id}`)
+                                    }}
+                                  >
+                                    영상 수정 요청하기
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={async () => {
+                                      if (!confirm('이 영상을 검수 완료하시겠습니까?\n\nSNS 업로드 확인 후 "최종 확정" 버튼을 눌러주세요.')) return
+                                      await handleVideoApproval(submission)
+                                    }}
+                                  >
+                                    검수 완료
+                                  </Button>
+                                </>
+                              )}
+                              {submission.status === 'approved' && (
+                                <div className="text-center text-sm text-green-600 font-medium py-2 bg-green-50 rounded">
+                                  ✓ 이 영상은 검수 완료되었습니다
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
