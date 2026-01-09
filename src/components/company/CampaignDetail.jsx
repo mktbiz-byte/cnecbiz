@@ -5405,14 +5405,22 @@ JSON만 출력.`
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
                   const filteredSubmissions = videoSubmissions.filter(v => !['approved', 'completed', 'rejected'].includes(v.status))
 
-                  // 4주 챌린지 캠페인 여부 확인
+                  // 캠페인 타입 확인
                   const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                  const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
 
-                  // 4주 챌린지: user_id + week_number로 그룹화, 그 외: user_id로만 그룹화
+                  // 4주 챌린지: user_id + week_number로 그룹화
+                  // 올리브영: user_id + video_number로 그룹화
+                  // 그 외: user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
-                    const groupKey = is4WeekChallenge
-                      ? `${submission.user_id}_week${submission.week_number || 1}`
-                      : submission.user_id
+                    let groupKey
+                    if (is4WeekChallenge) {
+                      groupKey = `${submission.user_id}_week${submission.week_number || 1}`
+                    } else if (isOliveyoung) {
+                      groupKey = `${submission.user_id}_video${submission.video_number || 1}`
+                    } else {
+                      groupKey = submission.user_id
+                    }
                     if (!acc[groupKey]) {
                       acc[groupKey] = []
                     }
@@ -5433,13 +5441,18 @@ JSON만 출력.`
                     )
                   }
                   
-                  // 4주 챌린지인 경우 주차 순으로 정렬
+                  // 4주 챌린지/올리브영인 경우 순서대로 정렬
                   const sortedEntries = Object.entries(groupedByUser).sort((a, b) => {
                     if (is4WeekChallenge) {
                       // week 번호로 정렬 (week1, week2, week3, week4)
                       const weekA = parseInt(a[0].match(/_week(\d+)/)?.[1] || '0')
                       const weekB = parseInt(b[0].match(/_week(\d+)/)?.[1] || '0')
                       return weekA - weekB
+                    } else if (isOliveyoung) {
+                      // video 번호로 정렬 (video1, video2)
+                      const videoA = parseInt(a[0].match(/_video(\d+)/)?.[1] || '0')
+                      const videoB = parseInt(b[0].match(/_video(\d+)/)?.[1] || '0')
+                      return videoA - videoB
                     }
                     return 0
                   })
