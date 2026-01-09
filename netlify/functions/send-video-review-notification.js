@@ -1,9 +1,30 @@
 /**
  * 영상 수정 요청 알림 발송
- * send-kakao-notification.js와 동일한 템플릿 사용
+ * send-kakao-notification.js와 동일한 구조 사용
  */
 
 const popbill = require('popbill');
+
+// 팝빌 전역 설정 (send-kakao-notification.js와 동일)
+popbill.config({
+  LinkID: process.env.POPBILL_LINK_ID || 'HOWLAB',
+  SecretKey: process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=',
+  IsTest: process.env.POPBILL_TEST_MODE === 'true',
+  IPRestrictOnOff: true,
+  UseStaticIP: false,
+  UseLocalTimeYN: true,
+  defaultErrorHandler: function (Error) {
+    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
+  }
+});
+
+// 팝빌 카카오톡 서비스 객체 생성
+const kakaoService = popbill.KakaoService();
+const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
+const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
+const POPBILL_USER_ID = process.env.POPBILL_USER_ID || '';
+
+console.log('Video Review Notification - Popbill initialized');
 
 exports.handler = async (event) => {
   // CORS 헤더
@@ -44,42 +65,6 @@ exports.handler = async (event) => {
       feedbackCount,
       campaignTitle
     })
-
-    // Popbill 환경변수 확인
-    const LinkID = process.env.POPBILL_LINK_ID
-    const SecretKey = process.env.POPBILL_SECRET_KEY
-    const CorpNum = process.env.POPBILL_CORP_NUM
-    const UserID = process.env.POPBILL_USER_ID || ''
-    const SenderNum = process.env.POPBILL_SENDER_NUM || '18336025'
-
-    // Popbill 설정이 없으면 성공 반환 (개발/테스트 환경)
-    if (!LinkID || !SecretKey || !CorpNum) {
-      console.log('[INFO] Popbill not configured, skipping notification')
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          message: '수정 요청이 등록되었습니다 (알림 미발송 - Popbill 미설정)',
-          skipped: true
-        })
-      }
-    }
-
-    // Popbill 서비스 초기화 (send-kakao-notification.js와 동일)
-    popbill.config({
-      LinkID,
-      SecretKey,
-      IsTest: process.env.POPBILL_TEST_MODE === 'true',
-      IPRestrictOnOff: true,
-      UseStaticIP: false,
-      UseLocalTimeYN: true,
-      defaultErrorHandler: (error) => {
-        console.error('[Popbill Error]', error)
-      }
-    })
-
-    const kakaoService = popbill.KakaoService()
 
     // 오늘 날짜 (한국시간)
     const today = new Date()
@@ -131,15 +116,15 @@ exports.handler = async (event) => {
     try {
       const result = await new Promise((resolve, reject) => {
         kakaoService.sendATS(
-          CorpNum,
+          POPBILL_CORP_NUM,
           '025100001016',  // 템플릿 코드
-          SenderNum,
+          POPBILL_SENDER_NUM,
           message,
           message,  // altContent
           'C',      // altSendType
           '',       // sndDT (즉시발송)
           receivers,
-          UserID,
+          POPBILL_USER_ID,
           '',       // requestNum
           null,     // btns
           plusFriendID,
@@ -171,13 +156,13 @@ exports.handler = async (event) => {
         const smsService = popbill.MessageService()
         const smsResult = await new Promise((resolve, reject) => {
           smsService.sendSMS(
-            CorpNum,
-            SenderNum,
+            POPBILL_CORP_NUM,
+            POPBILL_SENDER_NUM,
             creatorPhone.replace(/-/g, ''),
             creatorName || '크리에이터',
             `[CNEC] ${creatorName || '크리에이터'}님, '${campaignTitle || '캠페인'}' 영상에 수정 요청이 등록되었습니다. cnec.co.kr에서 확인해주세요.`,
             '',
-            UserID,
+            POPBILL_USER_ID,
             (result) => {
               console.log('[SUCCESS] SMS sent:', result)
               resolve(result)
