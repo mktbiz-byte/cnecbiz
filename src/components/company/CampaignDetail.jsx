@@ -163,6 +163,7 @@ export default function CampaignDetail() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const [revisionComment, setRevisionComment] = useState('')
+  const [uploadDeadline, setUploadDeadline] = useState('승인 완료 후 1일 이내')
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
   const [selectedConfirmedParticipants, setSelectedConfirmedParticipants] = useState([])
   const [editingGuide, setEditingGuide] = useState(false)
@@ -2754,9 +2755,20 @@ JSON만 출력.`
   }
   
   // 영상 검수 완료 (포인트 지급 없음 - 최종 확정 시 지급)
-  const handleVideoApproval = async (submission) => {
+  const handleVideoApproval = async (submission, customUploadDeadline = null) => {
     try {
       const videoClient = supabaseKorea || supabaseBiz
+
+      // 업로드 기한 입력받기 (customUploadDeadline이 없으면 prompt)
+      const inputDeadline = customUploadDeadline || prompt(
+        '업로드 기한을 입력해주세요.\n(예: 2024년 1월 15일, 승인 후 3일 이내)',
+        '승인 완료 후 1일 이내'
+      )
+
+      if (!inputDeadline) {
+        alert('업로드 기한을 입력해주세요.')
+        return
+      }
 
       // 1. video_submissions 상태 업데이트 (approved로 변경)
       const { error: videoError } = await supabase
@@ -2764,7 +2776,8 @@ JSON만 출력.`
         .update({
           status: 'approved',
           approved_at: new Date().toISOString(),
-          reviewed_at: new Date().toISOString()
+          reviewed_at: new Date().toISOString(),
+          upload_deadline: inputDeadline
         })
         .eq('id', submission.id)
 
@@ -2803,8 +2816,44 @@ JSON만 출력.`
       if (!isMultiVideoChallenge || allVideosApproved) {
         await supabase
           .from('applications')
-          .update({ status: 'approved' })
+          .update({
+            status: 'approved',
+            upload_deadline: inputDeadline
+          })
           .eq('id', submission.application_id)
+      }
+
+      // 3. 크리에이터에게 영상 승인 완료 알림톡 발송
+      const participant = participants.find(p => p.user_id === submission.user_id)
+      if (participant?.user_id) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('phone, email, full_name')
+          .eq('id', participant.user_id)
+          .single()
+
+        if (profile?.phone) {
+          try {
+            const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: profile.phone.replace(/-/g, ''),
+                receiverName: creatorName,
+                templateCode: '025100001017',
+                variables: {
+                  '크리에이터명': creatorName,
+                  '캠페인명': campaign?.title || '캠페인',
+                  '업로드기한': inputDeadline
+                }
+              })
+            })
+            console.log('✓ 영상 승인 완료 알림톡 발송')
+          } catch (kakaoError) {
+            console.error('알림톡 발송 실패:', kakaoError)
+          }
+        }
       }
 
       await fetchVideoSubmissions()
@@ -2815,12 +2864,12 @@ JSON만 출력.`
         const videoLabel = is4WeekChallenge ? `${currentWeek}주차` : `${currentWeek}번째`
         const totalVideos = is4WeekChallenge ? 4 : 2
         if (allVideosApproved) {
-          alert(`${videoLabel} 영상이 승인되었습니다.\n\nSNS 업로드를 확인한 후 '최종 확정' 버튼을 눌러주세요.`)
+          alert(`${videoLabel} 영상이 승인되었습니다.\n\n크리에이터에게 알림톡이 발송되었습니다.\n업로드 기한: ${inputDeadline}\n\nSNS 업로드를 확인한 후 '최종 확정' 버튼을 눌러주세요.`)
         } else {
-          alert(`${videoLabel} 영상이 승인되었습니다. (${totalVideos}개 영상 모두 승인 후 최종 확정이 가능합니다)`)
+          alert(`${videoLabel} 영상이 승인되었습니다.\n\n크리에이터에게 알림톡이 발송되었습니다.\n업로드 기한: ${inputDeadline}\n\n(${totalVideos}개 영상 모두 승인 후 최종 확정이 가능합니다)`)
         }
       } else {
-        alert('영상이 승인되었습니다.\n\nSNS 업로드를 확인한 후 \'최종 확정\' 버튼을 눌러주세요.')
+        alert(`영상이 승인되었습니다.\n\n크리에이터에게 알림톡이 발송되었습니다.\n업로드 기한: ${inputDeadline}\n\nSNS 업로드를 확인한 후 '최종 확정' 버튼을 눌러주세요.`)
       }
     } catch (error) {
       console.error('Error approving video:', error)
@@ -7490,6 +7539,20 @@ JSON만 출력.`
               )}
             </div>
 
+            {/* 업로드 기한 설정 */}
+            <div className="px-6 py-3 border-t bg-blue-50">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                업로드 기한 설정 (승인 시 크리에이터에게 전달됨)
+              </label>
+              <input
+                type="text"
+                value={uploadDeadline}
+                onChange={(e) => setUploadDeadline(e.target.value)}
+                placeholder="예: 2024년 1월 15일, 승인 후 3일 이내"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
             {/* 모달 푸터 */}
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
               <Button
@@ -7498,17 +7561,24 @@ JSON만 출력.`
                   setShowVideoModal(false)
                   setSelectedParticipant(null)
                   setRevisionComment('')
+                  setUploadDeadline('승인 완료 후 1일 이내')
                 }}
               >
                 닫기
               </Button>
               <Button
                 onClick={async () => {
+                  if (!uploadDeadline.trim()) {
+                    alert('업로드 기한을 입력해주세요.')
+                    return
+                  }
+
                   try {
                     const { error } = await supabase
                       .from('applications')
                       .update({
-                        video_status: 'approved'
+                        video_status: 'approved',
+                        upload_deadline: uploadDeadline
                       })
                       .eq('id', selectedParticipant.id)
 
@@ -7534,7 +7604,7 @@ JSON만 출력.`
                               variables: {
                                 '크리에이터명': profile.full_name || selectedParticipant.creator_name || '크리에이터',
                                 '캠페인명': campaign?.title || '캠페인',
-                                '업로드기한': '승인 완료 후 1일 이내'
+                                '업로드기한': uploadDeadline
                               }
                             })
                           })
@@ -7548,6 +7618,7 @@ JSON만 출력.`
                     alert('영상이 승인되었습니다!')
                     setShowVideoModal(false)
                     setSelectedParticipant(null)
+                    setUploadDeadline('승인 완료 후 1일 이내')
                     fetchCampaignDetail()
                   } catch (error) {
                     console.error('Error approving video:', error)
@@ -7595,17 +7666,23 @@ JSON만 출력.`
                       // 알림톡 발송
                       if (profile?.phone) {
                         try {
+                          // 재제출 기한: 오늘 + 3일
+                          const resubmitDate = new Date()
+                          resubmitDate.setDate(resubmitDate.getDate() + 3)
+                          const resubmitDeadline = resubmitDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+
                           await fetch('/.netlify/functions/send-kakao-notification', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               receiverNum: profile.phone,
                               receiverName: creatorName,
-                              templateCode: '025100001017',  // 수정 요청 템플릿
+                              templateCode: '025100001016',  // 영상 수정 요청 템플릿
                               variables: {
                                 '크리에이터명': creatorName,
                                 '캠페인명': campaign.title,
-                                '수정요청내용': revisionComment.substring(0, 100)  // 최대 100자
+                                '요청일': new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }),
+                                '재제출기한': resubmitDeadline
                               }
                             })
                           })
