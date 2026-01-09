@@ -1,7 +1,0 @@
-{
-  "name": "cnecbiz-functions",
-  "version": "1.0.0",
-  "dependencies": {
-    "popbill": "^1.62.0"
-  }
-}
