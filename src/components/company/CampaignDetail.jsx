@@ -163,6 +163,7 @@ export default function CampaignDetail() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const [revisionComment, setRevisionComment] = useState('')
+  const [uploadDeadline, setUploadDeadline] = useState('승인 완료 후 1일 이내')
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
   const [selectedConfirmedParticipants, setSelectedConfirmedParticipants] = useState([])
   const [editingGuide, setEditingGuide] = useState(false)
@@ -7490,6 +7491,20 @@ JSON만 출력.`
               )}
             </div>
 
+            {/* 업로드 기한 설정 */}
+            <div className="px-6 py-3 border-t bg-blue-50">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                업로드 기한 설정 (승인 시 크리에이터에게 전달됨)
+              </label>
+              <input
+                type="text"
+                value={uploadDeadline}
+                onChange={(e) => setUploadDeadline(e.target.value)}
+                placeholder="예: 2024년 1월 15일, 승인 후 3일 이내"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
             {/* 모달 푸터 */}
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
               <Button
@@ -7498,17 +7513,24 @@ JSON만 출력.`
                   setShowVideoModal(false)
                   setSelectedParticipant(null)
                   setRevisionComment('')
+                  setUploadDeadline('승인 완료 후 1일 이내')
                 }}
               >
                 닫기
               </Button>
               <Button
                 onClick={async () => {
+                  if (!uploadDeadline.trim()) {
+                    alert('업로드 기한을 입력해주세요.')
+                    return
+                  }
+
                   try {
                     const { error } = await supabase
                       .from('applications')
                       .update({
-                        video_status: 'approved'
+                        video_status: 'approved',
+                        upload_deadline: uploadDeadline
                       })
                       .eq('id', selectedParticipant.id)
 
@@ -7534,7 +7556,7 @@ JSON만 출력.`
                               variables: {
                                 '크리에이터명': profile.full_name || selectedParticipant.creator_name || '크리에이터',
                                 '캠페인명': campaign?.title || '캠페인',
-                                '업로드기한': '승인 완료 후 1일 이내'
+                                '업로드기한': uploadDeadline
                               }
                             })
                           })
@@ -7548,6 +7570,7 @@ JSON만 출력.`
                     alert('영상이 승인되었습니다!')
                     setShowVideoModal(false)
                     setSelectedParticipant(null)
+                    setUploadDeadline('승인 완료 후 1일 이내')
                     fetchCampaignDetail()
                   } catch (error) {
                     console.error('Error approving video:', error)
@@ -7595,17 +7618,23 @@ JSON만 출력.`
                       // 알림톡 발송
                       if (profile?.phone) {
                         try {
+                          // 재제출 기한: 오늘 + 3일
+                          const resubmitDate = new Date()
+                          resubmitDate.setDate(resubmitDate.getDate() + 3)
+                          const resubmitDeadline = resubmitDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+
                           await fetch('/.netlify/functions/send-kakao-notification', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               receiverNum: profile.phone,
                               receiverName: creatorName,
-                              templateCode: '025100001017',  // 수정 요청 템플릿
+                              templateCode: '025100001016',  // 영상 수정 요청 템플릿
                               variables: {
                                 '크리에이터명': creatorName,
                                 '캠페인명': campaign.title,
-                                '수정요청내용': revisionComment.substring(0, 100)  // 최대 100자
+                                '요청일': new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }),
+                                '재제출기한': resubmitDeadline
                               }
                             })
                           })
