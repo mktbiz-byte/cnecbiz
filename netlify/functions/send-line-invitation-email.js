@@ -253,13 +253,28 @@ exports.handler = async (event) => {
           // 전화번호 형식 정리
           let phoneNumber = phone.replace(/[^0-9+]/g, '');
 
-          // 일본 번호 처리 (0으로 시작하면 +81로 변환)
+          // 국가별 번호 변환
           if (phoneNumber.startsWith('0') && phoneNumber.length === 11) {
-            phoneNumber = '+81' + phoneNumber.substring(1);
+            // 한국 번호 (010-xxxx-xxxx)
+            if (phoneNumber.startsWith('010')) {
+              phoneNumber = '+82' + phoneNumber.substring(1); // +82-10-xxxx-xxxx
+            }
+            // 일본 번호 (090/080/070-xxxx-xxxx)
+            else if (phoneNumber.startsWith('090') || phoneNumber.startsWith('080') || phoneNumber.startsWith('070')) {
+              phoneNumber = '+81' + phoneNumber.substring(1); // +81-90-xxxx-xxxx
+            }
+            // language 기반 fallback
+            else if (language === 'ko') {
+              phoneNumber = '+82' + phoneNumber.substring(1);
+            } else {
+              phoneNumber = '+81' + phoneNumber.substring(1);
+            }
           }
           // + 없으면 추가
           if (!phoneNumber.startsWith('+')) {
-            if (phoneNumber.startsWith('81')) {
+            if (phoneNumber.startsWith('82')) {
+              phoneNumber = '+' + phoneNumber;
+            } else if (phoneNumber.startsWith('81')) {
               phoneNumber = '+' + phoneNumber;
             } else if (phoneNumber.startsWith('1') && phoneNumber.length === 11) {
               phoneNumber = '+' + phoneNumber;
