@@ -2,9 +2,11 @@
  * 캠페인 상태 변경 API (관리자용)
  * 캠페인 상태를 변경
  * 모든 리전(korea, japan, us, taiwan)을 지원
+ * active로 변경 시 캠페인 승인 알림톡 발송
  */
 
 const { createClient } = require('@supabase/supabase-js')
+const { sendNotification, generateEmailHtml } = require('./send-notification-helper')
 
 // Supabase 클라이언트 생성 함수
 function getSupabaseClient(region) {
@@ -153,6 +155,80 @@ exports.handler = async (event, context) => {
     }
 
     console.log('[update-campaign-status] Campaign updated successfully:', campaignId)
+
+    // active로 변경 시 캠페인 승인 알림톡 발송 (한국 캠페인만)
+    if (newStatus === 'active' && (region === 'korea' || region === 'kr')) {
+      try {
+        // 캠페인 정보 조회
+        const { data: campaign } = await supabaseClient
+          .from('campaigns')
+          .select('*')
+          .eq('id', campaignId)
+          .single()
+
+        if (campaign) {
+          // 회사 정보 조회
+          let company = null
+
+          if (campaign.company_id) {
+            const { data: companyData } = await supabaseClient
+              .from('companies')
+              .select('*')
+              .eq('id', campaign.company_id)
+              .maybeSingle()
+            company = companyData
+          }
+
+          if (!company && campaign.company_email) {
+            const { data: companyData } = await supabaseClient
+              .from('companies')
+              .select('*')
+              .eq('email', campaign.company_email)
+              .maybeSingle()
+            company = companyData
+          }
+
+          if (company && (company.phone || company.email)) {
+            const templateCode = '025100001005' // 캠페인 승인 완료
+
+            const formatDate = (dateString) => {
+              if (!dateString) return '-'
+              const date = new Date(dateString)
+              return date.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '.').replace(/\.$/, '')
+            }
+
+            const variables = {
+              '회사명': company.company_name || '고객사',
+              '캠페인명': campaign.title || campaign.campaign_name || '캠페인',
+              '시작일': formatDate(campaign.recruitment_start_date || campaign.start_date),
+              '마감일': formatDate(campaign.recruitment_deadline || campaign.end_date),
+              '모집인원': (campaign.total_slots || campaign.target_creators || 0).toString()
+            }
+
+            console.log('[update-campaign-status] Sending approval notification:', variables)
+
+            const emailHtml = generateEmailHtml(templateCode, variables)
+
+            await sendNotification({
+              receiverNum: company.phone,
+              receiverEmail: company.email,
+              receiverName: company.company_name,
+              templateCode,
+              variables,
+              emailSubject: emailHtml.subject,
+              emailHtml: emailHtml.html
+            })
+
+            console.log('[update-campaign-status] Approval notification sent successfully')
+          } else {
+            console.log('[update-campaign-status] No company contact info found')
+          }
+        }
+      } catch (notifError) {
+        console.error('[update-campaign-status] Notification error:', notifError)
+        // 알림 발송 실패해도 상태 변경은 완료
+      }
+    }
 
     return {
       statusCode: 200,
