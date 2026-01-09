@@ -189,7 +189,6 @@ exports.handler = async (event) => {
           .upsert({
             line_user_id: userId,
             display_name: displayName,
-            profile_picture_url: profile?.pictureUrl,
             status: 'active',
             followed_at: new Date().toISOString()
           }, { onConflict: 'line_user_id' });
@@ -198,10 +197,10 @@ exports.handler = async (event) => {
           console.error('DB insert error:', insertError);
         }
 
-        // 환영 메시지
+        // 환영 메시지 (일본어)
         await replyMessage(replyToken, {
           type: 'text',
-          text: `안녕하세요, ${displayName}님! 🎉\nCNEC BIZ 공식 LINE에 오신 것을 환영합니다.\n\n캠페인 선정, 정산 등 중요한 알림을 이 채널로 보내드립니다.\n\n크리에이터 계정과 연동하시려면 가입하신 이메일 주소를 입력해주세요.`
+          text: `${displayName}様、こんにちは！🎉\nCNEC BIZ公式LINEへようこそ。\n\nキャンペーン選定、報酬お支払いなどの重要なお知らせをこちらからお届けします。\n\nクリエイターアカウントと連携するには、ご登録のメールアドレスを入力してください。`
         }, accessToken);
 
         // 새 친구 추가 알림 제거 (불필요)
@@ -280,14 +279,20 @@ exports.handler = async (event) => {
 
               await replyMessage(replyToken, {
                 type: 'text',
-                text: `✅ 연동 완료!\n\n${creatorName}님의 계정과 LINE이 연동되었습니다.\n앞으로 캠페인 선정, 정산 알림을 LINE으로 받으실 수 있습니다.`
+                text: `✅ 連携完了！\n\n${creatorName}様のアカウントとLINEが連携されました。\n今後、キャンペーン選定や報酬お支払いのお知らせをLINEでお届けします。`
               }, accessToken);
 
-              // 연동 완료 알림 제거 (불필요)
+              // 연동 완료 네이버 웍스 알림
+              const linkNotification = `🔗 LINE 계정 연동 완료\n\n` +
+                `👤 크리에이터: ${creatorName}\n` +
+                `📧 이메일: ${creator.email}\n` +
+                `💬 LINE 이름: ${displayName}\n` +
+                `🕐 연동 시간: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
+              await notifyNaverWorks(linkNotification);
             } else {
               await replyMessage(replyToken, {
                 type: 'text',
-                text: `❌ 해당 이메일로 등록된 크리에이터를 찾을 수 없습니다.\n\n입력하신 이메일: ${text}\n\n다시 확인 후 입력해주세요.`
+                text: `❌ このメールアドレスで登録されたクリエイターが見つかりません。\n\n入力されたメール: ${text}\n\n再度ご確認の上、入力してください。`
               }, accessToken);
             }
           } else {
@@ -321,7 +326,7 @@ exports.handler = async (event) => {
 
             await replyMessage(replyToken, {
               type: 'text',
-              text: `메시지가 전달되었습니다.\n담당자가 확인 후 연락드리겠습니다. 😊`
+              text: `メッセージを受け付けました。\n担当者が確認後、ご連絡いたします。😊`
             }, accessToken);
           }
         }

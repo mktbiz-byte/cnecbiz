@@ -2825,22 +2825,37 @@ JSON만 출력.`
 
       // 3. 크리에이터에게 영상 승인 완료 알림톡 발송
       const participant = participants.find(p => p.user_id === submission.user_id)
-      if (participant?.user_id) {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('phone, email, full_name')
-          .eq('id', participant.user_id)
-          .single()
+      if (participant) {
+        // 먼저 applications 테이블에서 직접 phone_number 확인 (한국 캠페인용)
+        let phone = participant.phone_number || participant.phone
+        let email = participant.email
+        let creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
-        if (profile?.phone) {
+        // applications에 전화번호가 없으면 user_profiles에서 조회
+        if (!phone && participant.user_id) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone, email, full_name')
+            .eq('id', participant.user_id)
+            .single()
+
+          if (profile) {
+            phone = profile.phone
+            email = email || profile.email
+            creatorName = profile.full_name || creatorName
+          }
+        }
+
+        console.log('알림톡 발송 정보:', { phone, email, creatorName, source: participant.phone_number ? 'applications' : 'user_profiles' })
+
+        if (phone) {
           try {
-            const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
-            console.log('알림톡 발송 시도:', { phone: profile.phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
+            console.log('알림톡 발송 시도:', { phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
             const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                receiverNum: profile.phone.replace(/-/g, ''),
+                receiverNum: phone.replace(/-/g, ''),
                 receiverName: creatorName,
                 templateCode: '025100001017',
                 variables: {
@@ -2852,25 +2867,27 @@ JSON만 출력.`
             })
             const kakaoResult = await kakaoResponse.json()
             console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
-            if (!kakaoResponse.ok) {
+            if (!kakaoResponse.ok || !kakaoResult.success) {
               console.error('알림톡 발송 실패 응답:', kakaoResult)
+              // 상세 오류 표시
+              const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
+              console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
             }
           } catch (kakaoError) {
             console.error('알림톡 발송 실패:', kakaoError)
           }
         } else {
-          console.log('알림톡 발송 스킵 - 전화번호 없음:', participant?.user_id)
+          console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: participant?.user_id, phone_number: participant?.phone_number, phone: participant?.phone })
         }
 
         // 이메일 발송
-        if (profile?.email) {
+        if (email) {
           try {
-            const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
             await fetch('/.netlify/functions/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                to: profile.email,
+                to: email,
                 subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
                 html: `
                   <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -7717,64 +7734,85 @@ JSON만 출력.`
                     if (error) throw error
 
                     // 크리에이터에게 영상 승인 완료 알림톡 발송
-                    if (selectedParticipant.user_id) {
+                    // 먼저 applications 테이블에서 직접 phone_number 확인 (한국 캠페인용)
+                    let phone = selectedParticipant.phone_number || selectedParticipant.phone
+                    let email = selectedParticipant.email
+                    let creatorName = selectedParticipant.creator_name || selectedParticipant.applicant_name || '크리에이터'
+
+                    // applications에 전화번호가 없으면 user_profiles에서 조회
+                    if (!phone && selectedParticipant.user_id) {
                       const { data: profile } = await supabase
                         .from('user_profiles')
                         .select('phone, email, full_name')
                         .eq('id', selectedParticipant.user_id)
                         .single()
 
-                      if (profile?.phone) {
-                        try {
-                          await fetch('/.netlify/functions/send-kakao-notification', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              receiverNum: profile.phone.replace(/-/g, ''),
-                              receiverName: profile.full_name || selectedParticipant.creator_name,
-                              templateCode: '025100001017',
-                              variables: {
-                                '크리에이터명': profile.full_name || selectedParticipant.creator_name || '크리에이터',
-                                '캠페인명': campaign?.title || '캠페인',
-                                '업로드기한': uploadDeadline
-                              }
-                            })
-                          })
-                          console.log('✓ 영상 승인 완료 알림톡 발송')
-                        } catch (kakaoError) {
-                          console.error('알림톡 발송 실패:', kakaoError)
-                        }
+                      if (profile) {
+                        phone = profile.phone
+                        email = email || profile.email
+                        creatorName = profile.full_name || creatorName
                       }
+                    }
 
-                      // 이메일 발송
-                      if (profile?.email) {
-                        try {
-                          const creatorName = profile.full_name || selectedParticipant.creator_name || '크리에이터'
-                          await fetch('/.netlify/functions/send-email', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              to: profile.email,
-                              subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
-                              html: `
-                                <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                                  <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
-                                  <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
-                                  <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
-                                  <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
-                                    <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
-                                    <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${uploadDeadline}</p>
-                                  </div>
-                                  <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
-                                  <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
-                                </div>
-                              `
-                            })
+                    console.log('알림톡 발송 정보:', { phone, email, creatorName, source: selectedParticipant.phone_number ? 'applications' : 'user_profiles' })
+
+                    if (phone) {
+                      try {
+                        await fetch('/.netlify/functions/send-kakao-notification', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            receiverNum: phone.replace(/-/g, ''),
+                            receiverName: creatorName,
+                            templateCode: '025100001017',
+                            variables: {
+                              '크리에이터명': creatorName,
+                              '캠페인명': campaign?.title || '캠페인',
+                              '업로드기한': uploadDeadline
+                            }
                           })
-                          console.log('✓ 영상 승인 완료 이메일 발송 성공')
-                        } catch (emailError) {
-                          console.error('영상 승인 이메일 발송 실패:', emailError)
+                        })
+                        const kakaoResult = await kakaoResponse.json()
+                        console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
+                        if (!kakaoResponse.ok || !kakaoResult.success) {
+                          console.error('알림톡 발송 실패 응답:', kakaoResult)
+                          const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
+                          console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
                         }
+                      } catch (kakaoError) {
+                        console.error('알림톡 발송 실패:', kakaoError)
+                      }
+                    } else {
+                      console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: selectedParticipant?.user_id, phone_number: selectedParticipant?.phone_number, phone: selectedParticipant?.phone })
+                    }
+
+                    // 이메일 발송
+                    if (email) {
+                      try {
+                        await fetch('/.netlify/functions/send-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            to: email,
+                            subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
+                            html: `
+                              <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                                <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
+                                <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                                <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
+                                <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                                  <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                                  <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${uploadDeadline}</p>
+                                </div>
+                                <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
+                                <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                              </div>
+                            `
+                          })
+                        })
+                        console.log('✓ 영상 승인 완료 이메일 발송 성공')
+                      } catch (emailError) {
+                        console.error('영상 승인 이메일 발송 실패:', emailError)
                       }
                     }
 

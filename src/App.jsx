@@ -57,6 +57,7 @@ import RevenueManagementEnhanced from './components/admin/RevenueManagementEnhan
 import RevenueManagementNew from './components/admin/RevenueManagementNew'
 import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import WithdrawalManagement from './components/admin/WithdrawalManagement'
+import CreatorPointHistory from './components/admin/CreatorPointHistory'
 import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import ConsultationManagement from './components/admin/ConsultationManagement'
@@ -96,6 +97,7 @@ import RevenueManagementWithCharts from './components/admin/RevenueManagementWit
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
+import LineChatManagement from './components/admin/LineChatManagement'
 
 
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
@@ -197,6 +199,7 @@ function App() {
         <Route path="/admin/revenue-enhanced" element={<RevenueManagementEnhanced />} />
         <Route path="/admin/points-charge" element={<PointsChargeManagement />} />
         <Route path="/admin/withdrawals" element={<WithdrawalManagement />} />
+        <Route path="/admin/point-history" element={<CreatorPointHistory />} />
         <Route path="/admin/tax-feedback" element={<TaxFeedbackManagement />} />
         <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
@@ -222,6 +225,7 @@ function App() {
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
+        <Route path="/admin/line-chat" element={<LineChatManagement />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />

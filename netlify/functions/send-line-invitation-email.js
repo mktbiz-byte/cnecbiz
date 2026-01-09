@@ -1,17 +1,32 @@
 const nodemailer = require('nodemailer');
+const twilio = require('twilio');
 
 /**
- * LINE 친구 추가 요청 이메일 발송 (일본 크리에이터용)
+ * LINE 친구 추가 요청 이메일 + SMS 발송 (일본 크리에이터용)
  *
  * POST /.netlify/functions/send-line-invitation-email
  * Body: {
  *   to: "creator@email.com",
+ *   phone: "+819012345678" (선택, SMS 발송용),
  *   creatorName: "크리에이터 이름",
  *   language: "ja" | "ko" | "en" (기본: ja)
  * }
  */
 
-const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@065vdhwf';
+const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@cnec';
+const LINE_ID = '@cnec';
+
+// SMS 템플릿 (통신사 필터링 우회)
+const SMS_TEMPLATES = {
+  ja: (creatorName) =>
+`[CNEC] ${creatorName}様、LINEで「${LINE_ID}」を検索して友だち追加！
+追加後メールアドレスを送信してください。
+※文字化けの場合はメールをご確認ください。`,
+
+  ko: (creatorName) =>
+`[CNEC] ${creatorName}님, 메신저 앱에서 ${LINE_ID} 검색 후 친구추가!
+추가 후 이메일을 메신저로 보내주세요.`
+};
 
 // 언어별 이메일 템플릿
 const EMAIL_TEMPLATES = {
@@ -69,7 +84,7 @@ const EMAIL_TEMPLATES = {
 
       <div class="qr-section">
         <p>または、LINEアプリでQRコードをスキャン</p>
-        <img src="https://qr-official.line.me/gs/M_065vdhwf_GW.png" alt="LINE QR Code" width="150" height="150" style="border: 1px solid #ddd; border-radius: 8px;">
+        <img src="https://qr-official.line.me/gs/M_cnec_GW.png" alt="LINE QR Code" width="150" height="150" style="border: 1px solid #ddd; border-radius: 8px;">
       </div>
 
       <p style="background: #fff3cd; padding: 15px; border-radius: 8px; font-size: 14px;">
@@ -163,58 +178,136 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { to, creatorName, language = 'ja' } = JSON.parse(event.body);
+    const { to, phone, creatorName, language = 'ja' } = JSON.parse(event.body);
 
-    if (!to) {
+    if (!to && !phone) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: '이메일 주소가 필요합니다.' })
+        body: JSON.stringify({ error: '이메일 주소 또는 전화번호가 필요합니다.' })
       };
     }
 
-    const template = EMAIL_TEMPLATES[language] || EMAIL_TEMPLATES.ja;
+    const results = {
+      email: null,
+      sms: null
+    };
 
-    const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
-    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const name = creatorName || 'クリエイター';
 
-    if (!gmailAppPassword) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'Gmail 설정이 필요합니다.' })
-      };
-    }
+    // 1. 이메일 발송
+    if (to) {
+      try {
+        const template = EMAIL_TEMPLATES[language] || EMAIL_TEMPLATES.ja;
+        const gmailEmail = process.env.GMAIL_EMAIL || 'mkt_biz@cnec.co.kr';
+        const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: gmailEmail,
-        pass: gmailAppPassword.trim().replace(/\s/g, '')
+        if (gmailAppPassword) {
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: gmailEmail,
+              pass: gmailAppPassword.trim().replace(/\s/g, '')
+            }
+          });
+
+          const info = await transporter.sendMail({
+            from: `"CNEC BIZ" <${gmailEmail}>`,
+            to,
+            subject: template.subject,
+            html: template.html(name)
+          });
+
+          console.log('[LINE Invitation] Email sent to:', to, 'MessageId:', info.messageId);
+          results.email = { success: true, messageId: info.messageId, to };
+        } else {
+          console.warn('[LINE Invitation] Gmail not configured');
+          results.email = { success: false, error: 'Gmail not configured' };
+        }
+      } catch (emailError) {
+        console.error('[LINE Invitation] Email error:', emailError);
+        results.email = { success: false, error: emailError.message };
       }
-    });
+    }
 
-    const info = await transporter.sendMail({
-      from: `"CNEC BIZ" <${gmailEmail}>`,
-      to,
-      subject: template.subject,
-      html: template.html(creatorName || 'クリエイター')
-    });
+    // 2. SMS 발송
+    if (phone) {
+      try {
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
-    console.log('[LINE Invitation Email] Sent to:', to, 'MessageId:', info.messageId);
+        if (accountSid && authToken && messagingServiceSid) {
+          // 전화번호 형식 정리
+          let phoneNumber = phone.replace(/[^0-9+]/g, '');
+
+          // 국가별 번호 변환
+          if (phoneNumber.startsWith('0') && phoneNumber.length === 11) {
+            // 한국 번호 (010-xxxx-xxxx)
+            if (phoneNumber.startsWith('010')) {
+              phoneNumber = '+82' + phoneNumber.substring(1); // +82-10-xxxx-xxxx
+            }
+            // 일본 번호 (090/080/070-xxxx-xxxx)
+            else if (phoneNumber.startsWith('090') || phoneNumber.startsWith('080') || phoneNumber.startsWith('070')) {
+              phoneNumber = '+81' + phoneNumber.substring(1); // +81-90-xxxx-xxxx
+            }
+            // language 기반 fallback
+            else if (language === 'ko') {
+              phoneNumber = '+82' + phoneNumber.substring(1);
+            } else {
+              phoneNumber = '+81' + phoneNumber.substring(1);
+            }
+          }
+          // + 없으면 추가
+          if (!phoneNumber.startsWith('+')) {
+            if (phoneNumber.startsWith('82')) {
+              phoneNumber = '+' + phoneNumber;
+            } else if (phoneNumber.startsWith('81')) {
+              phoneNumber = '+' + phoneNumber;
+            } else if (phoneNumber.startsWith('1') && phoneNumber.length === 11) {
+              phoneNumber = '+' + phoneNumber;
+            }
+          }
+
+          const smsTemplate = SMS_TEMPLATES[language] || SMS_TEMPLATES.ja;
+          const smsMessage = smsTemplate(name);
+
+          const client = twilio(accountSid, authToken);
+          const smsResult = await client.messages.create({
+            body: smsMessage,
+            messagingServiceSid: messagingServiceSid,
+            to: phoneNumber
+          });
+
+          console.log('[LINE Invitation] SMS sent to:', phoneNumber, 'SID:', smsResult.sid);
+          results.sms = { success: true, messageSid: smsResult.sid, to: phoneNumber };
+        } else {
+          console.warn('[LINE Invitation] Twilio not configured');
+          results.sms = { success: false, error: 'Twilio not configured' };
+        }
+      } catch (smsError) {
+        console.error('[LINE Invitation] SMS error:', smsError);
+        results.sms = { success: false, error: smsError.message, code: smsError.code };
+      }
+    }
+
+    // 결과 반환
+    const anySuccess = results.email?.success || results.sms?.success;
 
     return {
-      statusCode: 200,
+      statusCode: anySuccess ? 200 : 500,
       headers,
       body: JSON.stringify({
-        success: true,
-        messageId: info.messageId,
-        to
+        success: anySuccess,
+        results,
+        message: anySuccess
+          ? `발송 완료: ${results.email?.success ? '이메일' : ''}${results.email?.success && results.sms?.success ? ' + ' : ''}${results.sms?.success ? 'SMS' : ''}`
+          : '발송 실패'
       })
     };
 
   } catch (error) {
-    console.error('[LINE Invitation Email] Error:', error);
+    console.error('[LINE Invitation] Error:', error);
     return {
       statusCode: 500,
       headers,

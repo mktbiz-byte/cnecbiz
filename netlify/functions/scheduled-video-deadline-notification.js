@@ -16,22 +16,14 @@ const https = require('https');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
-// 팝빌 전역 설정
-popbill.config({
-  LinkID: process.env.POPBILL_LINK_ID || 'HOWLAB',
-  SecretKey: process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=',
-  IsTest: process.env.POPBILL_TEST_MODE === 'true',
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true,
-  defaultErrorHandler: function (Error) {
-    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
-  }
-});
-
-const kakaoService = popbill.KakaoService();
+// 팝빌 설정
+const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
+const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
+
+// 팝빌 카카오톡 서비스 초기화 (credentials 직접 전달 방식)
+const kakaoService = popbill.KakaoService(POPBILL_LINK_ID, POPBILL_SECRET_KEY);
 
 // 네이버 웍스 Private Key
 const NAVER_WORKS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----

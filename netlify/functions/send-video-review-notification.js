@@ -83,31 +83,44 @@ exports.handler = async (event) => {
           headers,
           body: JSON.stringify({
             success: true,
-            message: '수정 요청이 크리에이터에게 전달되었습니다',
+            message: '수정 요청이 크리에이터에게 전달되었습니다 (알림톡)',
             data: kakaoResponse.data
           })
         }
       } else {
-        // 알림톡 실패 - 에러 메시지 포함해서 반환
+        // 알림톡 실패 - 상세 에러 정보 포함
+        const errorDetails = {
+          success: false,
+          message: '알림 전송 실패',
+          error: kakaoResponse.data?.error || 'Unknown error',
+          errorDescription: kakaoResponse.data?.errorDescription || null,
+          code: kakaoResponse.data?.code || null,
+          debug: {
+            ...kakaoResponse.data?.debug,
+            creatorPhone: creatorPhone ? creatorPhone.slice(0, 3) + '****' + creatorPhone.slice(-4) : 'N/A',
+            templateCode: '025100001016'
+          }
+        }
+        console.error('[ERROR] Kakao notification failed with details:', errorDetails)
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({
-            success: false,
-            message: '알림 전송 실패',
-            error: kakaoResponse.data?.error || 'Unknown error'
-          })
+          body: JSON.stringify(errorDetails)
         }
       }
     } catch (kakaoError) {
-      console.error('[ERROR] Kakao notification failed:', kakaoError.message)
+      console.error('[ERROR] Kakao notification exception:', kakaoError.message)
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: false,
           message: '알림 전송 실패',
-          error: kakaoError.message
+          error: kakaoError.message,
+          debug: {
+            creatorPhone: creatorPhone ? creatorPhone.slice(0, 3) + '****' + creatorPhone.slice(-4) : 'N/A',
+            templateCode: '025100001016'
+          }
         })
       }
     }

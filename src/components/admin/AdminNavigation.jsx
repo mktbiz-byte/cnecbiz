@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Shield, Building2, TrendingUp, Users, Edit, Video,
-  HelpCircle, CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings, FileSignature, MessageCircle, Youtube
+  HelpCircle, CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings, FileSignature, MessageCircle, Youtube, Coins
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -28,10 +28,12 @@ export default function AdminNavigation() {
     { path: '/admin/featured-creators', icon: Users, label: '추천 크리에이터' },
     { path: '/admin/creators', icon: Users, label: '소속 크리에이터 & 채널' },
     { path: '/admin/all-creators', icon: Users, label: '전체 크리에이터' },
+    { path: '/admin/line-chat', icon: MessageCircle, label: 'LINE 채팅 관리' },
     { path: '/admin/youtuber-search', icon: Youtube, label: '유튜버 검색 & 섭외' },
     { path: '/admin/revenue-charts', icon: BarChart3, label: '매출 관리 (그래프)' },
-    { path: '/admin/points-charge', icon: CreditCard, label: '포인트 & 미수금' },
+    { path: '/admin/points-charge', icon: CreditCard, label: '입금확인 및 세금계산서 발급' },
     { path: '/admin/withdrawals', icon: Wallet, label: '크리에이터 출금' },
+    { path: '/admin/point-history', icon: Coins, label: '포인트 지급 내역' },
     { path: '/admin/contracts', icon: FileSignature, label: '계약서 관리' },
     { path: '/admin/tax-feedback', icon: MessageSquare, label: '세무서 피드백' },
     { path: '/admin/site-management', icon: Settings, label: '사이트 관리' },

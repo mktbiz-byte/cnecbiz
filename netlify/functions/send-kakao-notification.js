@@ -1,28 +1,29 @@
+// 팝빌 설정
 const popbill = require('popbill');
 
-// 팝빌 전역 설정
-popbill.config({
-  LinkID: process.env.POPBILL_LINK_ID || 'HOWLAB',
-  SecretKey: process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=',
-  IsTest: process.env.POPBILL_TEST_MODE === 'true',
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true,
-  defaultErrorHandler: function (Error) {
-    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
-  }
-});
-
-// 팝빌 카카오톡 서비스 객체 생성
-const kakaoService = popbill.KakaoService();
+const POPBILL_LINK_ID = process.env.POPBILL_LINK_ID || 'HOWLAB';
+const POPBILL_SECRET_KEY = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
 const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253';
 const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025';
 const POPBILL_USER_ID = process.env.POPBILL_USER_ID || '';
 
-console.log('Popbill Kakao service initialized successfully');
+// 팝빌 전역 설정 (sendATS_one 사용 시 필수)
+popbill.config({
+  LinkID: POPBILL_LINK_ID,
+  SecretKey: POPBILL_SECRET_KEY,
+  IsTest: false, // 운영환경
+  IPRestrictOnOff: true,
+  UseStaticIP: false,
+  UseLocalTimeYN: true
+});
+
+// 팝빌 카카오톡 서비스 초기화
+const kakaoService = popbill.KakaoService();
+
+console.log('Popbill Kakao service initialized with config');
+console.log('POPBILL_LINK_ID:', POPBILL_LINK_ID);
 console.log('POPBILL_CORP_NUM:', POPBILL_CORP_NUM);
 console.log('POPBILL_SENDER_NUM:', POPBILL_SENDER_NUM);
-console.log('POPBILL_TEST_MODE:', process.env.POPBILL_TEST_MODE);
 
 // 템플릿별 메시지 생성 함수 (팝빌 형식: #{변수명})
 function generateMessage(templateCode, variables) {
@@ -65,28 +66,17 @@ IBK기업은행 047-122753-04-011
 충전 포인트: #{포인트}P
 문의: 1833-6025`,
 
-    '025100001005': `[CNEC]: # "캠페인 초대장이 도착했어요!"
+    '025100001005': `[CNEC] 신청하신 캠페인 승인 완료
 
-안녕하세요, #{크리에이터명}님!
+#{회사명}님, 신청하신 캠페인이 승인되어 크리에이터 모집이 시작되었습니다.
 
-본 메시지는 #{기업명}에서 신청하신 기업 초대 알림으로, 기업에서 크리에이터님의 캠페인 참여를 요청하신 경우 발송됩니다.
+캠페인: #{캠페인명}
+모집 기간: #{시작일} ~ #{마감일}
+모집 인원: #{모집인원}명
 
-#{기업명}에서 진행하는 캠페인에 귀하는 스타일이 잘 맞습니다.
+관리자 페이지에서 진행 상황을 확인하실 수 있습니다.
 
-캠페인 정보
-• 캠페인명: #{캠페인명}
-• 패키지: #{패키지}
-• 보상금: #{보상금}
-• 모집 마감: #{마감일}
-
-지원시 확정되는 캠페인 입니다.
-
-기업에서 크리에이터님의 프로필을 확인하고 이 캠페인에 적합하다고 판단하셨습니다.
-
-지금 바로 확인하고 지원하세요!
-#{캠페인링크}
-
-※ 이 초대는 #{마감일}까지 유효합니다.`,
+문의: 1833-6025`,
 
     '025100001006': `[CNEC] 신청하신 캠페인 모집 마감
 #{회사명}님, 신청하신 캠페인의 크리에이터 모집이 마감되었습니다.
@@ -403,27 +393,21 @@ exports.handler = async (event) => {
     console.log('[INFO] Sending Kakao message:', kakaoMessage);
     console.log('[INFO] Using plusFriendID:', plusFriendID);
 
-    // 수신자 정보 배열 (sendATS용)
-    const receivers = [{
-      rcv: receiverNum,
-      rcvnm: receiverName || ''
-    }];
-
-    // 팝빌 API 호출 - sendATS로 plusFriendID 명시적 지정
+    // 팝빌 API 호출 - sendATS_one으로 단일 수신자 발송
     const result = await new Promise((resolve, reject) => {
-      kakaoService.sendATS(
+      kakaoService.sendATS_one(
         POPBILL_CORP_NUM,
         templateCode,
         POPBILL_SENDER_NUM,
         message,
         message, // altContent
         'C', // altSendType: C=동일내용
-        '', // sndDT (예약시간, 빈값=즉시발송)
-        receivers,
-        POPBILL_USER_ID,
         '', // requestNum
+        receiverNum.replace(/-/g, ''),
+        receiverName || '',
+        POPBILL_USER_ID,
+        '', // reserveDT (예약시간, 빈값=즉시발송)
         null, // btns
-        plusFriendID, // 채널 ID 명시적 지정
         (receiptNum) => {
           console.log('[SUCCESS] Popbill API result:', receiptNum);
           resolve({ receiptNum });
@@ -446,12 +430,39 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('[ERROR] Kakao notification error:', error);
+
+    // 팝빌 에러 코드 해석
+    const errorCodeMessages = {
+      '-99999999': '팝빌 서버 연결 실패',
+      '-20010': '수신번호 형식 오류',
+      '-20011': '수신번호 미입력',
+      '-20001': '템플릿 코드 미등록',
+      '-20002': '템플릿 내용 불일치',
+      '-20003': '템플릿 변수 불일치',
+      '-20004': '발신번호 미등록',
+      '-20005': '카카오채널 미연동',
+      '-20006': '잔액 부족',
+      '-99000020': '템플릿 내용 불일치 (공백/줄바꿈 포함 정확히 일치해야 함)',
+      '-11000004': '템플릿 미승인 또는 반려',
+      '-99000015': '카카오톡 발송 실패로 대체문자 발송됨'
+    };
+
+    // 상세 오류 정보 반환 (디버깅용)
+    const errorDetails = {
+      success: false,
+      error: error.message || 'Unknown error',
+      code: error.code || null,
+      errorDescription: error.code ? (errorCodeMessages[error.code] || `알 수 없는 오류 코드: ${error.code}`) : null,
+      debug: {
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    console.error('[ERROR] Error details:', JSON.stringify(errorDetails, null, 2));
+
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        success: false,
-        error: error.message
-      })
+      body: JSON.stringify(errorDetails)
     };
   }
 };

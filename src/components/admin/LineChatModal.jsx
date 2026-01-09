@@ -102,35 +102,41 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
     }
   };
 
-  // LINE 초대 이메일 발송
+  // LINE 초대 이메일 + SMS 발송
   const sendInviteEmail = async () => {
-    if (!creator?.email) {
-      alert('이메일 주소가 없습니다.');
+    if (!creator?.email && !creator?.phone) {
+      alert('이메일 주소 또는 전화번호가 없습니다.');
       return;
     }
 
-    const emailData = {
+    const inviteData = {
       to: creator.email,
+      phone: creator.phone,
       creatorName: creator.name || creator.creator_name || 'クリエイター',
       language: region === 'japan' ? 'ja' : 'ko'
     };
 
-    console.log('[LINE Invite Email] 발송 데이터:', emailData);
+    console.log('[LINE Invite] 발송 데이터:', inviteData);
 
     setSendingInvite(true);
     try {
       const response = await fetch('/.netlify/functions/send-line-invitation-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailData)
+        body: JSON.stringify(inviteData)
       });
 
-      if (response.ok) {
+      const result = await response.json();
+
+      if (response.ok && result.success) {
         setInviteSent(true);
-        alert('LINE 친구 추가 안내 이메일이 발송되었습니다.');
+        // 발송 결과 메시지 생성
+        const sentChannels = [];
+        if (result.results?.email?.success) sentChannels.push('이메일');
+        if (result.results?.sms?.success) sentChannels.push('SMS');
+        alert(`LINE 친구 추가 안내가 발송되었습니다. (${sentChannels.join(' + ')})`);
       } else {
-        const error = await response.json();
-        alert('발송 실패: ' + (error.error || '알 수 없는 오류'));
+        alert('발송 실패: ' + (result.error || '알 수 없는 오류'));
       }
     } catch (error) {
       console.error('Send invite error:', error);
@@ -275,15 +281,18 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
             <div className="text-center">
               <p className="font-medium text-gray-800">LINE 친구 추가가 필요합니다</p>
               <p className="text-sm text-gray-500 mt-1">
-                크리에이터에게 LINE 친구 추가 안내 이메일을 발송하세요
+                크리에이터에게 LINE 친구 추가 안내를 발송하세요
               </p>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 w-full">
+            <div className="bg-gray-50 rounded-lg p-4 w-full space-y-1">
               <p className="text-sm text-gray-600">
-                <strong>수신자:</strong> {creator?.email || '이메일 없음'}
+                <strong>이메일:</strong> {creator?.email || <span className="text-yellow-600">없음</span>}
               </p>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600">
+                <strong>전화번호:</strong> {creator?.phone || <span className="text-yellow-600">없음</span>}
+              </p>
+              <p className="text-sm text-gray-600">
                 <strong>언어:</strong> {region === 'japan' ? '일본어' : '한국어'}
               </p>
             </div>
@@ -291,12 +300,12 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
             {inviteSent && (
               <div className="flex items-center gap-2 text-green-600 mb-2">
                 <CheckCircle className="w-5 h-5" />
-                <span>초대 이메일 발송 완료!</span>
+                <span>초대 발송 완료!</span>
               </div>
             )}
             <Button
               onClick={sendInviteEmail}
-              disabled={sendingInvite || !creator?.email}
+              disabled={sendingInvite || (!creator?.email && !creator?.phone)}
               className="bg-green-500 hover:bg-green-600"
             >
               {sendingInvite ? (
@@ -307,7 +316,10 @@ export default function LineChatModal({ open, onOpenChange, creator, region = 'j
               ) : (
                 <>
                   <Mail className="w-4 h-4 mr-2" />
-                  {inviteSent ? '초대 이메일 다시 발송' : 'LINE 친구 추가 안내 이메일 발송'}
+                  {inviteSent ? '다시 발송' : 'LINE 친구 추가 안내 발송'}
+                  {creator?.email && creator?.phone && ' (이메일 + SMS)'}
+                  {creator?.email && !creator?.phone && ' (이메일)'}
+                  {!creator?.email && creator?.phone && ' (SMS)'}
                 </>
               )}
             </Button>
