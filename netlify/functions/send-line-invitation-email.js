@@ -23,8 +23,8 @@ const SMS_TEMPLATES = {
 追加後メールアドレスを送信してください。`,
 
   ko: (creatorName) =>
-`[CNEC] ${creatorName}님, 라인 앱에서 ${LINE_ID} 검색 후 친구추가!
-추가 후 이메일을 라인으로 보내주세요.`
+`[CNEC] ${creatorName}님, 메신저 앱에서 ${LINE_ID} 검색 후 친구추가!
+추가 후 이메일을 메신저로 보내주세요.`
 };
 
 // 언어별 이메일 템플릿
