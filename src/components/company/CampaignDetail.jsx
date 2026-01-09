@@ -2835,7 +2835,8 @@ JSON만 출력.`
         if (profile?.phone) {
           try {
             const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
-            await fetch('/.netlify/functions/send-kakao-notification', {
+            console.log('알림톡 발송 시도:', { phone: profile.phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
+            const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -2849,11 +2850,19 @@ JSON만 출력.`
                 }
               })
             })
-            console.log('✓ 영상 승인 완료 알림톡 발송')
+            const kakaoResult = await kakaoResponse.json()
+            console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
+            if (!kakaoResponse.ok) {
+              console.error('알림톡 발송 실패 응답:', kakaoResult)
+            }
           } catch (kakaoError) {
             console.error('알림톡 발송 실패:', kakaoError)
           }
+        } else {
+          console.log('알림톡 발송 스킵 - 전화번호 없음:', participant?.user_id)
         }
+      } else {
+        console.log('알림톡 발송 스킵 - 참가자 없음:', submission.user_id)
       }
 
       await fetchVideoSubmissions()
