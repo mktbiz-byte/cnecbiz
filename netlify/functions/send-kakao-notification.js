@@ -393,27 +393,21 @@ exports.handler = async (event) => {
     console.log('[INFO] Sending Kakao message:', kakaoMessage);
     console.log('[INFO] Using plusFriendID:', plusFriendID);
 
-    // 수신자 정보 배열 (sendATS용)
-    const receivers = [{
-      rcv: receiverNum,
-      rcvnm: receiverName || ''
-    }];
-
-    // 팝빌 API 호출 - sendATS로 plusFriendID 명시적 지정
+    // 팝빌 API 호출 - sendATS_one으로 단일 수신자 발송
     const result = await new Promise((resolve, reject) => {
-      kakaoService.sendATS(
+      kakaoService.sendATS_one(
         POPBILL_CORP_NUM,
         templateCode,
         POPBILL_SENDER_NUM,
         message,
         message, // altContent
         'C', // altSendType: C=동일내용
-        '', // sndDT (예약시간, 빈값=즉시발송)
-        receivers,
-        POPBILL_USER_ID,
         '', // requestNum
+        receiverNum.replace(/-/g, ''),
+        receiverName || '',
+        POPBILL_USER_ID,
+        '', // reserveDT (예약시간, 빈값=즉시발송)
         null, // btns
-        plusFriendID, // 채널 ID 명시적 지정
         (receiptNum) => {
           console.log('[SUCCESS] Popbill API result:', receiptNum);
           resolve({ receiptNum });
