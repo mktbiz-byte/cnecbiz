@@ -14,17 +14,18 @@ const twilio = require('twilio');
  */
 
 const LINE_FRIEND_URL = 'https://line.me/R/ti/p/@065vdhwf';
+const LINE_REDIRECT_URL = 'https://cnecbiz.com/line';  // 통신사 필터링 우회용
 
 // SMS 템플릿
 const SMS_TEMPLATES = {
   ja: (creatorName) =>
 `[CNEC] ${creatorName}様、LINE友だち追加でキャンペーン通知を受け取れます！
-${LINE_FRIEND_URL}
+${LINE_REDIRECT_URL}
 追加後、メールアドレスをLINEで送信してください。`,
 
   ko: (creatorName) =>
 `[CNEC] ${creatorName}님, LINE 친구추가 후 캠페인 알림을 받으세요!
-${LINE_FRIEND_URL}
+${LINE_REDIRECT_URL}
 추가 후 이메일을 LINE으로 보내주세요.`
 };
 
