@@ -5399,22 +5399,30 @@ JSON만 출력.`
                 </div>
 
                 {(() => {
-                  // Group video submissions by user_id
+                  // Group video submissions by user_id (and week_number for 4week_challenge)
                   // Show all non-approved submissions (submitted, video_submitted, revision_requested, resubmitted, pending, null)
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
                   const filteredSubmissions = videoSubmissions.filter(v => !['approved', 'completed', 'rejected'].includes(v.status))
+
+                  // 4주 챌린지 캠페인 여부 확인
+                  const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+
+                  // 4주 챌린지: user_id + week_number로 그룹화, 그 외: user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
-                    if (!acc[submission.user_id]) {
-                      acc[submission.user_id] = []
+                    const groupKey = is4WeekChallenge
+                      ? `${submission.user_id}_week${submission.week_number || 1}`
+                      : submission.user_id
+                    if (!acc[groupKey]) {
+                      acc[groupKey] = []
                     }
-                    acc[submission.user_id].push(submission)
+                    acc[groupKey].push(submission)
                     return acc
                   }, {})
-                  
+
                   // Sort each group by submitted_at (newest first - 최신 영상이 먼저 보이도록)
-                  Object.keys(groupedByUser).forEach(userId => {
-                    groupedByUser[userId].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+                  Object.keys(groupedByUser).forEach(groupKey => {
+                    groupedByUser[groupKey].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
                   })
                   
                   if (Object.keys(groupedByUser).length === 0) {
@@ -5425,10 +5433,21 @@ JSON만 출력.`
                     )
                   }
                   
+                  // 4주 챌린지인 경우 주차 순으로 정렬
+                  const sortedEntries = Object.entries(groupedByUser).sort((a, b) => {
+                    if (is4WeekChallenge) {
+                      // week 번호로 정렬 (week1, week2, week3, week4)
+                      const weekA = parseInt(a[0].match(/_week(\d+)/)?.[1] || '0')
+                      const weekB = parseInt(b[0].match(/_week(\d+)/)?.[1] || '0')
+                      return weekA - weekB
+                    }
+                    return 0
+                  })
+
                   return (
                     <div className="space-y-6">
-                      {Object.entries(groupedByUser).map(([userId, submissions]) => {
-                        const selectedVersion = selectedVideoVersions[userId] || 0
+                      {sortedEntries.map(([groupKey, submissions]) => {
+                        const selectedVersion = selectedVideoVersions[groupKey] || 0
                         const submission = submissions[selectedVersion]
                         return (
                       <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
@@ -5461,7 +5480,7 @@ JSON만 출력.`
                                   {submissions.map((sub, index) => (
                                     <button
                                       key={index}
-                                      onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [userId]: index }))}
+                                      onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [groupKey]: index }))}
                                       className={`px-3 py-1 text-sm rounded-md transition-colors ${
                                         selectedVersion === index
                                           ? 'bg-blue-600 text-white'
@@ -5478,7 +5497,7 @@ JSON만 출력.`
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                                 <video
-                                  key={`${userId}-${selectedVersion}-${submission.id}`}
+                                  key={`${groupKey}-${selectedVersion}-${submission.id}`}
                                   controls
                                   autoPlay
                                   muted
