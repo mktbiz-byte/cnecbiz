@@ -180,7 +180,8 @@ export default function CampaignDetail() {
   const [isGeneratingAllGuides, setIsGeneratingAllGuides] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
-  const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id: version_index}
+  const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id_step: version_index}
+  const [selectedVideoSteps, setSelectedVideoSteps] = useState({}) // {user_id: step_number (week or video number)}
   const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
   const [showIndividualMessageModal, setShowIndividualMessageModal] = useState(false)
   const [individualMessage, setIndividualMessage] = useState('')
@@ -2776,8 +2777,7 @@ JSON만 출력.`
         .update({
           status: 'approved',
           approved_at: new Date().toISOString(),
-          reviewed_at: new Date().toISOString(),
-          upload_deadline: inputDeadline
+          reviewed_at: new Date().toISOString()
         })
         .eq('id', submission.id)
 
@@ -2835,7 +2835,8 @@ JSON만 출력.`
         if (profile?.phone) {
           try {
             const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
-            await fetch('/.netlify/functions/send-kakao-notification', {
+            console.log('알림톡 발송 시도:', { phone: profile.phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
+            const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -2849,11 +2850,50 @@ JSON만 출력.`
                 }
               })
             })
-            console.log('✓ 영상 승인 완료 알림톡 발송')
+            const kakaoResult = await kakaoResponse.json()
+            console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
+            if (!kakaoResponse.ok) {
+              console.error('알림톡 발송 실패 응답:', kakaoResult)
+            }
           } catch (kakaoError) {
             console.error('알림톡 발송 실패:', kakaoError)
           }
+        } else {
+          console.log('알림톡 발송 스킵 - 전화번호 없음:', participant?.user_id)
         }
+
+        // 이메일 발송
+        if (profile?.email) {
+          try {
+            const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: profile.email,
+                subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
+                    <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                    <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${inputDeadline}</p>
+                    </div>
+                    <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ 영상 승인 완료 이메일 발송 성공')
+          } catch (emailError) {
+            console.error('영상 승인 이메일 발송 실패:', emailError)
+          }
+        }
+      } else {
+        console.log('알림톡 발송 스킵 - 참가자 없음:', submission.user_id)
       }
 
       await fetchVideoSubmissions()
@@ -5399,11 +5439,20 @@ JSON만 출력.`
                 </div>
 
                 {(() => {
-                  // Group video submissions by user_id
-                  // Show all non-approved submissions (submitted, video_submitted, revision_requested, resubmitted, pending, null)
+                  // Group video submissions by user_id only
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
-                  const filteredSubmissions = videoSubmissions.filter(v => !['approved', 'completed', 'rejected'].includes(v.status))
+
+                  // 캠페인 타입 확인
+                  const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                  const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                  const isMultiStepCampaign = is4WeekChallenge || isOliveyoung
+
+                  // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
+                  // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
+                  const filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+
+                  // user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
                     if (!acc[submission.user_id]) {
                       acc[submission.user_id] = []
@@ -5411,12 +5460,7 @@ JSON만 출력.`
                     acc[submission.user_id].push(submission)
                     return acc
                   }, {})
-                  
-                  // Sort each group by submitted_at (newest first - 최신 영상이 먼저 보이도록)
-                  Object.keys(groupedByUser).forEach(userId => {
-                    groupedByUser[userId].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
-                  })
-                  
+
                   if (Object.keys(groupedByUser).length === 0) {
                     return (
                       <div className="text-center py-12 text-gray-500">
@@ -5424,61 +5468,109 @@ JSON만 출력.`
                       </div>
                     )
                   }
-                  
+
                   return (
                     <div className="space-y-6">
-                      {Object.entries(groupedByUser).map(([userId, submissions]) => {
-                        const selectedVersion = selectedVideoVersions[userId] || 0
-                        const submission = submissions[selectedVersion]
+                      {Object.entries(groupedByUser).map(([userId, userSubmissions]) => {
+                        // 멀티스텝 캠페인인 경우 주차/영상번호별로 다시 그룹화
+                        const submissionsByStep = {}
+                        if (is4WeekChallenge) {
+                          userSubmissions.forEach(sub => {
+                            const step = sub.week_number || 1
+                            if (!submissionsByStep[step]) submissionsByStep[step] = []
+                            submissionsByStep[step].push(sub)
+                          })
+                        } else if (isOliveyoung) {
+                          userSubmissions.forEach(sub => {
+                            const step = sub.video_number || 1
+                            if (!submissionsByStep[step]) submissionsByStep[step] = []
+                            submissionsByStep[step].push(sub)
+                          })
+                        } else {
+                          submissionsByStep[1] = userSubmissions
+                        }
+
+                        // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저)
+                        Object.keys(submissionsByStep).forEach(step => {
+                          submissionsByStep[step].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+                        })
+
+                        const availableSteps = Object.keys(submissionsByStep).map(Number).sort((a, b) => a - b)
+                        const selectedStep = selectedVideoSteps[userId] || availableSteps[0]
+                        const stepSubmissions = submissionsByStep[selectedStep] || []
+                        const versionKey = `${userId}_${selectedStep}`
+                        const selectedVersion = selectedVideoVersions[versionKey] || 0
+                        const submission = stepSubmissions[selectedVersion]
+
+                        if (!submission) return null
+
                         return (
-                      <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
+                      <div key={userId} className="border rounded-lg p-6 bg-white shadow-sm">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <div>
                                 <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
-                                <div className="flex gap-2 mt-1">
-                                  {submission.video_number && (
-                                    <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded">
-                                      영상 {submission.video_number}
-                                    </span>
-                                  )}
-                                  {submission.week_number && (
-                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                                      {submission.week_number}주차
-                                    </span>
-                                  )}
-                                  {submission.version && (
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
-                                      V{submission.version}
-                                    </span>
-                                  )}
-                                </div>
                               </div>
-                              {submissions.length > 1 && (
-                                <div className="flex gap-2">
-                                  {submissions.map((sub, index) => (
-                                    <button
-                                      key={index}
-                                      onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [userId]: index }))}
-                                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                                        selectedVersion === index
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                      }`}
-                                    >
-                                      v{sub.version || (submissions.length - index)}
-                                    </button>
-                                  ))}
-                                </div>
+                            </div>
+
+                            {/* 주차/영상번호 탭 (4주 챌린지, 올리브영) */}
+                            {isMultiStepCampaign && availableSteps.length > 0 && (
+                              <div className="flex gap-2 mb-3">
+                                {availableSteps.map(step => (
+                                  <button
+                                    key={step}
+                                    onClick={() => setSelectedVideoSteps(prev => ({ ...prev, [userId]: step }))}
+                                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                      selectedStep === step
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                    }`}
+                                  >
+                                    {is4WeekChallenge ? `${step}주차` : `영상 ${step}`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* 버전 탭 */}
+                            {stepSubmissions.length > 1 && (
+                              <div className="flex gap-2 mb-3">
+                                {stepSubmissions.map((sub, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [versionKey]: index }))}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                      selectedVersion === index
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                  >
+                                    v{sub.version || (stepSubmissions.length - index)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* 현재 선택된 주차/버전 표시 */}
+                            <div className="flex gap-2 mb-3">
+                              {isMultiStepCampaign && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                                  {is4WeekChallenge ? `${selectedStep}주차` : `영상 ${selectedStep}`}
+                                </span>
+                              )}
+                              {submission.version && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
+                                  V{submission.version}
+                                </span>
                               )}
                             </div>
-                            
+
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                                 <video
-                                  key={`${userId}-${selectedVersion}-${submission.id}`}
+                                  key={`${userId}-${selectedStep}-${selectedVersion}-${submission.id}`}
                                   controls
                                   autoPlay
                                   muted
@@ -5491,7 +5583,7 @@ JSON만 출력.`
                                 </video>
                               </div>
                             )}
-                            
+
                             <div className="mt-4 space-y-2">
                               {submission.sns_title && (
                                 <div>
@@ -5507,11 +5599,13 @@ JSON만 출력.`
                               )}
                             </div>
                           </div>
-                          
+
                           {/* 오른쪽: 정보 및 버튼 */}
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              {submission.status === 'submitted' ? (
+                              {submission.status === 'approved' ? (
+                                <Badge className="bg-green-100 text-green-700">검수 완료</Badge>
+                              ) : submission.status === 'submitted' ? (
                                 <Badge className="bg-blue-100 text-blue-700">검토 대기</Badge>
                               ) : (
                                 <Badge className="bg-yellow-100 text-yellow-700">수정 요청됨</Badge>
@@ -5593,26 +5687,35 @@ JSON만 출력.`
                                 </svg>
                                 영상 다운로드
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => {
-                                  navigate(`/video-review/${submission.id}`)
-                                }}
-                              >
-                                영상 수정 요청하기
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                                onClick={async () => {
-                                  if (!confirm('이 영상을 검수 완료하시겠습니까?\n\nSNS 업로드 확인 후 "최종 확정" 버튼을 눌러주세요.')) return
-                                  await handleVideoApproval(submission)
-                                }}
-                              >
-                                검수 완료
-                              </Button>
+                              {submission.status !== 'approved' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => {
+                                      navigate(`/video-review/${submission.id}`)
+                                    }}
+                                  >
+                                    영상 수정 요청하기
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={async () => {
+                                      if (!confirm('이 영상을 검수 완료하시겠습니까?\n\nSNS 업로드 확인 후 "최종 확정" 버튼을 눌러주세요.')) return
+                                      await handleVideoApproval(submission)
+                                    }}
+                                  >
+                                    검수 완료
+                                  </Button>
+                                </>
+                              )}
+                              {submission.status === 'approved' && (
+                                <div className="text-center text-sm text-green-600 font-medium py-2 bg-green-50 rounded">
+                                  ✓ 이 영상은 검수 완료되었습니다
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -5640,12 +5743,18 @@ JSON만 출력.`
                   // - 일반 캠페인: approved/completed 상태
                   // - 멀티비디오 캠페인: approved/completed/sns_uploaded 상태 OR SNS URL이 하나라도 입력된 경우
                   // - campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시 (데이터 직접 입력 대응)
+                  // - video_submissions에 approved된 영상이 있는 경우도 포함
                   const completedSectionParticipants = participants.filter(p => {
                     if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
                     // 4주 챌린지 URL이 있으면 표시
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
+                    // video_submissions에 approved된 영상이 있으면 표시
+                    const hasApprovedVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && v.status === 'approved'
+                    )
+                    if (hasApprovedVideo) return true
                     return false
                   })
 
@@ -5718,12 +5827,18 @@ JSON만 출력.`
 
                   // 완료 섹션에 표시할 참가자 필터
                   // campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시
+                  // video_submissions에 approved된 영상이 있는 경우도 포함
                   const completedSectionParticipants = participants.filter(p => {
                     if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
                     // 4주 챌린지 URL이 있으면 표시
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
+                    // video_submissions에 approved된 영상이 있으면 표시
+                    const hasApprovedVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && v.status === 'approved'
+                    )
+                    if (hasApprovedVideo) return true
                     return false
                   })
 
@@ -5826,7 +5941,14 @@ JSON만 출력.`
 
                                       {/* SNS 업로드 URL (video_submissions 또는 campaign_participants에서) */}
                                       {(() => {
-                                        const snsUrl = submission.sns_upload_url || participant.sns_upload_url
+                                        // 4주 챌린지/올리브영의 경우 주차/영상번호에 맞는 URL 가져오기
+                                        let snsUrl = submission.sns_upload_url
+                                        if (!snsUrl && is4WeekChallenge && submission.week_number) {
+                                          snsUrl = participant[`week${submission.week_number}_url`]
+                                        } else if (!snsUrl && isOliveyoung && submission.video_number) {
+                                          snsUrl = participant[`step${submission.video_number}_url`]
+                                        }
+                                        if (!snsUrl) snsUrl = participant.sns_upload_url
                                         return snsUrl ? (
                                           <div className="flex items-center gap-2 mb-2">
                                             <Link className="w-4 h-4 text-blue-500" />
@@ -5895,7 +6017,17 @@ JSON만 출력.`
 
                                       {/* 파트너십 광고 코드 (영상별 또는 참가자별) */}
                                       {(() => {
-                                        const adCode = submission.ad_code || submission.partnership_code || participant.partnership_code
+                                        // 4주 챌린지/올리브영의 경우 주차/영상번호에 맞는 광고코드 가져오기
+                                        let adCode = submission.ad_code || submission.partnership_code
+                                        if (!adCode && is4WeekChallenge && submission.week_number) {
+                                          adCode = participant[`week${submission.week_number}_partnership_code`]
+                                        } else if (!adCode && isOliveyoung && submission.video_number) {
+                                          // 올리브영: step1,2는 step1_2_partnership_code, step3는 step3_partnership_code
+                                          adCode = submission.video_number === 3
+                                            ? participant.step3_partnership_code
+                                            : participant.step1_2_partnership_code
+                                        }
+                                        if (!adCode) adCode = participant.partnership_code
                                         return adCode ? (
                                           <div className="flex items-center gap-2 mb-2">
                                             <Hash className="w-4 h-4 text-orange-500" />
@@ -7613,6 +7745,37 @@ JSON만 출력.`
                           console.error('알림톡 발송 실패:', kakaoError)
                         }
                       }
+
+                      // 이메일 발송
+                      if (profile?.email) {
+                        try {
+                          const creatorName = profile.full_name || selectedParticipant.creator_name || '크리에이터'
+                          await fetch('/.netlify/functions/send-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              to: profile.email,
+                              subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
+                              html: `
+                                <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                                  <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
+                                  <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                                  <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
+                                  <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                                    <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                                    <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${uploadDeadline}</p>
+                                  </div>
+                                  <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
+                                  <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                                </div>
+                              `
+                            })
+                          })
+                          console.log('✓ 영상 승인 완료 이메일 발송 성공')
+                        } catch (emailError) {
+                          console.error('영상 승인 이메일 발송 실패:', emailError)
+                        }
+                      }
                     }
 
                     alert('영상이 승인되었습니다!')
@@ -7666,9 +7829,9 @@ JSON만 출력.`
                       // 알림톡 발송
                       if (profile?.phone) {
                         try {
-                          // 재제출 기한: 오늘 + 3일
+                          // 재제출 기한: 오늘 + 2일
                           const resubmitDate = new Date()
-                          resubmitDate.setDate(resubmitDate.getDate() + 3)
+                          resubmitDate.setDate(resubmitDate.getDate() + 2)
                           const resubmitDeadline = resubmitDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
 
                           await fetch('/.netlify/functions/send-kakao-notification', {

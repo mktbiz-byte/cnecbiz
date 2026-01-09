@@ -78,16 +78,15 @@ exports.handler = async (event) => {
 
     // 오늘 날짜 (한국시간)
     const today = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
-    // 재제출 기한 (7일 후)
+    // 재제출 기한 (2일 후)
     const resubmitDeadline = new Date()
-    resubmitDeadline.setDate(resubmitDeadline.getDate() + 7)
+    resubmitDeadline.setDate(resubmitDeadline.getDate() + 2)
     const resubmitDate = resubmitDeadline.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })
 
     // 알림톡 발송 메시지 구성 (팝빌 템플릿 025100001016과 100% 동일해야 함)
     // 템플릿의 #{변수명}을 실제 값으로 치환
-    // 주의: 빈 줄 포함 템플릿 형식 정확히 일치해야 알림톡으로 발송됨
+    // 주의: 템플릿 형식 정확히 일치해야 알림톡으로 발송됨
     const templateContent = `[CNEC] 제출하신 영상 수정 요청
-
 #{크리에이터명}님, 제출하신 영상에 수정 요청이 있습니다.
 
 캠페인: #{캠페인명}
@@ -112,7 +111,13 @@ exports.handler = async (event) => {
       message = message.replace(new RegExp(`#\\{${key}\\}`, 'g'), value)
     }
 
-    // 알림톡 발송 시도
+    // 알림톡 발송 시도 - sendATS로 plusFriendID 명시적 지정
+    const receivers = [{
+      rcv: creatorPhone.replace(/-/g, ''),
+      rcvnm: creatorName || '크리에이터'
+    }]
+    const plusFriendID = '@크넥_크리에이터'  // 크리에이터용 채널
+
     try {
       const result = await new Promise((resolve, reject) => {
         kakaoService.sendATS(
@@ -120,14 +125,14 @@ exports.handler = async (event) => {
           '025100001016',                    // 템플릿 코드 (영상 수정 요청 알림)
           process.env.POPBILL_SENDER_NUM || '0212345678', // 발신번호
           message,                           // 템플릿 내용
-          '[CNEC] 영상 수정 요청',           // 대체문자 제목
           message,                           // 대체문자 내용
-          'A',                               // 대체문자 유형 (A: 대체문자 내용으로)
-          creatorPhone.replace(/-/g, ''),    // 수신번호
-          creatorName || '크리에이터',       // 수신자명
+          'C',                               // 대체문자 유형 (C: 동일내용)
           '',                                // 예약일시 (빈 문자열: 즉시발송)
-          '',                                // 요청번호
+          receivers,                         // 수신자 배열
           UserID || '',                      // 팝빌 회원 아이디
+          '',                                // 요청번호
+          null,                              // 버튼
+          plusFriendID,                      // 채널 ID (@크넥_크리에이터)
           (result) => {
             console.log('[SUCCESS] KakaoTalk ATS sent:', result)
             resolve(result)

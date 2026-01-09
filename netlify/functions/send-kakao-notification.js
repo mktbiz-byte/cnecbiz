@@ -170,7 +170,6 @@ IBK기업은행 047-122753-04-011
 문의: 1833-6025`,
 
     '025100001016': `[CNEC] 제출하신 영상 수정 요청
-
 #{크리에이터명}님, 제출하신 영상에 수정 요청이 있습니다.
 
 캠페인: #{캠페인명}
@@ -182,12 +181,15 @@ IBK기업은행 047-122753-04-011
 
 문의: 1833-6025`,
 
-    '025100001017': `[CNEC] 제출하신 영상 검수 완료
-#{크리에이터명}님, 제출하신 영상 검수가 완료되었습니다.
+    '025100001017': `[CNEC] 제출하신 영상 승인 완료
+#{크리에이터명}님, 제출하신 영상이 최종 승인되었습니다.
+
 캠페인: #{캠페인명}
-승인일: #{승인일}
-크리에이터 대시보드에서 최종 가이드를 확인하시고, SNS에 업로드해 주세요.
+
+이제 SNS에 영상을 업로드해 주세요. 업로드 완료 후 크리에이터 대시보드에서 업로드 링크를 등록해 주시기 바랍니다.
+
 업로드 기한: #{업로드기한}
+
 문의: 1833-6025`,
 
     '025100001018': `[CNEC] 참여하신 캠페인 SNS 업로드 기한 안내
@@ -399,21 +401,27 @@ exports.handler = async (event) => {
     console.log('[INFO] Sending Kakao message:', kakaoMessage);
     console.log('[INFO] Using plusFriendID:', plusFriendID);
 
-    // 팡빌 API 호출
+    // 수신자 정보 배열 (sendATS용)
+    const receivers = [{
+      rcv: receiverNum,
+      rcvnm: receiverName || ''
+    }];
+
+    // 팝빌 API 호출 - sendATS로 plusFriendID 명시적 지정
     const result = await new Promise((resolve, reject) => {
-      kakaoService.sendATS_one(
+      kakaoService.sendATS(
         POPBILL_CORP_NUM,
         templateCode,
         POPBILL_SENDER_NUM,
         message,
         message, // altContent
-        'A', // adsYN
-        '', // requestNum
-        receiverNum,
-        receiverName || '',
+        'C', // altSendType: C=동일내용
+        '', // sndDT (예약시간, 빈값=즉시발송)
+        receivers,
         POPBILL_USER_ID,
-        '', // reserveDT
+        '', // requestNum
         null, // btns
+        plusFriendID, // 채널 ID 명시적 지정
         (receiptNum) => {
           console.log('[SUCCESS] Popbill API result:', receiptNum);
           resolve({ receiptNum });
