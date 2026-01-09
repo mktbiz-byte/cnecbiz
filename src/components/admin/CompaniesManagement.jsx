@@ -165,14 +165,13 @@ export default function CompaniesManagement() {
             body: JSON.stringify({
               receiverNum: phoneNumber,
               receiverName: company.contact_name || company.company_name,
-              templateCode: '025120000522',
+              templateCode: '025100000912',
               variables: {
-                '회사명': company.company_name || '기업',
-                '승인일시': approvalDate
+                '회원명': company.company_name || '기업'
               }
             })
           })
-          console.log('✓ 기업 승인 알림톡 발송 완료')
+          console.log('✓ 기업 가입완료 알림톡 발송 완료')
         } catch (kakaoError) {
           console.error('알림톡 발송 실패:', kakaoError)
         }
