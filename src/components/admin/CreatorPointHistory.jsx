@@ -5,8 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Coins, Search, Download, ArrowUpCircle, ArrowDownCircle,
-  RefreshCw, Calendar, User, Briefcase
+  RefreshCw, Calendar, User, Briefcase, X, Eye
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -16,7 +22,7 @@ export default function CreatorPointHistory() {
   const navigate = useNavigate()
   const [transactions, setTransactions] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all') // all, add, deduct, campaign
+  const [filterType, setFilterType] = useState('all')
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState({
     totalPaid: 0,
@@ -25,8 +31,10 @@ export default function CreatorPointHistory() {
     adminAdd: 0
   })
 
-  // 크리에이터 정보 캐시
-  const [creatorCache, setCreatorCache] = useState({})
+  // 크리에이터 상세 모달
+  const [selectedCreator, setSelectedCreator] = useState(null)
+  const [creatorTransactions, setCreatorTransactions] = useState([])
+  const [showCreatorModal, setShowCreatorModal] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -65,7 +73,7 @@ export default function CreatorPointHistory() {
     try {
       let allTransactions = []
 
-      // Korea DB에서 point_transactions 조회 (지급 관련만)
+      // Korea DB에서 point_transactions 조회
       if (supabaseKorea) {
         const { data: koreaData, error: koreaError } = await supabaseKorea
           .from('point_transactions')
@@ -75,66 +83,31 @@ export default function CreatorPointHistory() {
           .limit(500)
 
         if (!koreaError && koreaData) {
-          console.log('Korea DB point_transactions 조회:', koreaData.length, '건')
+          console.log('Korea DB point_transactions:', koreaData.length, '건')
 
-          // user_id로 크리에이터 정보 조회
-          const userIds = [...new Set(koreaData.map(t => t.user_id).filter(Boolean))]
-          let userProfiles = {}
+          // 전체 user_profiles 조회
+          const { data: allProfiles } = await supabaseKorea
+            .from('user_profiles')
+            .select('id, user_id, name, email, channel_name, phone')
+            .limit(2000)
 
-          console.log('조회할 user_ids:', userIds.slice(0, 5))
-
-          if (userIds.length > 0) {
-            // 1. id로 조회
-            const { data: profiles1, error: err1 } = await supabaseKorea
-              .from('user_profiles')
-              .select('id, user_id, name, email, channel_name')
-              .in('id', userIds)
-
-            console.log('id로 조회 결과:', profiles1?.length || 0, '건', err1)
-
-            if (profiles1) {
-              profiles1.forEach(p => {
-                if (p.id) userProfiles[p.id] = p
-                if (p.user_id) userProfiles[p.user_id] = p
-              })
-            }
-
-            // 2. user_id로 조회
-            const { data: profiles2, error: err2 } = await supabaseKorea
-              .from('user_profiles')
-              .select('id, user_id, name, email, channel_name')
-              .in('user_id', userIds)
-
-            console.log('user_id로 조회 결과:', profiles2?.length || 0, '건', err2)
-
-            if (profiles2) {
-              profiles2.forEach(p => {
-                if (p.id) userProfiles[p.id] = p
-                if (p.user_id) userProfiles[p.user_id] = p
-              })
-            }
-
-            // 3. 전체 user_profiles에서 name으로 매칭 시도 (description에 이름이 포함된 경우)
-            const { data: allProfiles } = await supabaseKorea
-              .from('user_profiles')
-              .select('id, user_id, name, email, channel_name')
-              .limit(1000)
-
-            if (allProfiles) {
-              allProfiles.forEach(p => {
-                if (p.id) userProfiles[p.id] = p
-                if (p.user_id) userProfiles[p.user_id] = p
-              })
-            }
-
-            console.log('총 매핑된 프로필:', Object.keys(userProfiles).length, '건')
+          // 프로필 맵 생성 (id와 user_id 모두 키로 사용)
+          const profileMap = {}
+          if (allProfiles) {
+            allProfiles.forEach(p => {
+              if (p.id) profileMap[p.id] = p
+              if (p.user_id) profileMap[p.user_id] = p
+            })
+            console.log('프로필 맵 생성:', Object.keys(profileMap).length, '개 키')
           }
 
-          setCreatorCache(prev => ({ ...prev, ...userProfiles }))
+          // 샘플 user_id 출력
+          const sampleUserIds = koreaData.slice(0, 3).map(t => t.user_id)
+          console.log('샘플 point_transactions user_id:', sampleUserIds)
 
           // 캠페인 정보 조회
           const campaignIds = [...new Set(koreaData.map(t => t.related_campaign_id).filter(Boolean))]
-          let campaigns = {}
+          let campaignMap = {}
 
           if (campaignIds.length > 0) {
             const { data: campaignData } = await supabaseKorea
@@ -143,32 +116,32 @@ export default function CreatorPointHistory() {
               .in('id', campaignIds)
 
             if (campaignData) {
-              campaignData.forEach(c => {
-                campaigns[c.id] = c
-              })
+              campaignData.forEach(c => campaignMap[c.id] = c)
             }
           }
 
           const koreaTransactions = koreaData.map(t => {
-            const profile = userProfiles[t.user_id]
-            const campaign = campaigns[t.related_campaign_id]
+            const profile = profileMap[t.user_id]
+            const campaign = campaignMap[t.related_campaign_id]
 
-            // description에서 캠페인 정보 추출 시도
-            let campaignTitle = campaign?.title || null
-            if (!campaignTitle && t.description) {
-              // [캠페인명: XXX] 또는 캠페인: XXX 패턴 찾기
-              const campaignMatch = t.description.match(/캠페인[명:\s]*([^\]]+)/i)
-              if (campaignMatch) {
-                campaignTitle = campaignMatch[1].trim()
+            // description에서 크리에이터명 추출 시도
+            let creatorName = profile?.channel_name || profile?.name
+            if (!creatorName && t.description) {
+              // [크리에이터: XXX] 패턴
+              const nameMatch = t.description.match(/크리에이터[:\s]*([^\],]+)/i)
+              if (nameMatch) {
+                creatorName = nameMatch[1].trim()
               }
             }
 
             return {
               ...t,
-              creator_name: profile?.channel_name || profile?.name || '알 수 없음',
+              creator_name: creatorName || t.user_id?.substring(0, 8) + '...',
               creator_email: profile?.email || '',
-              campaign_title: campaignTitle,
-              source_db: 'korea'
+              creator_phone: profile?.phone || '',
+              campaign_title: campaign?.title || null,
+              source_db: 'korea',
+              profile: profile
             }
           })
 
@@ -176,7 +149,7 @@ export default function CreatorPointHistory() {
         }
       }
 
-      // BIZ DB에서 creator_points 조회 (일본/미국)
+      // BIZ DB에서 creator_points 조회
       try {
         const { data: bizData, error: bizError } = await supabaseBiz
           .from('creator_points')
@@ -185,8 +158,6 @@ export default function CreatorPointHistory() {
           .limit(500)
 
         if (!bizError && bizData) {
-          console.log('BIZ DB creator_points 조회:', bizData.length, '건')
-
           const bizTransactions = bizData.map(t => ({
             id: t.id,
             user_id: t.creator_id,
@@ -195,9 +166,9 @@ export default function CreatorPointHistory() {
             description: t.description || t.reason,
             related_campaign_id: t.campaign_id,
             created_at: t.created_at,
-            creator_name: t.featured_creators?.channel_name || t.featured_creators?.name || '알 수 없음',
+            creator_name: t.featured_creators?.channel_name || t.featured_creators?.name || t.creator_id?.substring(0, 8) + '...',
             creator_email: t.featured_creators?.email || '',
-            campaign_title: null, // 별도 조회 필요
+            campaign_title: null,
             source_db: 'biz'
           }))
 
@@ -244,7 +215,6 @@ export default function CreatorPointHistory() {
   const getFilteredTransactions = () => {
     let filtered = transactions
 
-    // 타입 필터
     if (filterType !== 'all') {
       if (filterType === 'add') {
         filtered = filtered.filter(t => t.amount > 0)
@@ -259,14 +229,14 @@ export default function CreatorPointHistory() {
       }
     }
 
-    // 검색어 필터
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
       filtered = filtered.filter(t =>
         t.creator_name?.toLowerCase().includes(search) ||
         t.creator_email?.toLowerCase().includes(search) ||
         t.description?.toLowerCase().includes(search) ||
-        t.campaign_title?.toLowerCase().includes(search)
+        t.campaign_title?.toLowerCase().includes(search) ||
+        t.user_id?.toLowerCase().includes(search)
       )
     }
 
@@ -300,6 +270,33 @@ export default function CreatorPointHistory() {
     )
   }
 
+  // 크리에이터 클릭 시 해당 크리에이터의 전체 내역 표시
+  const handleCreatorClick = (transaction) => {
+    const userId = transaction.user_id
+    if (!userId) return
+
+    // 같은 user_id를 가진 모든 트랜잭션 필터링
+    const creatorTxs = transactions.filter(t => t.user_id === userId)
+
+    // 총계 계산
+    const totalReceived = creatorTxs.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0)
+    const totalDeducted = creatorTxs.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0)
+
+    setSelectedCreator({
+      user_id: userId,
+      name: transaction.creator_name,
+      email: transaction.creator_email,
+      phone: transaction.creator_phone,
+      profile: transaction.profile,
+      totalReceived,
+      totalDeducted,
+      balance: totalReceived - totalDeducted,
+      transactionCount: creatorTxs.length
+    })
+    setCreatorTransactions(creatorTxs)
+    setShowCreatorModal(true)
+  }
+
   // 엑셀 다운로드
   const handleDownloadExcel = () => {
     const filtered = getFilteredTransactions()
@@ -314,6 +311,7 @@ export default function CreatorPointHistory() {
       '시간': new Date(t.created_at).toLocaleTimeString('ko-KR'),
       '크리에이터': t.creator_name,
       '이메일': t.creator_email,
+      'User ID': t.user_id,
       '유형': t.amount > 0 ? '지급' : '차감',
       '포인트': t.amount,
       '사유': t.description || '',
@@ -325,7 +323,7 @@ export default function CreatorPointHistory() {
     const ws = XLSX.utils.json_to_sheet(excelData)
 
     ws['!cols'] = [
-      { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 25 },
+      { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 36 },
       { wch: 8 }, { wch: 12 }, { wch: 40 }, { wch: 25 }, { wch: 8 }
     ]
 
@@ -437,19 +435,17 @@ export default function CreatorPointHistory() {
           <Card className="mb-6">
             <CardContent className="p-4">
               <div className="flex flex-col md:flex-row gap-4">
-                {/* 검색 */}
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     type="text"
-                    placeholder="크리에이터명, 이메일, 사유, 캠페인명으로 검색..."
+                    placeholder="크리에이터명, 이메일, 사유, 캠페인명, User ID로 검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
                   />
                 </div>
 
-                {/* 타입 필터 */}
                 <div className="flex gap-2">
                   <Button
                     variant={filterType === 'all' ? 'default' : 'outline'}
@@ -507,11 +503,11 @@ export default function CreatorPointHistory() {
                   {/* 테이블 헤더 */}
                   <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-600">
                     <div className="col-span-2">날짜</div>
-                    <div className="col-span-2">크리에이터</div>
+                    <div className="col-span-3">크리에이터 / User ID</div>
                     <div className="col-span-2">유형</div>
                     <div className="col-span-2 text-right">포인트</div>
-                    <div className="col-span-3">사유 / 캠페인</div>
-                    <div className="col-span-1">DB</div>
+                    <div className="col-span-2">사유</div>
+                    <div className="col-span-1">상세</div>
                   </div>
 
                   {filteredTransactions.map((transaction) => (
@@ -533,12 +529,14 @@ export default function CreatorPointHistory() {
                       </div>
 
                       {/* 크리에이터 */}
-                      <div className="col-span-2 flex items-center gap-2">
+                      <div className="col-span-3 flex items-center gap-2">
                         <User className="w-4 h-4 text-gray-400 hidden md:block" />
-                        <div>
-                          <div className="text-sm font-medium">{transaction.creator_name}</div>
-                          <div className="text-xs text-gray-500 truncate max-w-[150px]">
-                            {transaction.creator_email}
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {transaction.creator_name}
+                          </div>
+                          <div className="text-xs text-gray-400 font-mono truncate">
+                            {transaction.user_id?.substring(0, 12)}...
                           </div>
                         </div>
                       </div>
@@ -555,26 +553,23 @@ export default function CreatorPointHistory() {
                         </span>
                       </div>
 
-                      {/* 사유 / 캠페인 */}
-                      <div className="col-span-3">
+                      {/* 사유 */}
+                      <div className="col-span-2">
                         <div className="text-sm text-gray-700 line-clamp-2">
                           {transaction.description || '-'}
                         </div>
-                        {transaction.campaign_title && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <Briefcase className="w-3 h-3 text-blue-500" />
-                            <span className="text-xs text-blue-600 truncate">
-                              {transaction.campaign_title}
-                            </span>
-                          </div>
-                        )}
                       </div>
 
-                      {/* DB */}
+                      {/* 상세 버튼 */}
                       <div className="col-span-1 flex items-center">
-                        <Badge variant="outline" className="text-xs">
-                          {transaction.source_db === 'korea' ? '🇰🇷' : '🌐'}
-                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCreatorClick(transaction)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -584,6 +579,95 @@ export default function CreatorPointHistory() {
           </Card>
         </div>
       </div>
+
+      {/* 크리에이터 상세 모달 */}
+      <Dialog open={showCreatorModal} onOpenChange={setShowCreatorModal}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              크리에이터 포인트 상세
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedCreator && (
+            <div className="space-y-6">
+              {/* 크리에이터 정보 */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-semibold mb-3">크리에이터 정보</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">이름:</span>
+                    <span className="ml-2 font-medium">{selectedCreator.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">이메일:</span>
+                    <span className="ml-2">{selectedCreator.email || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">연락처:</span>
+                    <span className="ml-2">{selectedCreator.phone || '-'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">User ID:</span>
+                    <span className="ml-2 font-mono text-xs">{selectedCreator.user_id}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 포인트 요약 */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-green-50 p-4 rounded-lg text-center">
+                  <p className="text-sm text-green-600 mb-1">총 받은 포인트</p>
+                  <p className="text-xl font-bold text-green-700">
+                    +{selectedCreator.totalReceived.toLocaleString()}P
+                  </p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg text-center">
+                  <p className="text-sm text-red-600 mb-1">총 차감 포인트</p>
+                  <p className="text-xl font-bold text-red-700">
+                    -{selectedCreator.totalDeducted.toLocaleString()}P
+                  </p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg text-center">
+                  <p className="text-sm text-blue-600 mb-1">순 지급액</p>
+                  <p className="text-xl font-bold text-blue-700">
+                    {selectedCreator.balance.toLocaleString()}P
+                  </p>
+                </div>
+              </div>
+
+              {/* 거래 내역 */}
+              <div>
+                <h3 className="font-semibold mb-3">
+                  포인트 내역 ({creatorTransactions.length}건)
+                </h3>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {creatorTransactions.map((tx, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-gray-500">
+                          {new Date(tx.created_at).toLocaleDateString('ko-KR')}
+                        </div>
+                        {getTransactionTypeBadge(tx.transaction_type, tx.amount)}
+                        <div className="text-gray-700 truncate max-w-[200px]">
+                          {tx.description || '-'}
+                        </div>
+                      </div>
+                      <div className={`font-bold ${tx.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}P
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
