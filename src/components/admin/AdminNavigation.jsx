@@ -28,6 +28,7 @@ export default function AdminNavigation() {
     { path: '/admin/featured-creators', icon: Users, label: '추천 크리에이터' },
     { path: '/admin/creators', icon: Users, label: '소속 크리에이터 & 채널' },
     { path: '/admin/all-creators', icon: Users, label: '전체 크리에이터' },
+    { path: '/admin/line-chat', icon: MessageCircle, label: 'LINE 채팅 관리' },
     { path: '/admin/youtuber-search', icon: Youtube, label: '유튜버 검색 & 섭외' },
     { path: '/admin/revenue-charts', icon: BarChart3, label: '매출 관리 (그래프)' },
     { path: '/admin/points-charge', icon: CreditCard, label: '포인트 & 미수금' },

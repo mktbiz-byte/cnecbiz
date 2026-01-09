@@ -97,6 +97,7 @@ import RevenueManagementWithCharts from './components/admin/RevenueManagementWit
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
+import LineChatManagement from './components/admin/LineChatManagement'
 
 
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
@@ -224,6 +225,7 @@ function App() {
         <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
+        <Route path="/admin/line-chat" element={<LineChatManagement />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
