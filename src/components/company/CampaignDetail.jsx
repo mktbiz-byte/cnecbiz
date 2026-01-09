@@ -5877,7 +5877,14 @@ JSON만 출력.`
 
                                       {/* SNS 업로드 URL (video_submissions 또는 campaign_participants에서) */}
                                       {(() => {
-                                        const snsUrl = submission.sns_upload_url || participant.sns_upload_url
+                                        // 4주 챌린지/올리브영의 경우 주차/영상번호에 맞는 URL 가져오기
+                                        let snsUrl = submission.sns_upload_url
+                                        if (!snsUrl && is4WeekChallenge && submission.week_number) {
+                                          snsUrl = participant[`week${submission.week_number}_url`]
+                                        } else if (!snsUrl && isOliveyoung && submission.video_number) {
+                                          snsUrl = participant[`step${submission.video_number}_url`]
+                                        }
+                                        if (!snsUrl) snsUrl = participant.sns_upload_url
                                         return snsUrl ? (
                                           <div className="flex items-center gap-2 mb-2">
                                             <Link className="w-4 h-4 text-blue-500" />
@@ -5946,7 +5953,17 @@ JSON만 출력.`
 
                                       {/* 파트너십 광고 코드 (영상별 또는 참가자별) */}
                                       {(() => {
-                                        const adCode = submission.ad_code || submission.partnership_code || participant.partnership_code
+                                        // 4주 챌린지/올리브영의 경우 주차/영상번호에 맞는 광고코드 가져오기
+                                        let adCode = submission.ad_code || submission.partnership_code
+                                        if (!adCode && is4WeekChallenge && submission.week_number) {
+                                          adCode = participant[`week${submission.week_number}_partnership_code`]
+                                        } else if (!adCode && isOliveyoung && submission.video_number) {
+                                          // 올리브영: step1,2는 step1_2_partnership_code, step3는 step3_partnership_code
+                                          adCode = submission.video_number === 3
+                                            ? participant.step3_partnership_code
+                                            : participant.step1_2_partnership_code
+                                        }
+                                        if (!adCode) adCode = participant.partnership_code
                                         return adCode ? (
                                           <div className="flex items-center gap-2 mb-2">
                                             <Hash className="w-4 h-4 text-orange-500" />
