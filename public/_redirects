@@ -1,4 +1,3 @@
-# LINE 친구 추가 리다이렉트
-/line   https://line.me/R/ti/p/@065vdhwf   302
-
+# LINE 친구 추가는 static 파일로 처리 (/line/index.html)
+# 나머지는 SPA로 라우팅
 /*    /index.html   200
