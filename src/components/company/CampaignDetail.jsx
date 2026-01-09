@@ -2835,8 +2835,7 @@ JSON만 출력.`
         if (profile?.phone) {
           try {
             const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
-            const approvalDate = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
-            console.log('알림톡 발송 시도:', { phone: profile.phone, creatorName, campaign: campaign?.title, deadline: inputDeadline, approvalDate })
+            console.log('알림톡 발송 시도:', { phone: profile.phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
             const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -2847,7 +2846,6 @@ JSON만 출력.`
                 variables: {
                   '크리에이터명': creatorName,
                   '캠페인명': campaign?.title || '캠페인',
-                  '승인일': approvalDate,
                   '업로드기한': inputDeadline
                 }
               })
