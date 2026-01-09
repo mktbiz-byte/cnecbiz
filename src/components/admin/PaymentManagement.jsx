@@ -288,7 +288,7 @@ export default function PaymentManagement() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <DollarSign className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold">포인트 & 미수금 관리</h1>
+            <h1 className="text-3xl font-bold">입금확인 및 세금계산서 발급</h1>
           </div>
           {activeTab === 'points' && (
             <Button onClick={() => setShowAddPointModal(true)}>
