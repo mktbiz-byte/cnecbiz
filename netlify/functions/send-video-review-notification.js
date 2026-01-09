@@ -1,25 +1,9 @@
 /**
  * 영상 수정 요청 알림 발송
- * send-kakao-notification을 HTTP로 호출 + SMS 대체 발송
+ * send-kakao-notification을 HTTP로 호출 (popbill 직접 사용 안함)
  */
 
 const axios = require('axios')
-const popbill = require('popbill')
-
-// SMS 대체 발송용 팝빌 설정
-popbill.config({
-  LinkID: process.env.POPBILL_LINK_ID || 'HOWLAB',
-  SecretKey: process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=',
-  IsTest: process.env.POPBILL_TEST_MODE === 'true',
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true
-})
-
-const smsService = popbill.MessageService()
-const POPBILL_CORP_NUM = process.env.POPBILL_CORP_NUM || '5758102253'
-const POPBILL_SENDER_NUM = process.env.POPBILL_SENDER_NUM || '1833-6025'
-const POPBILL_USER_ID = process.env.POPBILL_USER_ID || ''
 
 exports.handler = async (event) => {
   // CORS 헤더
@@ -72,7 +56,6 @@ exports.handler = async (event) => {
 
     // send-kakao-notification을 HTTP로 호출
     const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
-    let kakaoSuccess = false
 
     try {
       console.log('[INFO] Calling send-kakao-notification via HTTP')
@@ -89,12 +72,12 @@ exports.handler = async (event) => {
             '재제출기한': resubmitDateStr
           }
         },
-        { timeout: 10000 }
+        { timeout: 15000 }
       )
 
+      console.log('[INFO] Kakao response:', kakaoResponse.data)
+
       if (kakaoResponse.data?.success) {
-        console.log('[SUCCESS] Kakao notification sent:', kakaoResponse.data)
-        kakaoSuccess = true
         return {
           statusCode: 200,
           headers,
@@ -105,58 +88,27 @@ exports.handler = async (event) => {
           })
         }
       } else {
-        console.log('[WARN] Kakao notification returned false:', kakaoResponse.data)
+        // 알림톡 실패 - 에러 메시지 포함해서 반환
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            message: '알림 전송 실패',
+            error: kakaoResponse.data?.error || 'Unknown error'
+          })
+        }
       }
     } catch (kakaoError) {
       console.error('[ERROR] Kakao notification failed:', kakaoError.message)
-    }
-
-    // 알림톡 실패 시 SMS 대체 발송
-    if (!kakaoSuccess) {
-      console.log('[INFO] Trying SMS fallback...')
-      try {
-        const smsResult = await new Promise((resolve, reject) => {
-          smsService.sendSMS(
-            POPBILL_CORP_NUM,
-            POPBILL_SENDER_NUM,
-            creatorPhone.replace(/-/g, ''),
-            creatorName || '크리에이터',
-            `[CNEC] ${creatorName || '크리에이터'}님, '${campaignTitle || '캠페인'}' 영상에 수정 요청이 등록되었습니다. cnec.co.kr에서 확인해주세요.`,
-            '',
-            POPBILL_USER_ID,
-            (result) => {
-              console.log('[SUCCESS] SMS sent:', result)
-              resolve(result)
-            },
-            (error) => {
-              console.error('[ERROR] SMS failed:', error)
-              reject(error)
-            }
-          )
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          message: '알림 전송 실패',
+          error: kakaoError.message
         })
-
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: true,
-            message: '수정 요청이 크리에이터에게 문자로 전달되었습니다',
-            method: 'sms',
-            receiptNum: smsResult
-          })
-        }
-      } catch (smsError) {
-        console.error('[ERROR] SMS also failed:', smsError)
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: true,
-            message: '수정 요청이 등록되었습니다 (알림 발송 실패)',
-            warning: '크리에이터에게 직접 연락해 주세요',
-            notificationFailed: true
-          })
-        }
       }
     }
   } catch (error) {
