@@ -170,6 +170,13 @@ exports.handler = async (event, context) => {
         if (campaign) {
           let company = null
 
+          console.log('[update-campaign-status] Campaign data:', {
+            company_id: campaign.company_id,
+            company_email: campaign.company_email,
+            user_id: campaign.user_id
+          })
+
+          // 1. company_id로 찾기
           if (campaign.company_id) {
             const { data: companyData } = await supabaseClient
               .from('companies')
@@ -177,8 +184,10 @@ exports.handler = async (event, context) => {
               .eq('id', campaign.company_id)
               .maybeSingle()
             company = companyData
+            console.log('[update-campaign-status] Found by company_id:', !!companyData)
           }
 
+          // 2. company_email로 찾기
           if (!company && campaign.company_email) {
             const { data: companyData } = await supabaseClient
               .from('companies')
@@ -186,7 +195,21 @@ exports.handler = async (event, context) => {
               .eq('email', campaign.company_email)
               .maybeSingle()
             company = companyData
+            console.log('[update-campaign-status] Found by company_email:', !!companyData)
           }
+
+          // 3. user_id로 찾기 (기업 회원인 경우)
+          if (!company && campaign.user_id) {
+            const { data: companyData } = await supabaseClient
+              .from('companies')
+              .select('*')
+              .eq('user_id', campaign.user_id)
+              .maybeSingle()
+            company = companyData
+            console.log('[update-campaign-status] Found by user_id:', !!companyData)
+          }
+
+          console.log('[update-campaign-status] Company found:', company ? { name: company.company_name, phone: company.phone } : null)
 
           if (company && company.phone) {
             const templateCode = '025100001005'
