@@ -209,6 +209,37 @@ exports.handler = async (event, context) => {
             console.log('[update-campaign-status] Found by user_id:', !!companyData)
           }
 
+          // 4. biz DB에서 찾기 (리전 DB에 없는 경우 fallback)
+          if (!company && region !== 'biz') {
+            const bizClient = getSupabaseClient('biz')
+            if (bizClient) {
+              // company_id로 찾기
+              if (campaign.company_id) {
+                const { data: companyData } = await bizClient
+                  .from('companies')
+                  .select('*')
+                  .eq('id', campaign.company_id)
+                  .maybeSingle()
+                if (companyData) {
+                  company = companyData
+                  console.log('[update-campaign-status] Found in biz DB by company_id:', true)
+                }
+              }
+              // company_email로 찾기
+              if (!company && campaign.company_email) {
+                const { data: companyData } = await bizClient
+                  .from('companies')
+                  .select('*')
+                  .eq('email', campaign.company_email)
+                  .maybeSingle()
+                if (companyData) {
+                  company = companyData
+                  console.log('[update-campaign-status] Found in biz DB by email:', true)
+                }
+              }
+            }
+          }
+
           console.log('[update-campaign-status] Company found:', company ? { name: company.company_name, phone: company.phone } : null)
 
           if (company && company.phone) {
