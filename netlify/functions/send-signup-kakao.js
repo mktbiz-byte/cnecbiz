@@ -7,19 +7,9 @@ const SecretKey = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5
 const CorpNum = process.env.POPBILL_CORP_NUM || '5758102253';
 const UserID = process.env.POPBILL_USER_ID || '';
 
-// Popbill 전역 설정
-popbill.config({
-  LinkID: LinkID,
-  SecretKey: SecretKey,
-  IsTest: process.env.POPBILL_TEST_MODE === 'true',
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true
-});
-
-// Popbill 서비스 초기화
-const kakaoService = popbill.KakaoService();
-const messageService = popbill.MessageService();
+// Popbill 서비스 초기화 (credentials 직접 전달 방식)
+const kakaoService = popbill.KakaoService(LinkID, SecretKey);
+const messageService = popbill.MessageService(LinkID, SecretKey);
 
 // Supabase 클라이언트 (이메일 발송용)
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
