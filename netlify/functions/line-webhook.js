@@ -189,7 +189,6 @@ exports.handler = async (event) => {
           .upsert({
             line_user_id: userId,
             display_name: displayName,
-            profile_picture_url: profile?.pictureUrl,
             status: 'active',
             followed_at: new Date().toISOString()
           }, { onConflict: 'line_user_id' });

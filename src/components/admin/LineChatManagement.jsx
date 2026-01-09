@@ -43,7 +43,6 @@ export default function LineChatManagement() {
         .select(`
           line_user_id,
           display_name,
-          profile_picture_url,
           creator_id,
           email,
           status,
