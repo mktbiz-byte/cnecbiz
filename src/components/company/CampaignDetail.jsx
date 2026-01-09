@@ -2861,6 +2861,37 @@ JSON만 출력.`
         } else {
           console.log('알림톡 발송 스킵 - 전화번호 없음:', participant?.user_id)
         }
+
+        // 이메일 발송
+        if (profile?.email) {
+          try {
+            const creatorName = profile.full_name || participant.creator_name || participant.applicant_name || '크리에이터'
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: profile.email,
+                subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
+                    <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                    <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${inputDeadline}</p>
+                    </div>
+                    <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ 영상 승인 완료 이메일 발송 성공')
+          } catch (emailError) {
+            console.error('영상 승인 이메일 발송 실패:', emailError)
+          }
+        }
       } else {
         console.log('알림톡 발송 스킵 - 참가자 없음:', submission.user_id)
       }
@@ -7712,6 +7743,37 @@ JSON만 출력.`
                           console.log('✓ 영상 승인 완료 알림톡 발송')
                         } catch (kakaoError) {
                           console.error('알림톡 발송 실패:', kakaoError)
+                        }
+                      }
+
+                      // 이메일 발송
+                      if (profile?.email) {
+                        try {
+                          const creatorName = profile.full_name || selectedParticipant.creator_name || '크리에이터'
+                          await fetch('/.netlify/functions/send-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              to: profile.email,
+                              subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
+                              html: `
+                                <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                                  <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
+                                  <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                                  <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
+                                  <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                                    <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                                    <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${uploadDeadline}</p>
+                                  </div>
+                                  <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
+                                  <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                                </div>
+                              `
+                            })
+                          })
+                          console.log('✓ 영상 승인 완료 이메일 발송 성공')
+                        } catch (emailError) {
+                          console.error('영상 승인 이메일 발송 실패:', emailError)
                         }
                       }
                     }
