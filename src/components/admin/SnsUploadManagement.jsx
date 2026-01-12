@@ -6,11 +6,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -20,10 +19,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  ArrowLeft, Download, ExternalLink, Search, RefreshCw,
-  Video, Globe, Calendar, User, Building2, Link2, Hash, Filter, Eye
+  Download, ExternalLink, Search, RefreshCw,
+  Video, Globe, User, Building2, Eye
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
+import AdminNavigation from './AdminNavigation'
 
 export default function SnsUploadManagement() {
   const navigate = useNavigate()
@@ -71,41 +71,8 @@ export default function SnsUploadManagement() {
     try {
       const allVideos = []
 
-      // 1. BIZ DB에서 video_submissions 조회 (sns_upload_url이 있는 것)
-      const { data: bizSubmissions, error: bizError } = await supabaseBiz
-        .from('video_submissions')
-        .select(`
-          *,
-          campaigns:campaign_id (
-            id,
-            title,
-            company_id,
-            campaign_type,
-            target_country,
-            companies:company_id (
-              company_name,
-              contact_email
-            )
-          )
-        `)
-        .not('sns_upload_url', 'is', null)
-        .order('created_at', { ascending: false })
-
-      if (!bizError && bizSubmissions) {
-        bizSubmissions.forEach(sub => {
-          allVideos.push({
-            ...sub,
-            source: 'biz',
-            country: sub.campaigns?.target_country || 'kr',
-            campaignTitle: sub.campaigns?.title,
-            companyName: sub.campaigns?.companies?.company_name,
-            campaignType: sub.campaigns?.campaign_type,
-          })
-        })
-      }
-
-      // 2. BIZ DB에서 applications 조회 (sns_upload_url이 있는 것)
-      const { data: bizApplications, error: appError } = await supabaseBiz
+      // 1. BIZ DB에서 applications 조회 (완료 상태: approved, completed, sns_uploaded)
+      const { data: bizApplications, error: bizAppError } = await supabaseBiz
         .from('applications')
         .select(`
           *,
@@ -121,27 +88,29 @@ export default function SnsUploadManagement() {
             )
           )
         `)
-        .not('sns_upload_url', 'is', null)
+        .in('status', ['approved', 'completed', 'sns_uploaded'])
         .order('created_at', { ascending: false })
 
-      if (!appError && bizApplications) {
+      if (!bizAppError && bizApplications) {
+        console.log('[SnsUploadManagement] BIZ applications (approved/completed/sns_uploaded):', bizApplications.length)
         bizApplications.forEach(app => {
-          // 중복 체크 (video_submissions에 이미 있는지)
-          const isDuplicate = allVideos.some(v =>
-            v.application_id === app.id ||
-            (v.campaign_id === app.campaign_id && v.user_id === app.user_id)
-          )
-          if (!isDuplicate) {
+          // SNS URL이 있는 경우 또는 완료 상태인 경우 추가
+          const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
+                           app.week3_url || app.week4_url || app.step1_url ||
+                           app.step2_url || app.step3_url
+
+          if (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(app.status)) {
             allVideos.push({
-              id: `app_${app.id}`,
+              id: `biz_app_${app.id}`,
               application_id: app.id,
               campaign_id: app.campaign_id,
               user_id: app.user_id,
               sns_upload_url: app.sns_upload_url,
               partnership_code: app.partnership_code,
               video_file_url: app.video_file_url,
-              created_at: app.created_at,
-              source: 'biz_app',
+              created_at: app.updated_at || app.created_at,
+              status: app.status,
+              source: 'biz',
               country: app.campaigns?.target_country || 'kr',
               campaignTitle: app.campaigns?.title,
               companyName: app.campaigns?.companies?.company_name,
@@ -155,12 +124,70 @@ export default function SnsUploadManagement() {
               step1_url: app.step1_url,
               step2_url: app.step2_url,
               step3_url: app.step3_url,
+              // 광고코드
+              week1_partnership_code: app.week1_partnership_code,
+              week2_partnership_code: app.week2_partnership_code,
+              week3_partnership_code: app.week3_partnership_code,
+              week4_partnership_code: app.week4_partnership_code,
+              step1_2_partnership_code: app.step1_2_partnership_code,
+              step3_partnership_code: app.step3_partnership_code,
             })
           }
         })
       }
 
-      // 3. Korea DB에서 campaign_participants 조회 (SNS URL이 있는 것)
+      // 2. BIZ DB에서 video_submissions 조회 (approved, completed 상태)
+      const { data: bizSubmissions, error: bizSubError } = await supabaseBiz
+        .from('video_submissions')
+        .select(`
+          *,
+          campaigns:campaign_id (
+            id,
+            title,
+            company_id,
+            campaign_type,
+            target_country,
+            companies:company_id (
+              company_name,
+              contact_email
+            )
+          )
+        `)
+        .in('status', ['approved', 'completed'])
+        .order('created_at', { ascending: false })
+
+      if (!bizSubError && bizSubmissions) {
+        console.log('[SnsUploadManagement] BIZ video_submissions:', bizSubmissions.length)
+        bizSubmissions.forEach(sub => {
+          // 중복 체크
+          const isDuplicate = allVideos.some(v =>
+            v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+          )
+          if (!isDuplicate) {
+            allVideos.push({
+              id: `biz_sub_${sub.id}`,
+              submission_id: sub.id,
+              application_id: sub.application_id,
+              campaign_id: sub.campaign_id,
+              user_id: sub.user_id,
+              sns_upload_url: sub.sns_upload_url,
+              partnership_code: sub.partnership_code || sub.ad_code,
+              video_file_url: sub.video_file_url,
+              created_at: sub.approved_at || sub.updated_at || sub.created_at,
+              status: sub.status,
+              source: 'biz_submission',
+              country: sub.campaigns?.target_country || 'kr',
+              campaignTitle: sub.campaigns?.title,
+              companyName: sub.campaigns?.companies?.company_name,
+              campaignType: sub.campaigns?.campaign_type,
+              creatorName: sub.creator_name,
+              week_number: sub.week_number,
+            })
+          }
+        })
+      }
+
+      // 3. Korea DB에서 campaign_participants 조회
       if (supabaseKorea) {
         const { data: koreaParticipants, error: koreaError } = await supabaseKorea
           .from('campaign_participants')
@@ -172,16 +199,22 @@ export default function SnsUploadManagement() {
               campaign_type
             )
           `)
-          .or('sns_upload_url.not.is.null,week1_url.not.is.null,step1_url.not.is.null')
+          .in('status', ['approved', 'completed', 'sns_uploaded'])
           .order('created_at', { ascending: false })
 
         if (!koreaError && koreaParticipants) {
+          console.log('[SnsUploadManagement] Korea campaign_participants:', koreaParticipants.length)
           koreaParticipants.forEach(p => {
             // 중복 체크
             const isDuplicate = allVideos.some(v =>
-              v.user_id === p.user_id && v.campaign_id === p.campaign_id
+              v.campaign_id === p.campaign_id && v.user_id === p.user_id
             )
-            if (!isDuplicate) {
+
+            const hasSnsUrl = p.sns_upload_url || p.week1_url || p.week2_url ||
+                             p.week3_url || p.week4_url || p.step1_url ||
+                             p.step2_url || p.step3_url
+
+            if (!isDuplicate && (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(p.status))) {
               allVideos.push({
                 id: `korea_${p.id}`,
                 application_id: p.id,
@@ -190,7 +223,8 @@ export default function SnsUploadManagement() {
                 sns_upload_url: p.sns_upload_url,
                 partnership_code: p.partnership_code,
                 video_file_url: p.video_file_url,
-                created_at: p.created_at,
+                created_at: p.updated_at || p.created_at,
+                status: p.status,
                 source: 'korea',
                 country: 'kr',
                 campaignTitle: p.campaigns?.title,
@@ -204,6 +238,57 @@ export default function SnsUploadManagement() {
                 step1_url: p.step1_url,
                 step2_url: p.step2_url,
                 step3_url: p.step3_url,
+                // 광고코드
+                week1_partnership_code: p.week1_partnership_code,
+                week2_partnership_code: p.week2_partnership_code,
+                week3_partnership_code: p.week3_partnership_code,
+                week4_partnership_code: p.week4_partnership_code,
+                step1_2_partnership_code: p.step1_2_partnership_code,
+                step3_partnership_code: p.step3_partnership_code,
+              })
+            }
+          })
+        }
+
+        // 4. Korea DB에서 video_submissions 조회
+        const { data: koreaSubmissions, error: koreaSubError } = await supabaseKorea
+          .from('video_submissions')
+          .select(`
+            *,
+            campaigns:campaign_id (
+              id,
+              title,
+              campaign_type
+            )
+          `)
+          .in('status', ['approved', 'completed'])
+          .order('created_at', { ascending: false })
+
+        if (!koreaSubError && koreaSubmissions) {
+          console.log('[SnsUploadManagement] Korea video_submissions:', koreaSubmissions.length)
+          koreaSubmissions.forEach(sub => {
+            // 중복 체크
+            const isDuplicate = allVideos.some(v =>
+              v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
+            )
+            if (!isDuplicate) {
+              allVideos.push({
+                id: `korea_sub_${sub.id}`,
+                submission_id: sub.id,
+                application_id: sub.application_id,
+                campaign_id: sub.campaign_id,
+                user_id: sub.user_id,
+                sns_upload_url: sub.sns_upload_url,
+                partnership_code: sub.partnership_code || sub.ad_code,
+                video_file_url: sub.video_file_url,
+                created_at: sub.approved_at || sub.updated_at || sub.created_at,
+                status: sub.status,
+                source: 'korea_submission',
+                country: 'kr',
+                campaignTitle: sub.campaigns?.title,
+                campaignType: sub.campaigns?.campaign_type,
+                creatorName: sub.creator_name,
+                week_number: sub.week_number,
               })
             }
           })
@@ -213,6 +298,7 @@ export default function SnsUploadManagement() {
       // 날짜 기준 정렬
       allVideos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
+      console.log('[SnsUploadManagement] Total completed videos:', allVideos.length)
       setCompletedVideos(allVideos)
     } catch (error) {
       console.error('Error fetching completed videos:', error)
@@ -256,7 +342,6 @@ export default function SnsUploadManagement() {
 
     setDownloading(video.id)
     try {
-      // Supabase Storage URL인 경우 직접 다운로드
       const response = await fetch(video.video_file_url)
       const blob = await response.blob()
 
@@ -270,7 +355,6 @@ export default function SnsUploadManagement() {
       document.body.removeChild(a)
     } catch (error) {
       console.error('Download error:', error)
-      // 다운로드 실패 시 새 탭에서 열기
       window.open(video.video_file_url, '_blank')
     } finally {
       setDownloading(null)
@@ -290,7 +374,16 @@ export default function SnsUploadManagement() {
       case 'oliveyoung':
       case 'oliveyoung_sale': return '올리브영'
       case '4week_challenge': return '4주 챌린지'
-      default: return type || '-'
+      default: return type || '일반'
+    }
+  }
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'approved': return { label: '승인완료', color: 'bg-green-100 text-green-700' }
+      case 'completed': return { label: '완료', color: 'bg-blue-100 text-blue-700' }
+      case 'sns_uploaded': return { label: 'SNS업로드', color: 'bg-purple-100 text-purple-700' }
+      default: return { label: status, color: 'bg-gray-100 text-gray-700' }
     }
   }
 
@@ -319,36 +412,29 @@ export default function SnsUploadManagement() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <div className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate('/admin/dashboard')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                대시보드
-              </Button>
-              <div className="h-6 w-px bg-gray-200" />
-              <div>
-                <h1 className="text-xl font-bold flex items-center gap-2">
-                  <Video className="w-5 h-5 text-green-500" />
-                  SNS 업로드 완료 영상 관리
-                </h1>
-                <p className="text-sm text-gray-500">크리에이터가 SNS에 업로드 완료한 영상을 관리합니다</p>
-              </div>
-            </div>
-            <Button onClick={fetchCompletedVideos} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              새로고침
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* 사이드바 네비게이션 */}
+      <AdminNavigation />
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      {/* 메인 콘텐츠 */}
+      <div className="ml-56 p-6">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Video className="w-6 h-6 text-green-500" />
+              SNS 업로드 완료 영상 관리
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">크리에이터가 SNS에 업로드 완료한 영상을 관리합니다</p>
+          </div>
+          <Button onClick={fetchCompletedVideos} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
+        </div>
+
         {/* 통계 카드 */}
         <div className="grid grid-cols-4 gap-4 mb-6">
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedCountry('all')}>
+          <Card className={`cursor-pointer hover:shadow-md transition-shadow ${selectedCountry === 'all' ? 'ring-2 ring-orange-500' : ''}`} onClick={() => setSelectedCountry('all')}>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -359,7 +445,7 @@ export default function SnsUploadManagement() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedCountry('kr')}>
+          <Card className={`cursor-pointer hover:shadow-md transition-shadow ${selectedCountry === 'kr' ? 'ring-2 ring-orange-500' : ''}`} onClick={() => setSelectedCountry('kr')}>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -369,7 +455,7 @@ export default function SnsUploadManagement() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedCountry('us')}>
+          <Card className={`cursor-pointer hover:shadow-md transition-shadow ${selectedCountry === 'us' ? 'ring-2 ring-orange-500' : ''}`} onClick={() => setSelectedCountry('us')}>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -379,7 +465,7 @@ export default function SnsUploadManagement() {
               </div>
             </CardContent>
           </Card>
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedCountry('jp')}>
+          <Card className={`cursor-pointer hover:shadow-md transition-shadow ${selectedCountry === 'jp' ? 'ring-2 ring-orange-500' : ''}`} onClick={() => setSelectedCountry('jp')}>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -435,17 +521,19 @@ export default function SnsUploadManagement() {
               <div className="text-center py-12 text-gray-500">
                 <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>SNS 업로드 완료된 영상이 없습니다.</p>
+                <p className="text-sm text-gray-400 mt-2">캠페인 관리 → 완료 탭에서 데이터를 확인하세요.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[80px]">국가</TableHead>
+                      <TableHead className="w-[60px]">국가</TableHead>
                       <TableHead>캠페인</TableHead>
                       <TableHead>기업</TableHead>
                       <TableHead>크리에이터</TableHead>
-                      <TableHead>캠페인 유형</TableHead>
+                      <TableHead>유형</TableHead>
+                      <TableHead>상태</TableHead>
                       <TableHead>SNS URL</TableHead>
                       <TableHead>광고코드</TableHead>
                       <TableHead>완료일</TableHead>
@@ -454,16 +542,17 @@ export default function SnsUploadManagement() {
                   </TableHeader>
                   <TableBody>
                     {filteredVideos.map((video) => {
-                      const { flag, label } = getCountryLabel(video.country)
+                      const { flag } = getCountryLabel(video.country)
                       const snsUrls = getAllSnsUrls(video)
+                      const statusConfig = getStatusLabel(video.status)
 
                       return (
                         <TableRow key={video.id}>
                           <TableCell>
-                            <span title={label}>{flag}</span>
+                            <span className="text-lg">{flag}</span>
                           </TableCell>
                           <TableCell>
-                            <div className="max-w-[200px]">
+                            <div className="max-w-[180px]">
                               <p className="font-medium truncate" title={video.campaignTitle}>
                                 {video.campaignTitle || '-'}
                               </p>
@@ -482,8 +571,13 @@ export default function SnsUploadManagement() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="text-xs">
                               {getCampaignTypeLabel(video.campaignType)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`text-xs ${statusConfig.color}`}>
+                              {statusConfig.label}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -502,10 +596,10 @@ export default function SnsUploadManagement() {
                                   </a>
                                 ))
                               ) : (
-                                <span className="text-gray-400 text-sm">-</span>
+                                <span className="text-gray-400 text-xs">미등록</span>
                               )}
                               {snsUrls.length > 2 && (
-                                <span className="text-xs text-gray-400">+{snsUrls.length - 2}개 더</span>
+                                <span className="text-xs text-gray-400">+{snsUrls.length - 2}개</span>
                               )}
                             </div>
                           </TableCell>
@@ -515,7 +609,7 @@ export default function SnsUploadManagement() {
                                 {video.partnership_code}
                               </code>
                             ) : (
-                              <span className="text-gray-400">-</span>
+                              <span className="text-gray-400 text-xs">-</span>
                             )}
                           </TableCell>
                           <TableCell>
@@ -526,13 +620,14 @@ export default function SnsUploadManagement() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1">
                               {video.video_file_url && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleDownloadVideo(video)}
                                   disabled={downloading === video.id}
+                                  title="영상 다운로드"
                                 >
                                   {downloading === video.id ? (
                                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -545,6 +640,7 @@ export default function SnsUploadManagement() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => navigate(`/admin/campaigns/${video.campaign_id}`)}
+                                title="캠페인 상세"
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
