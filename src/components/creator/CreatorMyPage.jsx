@@ -280,6 +280,35 @@ const CreatorMyPage = () => {
 
       if (error) throw error
 
+      // 네이버 웍스 알림 발송
+      try {
+        const campaign = campaigns.find(c => c.id === participantId)
+        const campaignTitle = campaign?.campaigns?.title || '캠페인'
+        const creatorName = user?.user_metadata?.full_name || user?.email || '크리에이터'
+
+        const koreanDate = new Date().toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+            message: `[광고코드 등록 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n광고코드: ${code}\n\n${koreanDate}`
+          })
+        })
+        console.log('✓ 광고코드 등록 네이버 웍스 알림 발송 성공')
+      } catch (notifyError) {
+        console.error('네이버 웍스 알림 발송 실패:', notifyError)
+      }
+
       alert('파트너십 광고코드가 저장되었습니다!')
       loadMyCampaigns()
     } catch (error) {

@@ -110,6 +110,7 @@ import GuidebookManagement from './components/admin/GuidebookManagement'
 import TestKakaoNotification from './components/admin/TestKakaoNotification'
 import LineMessagesManagement from './components/admin/LineMessagesManagement'
 import TestNaverWorks from './pages/TestNaverWorks'
+import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemplatePrototype'
 import ConsultationBanner from './components/ConsultationBanner'
 
 import AuthCallback from './components/AuthCallback'
@@ -231,6 +232,7 @@ function App() {
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />
         <Route path="/admin/line-messages" element={<LineMessagesManagement />} />
+        <Route path="/admin/guide-templates" element={<CampaignGuideTemplatePrototype />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
 

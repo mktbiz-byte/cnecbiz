@@ -2909,6 +2909,22 @@ JSON만 출력.`
             console.error('영상 승인 이메일 발송 실패:', emailError)
           }
         }
+
+        // 네이버 웍스 알림 (검수 완료)
+        try {
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[영상 검수 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n업로드 기한: ${inputDeadline}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+          console.log('✓ 검수 완료 네이버 웍스 알림 발송 성공')
+        } catch (worksError) {
+          console.error('네이버 웍스 알림 발송 실패:', worksError)
+        }
       } else {
         console.log('알림톡 발송 스킵 - 참가자 없음:', submission.user_id)
       }
