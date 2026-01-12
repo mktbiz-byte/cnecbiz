@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-// ScrollArea 대신 overflow-y-auto 사용
+// ScrollArea removed - using native overflow-y-auto for better scroll support
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   MessageCircle,
   Send,
@@ -17,7 +18,10 @@ import {
   Loader2,
   ChevronLeft,
   Mail,
-  ExternalLink
+  ExternalLink,
+  Instagram,
+  Youtube,
+  Phone
 } from 'lucide-react'
 import { supabaseJapan } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -33,11 +37,16 @@ export default function LineChatManagement() {
   const [searchTerm, setSearchTerm] = useState('')
   const messagesEndRef = useRef(null)
 
-  // 채팅방 목록 로드
+  // 프로필 모달 상태
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [profileData, setProfileData] = useState(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
+
+  // 채팅방 목록 로드 (효율적인 단일 쿼리 방식)
   const loadChatRooms = async () => {
     setLoading(true)
     try {
-      // line_messages에서 모든 메시지 조회
+      // line_messages에서 모든 메시지 조회 (한 번에)
       const { data: allMessages, error: msgError } = await supabaseJapan
         .from('line_messages')
         .select('*')
@@ -101,7 +110,6 @@ export default function LineChatManagement() {
       const roomsWithMessages = Array.from(userMessageMap.values()).map(room => {
         const user = userMap.get(room.line_user_id) || {}
         const application = applicationsMap.get(room.line_user_id)
-        // 마지막 메시지에서 이름 추출 시도
         const lastMsg = room.messages[0]
 
         // 이름 결정 - 여러 소스에서 찾기
@@ -115,14 +123,12 @@ export default function LineChatManagement() {
         if (!displayName && lastMsg?.sender_name) {
           displayName = lastMsg.sender_name
         }
-        // 메시지들에서 발신자 이름 찾기
         if (!displayName) {
           const incomingMsg = room.messages.find(m => m.direction === 'incoming' && m.sender_name)
           if (incomingMsg?.sender_name) {
             displayName = incomingMsg.sender_name
           }
         }
-        // 최종 폴백: LINE User ID 일부
         if (!displayName && room.line_user_id) {
           displayName = 'LINE: ' + room.line_user_id.slice(0, 8) + '...'
         }
@@ -137,7 +143,9 @@ export default function LineChatManagement() {
           creatorName: displayName || 'LINE 사용자',
           creatorEmail: user.email || application?.email || '',
           campaignTitle: application?.campaigns?.title || '',
-          campaignId: application?.campaign_id || ''
+          campaignId: application?.campaign_id || '',
+          linked_at: !!application,
+          creator_id: user.creator_id || application?.user_id
         }
       })
 
@@ -172,6 +180,26 @@ export default function LineChatManagement() {
       if (error) throw error
 
       setMessages(data || [])
+
+      // 읽음 처리 (read_at 컬럼이 없을 수 있으므로 오류 무시)
+      try {
+        await supabaseJapan
+          .from('line_messages')
+          .update({ read_at: new Date().toISOString() })
+          .eq('line_user_id', lineUserId)
+          .eq('direction', 'incoming')
+          .is('read_at', null)
+
+        setChatRooms(prev => prev.map(room =>
+          room.line_user_id === lineUserId
+            ? { ...room, unreadCount: 0 }
+            : room
+        ))
+      } catch (e) {
+        // read_at 컬럼이 없을 경우 무시
+        console.log('read_at update skipped')
+      }
+
       scrollToBottom()
     } catch (error) {
       console.error('Load messages error:', error)
@@ -248,6 +276,30 @@ export default function LineChatManagement() {
     })
   }
 
+  // 프로필 모달 열기
+  const openProfileModal = async (creatorId) => {
+    if (!creatorId) return
+
+    setLoadingProfile(true)
+    setShowProfileModal(true)
+
+    try {
+      const { data, error } = await supabaseJapan
+        .from('user_profiles')
+        .select('*')
+        .eq('id', creatorId)
+        .single()
+
+      if (error) throw error
+      setProfileData(data)
+    } catch (error) {
+      console.error('Load profile error:', error)
+      setProfileData(null)
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
+
   // 검색 필터
   const filteredRooms = chatRooms.filter(room => {
     if (!searchTerm) return true
@@ -292,9 +344,9 @@ export default function LineChatManagement() {
 
           {/* 메인 컨텐츠 */}
           <Card className="h-[calc(100vh-180px)] overflow-hidden">
-            <div className="flex h-full overflow-hidden">
+            <div className="flex h-full">
               {/* 채팅방 목록 */}
-              <div className={`w-full md:w-96 border-r flex flex-col overflow-hidden ${selectedRoom ? 'hidden md:flex' : 'flex'}`}>
+              <div className={`w-full md:w-96 border-r flex flex-col ${selectedRoom ? 'hidden md:flex' : 'flex'}`}>
                 {/* 검색 & 새로고침 */}
                 <div className="p-4 border-b">
                   <div className="flex gap-2">
@@ -348,34 +400,34 @@ export default function LineChatManagement() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <p className="font-medium text-gray-900 truncate">
-                                  {room.creatorName}
+                                  {room.creatorName || room.display_name || 'Unknown'}
                                 </p>
                                 <span className="text-xs text-gray-400 flex-shrink-0">
                                   {formatTime(room.lastMessageTime)}
                                 </span>
                               </div>
 
-                              {/* 캠페인 정보 */}
-                              {room.campaignTitle && (
-                                <p className="text-xs text-blue-600 truncate mt-0.5">
-                                  📋 {room.campaignTitle}
-                                </p>
-                              )}
-
                               <div className="flex items-center gap-1 mt-0.5">
-                                {room.creator_id ? (
+                                {room.linked_at ? (
                                   <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                                     연동됨
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
-                                    LINE
+                                  <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                                    미연동
                                   </Badge>
                                 )}
                                 {room.creatorEmail && (
                                   <span className="text-xs text-gray-400 truncate">{room.creatorEmail}</span>
                                 )}
                               </div>
+
+                              {/* 캠페인 정보 표시 */}
+                              {room.campaignTitle && (
+                                <p className="text-xs text-blue-600 truncate mt-0.5">
+                                  📋 {room.campaignTitle}
+                                </p>
+                              )}
 
                               <div className="flex items-center justify-between mt-1">
                                 <p className="text-sm text-gray-500 truncate">
@@ -431,15 +483,15 @@ export default function LineChatManagement() {
                               {selectedRoom.creatorEmail}
                             </span>
                           )}
-                          {selectedRoom.creator_id ? (
+                          {selectedRoom.linked_at ? (
                             <span className="flex items-center gap-1 text-green-600">
                               <CheckCircle className="w-3 h-3" />
                               연동됨
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-gray-500">
-                              <MessageCircle className="w-3 h-3" />
-                              LINE 사용자
+                            <span className="flex items-center gap-1 text-yellow-600">
+                              <XCircle className="w-3 h-3" />
+                              미연동
                             </span>
                           )}
                         </div>
@@ -449,9 +501,9 @@ export default function LineChatManagement() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(`/admin/all-creators?search=${selectedRoom.creatorEmail}`, '_blank')}
+                          onClick={() => openProfileModal(selectedRoom.creator_id)}
                         >
-                          <ExternalLink className="w-4 h-4 mr-1" />
+                          <User className="w-4 h-4 mr-1" />
                           프로필
                         </Button>
                       )}
@@ -535,6 +587,127 @@ export default function LineChatManagement() {
           </Card>
         </div>
       </div>
+
+      {/* 프로필 모달 */}
+      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              크리에이터 프로필
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingProfile ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+          ) : profileData ? (
+            <div className="space-y-4">
+              {/* 기본 정보 */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {profileData.profile_image ? (
+                    <img src={profileData.profile_image} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">{profileData.name || '이름 없음'}</h3>
+                  <p className="text-sm text-gray-500">{profileData.email}</p>
+                  {profileData.phone && (
+                    <p className="text-sm text-gray-500 flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {profileData.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* SNS 정보 */}
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-gray-700">SNS</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  {profileData.instagram_url && (
+                    <a
+                      href={profileData.instagram_url.startsWith('http') ? profileData.instagram_url : `https://instagram.com/${profileData.instagram_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-pink-600 hover:underline"
+                    >
+                      <Instagram className="w-4 h-4" />
+                      {profileData.instagram_url}
+                    </a>
+                  )}
+                  {profileData.youtube_url && (
+                    <a
+                      href={profileData.youtube_url.startsWith('http') ? profileData.youtube_url : `https://youtube.com/${profileData.youtube_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-red-600 hover:underline"
+                    >
+                      <Youtube className="w-4 h-4" />
+                      {profileData.youtube_url}
+                    </a>
+                  )}
+                  {profileData.tiktok_url && (
+                    <a
+                      href={profileData.tiktok_url.startsWith('http') ? profileData.tiktok_url : `https://tiktok.com/@${profileData.tiktok_url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-gray-800 hover:underline"
+                    >
+                      <span className="w-4 h-4 text-center font-bold">T</span>
+                      {profileData.tiktok_url}
+                    </a>
+                  )}
+                  {!profileData.instagram_url && !profileData.youtube_url && !profileData.tiktok_url && (
+                    <p className="text-sm text-gray-400">SNS 정보 없음</p>
+                  )}
+                </div>
+              </div>
+
+              {/* 팔로워 정보 */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-lg font-semibold text-pink-600">
+                    {profileData.instagram_followers?.toLocaleString() || '-'}
+                  </p>
+                  <p className="text-xs text-gray-500">Instagram</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-lg font-semibold text-red-600">
+                    {profileData.youtube_subscribers?.toLocaleString() || '-'}
+                  </p>
+                  <p className="text-xs text-gray-500">YouTube</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-lg font-semibold text-gray-800">
+                    {profileData.tiktok_followers?.toLocaleString() || '-'}
+                  </p>
+                  <p className="text-xs text-gray-500">TikTok</p>
+                </div>
+              </div>
+
+              {/* 가입일 */}
+              <div className="text-sm text-gray-500 pt-2 border-t">
+                가입일: {profileData.created_at ? new Date(profileData.created_at).toLocaleDateString('ko-KR') : '-'}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              프로필 정보를 불러올 수 없습니다.
+            </div>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button variant="outline" onClick={() => setShowProfileModal(false)}>
+              닫기
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
