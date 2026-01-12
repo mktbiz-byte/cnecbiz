@@ -222,6 +222,8 @@ export default function CampaignDetail() {
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   // Admin SNS/Ad code edit state
   const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
+  const [showDeadlineEditModal, setShowDeadlineEditModal] = useState(false)
+  const [deadlineEditData, setDeadlineEditData] = useState({})
   const [adminSnsEditData, setAdminSnsEditData] = useState({
     submissionId: null,
     participantId: null,
@@ -6834,7 +6836,29 @@ JSON만 출력.`
 
             {/* 영상 제출 마감일 */}
             <div className="pt-4 border-t">
-              <p className="text-sm text-gray-600 font-medium mb-2">영상 제출 마감일</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600 font-medium">영상 제출 마감일</p>
+                {isAdmin ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDeadlineEditModal(true)}
+                  >
+                    <Edit className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                ) : (
+                  <a
+                    href="http://pf.kakao.com/_FxhqTG/chat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-400 hover:text-blue-500"
+                  >
+                    수정 요청 →
+                  </a>
+                )}
+              </div>
               {campaign.campaign_type === '4week_challenge' ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div className="p-2 bg-purple-50 rounded-lg text-center">
@@ -6870,7 +6894,7 @@ JSON만 출력.`
                     </p>
                   </div>
                 </div>
-              ) : campaign.campaign_type === 'oliveyoung' ? (
+              ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 bg-green-50 rounded-lg text-center">
                     <p className="text-xs text-green-600">1차 영상</p>
@@ -6903,7 +6927,29 @@ JSON만 출력.`
 
             {/* SNS 업로드 예정일 */}
             <div className="pt-4 border-t">
-              <p className="text-sm text-gray-600 font-medium mb-2">SNS 업로드 예정일</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600 font-medium">SNS 업로드 예정일</p>
+                {isAdmin ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDeadlineEditModal(true)}
+                  >
+                    <Edit className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                ) : (
+                  <a
+                    href="http://pf.kakao.com/_FxhqTG/chat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-400 hover:text-blue-500"
+                  >
+                    수정 요청 →
+                  </a>
+                )}
+              </div>
               {campaign.campaign_type === '4week_challenge' ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div className="p-2 bg-pink-50 rounded-lg text-center">
@@ -6939,7 +6985,7 @@ JSON만 출력.`
                     </p>
                   </div>
                 </div>
-              ) : campaign.campaign_type === 'oliveyoung' ? (
+              ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 bg-pink-50 rounded-lg text-center">
                     <p className="text-xs text-pink-600">1차 SNS</p>
@@ -9219,6 +9265,198 @@ JSON만 출력.`
                 ) : (
                   '저장 후 최종 확정'
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 관리자용 마감일 수정 모달 */}
+      {showDeadlineEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-bold">마감일 수정 (관리자 전용)</h3>
+              <p className="text-sm text-gray-500 mt-1">영상 제출 마감일 및 SNS 업로드 예정일을 수정합니다.</p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* 4주 챌린지 */}
+              {campaign.campaign_type === '4week_challenge' && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">영상 제출 마감일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week}>
+                          <label className="text-xs text-gray-500">{week}주차</label>
+                          <input
+                            type="date"
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            defaultValue={campaign[`week${week}_deadline`]?.split('T')[0] || ''}
+                            onChange={(e) => setDeadlineEditData(prev => ({
+                              ...prev,
+                              [`week${week}_deadline`]: e.target.value
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">SNS 업로드 예정일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week}>
+                          <label className="text-xs text-gray-500">{week}주차</label>
+                          <input
+                            type="date"
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            defaultValue={campaign[`week${week}_sns_deadline`]?.split('T')[0] || ''}
+                            onChange={(e) => setDeadlineEditData(prev => ({
+                              ...prev,
+                              [`week${week}_sns_deadline`]: e.target.value
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 올리브영 */}
+              {(campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">영상 제출 마감일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">1차 영상</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step1_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step1_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">2차 영상</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step2_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step2_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">SNS 업로드 예정일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">1차 SNS</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step1_sns_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step1_sns_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">2차 SNS</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step2_sns_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step2_sns_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 기획형 (일반) */}
+              {campaign.campaign_type !== '4week_challenge' && campaign.campaign_type !== 'oliveyoung' && !campaign.is_oliveyoung_sale && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">영상 제출 마감일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg"
+                      defaultValue={campaign.content_submission_deadline?.split('T')[0] || ''}
+                      onChange={(e) => setDeadlineEditData(prev => ({
+                        ...prev,
+                        content_submission_deadline: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">SNS 업로드 예정일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg"
+                      defaultValue={campaign.sns_upload_deadline?.split('T')[0] || ''}
+                      onChange={(e) => setDeadlineEditData(prev => ({
+                        ...prev,
+                        sns_upload_deadline: e.target.value
+                      }))}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeadlineEditModal(false)
+                  setDeadlineEditData({})
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={async () => {
+                  try {
+                    if (Object.keys(deadlineEditData).length === 0) {
+                      alert('수정할 내용이 없습니다.')
+                      return
+                    }
+
+                    const client = getSupabaseClient(region)
+                    const { error } = await client
+                      .from('campaigns')
+                      .update(deadlineEditData)
+                      .eq('id', campaign.id)
+
+                    if (error) throw error
+
+                    alert('마감일이 수정되었습니다.')
+                    setShowDeadlineEditModal(false)
+                    setDeadlineEditData({})
+                    // 캠페인 데이터 새로고침
+                    window.location.reload()
+                  } catch (error) {
+                    console.error('Error updating deadlines:', error)
+                    alert('마감일 수정에 실패했습니다: ' + error.message)
+                  }
+                }}
+              >
+                저장
               </Button>
             </div>
           </div>
