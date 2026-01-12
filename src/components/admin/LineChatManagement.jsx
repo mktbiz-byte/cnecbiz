@@ -37,80 +37,84 @@ export default function LineChatManagement() {
   const loadChatRooms = async () => {
     setLoading(true)
     try {
-      // line_messages에서 고유한 line_user_id 목록 조회 (모든 채팅 내역)
+      // line_messages에서 모든 메시지 조회
       const { data: allMessages, error: msgError } = await supabaseJapan
         .from('line_messages')
-        .select('line_user_id')
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (msgError) {
         console.error('Load messages error:', msgError)
+        setLoading(false)
+        return
       }
 
-      // 고유한 사용자 ID 추출
-      const uniqueUserIds = [...new Set((allMessages || []).map(m => m.line_user_id))]
-      console.log('[LineChatManagement] Unique user IDs from messages:', uniqueUserIds.length)
+      console.log('[LineChatManagement] Total messages:', allMessages?.length || 0)
 
-      // line_users 테이블에서 사용자 정보 조회
-      const { data: lineUsers, error } = await supabaseJapan
-        .from('line_users')
-        .select('*')
+      // 사용자별로 그룹화
+      const userMessageMap = new Map()
+      allMessages?.forEach(msg => {
+        if (!userMessageMap.has(msg.line_user_id)) {
+          userMessageMap.set(msg.line_user_id, {
+            line_user_id: msg.line_user_id,
+            lastMessage: msg.content || '',
+            lastMessageTime: msg.created_at,
+            lastMessageDirection: msg.direction,
+            messages: []
+          })
+        }
+        userMessageMap.get(msg.line_user_id).messages.push(msg)
+      })
 
-      if (error) {
-        console.error('Load line_users error:', error)
+      // line_users 테이블에서 사용자 정보 조회 (오류 무시)
+      let lineUsers = []
+      try {
+        const { data } = await supabaseJapan
+          .from('line_users')
+          .select('*')
+        lineUsers = data || []
+      } catch (e) {
+        console.log('line_users query failed, continuing without user info')
       }
-
-      console.log('[LineChatManagement] Line users:', lineUsers?.length || 0)
 
       // line_users 맵 생성
       const userMap = new Map()
-      lineUsers?.forEach(u => userMap.set(u.line_user_id, u))
+      lineUsers.forEach(u => userMap.set(u.line_user_id, u))
 
-      // 메시지가 있는 모든 사용자로 채팅방 생성
-      const roomsWithMessages = await Promise.all(
-        uniqueUserIds.map(async (lineUserId) => {
-          const user = userMap.get(lineUserId) || { line_user_id: lineUserId }
+      // 채팅방 목록 생성
+      const roomsWithMessages = Array.from(userMessageMap.values()).map(room => {
+        const user = userMap.get(room.line_user_id) || {}
+        // 마지막 메시지에서 이름 추출 시도
+        const lastMsg = room.messages[0]
 
-          // 최신 메시지 조회
-          const { data: lastMessage } = await supabaseJapan
-            .from('line_messages')
-            .select('content, created_at, direction')
-            .eq('line_user_id', lineUserId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-
-          // 읽지 않은 메시지 수
-          const { count: unreadCount } = await supabaseJapan
-            .from('line_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('line_user_id', lineUserId)
-            .eq('direction', 'incoming')
-            .eq('is_read', false)
-
-          // 크리에이터 정보 조회
-          let creatorInfo = null
-          if (user.creator_id) {
-            const { data: creator } = await supabaseJapan
-              .from('user_profiles')
-              .select('name, email')
-              .eq('id', user.creator_id)
-              .single()
-            creatorInfo = creator
+        // 이름 결정 - 여러 소스에서 찾기
+        let displayName = user.display_name || user.name || ''
+        if (!displayName && lastMsg?.sender_name) {
+          displayName = lastMsg.sender_name
+        }
+        // 메시지들에서 발신자 이름 찾기
+        if (!displayName) {
+          const incomingMsg = room.messages.find(m => m.direction === 'incoming' && m.sender_name)
+          if (incomingMsg?.sender_name) {
+            displayName = incomingMsg.sender_name
           }
+        }
+        // 최종 폴백: LINE User ID 일부
+        if (!displayName && room.line_user_id) {
+          displayName = 'LINE: ' + room.line_user_id.slice(0, 8) + '...'
+        }
 
-          return {
-            ...user,
-            line_user_id: lineUserId,
-            lastMessage: lastMessage?.content || '',
-            lastMessageTime: lastMessage?.created_at,
-            lastMessageDirection: lastMessage?.direction,
-            unreadCount: unreadCount || 0,
-            creatorName: creatorInfo?.name || user.display_name,
-            creatorEmail: creatorInfo?.email || user.email
-          }
-        })
-      )
+        return {
+          ...user,
+          line_user_id: room.line_user_id,
+          lastMessage: room.lastMessage,
+          lastMessageTime: room.lastMessageTime,
+          lastMessageDirection: room.lastMessageDirection,
+          unreadCount: 0,
+          creatorName: displayName || 'LINE 사용자',
+          creatorEmail: user.email || ''
+        }
+      })
 
       // 최신 메시지 순으로 정렬
       roomsWithMessages.sort((a, b) => {
@@ -120,6 +124,7 @@ export default function LineChatManagement() {
         return new Date(b.lastMessageTime) - new Date(a.lastMessageTime)
       })
 
+      console.log('[LineChatManagement] Chat rooms:', roomsWithMessages.length)
       setChatRooms(roomsWithMessages)
     } catch (error) {
       console.error('Load chat rooms error:', error)
@@ -142,21 +147,6 @@ export default function LineChatManagement() {
       if (error) throw error
 
       setMessages(data || [])
-
-      // 읽음 처리
-      await supabaseJapan
-        .from('line_messages')
-        .update({ is_read: true })
-        .eq('line_user_id', lineUserId)
-        .eq('direction', 'incoming')
-
-      // 채팅방 목록 업데이트 (읽지 않은 메시지 수 초기화)
-      setChatRooms(prev => prev.map(room =>
-        room.line_user_id === lineUserId
-          ? { ...room, unreadCount: 0 }
-          : room
-      ))
-
       scrollToBottom()
     } catch (error) {
       console.error('Load messages error:', error)
@@ -276,10 +266,10 @@ export default function LineChatManagement() {
           </div>
 
           {/* 메인 컨텐츠 */}
-          <Card className="h-[calc(100vh-180px)]">
-            <div className="flex h-full">
+          <Card className="h-[calc(100vh-180px)] overflow-hidden">
+            <div className="flex h-full overflow-hidden">
               {/* 채팅방 목록 */}
-              <div className={`w-full md:w-96 border-r flex flex-col ${selectedRoom ? 'hidden md:flex' : 'flex'}`}>
+              <div className={`w-full md:w-96 border-r flex flex-col overflow-hidden ${selectedRoom ? 'hidden md:flex' : 'flex'}`}>
                 {/* 검색 & 새로고침 */}
                 <div className="p-4 border-b">
                   <div className="flex gap-2">
@@ -333,7 +323,7 @@ export default function LineChatManagement() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <p className="font-medium text-gray-900 truncate">
-                                  {room.creatorName || room.display_name || 'Unknown'}
+                                  {room.creatorName}
                                 </p>
                                 <span className="text-xs text-gray-400 flex-shrink-0">
                                   {formatTime(room.lastMessageTime)}
@@ -341,13 +331,13 @@ export default function LineChatManagement() {
                               </div>
 
                               <div className="flex items-center gap-1 mt-0.5">
-                                {room.linked_at ? (
+                                {room.creator_id ? (
                                   <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                                     연동됨
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
-                                    미연동
+                                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 border-gray-200">
+                                    LINE
                                   </Badge>
                                 )}
                                 {room.creatorEmail && (
@@ -409,15 +399,15 @@ export default function LineChatManagement() {
                               {selectedRoom.creatorEmail}
                             </span>
                           )}
-                          {selectedRoom.linked_at ? (
+                          {selectedRoom.creator_id ? (
                             <span className="flex items-center gap-1 text-green-600">
                               <CheckCircle className="w-3 h-3" />
                               연동됨
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-yellow-600">
-                              <XCircle className="w-3 h-3" />
-                              미연동
+                            <span className="flex items-center gap-1 text-gray-500">
+                              <MessageCircle className="w-3 h-3" />
+                              LINE 사용자
                             </span>
                           )}
                         </div>
