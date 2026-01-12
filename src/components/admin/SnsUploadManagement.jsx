@@ -108,18 +108,18 @@ export default function SnsUploadManagement() {
             email
           )
         `)
-        .in('status', ['approved', 'completed', 'sns_uploaded'])
+        .in('status', ['approved', 'completed', 'sns_uploaded', 'final_confirmed'])
         .order('created_at', { ascending: false })
 
       if (!bizAppError && bizApplications) {
-        console.log('[SnsUploadManagement] BIZ applications (approved/completed/sns_uploaded):', bizApplications.length)
+        console.log('[SnsUploadManagement] BIZ applications (approved/completed/sns_uploaded/final_confirmed):', bizApplications.length)
         bizApplications.forEach(app => {
           // SNS URL이 있는 경우 또는 완료 상태인 경우 추가
           const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                            app.week3_url || app.week4_url || app.step1_url ||
                            app.step2_url || app.step3_url
 
-          if (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(app.status)) {
+          if (hasSnsUrl || ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(app.status)) {
             // 캠페인 목록에 추가
             if (app.campaigns?.id && app.campaigns?.title) {
               campaignSet.set(app.campaigns.id, {
@@ -188,7 +188,7 @@ export default function SnsUploadManagement() {
             email
           )
         `)
-        .in('status', ['approved', 'completed'])
+        .in('status', ['approved', 'completed', 'sns_uploaded', 'final_confirmed'])
         .order('created_at', { ascending: false })
 
       if (!bizSubError && bizSubmissions) {
@@ -249,7 +249,7 @@ export default function SnsUploadManagement() {
               email
             )
           `)
-          .in('status', ['approved', 'completed', 'sns_uploaded'])
+          .in('status', ['approved', 'completed', 'sns_uploaded', 'final_confirmed'])
           .order('created_at', { ascending: false })
 
         if (!koreaError && koreaParticipants) {
@@ -264,7 +264,7 @@ export default function SnsUploadManagement() {
                              p.week3_url || p.week4_url || p.step1_url ||
                              p.step2_url || p.step3_url
 
-            if (!isDuplicate && (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(p.status))) {
+            if (!isDuplicate && (hasSnsUrl || ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(p.status))) {
               // 캠페인 목록에 추가
               if (p.campaigns?.id && p.campaigns?.title) {
                 campaignSet.set(p.campaigns.id, {
@@ -326,7 +326,7 @@ export default function SnsUploadManagement() {
               email
             )
           `)
-          .in('status', ['approved', 'completed'])
+          .in('status', ['approved', 'completed', 'sns_uploaded', 'final_confirmed'])
           .order('created_at', { ascending: false })
 
         if (!koreaSubError && koreaSubmissions) {
