@@ -40,19 +40,13 @@ export default function LineChatManagement() {
       // line_users 테이블에서 모든 연동된 사용자 조회
       const { data: lineUsers, error } = await supabaseJapan
         .from('line_users')
-        .select(`
-          line_user_id,
-          display_name,
-          creator_id,
-          email,
-          status,
-          followed_at,
-          linked_at
-        `)
-        .eq('status', 'active')
+        .select('*')
         .order('linked_at', { ascending: false, nullsFirst: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Load chat rooms error:', error)
+        throw error
+      }
 
       // 각 채팅방의 최신 메시지와 읽지 않은 메시지 수 조회
       const roomsWithMessages = await Promise.all(

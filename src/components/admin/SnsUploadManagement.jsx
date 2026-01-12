@@ -86,7 +86,7 @@ export default function SnsUploadManagement() {
       const allVideos = []
       const campaignSet = new Map()
 
-      // 1. BIZ DB에서 applications 조회 (완료 상태: approved, completed, sns_uploaded)
+      // 1. BIZ DB에서 applications 조회 (상태 필터 제거 - 프론트엔드에서 필터링)
       const { data: bizApplications, error: bizAppError } = await supabaseBiz
         .from('applications')
         .select(`
@@ -108,18 +108,22 @@ export default function SnsUploadManagement() {
             email
           )
         `)
-        .in('status', ['approved', 'completed', 'sns_uploaded'])
         .order('created_at', { ascending: false })
+
+      if (bizAppError) {
+        console.error('[SnsUploadManagement] BIZ applications error:', bizAppError)
+      }
 
       if (!bizAppError && bizApplications) {
         console.log('[SnsUploadManagement] BIZ applications:', bizApplications.length)
         bizApplications.forEach(app => {
-          // SNS URL이 있는 경우 또는 완료 상태인 경우 추가
+          // SNS URL이 있거나 영상 관련 상태인 경우 추가
           const hasSnsUrl = app.sns_upload_url || app.week1_url || app.week2_url ||
                            app.week3_url || app.week4_url || app.step1_url ||
                            app.step2_url || app.step3_url
+          const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(app.status)
 
-          if (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(app.status)) {
+          if (hasSnsUrl || hasVideoStatus) {
             // 캠페인 목록에 추가
             if (app.campaigns?.id && app.campaigns?.title) {
               campaignSet.set(app.campaigns.id, {
@@ -166,7 +170,7 @@ export default function SnsUploadManagement() {
         })
       }
 
-      // 2. BIZ DB에서 video_submissions 조회 (approved, completed 상태)
+      // 2. BIZ DB에서 video_submissions 조회 (상태 필터 제거)
       const { data: bizSubmissions, error: bizSubError } = await supabaseBiz
         .from('video_submissions')
         .select(`
@@ -188,12 +192,19 @@ export default function SnsUploadManagement() {
             email
           )
         `)
-        .in('status', ['approved', 'completed', 'sns_uploaded'])
         .order('created_at', { ascending: false })
+
+      if (bizSubError) {
+        console.error('[SnsUploadManagement] BIZ video_submissions error:', bizSubError)
+      }
 
       if (!bizSubError && bizSubmissions) {
         console.log('[SnsUploadManagement] BIZ video_submissions:', bizSubmissions.length)
         bizSubmissions.forEach(sub => {
+          // 영상 관련 상태인 경우만 추가
+          const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+          if (!hasVideoStatus && !sub.sns_upload_url) return
+
           // 중복 체크
           const isDuplicate = allVideos.some(v =>
             v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
@@ -232,7 +243,7 @@ export default function SnsUploadManagement() {
         })
       }
 
-      // 3. Korea DB에서 campaign_participants 조회
+      // 3. Korea DB에서 campaign_participants 조회 (상태 필터 제거)
       if (supabaseKorea) {
         const { data: koreaParticipants, error: koreaError } = await supabaseKorea
           .from('campaign_participants')
@@ -249,8 +260,11 @@ export default function SnsUploadManagement() {
               email
             )
           `)
-          .in('status', ['approved', 'completed', 'sns_uploaded'])
           .order('created_at', { ascending: false })
+
+        if (koreaError) {
+          console.error('[SnsUploadManagement] Korea campaign_participants error:', koreaError)
+        }
 
         if (!koreaError && koreaParticipants) {
           console.log('[SnsUploadManagement] Korea campaign_participants:', koreaParticipants.length)
@@ -263,8 +277,9 @@ export default function SnsUploadManagement() {
             const hasSnsUrl = p.sns_upload_url || p.week1_url || p.week2_url ||
                              p.week3_url || p.week4_url || p.step1_url ||
                              p.step2_url || p.step3_url
+            const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(p.status)
 
-            if (!isDuplicate && (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(p.status))) {
+            if (!isDuplicate && (hasSnsUrl || hasVideoStatus)) {
               // 캠페인 목록에 추가
               if (p.campaigns?.id && p.campaigns?.title) {
                 campaignSet.set(p.campaigns.id, {
@@ -310,7 +325,7 @@ export default function SnsUploadManagement() {
           })
         }
 
-        // 4. Korea DB에서 video_submissions 조회
+        // 4. Korea DB에서 video_submissions 조회 (상태 필터 제거)
         const { data: koreaSubmissions, error: koreaSubError } = await supabaseKorea
           .from('video_submissions')
           .select(`
@@ -326,12 +341,19 @@ export default function SnsUploadManagement() {
               email
             )
           `)
-          .in('status', ['approved', 'completed', 'sns_uploaded'])
           .order('created_at', { ascending: false })
+
+        if (koreaSubError) {
+          console.error('[SnsUploadManagement] Korea video_submissions error:', koreaSubError)
+        }
 
         if (!koreaSubError && koreaSubmissions) {
           console.log('[SnsUploadManagement] Korea video_submissions:', koreaSubmissions.length)
           koreaSubmissions.forEach(sub => {
+            // 영상 관련 상태인 경우만 추가
+            const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
+            if (!hasVideoStatus && !sub.sns_upload_url) return
+
             // 중복 체크
             const isDuplicate = allVideos.some(v =>
               v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
