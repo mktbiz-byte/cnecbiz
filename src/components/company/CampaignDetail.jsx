@@ -6845,7 +6845,7 @@ JSON만 출력.`
                     className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
                     onClick={() => setShowDeadlineEditModal(true)}
                   >
-                    <Edit className="w-3 h-3 mr-1" />
+                    <Edit2 className="w-3 h-3 mr-1" />
                     수정
                   </Button>
                 ) : (
@@ -6936,7 +6936,7 @@ JSON만 출력.`
                     className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
                     onClick={() => setShowDeadlineEditModal(true)}
                   >
-                    <Edit className="w-3 h-3 mr-1" />
+                    <Edit2 className="w-3 h-3 mr-1" />
                     수정
                   </Button>
                 ) : (
