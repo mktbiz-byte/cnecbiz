@@ -133,9 +133,12 @@ export default function LineChatManagement() {
           displayName = 'LINE: ' + room.line_user_id.slice(0, 8) + '...'
         }
 
-        // 연동 여부 판단: application이 있거나, line_users에 이메일/creator_id가 있으면 연동된 것
+        // 연동 여부 판단: application이 있거나, 이메일/creator_id가 있으면 연동된 것
         const email = user.email || application?.email || ''
-        const isLinked = !!application || !!user.email || !!user.creator_id
+        // 이메일이 있으면 연동된 것으로 판단 (핵심!)
+        const isLinked = !!application || !!email || !!user.creator_id
+
+        console.log('[LineChatManagement] Room:', room.line_user_id.slice(0,8), '| email:', email, '| isLinked:', isLinked, '| app:', !!application)
 
         return {
           ...user,

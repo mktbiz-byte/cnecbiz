@@ -279,18 +279,26 @@ export default function SnsUploadManagement() {
         const koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
 
-        // user_profiles 테이블에서 크리에이터 정보 조회 (핵심!)
-        const { data: koreaProfiles } = await supabaseKorea
-          .from('user_profiles')
-          .select('id, name, email, full_name')
-
+        // user_profiles 테이블에서 크리에이터 정보 조회 (오류 발생 시 무시)
         const koreaProfileMap = new Map()
-        koreaProfiles?.forEach(p => {
-          if (p.id) {
-            koreaProfileMap.set(p.id, p)
+        try {
+          const { data: koreaProfiles, error: profileError } = await supabaseKorea
+            .from('user_profiles')
+            .select('*')  // 전체 컬럼 조회 (컬럼명 오류 방지)
+
+          if (!profileError && koreaProfiles) {
+            koreaProfiles.forEach(p => {
+              if (p.id) {
+                koreaProfileMap.set(p.id, p)
+              }
+            })
+            console.log('[SnsUploadManagement] Korea user_profiles loaded:', koreaProfiles.length)
+          } else if (profileError) {
+            console.log('[SnsUploadManagement] user_profiles query error (ignored):', profileError.message)
           }
-        })
-        console.log('[SnsUploadManagement] Korea user_profiles loaded:', koreaProfiles?.length || 0)
+        } catch (e) {
+          console.log('[SnsUploadManagement] user_profiles query failed, continuing without profiles')
+        }
 
         const { data: koreaParticipants, error: koreaError } = await supabaseKorea
           .from('campaign_participants')
@@ -466,12 +474,16 @@ export default function SnsUploadManagement() {
       console.log('[SnsUploadManagement] Multi-video type videos:', multiVideoTypes.length)
 
       allVideos.forEach(video => {
+        // null/undefined 체크
+        if (!video || !video.campaign_id) return
+
         const key = getGroupKey(video)
 
         if (!videoMap.has(key)) {
           videoMap.set(key, { ...video })
         } else {
           const existing = videoMap.get(key)
+          if (!existing) return  // 안전 체크
 
           // week URL 병합
           if (video.week_number) {
@@ -485,34 +497,36 @@ export default function SnsUploadManagement() {
             }
           }
 
-          // 개별 week URL 병합
-          ['week1_url', 'week2_url', 'week3_url', 'week4_url',
-           'step1_url', 'step2_url', 'step3_url'].forEach(urlKey => {
-            if (video[urlKey] && !existing[urlKey]) {
+          // 개별 week URL 병합 (안전하게)
+          const weekUrls = ['week1_url', 'week2_url', 'week3_url', 'week4_url',
+                          'step1_url', 'step2_url', 'step3_url']
+          weekUrls.forEach(urlKey => {
+            if (video && video[urlKey] && existing && !existing[urlKey]) {
               existing[urlKey] = video[urlKey]
             }
           })
 
-          // 광고코드 병합
-          ['week1_partnership_code', 'week2_partnership_code', 'week3_partnership_code',
-           'week4_partnership_code', 'step1_2_partnership_code', 'step3_partnership_code'].forEach(codeKey => {
-            if (video[codeKey] && !existing[codeKey]) {
+          // 광고코드 병합 (안전하게)
+          const partnerCodes = ['week1_partnership_code', 'week2_partnership_code', 'week3_partnership_code',
+                               'week4_partnership_code', 'step1_2_partnership_code', 'step3_partnership_code']
+          partnerCodes.forEach(codeKey => {
+            if (video && video[codeKey] && existing && !existing[codeKey]) {
               existing[codeKey] = video[codeKey]
             }
           })
 
           // SNS URL 병합
-          if (video.sns_upload_url && !existing.sns_upload_url) {
+          if (video?.sns_upload_url && !existing?.sns_upload_url) {
             existing.sns_upload_url = video.sns_upload_url
           }
 
           // video_file_url 병합
-          if (video.video_file_url && !existing.video_file_url) {
+          if (video?.video_file_url && !existing?.video_file_url) {
             existing.video_file_url = video.video_file_url
           }
 
           // 최신 날짜로 업데이트
-          if (video.created_at && existing.created_at &&
+          if (video?.created_at && existing?.created_at &&
               new Date(video.created_at) > new Date(existing.created_at)) {
             existing.created_at = video.created_at
           }
