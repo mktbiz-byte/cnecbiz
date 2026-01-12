@@ -6917,8 +6917,8 @@ JSON만 출력.`
                 <div className="p-2 bg-blue-50 rounded-lg text-center w-fit">
                   <p className="text-xs text-blue-600">영상 제출 마감</p>
                   <p className="font-medium text-sm">
-                    {campaign.content_submission_deadline
-                      ? new Date(campaign.content_submission_deadline).toLocaleDateString()
+                    {(campaign.content_submission_deadline || campaign.start_date)
+                      ? new Date(campaign.content_submission_deadline || campaign.start_date).toLocaleDateString()
                       : <span className="text-red-500">미설정</span>}
                   </p>
                 </div>
@@ -7008,8 +7008,8 @@ JSON만 출력.`
                 <div className="p-2 bg-pink-50 rounded-lg text-center w-fit">
                   <p className="text-xs text-pink-600">SNS 업로드</p>
                   <p className="font-medium text-sm">
-                    {campaign.sns_upload_deadline
-                      ? new Date(campaign.sns_upload_deadline).toLocaleDateString()
+                    {(campaign.sns_upload_deadline || campaign.end_date)
+                      ? new Date(campaign.sns_upload_deadline || campaign.end_date).toLocaleDateString()
                       : <span className="text-gray-400">-</span>}
                   </p>
                 </div>
@@ -9396,7 +9396,7 @@ JSON만 출력.`
                     <input
                       type="date"
                       className="w-full px-3 py-2 border rounded-lg"
-                      defaultValue={campaign.content_submission_deadline?.split('T')[0] || ''}
+                      defaultValue={(campaign.content_submission_deadline || campaign.start_date)?.split('T')[0] || ''}
                       onChange={(e) => setDeadlineEditData(prev => ({
                         ...prev,
                         content_submission_deadline: e.target.value
@@ -9408,7 +9408,7 @@ JSON만 출력.`
                     <input
                       type="date"
                       className="w-full px-3 py-2 border rounded-lg"
-                      defaultValue={campaign.sns_upload_deadline?.split('T')[0] || ''}
+                      defaultValue={(campaign.sns_upload_deadline || campaign.end_date)?.split('T')[0] || ''}
                       onChange={(e) => setDeadlineEditData(prev => ({
                         ...prev,
                         sns_upload_deadline: e.target.value
