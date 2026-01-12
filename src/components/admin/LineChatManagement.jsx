@@ -133,6 +133,10 @@ export default function LineChatManagement() {
           displayName = 'LINE: ' + room.line_user_id.slice(0, 8) + '...'
         }
 
+        // 연동 여부 판단: application이 있거나, line_users에 이메일/creator_id가 있으면 연동된 것
+        const email = user.email || application?.email || ''
+        const isLinked = !!application || !!user.email || !!user.creator_id
+
         return {
           ...user,
           line_user_id: room.line_user_id,
@@ -141,10 +145,10 @@ export default function LineChatManagement() {
           lastMessageDirection: room.lastMessageDirection,
           unreadCount: 0,
           creatorName: displayName || 'LINE 사용자',
-          creatorEmail: user.email || application?.email || '',
+          creatorEmail: email,
           campaignTitle: application?.campaigns?.title || '',
           campaignId: application?.campaign_id || '',
-          linked_at: !!application,
+          linked_at: isLinked,
           creator_id: user.creator_id || application?.user_id
         }
       })

@@ -228,12 +228,14 @@ export default function SnsUploadManagement() {
           const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
           if (!hasVideoStatus && !sub.sns_upload_url) return
 
-          // 중복 체크
+          const campaign = campaignMap.get(sub.campaign_id)
+          const isMultiVideoCampaign = ['4week_challenge', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+
+          // 중복 체크 - 멀티비디오 캠페인은 중복이어도 추가 (나중에 그룹화됨)
           const isDuplicate = allVideos.some(v =>
             v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
           )
-          if (!isDuplicate) {
-            const campaign = campaignMap.get(sub.campaign_id)
+          if (!isDuplicate || isMultiVideoCampaign) {
 
             // 캠페인 목록에 추가
             if (campaign) {
@@ -277,6 +279,19 @@ export default function SnsUploadManagement() {
         const koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
 
+        // user_profiles 테이블에서 크리에이터 정보 조회 (핵심!)
+        const { data: koreaProfiles } = await supabaseKorea
+          .from('user_profiles')
+          .select('id, name, email, full_name')
+
+        const koreaProfileMap = new Map()
+        koreaProfiles?.forEach(p => {
+          if (p.id) {
+            koreaProfileMap.set(p.id, p)
+          }
+        })
+        console.log('[SnsUploadManagement] Korea user_profiles loaded:', koreaProfiles?.length || 0)
+
         const { data: koreaParticipants, error: koreaError } = await supabaseKorea
           .from('campaign_participants')
           .select('*')
@@ -293,6 +308,18 @@ export default function SnsUploadManagement() {
             koreaParticipantMap.set(p.user_id, p)
           }
         })
+
+        // user_profiles 이름을 참조하는 헬퍼 함수
+        const getKoreaCreatorName = (userId, fallbackData) => {
+          const profile = koreaProfileMap.get(userId)
+          if (profile?.name && !profile.name.includes('@')) {
+            return profile.name
+          }
+          if (profile?.full_name && !profile.full_name.includes('@')) {
+            return profile.full_name
+          }
+          return resolveCreatorName(fallbackData)
+        }
 
         if (!koreaError && koreaParticipants) {
           console.log('[SnsUploadManagement] Korea campaign_participants:', koreaParticipants.length)
@@ -333,7 +360,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: resolveCreatorName(p),
+                creatorName: getKoreaCreatorName(p.user_id, p),
                 creatorEmail: p.email,
                 // 멀티비디오 URL
                 week1_url: p.week1_url,
@@ -372,12 +399,14 @@ export default function SnsUploadManagement() {
             const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted', 'pending'].includes(sub.status)
             if (!hasVideoStatus && !sub.sns_upload_url) return
 
-            // 중복 체크
+            const campaign = koreaCampaignMap.get(sub.campaign_id)
+            const isMultiVideoCampaign = ['4week_challenge', 'oliveyoung', 'oliveyoung_sale'].includes(campaign?.campaign_type)
+
+            // 중복 체크 - 멀티비디오 캠페인은 중복이어도 추가 (나중에 그룹화됨)
             const isDuplicate = allVideos.some(v =>
               v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
             )
-            if (!isDuplicate) {
-              const campaign = koreaCampaignMap.get(sub.campaign_id)
+            if (!isDuplicate || isMultiVideoCampaign) {
               // video_submissions에서 participant 정보 조회
               const participant = koreaParticipantMap.get(sub.user_id)
 
@@ -390,10 +419,8 @@ export default function SnsUploadManagement() {
                 })
               }
 
-              // 크리에이터 이름: participant에서 먼저 찾고, 없으면 submission에서 찾기
-              const creatorName = resolveCreatorName(participant) !== '-'
-                ? resolveCreatorName(participant)
-                : resolveCreatorName(sub)
+              // 크리에이터 이름: user_profiles에서 먼저 찾기 (핵심!)
+              const creatorName = getKoreaCreatorName(sub.user_id, participant || sub)
 
               allVideos.push({
                 id: `korea_sub_${sub.id}`,
@@ -420,11 +447,26 @@ export default function SnsUploadManagement() {
       }
 
       // 멀티비디오 캠페인 그룹화 (4주 챌린지, 올리브영)
-      // 동일한 campaign_id + user_id를 가진 항목들을 하나로 병합
+      // 동일한 campaign_id + (user_id 또는 email)를 가진 항목들을 하나로 병합
       const videoMap = new Map()
 
+      // 그룹화 키 생성 함수 - user_id가 없으면 email 사용
+      const getGroupKey = (video) => {
+        const identifier = video.user_id || video.creatorEmail || video.id
+        return `${video.campaign_id}_${identifier}`
+      }
+
+      // 디버그 로깅
+      console.log('[SnsUploadManagement] Grouping videos by campaign + user...')
+      const multiVideoTypes = allVideos.filter(v =>
+        v.campaignType === '4week_challenge' ||
+        v.campaignType === 'oliveyoung' ||
+        v.campaignType === 'oliveyoung_sale'
+      )
+      console.log('[SnsUploadManagement] Multi-video type videos:', multiVideoTypes.length)
+
       allVideos.forEach(video => {
-        const key = `${video.campaign_id}_${video.user_id}`
+        const key = getGroupKey(video)
 
         if (!videoMap.has(key)) {
           videoMap.set(key, { ...video })
