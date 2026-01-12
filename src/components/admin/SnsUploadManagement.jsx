@@ -1,6 +1,9 @@
 /**
  * SNS 업로드 완료 영상 통합 관리 페이지
  * 한국/미국/일본 국가별로 SNS 업로드 완료된 영상을 관리
+ * - 멀티비디오 캠페인 그룹화 (4주 챌린지: 4개, 올리브영: 2개)
+ * - 영상 미리보기 확장 기능
+ * - 캠페인별 필터링
  */
 
 import { useState, useEffect } from 'react'
@@ -10,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -19,8 +23,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Download, ExternalLink, Search, RefreshCw,
-  Video, Globe, User, Building2, Eye
+  Video, Globe, User, Building2, Eye, ChevronDown, ChevronUp, Play, X
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -30,9 +40,13 @@ export default function SnsUploadManagement() {
   const [loading, setLoading] = useState(true)
   const [selectedCountry, setSelectedCountry] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCampaign, setSelectedCampaign] = useState('all')
   const [completedVideos, setCompletedVideos] = useState([])
   const [filteredVideos, setFilteredVideos] = useState([])
+  const [campaigns, setCampaigns] = useState([])
   const [downloading, setDownloading] = useState(null)
+  const [expandedRows, setExpandedRows] = useState({})
+  const [previewVideo, setPreviewVideo] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -41,7 +55,7 @@ export default function SnsUploadManagement() {
 
   useEffect(() => {
     filterVideos()
-  }, [completedVideos, selectedCountry, searchTerm])
+  }, [completedVideos, selectedCountry, searchTerm, selectedCampaign])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -70,6 +84,7 @@ export default function SnsUploadManagement() {
     setLoading(true)
     try {
       const allVideos = []
+      const campaignSet = new Map()
 
       // 1. BIZ DB에서 applications 조회 (완료 상태: approved, completed, sns_uploaded)
       const { data: bizApplications, error: bizAppError } = await supabaseBiz
@@ -86,6 +101,11 @@ export default function SnsUploadManagement() {
               company_name,
               contact_email
             )
+          ),
+          users:user_id (
+            id,
+            name,
+            email
           )
         `)
         .in('status', ['approved', 'completed', 'sns_uploaded'])
@@ -100,6 +120,15 @@ export default function SnsUploadManagement() {
                            app.step2_url || app.step3_url
 
           if (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(app.status)) {
+            // 캠페인 목록에 추가
+            if (app.campaigns?.id && app.campaigns?.title) {
+              campaignSet.set(app.campaigns.id, {
+                id: app.campaigns.id,
+                title: app.campaigns.title,
+                type: app.campaigns.campaign_type
+              })
+            }
+
             allVideos.push({
               id: `biz_app_${app.id}`,
               application_id: app.id,
@@ -113,9 +142,10 @@ export default function SnsUploadManagement() {
               source: 'biz',
               country: app.campaigns?.target_country || 'kr',
               campaignTitle: app.campaigns?.title,
-              companyName: app.campaigns?.companies?.company_name,
+              companyName: app.campaigns?.companies?.company_name || '-',
               campaignType: app.campaigns?.campaign_type,
-              creatorName: app.creator_name || app.applicant_name,
+              creatorName: app.users?.name || app.creator_name || app.applicant_name || '-',
+              creatorEmail: app.users?.email,
               // 멀티비디오 URL
               week1_url: app.week1_url,
               week2_url: app.week2_url,
@@ -151,6 +181,11 @@ export default function SnsUploadManagement() {
               company_name,
               contact_email
             )
+          ),
+          users:user_id (
+            id,
+            name,
+            email
           )
         `)
         .in('status', ['approved', 'completed'])
@@ -164,6 +199,15 @@ export default function SnsUploadManagement() {
             v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
           )
           if (!isDuplicate) {
+            // 캠페인 목록에 추가
+            if (sub.campaigns?.id && sub.campaigns?.title) {
+              campaignSet.set(sub.campaigns.id, {
+                id: sub.campaigns.id,
+                title: sub.campaigns.title,
+                type: sub.campaigns.campaign_type
+              })
+            }
+
             allVideos.push({
               id: `biz_sub_${sub.id}`,
               submission_id: sub.id,
@@ -178,9 +222,10 @@ export default function SnsUploadManagement() {
               source: 'biz_submission',
               country: sub.campaigns?.target_country || 'kr',
               campaignTitle: sub.campaigns?.title,
-              companyName: sub.campaigns?.companies?.company_name,
+              companyName: sub.campaigns?.companies?.company_name || '-',
               campaignType: sub.campaigns?.campaign_type,
-              creatorName: sub.creator_name,
+              creatorName: sub.users?.name || sub.creator_name || '-',
+              creatorEmail: sub.users?.email,
               week_number: sub.week_number,
             })
           }
@@ -197,6 +242,11 @@ export default function SnsUploadManagement() {
               id,
               title,
               campaign_type
+            ),
+            users:user_id (
+              id,
+              name,
+              email
             )
           `)
           .in('status', ['approved', 'completed', 'sns_uploaded'])
@@ -215,6 +265,15 @@ export default function SnsUploadManagement() {
                              p.step2_url || p.step3_url
 
             if (!isDuplicate && (hasSnsUrl || ['approved', 'completed', 'sns_uploaded'].includes(p.status))) {
+              // 캠페인 목록에 추가
+              if (p.campaigns?.id && p.campaigns?.title) {
+                campaignSet.set(p.campaigns.id, {
+                  id: p.campaigns.id,
+                  title: p.campaigns.title,
+                  type: p.campaigns.campaign_type
+                })
+              }
+
               allVideos.push({
                 id: `korea_${p.id}`,
                 application_id: p.id,
@@ -229,7 +288,8 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: p.campaigns?.title,
                 campaignType: p.campaigns?.campaign_type,
-                creatorName: p.creator_name,
+                creatorName: p.users?.name || p.creator_name || '-',
+                creatorEmail: p.users?.email,
                 // 멀티비디오 URL
                 week1_url: p.week1_url,
                 week2_url: p.week2_url,
@@ -259,6 +319,11 @@ export default function SnsUploadManagement() {
               id,
               title,
               campaign_type
+            ),
+            users:user_id (
+              id,
+              name,
+              email
             )
           `)
           .in('status', ['approved', 'completed'])
@@ -272,6 +337,15 @@ export default function SnsUploadManagement() {
               v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
             )
             if (!isDuplicate) {
+              // 캠페인 목록에 추가
+              if (sub.campaigns?.id && sub.campaigns?.title) {
+                campaignSet.set(sub.campaigns.id, {
+                  id: sub.campaigns.id,
+                  title: sub.campaigns.title,
+                  type: sub.campaigns.campaign_type
+                })
+              }
+
               allVideos.push({
                 id: `korea_sub_${sub.id}`,
                 submission_id: sub.id,
@@ -287,7 +361,8 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: sub.campaigns?.title,
                 campaignType: sub.campaigns?.campaign_type,
-                creatorName: sub.creator_name,
+                creatorName: sub.users?.name || sub.creator_name || '-',
+                creatorEmail: sub.users?.email,
                 week_number: sub.week_number,
               })
             }
@@ -300,6 +375,7 @@ export default function SnsUploadManagement() {
 
       console.log('[SnsUploadManagement] Total completed videos:', allVideos.length)
       setCompletedVideos(allVideos)
+      setCampaigns(Array.from(campaignSet.values()))
     } catch (error) {
       console.error('Error fetching completed videos:', error)
     } finally {
@@ -320,6 +396,11 @@ export default function SnsUploadManagement() {
       })
     }
 
+    // 캠페인 필터
+    if (selectedCampaign !== 'all') {
+      filtered = filtered.filter(v => v.campaign_id === selectedCampaign)
+    }
+
     // 검색어 필터
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
@@ -334,28 +415,29 @@ export default function SnsUploadManagement() {
     setFilteredVideos(filtered)
   }
 
-  const handleDownloadVideo = async (video) => {
-    if (!video.video_file_url) {
+  const handleDownloadVideo = async (video, url = null) => {
+    const downloadUrl = url || video.video_file_url
+    if (!downloadUrl) {
       alert('다운로드 가능한 영상 파일이 없습니다.')
       return
     }
 
     setDownloading(video.id)
     try {
-      const response = await fetch(video.video_file_url)
+      const response = await fetch(downloadUrl)
       const blob = await response.blob()
 
-      const url = window.URL.createObjectURL(blob)
+      const urlObj = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
+      a.href = urlObj
       a.download = `${video.campaignTitle || 'video'}_${video.creatorName || 'creator'}_${new Date().toISOString().split('T')[0]}.mp4`
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
+      window.URL.revokeObjectURL(urlObj)
       document.body.removeChild(a)
     } catch (error) {
       console.error('Download error:', error)
-      window.open(video.video_file_url, '_blank')
+      window.open(downloadUrl, '_blank')
     } finally {
       setDownloading(null)
     }
@@ -387,17 +469,36 @@ export default function SnsUploadManagement() {
     }
   }
 
-  const getAllSnsUrls = (video) => {
+  // 멀티비디오 URL 구조화 (4주 챌린지, 올리브영)
+  const getMultiVideoUrls = (video) => {
     const urls = []
-    if (video.sns_upload_url) urls.push({ label: 'SNS', url: video.sns_upload_url })
-    if (video.week1_url) urls.push({ label: '1주차', url: video.week1_url })
-    if (video.week2_url) urls.push({ label: '2주차', url: video.week2_url })
-    if (video.week3_url) urls.push({ label: '3주차', url: video.week3_url })
-    if (video.week4_url) urls.push({ label: '4주차', url: video.week4_url })
-    if (video.step1_url) urls.push({ label: 'STEP1', url: video.step1_url })
-    if (video.step2_url) urls.push({ label: 'STEP2', url: video.step2_url })
-    if (video.step3_url) urls.push({ label: 'STEP3', url: video.step3_url })
+
+    // 4주 챌린지
+    if (video.campaignType === '4week_challenge') {
+      if (video.week1_url) urls.push({ label: '1주차', url: video.week1_url, code: video.week1_partnership_code })
+      if (video.week2_url) urls.push({ label: '2주차', url: video.week2_url, code: video.week2_partnership_code })
+      if (video.week3_url) urls.push({ label: '3주차', url: video.week3_url, code: video.week3_partnership_code })
+      if (video.week4_url) urls.push({ label: '4주차', url: video.week4_url, code: video.week4_partnership_code })
+    }
+    // 올리브영
+    else if (video.campaignType === 'oliveyoung' || video.campaignType === 'oliveyoung_sale') {
+      if (video.step1_url) urls.push({ label: 'STEP1', url: video.step1_url, code: video.step1_2_partnership_code })
+      if (video.step2_url) urls.push({ label: 'STEP2', url: video.step2_url, code: video.step1_2_partnership_code })
+      if (video.step3_url) urls.push({ label: 'STEP3', url: video.step3_url, code: video.step3_partnership_code })
+    }
+    // 일반
+    else if (video.sns_upload_url) {
+      urls.push({ label: 'SNS', url: video.sns_upload_url, code: video.partnership_code })
+    }
+
     return urls
+  }
+
+  const toggleRowExpand = (videoId) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [videoId]: !prev[videoId]
+    }))
   }
 
   const countByCountry = (country) => {
@@ -408,6 +509,13 @@ export default function SnsUploadManagement() {
       if (country === 'jp') return v.country === 'jp' || v.country === 'japan'
       return false
     }).length
+  }
+
+  const isVideoUrl = (url) => {
+    if (!url) return false
+    const videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv']
+    return videoExtensions.some(ext => url.toLowerCase().includes(ext)) ||
+           url.includes('video') || url.includes('storage')
   }
 
   return (
@@ -492,6 +600,20 @@ export default function SnsUploadManagement() {
                   />
                 </div>
               </div>
+              {/* 캠페인 필터 */}
+              <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="캠페인 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 캠페인</SelectItem>
+                  {campaigns.map(campaign => (
+                    <SelectItem key={campaign.id} value={campaign.id}>
+                      {campaign.title?.length > 30 ? campaign.title.slice(0, 30) + '...' : campaign.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Tabs value={selectedCountry} onValueChange={setSelectedCountry}>
                 <TabsList>
                   <TabsTrigger value="all">전체</TabsTrigger>
@@ -528,6 +650,7 @@ export default function SnsUploadManagement() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[40px]"></TableHead>
                       <TableHead className="w-[60px]">국가</TableHead>
                       <TableHead>캠페인</TableHead>
                       <TableHead>기업</TableHead>
@@ -535,7 +658,6 @@ export default function SnsUploadManagement() {
                       <TableHead>유형</TableHead>
                       <TableHead>상태</TableHead>
                       <TableHead>SNS URL</TableHead>
-                      <TableHead>광고코드</TableHead>
                       <TableHead>완료일</TableHead>
                       <TableHead className="text-right">액션</TableHead>
                     </TableRow>
@@ -543,110 +665,178 @@ export default function SnsUploadManagement() {
                   <TableBody>
                     {filteredVideos.map((video) => {
                       const { flag } = getCountryLabel(video.country)
-                      const snsUrls = getAllSnsUrls(video)
+                      const multiUrls = getMultiVideoUrls(video)
                       const statusConfig = getStatusLabel(video.status)
+                      const isExpanded = expandedRows[video.id]
+                      const hasMultipleUrls = multiUrls.length > 1
 
                       return (
-                        <TableRow key={video.id}>
-                          <TableCell>
-                            <span className="text-lg">{flag}</span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-[180px]">
-                              <p className="font-medium truncate" title={video.campaignTitle}>
-                                {video.campaignTitle || '-'}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Building2 className="w-3 h-3 text-gray-400" />
-                              <span className="text-sm">{video.companyName || '-'}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <User className="w-3 h-3 text-gray-400" />
-                              <span className="text-sm">{video.creatorName || '-'}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {getCampaignTypeLabel(video.campaignType)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`text-xs ${statusConfig.color}`}>
-                              {statusConfig.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {snsUrls.length > 0 ? (
-                                snsUrls.slice(0, 2).map((item, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={item.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                                  >
-                                    <ExternalLink className="w-3 h-3" />
-                                    {item.label}
-                                  </a>
-                                ))
-                              ) : (
-                                <span className="text-gray-400 text-xs">미등록</span>
-                              )}
-                              {snsUrls.length > 2 && (
-                                <span className="text-xs text-gray-400">+{snsUrls.length - 2}개</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {video.partnership_code ? (
-                              <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                                {video.partnership_code}
-                              </code>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm text-gray-500">
-                              {video.created_at
-                                ? new Date(video.created_at).toLocaleDateString('ko-KR')
-                                : '-'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {video.video_file_url && (
+                        <>
+                          <TableRow key={video.id} className={hasMultipleUrls ? 'cursor-pointer hover:bg-gray-50' : ''}>
+                            <TableCell>
+                              {hasMultipleUrls && (
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDownloadVideo(video)}
-                                  disabled={downloading === video.id}
-                                  title="영상 다운로드"
+                                  className="p-1 h-6 w-6"
+                                  onClick={() => toggleRowExpand(video.id)}
                                 >
-                                  {downloading === video.id ? (
-                                    <RefreshCw className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Download className="w-4 h-4" />
-                                  )}
+                                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/admin/campaigns/${video.campaign_id}`)}
-                                title="캠페인 상세"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-lg">{flag}</span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-[180px]">
+                                <p className="font-medium truncate" title={video.campaignTitle}>
+                                  {video.campaignTitle || '-'}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Building2 className="w-3 h-3 text-gray-400" />
+                                <span className="text-sm">{video.companyName}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <User className="w-3 h-3 text-gray-400" />
+                                <span className="text-sm">{video.creatorName}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {getCampaignTypeLabel(video.campaignType)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`text-xs ${statusConfig.color}`}>
+                                {statusConfig.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                {multiUrls.length > 0 ? (
+                                  <>
+                                    <a
+                                      href={multiUrls[0].url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                      {multiUrls[0].label}
+                                    </a>
+                                    {multiUrls.length > 1 && (
+                                      <span className="text-xs text-gray-500">
+                                        +{multiUrls.length - 1}개 더보기
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">미등록</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-gray-500">
+                                {video.created_at
+                                  ? new Date(video.created_at).toLocaleDateString('ko-KR')
+                                  : '-'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {video.video_file_url && isVideoUrl(video.video_file_url) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPreviewVideo({ ...video, currentUrl: video.video_file_url })}
+                                    title="영상 미리보기"
+                                  >
+                                    <Play className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {video.video_file_url && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDownloadVideo(video)}
+                                    disabled={downloading === video.id}
+                                    title="영상 다운로드"
+                                  >
+                                    {downloading === video.id ? (
+                                      <RefreshCw className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Download className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/admin/campaigns/${video.campaign_id}`)}
+                                  title="캠페인 상세"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* 확장된 멀티비디오 URL 행 */}
+                          {isExpanded && hasMultipleUrls && (
+                            <TableRow className="bg-gray-50">
+                              <TableCell colSpan={10}>
+                                <div className="py-3 px-4">
+                                  <p className="text-sm font-medium text-gray-700 mb-3">
+                                    {video.campaignType === '4week_challenge' ? '4주 챌린지 영상' : '올리브영 STEP 영상'}
+                                  </p>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {multiUrls.map((item, idx) => (
+                                      <div key={idx} className="p-3 bg-white rounded-lg border">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <Badge variant="secondary" className="text-xs">
+                                            {item.label}
+                                          </Badge>
+                                          <div className="flex gap-1">
+                                            <a
+                                              href={item.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-blue-600 hover:text-blue-800"
+                                            >
+                                              <ExternalLink className="w-4 h-4" />
+                                            </a>
+                                          </div>
+                                        </div>
+                                        {item.code && (
+                                          <div className="mt-2">
+                                            <span className="text-xs text-gray-500">광고코드: </span>
+                                            <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                                              {item.code}
+                                            </code>
+                                          </div>
+                                        )}
+                                        <a
+                                          href={item.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-gray-500 hover:text-blue-600 truncate block mt-1"
+                                        >
+                                          {item.url.length > 40 ? item.url.slice(0, 40) + '...' : item.url}
+                                        </a>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
                       )
                     })}
                   </TableBody>
@@ -656,6 +846,57 @@ export default function SnsUploadManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 영상 미리보기 모달 */}
+      <Dialog open={!!previewVideo} onOpenChange={() => setPreviewVideo(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-green-500" />
+              영상 미리보기
+              {previewVideo && (
+                <span className="text-sm font-normal text-gray-500">
+                  - {previewVideo.creatorName} / {previewVideo.campaignTitle}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {previewVideo && (
+            <div className="space-y-4">
+              <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                <video
+                  src={previewVideo.currentUrl}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                >
+                  브라우저가 비디오를 지원하지 않습니다.
+                </video>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  {previewVideo.video_file_url && (
+                    <a href={previewVideo.video_file_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      원본 영상 링크
+                    </a>
+                  )}
+                </div>
+                <Button
+                  onClick={() => handleDownloadVideo(previewVideo, previewVideo.currentUrl)}
+                  disabled={downloading === previewVideo.id}
+                >
+                  {downloading === previewVideo.id ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  다운로드
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

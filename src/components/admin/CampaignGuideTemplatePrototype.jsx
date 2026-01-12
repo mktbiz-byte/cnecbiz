@@ -28,6 +28,9 @@ import {
   VIDEO_DURATIONS,
   STORE_VISIT_OPTIONS,
   US_STATE_CHARACTERISTICS,
+  CATEGORY_SCENES_KR,
+  CATEGORY_SCENES_US,
+  CATEGORY_SCENES_JP,
   generateGuideFromTemplate,
 } from '../../data/campaignGuideTemplates'
 
@@ -66,6 +69,11 @@ export default function CampaignGuideTemplatePrototype() {
     toneGuide: '',
   })
 
+  // 브랜드/제품 정보
+  const [brandName, setBrandName] = useState('')
+  const [productName, setProductName] = useState('')
+  const [productDescription, setProductDescription] = useState('')
+
   // 국가별 템플릿 가져오기
   const getTemplates = () => {
     switch (selectedCountry) {
@@ -96,6 +104,10 @@ export default function CampaignGuideTemplatePrototype() {
       customStore,
       platforms: template.platforms,
       duration: template.duration,
+      country: selectedCountry,
+      brandName,
+      productName,
+      productDescription,
     })
     setGeneratedGuide(guide)
   }
@@ -111,6 +123,10 @@ export default function CampaignGuideTemplatePrototype() {
       duration: selectedDuration,
       additionalScenes: additionalScenes.filter(s => s.trim()),
       additionalDialogues: additionalDialogues.filter(d => d.trim()),
+      country: selectedCountry,
+      brandName,
+      productName,
+      productDescription,
     })
     setGeneratedGuide(guide)
   }
@@ -196,7 +212,11 @@ export default function CampaignGuideTemplatePrototype() {
               {/* 국가 선택 */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">국가 선택 *</Label>
-                <Tabs value={selectedCountry} onValueChange={setSelectedCountry}>
+                <Tabs value={selectedCountry} onValueChange={(value) => {
+                  setSelectedCountry(value)
+                  setSelectedTemplate(null)
+                  setGeneratedGuide(null)
+                }}>
                   <TabsList className="grid grid-cols-3 w-full">
                     {Object.entries(countryLabels).map(([key, { flag, label, labelEn }]) => (
                       <TabsTrigger
@@ -214,7 +234,11 @@ export default function CampaignGuideTemplatePrototype() {
               {/* 제품 카테고리 */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">제품 카테고리 *</Label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory} onValueChange={(value) => {
+                  setSelectedCategory(value)
+                  setSelectedTemplate(null)
+                  setGeneratedGuide(null)
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="카테고리 선택" />
                   </SelectTrigger>
@@ -260,6 +284,53 @@ export default function CampaignGuideTemplatePrototype() {
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* 브랜드/제품 정보 (필수) */}
+        <Card className="mb-6 border-2 border-orange-200 bg-orange-50/30">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-orange-500" />
+              브랜드/제품 정보 (가이드에 반영됨)
+            </CardTitle>
+            <CardDescription>입력한 브랜드명과 제품명이 가이드 대사와 장면에 자동으로 반영됩니다</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-sm font-medium mb-2 block">브랜드명</Label>
+                <Input
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder="예: 아모레퍼시픽, Estee Lauder"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium mb-2 block">제품명 *</Label>
+                <Input
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="예: 설화수 윤조에센스"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium mb-2 block">제품 설명 (선택)</Label>
+                <Input
+                  value={productDescription}
+                  onChange={(e) => setProductDescription(e.target.value)}
+                  placeholder="간단한 제품 특징"
+                />
+              </div>
+            </div>
+            {(brandName || productName) && (
+              <div className="mt-3 p-2 bg-white rounded-lg border text-sm">
+                <span className="text-gray-500">가이드에 반영될 내용: </span>
+                <span className="font-medium text-orange-700">
+                  {brandName && `${brandName}의 `}{productName || '제품'}
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
