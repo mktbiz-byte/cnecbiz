@@ -5925,9 +5925,9 @@ JSON만 출력.`
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
-                    // video_submissions에 approved된 영상이 있으면 표시
+                    // video_submissions에 approved/completed된 영상이 있으면 표시
                     const hasApprovedVideo = videoSubmissions.some(
-                      v => v.user_id === p.user_id && v.status === 'approved'
+                      v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
                     return false
@@ -5948,9 +5948,9 @@ JSON만 출력.`
                       variant="outline"
                       className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
                       onClick={async () => {
-                        const completedParticipants = participants.filter(p => ['approved', 'completed'].includes(p.status))
+                        const completedParticipants = participants.filter(p => ['approved', 'completed', 'sns_uploaded'].includes(p.status))
                         const completedSubmissions = videoSubmissions.filter(sub =>
-                          sub.status === 'approved' &&
+                          ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) &&
                           completedParticipants.some(p => p.user_id === sub.user_id)
                         )
 
@@ -6009,9 +6009,9 @@ JSON만 출력.`
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
-                    // video_submissions에 approved된 영상이 있으면 표시
+                    // video_submissions에 approved/completed된 영상이 있으면 표시
                     const hasApprovedVideo = videoSubmissions.some(
-                      v => v.user_id === p.user_id && v.status === 'approved'
+                      v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
                     return false
@@ -6031,7 +6031,7 @@ JSON만 출력.`
                     {completedSectionParticipants.map(participant => {
                       // 해당 크리에이터의 승인된 영상들
                       const creatorSubmissions = videoSubmissions.filter(
-                        sub => sub.user_id === participant.user_id && sub.status === 'approved'
+                        sub => sub.user_id === participant.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status)
                       ).sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
 
                       // 멀티비디오 캠페인 체크 (올영: 2개, 4주챌린지: 4개)
