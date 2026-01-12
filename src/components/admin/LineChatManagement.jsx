@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
+// ScrollArea 대신 overflow-y-auto 사용
 import {
   MessageCircle,
   Send,
@@ -81,14 +81,37 @@ export default function LineChatManagement() {
       const userMap = new Map()
       lineUsers.forEach(u => userMap.set(u.line_user_id, u))
 
+      // applications에서 LINE 연동 크리에이터 정보 조회 (캠페인 정보 포함)
+      let applicationsMap = new Map()
+      try {
+        const { data: applications } = await supabaseJapan
+          .from('applications')
+          .select('*, campaigns(id, title)')
+
+        applications?.forEach(app => {
+          if (app.line_user_id) {
+            applicationsMap.set(app.line_user_id, app)
+          }
+        })
+      } catch (e) {
+        console.log('applications query failed, continuing without campaign info')
+      }
+
       // 채팅방 목록 생성
       const roomsWithMessages = Array.from(userMessageMap.values()).map(room => {
         const user = userMap.get(room.line_user_id) || {}
+        const application = applicationsMap.get(room.line_user_id)
         // 마지막 메시지에서 이름 추출 시도
         const lastMsg = room.messages[0]
 
         // 이름 결정 - 여러 소스에서 찾기
         let displayName = user.display_name || user.name || ''
+        if (!displayName && application?.applicant_name && !application.applicant_name.includes('@')) {
+          displayName = application.applicant_name
+        }
+        if (!displayName && application?.creator_name && !application.creator_name.includes('@')) {
+          displayName = application.creator_name
+        }
         if (!displayName && lastMsg?.sender_name) {
           displayName = lastMsg.sender_name
         }
@@ -112,7 +135,9 @@ export default function LineChatManagement() {
           lastMessageDirection: room.lastMessageDirection,
           unreadCount: 0,
           creatorName: displayName || 'LINE 사용자',
-          creatorEmail: user.email || ''
+          creatorEmail: user.email || application?.email || '',
+          campaignTitle: application?.campaigns?.title || '',
+          campaignId: application?.campaign_id || ''
         }
       })
 
@@ -290,7 +315,7 @@ export default function LineChatManagement() {
                 </div>
 
                 {/* 채팅방 리스트 */}
-                <ScrollArea className="flex-1">
+                <div className="flex-1 overflow-y-auto">
                   {loading ? (
                     <div className="flex items-center justify-center h-40">
                       <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
@@ -330,6 +355,13 @@ export default function LineChatManagement() {
                                 </span>
                               </div>
 
+                              {/* 캠페인 정보 */}
+                              {room.campaignTitle && (
+                                <p className="text-xs text-blue-600 truncate mt-0.5">
+                                  📋 {room.campaignTitle}
+                                </p>
+                              )}
+
                               <div className="flex items-center gap-1 mt-0.5">
                                 {room.creator_id ? (
                                   <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
@@ -362,7 +394,7 @@ export default function LineChatManagement() {
                       ))}
                     </div>
                   )}
-                </ScrollArea>
+                </div>
               </div>
 
               {/* 채팅 영역 */}

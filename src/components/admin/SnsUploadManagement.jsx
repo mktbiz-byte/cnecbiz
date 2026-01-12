@@ -126,6 +126,9 @@ export default function SnsUploadManagement() {
 
       // 크리에이터 이름 결정 함수 (user_profiles 없이 application 데이터에서 직접 추출)
       const resolveCreatorName = (app) => {
+        // null/undefined 체크
+        if (!app) return '-'
+
         // applicant_name이나 creator_name이 이메일이 아닌 경우 사용
         if (app.applicant_name && !app.applicant_name.includes('@')) {
           return app.applicant_name
@@ -135,6 +138,10 @@ export default function SnsUploadManagement() {
         }
         if (app.name && !app.name.includes('@')) {
           return app.name
+        }
+        // full_name 필드 체크 (user_profiles와 호환)
+        if (app.full_name && !app.full_name.includes('@')) {
+          return app.full_name
         }
         // 이메일에서 이름 추출
         const emailName = extractNameFromEmail(app.applicant_name) ||
@@ -279,6 +286,14 @@ export default function SnsUploadManagement() {
           console.error('[SnsUploadManagement] Korea campaign_participants error:', koreaError)
         }
 
+        // campaign_participants를 user_id로 맵핑 (video_submissions에서 크리에이터 이름 조회용)
+        const koreaParticipantMap = new Map()
+        koreaParticipants?.forEach(p => {
+          if (p.user_id) {
+            koreaParticipantMap.set(p.user_id, p)
+          }
+        })
+
         if (!koreaError && koreaParticipants) {
           console.log('[SnsUploadManagement] Korea campaign_participants:', koreaParticipants.length)
           koreaParticipants.forEach(p => {
@@ -363,6 +378,8 @@ export default function SnsUploadManagement() {
             )
             if (!isDuplicate) {
               const campaign = koreaCampaignMap.get(sub.campaign_id)
+              // video_submissions에서 participant 정보 조회
+              const participant = koreaParticipantMap.get(sub.user_id)
 
               // 캠페인 목록에 추가
               if (campaign) {
@@ -372,6 +389,11 @@ export default function SnsUploadManagement() {
                   type: campaign.campaign_type
                 })
               }
+
+              // 크리에이터 이름: participant에서 먼저 찾고, 없으면 submission에서 찾기
+              const creatorName = resolveCreatorName(participant) !== '-'
+                ? resolveCreatorName(participant)
+                : resolveCreatorName(sub)
 
               allVideos.push({
                 id: `korea_sub_${sub.id}`,
@@ -388,7 +410,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: resolveCreatorName(sub),
+                creatorName: creatorName,
                 creatorEmail: sub.email,
                 week_number: sub.week_number,
               })
