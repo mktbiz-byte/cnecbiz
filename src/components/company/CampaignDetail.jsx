@@ -3265,6 +3265,77 @@ JSON만 출력.`
         setShowAdminSnsEditModal(false)
         setAdminSnsEditData({})
         await fetchParticipants()
+
+        // 기업에게 SNS 업로드 완료 알림 발송
+        try {
+          const participant = participants.find(p => p.id === adminSnsEditData.participantId)
+          const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
+
+          // 기업 정보 조회
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('contact_email, contact_phone, company_name')
+            .eq('id', campaign.company_id)
+            .single()
+
+          if (companyData?.contact_phone) {
+            // 카카오톡 알림
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverName: companyData.company_name || '담당자',
+                templateCode: '025100001009',
+                variables: {
+                  '회사명': companyData.company_name || '담당자',
+                  '캠페인명': campaign?.title || '캠페인'
+                }
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
+          }
+
+          if (companyData?.contact_email) {
+            // 이메일 알림
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: companyData.contact_email,
+                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
+                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
+                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
+                    </div>
+                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
+          }
+
+          // 네이버 웍스 알림
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[SNS 업로드 완료 - 멀티비디오]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+        } catch (notifyError) {
+          console.error('기업 알림 발송 실패:', notifyError)
+        }
+
         alert('저장되었습니다.')
       } catch (error) {
         console.error('Error saving multi-video SNS edit:', error)
@@ -3324,6 +3395,77 @@ JSON만 출력.`
         setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
         await fetchVideoSubmissions()
         await fetchParticipants()
+
+        // 기업에게 SNS 업로드 완료 알림 발송
+        try {
+          const participant = participants.find(p => p.id === adminSnsEditData.participantId)
+          const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
+
+          // 기업 정보 조회
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('contact_email, contact_phone, company_name')
+            .eq('id', campaign.company_id)
+            .single()
+
+          if (companyData?.contact_phone) {
+            // 카카오톡 알림
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverName: companyData.company_name || '담당자',
+                templateCode: '025100001009',
+                variables: {
+                  '회사명': companyData.company_name || '담당자',
+                  '캠페인명': campaign?.title || '캠페인'
+                }
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
+          }
+
+          if (companyData?.contact_email) {
+            // 이메일 알림
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: companyData.contact_email,
+                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
+                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
+                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
+                    </div>
+                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
+          }
+
+          // 네이버 웍스 알림
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[SNS 업로드 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+        } catch (notifyError) {
+          console.error('기업 알림 발송 실패:', notifyError)
+        }
+
         alert('저장되었습니다.')
         return
       }
