@@ -110,43 +110,41 @@ export default function SnsUploadManagement() {
         console.error('[SnsUploadManagement] BIZ applications error:', bizAppError)
       }
 
-      // 캠페인 정보 별도 조회
-      const { data: bizCampaigns } = await supabaseBiz
-        .from('campaigns')
-        .select('id, title, campaign_type, target_country, company_id')
+      // 캠페인 정보 별도 조회 (BIZ DB에는 campaigns 테이블이 없을 수 있음)
+      let campaignMap = new Map()
+      try {
+        const { data: bizCampaigns, error: bizCampError } = await supabaseBiz
+          .from('campaigns')
+          .select('*')
 
-      const campaignMap = new Map()
-      bizCampaigns?.forEach(c => campaignMap.set(c.id, c))
+        if (!bizCampError && bizCampaigns) {
+          bizCampaigns.forEach(c => campaignMap.set(c.id, c))
+        }
+      } catch (e) {
+        console.log('[SnsUploadManagement] BIZ campaigns query failed, skipping')
+      }
 
-      // user_profiles 조회 (이름 정보를 위해)
-      const { data: bizProfiles } = await supabaseBiz
-        .from('user_profiles')
-        .select('id, user_id, email, full_name, name, first_name, last_name, family_name, given_name')
-
-      const bizProfileMap = new Map()
-      bizProfiles?.forEach(p => {
-        if (p.id) bizProfileMap.set(p.id, p)
-        if (p.user_id) bizProfileMap.set(p.user_id, p)
-        if (p.email) bizProfileMap.set(p.email, p)
-      })
-
-      // 크리에이터 이름 결정 함수
-      const resolveCreatorName = (app, profileMap) => {
-        const profile = profileMap?.get(app.user_id) || profileMap?.get(app.email) || null
-
-        const name = profile?.full_name ||
-          profile?.name ||
-          (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
-          profile?.family_name ||
-          profile?.given_name ||
-          (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
-          (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
-          extractNameFromEmail(app.applicant_name) ||
-          extractNameFromEmail(app.email) ||
-          app.applicant_name ||
-          '-'
-
-        return name
+      // 크리에이터 이름 결정 함수 (user_profiles 없이 application 데이터에서 직접 추출)
+      const resolveCreatorName = (app) => {
+        // applicant_name이나 creator_name이 이메일이 아닌 경우 사용
+        if (app.applicant_name && !app.applicant_name.includes('@')) {
+          return app.applicant_name
+        }
+        if (app.creator_name && !app.creator_name.includes('@')) {
+          return app.creator_name
+        }
+        if (app.name && !app.name.includes('@')) {
+          return app.name
+        }
+        // 이메일에서 이름 추출
+        const emailName = extractNameFromEmail(app.applicant_name) ||
+                         extractNameFromEmail(app.creator_name) ||
+                         extractNameFromEmail(app.email)
+        if (emailName) {
+          return emailName
+        }
+        // 최종 fallback
+        return app.applicant_name || app.creator_name || '-'
       }
 
       if (!bizAppError && bizApplications) {
@@ -184,7 +182,7 @@ export default function SnsUploadManagement() {
               country: campaign?.target_country || 'kr',
               campaignTitle: campaign?.title || '-',
               campaignType: campaign?.campaign_type,
-              creatorName: resolveCreatorName(app, bizProfileMap),
+              creatorName: resolveCreatorName(app),
               creatorEmail: app.email,
               // 멀티비디오 URL
               week1_url: app.week1_url,
@@ -254,7 +252,7 @@ export default function SnsUploadManagement() {
               country: campaign?.target_country || 'kr',
               campaignTitle: campaign?.title || '-',
               campaignType: campaign?.campaign_type,
-              creatorName: resolveCreatorName(sub, bizProfileMap),
+              creatorName: resolveCreatorName(sub),
               creatorEmail: sub.email,
               week_number: sub.week_number,
             })
@@ -271,18 +269,6 @@ export default function SnsUploadManagement() {
 
         const koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
-
-        // Korea user_profiles 조회
-        const { data: koreaProfiles } = await supabaseKorea
-          .from('user_profiles')
-          .select('id, user_id, email, full_name, name, first_name, last_name, family_name, given_name')
-
-        const koreaProfileMap = new Map()
-        koreaProfiles?.forEach(p => {
-          if (p.id) koreaProfileMap.set(p.id, p)
-          if (p.user_id) koreaProfileMap.set(p.user_id, p)
-          if (p.email) koreaProfileMap.set(p.email, p)
-        })
 
         const { data: koreaParticipants, error: koreaError } = await supabaseKorea
           .from('campaign_participants')
@@ -332,7 +318,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: resolveCreatorName(p, koreaProfileMap),
+                creatorName: resolveCreatorName(p),
                 creatorEmail: p.email,
                 // 멀티비디오 URL
                 week1_url: p.week1_url,
@@ -402,7 +388,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: resolveCreatorName(sub, koreaProfileMap),
+                creatorName: resolveCreatorName(sub),
                 creatorEmail: sub.email,
                 week_number: sub.week_number,
               })
