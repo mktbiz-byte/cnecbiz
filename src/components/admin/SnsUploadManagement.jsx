@@ -86,33 +86,23 @@ export default function SnsUploadManagement() {
       const allVideos = []
       const campaignSet = new Map()
 
-      // 1. BIZ DB에서 applications 조회 (상태 필터 제거 - 프론트엔드에서 필터링)
+      // 1. BIZ DB에서 applications 조회 (JOIN 없이 단순 조회)
       const { data: bizApplications, error: bizAppError } = await supabaseBiz
         .from('applications')
-        .select(`
-          *,
-          campaigns:campaign_id (
-            id,
-            title,
-            company_id,
-            campaign_type,
-            target_country,
-            companies:company_id (
-              company_name,
-              contact_email
-            )
-          ),
-          users:user_id (
-            id,
-            name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (bizAppError) {
         console.error('[SnsUploadManagement] BIZ applications error:', bizAppError)
       }
+
+      // 캠페인 정보 별도 조회
+      const { data: bizCampaigns } = await supabaseBiz
+        .from('campaigns')
+        .select('id, title, campaign_type, target_country, company_id')
+
+      const campaignMap = new Map()
+      bizCampaigns?.forEach(c => campaignMap.set(c.id, c))
 
       if (!bizAppError && bizApplications) {
         console.log('[SnsUploadManagement] BIZ applications:', bizApplications.length)
@@ -124,12 +114,14 @@ export default function SnsUploadManagement() {
           const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(app.status)
 
           if (hasSnsUrl || hasVideoStatus) {
+            const campaign = campaignMap.get(app.campaign_id)
+
             // 캠페인 목록에 추가
-            if (app.campaigns?.id && app.campaigns?.title) {
-              campaignSet.set(app.campaigns.id, {
-                id: app.campaigns.id,
-                title: app.campaigns.title,
-                type: app.campaigns.campaign_type
+            if (campaign) {
+              campaignSet.set(campaign.id, {
+                id: campaign.id,
+                title: campaign.title,
+                type: campaign.campaign_type
               })
             }
 
@@ -144,12 +136,12 @@ export default function SnsUploadManagement() {
               created_at: app.updated_at || app.created_at,
               status: app.status,
               source: 'biz',
-              country: app.campaigns?.target_country || 'kr',
-              campaignTitle: app.campaigns?.title,
-              companyName: app.campaigns?.companies?.company_name || '-',
-              campaignType: app.campaigns?.campaign_type,
-              creatorName: app.users?.name || app.creator_name || app.applicant_name || '-',
-              creatorEmail: app.users?.email,
+              country: campaign?.target_country || 'kr',
+              campaignTitle: campaign?.title || '-',
+              companyName: '-',
+              campaignType: campaign?.campaign_type,
+              creatorName: app.creator_name || app.applicant_name || '-',
+              creatorEmail: app.email,
               // 멀티비디오 URL
               week1_url: app.week1_url,
               week2_url: app.week2_url,
@@ -170,28 +162,10 @@ export default function SnsUploadManagement() {
         })
       }
 
-      // 2. BIZ DB에서 video_submissions 조회 (상태 필터 제거)
+      // 2. BIZ DB에서 video_submissions 조회 (JOIN 없이 단순 조회)
       const { data: bizSubmissions, error: bizSubError } = await supabaseBiz
         .from('video_submissions')
-        .select(`
-          *,
-          campaigns:campaign_id (
-            id,
-            title,
-            company_id,
-            campaign_type,
-            target_country,
-            companies:company_id (
-              company_name,
-              contact_email
-            )
-          ),
-          users:user_id (
-            id,
-            name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (bizSubError) {
@@ -210,12 +184,14 @@ export default function SnsUploadManagement() {
             v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
           )
           if (!isDuplicate) {
+            const campaign = campaignMap.get(sub.campaign_id)
+
             // 캠페인 목록에 추가
-            if (sub.campaigns?.id && sub.campaigns?.title) {
-              campaignSet.set(sub.campaigns.id, {
-                id: sub.campaigns.id,
-                title: sub.campaigns.title,
-                type: sub.campaigns.campaign_type
+            if (campaign) {
+              campaignSet.set(campaign.id, {
+                id: campaign.id,
+                title: campaign.title,
+                type: campaign.campaign_type
               })
             }
 
@@ -231,35 +207,31 @@ export default function SnsUploadManagement() {
               created_at: sub.approved_at || sub.updated_at || sub.created_at,
               status: sub.status,
               source: 'biz_submission',
-              country: sub.campaigns?.target_country || 'kr',
-              campaignTitle: sub.campaigns?.title,
-              companyName: sub.campaigns?.companies?.company_name || '-',
-              campaignType: sub.campaigns?.campaign_type,
-              creatorName: sub.users?.name || sub.creator_name || '-',
-              creatorEmail: sub.users?.email,
+              country: campaign?.target_country || 'kr',
+              campaignTitle: campaign?.title || '-',
+              companyName: '-',
+              campaignType: campaign?.campaign_type,
+              creatorName: sub.creator_name || '-',
+              creatorEmail: sub.email,
               week_number: sub.week_number,
             })
           }
         })
       }
 
-      // 3. Korea DB에서 campaign_participants 조회 (상태 필터 제거)
+      // 3. Korea DB에서 campaign_participants 조회 (JOIN 없이 단순 조회)
       if (supabaseKorea) {
+        // 캠페인 정보 별도 조회
+        const { data: koreaCampaigns } = await supabaseKorea
+          .from('campaigns')
+          .select('id, title, campaign_type')
+
+        const koreaCampaignMap = new Map()
+        koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
+
         const { data: koreaParticipants, error: koreaError } = await supabaseKorea
           .from('campaign_participants')
-          .select(`
-            *,
-            campaigns:campaign_id (
-              id,
-              title,
-              campaign_type
-            ),
-            users:user_id (
-              id,
-              name,
-              email
-            )
-          `)
+          .select('*')
           .order('created_at', { ascending: false })
 
         if (koreaError) {
@@ -280,12 +252,14 @@ export default function SnsUploadManagement() {
             const hasVideoStatus = ['approved', 'completed', 'sns_uploaded', 'video_submitted'].includes(p.status)
 
             if (!isDuplicate && (hasSnsUrl || hasVideoStatus)) {
+              const campaign = koreaCampaignMap.get(p.campaign_id)
+
               // 캠페인 목록에 추가
-              if (p.campaigns?.id && p.campaigns?.title) {
-                campaignSet.set(p.campaigns.id, {
-                  id: p.campaigns.id,
-                  title: p.campaigns.title,
-                  type: p.campaigns.campaign_type
+              if (campaign) {
+                campaignSet.set(campaign.id, {
+                  id: campaign.id,
+                  title: campaign.title,
+                  type: campaign.campaign_type
                 })
               }
 
@@ -301,10 +275,10 @@ export default function SnsUploadManagement() {
                 status: p.status,
                 source: 'korea',
                 country: 'kr',
-                campaignTitle: p.campaigns?.title,
-                campaignType: p.campaigns?.campaign_type,
-                creatorName: p.users?.name || p.creator_name || '-',
-                creatorEmail: p.users?.email,
+                campaignTitle: campaign?.title || '-',
+                campaignType: campaign?.campaign_type,
+                creatorName: p.creator_name || '-',
+                creatorEmail: p.email,
                 // 멀티비디오 URL
                 week1_url: p.week1_url,
                 week2_url: p.week2_url,
@@ -325,22 +299,10 @@ export default function SnsUploadManagement() {
           })
         }
 
-        // 4. Korea DB에서 video_submissions 조회 (상태 필터 제거)
+        // 4. Korea DB에서 video_submissions 조회 (JOIN 없이 단순 조회)
         const { data: koreaSubmissions, error: koreaSubError } = await supabaseKorea
           .from('video_submissions')
-          .select(`
-            *,
-            campaigns:campaign_id (
-              id,
-              title,
-              campaign_type
-            ),
-            users:user_id (
-              id,
-              name,
-              email
-            )
-          `)
+          .select('*')
           .order('created_at', { ascending: false })
 
         if (koreaSubError) {
@@ -359,12 +321,14 @@ export default function SnsUploadManagement() {
               v.campaign_id === sub.campaign_id && v.user_id === sub.user_id
             )
             if (!isDuplicate) {
+              const campaign = koreaCampaignMap.get(sub.campaign_id)
+
               // 캠페인 목록에 추가
-              if (sub.campaigns?.id && sub.campaigns?.title) {
-                campaignSet.set(sub.campaigns.id, {
-                  id: sub.campaigns.id,
-                  title: sub.campaigns.title,
-                  type: sub.campaigns.campaign_type
+              if (campaign) {
+                campaignSet.set(campaign.id, {
+                  id: campaign.id,
+                  title: campaign.title,
+                  type: campaign.campaign_type
                 })
               }
 
@@ -381,10 +345,10 @@ export default function SnsUploadManagement() {
                 status: sub.status,
                 source: 'korea_submission',
                 country: 'kr',
-                campaignTitle: sub.campaigns?.title,
-                campaignType: sub.campaigns?.campaign_type,
-                creatorName: sub.users?.name || sub.creator_name || '-',
-                creatorEmail: sub.users?.email,
+                campaignTitle: campaign?.title || '-',
+                campaignType: campaign?.campaign_type,
+                creatorName: sub.creator_name || '-',
+                creatorEmail: sub.email,
                 week_number: sub.week_number,
               })
             }

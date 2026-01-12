@@ -41,7 +41,7 @@ export default function LineChatManagement() {
       const { data: lineUsers, error } = await supabaseJapan
         .from('line_users')
         .select('*')
-        .order('linked_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Load chat rooms error:', error)
