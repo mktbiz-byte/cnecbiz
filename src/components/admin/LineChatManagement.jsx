@@ -99,6 +99,27 @@ export default function LineChatManagement() {
       })
       console.log('[LineChatManagement] line_users count:', lineUsers.length, '| with email:', lineUserByEmail.size)
 
+      // user_profiles 테이블에서 line_user_id가 있는 크리에이터 조회 (핵심!)
+      let userProfiles = []
+      try {
+        const { data } = await supabaseJapan
+          .from('user_profiles')
+          .select('id, line_user_id, name, email')
+          .not('line_user_id', 'is', null)
+        userProfiles = data || []
+      } catch (e) {
+        console.log('user_profiles query failed, continuing without profile info')
+      }
+
+      // user_profiles를 line_user_id로 맵핑
+      const profileByLineUserId = new Map()
+      userProfiles.forEach(p => {
+        if (p.line_user_id) {
+          profileByLineUserId.set(p.line_user_id, p)
+        }
+      })
+      console.log('[LineChatManagement] user_profiles with LINE:', userProfiles.length)
+
       // applications에서 크리에이터 정보 조회 (캠페인 정보 포함)
       let allApplications = []
       try {
@@ -126,17 +147,22 @@ export default function LineChatManagement() {
       // 채팅방 목록 생성
       const roomsWithMessages = Array.from(userMessageMap.values()).map(room => {
         const user = userMap.get(room.line_user_id) || {}
+        // user_profiles에서 크리에이터 정보 가져오기 (핵심!)
+        const profile = profileByLineUserId.get(room.line_user_id)
 
-        // application 찾기: 1) line_user_id로 먼저 2) user.email로 찾기
+        // application 찾기: 1) line_user_id로 먼저 2) user.email로 찾기 3) profile.email로 찾기
         let application = applicationsMap.get(room.line_user_id)
         if (!application && user.email) {
           application = appByEmail.get(user.email.toLowerCase())
         }
+        if (!application && profile?.email) {
+          application = appByEmail.get(profile.email.toLowerCase())
+        }
 
         const lastMsg = room.messages[0]
 
-        // 이름 결정 - 여러 소스에서 찾기
-        let displayName = user.display_name || user.name || ''
+        // 이름 결정 - 여러 소스에서 찾기 (user_profiles 우선!)
+        let displayName = profile?.name || user.display_name || user.name || ''
         if (!displayName && application?.applicant_name && !application.applicant_name.includes('@')) {
           displayName = application.applicant_name
         }
@@ -156,12 +182,12 @@ export default function LineChatManagement() {
           displayName = 'LINE: ' + room.line_user_id.slice(0, 8) + '...'
         }
 
-        // 연동 여부 판단: application이 있거나, 이메일/creator_id가 있으면 연동된 것
-        const email = user.email || application?.email || ''
-        // 이메일이 있으면 연동된 것으로 판단 (핵심!)
-        const isLinked = !!application || !!email || !!user.creator_id
+        // 연동 여부 판단: user_profiles에 있거나, application이 있거나, 이메일/creator_id가 있으면 연동된 것
+        const email = profile?.email || user.email || application?.email || ''
+        // user_profiles에 line_user_id가 있으면 연동된 것! (핵심 수정!)
+        const isLinked = !!profile || !!application || !!email || !!user.creator_id
 
-        console.log('[LineChatManagement] Room:', room.line_user_id.slice(0,8), '| email:', email, '| isLinked:', isLinked, '| app:', !!application)
+        console.log('[LineChatManagement] Room:', room.line_user_id.slice(0,8), '| profile:', !!profile, '| email:', email, '| isLinked:', isLinked, '| app:', !!application)
 
         return {
           ...user,
@@ -175,7 +201,7 @@ export default function LineChatManagement() {
           campaignTitle: application?.campaigns?.title || '',
           campaignId: application?.campaign_id || '',
           linked_at: isLinked,
-          creator_id: user.creator_id || application?.user_id
+          creator_id: profile?.id || user.creator_id || application?.user_id
         }
       })
 
