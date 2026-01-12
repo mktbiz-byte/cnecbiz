@@ -2423,12 +2423,20 @@ const CampaignCreationKorea = () => {
                             const step3 = new Date(step2)
                             step3.setDate(step3.getDate() + 3)
 
+                            // SNS 업로드 예정일: 각 영상 제출 마감일 + 2일
+                            const step1Sns = new Date(step1)
+                            step1Sns.setDate(step1Sns.getDate() + 2)
+                            const step2Sns = new Date(step2)
+                            step2Sns.setDate(step2Sns.getDate() + 2)
+
                             setCampaignForm(prev => ({
                               ...prev,
                               shipping_date: e.target.value,
                               step1_deadline: step1.toISOString().split('T')[0],
                               step2_deadline: step2.toISOString().split('T')[0],
-                              step3_deadline: step3.toISOString().split('T')[0]
+                              step3_deadline: step3.toISOString().split('T')[0],
+                              step1_sns_deadline: step1Sns.toISOString().split('T')[0],
+                              step2_sns_deadline: step2Sns.toISOString().split('T')[0]
                             }))
                           }}
                           className="mt-1"
@@ -3249,12 +3257,26 @@ const CampaignCreationKorea = () => {
                                   const week4Date = new Date(week1Date)
                                   week4Date.setDate(week4Date.getDate() + 21)
 
+                                  // SNS 업로드 예정일: 각 영상 제출 마감일 + 2일
+                                  const week1SnsDate = new Date(week1Date)
+                                  week1SnsDate.setDate(week1SnsDate.getDate() + 2)
+                                  const week2SnsDate = new Date(week2Date)
+                                  week2SnsDate.setDate(week2SnsDate.getDate() + 2)
+                                  const week3SnsDate = new Date(week3Date)
+                                  week3SnsDate.setDate(week3SnsDate.getDate() + 2)
+                                  const week4SnsDate = new Date(week4Date)
+                                  week4SnsDate.setDate(week4SnsDate.getDate() + 2)
+
                                   setCampaignForm(prev => ({
                                     ...prev,
                                     week1_deadline: week1,
                                     week2_deadline: week2Date.toISOString().split('T')[0],
                                     week3_deadline: week3Date.toISOString().split('T')[0],
-                                    week4_deadline: week4Date.toISOString().split('T')[0]
+                                    week4_deadline: week4Date.toISOString().split('T')[0],
+                                    week1_sns_deadline: week1SnsDate.toISOString().split('T')[0],
+                                    week2_sns_deadline: week2SnsDate.toISOString().split('T')[0],
+                                    week3_sns_deadline: week3SnsDate.toISOString().split('T')[0],
+                                    week4_sns_deadline: week4SnsDate.toISOString().split('T')[0]
                                   }))
                                 } else {
                                   setCampaignForm(prev => ({
@@ -3262,7 +3284,11 @@ const CampaignCreationKorea = () => {
                                     week1_deadline: '',
                                     week2_deadline: '',
                                     week3_deadline: '',
-                                    week4_deadline: ''
+                                    week4_deadline: '',
+                                    week1_sns_deadline: '',
+                                    week2_sns_deadline: '',
+                                    week3_sns_deadline: '',
+                                    week4_sns_deadline: ''
                                   }))
                                 }
                               }}
