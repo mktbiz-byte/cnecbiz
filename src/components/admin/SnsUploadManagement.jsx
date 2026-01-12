@@ -485,16 +485,24 @@ export default function SnsUploadManagement() {
           const existing = videoMap.get(key)
           if (!existing) return  // 안전 체크
 
-          // week URL 병합
+          // week URL 병합 (sns_upload_url과 video_file_url 모두)
           if (video.week_number) {
-            const weekKey = `week${video.week_number}_url`
-            const weekCodeKey = `week${video.week_number}_partnership_code`
-            if (video.sns_upload_url && !existing[weekKey]) {
-              existing[weekKey] = video.sns_upload_url
+            const weekNum = video.week_number
+            const weekUrlKey = `week${weekNum}_url`
+            const weekCodeKey = `week${weekNum}_partnership_code`
+            const weekVideoKey = `week${weekNum}_video_file_url`
+
+            if (video.sns_upload_url && !existing[weekUrlKey]) {
+              existing[weekUrlKey] = video.sns_upload_url
             }
             if (video.partnership_code && !existing[weekCodeKey]) {
               existing[weekCodeKey] = video.partnership_code
             }
+            // 주차별 video_file_url 저장 (핵심!)
+            if (video.video_file_url && !existing[weekVideoKey]) {
+              existing[weekVideoKey] = video.video_file_url
+            }
+            console.log('[SnsUploadManagement] Merging week', weekNum, '| sns_url:', !!video.sns_upload_url, '| video_file:', !!video.video_file_url)
           }
 
           // 개별 week URL 병합 (안전하게)
@@ -643,25 +651,47 @@ export default function SnsUploadManagement() {
   }
 
   // 멀티비디오 URL 구조화 (4주 챌린지, 올리브영)
+  // 각 주차별 SNS URL과 video_file_url(다운로드용)을 포함
   const getMultiVideoUrls = (video) => {
     const urls = []
 
     // 4주 챌린지
     if (video.campaignType === '4week_challenge') {
-      if (video.week1_url) urls.push({ label: '1주차', url: video.week1_url, code: video.week1_partnership_code })
-      if (video.week2_url) urls.push({ label: '2주차', url: video.week2_url, code: video.week2_partnership_code })
-      if (video.week3_url) urls.push({ label: '3주차', url: video.week3_url, code: video.week3_partnership_code })
-      if (video.week4_url) urls.push({ label: '4주차', url: video.week4_url, code: video.week4_partnership_code })
+      if (video.week1_url) urls.push({
+        label: '1주차', url: video.week1_url, code: video.week1_partnership_code,
+        videoFileUrl: video.week1_video_file_url || video.video_file_url
+      })
+      if (video.week2_url) urls.push({
+        label: '2주차', url: video.week2_url, code: video.week2_partnership_code,
+        videoFileUrl: video.week2_video_file_url
+      })
+      if (video.week3_url) urls.push({
+        label: '3주차', url: video.week3_url, code: video.week3_partnership_code,
+        videoFileUrl: video.week3_video_file_url
+      })
+      if (video.week4_url) urls.push({
+        label: '4주차', url: video.week4_url, code: video.week4_partnership_code,
+        videoFileUrl: video.week4_video_file_url
+      })
     }
     // 올리브영
     else if (video.campaignType === 'oliveyoung' || video.campaignType === 'oliveyoung_sale') {
-      if (video.step1_url) urls.push({ label: 'STEP1', url: video.step1_url, code: video.step1_2_partnership_code })
-      if (video.step2_url) urls.push({ label: 'STEP2', url: video.step2_url, code: video.step1_2_partnership_code })
-      if (video.step3_url) urls.push({ label: 'STEP3', url: video.step3_url, code: video.step3_partnership_code })
+      if (video.step1_url) urls.push({
+        label: 'STEP1', url: video.step1_url, code: video.step1_2_partnership_code,
+        videoFileUrl: video.step1_video_file_url || video.video_file_url
+      })
+      if (video.step2_url) urls.push({
+        label: 'STEP2', url: video.step2_url, code: video.step1_2_partnership_code,
+        videoFileUrl: video.step2_video_file_url
+      })
+      if (video.step3_url) urls.push({
+        label: 'STEP3', url: video.step3_url, code: video.step3_partnership_code,
+        videoFileUrl: video.step3_video_file_url
+      })
     }
     // 일반
     else if (video.sns_upload_url) {
-      urls.push({ label: 'SNS', url: video.sns_upload_url, code: video.partnership_code })
+      urls.push({ label: 'SNS', url: video.sns_upload_url, code: video.partnership_code, videoFileUrl: video.video_file_url })
     }
 
     return urls
@@ -974,9 +1004,22 @@ export default function SnsUploadManagement() {
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               className="text-blue-600 hover:text-blue-800"
+                                              title="SNS 링크 열기"
                                             >
                                               <ExternalLink className="w-4 h-4" />
                                             </a>
+                                            {/* 주차별 다운로드 버튼 */}
+                                            {item.videoFileUrl && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="p-1 h-6 w-6"
+                                                onClick={() => handleDownloadVideo(video, item.videoFileUrl)}
+                                                title="영상 다운로드"
+                                              >
+                                                <Download className="w-4 h-4 text-green-600" />
+                                              </Button>
+                                            )}
                                           </div>
                                         </div>
                                         {item.code && (
@@ -995,6 +1038,9 @@ export default function SnsUploadManagement() {
                                         >
                                           {item.url.length > 40 ? item.url.slice(0, 40) + '...' : item.url}
                                         </a>
+                                        {item.videoFileUrl && (
+                                          <p className="text-xs text-green-600 mt-1">✓ 다운로드 가능</p>
+                                        )}
                                       </div>
                                     ))}
                                   </div>

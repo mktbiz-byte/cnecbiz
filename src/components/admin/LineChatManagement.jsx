@@ -90,26 +90,49 @@ export default function LineChatManagement() {
       const userMap = new Map()
       lineUsers.forEach(u => userMap.set(u.line_user_id, u))
 
-      // applications에서 LINE 연동 크리에이터 정보 조회 (캠페인 정보 포함)
-      let applicationsMap = new Map()
+      // line_users를 이메일로도 맵핑 (applications와 매칭용)
+      const lineUserByEmail = new Map()
+      lineUsers.forEach(u => {
+        if (u.email) {
+          lineUserByEmail.set(u.email.toLowerCase(), u)
+        }
+      })
+      console.log('[LineChatManagement] line_users count:', lineUsers.length, '| with email:', lineUserByEmail.size)
+
+      // applications에서 크리에이터 정보 조회 (캠페인 정보 포함)
+      let allApplications = []
       try {
         const { data: applications } = await supabaseJapan
           .from('applications')
           .select('*, campaigns(id, title)')
-
-        applications?.forEach(app => {
-          if (app.line_user_id) {
-            applicationsMap.set(app.line_user_id, app)
-          }
-        })
+        allApplications = applications || []
       } catch (e) {
         console.log('applications query failed, continuing without campaign info')
       }
 
+      // applications를 line_user_id와 email 두 가지로 맵핑
+      const applicationsMap = new Map()  // line_user_id -> app
+      const appByEmail = new Map()        // email -> app
+      allApplications.forEach(app => {
+        if (app.line_user_id) {
+          applicationsMap.set(app.line_user_id, app)
+        }
+        if (app.email) {
+          appByEmail.set(app.email.toLowerCase(), app)
+        }
+      })
+      console.log('[LineChatManagement] applications count:', allApplications.length)
+
       // 채팅방 목록 생성
       const roomsWithMessages = Array.from(userMessageMap.values()).map(room => {
         const user = userMap.get(room.line_user_id) || {}
-        const application = applicationsMap.get(room.line_user_id)
+
+        // application 찾기: 1) line_user_id로 먼저 2) user.email로 찾기
+        let application = applicationsMap.get(room.line_user_id)
+        if (!application && user.email) {
+          application = appByEmail.get(user.email.toLowerCase())
+        }
+
         const lastMsg = room.messages[0]
 
         // 이름 결정 - 여러 소스에서 찾기
