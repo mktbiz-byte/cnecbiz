@@ -21,10 +21,58 @@ import {
   ExternalLink,
   Instagram,
   Youtube,
-  Phone
+  Phone,
+  Video,
+  Briefcase,
+  Award,
+  FileCheck,
+  MapPin,
+  Calendar,
+  CreditCard,
+  TrendingUp,
+  CheckSquare
 } from 'lucide-react'
 import { supabaseJapan } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
+
+// 숫자 포맷 함수
+const formatNumber = (num) => {
+  if (!num) return '0'
+  if (num >= 10000) return `${(num / 10000).toFixed(1)}만`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}천`
+  return num.toLocaleString()
+}
+
+// SNS URL 정규화 함수
+const normalizeInstagramUrl = (url) => {
+  if (!url) return null
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) return urlStr
+  const handle = urlStr.replace(/^@/, '').trim()
+  if (!handle) return null
+  return `https://www.instagram.com/${handle}`
+}
+
+const normalizeYoutubeUrl = (url) => {
+  if (!url) return null
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) return urlStr
+  const handle = urlStr.replace(/^@/, '').trim()
+  if (!handle) return null
+  return `https://www.youtube.com/@${handle}`
+}
+
+const normalizeTiktokUrl = (url) => {
+  if (!url) return null
+  const urlStr = String(url).trim()
+  if (!urlStr) return null
+  if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) return urlStr
+  const handle = urlStr.replace(/^@/, '').trim()
+  if (!handle) return null
+  return `https://www.tiktok.com/@${handle}`
+}
 
 export default function LineChatManagement() {
   const [chatRooms, setChatRooms] = useState([])
@@ -41,6 +89,8 @@ export default function LineChatManagement() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [profileData, setProfileData] = useState(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
+  const [creatorCampaigns, setCreatorCampaigns] = useState({ inProgress: [], completed: [], applied: [] })
 
   // 채팅방 목록 로드 (효율적인 단일 쿼리 방식)
   const loadChatRooms = async () => {
@@ -337,7 +387,9 @@ export default function LineChatManagement() {
     if (!creatorId) return
 
     setLoadingProfile(true)
+    setLoadingCampaigns(true)
     setShowProfileModal(true)
+    setCreatorCampaigns({ inProgress: [], completed: [], applied: [] })
 
     try {
       const { data, error } = await supabaseJapan
@@ -348,11 +400,52 @@ export default function LineChatManagement() {
 
       if (error) throw error
       setProfileData(data)
+
+      // 캠페인 이력 로드
+      loadCreatorCampaigns(creatorId)
     } catch (error) {
       console.error('Load profile error:', error)
       setProfileData(null)
     } finally {
       setLoadingProfile(false)
+    }
+  }
+
+  // 크리에이터 캠페인 이력 로드
+  const loadCreatorCampaigns = async (creatorId) => {
+    try {
+      const { data: applications, error } = await supabaseJapan
+        .from('applications')
+        .select('*, campaign:campaigns(id, title, brand, status)')
+        .eq('user_id', creatorId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      // 상태별 분류
+      const inProgress = []
+      const completed = []
+      const applied = []
+
+      const inProgressStatuses = ['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected']
+      const completedStatuses = ['completed']
+      const appliedStatuses = ['pending', 'applied', 'rejected', 'cancelled', 'withdrawn']
+
+      applications?.forEach(app => {
+        if (inProgressStatuses.includes(app.status)) {
+          inProgress.push(app)
+        } else if (completedStatuses.includes(app.status)) {
+          completed.push(app)
+        } else if (appliedStatuses.includes(app.status)) {
+          applied.push(app)
+        }
+      })
+
+      setCreatorCampaigns({ inProgress, completed, applied })
+    } catch (error) {
+      console.error('Load creator campaigns error:', error)
+    } finally {
+      setLoadingCampaigns(false)
     }
   }
 
@@ -646,10 +739,10 @@ export default function LineChatManagement() {
 
       {/* 프로필 모달 */}
       <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
+              <User className="w-5 h-5 text-indigo-500" />
               크리에이터 프로필
             </DialogTitle>
           </DialogHeader>
@@ -659,96 +752,266 @@ export default function LineChatManagement() {
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
           ) : profileData ? (
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto space-y-6 py-2 -mx-6 px-6">
               {/* 기본 정보 */}
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+              <div className="flex items-start gap-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center overflow-hidden">
                   {profileData.profile_image ? (
                     <img src={profileData.profile_image} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <User className="w-8 h-8 text-gray-400" />
+                    <User className="w-10 h-10 text-indigo-400" />
                   )}
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">{profileData.name || '이름 없음'}</h3>
-                  <p className="text-sm text-gray-500">{profileData.email}</p>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-gray-900">{profileData.name || '이름 없음'}</h3>
+                  <p className="text-gray-500">{profileData.email}</p>
                   {profileData.phone && (
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
-                      {profileData.phone}
+                    <p className="text-gray-500 flex items-center gap-1 mt-1">
+                      <Phone className="w-4 h-4" /> {profileData.phone}
                     </p>
                   )}
                 </div>
               </div>
 
               {/* SNS 정보 */}
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm text-gray-700">SNS</h4>
-                <div className="grid grid-cols-1 gap-2">
-                  {profileData.instagram_url && (
-                    <a
-                      href={profileData.instagram_url.startsWith('http') ? profileData.instagram_url : `https://instagram.com/${profileData.instagram_url}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-pink-600 hover:underline"
-                    >
-                      <Instagram className="w-4 h-4" />
-                      {profileData.instagram_url}
-                    </a>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Instagram className="w-4 h-4" /> SNS 정보
+                </h4>
+                <div className="space-y-3">
+                  {normalizeInstagramUrl(profileData.instagram_url) && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                          <Instagram className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-600">Instagram</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{formatNumber(profileData.instagram_followers)} 팔로워</span>
+                        <a href={normalizeInstagramUrl(profileData.instagram_url)} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
                   )}
-                  {profileData.youtube_url && (
-                    <a
-                      href={profileData.youtube_url.startsWith('http') ? profileData.youtube_url : `https://youtube.com/${profileData.youtube_url}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-red-600 hover:underline"
-                    >
-                      <Youtube className="w-4 h-4" />
-                      {profileData.youtube_url}
-                    </a>
+                  {normalizeYoutubeUrl(profileData.youtube_url) && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center">
+                          <Youtube className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-600">YouTube</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{formatNumber(profileData.youtube_subscribers)} 구독자</span>
+                        <a href={normalizeYoutubeUrl(profileData.youtube_url)} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
                   )}
-                  {profileData.tiktok_url && (
-                    <a
-                      href={profileData.tiktok_url.startsWith('http') ? profileData.tiktok_url : `https://tiktok.com/@${profileData.tiktok_url}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-gray-800 hover:underline"
-                    >
-                      <span className="w-4 h-4 text-center font-bold">T</span>
-                      {profileData.tiktok_url}
-                    </a>
+                  {normalizeTiktokUrl(profileData.tiktok_url) && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
+                          <Video className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-600">TikTok</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold">{formatNumber(profileData.tiktok_followers)} 팔로워</span>
+                        <a href={normalizeTiktokUrl(profileData.tiktok_url)} target="_blank" rel="noopener noreferrer" className="text-indigo-500 hover:underline flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
                   )}
-                  {!profileData.instagram_url && !profileData.youtube_url && !profileData.tiktok_url && (
-                    <p className="text-sm text-gray-400">SNS 정보 없음</p>
+                  {!normalizeInstagramUrl(profileData.instagram_url) && !normalizeYoutubeUrl(profileData.youtube_url) && !normalizeTiktokUrl(profileData.tiktok_url) && (
+                    <p className="text-gray-400 text-center py-4">등록된 SNS 정보가 없습니다.</p>
                   )}
                 </div>
               </div>
 
-              {/* 팔로워 정보 */}
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-lg font-semibold text-pink-600">
-                    {profileData.instagram_followers?.toLocaleString() || '-'}
-                  </p>
-                  <p className="text-xs text-gray-500">Instagram</p>
+              {/* 활동 통계 */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
+                      <Briefcase className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-700">{profileData.completed_campaigns || 0}</p>
+                  <p className="text-xs text-blue-600">총 진행횟수</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-lg font-semibold text-red-600">
-                    {profileData.youtube_subscribers?.toLocaleString() || '-'}
-                  </p>
-                  <p className="text-xs text-gray-500">YouTube</p>
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
+                      <Award className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-700">{formatNumber(profileData.points || 0)}</p>
+                  <p className="text-xs text-amber-600">총 포인트</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-lg font-semibold text-gray-800">
-                    {profileData.tiktok_followers?.toLocaleString() || '-'}
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+                      <FileCheck className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                  <p className="text-lg font-bold text-emerald-700">
+                    {profileData.is_affiliated ? '계약중' : '미계약'}
                   </p>
-                  <p className="text-xs text-gray-500">TikTok</p>
+                  <p className="text-xs text-emerald-600">소속 계약</p>
                 </div>
               </div>
 
-              {/* 가입일 */}
-              <div className="text-sm text-gray-500 pt-2 border-t">
-                가입일: {profileData.created_at ? new Date(profileData.created_at).toLocaleDateString('ko-KR') : '-'}
+              {/* 추가 정보 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <MapPin className="w-4 h-4" /> 지역
+                  </h4>
+                  <p className="text-gray-600">{profileData.region || '-'}</p>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" /> 가입일
+                  </h4>
+                  <p className="text-gray-600">
+                    {profileData.created_at ? new Date(profileData.created_at).toLocaleDateString('ko-KR') : '-'}
+                  </p>
+                </div>
+              </div>
+
+              {/* 은행 정보 */}
+              {(profileData.bank_name || profileData.bank_account_number) && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" /> 정산 계좌
+                  </h4>
+                  <p className="text-gray-600">
+                    {profileData.bank_name} {profileData.bank_account_number} ({profileData.bank_account_holder})
+                  </p>
+                </div>
+              )}
+
+              {/* 캠페인 이력 */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" /> 캠페인 이력
+                </h4>
+
+                {loadingCampaigns ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    <span className="ml-2 text-gray-500 text-sm">캠페인 이력 조회중...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 진행중인 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-blue-600 mb-2 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> 진행중 ({creatorCampaigns.inProgress.length})
+                      </h5>
+                      {creatorCampaigns.inProgress.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.inProgress.map((app) => (
+                            <div key={app.id} className="bg-white border border-blue-100 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                  {app.status === 'selected' && '선정됨'}
+                                  {app.status === 'approved' && '승인됨'}
+                                  {app.status === 'filming' && '촬영중'}
+                                  {app.status === 'video_submitted' && '영상제출'}
+                                  {app.status === 'revision_requested' && '수정요청'}
+                                  {app.status === 'guide_confirmation' && '가이드확인'}
+                                  {app.status === 'virtual_selected' && '가상선정'}
+                                  {!['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected'].includes(app.status) && app.status}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">진행중인 캠페인이 없습니다.</p>
+                      )}
+                    </div>
+
+                    {/* 완료된 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-emerald-600 mb-2 flex items-center gap-1">
+                        <CheckSquare className="w-3 h-3" /> 완료 ({creatorCampaigns.completed.length})
+                      </h5>
+                      {creatorCampaigns.completed.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.completed.slice(0, 5).map((app) => (
+                            <div key={app.id} className="bg-white border border-emerald-100 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">완료</span>
+                              </div>
+                            </div>
+                          ))}
+                          {creatorCampaigns.completed.length > 5 && (
+                            <p className="text-xs text-gray-400 text-center">외 {creatorCampaigns.completed.length - 5}건 더 있음</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">완료된 캠페인이 없습니다.</p>
+                      )}
+                    </div>
+
+                    {/* 지원한 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-1">
+                        <Send className="w-3 h-3" /> 지원 이력 ({creatorCampaigns.applied.length})
+                      </h5>
+                      {creatorCampaigns.applied.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.applied.slice(0, 5).map((app) => (
+                            <div key={app.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <span className={`text-xs px-2 py-1 rounded-full ${
+                                  app.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                  app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                  app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {app.status === 'pending' && '대기중'}
+                                  {app.status === 'applied' && '지원함'}
+                                  {app.status === 'rejected' && '미선정'}
+                                  {app.status === 'cancelled' && '취소됨'}
+                                  {app.status === 'withdrawn' && '지원취소'}
+                                  {!['pending', 'applied', 'rejected', 'cancelled', 'withdrawn'].includes(app.status) && app.status}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1">
+                                지원일: {new Date(app.created_at).toLocaleDateString('ko-KR')}
+                              </p>
+                            </div>
+                          ))}
+                          {creatorCampaigns.applied.length > 5 && (
+                            <p className="text-xs text-gray-400 text-center">외 {creatorCampaigns.applied.length - 5}건 더 있음</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">지원 이력이 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -757,7 +1020,7 @@ export default function LineChatManagement() {
             </div>
           )}
 
-          <div className="flex justify-end pt-4">
+          <div className="border-t pt-4 mt-4 flex justify-end">
             <Button variant="outline" onClick={() => setShowProfileModal(false)}>
               닫기
             </Button>
