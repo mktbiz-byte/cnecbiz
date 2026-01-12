@@ -1,16 +1,14 @@
 /**
  * 매일 오전 10시(한국시간) 실행되는 일일 보고서
  * Netlify Scheduled Function
- * 
+ *
  * Cron: 0 1 * * * (UTC 1시 = 한국시간 10시)
- * 
+ *
  * 보고 항목:
- * 1. 회원 현황 (나라별 신규/누적)
- * 2. 캠페인 현황 (나라별 신규, 상태별)
- * 3. 매출 현황 (나라별 일일/누적)
- * 4. 포인트 충전 현황
- * 5. 크리에이터 현황
- * 
+ * 1. 캠페인 현황 (진행중/마감임박/영상업로드/SNS업로드)
+ * 2. 회원 현황 (나라별 신규/누적)
+ * 3. 크리에이터 현황
+ *
  * Multi-region 지원: Korea, Japan, US (각각 별도의 Supabase 프로젝트)
  */
 
@@ -51,7 +49,7 @@ skmeYX6UpJwnuTP2xN5NDDI=
 // Supabase 클라이언트 초기화 (각 지역별)
 const createRegionClients = () => {
   const clients = {};
-  
+
   // Korea
   if (process.env.VITE_SUPABASE_KOREA_URL && process.env.VITE_SUPABASE_KOREA_ANON_KEY) {
     clients.korea = createClient(
@@ -59,7 +57,7 @@ const createRegionClients = () => {
       process.env.VITE_SUPABASE_KOREA_ANON_KEY
     );
   }
-  
+
   // Japan
   if (process.env.VITE_SUPABASE_JAPAN_URL && process.env.VITE_SUPABASE_JAPAN_ANON_KEY) {
     clients.japan = createClient(
@@ -67,7 +65,7 @@ const createRegionClients = () => {
       process.env.VITE_SUPABASE_JAPAN_ANON_KEY
     );
   }
-  
+
   // US
   if (process.env.VITE_SUPABASE_US_URL && process.env.VITE_SUPABASE_US_ANON_KEY) {
     clients.us = createClient(
@@ -75,7 +73,7 @@ const createRegionClients = () => {
       process.env.VITE_SUPABASE_US_ANON_KEY
     );
   }
-  
+
   // BIZ (중앙 관리 - 포인트 충전 등)
   if (process.env.VITE_SUPABASE_BIZ_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     clients.biz = createClient(
@@ -83,7 +81,7 @@ const createRegionClients = () => {
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
   }
-  
+
   return clients;
 };
 
@@ -92,22 +90,22 @@ const getYesterdayRange = () => {
   const now = new Date();
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  
+
   const year = yesterday.getFullYear();
   const month = String(yesterday.getMonth() + 1).padStart(2, '0');
   const day = String(yesterday.getDate()).padStart(2, '0');
-  
+
   const start = `${year}-${month}-${day}T00:00:00`;
   const end = `${year}-${month}-${day}T23:59:59`;
   const dateStr = `${year}년 ${month}월 ${day}일`;
-  
+
   return { start, end, dateStr };
 };
 
 // JWT 생성
 function generateJWT(clientId, serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
-  
+
   const header = { alg: 'RS256', typ: 'JWT' };
   const payload = {
     iss: clientId,
@@ -116,13 +114,13 @@ function generateJWT(clientId, serviceAccount) {
     exp: now + 3600,
     scope: 'bot'
   };
-  
+
   const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signatureInput = `${base64Header}.${base64Payload}`;
   const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), PRIVATE_KEY);
   const base64Signature = signature.toString('base64url');
-  
+
   return `${signatureInput}.${base64Signature}`;
 }
 
@@ -137,7 +135,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
       client_secret: clientSecret,
       scope: 'bot'
     }).toString();
-    
+
     const options = {
       hostname: 'auth.worksmobile.com',
       path: '/oauth2/v2.0/token',
@@ -147,7 +145,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
         'Content-Length': Buffer.byteLength(postData)
       }
     };
-    
+
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -159,7 +157,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
         }
       });
     });
-    
+
     req.on('error', reject);
     req.write(postData);
     req.end();
@@ -172,7 +170,7 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
     const postData = JSON.stringify({
       content: { type: 'text', text: message }
     });
-    
+
     const options = {
       hostname: 'www.worksapis.com',
       path: `/v1.0/bots/${botId}/channels/${channelId}/messages`,
@@ -183,7 +181,7 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
         'Content-Length': Buffer.byteLength(postData)
       }
     };
-    
+
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -195,7 +193,7 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
         }
       });
     });
-    
+
     req.on('error', reject);
     req.write(postData);
     req.end();
@@ -205,16 +203,16 @@ async function sendNaverWorksMessage(accessToken, botId, channelId, message) {
 // 메인 핸들러
 exports.handler = async (event, context) => {
   console.log('🚀 일일 보고서 생성 시작');
-  
+
   try {
     const clients = createRegionClients();
     const regions = ['korea', 'japan', 'us'];
-    
+
     console.log('📊 사용 가능한 클라이언트:', Object.keys(clients));
-    
+
     const now = new Date();
     const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-    const koreanDateTime = koreaTime.toLocaleString('ko-KR', { 
+    const koreanDateTime = koreaTime.toLocaleString('ko-KR', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -222,19 +220,34 @@ exports.handler = async (event, context) => {
       hour: '2-digit',
       minute: '2-digit'
     });
-    
+
     const { start, end, dateStr } = getYesterdayRange();
     console.log(`📅 집계 기간: ${start} ~ ${end}`);
-    
+
+    // 3일 후 날짜 (마감 임박 기준)
+    const threeDaysLater = new Date(now);
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+    const threeDaysLaterStr = threeDaysLater.toISOString().split('T')[0];
+
     // 데이터 수집
     const stats = {
       companies: { new: {}, total: {} },
-      campaigns: { new: {}, total: 0, byStatus: {} },
-      revenue: { daily: {}, total: {} },
-      points: { count: 0, amount: 0 },
-      creators: { newApps: 0, newApprovals: 0, total: 0 }
+      campaigns: {
+        total: 0,
+        active: 0,
+        recruiting: 0,
+        deadlineSoon: [], // 3일 이내 마감
+        byRegion: {}
+      },
+      videos: {
+        todayUploads: 0, // 오늘 영상 업로드 (검수용 영상)
+        todaySnsUploads: 0, // 오늘 SNS 업로드 완료
+        pendingReview: 0, // 검수 대기 중
+        byRegion: {}
+      },
+      creators: { new: 0, total: 0 }
     };
-    
+
     // 각 지역별 데이터 수집
     for (const region of regions) {
       const client = clients[region];
@@ -242,7 +255,7 @@ exports.handler = async (event, context) => {
         console.warn(`⚠️ ${region} 클라이언트 없음`);
         continue;
       }
-      
+
       try {
         // 1. 회원 현황
         const { data: newCompanies } = await client
@@ -250,204 +263,233 @@ exports.handler = async (event, context) => {
           .select('id')
           .gte('created_at', start)
           .lte('created_at', end);
-        
+
         const { data: allCompanies } = await client
           .from('companies')
           .select('id');
-        
+
         stats.companies.new[region] = newCompanies?.length || 0;
         stats.companies.total[region] = allCompanies?.length || 0;
-        
+
         // 2. 캠페인 현황
-        const { data: newCampaigns } = await client
-          .from('campaigns')
-          .select('id, estimated_cost')
-          .gte('created_at', start)
-          .lte('created_at', end);
-        
         const { data: allCampaigns } = await client
           .from('campaigns')
-          .select('status, estimated_cost');
-        
-        stats.campaigns.new[region] = newCampaigns?.length || 0;
-        
-        // 상태별 캠페인 (전체 지역 합산)
+          .select('id, title, status, end_date, company_id');
+
         if (allCampaigns) {
-          allCampaigns.forEach(c => {
-            const status = c.status || 'pending';
-            stats.campaigns.byStatus[status] = (stats.campaigns.byStatus[status] || 0) + 1;
-          });
           stats.campaigns.total += allCampaigns.length;
+          stats.campaigns.byRegion[region] = allCampaigns.length;
+
+          allCampaigns.forEach(campaign => {
+            // 진행 중 캠페인
+            if (campaign.status === 'active' || campaign.status === 'in_progress') {
+              stats.campaigns.active++;
+            }
+            // 모집 중 캠페인
+            if (campaign.status === 'recruiting' || campaign.status === 'open') {
+              stats.campaigns.recruiting++;
+            }
+            // 3일 이내 마감 캠페인
+            if (campaign.end_date) {
+              const endDate = new Date(campaign.end_date);
+              const today = new Date();
+              const diffDays = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+              if (diffDays >= 0 && diffDays <= 3) {
+                stats.campaigns.deadlineSoon.push({
+                  region,
+                  title: campaign.title,
+                  daysLeft: diffDays
+                });
+              }
+            }
+          });
         }
-        
-        // 3. 매출 현황
-        const dailyRev = newCampaigns?.reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0;
-        const totalRev = allCampaigns?.reduce((sum, c) => sum + (c.estimated_cost || 0), 0) || 0;
-        
-        stats.revenue.daily[region] = dailyRev;
-        stats.revenue.total[region] = totalRev;
-        
+
+        // 3. 영상 업로드 현황 (applications 테이블)
+        // 오늘 영상 파일 업로드 (video_file_url이 오늘 업데이트된 건)
+        const { data: todayVideoUploads } = await client
+          .from('applications')
+          .select('id')
+          .not('video_file_url', 'is', null)
+          .gte('updated_at', start)
+          .lte('updated_at', end);
+
+        // 오늘 SNS 업로드 완료 (sns_upload_url이 오늘 업데이트된 건)
+        const { data: todaySnsUploads } = await client
+          .from('applications')
+          .select('id')
+          .not('sns_upload_url', 'is', null)
+          .gte('updated_at', start)
+          .lte('updated_at', end);
+
+        // 검수 대기 중 (submitted 상태)
+        const { data: pendingReviews } = await client
+          .from('applications')
+          .select('id')
+          .eq('status', 'submitted');
+
+        const regionVideoUploads = todayVideoUploads?.length || 0;
+        const regionSnsUploads = todaySnsUploads?.length || 0;
+        const regionPendingReview = pendingReviews?.length || 0;
+
+        stats.videos.todayUploads += regionVideoUploads;
+        stats.videos.todaySnsUploads += regionSnsUploads;
+        stats.videos.pendingReview += regionPendingReview;
+        stats.videos.byRegion[region] = {
+          videoUploads: regionVideoUploads,
+          snsUploads: regionSnsUploads,
+          pendingReview: regionPendingReview
+        };
+
+        // video_submissions 테이블도 체크
+        try {
+          const { data: vsUploads } = await client
+            .from('video_submissions')
+            .select('id')
+            .gte('created_at', start)
+            .lte('created_at', end);
+
+          if (vsUploads) {
+            stats.videos.todayUploads += vsUploads.length;
+          }
+
+          const { data: vsPending } = await client
+            .from('video_submissions')
+            .select('id')
+            .eq('status', 'pending');
+
+          if (vsPending) {
+            stats.videos.pendingReview += vsPending.length;
+          }
+        } catch (e) {
+          // video_submissions 테이블이 없을 수 있음
+        }
+
+        // 4. 크리에이터 현황
+        try {
+          const { data: allProfiles } = await client
+            .from('user_profiles')
+            .select('id');
+
+          const { data: newProfiles } = await client
+            .from('user_profiles')
+            .select('id')
+            .gte('created_at', start)
+            .lte('created_at', end);
+
+          stats.creators.total += (allProfiles?.length || 0);
+          stats.creators.new += (newProfiles?.length || 0);
+        } catch (e) {
+          console.warn(`${region} user_profiles 조회 실패`);
+        }
+
         console.log(`✅ ${region} 데이터 수집 완료`);
       } catch (error) {
         console.error(`❌ ${region} 데이터 수집 실패:`, error.message);
       }
     }
-    
-    // 4. 포인트 충전 (BIZ 프로젝트에서)
+
+    // BIZ DB에서 추가 데이터 수집
     if (clients.biz) {
       try {
-        const { data: pointsCharges } = await clients.biz
-          .from('points_charge_requests')
-          .select('amount')
-          .eq('status', 'completed')
-          .gte('created_at', start)
-          .lte('created_at', end);
-        
-        stats.points.count = pointsCharges?.length || 0;
-        stats.points.amount = pointsCharges?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
-      } catch (error) {
-        console.error('❌ 포인트 데이터 수집 실패:', error.message);
-      }
-    }
-    
-    // 5. 크리에이터 (각 지역별 user_profiles)
-    let totalCreators = 0;
-    let newCreators = 0;
-    
-    for (const region of regions) {
-      const client = clients[region];
-      if (!client) continue;
-      
-      try {
-        const { data: allProfiles } = await client
-          .from('user_profiles')
-          .select('id');
-        
-        const { data: newProfiles } = await client
-          .from('user_profiles')
+        // BIZ applications 테이블
+        const { data: bizVideoUploads } = await clients.biz
+          .from('applications')
           .select('id')
-          .gte('created_at', start)
-          .lte('created_at', end);
-        
-        totalCreators += (allProfiles?.length || 0);
-        newCreators += (newProfiles?.length || 0);
-      } catch (error) {
-        console.error(`❌ ${region} 크리에이터 데이터 수집 실패:`, error.message);
-      }
-    }
-    
-    // 추천 크리에이터 (BIZ 프로젝트)
-    if (clients.biz) {
-      try {
-        const { data: newApps } = await clients.biz
-          .from('featured_creator_applications')
-          .select('id')
-          .gte('created_at', start)
-          .lte('created_at', end);
-        
-        const { data: approvedCreators } = await clients.biz
-          .from('featured_creator_applications')
-          .select('id')
-          .eq('status', 'approved')
+          .not('video_file_url', 'is', null)
           .gte('updated_at', start)
           .lte('updated_at', end);
-        
-        const { data: featuredCreators } = await clients.biz
-          .from('featured_creators')
-          .select('id');
-        
-        stats.creators.newApps = newApps?.length || 0;
-        stats.creators.newApprovals = approvedCreators?.length || 0;
-        stats.creators.total = totalCreators;
-        stats.creators.featured = featuredCreators?.length || 0;
-        stats.creators.new = newCreators;
-      } catch (error) {
-        console.error('❌ 추천 크리에이터 데이터 수집 실패:', error.message);
+
+        const { data: bizSnsUploads } = await clients.biz
+          .from('applications')
+          .select('id')
+          .not('sns_upload_url', 'is', null)
+          .gte('updated_at', start)
+          .lte('updated_at', end);
+
+        const { data: bizPendingReviews } = await clients.biz
+          .from('applications')
+          .select('id')
+          .eq('status', 'submitted');
+
+        stats.videos.todayUploads += bizVideoUploads?.length || 0;
+        stats.videos.todaySnsUploads += bizSnsUploads?.length || 0;
+        stats.videos.pendingReview += bizPendingReviews?.length || 0;
+      } catch (e) {
+        console.warn('BIZ 영상 데이터 조회 실패');
       }
     }
-    
+
     // 메시지 작성
-    let message = `📊 CNEC BIZ 일일 보고서\n`;
+    let message = `📊 CNEC BIZ 일일 현황 보고서\n`;
     message += `📅 ${koreanDateTime}\n\n`;
-    message += `집계 기간: ${dateStr} 00:00 ~ 23:59\n\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    
+
+    // 캠페인 현황 (핵심 정보)
+    message += `🎬 캠페인 현황\n\n`;
+    message += `▸ 현재 진행 중: ${stats.campaigns.active}개\n`;
+    message += `▸ 모집 중: ${stats.campaigns.recruiting}개\n`;
+    message += `▸ 전체 캠페인: ${stats.campaigns.total}개\n\n`;
+
+    // 마감 임박 캠페인
+    if (stats.campaigns.deadlineSoon.length > 0) {
+      message += `⚠️ 3일 이내 마감 예정 (${stats.campaigns.deadlineSoon.length}개)\n`;
+      stats.campaigns.deadlineSoon.slice(0, 5).forEach((c, idx) => {
+        const flag = c.region === 'korea' ? '🇰🇷' : c.region === 'japan' ? '🇯🇵' : '🇺🇸';
+        const daysText = c.daysLeft === 0 ? '오늘 마감' : `D-${c.daysLeft}`;
+        message += `  ${idx + 1}. ${flag} ${c.title?.slice(0, 20)}${c.title?.length > 20 ? '...' : ''} (${daysText})\n`;
+      });
+      if (stats.campaigns.deadlineSoon.length > 5) {
+        message += `  ... 외 ${stats.campaigns.deadlineSoon.length - 5}개\n`;
+      }
+      message += `\n`;
+    } else {
+      message += `✅ 3일 이내 마감 예정 캠페인 없음\n\n`;
+    }
+
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    // 영상 현황 (핵심 정보)
+    message += `📹 영상 현황 (${dateStr})\n\n`;
+    message += `▸ 영상 업로드: ${stats.videos.todayUploads}건\n`;
+    message += `▸ SNS 업로드 완료: ${stats.videos.todaySnsUploads}건\n`;
+    message += `▸ 검수 대기: ${stats.videos.pendingReview}건\n\n`;
+
+    // 지역별 상세
+    if (Object.keys(stats.videos.byRegion).length > 0) {
+      message += `[지역별 영상 업로드]\n`;
+      Object.entries(stats.videos.byRegion).forEach(([region, data]) => {
+        const flag = region === 'korea' ? '🇰🇷' : region === 'japan' ? '🇯🇵' : '🇺🇸';
+        const regionName = region === 'korea' ? '한국' : region === 'japan' ? '일본' : '미국';
+        message += `  ${flag} ${regionName}: 영상 ${data.videoUploads}건 / SNS ${data.snsUploads}건\n`;
+      });
+      message += `\n`;
+    }
+
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
     // 회원 현황
     const newTotal = (stats.companies.new.korea || 0) + (stats.companies.new.japan || 0) + (stats.companies.new.us || 0);
     const totalCompanies = (stats.companies.total.korea || 0) + (stats.companies.total.japan || 0) + (stats.companies.total.us || 0);
-    
-    message += `👥 회원 현황\n\n`;
-    message += `【신규 가입】\n`;
-    message += `🇰🇷 한국: ${stats.companies.new.korea || 0}개 기업\n`;
-    message += `🇯🇵 일본: ${stats.companies.new.japan || 0}개 기업\n`;
-    message += `🇺🇸 미국: ${stats.companies.new.us || 0}개 기업\n`;
-    message += `📊 전체: ${newTotal}개 기업\n\n`;
-    
-    message += `【누적 회원】\n`;
-    message += `🇰🇷 한국: ${stats.companies.total.korea || 0}개\n`;
-    message += `🇯🇵 일본: ${stats.companies.total.japan || 0}개\n`;
-    message += `🇺🇸 미국: ${stats.companies.total.us || 0}개\n`;
-    message += `📊 전체: ${totalCompanies}개\n\n`;
+
+    message += `👥 기업 회원\n\n`;
+    message += `▸ 신규 가입: ${newTotal}개 기업\n`;
+    message += `▸ 누적 회원: ${totalCompanies}개 기업\n`;
+    if (newTotal > 0) {
+      message += `  (🇰🇷 ${stats.companies.new.korea || 0} / 🇯🇵 ${stats.companies.new.japan || 0} / 🇺🇸 ${stats.companies.new.us || 0})\n`;
+    }
+    message += `\n`;
+
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    
-    // 캠페인 현황
-    const newCampaignsTotal = (stats.campaigns.new.korea || 0) + (stats.campaigns.new.japan || 0) + (stats.campaigns.new.us || 0);
-    
-    message += `📢 캠페인 현황\n\n`;
-    message += `【신규 캠페인】\n`;
-    message += `🇰🇷 한국: ${stats.campaigns.new.korea || 0}개\n`;
-    message += `🇯🇵 일본: ${stats.campaigns.new.japan || 0}개\n`;
-    message += `🇺🇸 미국: ${stats.campaigns.new.us || 0}개\n`;
-    message += `📊 전체: ${newCampaignsTotal}개\n\n`;
-    
-    message += `【상태별 현황】\n`;
-    message += `⏳ 모집 중: ${stats.campaigns.byStatus.recruiting || 0}개\n`;
-    message += `🎬 진행 중: ${stats.campaigns.byStatus.active || 0}개\n`;
-    message += `✅ 완료: ${stats.campaigns.byStatus.completed || 0}개\n`;
-    message += `📊 전체: ${stats.campaigns.total}개\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    
-    // 매출 현황
-    const dailyTotal = (stats.revenue.daily.korea || 0) + 
-                      ((stats.revenue.daily.japan || 0) * 10) + 
-                      ((stats.revenue.daily.us || 0) * 1400);
-    const revenueTotal = (stats.revenue.total.korea || 0) + 
-                        ((stats.revenue.total.japan || 0) * 10) + 
-                        ((stats.revenue.total.us || 0) * 1400);
-    
-    message += `💰 매출 현황\n\n`;
-    message += `【일일 매출】\n`;
-    message += `🇰🇷 한국: ₩${(stats.revenue.daily.korea || 0).toLocaleString()}\n`;
-    message += `🇯🇵 일본: ¥${(stats.revenue.daily.japan || 0).toLocaleString()} (₩${((stats.revenue.daily.japan || 0) * 10).toLocaleString()})\n`;
-    message += `🇺🇸 미국: $${(stats.revenue.daily.us || 0).toLocaleString()} (₩${((stats.revenue.daily.us || 0) * 1400).toLocaleString()})\n`;
-    message += `📊 전체: ₩${Math.round(dailyTotal).toLocaleString()}\n\n`;
-    
-    message += `【누적 매출】\n`;
-    message += `🇰🇷 한국: ₩${(stats.revenue.total.korea || 0).toLocaleString()}\n`;
-    message += `🇯🇵 일본: ₩${((stats.revenue.total.japan || 0) * 10).toLocaleString()}\n`;
-    message += `🇺🇸 미국: ₩${((stats.revenue.total.us || 0) * 1400).toLocaleString()}\n`;
-    message += `📊 전체: ₩${Math.round(revenueTotal).toLocaleString()}\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    
-    // 포인트 충전
-    const pointsAvg = stats.points.count > 0 ? Math.round(stats.points.amount / stats.points.count) : 0;
-    message += `💳 포인트 충전\n\n`;
-    message += `충전 건수: ${stats.points.count}건\n`;
-    message += `충전 금액: ₩${stats.points.amount.toLocaleString()}\n`;
-    message += `평균 금액: ₩${pointsAvg.toLocaleString()}\n\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    
+
     // 크리에이터
     message += `🎨 크리에이터\n\n`;
-    message += `신규 가입: ${stats.creators.new || 0}명\n`;
-    message += `총 크리에이터: ${stats.creators.total}명\n\n`;
-    message += `[추천 크리에이터]\n`;
-    message += `신규 신청: ${stats.creators.newApps || 0}명\n`;
-    message += `신규 승인: ${stats.creators.newApprovals || 0}명\n`;
-    message += `총 추천: ${stats.creators.featured || 0}명\n\n`;
+    message += `▸ 신규 가입: ${stats.creators.new}명\n`;
+    message += `▸ 총 크리에이터: ${stats.creators.total}명\n\n`;
+
     message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `📈 관리자 페이지:\nhttps://cnecbiz.com/admin`;
-    
+
     // 네이버 웍스 메시지 전송
     try {
       const clientId = process.env.NAVER_WORKS_CLIENT_ID;
@@ -455,30 +497,31 @@ exports.handler = async (event, context) => {
       const botId = process.env.NAVER_WORKS_BOT_ID;
       const channelId = process.env.NAVER_WORKS_CHANNEL_ID;
       const serviceAccount = '7c15c.serviceaccount@howlab.co.kr';
-      
+
       const accessToken = await getAccessToken(clientId, clientSecret, serviceAccount);
       await sendNaverWorksMessage(accessToken, botId, channelId, message);
       console.log('✅ 네이버 웍스 메시지 전송 완료');
     } catch (naverError) {
       console.error('❌ 네이버 웍스 전송 실패:', naverError);
     }
-    
+
     console.log('🎉 일일 보고서 생성 완료');
-    
+
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
         reportDate: dateStr,
         summary: {
-          newCompanies: newTotal,
-          newCampaigns: newCampaignsTotal,
-          dailyRevenue: Math.round(dailyTotal),
-          pointsCharges: stats.points.count
+          activeCampaigns: stats.campaigns.active,
+          deadlineSoon: stats.campaigns.deadlineSoon.length,
+          todayVideoUploads: stats.videos.todayUploads,
+          todaySnsUploads: stats.videos.todaySnsUploads,
+          pendingReview: stats.videos.pendingReview
         }
       })
     };
-    
+
   } catch (error) {
     console.error('❌ 예상치 못한 오류:', error);
     return {

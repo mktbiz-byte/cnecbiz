@@ -147,6 +147,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '30분~1시간',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'], // 모든 카테고리
     hashtags: ['#솔직후기', '#리얼리뷰', '#뷰티템추천', '#데일리뷰티'],
     defaultScenes: [
       '제품 언박싱/첫인상 반응',
@@ -174,6 +175,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['youtube', 'tiktok'],
     duration: '60s',
     estimatedTime: '1~2시간',
+    applicableCategories: ['skincare', 'makeup', 'haircare'], // 준비 과정에 맞는 카테고리
     hashtags: ['#GRWM', '#같이준비해요', '#모닝루틴', '#데일리메이크업'],
     defaultScenes: [
       '아침 기상 후 세안 장면',
@@ -201,6 +203,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '1~2시간',
+    applicableCategories: ['makeup', 'haircare', 'nail'], // 시각적 변신이 가능한 카테고리
     hashtags: ['#변신', '#메이크업변신', '#비포애프터', '#글로우업'],
     defaultScenes: [
       'Before 상태 (민낯/정리 안 된 모습)',
@@ -228,6 +231,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['youtube', 'instagram'],
     duration: '60s',
     estimatedTime: '1~2시간',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'nail', 'tool'], // 팁 전달 가능한 카테고리 (향수 제외)
     hashtags: ['#꿀팁', '#뷰티팁', '#노하우', '#스킨케어팁'],
     defaultScenes: [
       '오늘의 팁 소개',
@@ -255,6 +259,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['youtube', 'tiktok'],
     duration: '90s+',
     estimatedTime: '2~3시간',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance'], // 일상에서 사용하는 제품
     hashtags: ['#일상브이로그', '#뷰티브이로그', '#데일리', '#하루일과'],
     defaultScenes: [
       '아침 기상/루틴',
@@ -282,6 +287,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['tiktok', 'youtube'],
     duration: '30s',
     estimatedTime: '30분~1시간',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'], // 모든 카테고리
     hashtags: ['#언박싱', '#첫인상', '#신상', '#하울'],
     defaultScenes: [
       '택배 도착/개봉 시작',
@@ -309,6 +315,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['youtube', 'instagram'],
     duration: '60s',
     estimatedTime: '일주일 (촬영 30분/일)',
+    applicableCategories: ['skincare', 'haircare', 'bodycare'], // 장기 사용 효과가 보이는 카테고리
     hashtags: ['#일주일후기', '#7일챌린지', '#사용후기', '#피부변화'],
     defaultScenes: [
       '1일차 - 제품 소개 및 피부 상태',
@@ -336,6 +343,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['instagram', 'tiktok'],
     duration: '15s',
     estimatedTime: '1~3일',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'nail'], // 시각적 비교가 가능한 카테고리
     hashtags: ['#비포애프터', '#beforeafter', '#피부변화', '#효과검증'],
     defaultScenes: [
       'Before 상태 (정면/측면)',
@@ -363,6 +371,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['youtube', 'instagram'],
     duration: '60s',
     estimatedTime: '1~2시간',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'], // 모든 카테고리
     hashtags: ['#비교리뷰', '#제품비교', '#뭐살까', '#추천'],
     defaultScenes: [
       '비교할 제품들 소개',
@@ -390,6 +399,7 @@ export const KOREA_TEMPLATES = [
     platforms: ['tiktok', 'instagram', 'youtube'],
     duration: '30s',
     estimatedTime: '1시간',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare'], // 계절별 변화가 있는 카테고리
     hashtags: ['#시즌템', '#겨울뷰티', '#여름스킨케어', '#환절기'],
     defaultScenes: [
       '시즌 고민 소개',
@@ -422,6 +432,7 @@ export const US_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '30 min - 1 hour',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'],
     hashtags: ['#HonestReview', '#BeautyReview', '#RealResults', '#NotSponsored'],
     defaultScenes: [
       'Product unboxing and first reaction',
@@ -450,6 +461,7 @@ export const US_TEMPLATES = [
     platforms: ['youtube', 'tiktok'],
     duration: '60s',
     estimatedTime: '1-2 hours',
+    applicableCategories: ['skincare', 'makeup', 'haircare'],
     hashtags: ['#GRWM', '#GetReadyWithMe', '#MorningRoutine', '#BeautyRoutine'],
     defaultScenes: [
       'Morning wake-up or getting ready start',
@@ -478,6 +490,7 @@ export const US_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '1-2 hours',
+    applicableCategories: ['makeup', 'haircare', 'nail'],
     hashtags: ['#GlowUp', '#Transformation', '#BeforeAndAfter', '#MakeupMagic'],
     defaultScenes: [
       'Before state (bare face)',
@@ -506,6 +519,7 @@ export const US_TEMPLATES = [
     platforms: ['youtube', 'instagram'],
     duration: '60s',
     estimatedTime: '1-2 hours',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'nail', 'tool'],
     hashtags: ['#BeautyTips', '#BeautyHacks', '#ProTips', '#TutorialTime'],
     defaultScenes: [
       'Introduce the tip/hack',
@@ -534,6 +548,7 @@ export const US_TEMPLATES = [
     platforms: ['tiktok', 'youtube'],
     duration: '60s',
     estimatedTime: '1-2 hours',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance'],
     hashtags: ['#Storytime', '#BeautyStorytime', '#StoryTime', '#MyExperience'],
     defaultScenes: [
       'Hook with intriguing story opener',
@@ -562,6 +577,7 @@ export const US_TEMPLATES = [
     platforms: ['tiktok', 'youtube'],
     duration: '30s',
     estimatedTime: '30 min - 1 hour',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'],
     hashtags: ['#Unboxing', '#FirstImpressions', '#NewIn', '#BeautyHaul'],
     defaultScenes: [
       'Package arrival/unboxing',
@@ -590,6 +606,7 @@ export const US_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '1 hour',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'nail', 'tool'],
     hashtags: ['#DrugstoreBeauty', '#AffordableBeauty', '#BudgetFriendly', '#DrugstoreFinds'],
     defaultScenes: [
       'Introduce as budget find',
@@ -618,6 +635,7 @@ export const US_TEMPLATES = [
     platforms: ['instagram', 'youtube'],
     duration: '60s',
     estimatedTime: '1-2 hours',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare'],
     hashtags: ['#CleanBeauty', '#SustainableBeauty', '#GreenBeauty', '#ConsciousBeauty'],
     defaultScenes: [
       'Introduce clean beauty focus',
@@ -646,6 +664,7 @@ export const US_TEMPLATES = [
     platforms: ['youtube', 'tiktok'],
     duration: '90s+',
     estimatedTime: '2-3 hours',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare'],
     hashtags: ['#SkincareRoutine', '#MyRoutine', '#MorningRoutine', '#NightRoutine'],
     defaultScenes: [
       'Introduce the routine',
@@ -674,6 +693,7 @@ export const US_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '1 hour',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'],
     hashtags: ['#Dupe', '#DupeAlert', '#BeautyDupe', '#SaveYourMoney'],
     defaultScenes: [
       'Show expensive product',
@@ -706,6 +726,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '30分〜1時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'],
     hashtags: ['#正直レビュー', '#コスメレビュー', '#購入品', '#スキンケア'],
     defaultScenes: [
       '商品の開封・第一印象',
@@ -734,6 +755,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['youtube', 'tiktok'],
     duration: '60s',
     estimatedTime: '1〜2時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare'],
     hashtags: ['#GRWM', '#朝の準備', '#モーニングルーティン', '#メイク動画'],
     defaultScenes: [
       '朝起きてからの様子',
@@ -762,6 +784,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '1〜2時間',
+    applicableCategories: ['makeup', 'haircare', 'nail'],
     hashtags: ['#ビフォーアフター', '#整形メイク', '#変身', '#メイクアップ'],
     defaultScenes: [
       'Before状態（すっぴん）',
@@ -790,6 +813,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['youtube', 'instagram'],
     duration: '60s',
     estimatedTime: '1〜2時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'nail', 'tool'],
     hashtags: ['#美容テク', '#スキンケア方法', '#メイクテク', '#コツ'],
     defaultScenes: [
       '今日のテクニック紹介',
@@ -818,6 +842,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['youtube', 'tiktok'],
     duration: '90s+',
     estimatedTime: '2〜3時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance'],
     hashtags: ['#Vlog', '#日常', '#ナイトルーティン', '#美容Vlog'],
     defaultScenes: [
       '朝の様子',
@@ -846,6 +871,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['tiktok', 'youtube'],
     duration: '30s',
     estimatedTime: '30分〜1時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'],
     hashtags: ['#開封', '#購入品紹介', '#新作コスメ', '#ハウル'],
     defaultScenes: [
       '届いた荷物/開封開始',
@@ -874,6 +900,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['youtube', 'instagram'],
     duration: '60s',
     estimatedTime: '1〜2時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'fragrance', 'nail', 'tool'],
     hashtags: ['#比較', '#コスメ比較', '#どっちがいい', '#レビュー'],
     defaultScenes: [
       '比較する商品紹介',
@@ -902,6 +929,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '30s',
     estimatedTime: '1時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare', 'nail', 'tool'],
     hashtags: ['#プチプラ', '#ドラコス', '#プチプラコスメ', '#コスパ'],
     defaultScenes: [
       'プチプラ商品として紹介',
@@ -930,6 +958,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['tiktok', 'instagram', 'youtube'],
     duration: '30s',
     estimatedTime: '1時間',
+    applicableCategories: ['skincare', 'makeup', 'haircare', 'bodycare'],
     hashtags: ['#季節のケア', '#冬スキンケア', '#夏コスメ', '#季節美容'],
     defaultScenes: [
       '季節の悩み紹介',
@@ -958,6 +987,7 @@ export const JAPAN_TEMPLATES = [
     platforms: ['tiktok', 'instagram'],
     duration: '15s',
     estimatedTime: '30分',
+    applicableCategories: ['makeup', 'nail', 'fragrance', 'tool'],
     hashtags: ['#かわいいコスメ', '#パケ買い', '#コスメ収集', '#可愛い'],
     defaultScenes: [
       '可愛いパッケージ紹介',

@@ -74,19 +74,32 @@ export default function CampaignGuideTemplatePrototype() {
   const [productName, setProductName] = useState('')
   const [productDescription, setProductDescription] = useState('')
 
-  // 국가별 템플릿 가져오기
+  // 템플릿 미리보기 상태
+  const [previewTemplate, setPreviewTemplate] = useState(null)
+
+  // 국가별 템플릿 가져오기 (카테고리 필터링 포함)
   const getTemplates = () => {
+    let templates
     switch (selectedCountry) {
-      case 'kr': return KOREA_TEMPLATES
-      case 'us': return US_TEMPLATES
-      case 'jp': return JAPAN_TEMPLATES
-      default: return KOREA_TEMPLATES
+      case 'kr': templates = KOREA_TEMPLATES; break
+      case 'us': templates = US_TEMPLATES; break
+      case 'jp': templates = JAPAN_TEMPLATES; break
+      default: templates = KOREA_TEMPLATES
     }
+
+    // 카테고리가 선택된 경우 해당 카테고리에 맞는 템플릿만 필터링
+    if (selectedCategory) {
+      templates = templates.filter(template =>
+        template.applicableCategories?.includes(selectedCategory)
+      )
+    }
+
+    return templates
   }
 
   // 미국 주 선택 시 추천 업데이트
   useEffect(() => {
-    if (selectedCountry === 'us' && usState && US_STATE_CHARACTERISTICS[usState]) {
+    if (selectedCountry === 'us' && usState && usState !== 'none' && US_STATE_CHARACTERISTICS[usState]) {
       setStateRecommendations(US_STATE_CHARACTERISTICS[usState])
     } else {
       setStateRecommendations(null)
@@ -264,7 +277,7 @@ export default function CampaignGuideTemplatePrototype() {
                       <SelectValue placeholder="주 선택 (선택사항)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">선택 안 함</SelectItem>
+                      <SelectItem value="none">선택 안 함</SelectItem>
                       {Object.keys(US_STATE_CHARACTERISTICS).map(state => (
                         <SelectItem key={state} value={state}>{state}</SelectItem>
                       ))}
@@ -398,8 +411,7 @@ export default function CampaignGuideTemplatePrototype() {
                     {getTemplates().map((template) => (
                       <div
                         key={template.id}
-                        onClick={() => handleTemplateSelect(template)}
-                        className={`p-4 border rounded-xl cursor-pointer transition-all hover:shadow-md ${
+                        className={`p-4 border rounded-xl transition-all hover:shadow-md ${
                           selectedTemplate?.id === template.id
                             ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200'
                             : 'border-gray-200 hover:border-purple-300'
@@ -415,24 +427,37 @@ export default function CampaignGuideTemplatePrototype() {
                         <p className="text-xs text-gray-500 mb-2">{template.subtitle}</p>
                         <p className="text-sm text-gray-600 mb-3">{template.description}</p>
 
-                        {/* 문화적 특성 */}
-                        <div className="p-2 bg-amber-50 rounded-lg mb-3">
-                          <p className="text-xs text-amber-700">
-                            <strong>문화적 특성</strong><br />
-                            {template.culturalNotes}
+                        {/* 예시 촬영 장면 미리보기 */}
+                        <div className="p-2 bg-green-50 rounded-lg mb-3 border border-green-200">
+                          <p className="text-xs text-green-700 font-medium mb-1 flex items-center gap-1">
+                            <Camera className="w-3 h-3" />
+                            예시 촬영 장면 ({template.defaultScenes?.length || 0}개)
                           </p>
+                          <ul className="text-xs text-green-600 list-disc list-inside">
+                            {template.defaultScenes?.slice(0, 3).map((scene, i) => (
+                              <li key={i} className="truncate">{scene}</li>
+                            ))}
+                            {template.defaultScenes?.length > 3 && (
+                              <li className="text-green-500">... 외 {template.defaultScenes.length - 3}개</li>
+                            )}
+                          </ul>
                         </div>
 
-                        {/* 톤 가이드 */}
-                        <div className="p-2 bg-blue-50 rounded-lg mb-3">
-                          <p className="text-xs text-blue-700">
-                            <strong>톤 가이드라인</strong><br />
-                            {template.toneGuide}
-                          </p>
+                        {/* 예시 대사 미리보기 */}
+                        <div className="p-2 bg-purple-50 rounded-lg mb-3 border border-purple-200">
+                          <p className="text-xs text-purple-700 font-medium mb-1">💬 예시 대사 ({template.defaultDialogues?.length || 0}개)</p>
+                          <ul className="text-xs text-purple-600 list-disc list-inside">
+                            {template.defaultDialogues?.slice(0, 2).map((dialogue, i) => (
+                              <li key={i} className="truncate italic">"{dialogue}"</li>
+                            ))}
+                            {template.defaultDialogues?.length > 2 && (
+                              <li className="text-purple-500">... 외 {template.defaultDialogues.length - 2}개</li>
+                            )}
+                          </ul>
                         </div>
 
                         {/* 메타 정보 */}
-                        <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {template.estimatedTime}
@@ -444,7 +469,7 @@ export default function CampaignGuideTemplatePrototype() {
                         </div>
 
                         {/* 플랫폼 */}
-                        <div className="flex gap-1 mt-2">
+                        <div className="flex gap-1 mb-3">
                           {template.platforms.map(p => (
                             <Badge key={p} variant="secondary" className="text-xs">
                               {PLATFORMS.find(pl => pl.id === p)?.icon}
@@ -452,18 +477,32 @@ export default function CampaignGuideTemplatePrototype() {
                           ))}
                         </div>
 
-                        {/* 버튼 */}
-                        <Button
-                          size="sm"
-                          className="w-full mt-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleTemplateSelect(template)
-                          }}
-                        >
-                          <Sparkles className="w-4 h-4 mr-1" />
-                          이 스타일로 시작하기
-                        </Button>
+                        {/* 버튼 그룹 */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPreviewTemplate(template)
+                            }}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            상세보기
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleTemplateSelect(template)
+                            }}
+                          >
+                            <Sparkles className="w-4 h-4 mr-1" />
+                            선택
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

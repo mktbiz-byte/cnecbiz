@@ -6816,29 +6816,158 @@ JSON만 출력.`
             <div className="grid grid-cols-2 gap-4 pt-4 border-t">
               <div>
                 <p className="text-sm text-gray-600">모집 마감일</p>
-                <p className="font-medium">{new Date(campaign.application_deadline).toLocaleDateString()}</p>
+                <p className="font-medium">
+                  {campaign.application_deadline
+                    ? new Date(campaign.application_deadline).toLocaleDateString()
+                    : <span className="text-red-500">미설정</span>}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">캠페인 기간</p>
                 <p className="font-medium">
-                  {campaign.campaign_type === '4week_challenge' ? (
-                    <>
-                      {campaign.week1_deadline && `1주차: ${new Date(campaign.week1_deadline).toLocaleDateString()}`}
-                      {campaign.week2_deadline && ` / 2주차: ${new Date(campaign.week2_deadline).toLocaleDateString()}`}
-                      {campaign.week3_deadline && ` / 3주차: ${new Date(campaign.week3_deadline).toLocaleDateString()}`}
-                      {campaign.week4_deadline && ` / 4주차: ${new Date(campaign.week4_deadline).toLocaleDateString()}`}
-                    </>
-                  ) : campaign.campaign_type === 'oliveyoung' ? (
-                    <>
-                      {campaign.step1_deadline && `1차: ${new Date(campaign.step1_deadline).toLocaleDateString()}`}
-                      {campaign.step2_deadline && ` / 2차: ${new Date(campaign.step2_deadline).toLocaleDateString()}`}
-                      {campaign.step3_deadline && ` / 3차: ${new Date(campaign.step3_deadline).toLocaleDateString()}`}
-                    </>
-                  ) : (
-                    `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
-                  )}
+                  {campaign.start_date && campaign.end_date
+                    ? `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
+                    : <span className="text-red-500">미설정</span>}
                 </p>
               </div>
+            </div>
+
+            {/* 영상 제출 마감일 */}
+            <div className="pt-4 border-t">
+              <p className="text-sm text-gray-600 font-medium mb-2">영상 제출 마감일</p>
+              {campaign.campaign_type === '4week_challenge' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">1주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week1_deadline
+                        ? new Date(campaign.week1_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">2주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week2_deadline
+                        ? new Date(campaign.week2_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">3주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week3_deadline
+                        ? new Date(campaign.week3_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">4주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week4_deadline
+                        ? new Date(campaign.week4_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : campaign.campaign_type === 'oliveyoung' ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-green-50 rounded-lg text-center">
+                    <p className="text-xs text-green-600">1차 영상</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step1_deadline
+                        ? new Date(campaign.step1_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-green-50 rounded-lg text-center">
+                    <p className="text-xs text-green-600">2차 영상</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step2_deadline
+                        ? new Date(campaign.step2_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-blue-50 rounded-lg text-center w-fit">
+                  <p className="text-xs text-blue-600">영상 제출 마감</p>
+                  <p className="font-medium text-sm">
+                    {campaign.content_submission_deadline
+                      ? new Date(campaign.content_submission_deadline).toLocaleDateString()
+                      : <span className="text-red-500">미설정</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* SNS 업로드 예정일 */}
+            <div className="pt-4 border-t">
+              <p className="text-sm text-gray-600 font-medium mb-2">SNS 업로드 예정일</p>
+              {campaign.campaign_type === '4week_challenge' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">1주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week1_sns_deadline
+                        ? new Date(campaign.week1_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">2주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week2_sns_deadline
+                        ? new Date(campaign.week2_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">3주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week3_sns_deadline
+                        ? new Date(campaign.week3_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">4주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week4_sns_deadline
+                        ? new Date(campaign.week4_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : campaign.campaign_type === 'oliveyoung' ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">1차 SNS</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step1_sns_deadline
+                        ? new Date(campaign.step1_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">2차 SNS</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step2_sns_deadline
+                        ? new Date(campaign.step2_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-pink-50 rounded-lg text-center w-fit">
+                  <p className="text-xs text-pink-600">SNS 업로드</p>
+                  <p className="font-medium text-sm">
+                    {campaign.sns_upload_deadline
+                      ? new Date(campaign.sns_upload_deadline).toLocaleDateString()
+                      : <span className="text-gray-400">-</span>}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
