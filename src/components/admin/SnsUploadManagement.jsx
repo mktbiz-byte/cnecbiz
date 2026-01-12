@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   Download, ExternalLink, Search, RefreshCw,
-  Video, Globe, User, Building2, Eye, ChevronDown, ChevronUp, Play, X
+  Video, Globe, User, Eye, ChevronDown, ChevronUp, Play, X
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -138,9 +138,8 @@ export default function SnsUploadManagement() {
               source: 'biz',
               country: campaign?.target_country || 'kr',
               campaignTitle: campaign?.title || '-',
-              companyName: '-',
               campaignType: campaign?.campaign_type,
-              creatorName: app.creator_name || app.applicant_name || '-',
+              creatorName: app.applicant_name || app.creator_name || app.name || '-',
               creatorEmail: app.email,
               // 멀티비디오 URL
               week1_url: app.week1_url,
@@ -209,9 +208,8 @@ export default function SnsUploadManagement() {
               source: 'biz_submission',
               country: campaign?.target_country || 'kr',
               campaignTitle: campaign?.title || '-',
-              companyName: '-',
               campaignType: campaign?.campaign_type,
-              creatorName: sub.creator_name || '-',
+              creatorName: sub.creator_name || sub.applicant_name || '-',
               creatorEmail: sub.email,
               week_number: sub.week_number,
             })
@@ -277,7 +275,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: p.creator_name || '-',
+                creatorName: p.creator_name || p.applicant_name || p.name || '-',
                 creatorEmail: p.email,
                 // 멀티비디오 URL
                 week1_url: p.week1_url,
@@ -347,7 +345,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: sub.creator_name || '-',
+                creatorName: sub.creator_name || sub.applicant_name || '-',
                 creatorEmail: sub.email,
                 week_number: sub.week_number,
               })
@@ -392,7 +390,6 @@ export default function SnsUploadManagement() {
       const term = searchTerm.toLowerCase()
       filtered = filtered.filter(v =>
         v.campaignTitle?.toLowerCase().includes(term) ||
-        v.companyName?.toLowerCase().includes(term) ||
         v.creatorName?.toLowerCase().includes(term) ||
         v.sns_upload_url?.toLowerCase().includes(term)
       )
@@ -579,7 +576,7 @@ export default function SnsUploadManagement() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
-                    placeholder="캠페인명, 기업명, 크리에이터명으로 검색..."
+                    placeholder="캠페인명, 크리에이터명으로 검색..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -639,7 +636,6 @@ export default function SnsUploadManagement() {
                       <TableHead className="w-[40px]"></TableHead>
                       <TableHead className="w-[60px]">국가</TableHead>
                       <TableHead>캠페인</TableHead>
-                      <TableHead>기업</TableHead>
                       <TableHead>크리에이터</TableHead>
                       <TableHead>유형</TableHead>
                       <TableHead>상태</TableHead>
@@ -683,14 +679,8 @@ export default function SnsUploadManagement() {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
-                                <Building2 className="w-3 h-3 text-gray-400" />
-                                <span className="text-sm">{video.companyName}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
                                 <User className="w-3 h-3 text-gray-400" />
-                                <span className="text-sm">{video.creatorName}</span>
+                                <span className="text-sm">{video.creatorName || '-'}</span>
                               </div>
                             </TableCell>
                             <TableCell>

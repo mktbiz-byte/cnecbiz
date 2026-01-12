@@ -37,25 +37,45 @@ export default function LineChatManagement() {
   const loadChatRooms = async () => {
     setLoading(true)
     try {
-      // line_users 테이블에서 모든 연동된 사용자 조회
+      // line_messages에서 고유한 line_user_id 목록 조회 (모든 채팅 내역)
+      const { data: allMessages, error: msgError } = await supabaseJapan
+        .from('line_messages')
+        .select('line_user_id')
+        .order('created_at', { ascending: false })
+
+      if (msgError) {
+        console.error('Load messages error:', msgError)
+      }
+
+      // 고유한 사용자 ID 추출
+      const uniqueUserIds = [...new Set((allMessages || []).map(m => m.line_user_id))]
+      console.log('[LineChatManagement] Unique user IDs from messages:', uniqueUserIds.length)
+
+      // line_users 테이블에서 사용자 정보 조회
       const { data: lineUsers, error } = await supabaseJapan
         .from('line_users')
         .select('*')
-        .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('Load chat rooms error:', error)
-        throw error
+        console.error('Load line_users error:', error)
       }
 
-      // 각 채팅방의 최신 메시지와 읽지 않은 메시지 수 조회
+      console.log('[LineChatManagement] Line users:', lineUsers?.length || 0)
+
+      // line_users 맵 생성
+      const userMap = new Map()
+      lineUsers?.forEach(u => userMap.set(u.line_user_id, u))
+
+      // 메시지가 있는 모든 사용자로 채팅방 생성
       const roomsWithMessages = await Promise.all(
-        (lineUsers || []).map(async (user) => {
+        uniqueUserIds.map(async (lineUserId) => {
+          const user = userMap.get(lineUserId) || { line_user_id: lineUserId }
+
           // 최신 메시지 조회
           const { data: lastMessage } = await supabaseJapan
             .from('line_messages')
             .select('content, created_at, direction')
-            .eq('line_user_id', user.line_user_id)
+            .eq('line_user_id', lineUserId)
             .order('created_at', { ascending: false })
             .limit(1)
             .single()
@@ -64,7 +84,7 @@ export default function LineChatManagement() {
           const { count: unreadCount } = await supabaseJapan
             .from('line_messages')
             .select('*', { count: 'exact', head: true })
-            .eq('line_user_id', user.line_user_id)
+            .eq('line_user_id', lineUserId)
             .eq('direction', 'incoming')
             .eq('is_read', false)
 
@@ -81,6 +101,7 @@ export default function LineChatManagement() {
 
           return {
             ...user,
+            line_user_id: lineUserId,
             lastMessage: lastMessage?.content || '',
             lastMessageTime: lastMessage?.created_at,
             lastMessageDirection: lastMessage?.direction,
