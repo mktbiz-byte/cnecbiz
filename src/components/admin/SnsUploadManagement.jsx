@@ -86,6 +86,20 @@ export default function SnsUploadManagement() {
       const allVideos = []
       const campaignSet = new Map()
 
+      // 이메일에서 이름 추출 함수
+      const extractNameFromEmail = (email) => {
+        if (!email || !email.includes('@')) return null
+        const localPart = email.split('@')[0]
+        // 숫자만 있는 경우 제외
+        if (/^\d+$/.test(localPart)) return null
+        // 언더스코어나 점으로 구분된 경우 처리
+        const nameParts = localPart.split(/[._]/)
+        if (nameParts.length > 1) {
+          return nameParts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+        }
+        return localPart.charAt(0).toUpperCase() + localPart.slice(1)
+      }
+
       // 1. BIZ DB에서 applications 조회 (JOIN 없이 단순 조회)
       const { data: bizApplications, error: bizAppError } = await supabaseBiz
         .from('applications')
@@ -103,6 +117,37 @@ export default function SnsUploadManagement() {
 
       const campaignMap = new Map()
       bizCampaigns?.forEach(c => campaignMap.set(c.id, c))
+
+      // user_profiles 조회 (이름 정보를 위해)
+      const { data: bizProfiles } = await supabaseBiz
+        .from('user_profiles')
+        .select('id, user_id, email, full_name, name, first_name, last_name, family_name, given_name')
+
+      const bizProfileMap = new Map()
+      bizProfiles?.forEach(p => {
+        if (p.id) bizProfileMap.set(p.id, p)
+        if (p.user_id) bizProfileMap.set(p.user_id, p)
+        if (p.email) bizProfileMap.set(p.email, p)
+      })
+
+      // 크리에이터 이름 결정 함수
+      const resolveCreatorName = (app, profileMap) => {
+        const profile = profileMap?.get(app.user_id) || profileMap?.get(app.email) || null
+
+        const name = profile?.full_name ||
+          profile?.name ||
+          (profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : null) ||
+          profile?.family_name ||
+          profile?.given_name ||
+          (app.applicant_name && !app.applicant_name.includes('@') ? app.applicant_name : null) ||
+          (app.creator_name && !app.creator_name.includes('@') ? app.creator_name : null) ||
+          extractNameFromEmail(app.applicant_name) ||
+          extractNameFromEmail(app.email) ||
+          app.applicant_name ||
+          '-'
+
+        return name
+      }
 
       if (!bizAppError && bizApplications) {
         console.log('[SnsUploadManagement] BIZ applications:', bizApplications.length)
@@ -139,7 +184,7 @@ export default function SnsUploadManagement() {
               country: campaign?.target_country || 'kr',
               campaignTitle: campaign?.title || '-',
               campaignType: campaign?.campaign_type,
-              creatorName: app.applicant_name || app.creator_name || app.name || '-',
+              creatorName: resolveCreatorName(app, bizProfileMap),
               creatorEmail: app.email,
               // 멀티비디오 URL
               week1_url: app.week1_url,
@@ -209,7 +254,7 @@ export default function SnsUploadManagement() {
               country: campaign?.target_country || 'kr',
               campaignTitle: campaign?.title || '-',
               campaignType: campaign?.campaign_type,
-              creatorName: sub.creator_name || sub.applicant_name || '-',
+              creatorName: resolveCreatorName(sub, bizProfileMap),
               creatorEmail: sub.email,
               week_number: sub.week_number,
             })
@@ -226,6 +271,18 @@ export default function SnsUploadManagement() {
 
         const koreaCampaignMap = new Map()
         koreaCampaigns?.forEach(c => koreaCampaignMap.set(c.id, c))
+
+        // Korea user_profiles 조회
+        const { data: koreaProfiles } = await supabaseKorea
+          .from('user_profiles')
+          .select('id, user_id, email, full_name, name, first_name, last_name, family_name, given_name')
+
+        const koreaProfileMap = new Map()
+        koreaProfiles?.forEach(p => {
+          if (p.id) koreaProfileMap.set(p.id, p)
+          if (p.user_id) koreaProfileMap.set(p.user_id, p)
+          if (p.email) koreaProfileMap.set(p.email, p)
+        })
 
         const { data: koreaParticipants, error: koreaError } = await supabaseKorea
           .from('campaign_participants')
@@ -275,7 +332,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: p.creator_name || p.applicant_name || p.name || '-',
+                creatorName: resolveCreatorName(p, koreaProfileMap),
                 creatorEmail: p.email,
                 // 멀티비디오 URL
                 week1_url: p.week1_url,
@@ -345,7 +402,7 @@ export default function SnsUploadManagement() {
                 country: 'kr',
                 campaignTitle: campaign?.title || '-',
                 campaignType: campaign?.campaign_type,
-                creatorName: sub.creator_name || sub.applicant_name || '-',
+                creatorName: resolveCreatorName(sub, koreaProfileMap),
                 creatorEmail: sub.email,
                 week_number: sub.week_number,
               })
@@ -354,11 +411,80 @@ export default function SnsUploadManagement() {
         }
       }
 
-      // 날짜 기준 정렬
-      allVideos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      // 멀티비디오 캠페인 그룹화 (4주 챌린지, 올리브영)
+      // 동일한 campaign_id + user_id를 가진 항목들을 하나로 병합
+      const videoMap = new Map()
 
-      console.log('[SnsUploadManagement] Total completed videos:', allVideos.length)
-      setCompletedVideos(allVideos)
+      allVideos.forEach(video => {
+        const key = `${video.campaign_id}_${video.user_id}`
+
+        if (!videoMap.has(key)) {
+          videoMap.set(key, { ...video })
+        } else {
+          const existing = videoMap.get(key)
+
+          // week URL 병합
+          if (video.week_number) {
+            const weekKey = `week${video.week_number}_url`
+            const weekCodeKey = `week${video.week_number}_partnership_code`
+            if (video.sns_upload_url && !existing[weekKey]) {
+              existing[weekKey] = video.sns_upload_url
+            }
+            if (video.partnership_code && !existing[weekCodeKey]) {
+              existing[weekCodeKey] = video.partnership_code
+            }
+          }
+
+          // 개별 week URL 병합
+          ['week1_url', 'week2_url', 'week3_url', 'week4_url',
+           'step1_url', 'step2_url', 'step3_url'].forEach(urlKey => {
+            if (video[urlKey] && !existing[urlKey]) {
+              existing[urlKey] = video[urlKey]
+            }
+          })
+
+          // 광고코드 병합
+          ['week1_partnership_code', 'week2_partnership_code', 'week3_partnership_code',
+           'week4_partnership_code', 'step1_2_partnership_code', 'step3_partnership_code'].forEach(codeKey => {
+            if (video[codeKey] && !existing[codeKey]) {
+              existing[codeKey] = video[codeKey]
+            }
+          })
+
+          // SNS URL 병합
+          if (video.sns_upload_url && !existing.sns_upload_url) {
+            existing.sns_upload_url = video.sns_upload_url
+          }
+
+          // video_file_url 병합
+          if (video.video_file_url && !existing.video_file_url) {
+            existing.video_file_url = video.video_file_url
+          }
+
+          // 최신 날짜로 업데이트
+          if (video.created_at && existing.created_at &&
+              new Date(video.created_at) > new Date(existing.created_at)) {
+            existing.created_at = video.created_at
+          }
+
+          // 더 진행된 상태로 업데이트
+          const statusPriority = ['pending', 'video_submitted', 'approved', 'sns_uploaded', 'completed']
+          const existingPriority = statusPriority.indexOf(existing.status)
+          const videoPriority = statusPriority.indexOf(video.status)
+          if (videoPriority > existingPriority) {
+            existing.status = video.status
+          }
+        }
+      })
+
+      const mergedVideos = Array.from(videoMap.values())
+
+      // 날짜 기준 정렬
+      mergedVideos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+      console.log('[SnsUploadManagement] Total completed videos (before merge):', allVideos.length)
+      console.log('[SnsUploadManagement] Total completed videos (after merge):', mergedVideos.length)
+      setCompletedVideos(mergedVideos)
       setCampaigns(Array.from(campaignSet.values()))
     } catch (error) {
       console.error('Error fetching completed videos:', error)
