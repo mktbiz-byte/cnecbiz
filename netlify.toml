@@ -29,7 +29,7 @@
   schedule = "15 1 * * *"  # 임시: 즉시 실행 테스트 (10:15 KST)
 
 [functions."auto-confirm-videos"]
-  schedule = "0 15 * * *"  # 매일 자정 (한국시간 = UTC+9) - 3일 경과 영상 자동 확정
+  schedule = "0 15 * * *"  # 매일 자정 (한국시간 = UTC+9) - 5일 경과 영상 자동 확정
 
 [[redirects]]
   from = "/*"
