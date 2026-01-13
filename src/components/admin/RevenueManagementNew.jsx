@@ -9,15 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
-  DollarSign, TrendingUp, TrendingDown, Calendar, Plus,
-  Trash2, Edit2, Save, X, Building2, FileSpreadsheet,
-  Receipt, CreditCard, RefreshCw, Download, Upload, ExternalLink, Database,
-  Zap, Users
+  Plus, Trash2, Edit2, Building2, FileSpreadsheet,
+  Receipt, RefreshCw, ExternalLink, Database,
+  Zap, Users, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
+  PieChart, BarChart3, Wallet, CreditCard, DollarSign
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart as RechartsPieChart, Pie, Cell
+} from 'recharts'
 
-// 비용 카테고리 (이미지 기준)
+// 비용 카테고리
 const EXPENSE_CATEGORIES = [
   '광고비(메타)', '광고비(네이버)', '크리에이터지급', '서버비', 'AI 사용',
   '이메일 스티비', '크리에이터(자사)', '파트타임', '퀵비(후다닥)', '자사 크리에이터',
@@ -26,7 +31,7 @@ const EXPENSE_CATEGORIES = [
   '렌더', '달리', '메이크', '기타'
 ]
 
-// 2025년 초기 데이터 (이미지 기준)
+// 2025년 초기 데이터
 const INITIAL_EXPENSE_DATA = {
   '광고비(메타)': [1700026, 3800000, 1657276, 1201617, 2183230, 1397525, 1929745, 2853505, 4653328, 2000000, 0, 0],
   '광고비(네이버)': [0, 0, 0, 93159, 0, 0, 0, 0, 176518, 225280, 587532, 0],
@@ -53,13 +58,23 @@ const INITIAL_EXPENSE_DATA = {
   '메이크': [0, 0, 0, 0, 0, 0, 0, 15060, 15207, 15393, 0, 0]
 }
 
-// 2025년 매출 초기 데이터
 const INITIAL_REVENUE_DATA = {
   haupapa: [14261742, 26435500, 43690000, 27346000, 38500000, 28248000, 57090000, 44055500, 36020130, 24255000, 44140200, 0],
   haulab: [13640000, 12596970, 6589000, 5500000, -1320000, 0, 0, 0, 0, 3300000, 74250000, 0]
 }
 
-// 월 목록 생성
+// 차트 색상
+const COLORS = {
+  haupapa: '#3B82F6',
+  haulab: '#10B981',
+  expense: '#EF4444',
+  profit: '#8B5CF6',
+  gradient1: ['#667eea', '#764ba2'],
+  gradient2: ['#f093fb', '#f5576c'],
+  gradient3: ['#4facfe', '#00f2fe'],
+  pie: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
+}
+
 const generateMonths = () => {
   const months = []
   const now = new Date()
@@ -73,21 +88,18 @@ const generateMonths = () => {
 export default function RevenueManagementNew() {
   const navigate = useNavigate()
   const [selectedYear, setSelectedYear] = useState(2025)
-  const [activeTab, setActiveTab] = useState('summary')
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(true)
 
-  // 데이터 상태
   const [revenueData, setRevenueData] = useState([])
   const [expenseData, setExpenseData] = useState([])
   const [receivables, setReceivables] = useState([])
 
-  // 모달 상태
   const [showRevenueModal, setShowRevenueModal] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [showReceivableModal, setShowReceivableModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
 
-  // 폼 상태
   const [revenueForm, setRevenueForm] = useState({
     corporation: 'haupapa',
     year_month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
@@ -129,14 +141,6 @@ export default function RevenueManagementNew() {
       navigate('/login')
       return
     }
-    const { data: adminData } = await supabaseBiz
-      .from('admin_users')
-      .select('*')
-      .eq('email', user.email)
-      .maybeSingle()
-    if (!adminData) {
-      navigate('/admin/dashboard')
-    }
   }
 
   const fetchAllData = async () => {
@@ -169,13 +173,12 @@ export default function RevenueManagementNew() {
     setLoading(false)
   }
 
-  // 초기 데이터 입력 함수
+  // 초기 데이터 입력
   const initializeData = async () => {
     if (!confirm('2025년 초기 데이터를 입력하시겠습니까?\n기존 2025년 데이터가 있다면 중복될 수 있습니다.')) return
 
     setLoading(true)
     try {
-      // 매입 데이터 입력
       for (const [category, monthlyAmounts] of Object.entries(INITIAL_EXPENSE_DATA)) {
         for (let i = 0; i < 12; i++) {
           if (monthlyAmounts[i] > 0) {
@@ -191,7 +194,6 @@ export default function RevenueManagementNew() {
         }
       }
 
-      // 매출 데이터 입력
       for (const [corp, monthlyAmounts] of Object.entries(INITIAL_REVENUE_DATA)) {
         for (let i = 0; i < 12; i++) {
           if (monthlyAmounts[i] !== 0) {
@@ -215,7 +217,6 @@ export default function RevenueManagementNew() {
     setLoading(false)
   }
 
-  // 데이터 초기화 (삭제)
   const clearAllData = async () => {
     if (!confirm('정말 모든 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return
     if (!confirm('마지막 확인입니다. 정말 삭제하시겠습니까?')) return
@@ -239,7 +240,7 @@ export default function RevenueManagementNew() {
       `${selectedYear}-${String(i + 1).padStart(2, '0')}`
     )
 
-    return months.map(month => {
+    return months.map((month, idx) => {
       const haupapaRevenue = revenueData
         .filter(r => r.year_month === month && r.corporation_id === 'haupapa')
         .reduce((sum, r) => sum + (r.amount || 0), 0)
@@ -254,6 +255,7 @@ export default function RevenueManagementNew() {
 
       return {
         month,
+        name: `${idx + 1}월`,
         haupapaRevenue,
         haulabRevenue,
         totalRevenue: haupapaRevenue + haulabRevenue,
@@ -266,18 +268,16 @@ export default function RevenueManagementNew() {
   // 카테고리별 매입 요약
   const expenseByCategory = useMemo(() => {
     const summary = {}
-    EXPENSE_CATEGORIES.forEach(cat => {
-      summary[cat] = Array.from({ length: 12 }, () => 0)
-    })
-
     expenseData.forEach(exp => {
-      const monthIndex = parseInt(exp.year_month.split('-')[1]) - 1
-      if (summary[exp.category] !== undefined) {
-        summary[exp.category][monthIndex] += exp.amount || 0
+      if (!summary[exp.category]) {
+        summary[exp.category] = 0
       }
+      summary[exp.category] += exp.amount || 0
     })
-
-    return summary
+    return Object.entries(summary)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8)
   }, [expenseData])
 
   // 연간 합계
@@ -291,7 +291,127 @@ export default function RevenueManagementNew() {
     }), { haupapaRevenue: 0, haulabRevenue: 0, totalRevenue: 0, totalExpense: 0, netProfit: 0 })
   }, [monthlySummary])
 
-  // 저장 함수들
+  // 전월 대비 계산
+  const currentMonth = new Date().getMonth()
+  const currentMonthData = monthlySummary[currentMonth] || {}
+  const prevMonthData = monthlySummary[currentMonth - 1] || {}
+
+  const revenueChange = prevMonthData.totalRevenue
+    ? ((currentMonthData.totalRevenue - prevMonthData.totalRevenue) / prevMonthData.totalRevenue * 100).toFixed(1)
+    : 0
+
+  // 동기화 함수들
+  const syncTaxInvoicesToRevenue = async () => {
+    if (!confirm('세금계산서 발행 건을 매출에 동기화하시겠습니까?')) return
+
+    setLoading(true)
+    try {
+      const { data: chargeRequests, error: fetchError } = await supabaseBiz
+        .from('points_charge_requests')
+        .select('id, amount, tax_invoice_issued, tax_invoice_info, created_at, company_id')
+        .eq('tax_invoice_issued', true)
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+
+      const { data: existingRevenues } = await supabaseBiz
+        .from('revenue_records')
+        .select('source_id')
+        .eq('source_type', 'tax_invoice')
+
+      const existingIds = new Set((existingRevenues || []).map(r => r.source_id))
+
+      let syncCount = 0
+      for (const request of (chargeRequests || [])) {
+        if (existingIds.has(request.id)) continue
+
+        const createdDate = new Date(request.created_at)
+        const yearMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`
+        const taxInfo = request.tax_invoice_info || {}
+        const companyName = taxInfo.companyName || taxInfo.company_name || '포인트 충전'
+
+        const { error: insertError } = await supabaseBiz.from('revenue_records').insert({
+          corporation_id: 'haupapa',
+          year_month: yearMonth,
+          amount: request.amount,
+          source_type: 'tax_invoice',
+          source_id: request.id,
+          tax_invoice_number: taxInfo.nts_confirm_num || taxInfo.mgt_key || '',
+          description: `세금계산서 발행: ${companyName}`
+        })
+
+        if (insertError) {
+          console.error('매출 레코드 삽입 오류:', insertError)
+          continue
+        }
+        syncCount++
+      }
+
+      await fetchAllData()
+      alert(`동기화 완료: ${syncCount}건의 세금계산서가 매출에 반영되었습니다.`)
+    } catch (error) {
+      console.error('세금계산서 동기화 오류:', error)
+      alert('동기화 실패: ' + error.message)
+    }
+    setLoading(false)
+  }
+
+  const syncWithdrawalsToExpense = async () => {
+    if (!confirm('출금 완료 건을 매입(크리에이터지급)에 동기화하시겠습니까?')) return
+
+    setLoading(true)
+    try {
+      const { data: withdrawals, error: fetchError } = await supabaseBiz
+        .from('creator_withdrawal_requests')
+        .select('id, requested_amount, requested_points, final_amount, creator_name, account_holder, status, completed_at, created_at')
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+
+      const { data: existingExpenses } = await supabaseBiz
+        .from('expense_records')
+        .select('source_id')
+        .eq('source_type', 'withdrawal')
+
+      const existingIds = new Set((existingExpenses || []).map(e => e.source_id))
+
+      let syncCount = 0
+      for (const withdrawal of (withdrawals || [])) {
+        if (existingIds.has(withdrawal.id)) continue
+
+        const completedDate = new Date(withdrawal.completed_at || withdrawal.created_at)
+        const yearMonth = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}`
+        const amount = withdrawal.requested_amount || withdrawal.requested_points || withdrawal.final_amount || 0
+        const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+
+        const { error: insertError } = await supabaseBiz.from('expense_records').insert({
+          corporation_id: 'haupapa',
+          year_month: yearMonth,
+          category: '크리에이터지급',
+          amount: amount,
+          source_type: 'withdrawal',
+          source_id: withdrawal.id,
+          description: `출금 완료: ${creatorName}`
+        })
+
+        if (insertError) {
+          console.error('매입 레코드 삽입 오류:', insertError)
+          continue
+        }
+        syncCount++
+      }
+
+      await fetchAllData()
+      alert(`동기화 완료: ${syncCount}건의 출금이 매입에 반영되었습니다.`)
+    } catch (error) {
+      console.error('출금 동기화 오류:', error)
+      alert('동기화 실패: ' + error.message)
+    }
+    setLoading(false)
+  }
+
+  // 저장/삭제 함수들
   const handleSaveRevenue = async () => {
     try {
       const data = {
@@ -313,7 +433,6 @@ export default function RevenueManagementNew() {
       setEditingItem(null)
       resetRevenueForm()
       fetchAllData()
-      alert('저장되었습니다.')
     } catch (error) {
       alert('저장 실패: ' + error.message)
     }
@@ -340,7 +459,6 @@ export default function RevenueManagementNew() {
       setEditingItem(null)
       resetExpenseForm()
       fetchAllData()
-      alert('저장되었습니다.')
     } catch (error) {
       alert('저장 실패: ' + error.message)
     }
@@ -367,13 +485,11 @@ export default function RevenueManagementNew() {
       setEditingItem(null)
       resetReceivableForm()
       fetchAllData()
-      alert('저장되었습니다.')
     } catch (error) {
       alert('저장 실패: ' + error.message)
     }
   }
 
-  // 삭제 함수
   const handleDelete = async (table, id) => {
     if (!confirm('정말 삭제하시겠습니까?')) return
     try {
@@ -384,7 +500,6 @@ export default function RevenueManagementNew() {
     }
   }
 
-  // 미수금 → 매출 전환
   const convertReceivableToRevenue = async (receivable) => {
     if (!confirm('미수금을 매출로 전환하시겠습니까?')) return
     const invoiceNumber = prompt('세금계산서 번호:')
@@ -421,7 +536,6 @@ export default function RevenueManagementNew() {
     }
   }
 
-  // 폼 초기화
   const resetRevenueForm = () => {
     setRevenueForm({
       corporation: 'haupapa',
@@ -454,133 +568,30 @@ export default function RevenueManagementNew() {
     })
   }
 
-  // 세금계산서 발행 건 → 매출 자동 동기화
-  const syncTaxInvoicesToRevenue = async () => {
-    if (!confirm('세금계산서 발행 건을 매출에 동기화하시겠습니까?')) return
-
-    setLoading(true)
-    try {
-      // 세금계산서가 발행된 포인트 충전 요청 조회
-      const { data: chargeRequests, error: fetchError } = await supabaseBiz
-        .from('points_charge_requests')
-        .select('id, amount, tax_invoice_issued, tax_invoice_info, created_at, company_id')
-        .eq('tax_invoice_issued', true)
-        .order('created_at', { ascending: false })
-
-      if (fetchError) throw fetchError
-
-      // 이미 매출에 반영된 항목 확인
-      const { data: existingRevenues } = await supabaseBiz
-        .from('revenue_records')
-        .select('source_id')
-        .eq('source_type', 'tax_invoice')
-
-      const existingIds = new Set((existingRevenues || []).map(r => r.source_id))
-
-      let syncCount = 0
-      for (const request of (chargeRequests || [])) {
-        // 이미 동기화된 건은 스킵
-        if (existingIds.has(request.id)) continue
-
-        const createdDate = new Date(request.created_at)
-        const yearMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`
-
-        // 세금계산서 정보에서 회사명 가져오기
-        const taxInfo = request.tax_invoice_info || {}
-        const companyName = taxInfo.companyName || taxInfo.company_name || '포인트 충전'
-
-        await supabaseBiz.from('revenue_records').insert({
-          corporation_id: 'haupapa', // 세금계산서는 하우파파 법인
-          year_month: yearMonth,
-          amount: request.amount,
-          source_type: 'tax_invoice',
-          source_id: request.id,
-          tax_invoice_number: taxInfo.nts_confirm_num || taxInfo.mgt_key || '',
-          description: `세금계산서 발행: ${companyName}`
-        })
-
-        syncCount++
-      }
-
-      await fetchAllData()
-      alert(`동기화 완료: ${syncCount}건의 세금계산서가 매출에 반영되었습니다.`)
-    } catch (error) {
-      console.error('세금계산서 동기화 오류:', error)
-      alert('동기화 실패: ' + error.message)
-    }
-    setLoading(false)
-  }
-
-  // 크리에이터 출금 완료 건 → 매입 자동 동기화
-  const syncWithdrawalsToExpense = async () => {
-    if (!confirm('출금 완료 건을 매입(크리에이터지급)에 동기화하시겠습니까?')) return
-
-    setLoading(true)
-    try {
-      // 출금 완료된 요청 조회 (creator_withdrawal_requests)
-      const { data: withdrawals, error: fetchError } = await supabaseBiz
-        .from('creator_withdrawal_requests')
-        .select('id, requested_amount, amount, creator_name, account_holder, status, completed_at, created_at')
-        .eq('status', 'completed')
-        .order('completed_at', { ascending: false })
-
-      if (fetchError) throw fetchError
-
-      // 이미 매입에 반영된 항목 확인
-      const { data: existingExpenses } = await supabaseBiz
-        .from('expense_records')
-        .select('source_id')
-        .eq('source_type', 'withdrawal')
-
-      const existingIds = new Set((existingExpenses || []).map(e => e.source_id))
-
-      let syncCount = 0
-      for (const withdrawal of (withdrawals || [])) {
-        // 이미 동기화된 건은 스킵
-        if (existingIds.has(withdrawal.id)) continue
-
-        const completedDate = new Date(withdrawal.completed_at || withdrawal.created_at)
-        const yearMonth = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}`
-
-        const amount = withdrawal.requested_amount || withdrawal.amount || 0
-        const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
-
-        await supabaseBiz.from('expense_records').insert({
-          corporation_id: 'haupapa',
-          year_month: yearMonth,
-          category: '크리에이터지급',
-          amount: amount,
-          source_type: 'withdrawal',
-          source_id: withdrawal.id,
-          description: `출금 완료: ${creatorName}`
-        })
-
-        syncCount++
-      }
-
-      await fetchAllData()
-      alert(`동기화 완료: ${syncCount}건의 출금이 매입에 반영되었습니다.`)
-    } catch (error) {
-      console.error('출금 동기화 오류:', error)
-      alert('동기화 실패: ' + error.message)
-    }
-    setLoading(false)
-  }
-
-  // 숫자 포맷
   const formatNumber = (num) => {
-    if (num === 0) return '-'
-    const prefix = num < 0 ? '-₩' : '₩'
-    return `${prefix}${Math.abs(num).toLocaleString()}`
+    if (num === undefined || num === null) return '-'
+    if (num === 0) return '₩0'
+    const prefix = num < 0 ? '-' : ''
+    return `${prefix}₩${Math.abs(num).toLocaleString()}`
+  }
+
+  const formatCompact = (num) => {
+    if (!num) return '0'
+    if (Math.abs(num) >= 100000000) return `${(num / 100000000).toFixed(1)}억`
+    if (Math.abs(num) >= 10000) return `${(num / 10000).toFixed(0)}만`
+    return num.toLocaleString()
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
         <AdminNavigation />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
-            <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+            <div className="flex flex-col items-center gap-3">
+              <RefreshCw className="w-10 h-10 animate-spin text-blue-500" />
+              <span className="text-slate-500">데이터를 불러오는 중...</span>
+            </div>
           </div>
         </div>
       </div>
@@ -588,20 +599,22 @@ export default function RevenueManagementNew() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
       <AdminNavigation />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* 헤더 */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">매출 관리</h1>
-            <p className="text-sm text-gray-500">하우파파 / 하우랩 법인별 매출 및 매입 관리</p>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+              매출 관리
+            </h1>
+            <p className="text-slate-500 mt-1">하우파파 · 하우랩 법인별 매출 및 비용 관리</p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(parseInt(v))}>
-              <SelectTrigger className="w-28">
+              <SelectTrigger className="w-28 bg-white border-slate-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -611,138 +624,412 @@ export default function RevenueManagementNew() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="sm" onClick={syncTaxInvoicesToRevenue} className="text-blue-600">
+            <Button variant="outline" size="sm" onClick={syncTaxInvoicesToRevenue}
+              className="bg-white hover:bg-blue-50 border-blue-200 text-blue-600">
               <Zap className="w-4 h-4 mr-1" />
-              세금계산서 → 매출
+              세금계산서 동기화
             </Button>
 
-            <Button variant="outline" size="sm" onClick={syncWithdrawalsToExpense} className="text-green-600">
+            <Button variant="outline" size="sm" onClick={syncWithdrawalsToExpense}
+              className="bg-white hover:bg-green-50 border-green-200 text-green-600">
               <Users className="w-4 h-4 mr-1" />
-              출금완료 → 매입
+              출금 동기화
             </Button>
 
-            <Button variant="outline" size="sm" onClick={initializeData}>
+            <Button variant="outline" size="sm" onClick={initializeData}
+              className="bg-white hover:bg-slate-50">
               <Database className="w-4 h-4 mr-1" />
-              초기 데이터 입력
-            </Button>
-
-            <Button variant="outline" size="sm" className="text-red-600" onClick={clearAllData}>
-              <Trash2 className="w-4 h-4 mr-1" />
-              전체 초기화
+              초기 데이터
             </Button>
           </div>
         </div>
 
-        {/* 연간 요약 카드 */}
-        <div className="grid grid-cols-5 gap-4 mb-6">
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="pt-4">
-              <div className="text-sm text-blue-600 font-medium">하우파파 매출</div>
-              <div className="text-xl font-bold text-blue-700">{formatNumber(yearlyTotals.haupapaRevenue)}</div>
+        {/* KPI 카드 */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          {/* 하우파파 매출 */}
+          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">하우파파</p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {formatCompact(yearlyTotals.haupapaRevenue)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Building2 className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center text-blue-100 text-sm">
+                <TrendingUp className="w-4 h-4 mr-1" />
+                <span>연간 매출</span>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="pt-4">
-              <div className="text-sm text-green-600 font-medium">하우랩 매출</div>
-              <div className="text-xl font-bold text-green-700">{formatNumber(yearlyTotals.haulabRevenue)}</div>
+          {/* 하우랩 매출 */}
+          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-sm font-medium">하우랩</p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {formatCompact(yearlyTotals.haulabRevenue)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Building2 className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center text-emerald-100 text-sm">
+                <TrendingUp className="w-4 h-4 mr-1" />
+                <span>연간 매출</span>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-purple-200 bg-purple-50">
-            <CardContent className="pt-4">
-              <div className="text-sm text-purple-600 font-medium">총 매출</div>
-              <div className="text-xl font-bold text-purple-700">{formatNumber(yearlyTotals.totalRevenue)}</div>
+          {/* 총 매출 */}
+          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-violet-500 to-purple-600">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-violet-100 text-sm font-medium">총 매출</p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {formatCompact(yearlyTotals.totalRevenue)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Wallet className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center text-violet-100 text-sm">
+                {parseFloat(revenueChange) >= 0 ? (
+                  <>
+                    <ArrowUpRight className="w-4 h-4 mr-1" />
+                    <span>전월 대비 +{revenueChange}%</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownRight className="w-4 h-4 mr-1" />
+                    <span>전월 대비 {revenueChange}%</span>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-4">
-              <div className="text-sm text-red-600 font-medium">총 매입</div>
-              <div className="text-xl font-bold text-red-700">{formatNumber(yearlyTotals.totalExpense)}</div>
+          {/* 총 비용 */}
+          <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-rose-500 to-red-600">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-rose-100 text-sm font-medium">총 비용</p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {formatCompact(yearlyTotals.totalExpense)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                  <CreditCard className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-center text-rose-100 text-sm">
+                <TrendingDown className="w-4 h-4 mr-1" />
+                <span>연간 지출</span>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className={yearlyTotals.netProfit >= 0 ? "border-emerald-200 bg-emerald-50" : "border-orange-200 bg-orange-50"}>
-            <CardContent className="pt-4">
-              <div className={`text-sm font-medium ${yearlyTotals.netProfit >= 0 ? 'text-emerald-600' : 'text-orange-600'}`}>순이익</div>
-              <div className={`text-xl font-bold ${yearlyTotals.netProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>
-                {formatNumber(yearlyTotals.netProfit)}
+          {/* 순이익 */}
+          <Card className={`relative overflow-hidden border-0 shadow-lg ${
+            yearlyTotals.netProfit >= 0
+              ? 'bg-gradient-to-br from-amber-400 to-orange-500'
+              : 'bg-gradient-to-br from-slate-600 to-slate-700'
+          }`}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${yearlyTotals.netProfit >= 0 ? 'text-amber-100' : 'text-slate-300'}`}>
+                    순이익
+                  </p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {formatCompact(yearlyTotals.netProfit)}
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className={`mt-3 flex items-center text-sm ${yearlyTotals.netProfit >= 0 ? 'text-amber-100' : 'text-slate-300'}`}>
+                {yearlyTotals.netProfit >= 0 ? (
+                  <>
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                    <span>흑자</span>
+                  </>
+                ) : (
+                  <>
+                    <TrendingDown className="w-4 h-4 mr-1" />
+                    <span>적자</span>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* 탭 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="summary">통합 요약</TabsTrigger>
-            <TabsTrigger value="expense">매입 상세</TabsTrigger>
-            <TabsTrigger value="revenue">매출 내역</TabsTrigger>
-            <TabsTrigger value="receivables">미수금</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-white/80 backdrop-blur border border-slate-200 p-1 rounded-xl">
+            <TabsTrigger value="dashboard" className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              대시보드
+            </TabsTrigger>
+            <TabsTrigger value="expense" className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+              <CreditCard className="w-4 h-4 mr-2" />
+              비용 상세
+            </TabsTrigger>
+            <TabsTrigger value="revenue" className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+              <Wallet className="w-4 h-4 mr-2" />
+              매출 내역
+            </TabsTrigger>
+            <TabsTrigger value="receivables" className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+              <Receipt className="w-4 h-4 mr-2" />
+              미수금
+            </TabsTrigger>
           </TabsList>
 
-          {/* 통합 요약 탭 */}
-          <TabsContent value="summary">
-            <Card>
+          {/* 대시보드 탭 */}
+          <TabsContent value="dashboard" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 월별 매출/비용 차트 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-blue-500" />
+                    월별 매출 · 비용 추이
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlySummary} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tickFormatter={(v) => `${(v / 10000).toFixed(0)}만`}
+                        />
+                        <Tooltip
+                          formatter={(value) => formatNumber(value)}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                        />
+                        <Legend />
+                        <Bar dataKey="haupapaRevenue" name="하우파파" fill={COLORS.haupapa} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="haulabRevenue" name="하우랩" fill={COLORS.haulab} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="totalExpense" name="비용" fill={COLORS.expense} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 순이익 추이 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-purple-500" />
+                    순이익 추이
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={monthlySummary} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <defs>
+                          <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={COLORS.profit} stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor={COLORS.profit} stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tickFormatter={(v) => `${(v / 10000).toFixed(0)}만`}
+                        />
+                        <Tooltip
+                          formatter={(value) => formatNumber(value)}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="netProfit"
+                          name="순이익"
+                          stroke={COLORS.profit}
+                          strokeWidth={3}
+                          fillOpacity={1}
+                          fill="url(#colorProfit)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 비용 구성 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <PieChart className="w-5 h-5 text-rose-500" />
+                    비용 구성 (TOP 8)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPieChart>
+                        <Pie
+                          data={expenseByCategory}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {expenseByCategory.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS.pie[index % COLORS.pie.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value) => formatNumber(value)}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                        />
+                        <Legend
+                          layout="vertical"
+                          align="right"
+                          verticalAlign="middle"
+                          formatter={(value) => <span className="text-sm text-slate-600">{value}</span>}
+                        />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 법인별 매출 비교 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-emerald-500" />
+                    법인별 매출 추이
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={monthlySummary} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tickFormatter={(v) => `${(v / 10000).toFixed(0)}만`}
+                        />
+                        <Tooltip
+                          formatter={(value) => formatNumber(value)}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                        />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="haupapaRevenue"
+                          name="하우파파"
+                          stroke={COLORS.haupapa}
+                          strokeWidth={3}
+                          dot={{ fill: COLORS.haupapa, strokeWidth: 2 }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="haulabRevenue"
+                          name="하우랩"
+                          stroke={COLORS.haulab}
+                          strokeWidth={3}
+                          dot={{ fill: COLORS.haulab, strokeWidth: 2 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 월별 상세 테이블 */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
               <CardHeader>
-                <CardTitle>{selectedYear}년 통합 요약</CardTitle>
+                <CardTitle className="text-lg font-semibold text-slate-700">
+                  {selectedYear}년 월별 상세
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full">
                     <thead>
-                      <tr className="border-b bg-gray-50">
-                        <th className="px-2 py-2 text-left font-medium w-32">구분</th>
+                      <tr className="border-b border-slate-200">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-slate-600">구분</th>
                         {Array.from({ length: 12 }, (_, i) => (
-                          <th key={i} className="px-2 py-2 text-right font-medium">{i + 1}월</th>
+                          <th key={i} className="px-3 py-3 text-right text-sm font-semibold text-slate-600">{i + 1}월</th>
                         ))}
-                        <th className="px-2 py-2 text-right font-medium bg-gray-100">합계</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700 bg-slate-50">합계</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b bg-blue-50">
-                        <td className="px-2 py-2 font-medium text-blue-700">매출(하우파파)</td>
+                      <tr className="border-b border-slate-100 bg-blue-50/50">
+                        <td className="px-4 py-3 text-sm font-medium text-blue-700">하우파파</td>
                         {monthlySummary.map((m, i) => (
-                          <td key={i} className="px-2 py-2 text-right text-blue-600 text-xs">
-                            {formatNumber(m.haupapaRevenue)}
+                          <td key={i} className="px-3 py-3 text-right text-sm text-blue-600">
+                            {m.haupapaRevenue > 0 ? formatCompact(m.haupapaRevenue) : '-'}
                           </td>
                         ))}
-                        <td className="px-2 py-2 text-right font-bold text-blue-700 bg-blue-100 text-xs">
-                          {formatNumber(yearlyTotals.haupapaRevenue)}
+                        <td className="px-4 py-3 text-right text-sm font-bold text-blue-700 bg-blue-100/50">
+                          {formatCompact(yearlyTotals.haupapaRevenue)}
                         </td>
                       </tr>
-                      <tr className="border-b bg-green-50">
-                        <td className="px-2 py-2 font-medium text-green-700">매출(하우랩)</td>
+                      <tr className="border-b border-slate-100 bg-emerald-50/50">
+                        <td className="px-4 py-3 text-sm font-medium text-emerald-700">하우랩</td>
                         {monthlySummary.map((m, i) => (
-                          <td key={i} className="px-2 py-2 text-right text-green-600 text-xs">
-                            {formatNumber(m.haulabRevenue)}
+                          <td key={i} className="px-3 py-3 text-right text-sm text-emerald-600">
+                            {m.haulabRevenue !== 0 ? formatCompact(m.haulabRevenue) : '-'}
                           </td>
                         ))}
-                        <td className="px-2 py-2 text-right font-bold text-green-700 bg-green-100 text-xs">
-                          {formatNumber(yearlyTotals.haulabRevenue)}
+                        <td className="px-4 py-3 text-right text-sm font-bold text-emerald-700 bg-emerald-100/50">
+                          {formatCompact(yearlyTotals.haulabRevenue)}
                         </td>
                       </tr>
-                      <tr className="border-b bg-red-50">
-                        <td className="px-2 py-2 font-medium text-red-700">매입</td>
+                      <tr className="border-b border-slate-100 bg-rose-50/50">
+                        <td className="px-4 py-3 text-sm font-medium text-rose-700">비용</td>
                         {monthlySummary.map((m, i) => (
-                          <td key={i} className="px-2 py-2 text-right text-red-600 text-xs">
-                            {formatNumber(m.totalExpense)}
+                          <td key={i} className="px-3 py-3 text-right text-sm text-rose-600">
+                            {m.totalExpense > 0 ? formatCompact(m.totalExpense) : '-'}
                           </td>
                         ))}
-                        <td className="px-2 py-2 text-right font-bold text-red-700 bg-red-100 text-xs">
-                          {formatNumber(yearlyTotals.totalExpense)}
+                        <td className="px-4 py-3 text-right text-sm font-bold text-rose-700 bg-rose-100/50">
+                          {formatCompact(yearlyTotals.totalExpense)}
                         </td>
                       </tr>
-                      <tr className="bg-gray-100 font-bold">
-                        <td className="px-2 py-2">합계</td>
+                      <tr className="bg-slate-50">
+                        <td className="px-4 py-3 text-sm font-bold text-slate-700">순이익</td>
                         {monthlySummary.map((m, i) => (
-                          <td key={i} className={`px-2 py-2 text-right text-xs ${m.netProfit >= 0 ? 'text-emerald-700' : 'text-orange-700'}`}>
-                            {formatNumber(m.netProfit)}
+                          <td key={i} className={`px-3 py-3 text-right text-sm font-semibold ${
+                            m.netProfit >= 0 ? 'text-amber-600' : 'text-slate-500'
+                          }`}>
+                            {m.netProfit !== 0 ? formatCompact(m.netProfit) : '-'}
                           </td>
                         ))}
-                        <td className={`px-2 py-2 text-right text-xs ${yearlyTotals.netProfit >= 0 ? 'text-emerald-700 bg-emerald-100' : 'text-orange-700 bg-orange-100'}`}>
-                          {formatNumber(yearlyTotals.netProfit)}
+                        <td className={`px-4 py-3 text-right text-sm font-bold ${
+                          yearlyTotals.netProfit >= 0 ? 'text-amber-700 bg-amber-100/50' : 'text-slate-600 bg-slate-100'
+                        }`}>
+                          {formatCompact(yearlyTotals.netProfit)}
                         </td>
                       </tr>
                     </tbody>
@@ -752,51 +1039,63 @@ export default function RevenueManagementNew() {
             </Card>
           </TabsContent>
 
-          {/* 매입 상세 탭 */}
+          {/* 비용 상세 탭 */}
           <TabsContent value="expense">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>매입 상세</span>
-                  <Button size="sm" onClick={() => { resetExpenseForm(); setShowExpenseModal(true) }}>
-                    <Plus className="w-4 h-4 mr-1" /> 매입 추가
-                  </Button>
-                </CardTitle>
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-slate-700">비용 상세</CardTitle>
+                <Button size="sm" onClick={() => { resetExpenseForm(); setShowExpenseModal(true) }}
+                  className="bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600">
+                  <Plus className="w-4 h-4 mr-1" /> 비용 추가
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b bg-gray-50">
-                        <th className="px-2 py-2 text-left font-medium sticky left-0 bg-gray-50 w-28">카테고리</th>
+                      <tr className="border-b border-slate-200">
+                        <th className="px-3 py-3 text-left font-semibold text-slate-600 sticky left-0 bg-white">카테고리</th>
                         {Array.from({ length: 12 }, (_, i) => (
-                          <th key={i} className="px-2 py-2 text-right font-medium">{i + 1}월</th>
+                          <th key={i} className="px-2 py-3 text-right font-semibold text-slate-600">{i + 1}월</th>
                         ))}
-                        <th className="px-2 py-2 text-right font-medium bg-gray-100">합계</th>
+                        <th className="px-3 py-3 text-right font-semibold text-slate-700 bg-slate-50">합계</th>
                       </tr>
                     </thead>
                     <tbody>
                       {EXPENSE_CATEGORIES.map(category => {
-                        const monthlyAmounts = expenseByCategory[category] || Array(12).fill(0)
+                        const monthlyAmounts = Array.from({ length: 12 }, (_, i) => {
+                          const month = `${selectedYear}-${String(i + 1).padStart(2, '0')}`
+                          return expenseData
+                            .filter(e => e.year_month === month && e.category === category)
+                            .reduce((sum, e) => sum + (e.amount || 0), 0)
+                        })
                         const total = monthlyAmounts.reduce((a, b) => a + b, 0)
                         if (total === 0) return null
 
                         return (
-                          <tr key={category} className="border-b hover:bg-gray-50">
-                            <td className="px-2 py-1 font-medium sticky left-0 bg-white text-xs">{category}</td>
+                          <tr key={category} className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="px-3 py-2 font-medium text-slate-700 sticky left-0 bg-white">{category}</td>
                             {monthlyAmounts.map((amount, i) => (
-                              <td key={i} className="px-2 py-1 text-right">{formatNumber(amount)}</td>
+                              <td key={i} className="px-2 py-2 text-right text-slate-600">
+                                {amount > 0 ? formatCompact(amount) : '-'}
+                              </td>
                             ))}
-                            <td className="px-2 py-1 text-right font-bold bg-gray-50">{formatNumber(total)}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-slate-700 bg-slate-50">
+                              {formatCompact(total)}
+                            </td>
                           </tr>
                         )
                       })}
-                      <tr className="bg-red-50 font-bold">
-                        <td className="px-2 py-2 sticky left-0 bg-red-50">월별 합계</td>
+                      <tr className="bg-rose-50 font-bold">
+                        <td className="px-3 py-3 text-rose-700 sticky left-0 bg-rose-50">합계</td>
                         {monthlySummary.map((m, i) => (
-                          <td key={i} className="px-2 py-2 text-right text-red-700">{formatNumber(m.totalExpense)}</td>
+                          <td key={i} className="px-2 py-3 text-right text-rose-600">
+                            {m.totalExpense > 0 ? formatCompact(m.totalExpense) : '-'}
+                          </td>
                         ))}
-                        <td className="px-2 py-2 text-right text-red-700 bg-red-100">{formatNumber(yearlyTotals.totalExpense)}</td>
+                        <td className="px-3 py-3 text-right text-rose-700 bg-rose-100">
+                          {formatCompact(yearlyTotals.totalExpense)}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -807,52 +1106,67 @@ export default function RevenueManagementNew() {
 
           {/* 매출 내역 탭 */}
           <TabsContent value="revenue">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>매출 내역</span>
-                  <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}>
-                    <Plus className="w-4 h-4 mr-1" /> 매출 추가
-                  </Button>
-                </CardTitle>
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-slate-700">매출 내역</CardTitle>
+                <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
+                  <Plus className="w-4 h-4 mr-1" /> 매출 추가
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {revenueData.map(revenue => (
-                    <div key={revenue.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${revenue.corporation_id === 'haupapa' ? 'bg-blue-500' : 'bg-green-500'}`} />
-                        <div>
-                          <div className="font-medium text-sm">
-                            {revenue.corporation_id === 'haupapa' ? '하우파파' : '하우랩'} | {revenue.year_month}
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {revenueData.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400">
+                      <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>매출 데이터가 없습니다.</p>
+                    </div>
+                  ) : (
+                    revenueData.map(revenue => (
+                      <div key={revenue.id}
+                        className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-3 h-3 rounded-full ${
+                            revenue.corporation_id === 'haupapa' ? 'bg-blue-500' : 'bg-emerald-500'
+                          }`} />
+                          <div>
+                            <div className="font-medium text-slate-700">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs mr-2 ${
+                                revenue.corporation_id === 'haupapa'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-emerald-100 text-emerald-700'
+                              }`}>
+                                {revenue.corporation_id === 'haupapa' ? '하우파파' : '하우랩'}
+                              </span>
+                              {revenue.year_month}
+                            </div>
+                            <div className="text-sm text-slate-500 mt-1">{revenue.description}</div>
                           </div>
-                          <div className="text-xs text-gray-500">{revenue.description}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-lg text-slate-700">{formatNumber(revenue.amount)}</span>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setEditingItem(revenue)
+                              setRevenueForm({
+                                corporation: revenue.corporation_id,
+                                year_month: revenue.year_month,
+                                amount: String(revenue.amount),
+                                source_type: revenue.source_type || 'tax_invoice',
+                                tax_invoice_number: revenue.tax_invoice_number || '',
+                                description: revenue.description || ''
+                              })
+                              setShowRevenueModal(true)
+                            }}>
+                              <Edit2 className="w-4 h-4 text-slate-400 hover:text-blue-500" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete('revenue_records', revenue.id)}>
+                              <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-500" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-blue-600">{formatNumber(revenue.amount)}</span>
-                        <Button variant="ghost" size="sm" onClick={() => {
-                          setEditingItem(revenue)
-                          setRevenueForm({
-                            corporation: revenue.corporation_id,
-                            year_month: revenue.year_month,
-                            amount: String(revenue.amount),
-                            source_type: revenue.source_type || 'tax_invoice',
-                            tax_invoice_number: revenue.tax_invoice_number || '',
-                            description: revenue.description || ''
-                          })
-                          setShowRevenueModal(true)
-                        }}>
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete('revenue_records', revenue.id)}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {revenueData.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">매출 데이터가 없습니다.</div>
+                    ))
                   )}
                 </div>
               </CardContent>
@@ -861,82 +1175,60 @@ export default function RevenueManagementNew() {
 
           {/* 미수금 탭 */}
           <TabsContent value="receivables">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>미수금 관리</span>
-                  <Button size="sm" onClick={() => { resetReceivableForm(); setShowReceivableModal(true) }}>
-                    <Plus className="w-4 h-4 mr-1" /> 미수금 추가
-                  </Button>
-                </CardTitle>
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-slate-700">미수금 관리</CardTitle>
+                <Button size="sm" onClick={() => { resetReceivableForm(); setShowReceivableModal(true) }}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
+                  <Plus className="w-4 h-4 mr-1" /> 미수금 추가
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {receivables.map(recv => (
-                    <div key={recv.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                      <div>
-                        <div className="font-medium">{recv.company_name}</div>
-                        <div className="text-sm text-gray-500">{recv.description}</div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          recv.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                          recv.status === 'invoiced' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                        }`}>
-                          {recv.status === 'pending' ? '대기' : recv.status === 'invoiced' ? '발행완료' : '입금완료'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-amber-600">{formatNumber(recv.amount)}</span>
-                        {recv.status === 'pending' && (
-                          <Button variant="outline" size="sm" onClick={() => convertReceivableToRevenue(recv)}>
-                            <Receipt className="w-4 h-4 mr-1" /> 매출 전환
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete('receivables', recv.id)}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
+                <div className="space-y-3">
+                  {receivables.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400">
+                      <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>미수금 데이터가 없습니다.</p>
                     </div>
-                  ))}
-                  {receivables.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">미수금 데이터가 없습니다.</div>
+                  ) : (
+                    receivables.map(recv => (
+                      <div key={recv.id}
+                        className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                        <div>
+                          <div className="font-medium text-slate-700">{recv.company_name}</div>
+                          <div className="text-sm text-slate-500 mt-1">{recv.description}</div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs mt-2 ${
+                            recv.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            recv.status === 'invoiced' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {recv.status === 'pending' ? '대기' : recv.status === 'invoiced' ? '발행완료' : '입금완료'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-lg text-amber-600">{formatNumber(recv.amount)}</span>
+                          {recv.status === 'pending' && (
+                            <Button variant="outline" size="sm" onClick={() => convertReceivableToRevenue(recv)}
+                              className="border-amber-200 text-amber-600 hover:bg-amber-50">
+                              <Receipt className="w-4 h-4 mr-1" /> 매출 전환
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete('receivables', recv.id)}>
+                            <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Google Sheets 안내 */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileSpreadsheet className="w-5 h-5 text-green-600" />
-              Google Sheets 연동 방법
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-gray-600 space-y-3">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="font-semibold mb-2">설정 단계:</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Google Cloud Console에서 프로젝트 생성</li>
-                <li>Google Sheets API 활성화</li>
-                <li>서비스 계정 생성 후 JSON 키 다운로드</li>
-                <li>Netlify 환경변수에 GOOGLE_SHEETS_CREDENTIALS 추가</li>
-                <li>Google Sheet 공유 설정에서 서비스 계정 이메일 추가</li>
-              </ol>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => window.open('https://console.cloud.google.com/apis/library/sheets.googleapis.com', '_blank')}>
-                <ExternalLink className="w-4 h-4 mr-1" /> Google Cloud Console
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* 매출 모달 */}
       <Dialog open={showRevenueModal} onOpenChange={setShowRevenueModal}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingItem ? '매출 수정' : '매출 추가'}</DialogTitle>
           </DialogHeader>
@@ -975,16 +1267,16 @@ export default function RevenueManagementNew() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRevenueModal(false)}>취소</Button>
-            <Button onClick={handleSaveRevenue}>저장</Button>
+            <Button onClick={handleSaveRevenue} className="bg-blue-500 hover:bg-blue-600">저장</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 매입 모달 */}
+      {/* 비용 모달 */}
       <Dialog open={showExpenseModal} onOpenChange={setShowExpenseModal}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingItem ? '매입 수정' : '매입 추가'}</DialogTitle>
+            <DialogTitle>{editingItem ? '비용 수정' : '비용 추가'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1016,14 +1308,14 @@ export default function RevenueManagementNew() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowExpenseModal(false)}>취소</Button>
-            <Button onClick={handleSaveExpense}>저장</Button>
+            <Button onClick={handleSaveExpense} className="bg-rose-500 hover:bg-rose-600">저장</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* 미수금 모달 */}
       <Dialog open={showReceivableModal} onOpenChange={setShowReceivableModal}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingItem ? '미수금 수정' : '미수금 추가'}</DialogTitle>
           </DialogHeader>
@@ -1057,7 +1349,7 @@ export default function RevenueManagementNew() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReceivableModal(false)}>취소</Button>
-            <Button onClick={handleSaveReceivable}>저장</Button>
+            <Button onClick={handleSaveReceivable} className="bg-amber-500 hover:bg-amber-600">저장</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
