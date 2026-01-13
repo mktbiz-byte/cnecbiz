@@ -54,6 +54,11 @@ exports.handler = async (event) => {
       throw new Error(`Week ${weekNumber} guide not found`)
     }
 
+    // 마감일이 설정되지 않았으면 경고 로그
+    if (!weekDeadline) {
+      console.warn(`Warning: Week ${weekNumber} deadline is not set for campaign ${campaignId}`)
+    }
+
     // 3. 선정된 참여자 목록 가져오기
     const { data: participants, error: participantsError } = await supabase
       .from('participants')
@@ -94,6 +99,19 @@ exports.handler = async (event) => {
       try {
         const profile = participant.user_profiles
         
+        // 마감일이 없으면 알림톡 발송하지 않음
+        const formattedDeadline = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : null
+
+        if (!formattedDeadline) {
+          console.warn(`Skipping notification for ${profile.name}: Week ${weekNumber} deadline not set`)
+          errorCount++
+          errors.push({
+            participant: profile.name,
+            error: `Week ${weekNumber} deadline not set - notification skipped`
+          })
+          continue
+        }
+
         // 알림톡 + 이메일 발송
         await sendNotification({
           receiverNum: profile.phone,
@@ -103,7 +121,7 @@ exports.handler = async (event) => {
           variables: {
             '크리에이터명': profile.name,
             '캠페인명': `${campaign.title} (${weekNumber}주차)`,
-            '제출기한': weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+            '제출기한': formattedDeadline
           },
           emailSubject: `[CNEC] ${campaign.title} ${weekNumber}주차 촬영 가이드 전달`,
           emailHtml: `
@@ -126,7 +144,7 @@ exports.handler = async (event) => {
                   <ul style="color: #4b5563; line-height: 1.8; margin: 0; padding-left: 20px; list-style: none;">
                     <li style="margin-bottom: 10px;"><strong>캠페인:</strong> ${campaign.title}</li>
                     <li style="margin-bottom: 10px;"><strong>주차:</strong> <span style="color: #667eea; font-weight: bold;">${weekNumber}주차</span></li>
-                    <li><strong>제출 기한:</strong> <span style="color: #ef4444; font-weight: bold;">${weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'}</span></li>
+                    <li><strong>제출 기한:</strong> <span style="color: #ef4444; font-weight: bold;">${formattedDeadline}</span></li>
                   </ul>
                 </div>
                 

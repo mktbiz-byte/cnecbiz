@@ -222,6 +222,8 @@ export default function CampaignDetail() {
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
   // Admin SNS/Ad code edit state
   const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
+  const [showDeadlineEditModal, setShowDeadlineEditModal] = useState(false)
+  const [deadlineEditData, setDeadlineEditData] = useState({})
   const [adminSnsEditData, setAdminSnsEditData] = useState({
     submissionId: null,
     participantId: null,
@@ -2909,6 +2911,22 @@ JSON만 출력.`
             console.error('영상 승인 이메일 발송 실패:', emailError)
           }
         }
+
+        // 네이버 웍스 알림 (검수 완료)
+        try {
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[영상 검수 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n업로드 기한: ${inputDeadline}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+          console.log('✓ 검수 완료 네이버 웍스 알림 발송 성공')
+        } catch (worksError) {
+          console.error('네이버 웍스 알림 발송 실패:', worksError)
+        }
       } else {
         console.log('알림톡 발송 스킵 - 참가자 없음:', submission.user_id)
       }
@@ -3249,6 +3267,77 @@ JSON만 출력.`
         setShowAdminSnsEditModal(false)
         setAdminSnsEditData({})
         await fetchParticipants()
+
+        // 기업에게 SNS 업로드 완료 알림 발송
+        try {
+          const participant = participants.find(p => p.id === adminSnsEditData.participantId)
+          const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
+
+          // 기업 정보 조회
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('contact_email, contact_phone, company_name')
+            .eq('id', campaign.company_id)
+            .single()
+
+          if (companyData?.contact_phone) {
+            // 카카오톡 알림
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverName: companyData.company_name || '담당자',
+                templateCode: '025100001009',
+                variables: {
+                  '회사명': companyData.company_name || '담당자',
+                  '캠페인명': campaign?.title || '캠페인'
+                }
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
+          }
+
+          if (companyData?.contact_email) {
+            // 이메일 알림
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: companyData.contact_email,
+                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
+                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
+                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
+                    </div>
+                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
+          }
+
+          // 네이버 웍스 알림
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[SNS 업로드 완료 - 멀티비디오]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+        } catch (notifyError) {
+          console.error('기업 알림 발송 실패:', notifyError)
+        }
+
         alert('저장되었습니다.')
       } catch (error) {
         console.error('Error saving multi-video SNS edit:', error)
@@ -3308,6 +3397,77 @@ JSON만 출력.`
         setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
         await fetchVideoSubmissions()
         await fetchParticipants()
+
+        // 기업에게 SNS 업로드 완료 알림 발송
+        try {
+          const participant = participants.find(p => p.id === adminSnsEditData.participantId)
+          const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
+
+          // 기업 정보 조회
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('contact_email, contact_phone, company_name')
+            .eq('id', campaign.company_id)
+            .single()
+
+          if (companyData?.contact_phone) {
+            // 카카오톡 알림
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverName: companyData.company_name || '담당자',
+                templateCode: '025100001009',
+                variables: {
+                  '회사명': companyData.company_name || '담당자',
+                  '캠페인명': campaign?.title || '캠페인'
+                }
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
+          }
+
+          if (companyData?.contact_email) {
+            // 이메일 알림
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: companyData.contact_email,
+                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
+                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
+                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
+                    </div>
+                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
+          }
+
+          // 네이버 웍스 알림
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[SNS 업로드 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+        } catch (notifyError) {
+          console.error('기업 알림 발송 실패:', notifyError)
+        }
+
         alert('저장되었습니다.')
         return
       }
@@ -5767,9 +5927,9 @@ JSON만 출력.`
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
-                    // video_submissions에 approved된 영상이 있으면 표시
+                    // video_submissions에 approved/completed된 영상이 있으면 표시
                     const hasApprovedVideo = videoSubmissions.some(
-                      v => v.user_id === p.user_id && v.status === 'approved'
+                      v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
                     return false
@@ -5790,9 +5950,9 @@ JSON만 출력.`
                       variant="outline"
                       className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
                       onClick={async () => {
-                        const completedParticipants = participants.filter(p => ['approved', 'completed'].includes(p.status))
+                        const completedParticipants = participants.filter(p => ['approved', 'completed', 'sns_uploaded'].includes(p.status))
                         const completedSubmissions = videoSubmissions.filter(sub =>
-                          sub.status === 'approved' &&
+                          ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) &&
                           completedParticipants.some(p => p.user_id === sub.user_id)
                         )
 
@@ -5851,9 +6011,9 @@ JSON만 출력.`
                     if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
                     // 올리브영 URL이 있으면 표시
                     if (p.step1_url || p.step2_url || p.step3_url) return true
-                    // video_submissions에 approved된 영상이 있으면 표시
+                    // video_submissions에 approved/completed된 영상이 있으면 표시
                     const hasApprovedVideo = videoSubmissions.some(
-                      v => v.user_id === p.user_id && v.status === 'approved'
+                      v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
                     )
                     if (hasApprovedVideo) return true
                     return false
@@ -5873,7 +6033,7 @@ JSON만 출력.`
                     {completedSectionParticipants.map(participant => {
                       // 해당 크리에이터의 승인된 영상들
                       const creatorSubmissions = videoSubmissions.filter(
-                        sub => sub.user_id === participant.user_id && sub.status === 'approved'
+                        sub => sub.user_id === participant.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status)
                       ).sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
 
                       // 멀티비디오 캠페인 체크 (올영: 2개, 4주챌린지: 4개)
@@ -6658,29 +6818,202 @@ JSON만 출력.`
             <div className="grid grid-cols-2 gap-4 pt-4 border-t">
               <div>
                 <p className="text-sm text-gray-600">모집 마감일</p>
-                <p className="font-medium">{new Date(campaign.application_deadline).toLocaleDateString()}</p>
+                <p className="font-medium">
+                  {campaign.application_deadline
+                    ? new Date(campaign.application_deadline).toLocaleDateString()
+                    : <span className="text-red-500">미설정</span>}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">캠페인 기간</p>
                 <p className="font-medium">
-                  {campaign.campaign_type === '4week_challenge' ? (
-                    <>
-                      {campaign.week1_deadline && `1주차: ${new Date(campaign.week1_deadline).toLocaleDateString()}`}
-                      {campaign.week2_deadline && ` / 2주차: ${new Date(campaign.week2_deadline).toLocaleDateString()}`}
-                      {campaign.week3_deadline && ` / 3주차: ${new Date(campaign.week3_deadline).toLocaleDateString()}`}
-                      {campaign.week4_deadline && ` / 4주차: ${new Date(campaign.week4_deadline).toLocaleDateString()}`}
-                    </>
-                  ) : campaign.campaign_type === 'oliveyoung' ? (
-                    <>
-                      {campaign.step1_deadline && `1차: ${new Date(campaign.step1_deadline).toLocaleDateString()}`}
-                      {campaign.step2_deadline && ` / 2차: ${new Date(campaign.step2_deadline).toLocaleDateString()}`}
-                      {campaign.step3_deadline && ` / 3차: ${new Date(campaign.step3_deadline).toLocaleDateString()}`}
-                    </>
-                  ) : (
-                    `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
-                  )}
+                  {campaign.start_date && campaign.end_date
+                    ? `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
+                    : <span className="text-red-500">미설정</span>}
                 </p>
               </div>
+            </div>
+
+            {/* 영상 제출 마감일 */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600 font-medium">영상 제출 마감일</p>
+                {isAdmin ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDeadlineEditModal(true)}
+                  >
+                    <Edit2 className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                ) : (
+                  <a
+                    href="http://pf.kakao.com/_FxhqTG/chat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-400 hover:text-blue-500"
+                  >
+                    수정 요청 →
+                  </a>
+                )}
+              </div>
+              {campaign.campaign_type === '4week_challenge' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">1주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week1_deadline
+                        ? new Date(campaign.week1_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">2주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week2_deadline
+                        ? new Date(campaign.week2_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">3주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week3_deadline
+                        ? new Date(campaign.week3_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">4주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week4_deadline
+                        ? new Date(campaign.week4_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-green-50 rounded-lg text-center">
+                    <p className="text-xs text-green-600">1차 영상</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step1_deadline
+                        ? new Date(campaign.step1_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-green-50 rounded-lg text-center">
+                    <p className="text-xs text-green-600">2차 영상</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step2_deadline
+                        ? new Date(campaign.step2_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-blue-50 rounded-lg text-center w-fit">
+                  <p className="text-xs text-blue-600">영상 제출 마감</p>
+                  <p className="font-medium text-sm">
+                    {(campaign.content_submission_deadline || campaign.start_date)
+                      ? new Date(campaign.content_submission_deadline || campaign.start_date).toLocaleDateString()
+                      : <span className="text-red-500">미설정</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* SNS 업로드 예정일 */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600 font-medium">SNS 업로드 예정일</p>
+                {isAdmin ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDeadlineEditModal(true)}
+                  >
+                    <Edit2 className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                ) : (
+                  <a
+                    href="http://pf.kakao.com/_FxhqTG/chat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-400 hover:text-blue-500"
+                  >
+                    수정 요청 →
+                  </a>
+                )}
+              </div>
+              {campaign.campaign_type === '4week_challenge' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">1주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week1_sns_deadline
+                        ? new Date(campaign.week1_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">2주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week2_sns_deadline
+                        ? new Date(campaign.week2_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">3주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week3_sns_deadline
+                        ? new Date(campaign.week3_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">4주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week4_sns_deadline
+                        ? new Date(campaign.week4_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">1차 SNS</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step1_sns_deadline
+                        ? new Date(campaign.step1_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">2차 SNS</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step2_sns_deadline
+                        ? new Date(campaign.step2_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-pink-50 rounded-lg text-center w-fit">
+                  <p className="text-xs text-pink-600">SNS 업로드</p>
+                  <p className="font-medium text-sm">
+                    {(campaign.sns_upload_deadline || campaign.end_date)
+                      ? new Date(campaign.sns_upload_deadline || campaign.end_date).toLocaleDateString()
+                      : <span className="text-gray-400">-</span>}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -8932,6 +9265,198 @@ JSON만 출력.`
                 ) : (
                   '저장 후 최종 확정'
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 관리자용 마감일 수정 모달 */}
+      {showDeadlineEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-bold">마감일 수정 (관리자 전용)</h3>
+              <p className="text-sm text-gray-500 mt-1">영상 제출 마감일 및 SNS 업로드 예정일을 수정합니다.</p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* 4주 챌린지 */}
+              {campaign.campaign_type === '4week_challenge' && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">영상 제출 마감일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week}>
+                          <label className="text-xs text-gray-500">{week}주차</label>
+                          <input
+                            type="date"
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            defaultValue={campaign[`week${week}_deadline`]?.split('T')[0] || ''}
+                            onChange={(e) => setDeadlineEditData(prev => ({
+                              ...prev,
+                              [`week${week}_deadline`]: e.target.value
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">SNS 업로드 예정일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week}>
+                          <label className="text-xs text-gray-500">{week}주차</label>
+                          <input
+                            type="date"
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            defaultValue={campaign[`week${week}_sns_deadline`]?.split('T')[0] || ''}
+                            onChange={(e) => setDeadlineEditData(prev => ({
+                              ...prev,
+                              [`week${week}_sns_deadline`]: e.target.value
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 올리브영 */}
+              {(campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">영상 제출 마감일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">1차 영상</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step1_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step1_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">2차 영상</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step2_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step2_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">SNS 업로드 예정일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">1차 SNS</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step1_sns_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step1_sns_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">2차 SNS</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step2_sns_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step2_sns_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 기획형 (일반) */}
+              {campaign.campaign_type !== '4week_challenge' && campaign.campaign_type !== 'oliveyoung' && !campaign.is_oliveyoung_sale && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">영상 제출 마감일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg"
+                      defaultValue={(campaign.content_submission_deadline || campaign.start_date)?.split('T')[0] || ''}
+                      onChange={(e) => setDeadlineEditData(prev => ({
+                        ...prev,
+                        content_submission_deadline: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">SNS 업로드 예정일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg"
+                      defaultValue={(campaign.sns_upload_deadline || campaign.end_date)?.split('T')[0] || ''}
+                      onChange={(e) => setDeadlineEditData(prev => ({
+                        ...prev,
+                        sns_upload_deadline: e.target.value
+                      }))}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeadlineEditModal(false)
+                  setDeadlineEditData({})
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={async () => {
+                  try {
+                    if (Object.keys(deadlineEditData).length === 0) {
+                      alert('수정할 내용이 없습니다.')
+                      return
+                    }
+
+                    const client = getSupabaseClient(region)
+                    const { error } = await client
+                      .from('campaigns')
+                      .update(deadlineEditData)
+                      .eq('id', campaign.id)
+
+                    if (error) throw error
+
+                    alert('마감일이 수정되었습니다.')
+                    setShowDeadlineEditModal(false)
+                    setDeadlineEditData({})
+                    // 캠페인 데이터 새로고침
+                    window.location.reload()
+                  } catch (error) {
+                    console.error('Error updating deadlines:', error)
+                    alert('마감일 수정에 실패했습니다: ' + error.message)
+                  }
+                }}
+              >
+                저장
               </Button>
             </div>
           </div>

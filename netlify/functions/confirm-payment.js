@@ -258,9 +258,15 @@ exports.handler = async (event, context) => {
       // 1. 카카오 알림톡 발송
       if (company.notification_phone || company.phone) {
         try {
-          // 캠페인 기간 포맷팅
-          const startDate = campaign.start_date ? new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '미정'
-          const endDate = campaign.end_date ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '미정'
+          // 캠페인 기간 포맷팅 (날짜가 없으면 모집 마감일 기준으로 표시)
+          const startDate = campaign.start_date
+            ? new Date(campaign.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+            : (campaign.application_deadline
+              ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + ' (모집마감)'
+              : '추후 안내')
+          const endDate = campaign.end_date
+            ? new Date(campaign.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+            : '추후 안내'
           
           const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
           await fetch(`${baseUrl}/.netlify/functions/send-kakao-notification`, {
@@ -288,9 +294,15 @@ exports.handler = async (event, context) => {
       // 2. 이메일 발송
       if (company.notification_email || company.email) {
         try {
-          const startDate = campaign.start_date ? new Date(campaign.start_date).toLocaleDateString('ko-KR') : '미정'
-          const endDate = campaign.end_date ? new Date(campaign.end_date).toLocaleDateString('ko-KR') : '미정'
-          
+          const emailStartDate = campaign.start_date
+            ? new Date(campaign.start_date).toLocaleDateString('ko-KR')
+            : (campaign.application_deadline
+              ? new Date(campaign.application_deadline).toLocaleDateString('ko-KR') + ' (모집마감)'
+              : '추후 안내')
+          const emailEndDate = campaign.end_date
+            ? new Date(campaign.end_date).toLocaleDateString('ko-KR')
+            : '추후 안내'
+
           const baseUrl = process.env.URL || 'https://cnectotal.netlify.app'
           await fetch(`${baseUrl}/.netlify/functions/send-email`, {
             method: 'POST',
@@ -302,10 +314,10 @@ exports.handler = async (event, context) => {
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                   <h2 style="color: #333;">[CNEC] 캠페인 검수 신청</h2>
                   <p><strong>${company.company_name || '회사'}</strong>님, 신청하신 캠페인이 관리자에게 검수 요청 되었습니다.</p>
-                  
+
                   <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <p style="margin: 10px 0;"><strong>캠페인:</strong> ${campaign.title || '캠페인'}</p>
-                    <p style="margin: 10px 0;"><strong>모집 기간:</strong> ${startDate} ~ ${endDate}</p>
+                    <p style="margin: 10px 0;"><strong>모집 기간:</strong> ${emailStartDate} ~ ${emailEndDate}</p>
                     <p style="margin: 10px 0;"><strong>모집 인원:</strong> ${campaign.total_slots || 0}명</p>
                   </div>
                   

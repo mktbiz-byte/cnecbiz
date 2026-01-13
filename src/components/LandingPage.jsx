@@ -410,10 +410,10 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
-                onClick={() => navigate('/signup')}
+                onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
                 className="w-full sm:w-auto px-6 py-3 bg-white text-gray-900 rounded-full font-semibold hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
               >
-                캠페인 생성하기
+                {user ? '캠페인 현황보기' : '캠페인 생성하기'}
                 <ArrowRight className="w-4 h-4" />
               </button>
               <a
@@ -717,10 +717,10 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate(user ? '/company/campaigns' : '/signup')}
               className="w-full sm:w-auto px-8 py-4 bg-white text-gray-900 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all"
             >
-              캠페인 생성하기
+              {user ? '캠페인 현황보기' : '캠페인 생성하기'}
             </button>
             <a
               href="https://pf.kakao.com/_xgNdxlG"

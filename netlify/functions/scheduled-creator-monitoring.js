@@ -1,13 +1,14 @@
 /**
- * 매일 오전 10시(한국시간) 실행되는 소속 크리에이터 이상 징후 모니터링
+ * 매일 오전 10시(한국시간) 실행되는 소속 크리에이터 주간 리포트
  * Netlify Scheduled Function
- * 
+ *
  * Cron: 0 1 * * * (UTC 1시 = 한국시간 10시)
- * 
+ *
  * 체크 항목:
- * 1. 급상승한 영상 (조회수 급증)
- * 2. 구독자 급증 크리에이터
- * 3. 영상 업로드 주기 4일 이상 없는 크리에이터
+ * 1. 각 크리에이터별 최근 7일 업로드 수
+ * 2. 평균 조회수
+ * 3. 업로드 중단 크리에이터 (4일 이상)
+ * 4. 구독자/조회수 급증
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -60,7 +61,7 @@ console.log('Scheduled function: creator-monitoring initialized');
  */
 function generateJWT(clientId, serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
-  
+
   const header = { alg: 'RS256', typ: 'JWT' };
   const payload = {
     iss: clientId,
@@ -69,13 +70,13 @@ function generateJWT(clientId, serviceAccount) {
     exp: now + 3600,
     scope: 'bot'
   };
-  
+
   const base64Header = Buffer.from(JSON.stringify(header)).toString('base64url');
   const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signatureInput = `${base64Header}.${base64Payload}`;
   const signature = crypto.sign('RSA-SHA256', Buffer.from(signatureInput), PRIVATE_KEY);
   const base64Signature = signature.toString('base64url');
-  
+
   return `${signatureInput}.${base64Signature}`;
 }
 
@@ -85,7 +86,7 @@ function generateJWT(clientId, serviceAccount) {
 async function getAccessToken(clientId, clientSecret, serviceAccount) {
   return new Promise((resolve, reject) => {
     const jwt = generateJWT(clientId, serviceAccount);
-    
+
     const postData = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
       assertion: jwt,
@@ -93,7 +94,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
       client_secret: clientSecret,
       scope: 'bot'
     }).toString();
-    
+
     const options = {
       hostname: 'auth.worksmobile.com',
       path: '/oauth2/v2.0/token',
@@ -103,7 +104,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
         'Content-Length': Buffer.byteLength(postData)
       }
     };
-    
+
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -116,7 +117,7 @@ async function getAccessToken(clientId, clientSecret, serviceAccount) {
         }
       });
     });
-    
+
     req.on('error', reject);
     req.write(postData);
     req.end();
@@ -181,9 +182,9 @@ async function getChannelInfo(channelId) {
       const channel = response.data.items[0];
       return {
         title: channel.snippet.title,
-        subscriberCount: parseInt(channel.statistics.subscriberCount),
-        videoCount: parseInt(channel.statistics.videoCount),
-        viewCount: parseInt(channel.statistics.viewCount)
+        subscriberCount: parseInt(channel.statistics.subscriberCount || 0),
+        videoCount: parseInt(channel.statistics.videoCount || 0),
+        viewCount: parseInt(channel.statistics.viewCount || 0)
       };
     }
     return null;
@@ -194,10 +195,14 @@ async function getChannelInfo(channelId) {
 }
 
 /**
- * YouTube 최근 영상 목록 가져오기
+ * YouTube 최근 영상 목록 가져오기 (7일 이내)
  */
-async function getRecentVideos(channelId, maxResults = 5) {
+async function getRecentVideos(channelId, maxResults = 10) {
   try {
+    // 7일 전 날짜
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
     const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
       params: {
         part: 'snippet',
@@ -205,13 +210,16 @@ async function getRecentVideos(channelId, maxResults = 5) {
         order: 'date',
         type: 'video',
         maxResults: maxResults,
+        publishedAfter: sevenDaysAgo.toISOString(),
         key: YOUTUBE_API_KEY
       }
     });
 
-    if (response.data.items) {
-      const videoIds = response.data.items.map(item => item.id.videoId).join(',');
-      
+    if (response.data.items && response.data.items.length > 0) {
+      const videoIds = response.data.items.map(item => item.id.videoId).filter(Boolean).join(',');
+
+      if (!videoIds) return [];
+
       // 영상 통계 가져오기
       const statsResponse = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
         params: {
@@ -225,7 +233,7 @@ async function getRecentVideos(channelId, maxResults = 5) {
         videoId: video.id,
         title: video.snippet.title,
         publishedAt: video.snippet.publishedAt,
-        viewCount: parseInt(video.statistics.viewCount),
+        viewCount: parseInt(video.statistics.viewCount || 0),
         likeCount: parseInt(video.statistics.likeCount || 0),
         commentCount: parseInt(video.statistics.commentCount || 0)
       }));
@@ -238,16 +246,54 @@ async function getRecentVideos(channelId, maxResults = 5) {
 }
 
 /**
+ * 가장 최근 영상 날짜 가져오기
+ */
+async function getLastVideoDate(channelId) {
+  try {
+    const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
+      params: {
+        part: 'snippet',
+        channelId: channelId,
+        order: 'date',
+        type: 'video',
+        maxResults: 1,
+        key: YOUTUBE_API_KEY
+      }
+    });
+
+    if (response.data.items && response.data.items.length > 0) {
+      return new Date(response.data.items[0].snippet.publishedAt);
+    }
+    return null;
+  } catch (error) {
+    console.error(`YouTube API 오류 (${channelId}):`, error.message);
+    return null;
+  }
+}
+
+/**
+ * 숫자 포맷팅 (1000 -> 1K, 10000 -> 1만)
+ */
+function formatNumber(num) {
+  if (num >= 10000) {
+    return `${(num / 10000).toFixed(1)}만`;
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`;
+  }
+  return num.toLocaleString();
+}
+
+/**
  * 메인 핸들러
  */
 exports.handler = async (event, context) => {
-  console.log('🔔 [CREATOR-MONITORING] 소속 크리에이터 모니터링 시작');
+  console.log('🔔 [CREATOR-MONITORING] 소속 크리에이터 주간 리포트 시작');
 
   try {
     // 한국시간
     const now = new Date();
     const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-    const koreanDate = koreaTime.toLocaleString('ko-KR', { 
+    const koreanDate = koreaTime.toLocaleString('ko-KR', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -276,71 +322,107 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log(`📊 소속 크리에이터 ${affiliatedCreators.length}명 확인`);
+    console.log(`📊 소속 크리에이터 ${affiliatedCreators.length}명 분석 시작`);
 
-    // 이상 징후 체크
+    // 크리에이터별 통계 수집
+    const creatorStats = [];
     const alerts = [];
 
     for (const creator of affiliatedCreators) {
-      if (!creator.youtube_channel_id) continue;
+      // YouTube 채널 ID 추출
+      let channelId = creator.youtube_channel_id;
+      if (!channelId && creator.channel_url) {
+        // URL에서 채널 ID 추출 시도
+        const match = creator.channel_url.match(/channel\/([a-zA-Z0-9_-]+)/);
+        if (match) channelId = match[1];
+      }
+
+      if (!channelId) {
+        console.log(`⚠️ ${creator.name}: 채널 ID 없음`);
+        creatorStats.push({
+          name: creator.name,
+          status: 'no_channel',
+          weeklyUploads: 0,
+          avgViews: 0,
+          daysSinceUpload: null,
+          subscriberCount: creator.subscriber_count || 0
+        });
+        continue;
+      }
 
       try {
         // 채널 정보 가져오기
-        const channelInfo = await getChannelInfo(creator.youtube_channel_id);
-        if (!channelInfo) continue;
-
-        // 구독자 급증 체크 (이전 데이터와 비교)
-        if (creator.subscriber_count) {
-          const subscriberGrowth = channelInfo.subscriberCount - creator.subscriber_count;
-          const growthRate = (subscriberGrowth / creator.subscriber_count) * 100;
-
-          if (growthRate > 10) {
-            alerts.push({
-              type: '구독자 급증',
-              creator: creator.name,
-              detail: `구독자 ${subscriberGrowth.toLocaleString()}명 증가 (${growthRate.toFixed(1)}%)`
-            });
-          }
+        const channelInfo = await getChannelInfo(channelId);
+        if (!channelInfo) {
+          console.log(`⚠️ ${creator.name}: 채널 정보 조회 실패`);
+          continue;
         }
 
-        // 최근 영상 가져오기
-        const recentVideos = await getRecentVideos(creator.youtube_channel_id, 5);
+        // 최근 7일 영상 가져오기
+        const recentVideos = await getRecentVideos(channelId, 10);
 
-        if (recentVideos.length > 0) {
-          // 급상승 영상 체크 (최근 영상 중 조회수가 평균의 2배 이상)
-          const avgViews = recentVideos.reduce((sum, v) => sum + v.viewCount, 0) / recentVideos.length;
-          const viralVideos = recentVideos.filter(v => v.viewCount > avgViews * 2);
+        // 평균 조회수 계산
+        const avgViews = recentVideos.length > 0
+          ? Math.round(recentVideos.reduce((sum, v) => sum + v.viewCount, 0) / recentVideos.length)
+          : 0;
 
-          if (viralVideos.length > 0) {
-            viralVideos.forEach(video => {
-              alerts.push({
-                type: '급상승 영상',
-                creator: creator.name,
-                detail: `"${video.title}" - 조회수 ${video.viewCount.toLocaleString()}회`
-              });
-            });
-          }
+        // 마지막 업로드 날짜 확인
+        const lastVideoDate = await getLastVideoDate(channelId);
+        const daysSinceUpload = lastVideoDate
+          ? Math.floor((Date.now() - lastVideoDate.getTime()) / (1000 * 60 * 60 * 24))
+          : null;
 
-          // 영상 업로드 주기 체크 (최근 영상이 4일 이상 전)
-          const latestVideo = recentVideos[0];
-          const daysSinceUpload = (Date.now() - new Date(latestVideo.publishedAt).getTime()) / (1000 * 60 * 60 * 24);
+        // 구독자 변화 체크
+        const prevSubscriberCount = creator.subscriber_count || 0;
+        const subscriberGrowth = channelInfo.subscriberCount - prevSubscriberCount;
+        const growthRate = prevSubscriberCount > 0
+          ? ((subscriberGrowth / prevSubscriberCount) * 100).toFixed(1)
+          : 0;
 
-          if (daysSinceUpload > 4) {
-            alerts.push({
-              type: '업로드 중단',
-              creator: creator.name,
-              detail: `최근 영상 업로드: ${Math.floor(daysSinceUpload)}일 전`
-            });
-          }
-        } else {
+        // 통계 저장
+        creatorStats.push({
+          name: creator.name,
+          status: 'active',
+          weeklyUploads: recentVideos.length,
+          avgViews: avgViews,
+          daysSinceUpload: daysSinceUpload,
+          subscriberCount: channelInfo.subscriberCount,
+          subscriberGrowth: subscriberGrowth,
+          totalViews: channelInfo.viewCount
+        });
+
+        // 이상 징후 체크
+        // 1. 업로드 중단 (4일 이상)
+        if (daysSinceUpload !== null && daysSinceUpload >= 4) {
           alerts.push({
-            type: '업로드 중단',
+            type: 'upload_stopped',
             creator: creator.name,
-            detail: '최근 영상 없음'
+            detail: `${daysSinceUpload}일간 업로드 없음`
           });
         }
 
-        // DB 업데이트 (구독자 수, 영상 수)
+        // 2. 구독자 급증 (10% 이상)
+        if (growthRate > 10) {
+          alerts.push({
+            type: 'subscriber_surge',
+            creator: creator.name,
+            detail: `구독자 +${formatNumber(subscriberGrowth)} (+${growthRate}%)`
+          });
+        }
+
+        // 3. 조회수 급상승 영상
+        if (recentVideos.length > 0 && avgViews > 0) {
+          const viralVideos = recentVideos.filter(v => v.viewCount > avgViews * 3);
+          viralVideos.forEach(video => {
+            alerts.push({
+              type: 'viral_video',
+              creator: creator.name,
+              detail: `"${video.title.slice(0, 20)}..." ${formatNumber(video.viewCount)}회`
+            });
+          });
+        }
+
+        // DB 업데이트
         await supabaseAdmin
           .from('affiliated_creators')
           .update({
@@ -351,8 +433,10 @@ exports.handler = async (event, context) => {
           })
           .eq('id', creator.id);
 
+        console.log(`✅ ${creator.name}: 주간 ${recentVideos.length}개 업로드, 평균 ${formatNumber(avgViews)}회`);
+
       } catch (error) {
-        console.error(`❌ ${creator.name} 체크 오류:`, error.message);
+        console.error(`❌ ${creator.name} 분석 오류:`, error.message);
       }
 
       // API 호출 제한 방지 (1초 대기)
@@ -360,37 +444,91 @@ exports.handler = async (event, context) => {
     }
 
     // 메시지 작성
-    let message = `📊 소속 크리에이터 모니터링 리포트 (${koreanDate})\n\n`;
-    message += `총 ${affiliatedCreators.length}명의 소속 크리에이터를 확인했습니다.\n\n`;
+    let message = `📊 소속 크리에이터 주간 리포트\n`;
+    message += `📅 ${koreanDate}\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-    if (alerts.length === 0) {
-      message += `✅ 특이사항 없음\n`;
+    // 요약 통계
+    const activeCreators = creatorStats.filter(c => c.status === 'active');
+    const totalWeeklyUploads = activeCreators.reduce((sum, c) => sum + c.weeklyUploads, 0);
+    const avgWeeklyUploads = activeCreators.length > 0 ? (totalWeeklyUploads / activeCreators.length).toFixed(1) : 0;
+    const totalAvgViews = activeCreators.length > 0
+      ? Math.round(activeCreators.reduce((sum, c) => sum + c.avgViews, 0) / activeCreators.length)
+      : 0;
+
+    message += `📈 전체 현황\n\n`;
+    message += `▸ 소속 크리에이터: ${affiliatedCreators.length}명\n`;
+    message += `▸ 주간 총 업로드: ${totalWeeklyUploads}개\n`;
+    message += `▸ 평균 업로드: ${avgWeeklyUploads}개/주\n`;
+    message += `▸ 평균 조회수: ${formatNumber(totalAvgViews)}회\n\n`;
+
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    // 크리에이터별 상세
+    message += `👤 크리에이터별 현황 (7일)\n\n`;
+
+    // 업로드 많은 순으로 정렬
+    const sortedCreators = [...activeCreators].sort((a, b) => b.weeklyUploads - a.weeklyUploads);
+
+    sortedCreators.forEach((creator, index) => {
+      const uploadStatus = creator.weeklyUploads > 0 ? '✅' : '⚠️';
+      const dayInfo = creator.daysSinceUpload !== null
+        ? `마지막 ${creator.daysSinceUpload}일전`
+        : '';
+
+      message += `${index + 1}. ${creator.name}\n`;
+      message += `   ${uploadStatus} 업로드 ${creator.weeklyUploads}개 | 평균 ${formatNumber(creator.avgViews)}회\n`;
+      message += `   구독자 ${formatNumber(creator.subscriberCount)}명`;
+      if (creator.subscriberGrowth > 0) {
+        message += ` (+${formatNumber(creator.subscriberGrowth)})`;
+      }
+      if (dayInfo) {
+        message += ` | ${dayInfo}`;
+      }
+      message += `\n\n`;
+    });
+
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    // 알림 섹션
+    if (alerts.length > 0) {
+      message += `⚠️ 주의 사항 (${alerts.length}건)\n\n`;
+
+      // 업로드 중단
+      const uploadStoppedAlerts = alerts.filter(a => a.type === 'upload_stopped');
+      if (uploadStoppedAlerts.length > 0) {
+        message += `【업로드 중단】\n`;
+        uploadStoppedAlerts.forEach(alert => {
+          message += `• ${alert.creator}: ${alert.detail}\n`;
+        });
+        message += `\n`;
+      }
+
+      // 구독자 급증
+      const subscriberAlerts = alerts.filter(a => a.type === 'subscriber_surge');
+      if (subscriberAlerts.length > 0) {
+        message += `【구독자 급증】\n`;
+        subscriberAlerts.forEach(alert => {
+          message += `• ${alert.creator}: ${alert.detail}\n`;
+        });
+        message += `\n`;
+      }
+
+      // 급상승 영상
+      const viralAlerts = alerts.filter(a => a.type === 'viral_video');
+      if (viralAlerts.length > 0) {
+        message += `【급상승 영상】\n`;
+        viralAlerts.forEach(alert => {
+          message += `• ${alert.creator}: ${alert.detail}\n`;
+        });
+        message += `\n`;
+      }
     } else {
-      message += `⚠️  이상 징후 ${alerts.length}건 발견:\n\n`;
-      
-      // 타입별로 그룹화
-      const groupedAlerts = {
-        '구독자 급증': [],
-        '급상승 영상': [],
-        '업로드 중단': []
-      };
-
-      alerts.forEach(alert => {
-        groupedAlerts[alert.type].push(alert);
-      });
-
-      Object.entries(groupedAlerts).forEach(([type, items]) => {
-        if (items.length > 0) {
-          message += `【${type}】\n`;
-          items.forEach((item, index) => {
-            message += `${index + 1}. ${item.creator}: ${item.detail}\n`;
-          });
-          message += `\n`;
-        }
-      });
+      message += `✅ 특이사항 없음\n\n`;
     }
 
-    message += `\n관리자 페이지에서 확인해주세요:\nhttps://cnectotal.netlify.app/admin/creators`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `관리자 페이지:\nhttps://cnectotal.netlify.app/admin/creators`;
 
     // 네이버 웍스 메시지 전송
     try {
@@ -407,15 +545,16 @@ exports.handler = async (event, context) => {
       console.error('❌ 네이버 웍스 전송 실패:', naverError);
     }
 
-    console.log('🎉 소속 크리에이터 모니터링 완료');
+    console.log('🎉 소속 크리에이터 주간 리포트 완료');
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         success: true,
         creatorCount: affiliatedCreators.length,
+        totalWeeklyUploads: totalWeeklyUploads,
         alertCount: alerts.length,
-        message: '모니터링 완료'
+        message: '주간 리포트 완료'
       })
     };
 

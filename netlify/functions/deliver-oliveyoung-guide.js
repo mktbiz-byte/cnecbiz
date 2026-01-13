@@ -55,12 +55,17 @@ exports.handler = async (event) => {
       throw new Error('Oliveyoung guide not found')
     }
 
-    // 3. 마감일 정보
-    const deadlines = [
-      campaign.step1_deadline ? `STEP 1: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : null,
-      campaign.step2_deadline ? `STEP 2: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : null,
-      campaign.step3_deadline ? `STEP 3: ${new Date(campaign.step3_deadline).toLocaleDateString('ko-KR')}` : null
-    ].filter(Boolean).join(', ')
+    // 3. 마감일 정보 (올영은 2개 영상: 1차, 2차)
+    const deadlinesList = [
+      campaign.step1_deadline ? `1차: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : null,
+      campaign.step2_deadline ? `2차: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : null
+    ].filter(Boolean)
+    const deadlines = deadlinesList.join(', ')
+
+    // 마감일이 하나도 설정되지 않았으면 경고
+    if (deadlinesList.length === 0) {
+      console.warn(`Warning: No deadlines set for Oliveyoung campaign ${campaignId}`)
+    }
 
     // 4. 선정된 참여자 목록 가져오기
     const { data: participants, error: participantsError } = await supabase
@@ -101,7 +106,18 @@ exports.handler = async (event) => {
     for (const participant of participants) {
       try {
         const profile = participant.user_profiles
-        
+
+        // 마감일이 없으면 알림톡 발송하지 않음
+        if (!deadlines) {
+          console.warn(`Skipping notification for ${profile.name}: No deadlines set`)
+          errorCount++
+          errors.push({
+            participant: profile.name,
+            error: 'No deadlines set - notification skipped'
+          })
+          continue
+        }
+
         // 알림톡 + 이메일 발송
         await sendNotification({
           receiverNum: profile.phone,
@@ -111,7 +127,7 @@ exports.handler = async (event) => {
           variables: {
             '크리에이터명': profile.name,
             '캠페인명': campaign.title,
-            '제출기한': deadlines || '미정'
+            '제출기한': deadlines
           },
           emailSubject: `[CNEC] ${campaign.title} 올리브영 촬영 가이드 전달`,
           emailHtml: `
