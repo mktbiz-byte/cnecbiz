@@ -179,6 +179,21 @@ exports.handler = async (event, context) => {
             }
 
             console.log(`포인트 지급 완료: user_id=${submission.user_id}, amount=${pointAmount}`);
+
+            // 네이버 웍스 포인트 지급 알림
+            try {
+              await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  isAdminNotification: true,
+                  channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                  message: `💰 포인트 자동 지급 완료\n\n크리에이터: ${creatorName}\n캠페인: ${campaign.title}\n지급 포인트: ${pointAmount.toLocaleString()}P\n현재 잔액: ${newPoints.toLocaleString()}P`
+                })
+              });
+            } catch (e) {
+              console.error('네이버 웍스 포인트 알림 실패:', e);
+            }
           }
         }
 
