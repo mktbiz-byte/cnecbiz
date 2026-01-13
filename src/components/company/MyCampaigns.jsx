@@ -94,6 +94,12 @@ export default function MyCampaigns() {
         : bizCompanyResult.status === 'fulfilled' ? bizCompanyResult.value?.data : null
 
       if (companyData) {
+        // 차단된 기업 체크
+        if (companyData.is_blocked) {
+          alert('차단된 계정입니다. 서비스를 이용할 수 없습니다.\n문의: cnec@cnecbiz.com')
+          navigate('/login')
+          return
+        }
         setCompany(companyData)
       }
 
