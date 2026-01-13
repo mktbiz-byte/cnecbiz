@@ -8966,6 +8966,30 @@ JSON만 출력.`
 
                         if (error) throw error
 
+                        // 알림톡 발송
+                        try {
+                          const { data: profile } = await supabase
+                            .from('user_profiles')
+                            .select('phone')
+                            .eq('id', selectedParticipantForGuide.user_id)
+                            .maybeSingle()
+
+                          if (profile?.phone) {
+                            await sendGuideDeliveredNotification(
+                              profile.phone,
+                              creatorName,
+                              {
+                                campaignName: campaign?.title || '캠페인',
+                                deadline: campaign?.content_deadline
+                                  ? new Date(campaign.content_deadline).toLocaleDateString('ko-KR')
+                                  : '확인 필요'
+                              }
+                            )
+                          }
+                        } catch (notifError) {
+                          console.error('알림톡 발송 실패:', notifError)
+                        }
+
                         alert(`${creatorName}님에게 가이드가 전달되었습니다.`)
                         setShowGuideSelectModal(false)
                         setSelectedParticipantForGuide(null)
