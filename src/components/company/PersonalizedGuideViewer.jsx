@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Edit, Save, X, ExternalLink, Video, Clock, Hash, Lightbulb, CheckCircle, Camera, MessageSquare, Sparkles, Film, Play, User, Instagram, Youtube } from 'lucide-react'
+import { Edit, Save, X, ExternalLink, Video, Clock, Hash, Lightbulb, CheckCircle, Camera, MessageSquare, Sparkles, Film, Play, User, Instagram, Youtube, FileText, Link as LinkIcon } from 'lucide-react'
 import { Button } from '../ui/button'
 
 export default function PersonalizedGuideViewer({ guide, creator, onSave, additionalMessage, onSaveMessage }) {
@@ -35,6 +35,72 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
         </div>
         <p className="text-base font-medium text-gray-600 mb-1">가이드 데이터를 불러올 수 없습니다</p>
         <p className="text-sm text-gray-400">가이드를 다시 생성해주세요</p>
+      </div>
+    )
+  }
+
+  // 외부 가이드 (PDF/URL) 타입 처리
+  if (guideData.type === 'external_pdf' || guideData.type === 'external_url') {
+    const isPdf = guideData.type === 'external_pdf'
+    const guideUrl = isPdf ? guideData.fileUrl : guideData.url
+    const guideTitle = guideData.title || (isPdf ? 'PDF 가이드' : '외부 가이드')
+
+    return (
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
+            isPdf ? 'bg-gradient-to-br from-red-500 to-orange-500' : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+          }`}>
+            {isPdf ? <FileText className="w-4 h-4 text-white" /> : <LinkIcon className="w-4 h-4 text-white" />}
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">
+            {isPdf ? 'PDF 가이드' : '외부 가이드'}
+          </h3>
+        </div>
+
+        {/* 가이드 카드 */}
+        <div className={`rounded-xl border-2 overflow-hidden ${
+          isPdf ? 'border-red-200 bg-gradient-to-br from-red-50 to-orange-50' : 'border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50'
+        }`}>
+          <div className="p-6 text-center">
+            <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+              isPdf ? 'bg-gradient-to-br from-red-100 to-orange-100' : 'bg-gradient-to-br from-blue-100 to-cyan-100'
+            }`}>
+              {isPdf ? (
+                <FileText className="w-10 h-10 text-red-500" />
+              ) : (
+                <LinkIcon className="w-10 h-10 text-blue-500" />
+              )}
+            </div>
+
+            <h4 className="text-xl font-bold text-gray-900 mb-2">{guideTitle}</h4>
+
+            {isPdf && guideData.originalFileName && (
+              <p className="text-sm text-gray-500 mb-4">
+                파일명: {guideData.originalFileName}
+              </p>
+            )}
+
+            {guideUrl ? (
+              <a
+                href={guideUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:scale-105 ${
+                  isPdf
+                    ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
+                    : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
+                }`}
+              >
+                <ExternalLink className="w-5 h-5" />
+                {isPdf ? 'PDF 열기' : '가이드 열기'}
+              </a>
+            ) : (
+              <p className="text-sm text-gray-400">가이드 URL이 없습니다</p>
+            )}
+          </div>
+        </div>
       </div>
     )
   }
