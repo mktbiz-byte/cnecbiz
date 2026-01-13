@@ -2249,12 +2249,18 @@ JSON만 출력.`
 
       for (const participant of participants) {
         try {
+          // 재전달 여부 확인
+          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
           // 가이드 전달 상태 업데이트
-          const updateData = { 
+          const updateData = {
             status: 'filming',
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록
+            guide_cancelled_at: null // 취소 기록 초기화
           }
-          
+
           // 개별 메시지가 있으면 추가
           let message = `${weekNumber}주차 가이드`
           if (individualMessage && individualMessage.trim()) {
@@ -2279,35 +2285,37 @@ JSON만 출력.`
             .eq('id', participant.user_id)
             .maybeSingle()
 
+          // 주차별 마감일 처리
+          let deadlineText = ''
+          if (campaign.campaign_type === '4week_challenge') {
+            const weekDeadlineField = `week${weekNumber}_deadline`
+            const weekDeadline = campaign[weekDeadlineField]
+            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+            deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
+          } else {
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
+          }
+
+          // 알림톡용 캠페인명 (재전달 표시 포함)
+          const campaignNameForNotification = isRedelivery
+            ? `[재전달] ${campaign.title} ${weekNumber}주차`
+            : `${campaign.title} ${weekNumber}주차`
+
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 주차별 마감일 처리
-              let deadlineText = ''
-              if (campaign.campaign_type === '4week_challenge') {
-                // 4주 챌린지: 해당 주차 마감일 사용
-                const weekDeadlineField = `week${weekNumber}_deadline`
-                const weekDeadline = campaign[weekDeadlineField]
-                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
-              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                // 올리브영: STEP1 마감일 사용
-                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
-              } else {
-                // 기획형: content_submission_deadline → start_date fallback
-                const regularDeadline = campaign.content_submission_deadline || campaign.start_date
-                deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
-              }
-
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   receiverNum: profile.phone,
-                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  receiverName: creatorName,
                   templateCode: '025100001012',
                   variables: {
-                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
-                    '캠페인명': `${campaign.title} ${weekNumber}주차`,
+                    '크리에이터명': creatorName,
+                    '캠페인명': campaignNameForNotification,
                     '제출기한': deadlineText
                   }
                 })
@@ -2324,9 +2332,12 @@ JSON만 출력.`
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 to: participant.creator_email,
-                subject: `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 전달`,
+                subject: isRedelivery
+                  ? `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 재전달`
+                  : `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 전달`,
                 html: `
-                  <h2>${(participant.creator_name || participant.applicant_name || '크리에이터')}님, ${weekNumber}주차 촬영 가이드가 전달되었습니다.</h2>
+                  <h2>${creatorName}님, ${weekNumber}주차 촬영 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다.</h2>
+                  ${isRedelivery ? '<p style="color: #EF4444; font-weight: bold;">※ 이전 가이드가 수정되었습니다. 새 가이드를 반드시 확인해 주세요.</p>' : ''}
                   <p><strong>캠페인:</strong> ${campaign.title}</p>
                   <p><strong>주차:</strong> ${weekNumber}주차</p>
                   <p><strong>영상 제출 기한:</strong> ${deadlineText}</p>
@@ -2646,15 +2657,16 @@ JSON만 출력.`
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           console.log('[DEBUG] Updating application status to filming:', participantId)
-          
+
           // 재전달인 경우 상태를 변경하지 않음
           const updatePayload = {
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록 (재전달 감지용)
+            guide_cancelled_at: null // 취소 기록 초기화
           }
           if (participant.status !== 'filming') {
             updatePayload.status = 'filming'
           }
-          // guide_confirmed 필드는 한국 DB에 없으므로 제거
           
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
@@ -2685,6 +2697,10 @@ JSON만 출력.`
           const regularDeadline = campaign.content_submission_deadline || campaign.start_date
           const deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
 
+          // 재전달 여부 확인 (이전에 전달된 적이 있거나 취소된 적이 있으면 재전달)
+          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          const campaignNameForNotification = isRedelivery ? `[재전달] ${campaign.title}` : campaign.title
+
           // 팝빌 알림톡 발송
           if (profile?.phone) {
               try {
@@ -2697,7 +2713,7 @@ JSON만 출력.`
                     templateCode: '025100001012',
                     variables: {
                       '크리에이터명': creatorName,
-                      '캠페인명': campaign.title,
+                      '캠페인명': campaignNameForNotification,
                       '제출기한': deadlineText
                     }
                   })
@@ -2716,12 +2732,15 @@ JSON만 출력.`
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   to: emailTo,
-                  subject: `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
+                  subject: isRedelivery
+                    ? `[CNEC] 캠페인 가이드가 재전달되었습니다 - ${campaign.title}`
+                    : `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
                   html: `
                     <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <h2 style="color: #3B82F6;">캠페인 가이드가 전달되었습니다!</h2>
+                      <h2 style="color: #3B82F6;">캠페인 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다!</h2>
                       <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
-                      <p>참여하신 캠페인의 촬영 가이드가 전달되었습니다.</p>
+                      <p>참여하신 캠페인의 촬영 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다.</p>
+                      ${isRedelivery ? '<p style="color: #EF4444; font-weight: bold;">※ 이전 가이드가 수정되었습니다. 새 가이드를 반드시 확인해 주세요.</p>' : ''}
                       <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
                         <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
                         <p style="margin: 5px 0;"><strong>제출 기한:</strong> ${deadlineText}</p>
@@ -4492,7 +4511,8 @@ JSON만 출력.`
         .from('applications')
         .update({
           guide_confirmed: false,
-          guide_delivered_at: null,
+          // guide_delivered_at은 유지 (재전달 감지용)
+          guide_cancelled_at: new Date().toISOString(),
           status: 'selected' // 선정됨 상태로 되돌림
         })
         .eq('id', participantId)
