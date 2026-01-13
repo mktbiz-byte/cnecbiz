@@ -3849,13 +3849,60 @@ JSON만 출력.`
         .eq('id', id)
 
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
-      
+
+      // 일본 크리에이터 선정 알림 발송 (LINE + SMS + Email + LINE 초대)
+      if (region === 'japan') {
+        alert('일본 크리에이터에게 선정 알림을 발송합니다...')
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            try {
+              // 1. 선정 알림 발송 (LINE → SMS → Email)
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'campaign_selected',
+                  creatorEmail: participant.creator_email || participant.user_email,
+                  data: {
+                    creatorName: participant.creator_name || participant.applicant_name,
+                    campaignName: campaign.title,
+                    brandName: campaign.brand_name || campaign.company_name,
+                    reward: campaign.reward_text || campaign.compensation,
+                    deadline: campaign.content_submission_deadline,
+                    guideUrl: `https://cnec.jp/creator/campaigns/${id}`
+                  }
+                })
+              })
+
+              // 2. LINE 초대장 발송 (SMS + Email)
+              await fetch('/.netlify/functions/send-line-invitation-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: participant.creator_name || participant.applicant_name,
+                  email: participant.creator_email || participant.user_email,
+                  phone: participant.phone || participant.creator_phone,
+                  language: 'ja'
+                })
+              })
+
+              console.log(`[Japan] Notification sent to: ${participant.creator_name}`)
+            } catch (notifError) {
+              console.error(`[Japan] Notification error for ${participant.creator_name}:`, notifError)
+            }
+          }
+        }
+        alert('일본 크리에이터 알림 발송 완료!')
+      }
+
       // 기획형 캠페인인 경우 맞춤 가이드 생성
       if (campaign.campaign_type === 'planned') {
         alert('크리에이터별 맞춤 가이드를 생성하고 있습니다. 잠시만 기다려주세요...')
         await generatePersonalizedGuides(selectedParticipants)
       }
-      
+
       await fetchParticipants()
       await fetchCampaignDetail()
       setSelectedParticipants([])
