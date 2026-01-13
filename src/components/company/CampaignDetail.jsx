@@ -3073,27 +3073,46 @@ JSON만 출력.`
       if (pointAmount > 0 && userId && !skipPointPayment) {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('point, phone, email')
+          .select('points, phone, email')
           .eq('id', userId)
           .single()
 
         if (profile) {
-          const newPoint = (profile.point || 0) + pointAmount
+          const newPoints = (profile.points || 0) + pointAmount
           await supabase
             .from('user_profiles')
-            .update({ point: newPoint })
+            .update({ points: newPoints, updated_at: new Date().toISOString() })
             .eq('id', userId)
 
-          await supabase
-            .from('point_history')
-            .insert([{
-              user_id: userId,
-              campaign_id: campaign.id,
-              amount: pointAmount,
-              type: 'earn',
-              description: `캠페인 완료: ${campaign.title}`,
-              created_at: new Date().toISOString()
-            }])
+          // 포인트 이력 저장 (point_history 또는 point_transactions)
+          try {
+            await supabase
+              .from('point_history')
+              .insert([{
+                user_id: userId,
+                campaign_id: campaign.id,
+                amount: pointAmount,
+                type: 'campaign_complete',
+                reason: `캠페인 완료: ${campaign.title}`,
+                balance_after: newPoints,
+                created_at: new Date().toISOString()
+              }])
+          } catch (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
+            try {
+              await supabase
+                .from('point_transactions')
+                .insert([{
+                  user_id: userId,
+                  amount: pointAmount,
+                  type: 'earn',
+                  description: `캠페인 완료: ${campaign.title}`,
+                  created_at: new Date().toISOString()
+                }])
+            } catch (txError) {
+              console.log('point_transactions 저장도 실패 (무시):', txError)
+            }
+          }
 
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
@@ -3203,27 +3222,46 @@ JSON만 출력.`
       if (pointAmount > 0 && userId) {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('point, phone, email')
+          .select('points, phone, email')
           .eq('id', userId)
           .single()
 
         if (profile) {
-          const newPoint = (profile.point || 0) + pointAmount
+          const newPoints = (profile.points || 0) + pointAmount
           await supabase
             .from('user_profiles')
-            .update({ point: newPoint })
+            .update({ points: newPoints, updated_at: new Date().toISOString() })
             .eq('id', userId)
 
-          await supabase
-            .from('point_history')
-            .insert([{
-              user_id: userId,
-              campaign_id: campaign.id,
-              amount: pointAmount,
-              type: 'earn',
-              description: `캠페인 완료: ${campaign.title}`,
-              created_at: new Date().toISOString()
-            }])
+          // 포인트 이력 저장 (point_history 또는 point_transactions)
+          try {
+            await supabase
+              .from('point_history')
+              .insert([{
+                user_id: userId,
+                campaign_id: campaign.id,
+                amount: pointAmount,
+                type: 'campaign_complete',
+                reason: `캠페인 완료: ${campaign.title}`,
+                balance_after: newPoints,
+                created_at: new Date().toISOString()
+              }])
+          } catch (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
+            try {
+              await supabase
+                .from('point_transactions')
+                .insert([{
+                  user_id: userId,
+                  amount: pointAmount,
+                  type: 'earn',
+                  description: `캠페인 완료: ${campaign.title}`,
+                  created_at: new Date().toISOString()
+                }])
+            } catch (txError) {
+              console.log('point_transactions 저장도 실패 (무시):', txError)
+            }
+          }
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 

@@ -122,32 +122,37 @@ exports.handler = async (event, context) => {
 
         // 3. 포인트 지급
         if (pointAmount > 0 && submission.user_id) {
-          // 크리에이터 프로필 조회 (BIZ DB)
-          const { data: profile, error: profileError } = await supabaseBiz
+          // 크리에이터 프로필 조회 (Korea DB - 한국 크리에이터 포인트는 Korea DB에 저장)
+          const { data: profile, error: profileError } = await supabaseKorea
             .from('user_profiles')
-            .select('point, phone, email, name, full_name')
+            .select('points, phone, email, name, full_name')
             .eq('id', submission.user_id)
             .single();
 
           if (profile) {
             // 포인트 업데이트
-            const newPoint = (profile.point || 0) + pointAmount;
-            await supabaseBiz
+            const newPoints = (profile.points || 0) + pointAmount;
+            await supabaseKorea
               .from('user_profiles')
-              .update({ point: newPoint })
+              .update({ points: newPoints, updated_at: new Date().toISOString() })
               .eq('id', submission.user_id);
 
             // 포인트 히스토리 기록
-            await supabaseBiz
-              .from('point_history')
-              .insert([{
-                user_id: submission.user_id,
-                campaign_id: campaign.id,
-                amount: pointAmount,
-                type: 'earn',
-                description: `캠페인 자동 완료: ${campaign.title}`,
-                created_at: new Date().toISOString()
-              }]);
+            try {
+              await supabaseKorea
+                .from('point_history')
+                .insert([{
+                  user_id: submission.user_id,
+                  campaign_id: campaign.id,
+                  amount: pointAmount,
+                  type: 'campaign_complete',
+                  reason: `캠페인 자동 완료: ${campaign.title}`,
+                  balance_after: newPoints,
+                  created_at: new Date().toISOString()
+                }]);
+            } catch (historyError) {
+              console.log('point_history 저장 실패:', historyError);
+            }
 
             const creatorName = profile.name || profile.full_name || '크리에이터';
 
