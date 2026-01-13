@@ -4336,7 +4336,7 @@ JSON만 출력.`
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                                {!participant.guide_confirmed ? (
+                                {participant.status === 'selected' ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -4344,13 +4344,12 @@ JSON만 출력.`
                                       if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
                                       await handleGuideApproval([participant.id])
                                     }}
-                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
                                     className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
                                     <Send className="w-3 h-3 mr-1" />
                                     전달하기
                                   </Button>
-                                ) : (
+                                ) : participant.status === 'filming' ? (
                                   <>
                                     <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                       <CheckCircle className="w-3 h-3" />
@@ -4366,6 +4365,11 @@ JSON만 출력.`
                                       취소
                                     </Button>
                                   </>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    전달완료
+                                  </span>
                                 )}
                               </>
                             ) : (
@@ -4425,7 +4429,7 @@ JSON만 출력.`
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                                {!participant.guide_confirmed ? (
+                                {participant.status === 'selected' ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -4433,13 +4437,12 @@ JSON만 출력.`
                                       if (!confirm(`${creatorName}님에게 4주 챌린지 가이드를 전달하시겠습니까?`)) return
                                       await handleDeliver4WeekGuideByWeek(1)
                                     }}
-                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
                                     className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
                                     <Send className="w-3 h-3 mr-1" />
                                     전달하기
                                   </Button>
-                                ) : (
+                                ) : participant.status === 'filming' ? (
                                   <>
                                     <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                       <CheckCircle className="w-3 h-3" />
@@ -4455,6 +4458,11 @@ JSON만 출력.`
                                       취소
                                     </Button>
                                   </>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    전달완료
+                                  </span>
                                 )}
                               </>
                             ) : (
