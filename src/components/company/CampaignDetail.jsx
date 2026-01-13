@@ -2654,7 +2654,7 @@ JSON만 출력.`
           }
           
           // 가이드 재전달 로그
-          if (participant.guide_confirmed) {
+          if (participant.personalized_guide) {
             console.log(`[RE-DELIVERY] Sending guide again to ${(participant.creator_name || participant.applicant_name || '크리에이터')}`)
           }
 
@@ -4520,7 +4520,6 @@ JSON만 출력.`
       const { error } = await supabase
         .from('applications')
         .update({
-          guide_confirmed: false,
           personalized_guide: null, // 가이드 초기화
           updated_at: new Date().toISOString(),
           status: 'selected' // 선정됨 상태로 되돌림
