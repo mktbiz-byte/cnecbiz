@@ -1,9 +1,9 @@
 const { createClient } = require('@supabase/supabase-js');
 
 /**
- * 3일 경과 영상 자동 확정 스케줄러
+ * 5일 경과 영상 자동 확정 스케줄러
  *
- * 매일 자정(KST)에 실행되어 3일 이상 경과한 approved 상태의 영상을
+ * 매일 자정(KST)에 실행되어 5일 이상 경과한 approved 상태의 영상을
  * 자동으로 최종 확정하고 포인트를 지급합니다.
  *
  * Netlify Scheduled Functions 설정 (netlify.toml):
@@ -30,17 +30,17 @@ exports.handler = async (event, context) => {
   const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : supabaseKorea;
 
   try {
-    // 3일 전 날짜 계산
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    const cutoffDate = threeDaysAgo.toISOString();
+    // 5일 전 날짜 계산
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    const cutoffDate = fiveDaysAgo.toISOString();
 
-    console.log('3일 경과 기준 시간:', cutoffDate);
+    console.log('5일 경과 기준 시간:', cutoffDate);
 
     // 자동 확정 대상 조회:
     // - status가 'approved'
     // - final_confirmed_at이 null
-    // - approved_at이 3일 이전
+    // - approved_at이 5일 이전
     const { data: pendingSubmissions, error: fetchError } = await supabaseKorea
       .from('video_submissions')
       .select(`
