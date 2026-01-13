@@ -2254,16 +2254,14 @@ JSON만 출력.`
 
       for (const participant of participants) {
         try {
-          // 재전달 여부 확인
-          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          // 재전달 여부 확인 (personalized_guide가 있으면 재전달)
+          const isRedelivery = !!participant.personalized_guide
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
           // 가이드 전달 상태 업데이트
           const updateData = {
             status: 'filming',
-            updated_at: new Date().toISOString(),
-            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록
-            guide_cancelled_at: null // 취소 기록 초기화
+            updated_at: new Date().toISOString()
           }
 
           // 개별 메시지가 있으면 추가
@@ -2665,9 +2663,7 @@ JSON만 출력.`
 
           // 재전달인 경우 상태를 변경하지 않음
           const updatePayload = {
-            updated_at: new Date().toISOString(),
-            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록 (재전달 감지용)
-            guide_cancelled_at: null // 취소 기록 초기화
+            updated_at: new Date().toISOString()
           }
           if (participant.status !== 'filming') {
             updatePayload.status = 'filming'
@@ -2702,8 +2698,8 @@ JSON만 출력.`
           const regularDeadline = campaign.content_submission_deadline || campaign.start_date
           const deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
 
-          // 재전달 여부 확인 (이전에 전달된 적이 있거나 취소된 적이 있으면 재전달)
-          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          // 재전달 여부 확인 (personalized_guide가 있으면 재전달)
+          const isRedelivery = !!participant.personalized_guide
           const campaignNameForNotification = isRedelivery ? `[재전달] ${campaign.title}` : campaign.title
 
           // 팝빌 알림톡 발송
@@ -4525,8 +4521,8 @@ JSON만 출력.`
         .from('applications')
         .update({
           guide_confirmed: false,
-          // guide_delivered_at은 유지 (재전달 감지용)
-          guide_cancelled_at: new Date().toISOString(),
+          personalized_guide: null, // 가이드 초기화
+          updated_at: new Date().toISOString(),
           status: 'selected' // 선정됨 상태로 되돌림
         })
         .eq('id', participantId)
