@@ -2149,7 +2149,9 @@ JSON만 출력.`
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
-            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
           }
 
           // 팝빌 알림톡 발송
@@ -2294,7 +2296,9 @@ JSON만 출력.`
                 // 올리브영: STEP1 마감일 사용
                 deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
               } else {
-                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+                // 기획형: content_submission_deadline → start_date fallback
+                const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+                deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
               }
 
               await fetch('/.netlify/functions/send-kakao-notification', {
@@ -2328,7 +2332,7 @@ JSON만 출력.`
                   <h2>${(participant.creator_name || participant.applicant_name || '크리에이터')}님, ${weekNumber}주차 촬영 가이드가 전달되었습니다.</h2>
                   <p><strong>캠페인:</strong> ${campaign.title}</p>
                   <p><strong>주차:</strong> ${weekNumber}주차</p>
-                  <p><strong>영상 제출 기한:</strong> ${campaign.content_submission_deadline || '미정'}</p>
+                  <p><strong>영상 제출 기한:</strong> ${deadlineText}</p>
                   <p>크리에이터 대시보드에서 ${weekNumber}주차 가이드를 확인하시고, 가이드에 따라 촬영을 진행해 주세요.</p>
                   ${individualMessage && individualMessage.trim() ? `<p><strong>추가 메시지:</strong> ${individualMessage.trim()}</p>` : ''}
                   <p>기한 내 미제출 시 패널티가 부과될 수 있습니다.</p>
@@ -2430,7 +2434,9 @@ JSON만 출력.`
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
-            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
           }
 
           // 팝빌 알림톡 발송
@@ -2678,7 +2684,9 @@ JSON만 출력.`
             .maybeSingle()
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
-          const deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+          // 기획형: content_submission_deadline → start_date fallback
+          const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+          const deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
 
           // 팝빌 알림톡 발송
           if (profile?.phone) {
