@@ -2522,6 +2522,47 @@ JSON만 출력.`
     }
   }
 
+  // 올영 가이드 개별 전달 함수
+  const handleDeliverOliveYoungGuide = async () => {
+    const hasGuide = campaign.oliveyoung_step1_guide_ai ||
+                     campaign.step1_external_url ||
+                     campaign.step1_external_file_url
+
+    if (!hasGuide) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    try {
+      // Netlify 함수 호출로 가이드 전달 + 알림톡 발송
+      const response = await fetch('/.netlify/functions/deliver-oliveyoung-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          region: region
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || '가이드 전달에 실패했습니다.')
+      }
+
+      if (result.errorCount === 0) {
+        alert(`${result.successCount}명의 크리에이터에게 올영 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${result.successCount}명 성공, ${result.errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliverOliveYoungGuide:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
 
   // AI 맞춤 가이드 생성 함수
   const handleGeneratePersonalizedGuides = async (selectedParticipantsList) => {
@@ -4421,7 +4462,7 @@ JSON만 출력.`
                         {/* 4주 챌린지 가이드 섹션 - 인라인 버튼 */}
                         {campaign.campaign_type === '4week_challenge' && (
                           <div className="flex items-center gap-1.5">
-                            {campaign.challenge_weekly_guides_ai ? (
+                            {(campaign.challenge_weekly_guides_ai || campaign.week1_external_url || campaign.week1_external_file_url) ? (
                               <>
                                 <Button
                                   size="sm"
@@ -4438,6 +4479,61 @@ JSON만 출력.`
                                     onClick={async () => {
                                       if (!confirm(`${creatorName}님에게 4주 챌린지 가이드를 전달하시겠습니까?`)) return
                                       await handleDeliver4WeekGuideByWeek(1)
+                                    }}
+                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                  >
+                                    <Send className="w-3 h-3 mr-1" />
+                                    전달하기
+                                  </Button>
+                                ) : participant.status === 'filming' ? (
+                                  <>
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                      <CheckCircle className="w-3 h-3" />
+                                      전달완료
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      취소
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    전달완료
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-gray-500 text-xs">가이드 생성 필요</span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 올영 가이드 섹션 - 인라인 버튼 */}
+                        {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+                          <div className="flex items-center gap-1.5">
+                            {(campaign.oliveyoung_step1_guide_ai || campaign.step1_external_url || campaign.step1_external_file_url) ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => setShowOliveyoungGuideModal(true)}
+                                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  가이드 보기
+                                </Button>
+                                {participant.status === 'selected' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      if (!confirm(`${creatorName}님에게 올영 가이드를 전달하시겠습니까?`)) return
+                                      await handleDeliverOliveYoungGuide()
                                     }}
                                     className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
