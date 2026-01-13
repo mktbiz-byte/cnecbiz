@@ -22,13 +22,15 @@ export default function ExternalGuideUploader({
   onChange,
   campaignId,
   prefix = '',  // 주차별/STEP별 구분용 (예: 'week1_', 'step1_')
-  className = ''
+  className = '',
+  supabaseClient = null  // 외부에서 전달받은 Supabase 클라이언트
 }) {
   const [uploading, setUploading] = useState(false)
   const [uploadType, setUploadType] = useState(value.type || 'url')
   const fileInputRef = useRef(null)
 
-  const client = supabaseKorea || supabaseBiz
+  // 전달받은 클라이언트 사용, 없으면 fallback
+  const client = supabaseClient || supabaseBiz || supabaseKorea
 
   // Google URL 패턴 검증
   const isValidGoogleUrl = (url) => {

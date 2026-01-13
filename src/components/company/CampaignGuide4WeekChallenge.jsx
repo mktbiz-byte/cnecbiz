@@ -880,6 +880,7 @@ JSON 형식으로 작성해주세요.`
                         onChange={(data) => setWeekExternalGuides(prev => ({ ...prev, [weekKey]: data }))}
                         campaignId={id}
                         prefix={`${weekKey}_`}
+                        supabaseClient={supabaseBiz}
                       />
                     )}
 

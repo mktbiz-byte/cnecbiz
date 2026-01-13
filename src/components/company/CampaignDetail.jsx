@@ -8931,6 +8931,7 @@ JSON만 출력.`
                     campaignId={campaign?.id}
                     prefix={`guide_${selectedParticipantForGuide.id}_`}
                     className="border-0 p-0"
+                    supabaseClient={supabase}
                   />
 
                   {/* 전달 버튼 */}
@@ -8958,7 +8959,7 @@ JSON만 출력.`
                           .from('applications')
                           .update({
                             personalized_guide: JSON.stringify(guidePayload),
-                            guide_delivered_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
                             status: 'filming'
                           })
                           .eq('id', selectedParticipantForGuide.id)
