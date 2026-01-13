@@ -93,6 +93,7 @@ import USJapanGuideViewer from './USJapanGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
+import ExternalGuideUploader from '../common/ExternalGuideUploader'
 
 // SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
 const normalizeSnsUrl = (url, platform) => {
@@ -204,7 +205,7 @@ export default function CampaignDetail() {
   const [creatorForSetup, setCreatorForSetup] = useState(null)
   const [showGuideSelectModal, setShowGuideSelectModal] = useState(false) // 가이드 유형 선택 모달
   const [selectedParticipantForGuide, setSelectedParticipantForGuide] = useState(null) // 가이드 생성 대상 참여자
-  const [externalGuideUrl, setExternalGuideUrl] = useState('') // 외부 가이드 URL
+  const [externalGuideData, setExternalGuideData] = useState({ type: null, url: null, fileUrl: null, fileName: null, title: '' }) // 외부 가이드 데이터
   // Address editing state
   const [editingAddressFor, setEditingAddressFor] = useState(null)
   const [addressFormData, setAddressFormData] = useState({
@@ -4381,7 +4382,7 @@ JSON만 출력.`
                                 size="sm"
                                 onClick={() => {
                                   setSelectedParticipantForGuide(participant)
-                                  setExternalGuideUrl('')
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
                                   setShowGuideSelectModal(true)
                                 }}
                                 className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
@@ -8862,14 +8863,14 @@ JSON만 출력.`
       {/* 가이드 유형 선택 모달 (AI vs 파일/URL) */}
       {showGuideSelectModal && selectedParticipantForGuide && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
             {/* 헤더 */}
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-5 text-white relative">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-5 text-white relative sticky top-0">
               <button
                 onClick={() => {
                   setShowGuideSelectModal(false)
                   setSelectedParticipantForGuide(null)
-                  setExternalGuideUrl('')
+                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
                 }}
                 className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
               >
@@ -8911,39 +8912,52 @@ JSON만 출력.`
               </button>
 
               {/* 파일/URL 전달 옵션 */}
-              <div className="p-4 border-2 border-blue-200 rounded-xl">
-                <div className="flex items-center gap-4 mb-4">
+              <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
+                <div className="flex items-center gap-4 p-4 bg-blue-50">
                   <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                     <Link className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900">파일/URL 전달</h3>
-                    <p className="text-sm text-gray-500">구글 슬라이드, PDF 등 외부 링크 전달</p>
+                    <p className="text-sm text-gray-500">구글 슬라이드, PDF 파일 등 직접 전달</p>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <input
-                    type="url"
-                    value={externalGuideUrl}
-                    onChange={(e) => setExternalGuideUrl(e.target.value)}
-                    placeholder="https://docs.google.com/presentation/..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+
+                {/* ExternalGuideUploader 사용 */}
+                <div className="p-4 pt-0">
+                  <ExternalGuideUploader
+                    value={externalGuideData}
+                    onChange={setExternalGuideData}
+                    campaignId={campaign?.id}
+                    prefix={`guide_${selectedParticipantForGuide.id}_`}
+                    className="border-0 p-0"
                   />
+
+                  {/* 전달 버튼 */}
                   <Button
                     onClick={async () => {
-                      if (!externalGuideUrl.trim()) {
-                        alert('URL을 입력해주세요.')
+                      // URL 또는 파일이 있는지 확인
+                      if (!externalGuideData.url && !externalGuideData.fileUrl) {
+                        alert('URL을 입력하거나 PDF 파일을 업로드해주세요.')
                         return
                       }
                       const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
-                      if (!confirm(`${creatorName}님에게 외부 가이드 URL을 전달하시겠습니까?`)) return
+                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
 
                       try {
-                        // 외부 가이드 URL을 personalized_guide에 저장
+                        // 외부 가이드 데이터를 personalized_guide에 저장
+                        const guidePayload = {
+                          type: externalGuideData.fileUrl ? 'external_pdf' : 'external_url',
+                          url: externalGuideData.url || null,
+                          fileUrl: externalGuideData.fileUrl || null,
+                          fileName: externalGuideData.fileName || null,
+                          title: externalGuideData.title || ''
+                        }
+
                         const { error } = await supabase
                           .from('applications')
                           .update({
-                            personalized_guide: JSON.stringify({ type: 'external_url', url: externalGuideUrl }),
+                            personalized_guide: JSON.stringify(guidePayload),
                             guide_delivered_at: new Date().toISOString(),
                             status: 'filming'
                           })
@@ -8951,20 +8965,20 @@ JSON만 출력.`
 
                         if (error) throw error
 
-                        alert(`${creatorName}님에게 가이드 URL이 전달되었습니다.`)
+                        alert(`${creatorName}님에게 가이드가 전달되었습니다.`)
                         setShowGuideSelectModal(false)
                         setSelectedParticipantForGuide(null)
-                        setExternalGuideUrl('')
+                        setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
                         await fetchParticipants()
                       } catch (error) {
-                        console.error('Error saving external guide URL:', error)
-                        alert('가이드 URL 저장에 실패했습니다: ' + error.message)
+                        console.error('Error saving external guide:', error)
+                        alert('가이드 저장에 실패했습니다: ' + error.message)
                       }
                     }}
-                    disabled={!externalGuideUrl.trim()}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={!externalGuideData.url && !externalGuideData.fileUrl}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    URL 전달하기
+                    가이드 전달하기
                   </Button>
                 </div>
               </div>
