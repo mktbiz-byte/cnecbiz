@@ -32,7 +32,8 @@ import {
   Copy,
   Link,
   ExternalLink,
-  Mail
+  Mail,
+  XCircle
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 
