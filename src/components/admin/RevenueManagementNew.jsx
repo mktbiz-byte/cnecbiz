@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   DollarSign, TrendingUp, TrendingDown, Calendar, Plus,
   Trash2, Edit2, Save, X, Building2, FileSpreadsheet,
-  Receipt, CreditCard, RefreshCw, Download, Upload, ExternalLink, Database
+  Receipt, CreditCard, RefreshCw, Download, Upload, ExternalLink, Database,
+  Zap, Users
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -453,6 +454,119 @@ export default function RevenueManagementNew() {
     })
   }
 
+  // 세금계산서 발행 건 → 매출 자동 동기화
+  const syncTaxInvoicesToRevenue = async () => {
+    if (!confirm('세금계산서 발행 건을 매출에 동기화하시겠습니까?')) return
+
+    setLoading(true)
+    try {
+      // 세금계산서가 발행된 포인트 충전 요청 조회
+      const { data: chargeRequests, error: fetchError } = await supabaseBiz
+        .from('points_charge_requests')
+        .select('id, amount, tax_invoice_issued, tax_invoice_info, created_at, company_id')
+        .eq('tax_invoice_issued', true)
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+
+      // 이미 매출에 반영된 항목 확인
+      const { data: existingRevenues } = await supabaseBiz
+        .from('revenue_records')
+        .select('source_id')
+        .eq('source_type', 'tax_invoice')
+
+      const existingIds = new Set((existingRevenues || []).map(r => r.source_id))
+
+      let syncCount = 0
+      for (const request of (chargeRequests || [])) {
+        // 이미 동기화된 건은 스킵
+        if (existingIds.has(request.id)) continue
+
+        const createdDate = new Date(request.created_at)
+        const yearMonth = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}`
+
+        // 세금계산서 정보에서 회사명 가져오기
+        const taxInfo = request.tax_invoice_info || {}
+        const companyName = taxInfo.companyName || taxInfo.company_name || '포인트 충전'
+
+        await supabaseBiz.from('revenue_records').insert({
+          corporation_id: 'haupapa', // 세금계산서는 하우파파 법인
+          year_month: yearMonth,
+          amount: request.amount,
+          source_type: 'tax_invoice',
+          source_id: request.id,
+          tax_invoice_number: taxInfo.nts_confirm_num || taxInfo.mgt_key || '',
+          description: `세금계산서 발행: ${companyName}`
+        })
+
+        syncCount++
+      }
+
+      await fetchAllData()
+      alert(`동기화 완료: ${syncCount}건의 세금계산서가 매출에 반영되었습니다.`)
+    } catch (error) {
+      console.error('세금계산서 동기화 오류:', error)
+      alert('동기화 실패: ' + error.message)
+    }
+    setLoading(false)
+  }
+
+  // 크리에이터 출금 완료 건 → 매입 자동 동기화
+  const syncWithdrawalsToExpense = async () => {
+    if (!confirm('출금 완료 건을 매입(크리에이터지급)에 동기화하시겠습니까?')) return
+
+    setLoading(true)
+    try {
+      // 출금 완료된 요청 조회 (creator_withdrawal_requests)
+      const { data: withdrawals, error: fetchError } = await supabaseBiz
+        .from('creator_withdrawal_requests')
+        .select('id, requested_amount, amount, creator_name, account_holder, status, completed_at, created_at')
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+
+      // 이미 매입에 반영된 항목 확인
+      const { data: existingExpenses } = await supabaseBiz
+        .from('expense_records')
+        .select('source_id')
+        .eq('source_type', 'withdrawal')
+
+      const existingIds = new Set((existingExpenses || []).map(e => e.source_id))
+
+      let syncCount = 0
+      for (const withdrawal of (withdrawals || [])) {
+        // 이미 동기화된 건은 스킵
+        if (existingIds.has(withdrawal.id)) continue
+
+        const completedDate = new Date(withdrawal.completed_at || withdrawal.created_at)
+        const yearMonth = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}`
+
+        const amount = withdrawal.requested_amount || withdrawal.amount || 0
+        const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+
+        await supabaseBiz.from('expense_records').insert({
+          corporation_id: 'haupapa',
+          year_month: yearMonth,
+          category: '크리에이터지급',
+          amount: amount,
+          source_type: 'withdrawal',
+          source_id: withdrawal.id,
+          description: `출금 완료: ${creatorName}`
+        })
+
+        syncCount++
+      }
+
+      await fetchAllData()
+      alert(`동기화 완료: ${syncCount}건의 출금이 매입에 반영되었습니다.`)
+    } catch (error) {
+      console.error('출금 동기화 오류:', error)
+      alert('동기화 실패: ' + error.message)
+    }
+    setLoading(false)
+  }
+
   // 숫자 포맷
   const formatNumber = (num) => {
     if (num === 0) return '-'
@@ -485,7 +599,7 @@ export default function RevenueManagementNew() {
             <p className="text-sm text-gray-500">하우파파 / 하우랩 법인별 매출 및 매입 관리</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(parseInt(v))}>
               <SelectTrigger className="w-28">
                 <SelectValue />
@@ -496,6 +610,16 @@ export default function RevenueManagementNew() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Button variant="outline" size="sm" onClick={syncTaxInvoicesToRevenue} className="text-blue-600">
+              <Zap className="w-4 h-4 mr-1" />
+              세금계산서 → 매출
+            </Button>
+
+            <Button variant="outline" size="sm" onClick={syncWithdrawalsToExpense} className="text-green-600">
+              <Users className="w-4 h-4 mr-1" />
+              출금완료 → 매입
+            </Button>
 
             <Button variant="outline" size="sm" onClick={initializeData}>
               <Database className="w-4 h-4 mr-1" />
