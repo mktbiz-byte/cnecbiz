@@ -32,7 +32,8 @@ import {
   Copy,
   Link,
   ExternalLink,
-  Mail
+  Mail,
+  XCircle
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 
@@ -92,6 +93,7 @@ import USJapanGuideViewer from './USJapanGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
+import ExternalGuideUploader from '../common/ExternalGuideUploader'
 
 // SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
 const normalizeSnsUrl = (url, platform) => {
@@ -183,9 +185,6 @@ export default function CampaignDetail() {
   const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id_step: version_index}
   const [selectedVideoSteps, setSelectedVideoSteps] = useState({}) // {user_id: step_number (week or video number)}
   const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
-  const [showIndividualMessageModal, setShowIndividualMessageModal] = useState(false)
-  const [individualMessage, setIndividualMessage] = useState('')
-  const [selectedParticipantForMessage, setSelectedParticipantForMessage] = useState(null)
   const [showUnifiedGuideModal, setShowUnifiedGuideModal] = useState(false)
   const [unifiedGuideTab, setUnifiedGuideTab] = useState('step1')
   const [isGeneratingUnifiedGuide, setIsGeneratingUnifiedGuide] = useState(false)
@@ -204,6 +203,9 @@ export default function CampaignDetail() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
   const [creatorForSetup, setCreatorForSetup] = useState(null)
+  const [showGuideSelectModal, setShowGuideSelectModal] = useState(false) // 가이드 유형 선택 모달
+  const [selectedParticipantForGuide, setSelectedParticipantForGuide] = useState(null) // 가이드 생성 대상 참여자
+  const [externalGuideData, setExternalGuideData] = useState({ type: null, url: null, fileUrl: null, fileName: null, title: '' }) // 외부 가이드 데이터
   // Address editing state
   const [editingAddressFor, setEditingAddressFor] = useState(null)
   const [addressFormData, setAddressFormData] = useState({
@@ -2149,7 +2151,9 @@ JSON만 출력.`
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
-            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
           }
 
           // 팝빌 알림톡 발송
@@ -2250,12 +2254,18 @@ JSON만 출력.`
 
       for (const participant of participants) {
         try {
+          // 재전달 여부 확인
+          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
           // 가이드 전달 상태 업데이트
-          const updateData = { 
+          const updateData = {
             status: 'filming',
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록
+            guide_cancelled_at: null // 취소 기록 초기화
           }
-          
+
           // 개별 메시지가 있으면 추가
           let message = `${weekNumber}주차 가이드`
           if (individualMessage && individualMessage.trim()) {
@@ -2280,33 +2290,37 @@ JSON만 출력.`
             .eq('id', participant.user_id)
             .maybeSingle()
 
+          // 주차별 마감일 처리
+          let deadlineText = ''
+          if (campaign.campaign_type === '4week_challenge') {
+            const weekDeadlineField = `week${weekNumber}_deadline`
+            const weekDeadline = campaign[weekDeadlineField]
+            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+            deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
+          } else {
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
+          }
+
+          // 알림톡용 캠페인명 (재전달 표시 포함)
+          const campaignNameForNotification = isRedelivery
+            ? `[재전달] ${campaign.title} ${weekNumber}주차`
+            : `${campaign.title} ${weekNumber}주차`
+
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 주차별 마감일 처리
-              let deadlineText = ''
-              if (campaign.campaign_type === '4week_challenge') {
-                // 4주 챌린지: 해당 주차 마감일 사용
-                const weekDeadlineField = `week${weekNumber}_deadline`
-                const weekDeadline = campaign[weekDeadlineField]
-                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
-              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                // 올리브영: STEP1 마감일 사용
-                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
-              } else {
-                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
-              }
-
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   receiverNum: profile.phone,
-                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  receiverName: creatorName,
                   templateCode: '025100001012',
                   variables: {
-                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
-                    '캠페인명': `${campaign.title} ${weekNumber}주차`,
+                    '크리에이터명': creatorName,
+                    '캠페인명': campaignNameForNotification,
                     '제출기한': deadlineText
                   }
                 })
@@ -2323,12 +2337,15 @@ JSON만 출력.`
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 to: participant.creator_email,
-                subject: `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 전달`,
+                subject: isRedelivery
+                  ? `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 재전달`
+                  : `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 전달`,
                 html: `
-                  <h2>${(participant.creator_name || participant.applicant_name || '크리에이터')}님, ${weekNumber}주차 촬영 가이드가 전달되었습니다.</h2>
+                  <h2>${creatorName}님, ${weekNumber}주차 촬영 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다.</h2>
+                  ${isRedelivery ? '<p style="color: #EF4444; font-weight: bold;">※ 이전 가이드가 수정되었습니다. 새 가이드를 반드시 확인해 주세요.</p>' : ''}
                   <p><strong>캠페인:</strong> ${campaign.title}</p>
                   <p><strong>주차:</strong> ${weekNumber}주차</p>
-                  <p><strong>영상 제출 기한:</strong> ${campaign.content_submission_deadline || '미정'}</p>
+                  <p><strong>영상 제출 기한:</strong> ${deadlineText}</p>
                   <p>크리에이터 대시보드에서 ${weekNumber}주차 가이드를 확인하시고, 가이드에 따라 촬영을 진행해 주세요.</p>
                   ${individualMessage && individualMessage.trim() ? `<p><strong>추가 메시지:</strong> ${individualMessage.trim()}</p>` : ''}
                   <p>기한 내 미제출 시 패널티가 부과될 수 있습니다.</p>
@@ -2430,7 +2447,9 @@ JSON만 출력.`
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
-            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
           }
 
           // 팝빌 알림톡 발송
@@ -2643,15 +2662,16 @@ JSON만 출력.`
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           console.log('[DEBUG] Updating application status to filming:', participantId)
-          
+
           // 재전달인 경우 상태를 변경하지 않음
           const updatePayload = {
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록 (재전달 감지용)
+            guide_cancelled_at: null // 취소 기록 초기화
           }
           if (participant.status !== 'filming') {
             updatePayload.status = 'filming'
           }
-          // guide_confirmed 필드는 한국 DB에 없으므로 제거
           
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
@@ -2678,7 +2698,13 @@ JSON만 출력.`
             .maybeSingle()
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
-          const deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+          // 기획형: content_submission_deadline → start_date fallback
+          const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+          const deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
+
+          // 재전달 여부 확인 (이전에 전달된 적이 있거나 취소된 적이 있으면 재전달)
+          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          const campaignNameForNotification = isRedelivery ? `[재전달] ${campaign.title}` : campaign.title
 
           // 팝빌 알림톡 발송
           if (profile?.phone) {
@@ -2692,7 +2718,7 @@ JSON만 출력.`
                     templateCode: '025100001012',
                     variables: {
                       '크리에이터명': creatorName,
-                      '캠페인명': campaign.title,
+                      '캠페인명': campaignNameForNotification,
                       '제출기한': deadlineText
                     }
                   })
@@ -2711,12 +2737,15 @@ JSON만 출력.`
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   to: emailTo,
-                  subject: `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
+                  subject: isRedelivery
+                    ? `[CNEC] 캠페인 가이드가 재전달되었습니다 - ${campaign.title}`
+                    : `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
                   html: `
                     <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <h2 style="color: #3B82F6;">캠페인 가이드가 전달되었습니다!</h2>
+                      <h2 style="color: #3B82F6;">캠페인 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다!</h2>
                       <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
-                      <p>참여하신 캠페인의 촬영 가이드가 전달되었습니다.</p>
+                      <p>참여하신 캠페인의 촬영 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다.</p>
+                      ${isRedelivery ? '<p style="color: #EF4444; font-weight: bold;">※ 이전 가이드가 수정되었습니다. 새 가이드를 반드시 확인해 주세요.</p>' : ''}
                       <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
                         <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
                         <p style="margin: 5px 0;"><strong>제출 기한:</strong> ${deadlineText}</p>
@@ -4312,7 +4341,7 @@ JSON만 출력.`
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                                {!participant.guide_confirmed ? (
+                                {participant.status === 'selected' ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -4320,12 +4349,27 @@ JSON만 출력.`
                                       if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
                                       await handleGuideApproval([participant.id])
                                     }}
-                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
                                     className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
                                     <Send className="w-3 h-3 mr-1" />
                                     전달하기
                                   </Button>
+                                ) : participant.status === 'filming' ? (
+                                  <>
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                      <CheckCircle className="w-3 h-3" />
+                                      전달완료
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      취소
+                                    </Button>
+                                  </>
                                 ) : (
                                   <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                     <CheckCircle className="w-3 h-3" />
@@ -4336,14 +4380,15 @@ JSON만 출력.`
                             ) : (
                               <Button
                                 size="sm"
-                                onClick={async () => {
-                                  if (!confirm(`${creatorName}님의 맞춤 가이드를 생성하시겠습니까?`)) return
-                                  await handleGeneratePersonalizedGuides([participant])
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
                                 }}
                                 className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
                               >
                                 <Sparkles className="w-3 h-3 mr-1" />
-                                AI 가이드 생성
+                                가이드 전달
                               </Button>
                             )}
                           </div>
@@ -4390,7 +4435,7 @@ JSON만 출력.`
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                                {!participant.guide_confirmed ? (
+                                {participant.status === 'selected' ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -4398,12 +4443,27 @@ JSON만 출력.`
                                       if (!confirm(`${creatorName}님에게 4주 챌린지 가이드를 전달하시겠습니까?`)) return
                                       await handleDeliver4WeekGuideByWeek(1)
                                     }}
-                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
                                     className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
                                     <Send className="w-3 h-3 mr-1" />
                                     전달하기
                                   </Button>
+                                ) : participant.status === 'filming' ? (
+                                  <>
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                      <CheckCircle className="w-3 h-3" />
+                                      전달완료
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      취소
+                                    </Button>
+                                  </>
                                 ) : (
                                   <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                     <CheckCircle className="w-3 h-3" />
@@ -4417,31 +4477,6 @@ JSON만 출력.`
                           </div>
                         )}
 
-                        {/* 4주 챌린지 메시지 섹션 - 인라인 버튼 */}
-                        {campaign.campaign_type === '4week_challenge' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedParticipantForMessage(participant)
-                              setIndividualMessage(participant.personalized_guide || '')
-                              setShowIndividualMessageModal(true)
-                            }}
-                            className="text-indigo-600 border-indigo-400 hover:bg-indigo-50 text-xs px-3 py-1 h-auto"
-                          >
-                            {participant.personalized_guide ? (
-                              <>
-                                <Eye className="w-3 h-3 mr-1" />
-                                가이드 확인
-                              </>
-                            ) : (
-                              <>
-                                <Edit3 className="w-3 h-3 mr-1" />
-                                메시지 작성
-                              </>
-                            )}
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -4476,6 +4511,34 @@ JSON만 출력.`
     } catch (error) {
       console.error('Error updating creator status:', error)
       alert('상태 업데이트에 실패했습니다.')
+    }
+  }
+
+  // 가이드 전달 취소 함수
+  const handleCancelGuideDelivery = async (participantId, creatorName) => {
+    if (!confirm(`${creatorName}님의 가이드 전달을 취소하시겠습니까?\n\n취소 후 다시 전달할 수 있습니다.`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({
+          guide_confirmed: false,
+          // guide_delivered_at은 유지 (재전달 감지용)
+          guide_cancelled_at: new Date().toISOString(),
+          status: 'selected' // 선정됨 상태로 되돌림
+        })
+        .eq('id', participantId)
+
+      if (error) throw error
+
+      // 참여자 목록 재로드
+      await fetchParticipants()
+      alert(`${creatorName}님의 가이드 전달이 취소되었습니다. 다시 전달할 수 있습니다.`)
+    } catch (error) {
+      console.error('Error cancelling guide delivery:', error)
+      alert('가이드 전달 취소에 실패했습니다: ' + error.message)
     }
   }
 
@@ -8758,93 +8821,6 @@ JSON만 출력.`
         </div>
       )}
 
-      {/* 개별 메시지 작성 모달 */}
-      {showIndividualMessageModal && selectedParticipantForMessage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold">
-                {selectedParticipantForMessage.creator_name || selectedParticipantForMessage.applicant_name} - {selectedParticipantForMessage.personalized_guide ? '최종 가이드' : '개별 메시지 작성'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowIndividualMessageModal(false)
-                  setSelectedParticipantForMessage(null)
-                  setIndividualMessage('')
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {selectedParticipantForMessage.personalized_guide ? '최종 가이드 (수정 가능)' : '개별 요청사항'}
-                </label>
-                <p className="text-sm text-gray-500 mb-3">
-                  {selectedParticipantForMessage.personalized_guide 
-                    ? '크리에이터에게 전달될 최종 가이드를 확인하고 수정할 수 있습니다.'
-                    : '이 크리에이터에게만 전달될 추가 요청사항을 작성해주세요. (예: 특정 장면 추가, 특별 연출 요청 등)'}
-                </p>
-                <textarea
-                  value={individualMessage}
-                  onChange={(e) => setIndividualMessage(e.target.value)}
-                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                  placeholder="예:
-- 제품을 사용하는 모습을 클로즈업으로 촬영해주세요
-- 밝은 분위기의 영상으로 부탁드립니다
-- 패키지 언박싱 장면을 포함해주세요"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 p-6 border-t bg-gray-50">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowIndividualMessageModal(false)
-                  setSelectedParticipantForMessage(null)
-                  setIndividualMessage('')
-                }}
-                className="flex-1"
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    const { error } = await supabase
-                      .from('applications')
-                      .update({
-                        personalized_guide: individualMessage
-                      })
-                      .eq('id', selectedParticipantForMessage.id)
-                    
-                    if (error) throw error
-                    
-                    alert('개별 메시지가 저장되었습니다.')
-                    setShowIndividualMessageModal(false)
-                    setSelectedParticipantForMessage(null)
-                    setIndividualMessage('')
-                    await fetchParticipants()
-                  } catch (error) {
-                    console.error('Error saving individual message:', error)
-                    alert('저장에 실패했습니다: ' + error.message)
-                  }
-                }}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                저장
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Olive Young Guide Modal */}
       {showUnifiedGuideModal && campaign.campaign_type === 'oliveyoung' && (
         <OliveYoungGuideModal
@@ -8883,6 +8859,133 @@ JSON만 출력.`
         creator={creatorForSetup}
         campaign={campaign}
       />
+
+      {/* 가이드 유형 선택 모달 (AI vs 파일/URL) */}
+      {showGuideSelectModal && selectedParticipantForGuide && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-5 text-white relative sticky top-0">
+              <button
+                onClick={() => {
+                  setShowGuideSelectModal(false)
+                  setSelectedParticipantForGuide(null)
+                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                }}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">가이드 전달 방식 선택</h2>
+                  <p className="text-sm opacity-90">{selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name}님</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 space-y-4">
+              {/* AI 가이드 생성 옵션 */}
+              <button
+                onClick={async () => {
+                  const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                  if (!confirm(`${creatorName}님의 AI 맞춤 가이드를 생성하시겠습니까?`)) return
+                  setShowGuideSelectModal(false)
+                  await handleGeneratePersonalizedGuides([selectedParticipantForGuide])
+                  setSelectedParticipantForGuide(null)
+                }}
+                className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Sparkles className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                    <p className="text-sm text-gray-500">크리에이터 맞춤형 가이드를 AI가 자동 생성</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* 파일/URL 전달 옵션 */}
+              <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
+                <div className="flex items-center gap-4 p-4 bg-blue-50">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Link className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">파일/URL 전달</h3>
+                    <p className="text-sm text-gray-500">구글 슬라이드, PDF 파일 등 직접 전달</p>
+                  </div>
+                </div>
+
+                {/* ExternalGuideUploader 사용 */}
+                <div className="p-4 pt-0">
+                  <ExternalGuideUploader
+                    value={externalGuideData}
+                    onChange={setExternalGuideData}
+                    campaignId={campaign?.id}
+                    prefix={`guide_${selectedParticipantForGuide.id}_`}
+                    className="border-0 p-0"
+                  />
+
+                  {/* 전달 버튼 */}
+                  <Button
+                    onClick={async () => {
+                      // URL 또는 파일이 있는지 확인
+                      if (!externalGuideData.url && !externalGuideData.fileUrl) {
+                        alert('URL을 입력하거나 PDF 파일을 업로드해주세요.')
+                        return
+                      }
+                      const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+
+                      try {
+                        // 외부 가이드 데이터를 personalized_guide에 저장
+                        const guidePayload = {
+                          type: externalGuideData.fileUrl ? 'external_pdf' : 'external_url',
+                          url: externalGuideData.url || null,
+                          fileUrl: externalGuideData.fileUrl || null,
+                          fileName: externalGuideData.fileName || null,
+                          title: externalGuideData.title || ''
+                        }
+
+                        const { error } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: JSON.stringify(guidePayload),
+                            guide_delivered_at: new Date().toISOString(),
+                            status: 'filming'
+                          })
+                          .eq('id', selectedParticipantForGuide.id)
+
+                        if (error) throw error
+
+                        alert(`${creatorName}님에게 가이드가 전달되었습니다.`)
+                        setShowGuideSelectModal(false)
+                        setSelectedParticipantForGuide(null)
+                        setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                        await fetchParticipants()
+                      } catch (error) {
+                        console.error('Error saving external guide:', error)
+                        alert('가이드 저장에 실패했습니다: ' + error.message)
+                      }
+                    }}
+                    disabled={!externalGuideData.url && !externalGuideData.fileUrl}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    가이드 전달하기
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 캠페인 정보 팝업 */}
       {showCampaignGuidePopup && campaign && (

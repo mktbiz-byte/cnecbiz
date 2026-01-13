@@ -3,20 +3,28 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X, Package, FileText, Info, Calendar, Sparkles } from 'lucide-react'
+import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X, Package, FileText, Info, Calendar, Sparkles, Link as LinkIcon, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 import { missionExamples } from './missionExamples'
+import ExternalGuideUploader from '../common/ExternalGuideUploader'
 
 export default function CampaignGuide4WeekChallenge() {
   const [searchParams] = useSearchParams()
   const id = searchParams.get('id')
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelWeek, setCancelWeek] = useState(null) // 취소할 주차
   const [campaign, setCampaign] = useState(null)
   const [expandedWeek, setExpandedWeek] = useState(1)
   const [showExamplesModal, setShowExamplesModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('skinTrouble')
   const [currentWeekForExample, setCurrentWeekForExample] = useState(1)
+
+  // 주차별 가이드 전달 완료 상태
+  const [weekGuideDelivered, setWeekGuideDelivered] = useState({
+    week1: false, week2: false, week3: false, week4: false
+  })
   
   const [guideData, setGuideData] = useState({
     brand: '',
@@ -47,6 +55,22 @@ export default function CampaignGuide4WeekChallenge() {
       required_scenes: '',
       reference_url: ''
     }
+  })
+
+  // 주차별 가이드 전달 모드 ('ai' | 'external')
+  const [weekGuideModes, setWeekGuideModes] = useState({
+    week1: 'ai',
+    week2: 'ai',
+    week3: 'ai',
+    week4: 'ai'
+  })
+
+  // 주차별 외부 가이드 데이터
+  const [weekExternalGuides, setWeekExternalGuides] = useState({
+    week1: { type: null, url: null, fileUrl: null, fileName: null, title: '' },
+    week2: { type: null, url: null, fileUrl: null, fileName: null, title: '' },
+    week3: { type: null, url: null, fileUrl: null, fileName: null, title: '' },
+    week4: { type: null, url: null, fileUrl: null, fileName: null, title: '' }
   })
 
   useEffect(() => {
@@ -113,9 +137,109 @@ export default function CampaignGuide4WeekChallenge() {
           product_name: data.product_name || ''
         }))
       }
+
+      // 주차별 가이드 모드 및 외부 가이드 데이터 로드
+      setWeekGuideModes({
+        week1: data.week1_guide_mode || 'ai',
+        week2: data.week2_guide_mode || 'ai',
+        week3: data.week3_guide_mode || 'ai',
+        week4: data.week4_guide_mode || 'ai'
+      })
+
+      setWeekExternalGuides({
+        week1: {
+          type: data.week1_external_type || null,
+          url: data.week1_external_url || null,
+          fileUrl: data.week1_external_file_url || null,
+          fileName: data.week1_external_file_name || null,
+          title: data.week1_external_title || ''
+        },
+        week2: {
+          type: data.week2_external_type || null,
+          url: data.week2_external_url || null,
+          fileUrl: data.week2_external_file_url || null,
+          fileName: data.week2_external_file_name || null,
+          title: data.week2_external_title || ''
+        },
+        week3: {
+          type: data.week3_external_type || null,
+          url: data.week3_external_url || null,
+          fileUrl: data.week3_external_file_url || null,
+          fileName: data.week3_external_file_name || null,
+          title: data.week3_external_title || ''
+        },
+        week4: {
+          type: data.week4_external_type || null,
+          url: data.week4_external_url || null,
+          fileUrl: data.week4_external_file_url || null,
+          fileName: data.week4_external_file_name || null,
+          title: data.week4_external_title || ''
+        }
+      })
+
+      // 주차별 가이드 전달 완료 상태 확인
+      const weeklyAiGuides = data.challenge_weekly_guides_ai || {}
+      setWeekGuideDelivered({
+        week1: !!(weeklyAiGuides.week1 || data.week1_external_url || data.week1_external_file_url),
+        week2: !!(weeklyAiGuides.week2 || data.week2_external_url || data.week2_external_file_url),
+        week3: !!(weeklyAiGuides.week3 || data.week3_external_url || data.week3_external_file_url),
+        week4: !!(weeklyAiGuides.week4 || data.week4_external_url || data.week4_external_file_url)
+      })
     } catch (error) {
       console.error('Error loading campaign:', error)
       alert('캠페인을 불러오는데 실패했습니다.')
+    }
+  }
+
+  // 주차별 가이드 취소 함수
+  const handleCancelWeekGuide = async (weekNum) => {
+    setCancelling(true)
+
+    try {
+      const client = supabaseKorea || supabaseBiz
+      const weekKey = `week${weekNum}`
+
+      // 해당 주차의 AI 가이드 초기화
+      const currentAiGuides = campaign.challenge_weekly_guides_ai || {}
+      const updatedAiGuides = { ...currentAiGuides }
+      delete updatedAiGuides[weekKey]
+
+      // 업데이트할 데이터
+      const updateData = {
+        challenge_weekly_guides_ai: Object.keys(updatedAiGuides).length > 0 ? updatedAiGuides : null,
+        [`${weekKey}_guide_mode`]: null,
+        [`${weekKey}_external_type`]: null,
+        [`${weekKey}_external_url`]: null,
+        [`${weekKey}_external_file_url`]: null,
+        [`${weekKey}_external_file_name`]: null,
+        [`${weekKey}_external_title`]: null
+      }
+
+      const { error } = await client
+        .from('campaigns')
+        .update(updateData)
+        .eq('id', id)
+
+      if (error) throw error
+
+      // 상태 초기화
+      setWeekGuideDelivered(prev => ({ ...prev, [weekKey]: false }))
+      setWeekGuideModes(prev => ({ ...prev, [weekKey]: 'ai' }))
+      setWeekExternalGuides(prev => ({
+        ...prev,
+        [weekKey]: { type: null, url: null, fileUrl: null, fileName: null, title: '' }
+      }))
+      setCancelWeek(null)
+
+      alert(`${weekNum}주차 가이드가 취소되었습니다. 다시 생성할 수 있습니다.`)
+
+      // 캠페인 데이터 다시 로드
+      loadCampaign()
+    } catch (error) {
+      console.error('Error cancelling week guide:', error)
+      alert('가이드 취소 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -124,41 +248,70 @@ export default function CampaignGuide4WeekChallenge() {
 
     try {
       const client = supabaseKorea || supabaseBiz
-      // 기존 데이터베이스 구조에 맞춰 저장
+
+      // 기본 업데이트 데이터
+      const updateData = {
+        brand: guideData.brand,
+        product_name: guideData.product_name,
+        product_features: guideData.product_features,
+        product_key_points: guideData.precautions,
+        challenge_weekly_guides: {
+          week1: {
+            mission: guideData.week1.mission,
+            required_dialogue: guideData.week1.required_dialogue,
+            required_scenes: guideData.week1.required_scenes,
+            reference: guideData.week1.reference_url
+          },
+          week2: {
+            mission: guideData.week2.mission,
+            required_dialogue: guideData.week2.required_dialogue,
+            required_scenes: guideData.week2.required_scenes,
+            reference: guideData.week2.reference_url
+          },
+          week3: {
+            mission: guideData.week3.mission,
+            required_dialogue: guideData.week3.required_dialogue,
+            required_scenes: guideData.week3.required_scenes,
+            reference: guideData.week3.reference_url
+          },
+          week4: {
+            mission: guideData.week4.mission,
+            required_dialogue: guideData.week4.required_dialogue,
+            required_scenes: guideData.week4.required_scenes,
+            reference: guideData.week4.reference_url
+          }
+        },
+        // 주차별 가이드 모드 저장
+        week1_guide_mode: weekGuideModes.week1,
+        week2_guide_mode: weekGuideModes.week2,
+        week3_guide_mode: weekGuideModes.week3,
+        week4_guide_mode: weekGuideModes.week4,
+        // 주차별 외부 가이드 데이터 저장
+        week1_external_type: weekExternalGuides.week1.type,
+        week1_external_url: weekExternalGuides.week1.url,
+        week1_external_file_url: weekExternalGuides.week1.fileUrl,
+        week1_external_file_name: weekExternalGuides.week1.fileName,
+        week1_external_title: weekExternalGuides.week1.title,
+        week2_external_type: weekExternalGuides.week2.type,
+        week2_external_url: weekExternalGuides.week2.url,
+        week2_external_file_url: weekExternalGuides.week2.fileUrl,
+        week2_external_file_name: weekExternalGuides.week2.fileName,
+        week2_external_title: weekExternalGuides.week2.title,
+        week3_external_type: weekExternalGuides.week3.type,
+        week3_external_url: weekExternalGuides.week3.url,
+        week3_external_file_url: weekExternalGuides.week3.fileUrl,
+        week3_external_file_name: weekExternalGuides.week3.fileName,
+        week3_external_title: weekExternalGuides.week3.title,
+        week4_external_type: weekExternalGuides.week4.type,
+        week4_external_url: weekExternalGuides.week4.url,
+        week4_external_file_url: weekExternalGuides.week4.fileUrl,
+        week4_external_file_name: weekExternalGuides.week4.fileName,
+        week4_external_title: weekExternalGuides.week4.title
+      }
+
       const { error } = await client
         .from('campaigns')
-        .update({
-          brand: guideData.brand,
-          product_name: guideData.product_name,
-          product_features: guideData.product_features,
-          product_key_points: guideData.precautions,
-          challenge_weekly_guides: {
-            week1: {
-              mission: guideData.week1.mission,
-              required_dialogue: guideData.week1.required_dialogue,
-              required_scenes: guideData.week1.required_scenes,
-              reference: guideData.week1.reference_url
-            },
-            week2: {
-              mission: guideData.week2.mission,
-              required_dialogue: guideData.week2.required_dialogue,
-              required_scenes: guideData.week2.required_scenes,
-              reference: guideData.week2.reference_url
-            },
-            week3: {
-              mission: guideData.week3.mission,
-              required_dialogue: guideData.week3.required_dialogue,
-              required_scenes: guideData.week3.required_scenes,
-              reference: guideData.week3.reference_url
-            },
-            week4: {
-              mission: guideData.week4.mission,
-              required_dialogue: guideData.week4.required_dialogue,
-              required_scenes: guideData.week4.required_scenes,
-              reference: guideData.week4.reference_url
-            }
-          }
-        })
+        .update(updateData)
         .eq('id', id)
 
       if (error) throw error
@@ -179,17 +332,25 @@ export default function CampaignGuide4WeekChallenge() {
       return
     }
 
-    // 1주차 가이드 체크
-    if (!guideData.week1.mission || !guideData.week1.required_dialogue || !guideData.week1.required_scenes) {
-      alert('1주차 가이드를 모두 입력해주세요.')
-      return
+    // 1주차 가이드 체크 (AI 모드인 경우에만)
+    if (weekGuideModes.week1 === 'ai') {
+      if (!guideData.week1.mission || !guideData.week1.required_dialogue || !guideData.week1.required_scenes) {
+        alert('1주차 가이드를 모두 입력해주세요.')
+        return
+      }
+    } else {
+      // external 모드인 경우 파일 또는 URL 체크
+      if (!weekExternalGuides.week1.fileUrl && !weekExternalGuides.week1.url) {
+        alert('1주차 외부 가이드(PDF 또는 URL)를 등록해주세요.')
+        return
+      }
     }
 
     setLoading(true)
 
     try {
       const client = supabaseKorea || supabaseBiz
-      // 먼저 원본 데이터 저장
+      // 먼저 원본 데이터 저장 (AI 가이드 + 외부 가이드 모두 저장)
       const { error: saveError } = await client
         .from('campaigns')
         .update({
@@ -222,32 +383,73 @@ export default function CampaignGuide4WeekChallenge() {
               required_scenes: guideData.week4.required_scenes,
               reference: guideData.week4.reference_url
             }
-          }
+          },
+          // 주차별 가이드 모드 저장
+          week1_guide_mode: weekGuideModes.week1,
+          week2_guide_mode: weekGuideModes.week2,
+          week3_guide_mode: weekGuideModes.week3,
+          week4_guide_mode: weekGuideModes.week4,
+          // 주차별 외부 가이드 데이터 저장
+          week1_external_type: weekExternalGuides.week1.type,
+          week1_external_url: weekExternalGuides.week1.url,
+          week1_external_file_url: weekExternalGuides.week1.fileUrl,
+          week1_external_file_name: weekExternalGuides.week1.fileName,
+          week1_external_title: weekExternalGuides.week1.title,
+          week2_external_type: weekExternalGuides.week2.type,
+          week2_external_url: weekExternalGuides.week2.url,
+          week2_external_file_url: weekExternalGuides.week2.fileUrl,
+          week2_external_file_name: weekExternalGuides.week2.fileName,
+          week2_external_title: weekExternalGuides.week2.title,
+          week3_external_type: weekExternalGuides.week3.type,
+          week3_external_url: weekExternalGuides.week3.url,
+          week3_external_file_url: weekExternalGuides.week3.fileUrl,
+          week3_external_file_name: weekExternalGuides.week3.fileName,
+          week3_external_title: weekExternalGuides.week3.title,
+          week4_external_type: weekExternalGuides.week4.type,
+          week4_external_url: weekExternalGuides.week4.url,
+          week4_external_file_url: weekExternalGuides.week4.fileUrl,
+          week4_external_file_name: weekExternalGuides.week4.fileName,
+          week4_external_title: weekExternalGuides.week4.title
         })
         .eq('id', id)
 
       if (saveError) throw saveError
 
-      // AI로 가이드 가공 (최적화: 한 번의 호출로 4주차 모두 생성)
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) {
-        throw new Error('Gemini API 키가 설정되지 않았습니다.')
-      }
-
-      // 4주차 데이터 수집
-      const weeksData = []
+      // AI 모드인 주차만 수집
+      const aiWeeks = []
       for (let weekNum = 1; weekNum <= 4; weekNum++) {
         const weekKey = `week${weekNum}`
-        const weekData = guideData[weekKey]
-        weeksData.push({
-          weekNum,
-          weekKey,
-          mission: weekData.mission || '',
-          required_dialogue: weekData.required_dialogue || '',
-          required_scenes: weekData.required_scenes || '',
-          reference_url: weekData.reference_url || ''
-        })
+        if (weekGuideModes[weekKey] === 'ai') {
+          aiWeeks.push(weekNum)
+        }
       }
+
+      // AI 모드인 주차가 있을 경우에만 AI 생성 실행
+      let simpleGuidesAI = {}
+
+      if (aiWeeks.length > 0) {
+        // AI로 가이드 가공
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+        if (!apiKey) {
+          throw new Error('Gemini API 키가 설정되지 않았습니다.')
+        }
+
+        // AI 모드인 주차 데이터만 수집
+        const weeksData = []
+        for (let weekNum = 1; weekNum <= 4; weekNum++) {
+          const weekKey = `week${weekNum}`
+          if (weekGuideModes[weekKey] === 'ai') {
+            const weekData = guideData[weekKey]
+            weeksData.push({
+              weekNum,
+              weekKey,
+              mission: weekData.mission || '',
+              required_dialogue: weekData.required_dialogue || '',
+              required_scenes: weekData.required_scenes || '',
+              reference_url: weekData.reference_url || ''
+            })
+          }
+        }
 
       // 한 번의 AI 호출로 4주차 모두 처리
       const prompt = `당신은 4주 챌린지 캠페인 전문 기획자입니다. 다음 4주차 가이드를 전문적으로 가공해주세요.
@@ -315,12 +517,12 @@ JSON 형식으로 작성해주세요.`
             if (jsonMatch) {
               const parsed = JSON.parse(jsonMatch[0])
               
-              // 결과 파싱
-              for (let weekNum = 1; weekNum <= 4; weekNum++) {
+              // 결과 파싱 (AI 모드 주차만)
+              for (const weekNum of aiWeeks) {
                 const weekKey = `week${weekNum}`
                 const weekData = guideData[weekKey]
                 const aiData = parsed[weekKey]
-                
+
                 if (aiData) {
                   // JSON 구조로 저장
                   simpleGuidesAI[weekKey] = {
@@ -349,36 +551,37 @@ JSON 형식으로 작성해주세요.`
         } else {
           throw new Error('AI API 호출 실패')
         }
-      } catch (aiError) {
-        console.error('AI 생성 실패:', aiError)
-        // AI 실패 시 기본 구조 사용
-        for (let weekNum = 1; weekNum <= 4; weekNum++) {
-          const weekKey = `week${weekNum}`
-          const weekData = guideData[weekKey]
-          simpleGuidesAI[weekKey] = {
-            product_info: `${guideData.product_name}: ${weekData.mission}`,
-            required_dialogues: [],
-            required_scenes: [],
-            hashtags: [],
-            reference_urls: weekData.reference_url ? [weekData.reference_url] : []
+        } catch (aiError) {
+          console.error('AI 생성 실패:', aiError)
+          // AI 실패 시 기본 구조 사용 (AI 모드 주차만)
+          for (const weekNum of aiWeeks) {
+            const weekKey = `week${weekNum}`
+            const weekData = guideData[weekKey]
+            simpleGuidesAI[weekKey] = {
+              product_info: `${guideData.product_name}: ${weekData.mission}`,
+              required_dialogues: [],
+              required_scenes: [],
+              hashtags: [],
+              reference_urls: weekData.reference_url ? [weekData.reference_url] : []
+            }
           }
         }
+
+        // AI 가이드 저장 (challenge_weekly_guides_ai JSON - JSON.stringify)
+        const updateData = {
+          challenge_weekly_guides_ai: JSON.stringify(simpleGuidesAI),
+          guide_generated_at: new Date().toISOString()
+        }
+
+        const { error: aiUpdateError } = await client
+          .from('campaigns')
+          .update(updateData)
+          .eq('id', id)
+
+        if (aiUpdateError) throw aiUpdateError
       }
 
-      // AI 가이드 저장 (challenge_weekly_guides_ai JSON - JSON.stringify)
-      const updateData = {
-        challenge_weekly_guides_ai: JSON.stringify(simpleGuidesAI),
-        guide_generated_at: new Date().toISOString()
-      }
-
-      const { error: aiUpdateError } = await client
-        .from('campaigns')
-        .update(updateData)
-        .eq('id', id)
-
-      if (aiUpdateError) throw aiUpdateError
-
-      alert('4주 챌린지 가이드가 생성되었습니다! 가이드를 확인하고 결제를 진행하세요.')
+      alert('4주 챌린지 가이드가 저장되었습니다! 결제를 진행하세요.')
       navigate(`/company/campaigns/payment?id=${id}&region=korea`)
     } catch (error) {
       console.error('Error completing guide:', error)
@@ -416,6 +619,65 @@ JSON 형식으로 작성해주세요.`
   return (
     <>
       <CompanyNavigation />
+
+      {/* 주차별 가이드 취소 확인 모달 */}
+      {cancelWeek && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{cancelWeek}주차 가이드 취소</h3>
+                <p className="text-sm text-gray-500">이 작업은 되돌릴 수 없습니다</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-800 font-medium mb-2">주의사항:</p>
+              <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                <li>{cancelWeek}주차 가이드 데이터가 삭제됩니다</li>
+                <li>이미 크리에이터에게 전달된 경우 혼란이 발생할 수 있습니다</li>
+                <li>업로드된 PDF 파일은 스토리지에서 삭제되지 않습니다</li>
+              </ul>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              {cancelWeek}주차 가이드를 취소하고 다시 생성하시겠습니까?
+            </p>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setCancelWeek(null)}
+                disabled={cancelling}
+                className="flex-1"
+              >
+                닫기
+              </Button>
+              <Button
+                onClick={() => handleCancelWeekGuide(cancelWeek)}
+                disabled={cancelling}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    취소 중...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4 mr-2" />
+                    가이드 취소
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto p-6">
         <div className="mb-6">
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-6">
@@ -541,6 +803,89 @@ JSON 형식으로 작성해주세요.`
 
                 {isExpanded && (
                   <div className="mt-6 space-y-6">
+                    {/* 가이드 전달 완료 상태 표시 */}
+                    {weekGuideDelivered[weekKey] && (
+                      <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-semibold text-amber-800 mb-1">{weekNum}주차 가이드가 이미 등록되었습니다</p>
+                            <p className="text-sm text-amber-700 mb-3">
+                              {weekGuideModes[weekKey] === 'external'
+                                ? '외부 가이드(파일/URL)가 등록되어 있습니다.'
+                                : 'AI 가이드가 생성되어 있습니다.'}
+                              {' '}다시 생성하려면 기존 가이드를 취소해야 합니다.
+                            </p>
+                            <Button
+                              onClick={(e) => { e.stopPropagation(); setCancelWeek(weekNum); }}
+                              variant="outline"
+                              size="sm"
+                              className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              {weekNum}주차 가이드 취소하고 다시 생성
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 가이드 전달 모드 선택 (가이드가 없을 때만) */}
+                    {!weekGuideDelivered[weekKey] && (
+                    <>
+                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <p className="text-sm font-medium text-purple-900 mb-3">
+                        {weekNum}주차 가이드 전달 방식을 선택하세요
+                      </p>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`guide-mode-${weekKey}`}
+                            checked={weekGuideModes[weekKey] === 'ai'}
+                            onChange={() => setWeekGuideModes(prev => ({ ...prev, [weekKey]: 'ai' }))}
+                            className="w-4 h-4 text-purple-600"
+                          />
+                          <span className="text-sm">
+                            <Sparkles className="w-4 h-4 inline mr-1 text-purple-600" />
+                            AI 가이드 생성
+                          </span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={`guide-mode-${weekKey}`}
+                            checked={weekGuideModes[weekKey] === 'external'}
+                            onChange={() => setWeekGuideModes(prev => ({ ...prev, [weekKey]: 'external' }))}
+                            className="w-4 h-4 text-purple-600"
+                          />
+                          <span className="text-sm">
+                            <LinkIcon className="w-4 h-4 inline mr-1 text-blue-600" />
+                            PDF/URL 직접 등록
+                          </span>
+                        </label>
+                      </div>
+                      {weekGuideModes[weekKey] === 'external' && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          <CheckCircle className="w-3 h-3 inline mr-1 text-green-600" />
+                          외부 가이드를 등록하면 AI 가이드 생성 단계를 건너뜁니다.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 외부 가이드 업로더 (external 모드) */}
+                    {weekGuideModes[weekKey] === 'external' && (
+                      <ExternalGuideUploader
+                        value={weekExternalGuides[weekKey]}
+                        onChange={(data) => setWeekExternalGuides(prev => ({ ...prev, [weekKey]: data }))}
+                        campaignId={id}
+                        prefix={`${weekKey}_`}
+                      />
+                    )}
+
+                    {/* AI 가이드 입력 폼 (ai 모드) */}
+                    {weekGuideModes[weekKey] === 'ai' && (
+                    <>
                     {/* 미션 */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
@@ -632,6 +977,10 @@ JSON 형식으로 작성해주세요.`
                         placeholder="예: https://www.youtube.com/watch?v=..."
                       />
                     </div>
+                    </>
+                    )}
+                    </>
+                    )}
                   </div>
                 )}
               </div>
