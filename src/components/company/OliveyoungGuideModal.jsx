@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Edit, Save } from 'lucide-react'
+import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabaseKorea'
 
 export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
@@ -20,6 +20,30 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
 
   const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai)
   const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai)
+
+  // 외부 가이드 정보
+  const getExternalGuide = (stepNum) => {
+    const mode = campaign[`step${stepNum}_guide_mode`]
+    const url = campaign[`step${stepNum}_external_url`]
+    const fileUrl = campaign[`step${stepNum}_external_file_url`]
+    const fileName = campaign[`step${stepNum}_external_file_name`]
+    const title = campaign[`step${stepNum}_external_title`]
+
+    if (mode === 'external' && (url || fileUrl)) {
+      return {
+        type: fileUrl ? 'pdf' : 'url',
+        url: url,
+        fileUrl: fileUrl,
+        fileName: fileName,
+        title: title
+      }
+    }
+    return null
+  }
+
+  const step1External = getExternalGuide(1)
+  const step2External = getExternalGuide(2)
+  const step3External = getExternalGuide(3)
 
   // STEP 3 고정 안내 문구
   const step3Instruction = {
@@ -94,6 +118,15 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   const currentStepData = getCurrentStepData()
   const currentDeadline = getStepDeadline()
 
+  // 현재 스텝의 외부 가이드
+  const getCurrentExternalGuide = () => {
+    if (activeStep === 'step1') return step1External
+    if (activeStep === 'step2') return step2External
+    if (activeStep === 'step3') return step3External
+    return null
+  }
+  const currentExternalGuide = getCurrentExternalGuide()
+
   // Extract all fields from JSON (only for STEP 1 and 2)
   const productInfo = currentStepData?.product_info || ''
   const requiredDialogues = currentStepData?.required_dialogues || []
@@ -103,6 +136,7 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   const referenceUrls = currentStepData?.reference_urls || []
 
   const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
+  const hasExternalGuide = !!currentExternalGuide
 
   // STEP 3 story URL
   const storyUrl = campaign.oliveyoung_step3_guide || ''
@@ -244,7 +278,54 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
                 </div>
               )}
 
-              {hasContent ? (
+              {/* 외부 가이드 (PDF/URL) */}
+              {hasExternalGuide ? (
+                <div className="space-y-6">
+                  <div className={`rounded-xl border-2 overflow-hidden ${
+                    currentExternalGuide.type === 'pdf'
+                      ? 'border-red-200 bg-gradient-to-br from-red-50 to-orange-50'
+                      : 'border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50'
+                  }`}>
+                    <div className="p-8 text-center">
+                      <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                        currentExternalGuide.type === 'pdf'
+                          ? 'bg-gradient-to-br from-red-100 to-orange-100'
+                          : 'bg-gradient-to-br from-blue-100 to-cyan-100'
+                      }`}>
+                        {currentExternalGuide.type === 'pdf' ? (
+                          <FileText className="w-10 h-10 text-red-500" />
+                        ) : (
+                          <LinkIcon className="w-10 h-10 text-blue-500" />
+                        )}
+                      </div>
+
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">
+                        {currentExternalGuide.title || (currentExternalGuide.type === 'pdf' ? 'PDF 가이드' : '외부 가이드')}
+                      </h4>
+
+                      {currentExternalGuide.type === 'pdf' && currentExternalGuide.fileName && (
+                        <p className="text-sm text-gray-500 mb-4">
+                          파일명: {currentExternalGuide.fileName}
+                        </p>
+                      )}
+
+                      <a
+                        href={currentExternalGuide.type === 'pdf' ? currentExternalGuide.fileUrl : currentExternalGuide.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:scale-105 ${
+                          currentExternalGuide.type === 'pdf'
+                            ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
+                            : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
+                        }`}
+                      >
+                        <ExternalLink className="w-5 h-5" />
+                        {currentExternalGuide.type === 'pdf' ? 'PDF 열기' : '가이드 열기'}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ) : hasContent ? (
                 <div className="space-y-6">
                   {/* 제품 정보 */}
                   {(productInfo || isEditing) && (

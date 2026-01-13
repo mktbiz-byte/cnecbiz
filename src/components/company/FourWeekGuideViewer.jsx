@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Edit, Save } from 'lucide-react'
+import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabaseKorea'
 
 export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdit }) {
@@ -7,6 +7,26 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(null)
   const [saving, setSaving] = useState(false)
+
+  // 외부 가이드 정보 가져오기
+  const getExternalGuide = (weekKey) => {
+    const mode = campaign[`${weekKey}_guide_mode`]
+    const url = campaign[`${weekKey}_external_url`]
+    const fileUrl = campaign[`${weekKey}_external_file_url`]
+    const fileName = campaign[`${weekKey}_external_file_name`]
+    const title = campaign[`${weekKey}_external_title`]
+
+    if (mode === 'external' && (url || fileUrl)) {
+      return {
+        type: fileUrl ? 'pdf' : 'url',
+        url: url,
+        fileUrl: fileUrl,
+        fileName: fileName,
+        title: title
+      }
+    }
+    return null
+  }
 
   // Parse and merge challenge_weekly_guides and challenge_weekly_guides_ai
   const parseWeeklyGuides = () => {
@@ -174,17 +194,20 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
 
   const currentWeekData = getCurrentWeekData()
   const currentDeadline = getCurrentDeadline()
+  const currentExternalGuide = getExternalGuide(activeWeek)
 
   // Debug logging
   console.log('FourWeekGuideViewer Debug:', {
     activeWeek,
     currentWeekData,
+    currentExternalGuide,
     isSimpleFormat: currentWeekData?.is_simple,
     guideText: currentWeekData?.guide_text
   })
 
   // Check if it's simple text format
   const isSimpleFormat = currentWeekData?.is_simple
+  const hasExternalGuide = !!currentExternalGuide
 
   // Extract all fields from JSON (for object format)
   const productInfo = currentWeekData?.product_info || ''
@@ -293,7 +316,54 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
             </div>
           )}
 
-          {hasContent ? (
+          {/* 외부 가이드 (PDF/URL) */}
+          {hasExternalGuide ? (
+            <div className="space-y-6">
+              <div className={`rounded-xl border-2 overflow-hidden ${
+                currentExternalGuide.type === 'pdf'
+                  ? 'border-red-200 bg-gradient-to-br from-red-50 to-orange-50'
+                  : 'border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50'
+              }`}>
+                <div className="p-8 text-center">
+                  <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                    currentExternalGuide.type === 'pdf'
+                      ? 'bg-gradient-to-br from-red-100 to-orange-100'
+                      : 'bg-gradient-to-br from-blue-100 to-cyan-100'
+                  }`}>
+                    {currentExternalGuide.type === 'pdf' ? (
+                      <FileText className="w-10 h-10 text-red-500" />
+                    ) : (
+                      <LinkIcon className="w-10 h-10 text-blue-500" />
+                    )}
+                  </div>
+
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">
+                    {currentExternalGuide.title || (currentExternalGuide.type === 'pdf' ? 'PDF 가이드' : '외부 가이드')}
+                  </h4>
+
+                  {currentExternalGuide.type === 'pdf' && currentExternalGuide.fileName && (
+                    <p className="text-sm text-gray-500 mb-4">
+                      파일명: {currentExternalGuide.fileName}
+                    </p>
+                  )}
+
+                  <a
+                    href={currentExternalGuide.type === 'pdf' ? currentExternalGuide.fileUrl : currentExternalGuide.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:scale-105 ${
+                      currentExternalGuide.type === 'pdf'
+                        ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
+                        : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
+                    }`}
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    {currentExternalGuide.type === 'pdf' ? 'PDF 열기' : '가이드 열기'}
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : hasContent ? (
             <div className="space-y-6">
               {/* Simple text format */}
               {isSimpleFormat ? (
