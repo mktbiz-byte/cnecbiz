@@ -4462,11 +4462,14 @@ JSON만 출력.`
                         {/* 4주 챌린지 가이드 섹션 - 인라인 버튼 */}
                         {campaign.campaign_type === '4week_challenge' && (
                           <div className="flex items-center gap-1.5">
-                            {(campaign.challenge_weekly_guides_ai || campaign.week1_external_url || campaign.week1_external_file_url) ? (
+                            {participant.personalized_guide ? (
                               <>
                                 <Button
                                   size="sm"
-                                  onClick={() => setShow4WeekGuideModal(true)}
+                                  onClick={() => {
+                                    setSelectedGuide(participant)
+                                    setShowGuideModal(true)
+                                  }}
                                   className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-xs px-3 py-1 h-auto"
                                 >
                                   <Eye className="w-3 h-3 mr-1" />
@@ -4477,8 +4480,8 @@ JSON만 출력.`
                                     size="sm"
                                     variant="outline"
                                     onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 4주 챌린지 가이드를 전달하시겠습니까?`)) return
-                                      await handleDeliver4WeekGuideByWeek(1)
+                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                      await handleGuideApproval([participant.id])
                                     }}
                                     className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
@@ -4509,7 +4512,18 @@ JSON만 출력.`
                                 )}
                               </>
                             ) : (
-                              <span className="text-gray-500 text-xs">가이드 생성 필요</span>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                가이드 전달
+                              </Button>
                             )}
                           </div>
                         )}
@@ -4517,11 +4531,14 @@ JSON만 출력.`
                         {/* 올영 가이드 섹션 - 인라인 버튼 */}
                         {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
                           <div className="flex items-center gap-1.5">
-                            {(campaign.oliveyoung_step1_guide_ai || campaign.step1_external_url || campaign.step1_external_file_url) ? (
+                            {participant.personalized_guide ? (
                               <>
                                 <Button
                                   size="sm"
-                                  onClick={() => setShowOliveyoungGuideModal(true)}
+                                  onClick={() => {
+                                    setSelectedGuide(participant)
+                                    setShowGuideModal(true)
+                                  }}
                                   className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
                                 >
                                   <Eye className="w-3 h-3 mr-1" />
@@ -4532,8 +4549,8 @@ JSON만 출력.`
                                     size="sm"
                                     variant="outline"
                                     onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 올영 가이드를 전달하시겠습니까?`)) return
-                                      await handleDeliverOliveYoungGuide()
+                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                      await handleGuideApproval([participant.id])
                                     }}
                                     className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
                                   >
@@ -4564,7 +4581,18 @@ JSON만 출력.`
                                 )}
                               </>
                             ) : (
-                              <span className="text-gray-500 text-xs">가이드 생성 필요</span>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                가이드 전달
+                              </Button>
                             )}
                           </div>
                         )}
