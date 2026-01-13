@@ -4332,10 +4332,21 @@ JSON만 출력.`
                                     전달하기
                                   </Button>
                                 ) : (
-                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
-                                    <CheckCircle className="w-3 h-3" />
-                                    전달완료
-                                  </span>
+                                  <>
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                      <CheckCircle className="w-3 h-3" />
+                                      전달완료
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      취소
+                                    </Button>
+                                  </>
                                 )}
                               </>
                             ) : (
@@ -4410,10 +4421,21 @@ JSON만 출력.`
                                     전달하기
                                   </Button>
                                 ) : (
-                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
-                                    <CheckCircle className="w-3 h-3" />
-                                    전달완료
-                                  </span>
+                                  <>
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                      <CheckCircle className="w-3 h-3" />
+                                      전달완료
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      취소
+                                    </Button>
+                                  </>
                                 )}
                               </>
                             ) : (
@@ -4456,6 +4478,33 @@ JSON만 출력.`
     } catch (error) {
       console.error('Error updating creator status:', error)
       alert('상태 업데이트에 실패했습니다.')
+    }
+  }
+
+  // 가이드 전달 취소 함수
+  const handleCancelGuideDelivery = async (participantId, creatorName) => {
+    if (!confirm(`${creatorName}님의 가이드 전달을 취소하시겠습니까?\n\n취소 후 다시 전달할 수 있습니다.`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('applications')
+        .update({
+          guide_confirmed: false,
+          guide_delivered_at: null,
+          status: 'selected' // 선정됨 상태로 되돌림
+        })
+        .eq('id', participantId)
+
+      if (error) throw error
+
+      // 참여자 목록 재로드
+      await fetchParticipants()
+      alert(`${creatorName}님의 가이드 전달이 취소되었습니다. 다시 전달할 수 있습니다.`)
+    } catch (error) {
+      console.error('Error cancelling guide delivery:', error)
+      alert('가이드 전달 취소에 실패했습니다: ' + error.message)
     }
   }
 
