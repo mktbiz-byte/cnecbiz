@@ -91,14 +91,14 @@ export default function ExternalGuideUploader({
 
     try {
       const timestamp = Date.now()
-      const fileName = `${prefix}guide_${campaignId}_${timestamp}.pdf`
+      const fileName = `guides/${prefix}guide_${campaignId}_${timestamp}.pdf`
 
       // 기존 파일이 있으면 삭제
       if (value.fileUrl && value.fileName) {
         try {
           await client
             .storage
-            .from('campaign-guides')
+            .from('campaign-images')
             .remove([value.fileName])
         } catch (e) {
           console.warn('기존 파일 삭제 실패:', e)
@@ -108,7 +108,7 @@ export default function ExternalGuideUploader({
       // 새 파일 업로드
       const { error: uploadError } = await client
         .storage
-        .from('campaign-guides')
+        .from('campaign-images')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: true
@@ -119,7 +119,7 @@ export default function ExternalGuideUploader({
       // Public URL 가져오기
       const { data: { publicUrl } } = client
         .storage
-        .from('campaign-guides')
+        .from('campaign-images')
         .getPublicUrl(fileName)
 
       onChange({
@@ -151,7 +151,7 @@ export default function ExternalGuideUploader({
     try {
       await client
         .storage
-        .from('campaign-guides')
+        .from('campaign-images')
         .remove([value.fileName])
 
       onChange({
