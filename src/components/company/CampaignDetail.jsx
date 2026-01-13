@@ -2735,12 +2735,33 @@ JSON만 출력.`
             .maybeSingle()
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
-          // 기획형: content_submission_deadline → start_date fallback
-          const regularDeadline = campaign.content_submission_deadline || campaign.start_date
-          const deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
 
-          // 재전달 여부 확인 (personalized_guide가 있으면 재전달)
-          const isRedelivery = !!participant.personalized_guide
+          // 캠페인 타입별 마감일 처리
+          let deadlineText = '미정'
+          if (campaign.campaign_type === '4week_challenge') {
+            // 4주 챌린지: 각 주차별 마감일
+            const deadlines = [
+              campaign.week1_deadline ? `1주: ${new Date(campaign.week1_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week2_deadline ? `2주: ${new Date(campaign.week2_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week3_deadline ? `3주: ${new Date(campaign.week3_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week4_deadline ? `4주: ${new Date(campaign.week4_deadline).toLocaleDateString('ko-KR')}` : null
+            ].filter(Boolean)
+            deadlineText = deadlines.length > 0 ? deadlines.join(', ') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') {
+            // 올영: STEP별 마감일
+            const deadlines = [
+              campaign.step1_deadline ? `1차: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.step2_deadline ? `2차: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : null
+            ].filter(Boolean)
+            deadlineText = deadlines.length > 0 ? deadlines.join(', ') : '미정'
+          } else {
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
+          }
+
+          // 재전달 여부 확인 (이미 filming 상태인 경우 = 이전에 가이드를 전달받은 적 있음)
+          const isRedelivery = participant.status === 'filming'
           const campaignNameForNotification = isRedelivery ? `[재전달] ${campaign.title}` : campaign.title
 
           // 팝빌 알림톡 발송
