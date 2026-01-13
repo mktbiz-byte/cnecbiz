@@ -202,6 +202,9 @@ export default function CampaignDetail() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
   const [creatorForSetup, setCreatorForSetup] = useState(null)
+  const [showGuideSelectModal, setShowGuideSelectModal] = useState(false) // 가이드 유형 선택 모달
+  const [selectedParticipantForGuide, setSelectedParticipantForGuide] = useState(null) // 가이드 생성 대상 참여자
+  const [externalGuideUrl, setExternalGuideUrl] = useState('') // 외부 가이드 URL
   // Address editing state
   const [editingAddressFor, setEditingAddressFor] = useState(null)
   const [addressFormData, setAddressFormData] = useState({
@@ -4376,14 +4379,15 @@ JSON만 출력.`
                             ) : (
                               <Button
                                 size="sm"
-                                onClick={async () => {
-                                  if (!confirm(`${creatorName}님의 맞춤 가이드를 생성하시겠습니까?`)) return
-                                  await handleGeneratePersonalizedGuides([participant])
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideUrl('')
+                                  setShowGuideSelectModal(true)
                                 }}
                                 className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
                               >
                                 <Sparkles className="w-3 h-3 mr-1" />
-                                AI 가이드 생성
+                                가이드 전달
                               </Button>
                             )}
                           </div>
@@ -8854,6 +8858,120 @@ JSON만 출력.`
         creator={creatorForSetup}
         campaign={campaign}
       />
+
+      {/* 가이드 유형 선택 모달 (AI vs 파일/URL) */}
+      {showGuideSelectModal && selectedParticipantForGuide && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-5 text-white relative">
+              <button
+                onClick={() => {
+                  setShowGuideSelectModal(false)
+                  setSelectedParticipantForGuide(null)
+                  setExternalGuideUrl('')
+                }}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">가이드 전달 방식 선택</h2>
+                  <p className="text-sm opacity-90">{selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name}님</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 space-y-4">
+              {/* AI 가이드 생성 옵션 */}
+              <button
+                onClick={async () => {
+                  const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                  if (!confirm(`${creatorName}님의 AI 맞춤 가이드를 생성하시겠습니까?`)) return
+                  setShowGuideSelectModal(false)
+                  await handleGeneratePersonalizedGuides([selectedParticipantForGuide])
+                  setSelectedParticipantForGuide(null)
+                }}
+                className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Sparkles className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                    <p className="text-sm text-gray-500">크리에이터 맞춤형 가이드를 AI가 자동 생성</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* 파일/URL 전달 옵션 */}
+              <div className="p-4 border-2 border-blue-200 rounded-xl">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Link className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">파일/URL 전달</h3>
+                    <p className="text-sm text-gray-500">구글 슬라이드, PDF 등 외부 링크 전달</p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <input
+                    type="url"
+                    value={externalGuideUrl}
+                    onChange={(e) => setExternalGuideUrl(e.target.value)}
+                    placeholder="https://docs.google.com/presentation/..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Button
+                    onClick={async () => {
+                      if (!externalGuideUrl.trim()) {
+                        alert('URL을 입력해주세요.')
+                        return
+                      }
+                      const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                      if (!confirm(`${creatorName}님에게 외부 가이드 URL을 전달하시겠습니까?`)) return
+
+                      try {
+                        // 외부 가이드 URL을 personalized_guide에 저장
+                        const { error } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: JSON.stringify({ type: 'external_url', url: externalGuideUrl }),
+                            guide_delivered_at: new Date().toISOString(),
+                            status: 'filming'
+                          })
+                          .eq('id', selectedParticipantForGuide.id)
+
+                        if (error) throw error
+
+                        alert(`${creatorName}님에게 가이드 URL이 전달되었습니다.`)
+                        setShowGuideSelectModal(false)
+                        setSelectedParticipantForGuide(null)
+                        setExternalGuideUrl('')
+                        await fetchParticipants()
+                      } catch (error) {
+                        console.error('Error saving external guide URL:', error)
+                        alert('가이드 URL 저장에 실패했습니다: ' + error.message)
+                      }
+                    }}
+                    disabled={!externalGuideUrl.trim()}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    URL 전달하기
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 캠페인 정보 팝업 */}
       {showCampaignGuidePopup && campaign && (
