@@ -4499,8 +4499,18 @@ JSON만 출력.`
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    setSelectedGuide(participant)
-                                    setShowGuideModal(true)
+                                    // 가이드 타입 확인
+                                    let guideData = participant.personalized_guide
+                                    if (typeof guideData === 'string') {
+                                      try { guideData = JSON.parse(guideData) } catch { guideData = {} }
+                                    }
+                                    // 4week_ai 타입이면 캠페인 가이드 모달 열기
+                                    if (guideData?.type === '4week_ai') {
+                                      setShow4WeekGuideModal(true)
+                                    } else {
+                                      setSelectedGuide(participant)
+                                      setShowGuideModal(true)
+                                    }
                                   }}
                                   className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-xs px-3 py-1 h-auto"
                                 >
@@ -4579,8 +4589,18 @@ JSON만 출력.`
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    setSelectedGuide(participant)
-                                    setShowGuideModal(true)
+                                    // 가이드 타입 확인
+                                    let guideData = participant.personalized_guide
+                                    if (typeof guideData === 'string') {
+                                      try { guideData = JSON.parse(guideData) } catch { guideData = {} }
+                                    }
+                                    // oliveyoung_ai 타입이면 캠페인 가이드 모달 열기
+                                    if (guideData?.type === 'oliveyoung_ai') {
+                                      setShowOliveyoungGuideModal(true)
+                                    } else {
+                                      setSelectedGuide(participant)
+                                      setShowGuideModal(true)
+                                    }
                                   }}
                                   className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
                                 >
