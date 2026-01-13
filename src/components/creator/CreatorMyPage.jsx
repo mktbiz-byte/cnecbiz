@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseKorea } from '../../lib/supabaseClients'
 import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare, Key, Shield, EyeOff, Loader2 } from 'lucide-react'
+import ExternalGuideViewer from '../common/ExternalGuideViewer'
 
 const CreatorMyPage = () => {
   const navigate = useNavigate()
@@ -589,6 +590,21 @@ const CreatorMyPage = () => {
                   </h3>
                   <div className="bg-gray-50 rounded-lg p-4">
                     {(() => {
+                      // 외부 가이드 모드 체크
+                      const campaignData = campaign.campaigns || {}
+                      if (campaignData.guide_delivery_mode === 'external') {
+                        return (
+                          <ExternalGuideViewer
+                            type={campaignData.external_guide_type}
+                            url={campaignData.external_guide_url}
+                            fileUrl={campaignData.external_guide_file_url}
+                            title={campaignData.external_guide_title}
+                            fileName={campaignData.external_guide_file_name}
+                          />
+                        )
+                      }
+
+                      // 기존 AI 가이드 로직
                       const guide = getCampaignGuide(campaign)
                       
                       // Try to parse as JSON for structured guide

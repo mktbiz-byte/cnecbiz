@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, Sparkles } from 'lucide-react'
+import { Loader2, AlertCircle, Sparkles, FileText, CheckCircle } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
+import GuideDeliveryModeSelector from '../common/GuideDeliveryModeSelector'
+import ExternalGuideUploader from '../common/ExternalGuideUploader'
 
 export default function CampaignGuide() {
   const { id } = useParams()
@@ -21,6 +23,18 @@ export default function CampaignGuide() {
   })
 
   const [creatorAutonomy, setCreatorAutonomy] = useState(false)
+
+  // 가이드 전달 모드 ('ai' | 'external')
+  const [guideDeliveryMode, setGuideDeliveryMode] = useState('ai')
+
+  // 외부 가이드 데이터
+  const [externalGuide, setExternalGuide] = useState({
+    type: null,
+    url: null,
+    fileUrl: null,
+    fileName: null,
+    title: ''
+  })
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -50,6 +64,20 @@ export default function CampaignGuide() {
         product_key_points: data.product_key_points || ''
       })
       setCreatorAutonomy(data.creator_autonomy || false)
+
+      // 가이드 전달 모드 로드
+      setGuideDeliveryMode(data.guide_delivery_mode || 'ai')
+
+      // 외부 가이드 데이터 로드
+      if (data.guide_delivery_mode === 'external') {
+        setExternalGuide({
+          type: data.external_guide_type || null,
+          url: data.external_guide_url || null,
+          fileUrl: data.external_guide_file_url || null,
+          fileName: data.external_guide_file_name || null,
+          title: data.external_guide_title || ''
+        })
+      }
     } catch (error) {
       console.error('Error loading campaign:', error)
       alert('캠페인을 불러오는데 실패했습니다.')
@@ -61,15 +89,29 @@ export default function CampaignGuide() {
 
     try {
       const client = supabaseKorea || supabaseBiz
+
+      // 기본 업데이트 데이터
+      const updateData = {
+        brand: productData.brand,
+        product_name: productData.product_name,
+        product_features: productData.product_features,
+        product_key_points: productData.product_key_points,
+        creator_autonomy: creatorAutonomy,
+        guide_delivery_mode: guideDeliveryMode
+      }
+
+      // 외부 가이드 모드일 때 추가 데이터
+      if (guideDeliveryMode === 'external') {
+        updateData.external_guide_type = externalGuide.type
+        updateData.external_guide_url = externalGuide.url
+        updateData.external_guide_file_url = externalGuide.fileUrl
+        updateData.external_guide_file_name = externalGuide.fileName
+        updateData.external_guide_title = externalGuide.title
+      }
+
       const { error } = await client
         .from('campaigns')
-        .update({
-          brand: productData.brand,
-          product_name: productData.product_name,
-          product_features: productData.product_features,
-          product_key_points: productData.product_key_points,
-          creator_autonomy: creatorAutonomy
-        })
+        .update(updateData)
         .eq('id', id)
 
       if (error) throw error
@@ -84,6 +126,51 @@ export default function CampaignGuide() {
   }
 
   const handleGenerateGuide = async () => {
+    // 외부 가이드 모드일 때 처리
+    if (guideDeliveryMode === 'external') {
+      // 외부 가이드 필수 체크
+      if (!externalGuide.url && !externalGuide.fileUrl) {
+        alert('PDF 파일을 업로드하거나 Google 문서 URL을 입력해주세요.')
+        return
+      }
+
+      setGenerating(true)
+
+      try {
+        const client = supabaseKorea || supabaseBiz
+
+        const { error } = await client
+          .from('campaigns')
+          .update({
+            brand: productData.brand,
+            product_name: productData.product_name,
+            product_features: productData.product_features,
+            product_key_points: productData.product_key_points,
+            creator_autonomy: creatorAutonomy,
+            guide_delivery_mode: 'external',
+            external_guide_type: externalGuide.type,
+            external_guide_url: externalGuide.url,
+            external_guide_file_url: externalGuide.fileUrl,
+            external_guide_file_name: externalGuide.fileName,
+            external_guide_title: externalGuide.title,
+            guide_generated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+
+        if (error) throw error
+
+        alert('가이드가 등록되었습니다! 결제 페이지로 이동합니다.')
+        navigate(`/company/campaigns/${id}/invoice?region=korea`)
+      } catch (error) {
+        console.error('Error saving external guide:', error)
+        alert('가이드 저장 중 오류가 발생했습니다: ' + error.message)
+      } finally {
+        setGenerating(false)
+      }
+      return
+    }
+
+    // AI 가이드 모드일 때 (기존 로직)
     // 필수 항목 체크
     if (!productData.brand || !productData.product_name || !productData.product_features || !productData.product_key_points) {
       alert('모든 항목을 입력해주세요.')
@@ -102,7 +189,8 @@ export default function CampaignGuide() {
           product_name: productData.product_name,
           product_features: productData.product_features,
           product_key_points: productData.product_key_points,
-          creator_autonomy: creatorAutonomy
+          creator_autonomy: creatorAutonomy,
+          guide_delivery_mode: 'ai'
         })
         .eq('id', id)
 
@@ -137,7 +225,7 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
       })
 
       if (!response.ok) throw new Error('AI 생성 실패')
-      
+
       const data = await response.json()
       const generatedGuide = data.candidates[0].content.parts[0].text
 
@@ -191,26 +279,62 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
           </div>
         </div>
 
-        {/* 크리에이터 자율성 체크박스 */}
-        <div className="bg-white rounded-lg border p-6">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={creatorAutonomy}
-              onChange={(e) => setCreatorAutonomy(e.target.checked)}
-              className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        {/* 가이드 전달 방식 선택 */}
+        <GuideDeliveryModeSelector
+          mode={guideDeliveryMode}
+          onModeChange={setGuideDeliveryMode}
+          className="mb-6"
+        />
+
+        {/* 외부 가이드 업로드 (외부 가이드 모드일 때만) */}
+        {guideDeliveryMode === 'external' && (
+          <div className="mb-6">
+            <ExternalGuideUploader
+              value={externalGuide}
+              onChange={setExternalGuide}
+              campaignId={id}
+              prefix=""
             />
-            <div>
-              <p className="text-base font-semibold text-gray-900">
-                촬영 장면 및 대사는 크리에이터 자율로 하겠습니다
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                체크 시 크리에이터가 제품 소개 방식을 자유롭게 결정할 수 있습니다.
-                단, 핵심 소구 포인트는 반드시 포함되어야 합니다.
-              </p>
+
+            {/* 외부 가이드 등록 완료 상태 표시 */}
+            {(externalGuide.url || externalGuide.fileUrl) && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-green-800">
+                  <p className="font-semibold">가이드가 준비되었습니다</p>
+                  <p className="mt-1">
+                    {externalGuide.type === 'pdf' ? 'PDF 파일이 업로드' : 'Google 문서 URL이 등록'}되었습니다.
+                    아래 "가이드 등록" 버튼을 눌러 완료해주세요.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI 모드일 때만 크리에이터 자율성 체크박스와 제품 정보 입력 표시 */}
+        {guideDeliveryMode === 'ai' && (
+          <>
+            {/* 크리에이터 자율성 체크박스 */}
+            <div className="bg-white rounded-lg border p-6">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={creatorAutonomy}
+                  onChange={(e) => setCreatorAutonomy(e.target.checked)}
+                  className="mt-1 w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <div>
+                  <p className="text-base font-semibold text-gray-900">
+                    촬영 장면 및 대사는 크리에이터 자율로 하겠습니다
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    체크 시 크리에이터가 제품 소개 방식을 자유롭게 결정할 수 있습니다.
+                    단, 핵심 소구 포인트는 반드시 포함되어야 합니다.
+                  </p>
+                </div>
+              </label>
             </div>
-          </label>
-        </div>
 
         <div className="space-y-6">
           {/* 브랜드명 */}
@@ -279,6 +403,8 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
             />
           </div>
         </div>
+          </>
+        )}
 
         {/* 버튼 */}
         <div className="flex gap-4 mt-8">
@@ -303,17 +429,30 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
             type="button"
             onClick={handleGenerateGuide}
             disabled={loading || generating}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            className={`flex-1 ${
+              guideDeliveryMode === 'external'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
+                : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+            }`}
           >
             {generating ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                가이드 생성 중...
+                {guideDeliveryMode === 'external' ? '등록 중...' : '가이드 생성 중...'}
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                가이드 생성
+                {guideDeliveryMode === 'external' ? (
+                  <>
+                    <FileText className="w-4 h-4 mr-2" />
+                    가이드 등록
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    가이드 생성
+                  </>
+                )}
               </>
             )}
           </Button>
