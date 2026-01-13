@@ -5566,26 +5566,6 @@ JSON만 출력.`
                       </Button>
                     </label>
 
-                    {/* 가이드 관리 페이지 이동 (AI/파일 선택) */}
-                    {region === 'korea' && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') {
-                            navigate(`/company/campaigns/guide/oliveyoung?id=${id}`)
-                          } else if (campaign.campaign_type === '4week_challenge') {
-                            navigate(`/company/campaigns/guide/4week?id=${id}`)
-                          } else {
-                            navigate(`/company/campaigns/guide?id=${id}`)
-                          }
-                        }}
-                        className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white border-0"
-                      >
-                        <Edit3 className="w-4 h-4 mr-2" />
-                        가이드 관리
-                      </Button>
-                    )}
-
                     <Button
                       variant="outline"
                       onClick={() => setShowCampaignGuidePopup(true)}
