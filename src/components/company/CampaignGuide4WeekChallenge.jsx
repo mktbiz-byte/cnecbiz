@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X, Package, FileText, Info, Calendar, Sparkles, Link as LinkIcon, CheckCircle } from 'lucide-react'
+import { Loader2, AlertCircle, ChevronDown, ChevronUp, Lightbulb, X, Package, FileText, Info, Calendar, Sparkles, Link as LinkIcon, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 import { missionExamples } from './missionExamples'
 import ExternalGuideUploader from '../common/ExternalGuideUploader'
@@ -13,11 +13,18 @@ export default function CampaignGuide4WeekChallenge() {
   const id = searchParams.get('id')
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelWeek, setCancelWeek] = useState(null) // 취소할 주차
   const [campaign, setCampaign] = useState(null)
   const [expandedWeek, setExpandedWeek] = useState(1)
   const [showExamplesModal, setShowExamplesModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('skinTrouble')
   const [currentWeekForExample, setCurrentWeekForExample] = useState(1)
+
+  // 주차별 가이드 전달 완료 상태
+  const [weekGuideDelivered, setWeekGuideDelivered] = useState({
+    week1: false, week2: false, week3: false, week4: false
+  })
   
   const [guideData, setGuideData] = useState({
     brand: '',
@@ -169,9 +176,70 @@ export default function CampaignGuide4WeekChallenge() {
           title: data.week4_external_title || ''
         }
       })
+
+      // 주차별 가이드 전달 완료 상태 확인
+      const weeklyAiGuides = data.challenge_weekly_guides_ai || {}
+      setWeekGuideDelivered({
+        week1: !!(weeklyAiGuides.week1 || data.week1_external_url || data.week1_external_file_url),
+        week2: !!(weeklyAiGuides.week2 || data.week2_external_url || data.week2_external_file_url),
+        week3: !!(weeklyAiGuides.week3 || data.week3_external_url || data.week3_external_file_url),
+        week4: !!(weeklyAiGuides.week4 || data.week4_external_url || data.week4_external_file_url)
+      })
     } catch (error) {
       console.error('Error loading campaign:', error)
       alert('캠페인을 불러오는데 실패했습니다.')
+    }
+  }
+
+  // 주차별 가이드 취소 함수
+  const handleCancelWeekGuide = async (weekNum) => {
+    setCancelling(true)
+
+    try {
+      const client = supabaseKorea || supabaseBiz
+      const weekKey = `week${weekNum}`
+
+      // 해당 주차의 AI 가이드 초기화
+      const currentAiGuides = campaign.challenge_weekly_guides_ai || {}
+      const updatedAiGuides = { ...currentAiGuides }
+      delete updatedAiGuides[weekKey]
+
+      // 업데이트할 데이터
+      const updateData = {
+        challenge_weekly_guides_ai: Object.keys(updatedAiGuides).length > 0 ? updatedAiGuides : null,
+        [`${weekKey}_guide_mode`]: null,
+        [`${weekKey}_external_type`]: null,
+        [`${weekKey}_external_url`]: null,
+        [`${weekKey}_external_file_url`]: null,
+        [`${weekKey}_external_file_name`]: null,
+        [`${weekKey}_external_title`]: null
+      }
+
+      const { error } = await client
+        .from('campaigns')
+        .update(updateData)
+        .eq('id', id)
+
+      if (error) throw error
+
+      // 상태 초기화
+      setWeekGuideDelivered(prev => ({ ...prev, [weekKey]: false }))
+      setWeekGuideModes(prev => ({ ...prev, [weekKey]: 'ai' }))
+      setWeekExternalGuides(prev => ({
+        ...prev,
+        [weekKey]: { type: null, url: null, fileUrl: null, fileName: null, title: '' }
+      }))
+      setCancelWeek(null)
+
+      alert(`${weekNum}주차 가이드가 취소되었습니다. 다시 생성할 수 있습니다.`)
+
+      // 캠페인 데이터 다시 로드
+      loadCampaign()
+    } catch (error) {
+      console.error('Error cancelling week guide:', error)
+      alert('가이드 취소 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -551,6 +619,65 @@ JSON 형식으로 작성해주세요.`
   return (
     <>
       <CompanyNavigation />
+
+      {/* 주차별 가이드 취소 확인 모달 */}
+      {cancelWeek && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{cancelWeek}주차 가이드 취소</h3>
+                <p className="text-sm text-gray-500">이 작업은 되돌릴 수 없습니다</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-800 font-medium mb-2">주의사항:</p>
+              <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                <li>{cancelWeek}주차 가이드 데이터가 삭제됩니다</li>
+                <li>이미 크리에이터에게 전달된 경우 혼란이 발생할 수 있습니다</li>
+                <li>업로드된 PDF 파일은 스토리지에서 삭제되지 않습니다</li>
+              </ul>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              {cancelWeek}주차 가이드를 취소하고 다시 생성하시겠습니까?
+            </p>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setCancelWeek(null)}
+                disabled={cancelling}
+                className="flex-1"
+              >
+                닫기
+              </Button>
+              <Button
+                onClick={() => handleCancelWeekGuide(cancelWeek)}
+                disabled={cancelling}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    취소 중...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4 mr-2" />
+                    가이드 취소
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto p-6">
         <div className="mb-6">
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg p-6">
@@ -676,7 +803,36 @@ JSON 형식으로 작성해주세요.`
 
                 {isExpanded && (
                   <div className="mt-6 space-y-6">
-                    {/* 가이드 전달 모드 선택 */}
+                    {/* 가이드 전달 완료 상태 표시 */}
+                    {weekGuideDelivered[weekKey] && (
+                      <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-semibold text-amber-800 mb-1">{weekNum}주차 가이드가 이미 등록되었습니다</p>
+                            <p className="text-sm text-amber-700 mb-3">
+                              {weekGuideModes[weekKey] === 'external'
+                                ? '외부 가이드(파일/URL)가 등록되어 있습니다.'
+                                : 'AI 가이드가 생성되어 있습니다.'}
+                              {' '}다시 생성하려면 기존 가이드를 취소해야 합니다.
+                            </p>
+                            <Button
+                              onClick={(e) => { e.stopPropagation(); setCancelWeek(weekNum); }}
+                              variant="outline"
+                              size="sm"
+                              className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              {weekNum}주차 가이드 취소하고 다시 생성
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 가이드 전달 모드 선택 (가이드가 없을 때만) */}
+                    {!weekGuideDelivered[weekKey] && (
+                    <>
                     <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
                       <p className="text-sm font-medium text-purple-900 mb-3">
                         {weekNum}주차 가이드 전달 방식을 선택하세요
@@ -821,6 +977,8 @@ JSON 형식으로 작성해주세요.`
                         placeholder="예: https://www.youtube.com/watch?v=..."
                       />
                     </div>
+                    </>
+                    )}
                     </>
                     )}
                   </div>

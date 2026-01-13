@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, Sparkles, Package, FileText, Info, CheckCircle2, Link as LinkIcon, CheckCircle } from 'lucide-react'
+import { Loader2, AlertCircle, Sparkles, Package, FileText, Info, CheckCircle2, Link as LinkIcon, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
 import ExternalGuideUploader from '../common/ExternalGuideUploader'
 
@@ -13,7 +13,14 @@ export default function CampaignGuideOliveYoung() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [cancelStep, setCancelStep] = useState(null) // 취소할 STEP
   const [campaign, setCampaign] = useState(null)
+
+  // STEP별 가이드 전달 완료 상태
+  const [stepGuideDelivered, setStepGuideDelivered] = useState({
+    step1: false, step2: false, step3: false
+  })
   
   const [productData, setProductData] = useState({
     brand: '',
@@ -103,9 +110,63 @@ export default function CampaignGuideOliveYoung() {
           title: data.step3_external_title || ''
         }
       })
+
+      // STEP별 가이드 전달 완료 상태 확인
+      setStepGuideDelivered({
+        step1: !!(data.oliveyoung_step1_guide_ai || data.step1_external_url || data.step1_external_file_url),
+        step2: !!(data.oliveyoung_step2_guide_ai || data.step2_external_url || data.step2_external_file_url),
+        step3: !!(data.oliveyoung_step3_guide_ai || data.step3_external_url || data.step3_external_file_url)
+      })
     } catch (error) {
       console.error('Error loading campaign:', error)
       alert('캠페인을 불러오는데 실패했습니다.')
+    }
+  }
+
+  // STEP별 가이드 취소 함수
+  const handleCancelStepGuide = async (stepNum) => {
+    setCancelling(true)
+
+    try {
+      const client = supabaseKorea || supabaseBiz
+      const stepKey = `step${stepNum}`
+
+      // 업데이트할 데이터
+      const updateData = {
+        [`oliveyoung_${stepKey}_guide_ai`]: null,
+        [`${stepKey}_guide_mode`]: null,
+        [`${stepKey}_external_type`]: null,
+        [`${stepKey}_external_url`]: null,
+        [`${stepKey}_external_file_url`]: null,
+        [`${stepKey}_external_file_name`]: null,
+        [`${stepKey}_external_title`]: null
+      }
+
+      const { error } = await client
+        .from('campaigns')
+        .update(updateData)
+        .eq('id', id)
+
+      if (error) throw error
+
+      // 상태 초기화
+      setStepGuideDelivered(prev => ({ ...prev, [stepKey]: false }))
+      setStepGuideModes(prev => ({ ...prev, [stepKey]: 'ai' }))
+      setStepExternalGuides(prev => ({
+        ...prev,
+        [stepKey]: { type: null, url: null, fileUrl: null, fileName: null, title: '' }
+      }))
+      setCancelStep(null)
+
+      alert(`STEP ${stepNum} 가이드가 취소되었습니다. 다시 생성할 수 있습니다.`)
+
+      // 캠페인 데이터 다시 로드
+      loadCampaign()
+    } catch (error) {
+      console.error('Error cancelling step guide:', error)
+      alert('가이드 취소 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -350,6 +411,65 @@ JSON 형식으로 응답해주세요:
   return (
     <>
       <CompanyNavigation />
+
+      {/* STEP별 가이드 취소 확인 모달 */}
+      {cancelStep && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">STEP {cancelStep} 가이드 취소</h3>
+                <p className="text-sm text-gray-500">이 작업은 되돌릴 수 없습니다</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-800 font-medium mb-2">주의사항:</p>
+              <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                <li>STEP {cancelStep} 가이드 데이터가 삭제됩니다</li>
+                <li>이미 크리에이터에게 전달된 경우 혼란이 발생할 수 있습니다</li>
+                <li>업로드된 PDF 파일은 스토리지에서 삭제되지 않습니다</li>
+              </ul>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              STEP {cancelStep} 가이드를 취소하고 다시 생성하시겠습니까?
+            </p>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setCancelStep(null)}
+                disabled={cancelling}
+                className="flex-1"
+              >
+                닫기
+              </Button>
+              <Button
+                onClick={() => handleCancelStepGuide(cancelStep)}
+                disabled={cancelling}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    취소 중...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4 mr-2" />
+                    가이드 취소
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-6">
           <div className="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-pink-200 rounded-lg p-6">
@@ -458,7 +578,36 @@ JSON 형식으로 응답해주세요:
               마감일: <span className="font-semibold">{campaign.step1_deadline || '미설정'}</span>
             </p>
 
-            {/* 가이드 전달 모드 선택 */}
+            {/* 가이드 전달 완료 상태 표시 */}
+            {stepGuideDelivered.step1 && (
+              <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-800 mb-1">STEP 1 가이드가 이미 등록되었습니다</p>
+                    <p className="text-sm text-amber-700 mb-3">
+                      {stepGuideModes.step1 === 'external'
+                        ? '외부 가이드(파일/URL)가 등록되어 있습니다.'
+                        : 'AI 가이드가 생성되어 있습니다.'}
+                      {' '}다시 생성하려면 기존 가이드를 취소해야 합니다.
+                    </p>
+                    <Button
+                      onClick={() => setCancelStep(1)}
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      STEP 1 가이드 취소하고 다시 생성
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 가이드 전달 모드 선택 (가이드가 없을 때만) */}
+            {!stepGuideDelivered.step1 && (
+            <>
             <div className="p-4 bg-pink-50 rounded-lg border border-pink-200 mb-4">
               <p className="text-sm font-medium text-pink-900 mb-3">
                 STEP 1 가이드 전달 방식을 선택하세요
@@ -524,6 +673,8 @@ JSON 형식으로 응답해주세요:
                 />
               </>
             )}
+            </>
+            )}
           </div>
 
           {/* STEP 2: 세일 홍보 가이드 */}
@@ -536,7 +687,36 @@ JSON 형식으로 응답해주세요:
               마감일: <span className="font-semibold">{campaign.step2_deadline || '미설정'}</span>
             </p>
 
-            {/* 가이드 전달 모드 선택 */}
+            {/* 가이드 전달 완료 상태 표시 */}
+            {stepGuideDelivered.step2 && (
+              <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-800 mb-1">STEP 2 가이드가 이미 등록되었습니다</p>
+                    <p className="text-sm text-amber-700 mb-3">
+                      {stepGuideModes.step2 === 'external'
+                        ? '외부 가이드(파일/URL)가 등록되어 있습니다.'
+                        : 'AI 가이드가 생성되어 있습니다.'}
+                      {' '}다시 생성하려면 기존 가이드를 취소해야 합니다.
+                    </p>
+                    <Button
+                      onClick={() => setCancelStep(2)}
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      STEP 2 가이드 취소하고 다시 생성
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 가이드 전달 모드 선택 (가이드가 없을 때만) */}
+            {!stepGuideDelivered.step2 && (
+            <>
             <div className="p-4 bg-pink-50 rounded-lg border border-pink-200 mb-4">
               <p className="text-sm font-medium text-pink-900 mb-3">
                 STEP 2 가이드 전달 방식을 선택하세요
@@ -602,6 +782,8 @@ JSON 형식으로 응답해주세요:
                 />
               </>
             )}
+            </>
+            )}
           </div>
 
           {/* STEP 3: 세일 당일 스토리 가이드 */}
@@ -614,7 +796,36 @@ JSON 형식으로 응답해주세요:
               마감일: <span className="font-semibold">{campaign.step3_deadline || '미설정'}</span>
             </p>
 
-            {/* 가이드 전달 모드 선택 */}
+            {/* 가이드 전달 완료 상태 표시 */}
+            {stepGuideDelivered.step3 && (
+              <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-800 mb-1">STEP 3 가이드가 이미 등록되었습니다</p>
+                    <p className="text-sm text-amber-700 mb-3">
+                      {stepGuideModes.step3 === 'external'
+                        ? '외부 가이드(파일/URL)가 등록되어 있습니다.'
+                        : '스토리 URL이 입력되어 있습니다.'}
+                      {' '}다시 생성하려면 기존 가이드를 취소해야 합니다.
+                    </p>
+                    <Button
+                      onClick={() => setCancelStep(3)}
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-400 text-amber-700 hover:bg-amber-100"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      STEP 3 가이드 취소하고 다시 생성
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 가이드 전달 모드 선택 (가이드가 없을 때만) */}
+            {!stepGuideDelivered.step3 && (
+            <>
             <div className="p-4 bg-pink-50 rounded-lg border border-pink-200 mb-4">
               <p className="text-sm font-medium text-pink-900 mb-3">
                 STEP 3 가이드 전달 방식을 선택하세요
@@ -684,6 +895,8 @@ JSON 형식으로 응답해주세요:
                   예시: https://www.oliveyoung.co.kr/store/goods/getSaleGoodsList.do
                 </p>
               </>
+            )}
+            </>
             )}
           </div>
 
