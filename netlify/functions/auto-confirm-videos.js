@@ -156,20 +156,23 @@ exports.handler = async (event, context) => {
 
             const creatorName = profile.name || profile.full_name || '크리에이터';
 
-            // 알림톡 발송
+            // 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
             if (profile.phone) {
               try {
+                const completedDate = new Date().toLocaleDateString('ko-KR', {
+                  year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
+                });
                 await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-kakao-notification`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     receiverNum: profile.phone,
                     receiverName: creatorName,
-                    templateCode: '025100001016',
+                    templateCode: '025100001018',
                     variables: {
                       '크리에이터명': creatorName,
                       '캠페인명': campaign.title,
-                      '지급포인트': pointAmount.toLocaleString()
+                      '완료일': completedDate
                     }
                   })
                 });
