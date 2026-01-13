@@ -712,6 +712,148 @@ const CreatorMyPage = () => {
                         }
                         return <p className="text-sm text-gray-700 whitespace-pre-wrap">{guide}</p>
                       } else if (guide && typeof guide === 'object') {
+                        // 4주 챌린지 주차별 외부 가이드 지원
+                        const campaignType = campaignData.campaign_type
+
+                        if (campaignType === '4week_challenge') {
+                          return (
+                            <div className="space-y-6">
+                              {['week1', 'week2', 'week3', 'week4'].map((weekKey) => {
+                                const weekNum = weekKey.replace('week', '')
+                                const modeKey = `${weekKey}_guide_mode`
+                                const isExternal = campaignData[modeKey] === 'external'
+
+                                if (isExternal) {
+                                  // 외부 가이드 표시
+                                  return (
+                                    <div key={weekKey} className="border rounded-lg p-4">
+                                      <h4 className="font-semibold text-purple-700 mb-3 text-lg">
+                                        Week {weekNum} 가이드
+                                      </h4>
+                                      <ExternalGuideViewer
+                                        type={campaignData[`${weekKey}_external_type`]}
+                                        url={campaignData[`${weekKey}_external_url`]}
+                                        fileUrl={campaignData[`${weekKey}_external_file_url`]}
+                                        title={campaignData[`${weekKey}_external_title`]}
+                                        fileName={campaignData[`${weekKey}_external_file_name`]}
+                                      />
+                                    </div>
+                                  )
+                                } else {
+                                  // AI 가이드 표시
+                                  const weekGuide = guide[weekKey]
+                                  if (!weekGuide) return null
+
+                                  // JSON 형태의 AI 가이드인지 체크
+                                  if (typeof weekGuide === 'object') {
+                                    return (
+                                      <div key={weekKey} className="border rounded-lg p-4 bg-white">
+                                        <h4 className="font-semibold text-purple-700 mb-3 text-lg">
+                                          Week {weekNum} 가이드
+                                        </h4>
+                                        <div className="space-y-3">
+                                          {weekGuide.product_info && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600">제품 정보</p>
+                                              <p className="text-sm text-gray-900">{weekGuide.product_info}</p>
+                                            </div>
+                                          )}
+                                          {weekGuide.required_dialogues && weekGuide.required_dialogues.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">필수 대사</p>
+                                              <ul className="list-disc list-inside text-sm text-gray-900">
+                                                {weekGuide.required_dialogues.map((d, i) => <li key={i}>{d}</li>)}
+                                              </ul>
+                                            </div>
+                                          )}
+                                          {weekGuide.required_scenes && weekGuide.required_scenes.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">필수 장면</p>
+                                              <ul className="list-disc list-inside text-sm text-gray-900">
+                                                {weekGuide.required_scenes.map((s, i) => <li key={i}>{s}</li>)}
+                                              </ul>
+                                            </div>
+                                          )}
+                                          {weekGuide.hashtags && weekGuide.hashtags.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">해시태그</p>
+                                              <div className="flex flex-wrap gap-2">
+                                                {weekGuide.hashtags.map((h, i) => (
+                                                  <span key={i} className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">{h}</span>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {weekGuide.reference_urls && weekGuide.reference_urls.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">참고 영상</p>
+                                              {weekGuide.reference_urls.map((url, i) => (
+                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm block">{url}</a>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  } else {
+                                    return (
+                                      <div key={weekKey}>
+                                        <h4 className="font-medium text-gray-900 mb-2">Week {weekNum}</h4>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{weekGuide}</p>
+                                      </div>
+                                    )
+                                  }
+                                }
+                              })}
+                            </div>
+                          )
+                        }
+
+                        // 올리브영 STEP별 외부 가이드 지원
+                        if (campaignType === 'oliveyoung') {
+                          return (
+                            <div className="space-y-6">
+                              {['step1', 'step2', 'step3'].map((stepKey) => {
+                                const stepNum = stepKey.replace('step', '')
+                                const modeKey = `${stepKey}_guide_mode`
+                                const isExternal = campaignData[modeKey] === 'external'
+
+                                if (isExternal) {
+                                  // 외부 가이드 표시
+                                  return (
+                                    <div key={stepKey} className="border rounded-lg p-4">
+                                      <h4 className="font-semibold text-pink-700 mb-3 text-lg">
+                                        STEP {stepNum} 가이드
+                                      </h4>
+                                      <ExternalGuideViewer
+                                        type={campaignData[`${stepKey}_external_type`]}
+                                        url={campaignData[`${stepKey}_external_url`]}
+                                        fileUrl={campaignData[`${stepKey}_external_file_url`]}
+                                        title={campaignData[`${stepKey}_external_title`]}
+                                        fileName={campaignData[`${stepKey}_external_file_name`]}
+                                      />
+                                    </div>
+                                  )
+                                } else {
+                                  // AI 가이드 표시
+                                  const stepGuide = guide[stepKey]
+                                  if (!stepGuide) return null
+
+                                  return (
+                                    <div key={stepKey} className="border rounded-lg p-4 bg-white">
+                                      <h4 className="font-semibold text-pink-700 mb-3 text-lg">
+                                        STEP {stepNum} 가이드
+                                      </h4>
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{typeof stepGuide === 'object' ? JSON.stringify(stepGuide, null, 2) : stepGuide}</p>
+                                    </div>
+                                  )
+                                }
+                              })}
+                            </div>
+                          )
+                        }
+
+                        // 기본 오브젝트 가이드 렌더링
                         return (
                           <div className="space-y-4">
                             {Object.entries(guide).map(([key, value]) => (
@@ -719,7 +861,7 @@ const CreatorMyPage = () => {
                                 <h4 className="font-medium text-gray-900 mb-2">
                                   {key.toUpperCase().replace('WEEK', 'Week ').replace('STEP', 'Step ')}
                                 </h4>
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{value}</p>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}</p>
                               </div>
                             ))}
                           </div>

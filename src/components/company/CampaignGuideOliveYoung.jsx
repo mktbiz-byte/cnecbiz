@@ -3,8 +3,9 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabaseKorea, supabaseBiz } from '../../lib/supabaseClients'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Loader2, AlertCircle, Sparkles, Package, FileText, Info, CheckCircle2 } from 'lucide-react'
+import { Loader2, AlertCircle, Sparkles, Package, FileText, Info, CheckCircle2, Link as LinkIcon, CheckCircle } from 'lucide-react'
 import CompanyNavigation from './CompanyNavigation'
+import ExternalGuideUploader from '../common/ExternalGuideUploader'
 
 export default function CampaignGuideOliveYoung() {
   const [searchParams] = useSearchParams()
@@ -24,6 +25,20 @@ export default function CampaignGuideOliveYoung() {
   const [step1Guide, setStep1Guide] = useState('')
   const [step2Guide, setStep2Guide] = useState('')
   const [step3Guide, setStep3Guide] = useState('')
+
+  // STEP별 가이드 전달 모드 ('ai' | 'external')
+  const [stepGuideModes, setStepGuideModes] = useState({
+    step1: 'ai',
+    step2: 'ai',
+    step3: 'ai'
+  })
+
+  // STEP별 외부 가이드 데이터
+  const [stepExternalGuides, setStepExternalGuides] = useState({
+    step1: { type: null, url: null, fileUrl: null, fileName: null, title: '' },
+    step2: { type: null, url: null, fileUrl: null, fileName: null, title: '' },
+    step3: { type: null, url: null, fileUrl: null, fileName: null, title: '' }
+  })
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -57,6 +72,37 @@ export default function CampaignGuideOliveYoung() {
       setStep1Guide(data.oliveyoung_step1_guide || '')
       setStep2Guide(data.oliveyoung_step2_guide || '')
       setStep3Guide(data.oliveyoung_step3_guide || '')
+
+      // STEP별 가이드 모드 및 외부 가이드 데이터 로드
+      setStepGuideModes({
+        step1: data.step1_guide_mode || 'ai',
+        step2: data.step2_guide_mode || 'ai',
+        step3: data.step3_guide_mode || 'ai'
+      })
+
+      setStepExternalGuides({
+        step1: {
+          type: data.step1_external_type || null,
+          url: data.step1_external_url || null,
+          fileUrl: data.step1_external_file_url || null,
+          fileName: data.step1_external_file_name || null,
+          title: data.step1_external_title || ''
+        },
+        step2: {
+          type: data.step2_external_type || null,
+          url: data.step2_external_url || null,
+          fileUrl: data.step2_external_file_url || null,
+          fileName: data.step2_external_file_name || null,
+          title: data.step2_external_title || ''
+        },
+        step3: {
+          type: data.step3_external_type || null,
+          url: data.step3_external_url || null,
+          fileUrl: data.step3_external_file_url || null,
+          fileName: data.step3_external_file_name || null,
+          title: data.step3_external_title || ''
+        }
+      })
     } catch (error) {
       console.error('Error loading campaign:', error)
       alert('캠페인을 불러오는데 실패했습니다.')
@@ -77,7 +123,27 @@ export default function CampaignGuideOliveYoung() {
           product_key_points: productData.product_key_points,
           oliveyoung_step1_guide: step1Guide,
           oliveyoung_step2_guide: step2Guide,
-          oliveyoung_step3_guide: step3Guide
+          oliveyoung_step3_guide: step3Guide,
+          // STEP별 가이드 모드 저장
+          step1_guide_mode: stepGuideModes.step1,
+          step2_guide_mode: stepGuideModes.step2,
+          step3_guide_mode: stepGuideModes.step3,
+          // STEP별 외부 가이드 데이터 저장
+          step1_external_type: stepExternalGuides.step1.type,
+          step1_external_url: stepExternalGuides.step1.url,
+          step1_external_file_url: stepExternalGuides.step1.fileUrl,
+          step1_external_file_name: stepExternalGuides.step1.fileName,
+          step1_external_title: stepExternalGuides.step1.title,
+          step2_external_type: stepExternalGuides.step2.type,
+          step2_external_url: stepExternalGuides.step2.url,
+          step2_external_file_url: stepExternalGuides.step2.fileUrl,
+          step2_external_file_name: stepExternalGuides.step2.fileName,
+          step2_external_title: stepExternalGuides.step2.title,
+          step3_external_type: stepExternalGuides.step3.type,
+          step3_external_url: stepExternalGuides.step3.url,
+          step3_external_file_url: stepExternalGuides.step3.fileUrl,
+          step3_external_file_name: stepExternalGuides.step3.fileName,
+          step3_external_title: stepExternalGuides.step3.title
         })
         .eq('id', id)
 
@@ -99,16 +165,29 @@ export default function CampaignGuideOliveYoung() {
       return
     }
 
-    if (!step1Guide || !step2Guide || !step3Guide) {
-      alert('3단계 가이드를 모두 입력해주세요.')
-      return
+    // 각 STEP별 가이드 체크 (AI 모드인 경우에만 텍스트 필수)
+    for (const stepKey of ['step1', 'step2', 'step3']) {
+      const stepNum = stepKey.replace('step', '')
+      if (stepGuideModes[stepKey] === 'ai') {
+        const guideText = stepKey === 'step1' ? step1Guide : stepKey === 'step2' ? step2Guide : step3Guide
+        if (!guideText) {
+          alert(`STEP ${stepNum} 가이드를 입력해주세요.`)
+          return
+        }
+      } else {
+        // external 모드인 경우 파일 또는 URL 체크
+        if (!stepExternalGuides[stepKey].fileUrl && !stepExternalGuides[stepKey].url) {
+          alert(`STEP ${stepNum} 외부 가이드(PDF 또는 URL)를 등록해주세요.`)
+          return
+        }
+      }
     }
 
     setGenerating(true)
 
     try {
       const client = supabaseKorea || supabaseBiz
-      // 먼저 데이터 저장
+      // 먼저 데이터 저장 (AI 가이드 + 외부 가이드 모두)
       const { error: updateError } = await client
         .from('campaigns')
         .update({
@@ -118,19 +197,44 @@ export default function CampaignGuideOliveYoung() {
           product_key_points: productData.product_key_points,
           oliveyoung_step1_guide: step1Guide,
           oliveyoung_step2_guide: step2Guide,
-          oliveyoung_step3_guide: step3Guide
+          oliveyoung_step3_guide: step3Guide,
+          // STEP별 가이드 모드 저장
+          step1_guide_mode: stepGuideModes.step1,
+          step2_guide_mode: stepGuideModes.step2,
+          step3_guide_mode: stepGuideModes.step3,
+          // STEP별 외부 가이드 데이터 저장
+          step1_external_type: stepExternalGuides.step1.type,
+          step1_external_url: stepExternalGuides.step1.url,
+          step1_external_file_url: stepExternalGuides.step1.fileUrl,
+          step1_external_file_name: stepExternalGuides.step1.fileName,
+          step1_external_title: stepExternalGuides.step1.title,
+          step2_external_type: stepExternalGuides.step2.type,
+          step2_external_url: stepExternalGuides.step2.url,
+          step2_external_file_url: stepExternalGuides.step2.fileUrl,
+          step2_external_file_name: stepExternalGuides.step2.fileName,
+          step2_external_title: stepExternalGuides.step2.title,
+          step3_external_type: stepExternalGuides.step3.type,
+          step3_external_url: stepExternalGuides.step3.url,
+          step3_external_file_url: stepExternalGuides.step3.fileUrl,
+          step3_external_file_name: stepExternalGuides.step3.fileName,
+          step3_external_title: stepExternalGuides.step3.title
         })
         .eq('id', id)
 
       if (updateError) throw updateError
 
-      // AI 가이드 생성 (Gemini API 직접 호출)
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) {
-        throw new Error('Gemini API 키가 설정되지 않았습니다.')
-      }
+      // AI 모드인 STEP 확인
+      const aiSteps = ['step1', 'step2'].filter(s => stepGuideModes[s] === 'ai')
 
-      const prompt = `다음 제품 정보와 기업의 요구사항을 바탕으로, 크리에이터가 참고할 수 있도록 간단하고 명확한 가이드를 작성해주세요.
+      // AI 모드인 STEP이 있을 경우에만 AI 생성 실행
+      if (aiSteps.length > 0) {
+        // AI 가이드 생성 (Gemini API 직접 호출)
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+        if (!apiKey) {
+          throw new Error('Gemini API 키가 설정되지 않았습니다.')
+        }
+
+        const prompt = `다음 제품 정보와 기업의 요구사항을 바탕으로, 크리에이터가 참고할 수 있도록 간단하고 명확한 가이드를 작성해주세요.
 
 **제품 정보**
 - 브랜드: ${productData.brand}
@@ -139,8 +243,8 @@ export default function CampaignGuideOliveYoung() {
 - 핵심 포인트: ${productData.product_key_points}
 
 **기업 요구사항**
-- STEP 1 (세일 전 영상): ${step1Guide}
-- STEP 2 (올영 스케줄 맞춤 제작): ${step2Guide}
+${stepGuideModes.step1 === 'ai' ? `- STEP 1 (세일 전 영상): ${step1Guide}` : '- STEP 1: 외부 가이드 사용'}
+${stepGuideModes.step2 === 'ai' ? `- STEP 2 (올영 스케줄 맞춤 제작): ${step2Guide}` : '- STEP 2: 외부 가이드 사용'}
 
 **각 스텝별 핵심 요구사항:**
 - STEP 1: 세일 전 영상 콘텐츠 1건 제작 후 SNS 업로드 (기업이 작성한 가이드 내용 포함)
@@ -160,61 +264,72 @@ JSON 형식으로 응답해주세요:
   "cautions": "필수 사항 (1-2문장)"
 }`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }]
-          })
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: prompt }]
+              }]
+            })
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error('AI 가이드 생성에 실패했습니다.')
         }
-      )
 
-      if (!response.ok) {
-        throw new Error('AI 가이드 생성에 실패했습니다.')
-      }
+        const result = await response.json()
+        const generatedText = result.candidates[0].content.parts[0].text
 
-      const result = await response.json()
-      const generatedText = result.candidates[0].content.parts[0].text
-      
-      // JSON 파싱
-      let step1Enhanced = step1Guide
-      let step2Enhanced = step2Guide
-      let shootingTips = ''
-      let cautions = ''
-      
-      try {
-        const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0])
-          step1Enhanced = parsed.step1_guide_enhanced || step1Guide
-          step2Enhanced = parsed.step2_guide_enhanced || step2Guide
-          shootingTips = parsed.shooting_tips || ''
-          cautions = parsed.cautions || ''
+        // JSON 파싱
+        let step1Enhanced = step1Guide
+        let step2Enhanced = step2Guide
+        let shootingTips = ''
+        let cautions = ''
+
+        try {
+          const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0])
+            if (stepGuideModes.step1 === 'ai') {
+              step1Enhanced = parsed.step1_guide_enhanced || step1Guide
+            }
+            if (stepGuideModes.step2 === 'ai') {
+              step2Enhanced = parsed.step2_guide_enhanced || step2Guide
+            }
+            shootingTips = parsed.shooting_tips || ''
+            cautions = parsed.cautions || ''
+          }
+        } catch (e) {
+          console.error('JSON 파싱 실패:', e)
+          // 파싱 실패 시 원본 사용
         }
-      } catch (e) {
-        console.error('JSON 파싱 실패:', e)
-        // 파싱 실패 시 원본 사용
-      }
 
-      // AI 가공된 가이드 저장 (STEP 3는 제외)
-      const { error: finalUpdateError } = await client
-        .from('campaigns')
-        .update({
-          oliveyoung_step1_guide_ai: step1Enhanced,
-          oliveyoung_step2_guide_ai: step2Enhanced,
-          oliveyoung_shooting_tips: shootingTips,
-          oliveyoung_cautions: cautions,
+        // AI 가공된 가이드 저장 (AI 모드인 STEP만)
+        const aiUpdateData = {
           guide_generated_at: new Date().toISOString()
-        })
-        .eq('id', id)
+        }
+        if (stepGuideModes.step1 === 'ai') {
+          aiUpdateData.oliveyoung_step1_guide_ai = step1Enhanced
+        }
+        if (stepGuideModes.step2 === 'ai') {
+          aiUpdateData.oliveyoung_step2_guide_ai = step2Enhanced
+        }
+        aiUpdateData.oliveyoung_shooting_tips = shootingTips
+        aiUpdateData.oliveyoung_cautions = cautions
 
-      if (finalUpdateError) throw finalUpdateError
+        const { error: finalUpdateError } = await client
+          .from('campaigns')
+          .update(aiUpdateData)
+          .eq('id', id)
 
-      alert('올영세일 가이드가 생성되었습니다! 가이드 리뷰 페이지로 이동합니다.')
+        if (finalUpdateError) throw finalUpdateError
+      }
+
+      alert('올영세일 가이드가 저장되었습니다! 결제 페이지로 이동합니다.')
       navigate(`/company/campaigns/payment?id=${id}&region=korea`)
     } catch (error) {
       console.error('Error generating guide:', error)
@@ -342,16 +457,73 @@ JSON 형식으로 응답해주세요:
             <p className="text-sm text-gray-600 mb-3">
               마감일: <span className="font-semibold">{campaign.step1_deadline || '미설정'}</span>
             </p>
-            <p className="text-sm text-gray-600 mb-3">
-              상품 리뷰 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.
-            </p>
-            <textarea
-              value={step1Guide}
-              onChange={(e) => setStep1Guide(e.target.value)}
-              placeholder="예:&#10;[콘텐츠 개요]&#10;- 올리브영 매장 방문 후 제품 구매 장면&#10;- 제품 언박싱 및 텍스처 소개&#10;- 사용 후기 및 효과 리뷰&#10;&#10;[필수 포함 요소]&#10;- 올리브영 매장 외관 또는 내부&#10;- 제품 패키징 클로즈업&#10;- 텍스처 시연 (손등 또는 얼굴)&#10;- 사용 전후 비교&#10;&#10;[필수 대사]&#10;- '올리브영에서 발견한 이 제품'&#10;- '24시간 수분 지속력이 정말 대박'&#10;- '곧 올영세일 시작하니까 꼭 체크하세요'"
-              className="w-full h-64 p-3 border rounded-lg resize-none"
-              required
-            />
+
+            {/* 가이드 전달 모드 선택 */}
+            <div className="p-4 bg-pink-50 rounded-lg border border-pink-200 mb-4">
+              <p className="text-sm font-medium text-pink-900 mb-3">
+                STEP 1 가이드 전달 방식을 선택하세요
+              </p>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="guide-mode-step1"
+                    checked={stepGuideModes.step1 === 'ai'}
+                    onChange={() => setStepGuideModes(prev => ({ ...prev, step1: 'ai' }))}
+                    className="w-4 h-4 text-pink-600"
+                  />
+                  <span className="text-sm">
+                    <Sparkles className="w-4 h-4 inline mr-1 text-pink-600" />
+                    AI 가이드 생성
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="guide-mode-step1"
+                    checked={stepGuideModes.step1 === 'external'}
+                    onChange={() => setStepGuideModes(prev => ({ ...prev, step1: 'external' }))}
+                    className="w-4 h-4 text-pink-600"
+                  />
+                  <span className="text-sm">
+                    <LinkIcon className="w-4 h-4 inline mr-1 text-blue-600" />
+                    PDF/URL 직접 등록
+                  </span>
+                </label>
+              </div>
+              {stepGuideModes.step1 === 'external' && (
+                <p className="text-xs text-gray-500 mt-2">
+                  <CheckCircle className="w-3 h-3 inline mr-1 text-green-600" />
+                  외부 가이드를 등록하면 AI 가이드 생성 단계를 건너뜁니다.
+                </p>
+              )}
+            </div>
+
+            {/* 외부 가이드 업로더 (external 모드) */}
+            {stepGuideModes.step1 === 'external' && (
+              <ExternalGuideUploader
+                value={stepExternalGuides.step1}
+                onChange={(data) => setStepExternalGuides(prev => ({ ...prev, step1: data }))}
+                campaignId={id}
+                prefix="step1_"
+              />
+            )}
+
+            {/* AI 가이드 입력 폼 (ai 모드) */}
+            {stepGuideModes.step1 === 'ai' && (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  상품 리뷰 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.
+                </p>
+                <textarea
+                  value={step1Guide}
+                  onChange={(e) => setStep1Guide(e.target.value)}
+                  placeholder="예:&#10;[콘텐츠 개요]&#10;- 올리브영 매장 방문 후 제품 구매 장면&#10;- 제품 언박싱 및 텍스처 소개&#10;- 사용 후기 및 효과 리뷰&#10;&#10;[필수 포함 요소]&#10;- 올리브영 매장 외관 또는 내부&#10;- 제품 패키징 클로즈업&#10;- 텍스처 시연 (손등 또는 얼굴)&#10;- 사용 전후 비교&#10;&#10;[필수 대사]&#10;- '올리브영에서 발견한 이 제품'&#10;- '24시간 수분 지속력이 정말 대박'&#10;- '곧 올영세일 시작하니까 꼭 체크하세요'"
+                  className="w-full h-64 p-3 border rounded-lg resize-none"
+                  required
+                />
+              </>
+            )}
           </div>
 
           {/* STEP 2: 세일 홍보 가이드 */}
@@ -363,16 +535,73 @@ JSON 형식으로 응답해주세요:
             <p className="text-sm text-gray-600 mb-3">
               마감일: <span className="font-semibold">{campaign.step2_deadline || '미설정'}</span>
             </p>
-            <p className="text-sm text-gray-600 mb-3">
-              세일 홍보 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.
-            </p>
-            <textarea
-              value={step2Guide}
-              onChange={(e) => setStep2Guide(e.target.value)}
-              placeholder="예:&#10;[콘텐츠 개요]&#10;- 올영세일 예고 및 할인 정보 강조&#10;- 제품 재사용 후기 및 추천 이유&#10;- 세일 기간 및 구매 방법 안내&#10;&#10;[필수 포함 요소]&#10;- 올영세일 앰블럼 또는 로고&#10;- 할인율 또는 특가 정보 텍스트&#10;- 제품 사용 장면 (일상 루틴)&#10;- 세일 기간 명시 (예: 3월 1~7일)&#10;&#10;[필수 대사]&#10;- '드디어 올영세일 시작!'&#10;- 'XX% 할인으로 만나보세요'&#10;- '이 가격이면 무조건 사야 해요'&#10;- '올리브영 앱에서 지금 바로 확인'"
-              className="w-full h-64 p-3 border rounded-lg resize-none"
-              required
-            />
+
+            {/* 가이드 전달 모드 선택 */}
+            <div className="p-4 bg-pink-50 rounded-lg border border-pink-200 mb-4">
+              <p className="text-sm font-medium text-pink-900 mb-3">
+                STEP 2 가이드 전달 방식을 선택하세요
+              </p>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="guide-mode-step2"
+                    checked={stepGuideModes.step2 === 'ai'}
+                    onChange={() => setStepGuideModes(prev => ({ ...prev, step2: 'ai' }))}
+                    className="w-4 h-4 text-pink-600"
+                  />
+                  <span className="text-sm">
+                    <Sparkles className="w-4 h-4 inline mr-1 text-pink-600" />
+                    AI 가이드 생성
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="guide-mode-step2"
+                    checked={stepGuideModes.step2 === 'external'}
+                    onChange={() => setStepGuideModes(prev => ({ ...prev, step2: 'external' }))}
+                    className="w-4 h-4 text-pink-600"
+                  />
+                  <span className="text-sm">
+                    <LinkIcon className="w-4 h-4 inline mr-1 text-blue-600" />
+                    PDF/URL 직접 등록
+                  </span>
+                </label>
+              </div>
+              {stepGuideModes.step2 === 'external' && (
+                <p className="text-xs text-gray-500 mt-2">
+                  <CheckCircle className="w-3 h-3 inline mr-1 text-green-600" />
+                  외부 가이드를 등록하면 AI 가이드 생성 단계를 건너뜁니다.
+                </p>
+              )}
+            </div>
+
+            {/* 외부 가이드 업로더 (external 모드) */}
+            {stepGuideModes.step2 === 'external' && (
+              <ExternalGuideUploader
+                value={stepExternalGuides.step2}
+                onChange={(data) => setStepExternalGuides(prev => ({ ...prev, step2: data }))}
+                campaignId={id}
+                prefix="step2_"
+              />
+            )}
+
+            {/* AI 가이드 입력 폼 (ai 모드) */}
+            {stepGuideModes.step2 === 'ai' && (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  세일 홍보 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.
+                </p>
+                <textarea
+                  value={step2Guide}
+                  onChange={(e) => setStep2Guide(e.target.value)}
+                  placeholder="예:&#10;[콘텐츠 개요]&#10;- 올영세일 예고 및 할인 정보 강조&#10;- 제품 재사용 후기 및 추천 이유&#10;- 세일 기간 및 구매 방법 안내&#10;&#10;[필수 포함 요소]&#10;- 올영세일 앰블럼 또는 로고&#10;- 할인율 또는 특가 정보 텍스트&#10;- 제품 사용 장면 (일상 루틴)&#10;- 세일 기간 명시 (예: 3월 1~7일)&#10;&#10;[필수 대사]&#10;- '드디어 올영세일 시작!'&#10;- 'XX% 할인으로 만나보세요'&#10;- '이 가격이면 무조건 사야 해요'&#10;- '올리브영 앱에서 지금 바로 확인'"
+                  className="w-full h-64 p-3 border rounded-lg resize-none"
+                  required
+                />
+              </>
+            )}
           </div>
 
           {/* STEP 3: 세일 당일 스토리 가이드 */}
@@ -384,27 +613,78 @@ JSON 형식으로 응답해주세요:
             <p className="text-sm text-gray-600 mb-3">
               마감일: <span className="font-semibold">{campaign.step3_deadline || '미설정'}</span>
             </p>
-            <p className="text-sm text-gray-600 mb-3">
-              세일 당일 스토리 콘텐츠 제작을 위한 통합 가이드를 작성해주세요.
-            </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-sm font-semibold text-blue-800 mb-2">⚠️ 중요: STEP 2의 영상이 링크로 + URL이 삽입됩니다</p>
-              <p className="text-xs text-blue-700">스토리에 넣을 URL을 공유해주세요</p>
+
+            {/* 가이드 전달 모드 선택 */}
+            <div className="p-4 bg-pink-50 rounded-lg border border-pink-200 mb-4">
+              <p className="text-sm font-medium text-pink-900 mb-3">
+                STEP 3 가이드 전달 방식을 선택하세요
+              </p>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="guide-mode-step3"
+                    checked={stepGuideModes.step3 === 'ai'}
+                    onChange={() => setStepGuideModes(prev => ({ ...prev, step3: 'ai' }))}
+                    className="w-4 h-4 text-pink-600"
+                  />
+                  <span className="text-sm">
+                    <Sparkles className="w-4 h-4 inline mr-1 text-pink-600" />
+                    스토리 URL 입력
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="guide-mode-step3"
+                    checked={stepGuideModes.step3 === 'external'}
+                    onChange={() => setStepGuideModes(prev => ({ ...prev, step3: 'external' }))}
+                    className="w-4 h-4 text-pink-600"
+                  />
+                  <span className="text-sm">
+                    <LinkIcon className="w-4 h-4 inline mr-1 text-blue-600" />
+                    PDF/URL 직접 등록
+                  </span>
+                </label>
+              </div>
             </div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              스토리 URL <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="url"
-              value={step3Guide}
-              onChange={(e) => setStep3Guide(e.target.value)}
-              placeholder="https://www.oliveyoung.co.kr/store/..."
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              예시: https://www.oliveyoung.co.kr/store/goods/getSaleGoodsList.do
-            </p>
+
+            {/* 외부 가이드 업로더 (external 모드) */}
+            {stepGuideModes.step3 === 'external' && (
+              <ExternalGuideUploader
+                value={stepExternalGuides.step3}
+                onChange={(data) => setStepExternalGuides(prev => ({ ...prev, step3: data }))}
+                campaignId={id}
+                prefix="step3_"
+              />
+            )}
+
+            {/* 스토리 URL 입력 (ai 모드) */}
+            {stepGuideModes.step3 === 'ai' && (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  세일 당일 스토리 콘텐츠 제작을 위한 URL을 입력해주세요.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm font-semibold text-blue-800 mb-2">⚠️ 중요: STEP 2의 영상이 링크로 + URL이 삽입됩니다</p>
+                  <p className="text-xs text-blue-700">스토리에 넣을 URL을 공유해주세요</p>
+                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  스토리 URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={step3Guide}
+                  onChange={(e) => setStep3Guide(e.target.value)}
+                  placeholder="https://www.oliveyoung.co.kr/store/..."
+                  className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  예시: https://www.oliveyoung.co.kr/store/goods/getSaleGoodsList.do
+                </p>
+              </>
+            )}
           </div>
 
           {/* 업로드 스케줄 체크리스트 */}
