@@ -39,6 +39,49 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
     )
   }
 
+  // 올영/4주 캠페인 레벨 AI 가이드 타입 처리
+  if (guideData.type === '4week_ai' || guideData.type === 'oliveyoung_ai') {
+    const is4Week = guideData.type === '4week_ai'
+    return (
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
+            is4Week ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-green-500 to-emerald-500'
+          }`}>
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">
+            {is4Week ? '4주 챌린지 AI 가이드' : '올영 AI 가이드'}
+          </h3>
+        </div>
+
+        {/* 안내 카드 */}
+        <div className={`rounded-xl border-2 overflow-hidden ${
+          is4Week ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50' : 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50'
+        }`}>
+          <div className="p-6 text-center">
+            <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+              is4Week ? 'bg-gradient-to-br from-purple-100 to-indigo-100' : 'bg-gradient-to-br from-green-100 to-emerald-100'
+            }`}>
+              <Sparkles className={`w-10 h-10 ${is4Week ? 'text-purple-500' : 'text-green-500'}`} />
+            </div>
+
+            <h4 className="text-xl font-bold text-gray-900 mb-2">
+              {is4Week ? '4주 챌린지 캠페인 가이드 사용' : '올영 캠페인 가이드 사용'}
+            </h4>
+            <p className="text-sm text-gray-500 mb-4">
+              이 크리에이터에게는 캠페인에서 생성한 AI 가이드가 전달됩니다.
+            </p>
+            <p className="text-xs text-gray-400">
+              캠페인 설정에서 가이드 내용을 확인하세요.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // 외부 가이드 (PDF/URL) 타입 처리
   if (guideData.type === 'external_pdf' || guideData.type === 'external_url') {
     const isPdf = guideData.type === 'external_pdf'

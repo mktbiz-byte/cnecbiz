@@ -4379,18 +4379,29 @@ JSON만 출력.`
                                   가이드 보기
                                 </Button>
                                 {participant.status === 'selected' ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                      await handleGuideApproval([participant.id])
-                                    }}
-                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    전달하기
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                        await handleGuideApproval([participant.id])
+                                      }}
+                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                    >
+                                      <Send className="w-3 h-3 mr-1" />
+                                      전달하기
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  </>
                                 ) : participant.status === 'filming' ? (
                                   <>
                                     <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
@@ -4476,18 +4487,29 @@ JSON만 출력.`
                                   가이드 보기
                                 </Button>
                                 {participant.status === 'selected' ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                      await handleGuideApproval([participant.id])
-                                    }}
-                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    전달하기
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                        await handleGuideApproval([participant.id])
+                                      }}
+                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                    >
+                                      <Send className="w-3 h-3 mr-1" />
+                                      전달하기
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  </>
                                 ) : participant.status === 'filming' ? (
                                   <>
                                     <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
@@ -4545,18 +4567,29 @@ JSON만 출력.`
                                   가이드 보기
                                 </Button>
                                 {participant.status === 'selected' ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                      await handleGuideApproval([participant.id])
-                                    }}
-                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    전달하기
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                        await handleGuideApproval([participant.id])
+                                      }}
+                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                    >
+                                      <Send className="w-3 h-3 mr-1" />
+                                      전달하기
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  </>
                                 ) : participant.status === 'filming' ? (
                                   <>
                                     <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
@@ -9008,27 +9041,107 @@ JSON만 출력.`
 
             {/* 본문 */}
             <div className="p-6 space-y-4">
-              {/* AI 가이드 생성 옵션 */}
-              <button
-                onClick={async () => {
-                  const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
-                  if (!confirm(`${creatorName}님의 AI 맞춤 가이드를 생성하시겠습니까?`)) return
-                  setShowGuideSelectModal(false)
-                  await handleGeneratePersonalizedGuides([selectedParticipantForGuide])
-                  setSelectedParticipantForGuide(null)
-                }}
-                className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                    <Sparkles className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
-                    <p className="text-sm text-gray-500">크리에이터 맞춤형 가이드를 AI가 자동 생성</p>
-                  </div>
-                </div>
-              </button>
+              {/* 기획형: AI 가이드 생성 / 올영,4주: 기존 AI 가이드 사용 */}
+              {(() => {
+                const is4Week = campaign?.campaign_type === '4week_challenge'
+                const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+
+                // 올영/4주는 캠페인 레벨의 기존 AI 가이드 사용
+                if (is4Week || isOliveyoung) {
+                  // 기존 AI 가이드가 있는지 확인
+                  const hasAiGuide = is4Week
+                    ? campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides
+                    : campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step2_guide_ai
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        if (!hasAiGuide) {
+                          alert(is4Week
+                            ? '4주 챌린지 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.'
+                            : '올영 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.')
+                          return
+                        }
+                        const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                        if (!confirm(`${creatorName}님에게 기존 AI 가이드를 전달하시겠습니까?`)) return
+
+                        try {
+                          // 캠페인 레벨 AI 가이드를 참조하는 타입으로 저장
+                          const guidePayload = {
+                            type: is4Week ? '4week_ai' : 'oliveyoung_ai',
+                            campaignId: campaign.id
+                          }
+
+                          const { error } = await supabase
+                            .from('applications')
+                            .update({
+                              personalized_guide: JSON.stringify(guidePayload),
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq('id', selectedParticipantForGuide.id)
+
+                          if (error) throw error
+
+                          alert(`${creatorName}님에게 AI 가이드가 설정되었습니다. 전달하기 버튼으로 알림톡을 발송하세요.`)
+                          setShowGuideSelectModal(false)
+                          setSelectedParticipantForGuide(null)
+                          await fetchParticipants()
+                        } catch (error) {
+                          console.error('Error saving AI guide reference:', error)
+                          alert('가이드 설정에 실패했습니다: ' + error.message)
+                        }
+                      }}
+                      disabled={!hasAiGuide}
+                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
+                        hasAiGuide
+                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
+                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                          hasAiGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
+                        }`}>
+                          <Sparkles className={`w-6 h-6 ${hasAiGuide ? 'text-purple-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <h3 className={`font-bold ${hasAiGuide ? 'text-gray-900' : 'text-gray-500'}`}>
+                            기존 AI 가이드 사용
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {is4Week ? '4주 챌린지 캠페인 가이드' : '올영 캠페인 가이드'}
+                            {!hasAiGuide && ' (미생성)'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                }
+
+                // 기획형: AI 가이드 새로 생성
+                return (
+                  <button
+                    onClick={async () => {
+                      const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                      if (!confirm(`${creatorName}님의 AI 맞춤 가이드를 생성하시겠습니까?`)) return
+                      setShowGuideSelectModal(false)
+                      await handleGeneratePersonalizedGuides([selectedParticipantForGuide])
+                      setSelectedParticipantForGuide(null)
+                    }}
+                    className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                        <Sparkles className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                        <p className="text-sm text-gray-500">크리에이터 맞춤형 가이드를 AI가 자동 생성</p>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })()}
 
               {/* 파일/URL 전달 옵션 */}
               <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
