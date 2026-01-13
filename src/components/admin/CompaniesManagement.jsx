@@ -320,11 +320,7 @@ export default function CompaniesManagement() {
     try {
       const { error } = await supabaseBiz
         .from('companies')
-        .update({
-          is_blocked: !isBlocked,
-          blocked_at: !isBlocked ? new Date().toISOString() : null,
-          blocked_reason: !isBlocked ? '관리자에 의해 차단됨' : null
-        })
+        .update({ is_blocked: !isBlocked })
         .eq('id', company.id)
 
       if (error) throw error
@@ -997,18 +993,10 @@ export default function CompaniesManagement() {
                         )}
                       </h3>
                       <p className="text-sm text-slate-500 mt-1">
-                        {detailCompany.is_blocked ? (
-                          <>
-                            현재 이 기업은 차단되어 모든 기능이 제한되어 있습니다.
-                            {detailCompany.blocked_at && (
-                              <span className="block text-xs text-red-500 mt-1">
-                                차단일: {new Date(detailCompany.blocked_at).toLocaleString('ko-KR')}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          '스팸 또는 의심스러운 기업을 차단하면 캠페인 생성 등 모든 기능이 제한됩니다.'
-                        )}
+                        {detailCompany.is_blocked
+                          ? '현재 이 기업은 차단되어 모든 기능이 제한되어 있습니다.'
+                          : '스팸 또는 의심스러운 기업을 차단하면 캠페인 생성 등 모든 기능이 제한됩니다.'
+                        }
                       </p>
                     </div>
                     <Button
