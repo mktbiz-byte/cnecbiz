@@ -42,42 +42,219 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
   // 올영/4주 캠페인 레벨 AI 가이드 타입 처리
   if (guideData.type === '4week_ai' || guideData.type === 'oliveyoung_ai') {
     const is4Week = guideData.type === '4week_ai'
+
+    // 4주 챌린지 가이드 데이터 파싱
+    const parseWeeklyGuides = () => {
+      if (!guideData.weeklyGuides) return []
+      try {
+        const parsed = typeof guideData.weeklyGuides === 'string'
+          ? JSON.parse(guideData.weeklyGuides)
+          : guideData.weeklyGuides
+        return Object.entries(parsed).map(([week, data]) => ({
+          week: week.replace('week', ''),
+          ...(typeof data === 'object' ? data : { content: data })
+        }))
+      } catch (e) {
+        console.error('Failed to parse weekly guides:', e)
+        return []
+      }
+    }
+
+    // 올영 가이드 데이터 파싱
+    const parseOliveyoungGuides = () => {
+      const steps = []
+      for (let i = 1; i <= 3; i++) {
+        const stepData = guideData[`step${i}`]
+        if (stepData) {
+          try {
+            const parsed = typeof stepData === 'string' ? JSON.parse(stepData) : stepData
+            steps.push({ step: i, ...parsed })
+          } catch (e) {
+            steps.push({ step: i, content: stepData })
+          }
+        }
+      }
+      return steps
+    }
+
+    const weeklyGuides = is4Week ? parseWeeklyGuides() : []
+    const oliveyoungSteps = !is4Week ? parseOliveyoungGuides() : []
+
     return (
       <div className="space-y-5">
-        {/* Header */}
-        <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
-            is4Week ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-green-500 to-emerald-500'
-          }`}>
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900">
-            {is4Week ? '4주 챌린지 AI 가이드' : '올영 AI 가이드'}
-          </h3>
-        </div>
-
-        {/* 안내 카드 */}
-        <div className={`rounded-xl border-2 overflow-hidden ${
-          is4Week ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-indigo-50' : 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50'
-        }`}>
-          <div className="p-6 text-center">
-            <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
-              is4Week ? 'bg-gradient-to-br from-purple-100 to-indigo-100' : 'bg-gradient-to-br from-green-100 to-emerald-100'
+        {/* Header with Edit button */}
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-md ${
+              is4Week ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-green-500 to-emerald-500'
             }`}>
-              <Sparkles className={`w-10 h-10 ${is4Week ? 'text-purple-500' : 'text-green-500'}`} />
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
-
-            <h4 className="text-xl font-bold text-gray-900 mb-2">
-              {is4Week ? '4주 챌린지 캠페인 가이드 사용' : '올영 캠페인 가이드 사용'}
-            </h4>
-            <p className="text-sm text-gray-500 mb-4">
-              이 크리에이터에게는 캠페인에서 생성한 AI 가이드가 전달됩니다.
-            </p>
-            <p className="text-xs text-gray-400">
-              캠페인 설정에서 가이드 내용을 확인하세요.
-            </p>
+            <h3 className="text-lg font-bold text-gray-900">
+              {is4Week ? '4주 챌린지 AI 가이드' : '올영 AI 가이드'}
+            </h3>
           </div>
+          {onSave && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsEditing(!isEditing)
+                if (!isEditing) {
+                  setEditedGuide(guide)
+                }
+              }}
+              className="gap-1"
+            >
+              {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+              {isEditing ? '취소' : '수정'}
+            </Button>
+          )}
         </div>
+
+        {isEditing ? (
+          /* 수정 모드 */
+          <div className="space-y-4">
+            <textarea
+              value={typeof editedGuide === 'string' ? editedGuide : JSON.stringify(editedGuide, null, 2)}
+              onChange={(e) => setEditedGuide(e.target.value)}
+              className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
+              placeholder="가이드 내용을 수정하세요..."
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditedGuide(null)
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  setSaving(true)
+                  try {
+                    await onSave(editedGuide)
+                    setIsEditing(false)
+                    alert('가이드가 저장되었습니다.')
+                  } catch (error) {
+                    alert('저장 실패: ' + error.message)
+                  } finally {
+                    setSaving(false)
+                  }
+                }}
+                disabled={saving}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {saving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* 보기 모드 */
+          <div className="space-y-4">
+            {is4Week ? (
+              /* 4주 챌린지 가이드 표시 */
+              weeklyGuides.length > 0 ? (
+                weeklyGuides.map((week, idx) => (
+                  <div key={idx} className="rounded-xl border-2 border-purple-200 bg-purple-50 overflow-hidden">
+                    <div className="bg-purple-100 px-4 py-2 border-b border-purple-200">
+                      <h4 className="font-bold text-purple-800">{week.week}주차</h4>
+                    </div>
+                    <div className="p-4 space-y-2">
+                      {week.mission && (
+                        <div>
+                          <span className="text-sm font-medium text-purple-700">미션:</span>
+                          <p className="text-gray-700">{week.mission}</p>
+                        </div>
+                      )}
+                      {week.product_info && (
+                        <div>
+                          <span className="text-sm font-medium text-purple-700">제품 정보:</span>
+                          <p className="text-gray-700">{week.product_info}</p>
+                        </div>
+                      )}
+                      {week.key_message && (
+                        <div>
+                          <span className="text-sm font-medium text-purple-700">키 메시지:</span>
+                          <p className="text-gray-700">{week.key_message}</p>
+                        </div>
+                      )}
+                      {week.hashtags && (
+                        <div>
+                          <span className="text-sm font-medium text-purple-700">해시태그:</span>
+                          <p className="text-gray-700">{Array.isArray(week.hashtags) ? week.hashtags.join(' ') : week.hashtags}</p>
+                        </div>
+                      )}
+                      {week.precautions && (
+                        <div>
+                          <span className="text-sm font-medium text-purple-700">주의사항:</span>
+                          <p className="text-gray-700">{week.precautions}</p>
+                        </div>
+                      )}
+                      {week.content && (
+                        <div>
+                          <p className="text-gray-700 whitespace-pre-wrap">{week.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  4주차 가이드 데이터가 없습니다. 캠페인 설정에서 가이드를 먼저 생성해주세요.
+                </div>
+              )
+            ) : (
+              /* 올영 가이드 표시 */
+              oliveyoungSteps.length > 0 ? (
+                oliveyoungSteps.map((step, idx) => (
+                  <div key={idx} className="rounded-xl border-2 border-green-200 bg-green-50 overflow-hidden">
+                    <div className="bg-green-100 px-4 py-2 border-b border-green-200">
+                      <h4 className="font-bold text-green-800">STEP {step.step}</h4>
+                    </div>
+                    <div className="p-4 space-y-2">
+                      {step.product_info && (
+                        <div>
+                          <span className="text-sm font-medium text-green-700">제품 정보:</span>
+                          <p className="text-gray-700">{step.product_info}</p>
+                        </div>
+                      )}
+                      {step.key_message && (
+                        <div>
+                          <span className="text-sm font-medium text-green-700">키 메시지:</span>
+                          <p className="text-gray-700">{step.key_message}</p>
+                        </div>
+                      )}
+                      {step.hashtags && (
+                        <div>
+                          <span className="text-sm font-medium text-green-700">해시태그:</span>
+                          <p className="text-gray-700">{Array.isArray(step.hashtags) ? step.hashtags.join(' ') : step.hashtags}</p>
+                        </div>
+                      )}
+                      {step.precautions && (
+                        <div>
+                          <span className="text-sm font-medium text-green-700">주의사항:</span>
+                          <p className="text-gray-700">{step.precautions}</p>
+                        </div>
+                      )}
+                      {step.content && (
+                        <div>
+                          <p className="text-gray-700 whitespace-pre-wrap">{step.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  올영 가이드 데이터가 없습니다. 캠페인 설정에서 가이드를 먼저 생성해주세요.
+                </div>
+              )
+            )}
+          </div>
+        )}
       </div>
     )
   }
