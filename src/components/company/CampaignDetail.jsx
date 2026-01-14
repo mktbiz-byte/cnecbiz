@@ -4582,21 +4582,20 @@ JSON만 출력.`
                           </div>
                         )}
 
-                        {/* 4주 챌린지 가이드 섹션 - 인라인 버튼 */}
+                        {/* 4주 챌린지 가이드 섹션 - 주차별 발송 */}
                         {campaign.campaign_type === '4week_challenge' && (
-                          <div className="flex items-center gap-1.5">
-                            {participant.personalized_guide ? (
-                              <>
+                          <div className="flex flex-col gap-2">
+                            {/* 가이드 보기/설정 버튼 */}
+                            <div className="flex items-center gap-1.5">
+                              {participant.personalized_guide ? (
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    // 가이드 타입 확인
                                     let guideData = participant.personalized_guide
                                     if (typeof guideData === 'string') {
                                       try { guideData = JSON.parse(guideData) } catch { guideData = {} }
                                     }
-                                    // 4week_ai 타입이면 캠페인 가이드 모달 열기
-                                    if (guideData?.type === '4week_ai') {
+                                    if (guideData?.type === '4week_ai' || guideData?.type === '4week_guide') {
                                       setShow4WeekGuideModal(true)
                                     } else {
                                       setSelectedGuide(participant)
@@ -4608,66 +4607,121 @@ JSON만 출력.`
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                                {participant.status === 'selected' ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={async () => {
-                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                        await handleGuideApproval([participant.id])
-                                      }}
-                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                    >
-                                      <Send className="w-3 h-3 mr-1" />
-                                      전달하기
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                    >
-                                      <XCircle className="w-3 h-3 mr-1" />
-                                      재설정
-                                    </Button>
-                                  </>
-                                ) : participant.status === 'filming' ? (
-                                  <>
-                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
-                                      <CheckCircle className="w-3 h-3" />
-                                      전달완료
-                                    </span>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                    >
-                                      <XCircle className="w-3 h-3 mr-1" />
-                                      취소
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
-                                    <CheckCircle className="w-3 h-3" />
-                                    전달완료
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedParticipantForGuide(participant)
-                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
-                                  setShowGuideSelectModal(true)
-                                }}
-                                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
-                              >
-                                <Sparkles className="w-3 h-3 mr-1" />
-                                가이드 전달
-                              </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedParticipantForGuide(participant)
+                                    setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                    setShowGuideSelectModal(true)
+                                  }}
+                                  className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                                >
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                  가이드 설정
+                                </Button>
+                              )}
+                              {participant.personalized_guide && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                  className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                >
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  재설정
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* 주차별 발송 버튼 */}
+                            {participant.personalized_guide && (
+                              <div className="flex flex-wrap gap-1">
+                                {[1, 2, 3, 4].map((weekNum) => {
+                                  const weekKey = `week${weekNum}`
+                                  const hasWeekGuide = campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       campaign[`${weekKey}_external_url`] ||
+                                                       campaign[`${weekKey}_external_file_url`]
+                                  const isDelivered = participant[`${weekKey}_guide_delivered`]
+                                  const weekDeadline = campaign[`${weekKey}_deadline`]
+
+                                  return (
+                                    <div key={weekNum} className="flex items-center">
+                                      {isDelivered ? (
+                                        <span className="flex items-center gap-0.5 text-green-600 text-[10px] font-medium px-1.5 py-0.5 bg-green-50 rounded border border-green-200">
+                                          <CheckCircle className="w-2.5 h-2.5" />
+                                          {weekNum}주
+                                        </span>
+                                      ) : hasWeekGuide ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={async () => {
+                                            const deadlineText = weekDeadline
+                                              ? new Date(weekDeadline).toLocaleDateString('ko-KR')
+                                              : '미정'
+                                            if (!confirm(`${creatorName}님에게 ${weekNum}주차 가이드를 전달하시겠습니까?\n\n마감일: ${deadlineText}`)) return
+
+                                            try {
+                                              // 개별 크리에이터에게 주차별 가이드 발송
+                                              const { error } = await supabase
+                                                .from('applications')
+                                                .update({
+                                                  [`week${weekNum}_guide_delivered`]: true,
+                                                  [`week${weekNum}_guide_delivered_at`]: new Date().toISOString(),
+                                                  status: 'filming',
+                                                  updated_at: new Date().toISOString()
+                                                })
+                                                .eq('id', participant.id)
+
+                                              if (error) throw error
+
+                                              // 알림톡 발송
+                                              const { data: profile } = await supabase
+                                                .from('user_profiles')
+                                                .select('phone')
+                                                .eq('id', participant.user_id)
+                                                .maybeSingle()
+
+                                              if (profile?.phone) {
+                                                try {
+                                                  await fetch('/.netlify/functions/send-kakao-notification', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                      receiverNum: profile.phone,
+                                                      receiverName: creatorName,
+                                                      templateCode: '025100001012',
+                                                      variables: {
+                                                        '크리에이터명': creatorName,
+                                                        '캠페인명': `${campaign.title} (${weekNum}주차)`,
+                                                        '제출기한': deadlineText
+                                                      }
+                                                    })
+                                                  })
+                                                } catch (e) { console.error('Alimtalk error:', e) }
+                                              }
+
+                                              alert(`${creatorName}님에게 ${weekNum}주차 가이드가 전달되었습니다!`)
+                                              await fetchParticipants()
+                                            } catch (error) {
+                                              alert('가이드 전달 실패: ' + error.message)
+                                            }
+                                          }}
+                                          className="text-purple-600 border-purple-400 hover:bg-purple-50 text-[10px] px-1.5 py-0.5 h-auto"
+                                        >
+                                          <Send className="w-2.5 h-2.5 mr-0.5" />
+                                          {weekNum}주
+                                        </Button>
+                                      ) : (
+                                        <span className="flex items-center gap-0.5 text-gray-400 text-[10px] px-1.5 py-0.5 bg-gray-50 rounded border border-gray-200">
+                                          {weekNum}주 미설정
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
                             )}
                           </div>
                         )}
@@ -5799,7 +5853,36 @@ JSON만 출력.`
                     </CardTitle>
                     <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* 4주 챌린지: 주차별 일괄 발송 버튼 */}
+                    {campaign.campaign_type === '4week_challenge' && (
+                      <div className="flex items-center gap-1 bg-purple-50 p-1 rounded-lg border border-purple-200">
+                        <span className="text-xs text-purple-700 font-medium px-2">주차별 발송:</span>
+                        {[1, 2, 3, 4].map((weekNum) => {
+                          const weekKey = `week${weekNum}`
+                          const hasWeekGuide = campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                               campaign[`${weekKey}_external_url`] ||
+                                               campaign[`${weekKey}_external_file_url`]
+                          return (
+                            <Button
+                              key={weekNum}
+                              size="sm"
+                              variant="outline"
+                              disabled={!hasWeekGuide || participants.length === 0}
+                              onClick={() => handleDeliver4WeekGuideByWeek(weekNum)}
+                              className={`text-xs px-2 py-1 h-7 ${
+                                hasWeekGuide
+                                  ? 'border-purple-400 text-purple-700 hover:bg-purple-100'
+                                  : 'border-gray-300 text-gray-400'
+                              }`}
+                            >
+                              {weekNum}주차
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    )}
+
                     {/* US 캠페인: 배송정보 요청 이메일 발송 */}
                     {region === 'us' && (
                       <Button
