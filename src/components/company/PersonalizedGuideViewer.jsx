@@ -49,7 +49,6 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
       const [localSaving, setLocalSaving] = useState(false)
 
       const handleStartEdit = () => {
-        // 원본 데이터를 복사해서 편집용으로 사용
         setLocalEditedData(JSON.parse(JSON.stringify(guideData)))
         setLocalEditing(true)
       }
@@ -87,18 +86,21 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
       const displayData = localEditing ? localEditedData : guideData
       const currentWeekData = displayData[activeWeek] || {}
 
+      // 마감일 정보
+      const weekDeadline = guideData[`${activeWeek}_deadline`]
+
       return (
         <div className="space-y-5">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-indigo-50 -mx-4 -mt-4 px-4 pt-4 rounded-t-xl">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-purple-500 to-indigo-500">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">4주 챌린지 가이드</h3>
+              <h3 className="text-lg font-bold text-gray-900">🎯 4주 챌린지 촬영 가이드</h3>
             </div>
             {onSave && !localEditing && (
-              <Button variant="outline" size="sm" onClick={handleStartEdit} className="gap-1">
+              <Button variant="outline" size="sm" onClick={handleStartEdit} className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50">
                 <Edit className="w-4 h-4" />
                 수정
               </Button>
@@ -113,77 +115,21 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
             )}
           </div>
 
-          {/* 제품 정보 */}
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
-            <h4 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              제품 정보
-            </h4>
-            {localEditing ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">브랜드</label>
-                    <input
-                      type="text"
-                      value={localEditedData.brand || ''}
-                      onChange={(e) => setLocalEditedData({...localEditedData, brand: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
-                    <input
-                      type="text"
-                      value={localEditedData.product_name || ''}
-                      onChange={(e) => setLocalEditedData({...localEditedData, product_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">제품 특징</label>
-                  <textarea
-                    value={localEditedData.product_features || ''}
-                    onChange={(e) => setLocalEditedData({...localEditedData, product_features: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    rows={2}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-red-600 mb-1">⚠️ 주의사항</label>
-                  <textarea
-                    value={localEditedData.precautions || ''}
-                    onChange={(e) => setLocalEditedData({...localEditedData, precautions: e.target.value})}
-                    className="w-full px-3 py-2 border border-red-200 rounded-md text-sm bg-red-50"
-                    rows={2}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                {displayData.brand && (
-                  <div><span className="text-purple-600 font-medium">브랜드:</span> <span className="ml-2 text-gray-800">{displayData.brand}</span></div>
-                )}
-                {displayData.product_name && (
-                  <div><span className="text-purple-600 font-medium">제품명:</span> <span className="ml-2 text-gray-800">{displayData.product_name}</span></div>
-                )}
-                {displayData.product_features && (
-                  <div className="col-span-2"><span className="text-purple-600 font-medium">제품 특징:</span><p className="mt-1 text-gray-800 whitespace-pre-wrap">{displayData.product_features}</p></div>
-                )}
-                {displayData.precautions && (
-                  <div className="col-span-2"><span className="text-red-600 font-medium">⚠️ 주의사항:</span><p className="mt-1 text-gray-800 whitespace-pre-wrap">{displayData.precautions}</p></div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* 주차 탭 */}
-          <div className="flex gap-2 border-b">
+          <div className="flex gap-2 border-b bg-white">
             {['week1', 'week2', 'week3', 'week4'].map((week, idx) => (
               <button
                 key={week}
-                onClick={() => setActiveWeek(week)}
+                onClick={() => {
+                  if (localEditing) {
+                    if (confirm('수정 중인 내용이 있습니다. 탭을 변경하시겠습니까?')) {
+                      handleCancelEdit()
+                      setActiveWeek(week)
+                    }
+                  } else {
+                    setActiveWeek(week)
+                  }
+                }}
                 className={`px-6 py-3 font-medium text-sm transition-all ${
                   activeWeek === week
                     ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
@@ -195,96 +141,244 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
             ))}
           </div>
 
-          {/* 선택된 주차 내용 */}
-          <div className="rounded-xl border-2 border-purple-200 bg-purple-50 overflow-hidden">
-            <div className="bg-purple-100 px-4 py-2 border-b border-purple-200">
-              <h4 className="font-bold text-purple-800">{activeWeek.replace('week', '')}주차 가이드</h4>
+          {/* 마감일 표시 */}
+          {weekDeadline && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-700 font-semibold">📅 마감일:</span>
+                <span className="text-yellow-900 font-bold">
+                  {new Date(weekDeadline).toLocaleDateString('ko-KR', {
+                    year: 'numeric', month: 'long', day: 'numeric', weekday: 'short'
+                  })}
+                </span>
+              </div>
             </div>
-            <div className="p-4 space-y-4">
+          )}
+
+          {/* 제품 정보 섹션 */}
+          {(displayData.brand || displayData.product_name || displayData.product_features || localEditing) && (
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
+                <span>📦</span>
+                제품 정보
+              </h4>
+              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                {localEditing ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">브랜드</label>
+                        <input
+                          type="text"
+                          value={localEditedData.brand || ''}
+                          onChange={(e) => setLocalEditedData({...localEditedData, brand: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
+                        <input
+                          type="text"
+                          value={localEditedData.product_name || ''}
+                          onChange={(e) => setLocalEditedData({...localEditedData, product_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">제품 특징</label>
+                      <textarea
+                        value={localEditedData.product_features || ''}
+                        onChange={(e) => setLocalEditedData({...localEditedData, product_features: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm space-y-2">
+                    {displayData.brand && (
+                      <p><span className="text-purple-600 font-medium">브랜드:</span> <span className="text-gray-800">{displayData.brand}</span></p>
+                    )}
+                    {displayData.product_name && (
+                      <p><span className="text-purple-600 font-medium">제품명:</span> <span className="text-gray-800">{displayData.product_name}</span></p>
+                    )}
+                    {displayData.product_features && (
+                      <p className="whitespace-pre-wrap"><span className="text-purple-600 font-medium">제품 특징:</span><br/><span className="text-gray-800">{displayData.product_features}</span></p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 미션 */}
+          {(currentWeekData.mission || localEditing) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <span>🎯</span>
+                {activeWeek.replace('week', '')}주차 미션
+              </h4>
+              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                {localEditing ? (
+                  <textarea
+                    value={currentWeekData.mission || ''}
+                    onChange={(e) => updateWeekField(activeWeek, 'mission', e.target.value)}
+                    className="w-full p-2 border rounded text-sm min-h-[80px]"
+                    placeholder="이번 주차 미션을 입력하세요"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {currentWeekData.mission}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 필수 대사 */}
+          {(currentWeekData.required_dialogue || localEditing) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <span>💬</span>
+                필수 대사
+              </h4>
+              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                {localEditing ? (
+                  <textarea
+                    value={currentWeekData.required_dialogue || ''}
+                    onChange={(e) => updateWeekField(activeWeek, 'required_dialogue', e.target.value)}
+                    className="w-full p-2 border rounded text-sm min-h-[80px]"
+                    placeholder="필수로 포함해야 하는 대사"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    "{currentWeekData.required_dialogue}"
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 필수 장면 */}
+          {(currentWeekData.required_scenes || localEditing) && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
+                <span>🎬</span>
+                필수 장면
+              </h4>
+              <div className="bg-white rounded-lg p-4 border border-green-100">
+                {localEditing ? (
+                  <textarea
+                    value={currentWeekData.required_scenes || ''}
+                    onChange={(e) => updateWeekField(activeWeek, 'required_scenes', e.target.value)}
+                    className="w-full p-2 border rounded text-sm min-h-[80px]"
+                    placeholder="필수로 촬영해야 하는 장면"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {currentWeekData.required_scenes}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 주의사항 */}
+          {(displayData.precautions || currentWeekData.cautions || localEditing) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
+                <span>⚠️</span>
+                주의사항
+              </h4>
+              <div className="bg-white rounded-lg p-4 border border-red-100">
+                {localEditing ? (
+                  <textarea
+                    value={localEditedData.precautions || ''}
+                    onChange={(e) => setLocalEditedData({...localEditedData, precautions: e.target.value})}
+                    className="w-full p-2 border rounded text-sm min-h-[80px]"
+                    placeholder="주의사항을 입력하세요"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {displayData.precautions || currentWeekData.cautions}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 해시태그 */}
+          {(currentWeekData.hashtags?.length > 0 || localEditing) && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                <span>📌</span>
+                필수 해시태그
+              </h4>
               {localEditing ? (
-                <>
-                  <div>
-                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
-                      <CheckCircle className="w-4 h-4" /> 미션
-                    </label>
-                    <textarea
-                      value={currentWeekData.mission || ''}
-                      onChange={(e) => updateWeekField(activeWeek, 'mission', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      rows={3}
-                      placeholder="이번 주차 미션을 입력하세요"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
-                      <MessageSquare className="w-4 h-4" /> 필수 대사
-                    </label>
-                    <textarea
-                      value={currentWeekData.required_dialogue || ''}
-                      onChange={(e) => updateWeekField(activeWeek, 'required_dialogue', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      rows={2}
-                      placeholder="필수로 포함해야 하는 대사"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
-                      <Camera className="w-4 h-4" /> 필수 장면
-                    </label>
-                    <textarea
-                      value={currentWeekData.required_scenes || ''}
-                      onChange={(e) => updateWeekField(activeWeek, 'required_scenes', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      rows={2}
-                      placeholder="필수로 촬영해야 하는 장면"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
-                      <ExternalLink className="w-4 h-4" /> 참고 URL
-                    </label>
-                    <input
-                      type="text"
-                      value={currentWeekData.reference_url || ''}
-                      onChange={(e) => updateWeekField(activeWeek, 'reference_url', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="참고할 영상 URL"
-                    />
-                  </div>
-                </>
+                <input
+                  type="text"
+                  value={(currentWeekData.hashtags || []).join(', ')}
+                  onChange={(e) => updateWeekField(activeWeek, 'hashtags', e.target.value.split(',').map(t => t.trim()).filter(t => t))}
+                  className="w-full p-2 border rounded text-sm"
+                  placeholder="쉼표로 구분해서 입력"
+                />
               ) : (
-                <>
-                  {currentWeekData.mission && (
-                    <div>
-                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> 미션</span>
-                      <p className="text-gray-700 mt-1 whitespace-pre-wrap">{currentWeekData.mission}</p>
-                    </div>
-                  )}
-                  {currentWeekData.required_dialogue && (
-                    <div>
-                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><MessageSquare className="w-4 h-4" /> 필수 대사</span>
-                      <p className="text-gray-700 mt-1 whitespace-pre-wrap bg-white/60 p-2 rounded-lg border border-purple-100">"{currentWeekData.required_dialogue}"</p>
-                    </div>
-                  )}
-                  {currentWeekData.required_scenes && (
-                    <div>
-                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><Camera className="w-4 h-4" /> 필수 장면</span>
-                      <p className="text-gray-700 mt-1 whitespace-pre-wrap">{currentWeekData.required_scenes}</p>
-                    </div>
-                  )}
-                  {currentWeekData.reference_url && (
-                    <div>
-                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><ExternalLink className="w-4 h-4" /> 참고 URL</span>
-                      <a href={currentWeekData.reference_url.startsWith('http') ? currentWeekData.reference_url : `https://${currentWeekData.reference_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline mt-1 block text-sm break-all">{currentWeekData.reference_url}</a>
-                    </div>
-                  )}
-                  {!currentWeekData.mission && !currentWeekData.required_dialogue && !currentWeekData.required_scenes && !currentWeekData.reference_url && (
-                    <p className="text-gray-500 text-center py-4">이 주차에 설정된 가이드가 없습니다.</p>
-                  )}
-                </>
+                <div className="flex flex-wrap gap-2">
+                  {(currentWeekData.hashtags || []).map((tag, idx) => (
+                    <span key={idx} className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300">
+                      {tag.startsWith('#') ? tag : `#${tag}`}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
+          )}
+
+          {/* 참고 URL */}
+          {(currentWeekData.reference_url || localEditing) && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+              <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                <span>🔗</span>
+                참고 영상
+              </h4>
+              {localEditing ? (
+                <input
+                  type="text"
+                  value={currentWeekData.reference_url || ''}
+                  onChange={(e) => updateWeekField(activeWeek, 'reference_url', e.target.value)}
+                  className="w-full p-2 border rounded text-sm"
+                  placeholder="참고할 영상 URL"
+                />
+              ) : (
+                <div className="bg-white border border-orange-200 rounded-lg p-4">
+                  <a
+                    href={currentWeekData.reference_url?.startsWith('http') ? currentWeekData.reference_url : `https://${currentWeekData.reference_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                  >
+                    {currentWeekData.reference_url}
+                  </a>
+                  <p className="text-xs text-gray-500 mt-3">
+                    💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 내용이 없는 경우 */}
+          {!currentWeekData.mission && !currentWeekData.required_dialogue && !currentWeekData.required_scenes && !currentWeekData.reference_url && !localEditing && (
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <p className="text-gray-500">
+                {activeWeek.replace('week', '')}주차 가이드가 등록되지 않았습니다.
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                관리자에게 문의해 주세요.
+              </p>
+            </div>
+          )}
         </div>
       )
     }
@@ -425,15 +519,20 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
             ))}
           </div>
 
-          {/* STEP 3는 고정 안내 + 스토리 URL만 표시 */}
+          {/* STEP 3는 고정 안내 + 스토리 URL + 주의사항 표시 */}
           {activeStep === 'step3' ? (
             <>
               {/* 고정 안내 문구 */}
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
-                <h4 className="text-base font-bold text-blue-900 mb-3">{step3Instruction.title}</h4>
-                <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
-                  {step3Instruction.content}
-                </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                  <span>📌</span>
+                  {step3Instruction.title}
+                </h4>
+                <div className="bg-white rounded-lg p-4 border border-blue-100">
+                  <p className="text-sm text-gray-800 leading-relaxed">
+                    STEP 2 영상에 아래 제품 구매 링크(URL)를 삽입하여 지정된 날짜에 맞춰 업로드해 주세요.
+                  </p>
+                </div>
               </div>
 
               {/* 스토리 URL */}
@@ -467,6 +566,46 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                   </p>
                 </div>
               )}
+
+              {/* STEP 3 주의사항 - 고정 */}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
+                  <span>⚠️</span>
+                  주의사항
+                </h4>
+                <div className="bg-white rounded-lg p-4 border border-red-100 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-500 font-bold">•</span>
+                    <p className="text-sm text-gray-800"><strong>플랫폼:</strong> 인스타그램 스토리 한정</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-500 font-bold">•</span>
+                    <p className="text-sm text-gray-800">
+                      <strong>업로드 기한:</strong>{' '}
+                      <span className="text-red-600 font-bold">
+                        {guideData.step3_deadline
+                          ? new Date(guideData.step3_deadline).toLocaleDateString('ko-KR', {
+                              year: 'numeric', month: 'long', day: 'numeric', weekday: 'short'
+                            })
+                          : '캠페인 상세 확인'}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-500 font-bold">•</span>
+                    <p className="text-sm text-gray-800"><strong>유지 기간:</strong> 24시간 이상 필수 유지</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-500 font-bold">•</span>
+                    <p className="text-sm text-gray-800"><strong>URL 삽입 위치:</strong> 스토리 링크 스티커</p>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-red-100 rounded-lg border border-red-300">
+                  <p className="text-sm text-red-800 font-semibold">
+                    ⛔ 24시간 이내 삭제 시 캠페인 규정 위반으로 처리될 수 있습니다.
+                  </p>
+                </div>
+              </div>
             </>
           ) : (
             /* STEP 1, 2 내용 */
