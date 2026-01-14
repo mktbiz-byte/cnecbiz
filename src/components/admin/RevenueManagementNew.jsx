@@ -394,9 +394,9 @@ export default function RevenueManagementNew() {
     try {
       const { data: withdrawals, error: fetchError } = await supabaseBiz
         .from('creator_withdrawal_requests')
-        .select('id, requested_amount, requested_points, final_amount, account_holder, status, completed_at, created_at')
+        .select('*')
         .eq('status', 'completed')
-        .order('completed_at', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (fetchError) throw fetchError
 
@@ -411,10 +411,10 @@ export default function RevenueManagementNew() {
       for (const withdrawal of (withdrawals || [])) {
         if (existingIds.has(withdrawal.id)) continue
 
-        const completedDate = new Date(withdrawal.completed_at || withdrawal.created_at)
+        const completedDate = new Date(withdrawal.completed_at || withdrawal.processed_at || withdrawal.created_at)
         const yearMonth = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}`
         const expenseDate = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}-${String(completedDate.getDate()).padStart(2, '0')}`
-        const amount = withdrawal.requested_amount || withdrawal.requested_points || withdrawal.final_amount || 0
+        const amount = withdrawal.final_amount || withdrawal.requested_amount || withdrawal.amount || withdrawal.requested_points || 0
         const creatorName = withdrawal.account_holder || '크리에이터'
 
         const { error: insertError } = await supabaseBiz.from('expense_records').insert({
