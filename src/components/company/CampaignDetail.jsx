@@ -4723,7 +4723,7 @@ JSON만 출력.`
                         {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
                           <div className="flex items-center gap-1.5">
                             {/* 올영: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide) ? (
+                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) ? (
                               <>
                                 <Button
                                   size="sm"

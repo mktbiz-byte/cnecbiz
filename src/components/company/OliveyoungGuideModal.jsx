@@ -12,14 +12,20 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   const parseGuideData = (guideText) => {
     if (!guideText) return null
     try {
-      return typeof guideText === 'string' ? JSON.parse(guideText) : guideText
+      const parsed = typeof guideText === 'string' ? JSON.parse(guideText) : guideText
+      return parsed
     } catch {
+      // JSON 파싱 실패 시 텍스트 가이드로 처리
+      if (typeof guideText === 'string' && guideText.trim()) {
+        return { text_guide: guideText }
+      }
       return null
     }
   }
 
-  const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai)
-  const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai)
+  // AI 가이드 또는 일반 가이드 둘 다 확인
+  const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
+  const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
 
   // 외부 가이드 정보
   const getExternalGuide = (stepNum) => {
@@ -134,8 +140,9 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   const cautions = currentStepData?.cautions || ''
   const hashtags = currentStepData?.hashtags || []
   const referenceUrls = currentStepData?.reference_urls || []
+  const textGuide = currentStepData?.text_guide || ''
 
-  const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
+  const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0 || textGuide
   const hasExternalGuide = !!currentExternalGuide
 
   // STEP 3 story URL
@@ -327,6 +334,21 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
                 </div>
               ) : hasContent ? (
                 <div className="space-y-6">
+                  {/* 텍스트 가이드 (일반 텍스트 형식) */}
+                  {textGuide && (
+                    <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-pink-900 mb-3 flex items-center gap-2">
+                        <span>📝</span>
+                        {activeStep === 'step1' ? 'STEP 1' : 'STEP 2'} 가이드
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-pink-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {textGuide}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* 제품 정보 */}
                   {(productInfo || isEditing) && (
                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
