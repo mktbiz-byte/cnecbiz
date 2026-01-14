@@ -46,13 +46,16 @@ exports.handler = async (event) => {
       throw new Error('Campaign not found')
     }
 
-    // 2. 올리브영 가이드 확인
-    const hasGuide = campaign.oliveyoung_step1_guide_ai || 
-                     campaign.oliveyoung_step2_guide_ai || 
-                     campaign.oliveyoung_step3_guide_ai
+    // 2. 올리브영 가이드 확인 (AI 가이드 또는 외부 가이드)
+    const hasAiGuide = campaign.oliveyoung_step1_guide_ai ||
+                       campaign.oliveyoung_step2_guide_ai ||
+                       campaign.oliveyoung_step3_guide_ai
+    const hasExternalGuide = campaign.step1_external_url || campaign.step1_external_file_url ||
+                             campaign.step2_external_url || campaign.step2_external_file_url ||
+                             campaign.step3_external_url || campaign.step3_external_file_url
 
-    if (!hasGuide) {
-      throw new Error('Oliveyoung guide not found')
+    if (!hasAiGuide && !hasExternalGuide) {
+      throw new Error('Oliveyoung guide not found (AI guide or external guide required)')
     }
 
     // 3. 마감일 정보 (올영은 2개 영상: 1차, 2차)

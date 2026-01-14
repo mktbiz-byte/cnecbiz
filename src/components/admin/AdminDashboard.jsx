@@ -73,15 +73,6 @@ export default function AdminDashboard() {
     if (!supabaseBiz) return
 
     try {
-      const [companiesRes, creatorsRes, financialRes] = await Promise.all([
-        supabaseBiz.from('companies').select('id', { count: 'exact', head: true }),
-        supabaseBiz.from('featured_creators').select('id', { count: 'exact', head: true }),
-        supabaseBiz.from('financial_records').select('*')
-      ])
-
-      const campaigns = await getCampaignsFromAllRegions()
-      const financialData = financialRes.data || []
-
       // 현재 날짜 기준
       const now = new Date()
       const currentYear = now.getFullYear()
@@ -90,50 +81,55 @@ export default function AdminDashboard() {
       const quarterStartMonth = (currentQuarter - 1) * 3 + 1
       const quarterEndMonth = currentQuarter * 3
 
-      // 총 매출: financial_records에서 type === 'revenue' 합산
-      const totalRevenue = financialData
-        .filter(r => r.type === 'revenue')
-        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+      const [companiesRes, creatorsRes, revenueRes, expenseRes] = await Promise.all([
+        supabaseBiz.from('companies').select('id', { count: 'exact', head: true }),
+        supabaseBiz.from('featured_creators').select('id', { count: 'exact', head: true }),
+        // 매출 관리와 동일한 revenue_records 테이블 사용
+        supabaseBiz.from('revenue_records').select('*')
+          .gte('year_month', `${currentYear}-01`)
+          .lte('year_month', `${currentYear}-12`),
+        // 매출 관리와 동일한 expense_records 테이블 사용
+        supabaseBiz.from('expense_records').select('*')
+          .gte('year_month', `${currentYear}-01`)
+          .lte('year_month', `${currentYear}-12`)
+      ])
+
+      const campaigns = await getCampaignsFromAllRegions()
+      const revenueData = revenueRes.data || []
+      const expenseData = expenseRes.data || []
+
+      const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+
+      // 총 매출: revenue_records 합산
+      const totalRevenue = revenueData.reduce((sum, r) => sum + (r.amount || 0), 0)
 
       // 이번 달 매출/매입
-      const thisMonthRevenue = financialData
-        .filter(r => r.type === 'revenue' && r.record_date &&
-          r.record_date.startsWith(`${currentYear}-${String(currentMonth).padStart(2, '0')}`))
-        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+      const thisMonthRevenue = revenueData
+        .filter(r => r.year_month === currentMonthStr)
+        .reduce((sum, r) => sum + (r.amount || 0), 0)
 
-      const thisMonthExpenses = financialData
-        .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') &&
-          r.record_date && r.record_date.startsWith(`${currentYear}-${String(currentMonth).padStart(2, '0')}`))
-        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+      const thisMonthExpenses = expenseData
+        .filter(e => e.year_month === currentMonthStr)
+        .reduce((sum, e) => sum + (e.amount || 0), 0)
 
       // 이번 분기 매출/매입
-      const thisQuarterRevenue = financialData
-        .filter(r => r.type === 'revenue' && r.record_date)
+      const thisQuarterRevenue = revenueData
         .filter(r => {
-          const month = parseInt(r.record_date.substring(5, 7))
-          const year = parseInt(r.record_date.substring(0, 4))
-          return year === currentYear && month >= quarterStartMonth && month <= quarterEndMonth
+          const month = parseInt(r.year_month?.split('-')[1] || '0')
+          return month >= quarterStartMonth && month <= quarterEndMonth
         })
-        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+        .reduce((sum, r) => sum + (r.amount || 0), 0)
 
-      const thisQuarterExpenses = financialData
-        .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') && r.record_date)
-        .filter(r => {
-          const month = parseInt(r.record_date.substring(5, 7))
-          const year = parseInt(r.record_date.substring(0, 4))
-          return year === currentYear && month >= quarterStartMonth && month <= quarterEndMonth
+      const thisQuarterExpenses = expenseData
+        .filter(e => {
+          const month = parseInt(e.year_month?.split('-')[1] || '0')
+          return month >= quarterStartMonth && month <= quarterEndMonth
         })
-        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+        .reduce((sum, e) => sum + (e.amount || 0), 0)
 
-      // 올해 매출/매입
-      const thisYearRevenue = financialData
-        .filter(r => r.type === 'revenue' && r.record_date && r.record_date.startsWith(`${currentYear}`))
-        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
-
-      const thisYearExpenses = financialData
-        .filter(r => (r.type === 'fixed_cost' || r.type === 'variable_cost' || r.type === 'creator_cost') &&
-          r.record_date && r.record_date.startsWith(`${currentYear}`))
-        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+      // 올해 매출/매입 (이미 현재 연도만 가져왔으므로 전체 합산)
+      const thisYearRevenue = totalRevenue
+      const thisYearExpenses = expenseData.reduce((sum, e) => sum + (e.amount || 0), 0)
 
       setStats({
         companies: companiesRes.count || 0,
@@ -154,12 +150,21 @@ export default function AdminDashboard() {
 
   const fetchCampaignStats = async () => {
     try {
-      const [campaigns, financialRes] = await Promise.all([
+      const now = new Date()
+      // 최근 6개월의 시작과 끝 월 계산
+      const startMonth = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+      const startMonthStr = `${startMonth.getFullYear()}-${String(startMonth.getMonth() + 1).padStart(2, '0')}`
+      const endMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+      const [campaigns, revenueRes] = await Promise.all([
         getCampaignsFromAllRegions(),
-        supabaseBiz.from('financial_records').select('*').eq('type', 'revenue')
+        // 매출 관리와 동일한 revenue_records 테이블 사용
+        supabaseBiz.from('revenue_records').select('*')
+          .gte('year_month', startMonthStr)
+          .lte('year_month', endMonthStr)
       ])
 
-      const financialData = financialRes.data || []
+      const revenueData = revenueRes.data || []
 
       if (campaigns) {
         const stats = {
@@ -173,16 +178,16 @@ export default function AdminDashboard() {
         }
         setCampaignStats(stats)
 
-        // 월별 매출 데이터 (최근 6개월) - financial_records 기준
+        // 월별 매출 데이터 (최근 6개월) - revenue_records 기준
         const monthlyData = []
-        const now = new Date()
         for (let i = 5; i >= 0; i--) {
           const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
           const monthStr = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`
 
-          const monthRevenue = financialData
-            .filter(r => r.record_date && r.record_date.startsWith(monthStr))
-            .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+          // revenue_records의 year_month 필드로 필터링
+          const monthRevenue = revenueData
+            .filter(r => r.year_month === monthStr)
+            .reduce((sum, r) => sum + (r.amount || 0), 0)
 
           const monthCampaigns = campaigns.filter(c => {
             const created = new Date(c.created_at)

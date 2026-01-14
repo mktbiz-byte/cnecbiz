@@ -89,6 +89,12 @@ export default function CreateCampaign() {
       .single()
 
     if (companyData) {
+      // 차단된 기업 체크
+      if (companyData.is_blocked) {
+        alert('차단된 계정입니다. 캠페인을 생성할 수 없습니다.\n문의: cnec@cnecbiz.com')
+        navigate('/company/dashboard')
+        return
+      }
       setCompany(companyData)
     }
   }

@@ -1,9 +1,9 @@
 const { createClient } = require('@supabase/supabase-js');
 
 /**
- * 3일 경과 영상 자동 확정 스케줄러
+ * 5일 경과 영상 자동 확정 스케줄러
  *
- * 매일 자정(KST)에 실행되어 3일 이상 경과한 approved 상태의 영상을
+ * 매일 자정(KST)에 실행되어 5일 이상 경과한 approved 상태의 영상을
  * 자동으로 최종 확정하고 포인트를 지급합니다.
  *
  * Netlify Scheduled Functions 설정 (netlify.toml):
@@ -30,17 +30,17 @@ exports.handler = async (event, context) => {
   const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : supabaseKorea;
 
   try {
-    // 3일 전 날짜 계산
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    const cutoffDate = threeDaysAgo.toISOString();
+    // 5일 전 날짜 계산
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    const cutoffDate = fiveDaysAgo.toISOString();
 
-    console.log('3일 경과 기준 시간:', cutoffDate);
+    console.log('5일 경과 기준 시간:', cutoffDate);
 
     // 자동 확정 대상 조회:
     // - status가 'approved'
     // - final_confirmed_at이 null
-    // - approved_at이 3일 이전
+    // - approved_at이 5일 이전
     const { data: pendingSubmissions, error: fetchError } = await supabaseKorea
       .from('video_submissions')
       .select(`
@@ -122,49 +122,57 @@ exports.handler = async (event, context) => {
 
         // 3. 포인트 지급
         if (pointAmount > 0 && submission.user_id) {
-          // 크리에이터 프로필 조회 (BIZ DB)
-          const { data: profile, error: profileError } = await supabaseBiz
+          // 크리에이터 프로필 조회 (Korea DB - 한국 크리에이터 포인트는 Korea DB에 저장)
+          const { data: profile, error: profileError } = await supabaseKorea
             .from('user_profiles')
-            .select('point, phone, email, name, full_name')
+            .select('points, phone, email, name, full_name')
             .eq('id', submission.user_id)
             .single();
 
           if (profile) {
             // 포인트 업데이트
-            const newPoint = (profile.point || 0) + pointAmount;
-            await supabaseBiz
+            const newPoints = (profile.points || 0) + pointAmount;
+            await supabaseKorea
               .from('user_profiles')
-              .update({ point: newPoint })
+              .update({ points: newPoints, updated_at: new Date().toISOString() })
               .eq('id', submission.user_id);
 
             // 포인트 히스토리 기록
-            await supabaseBiz
-              .from('point_history')
-              .insert([{
-                user_id: submission.user_id,
-                campaign_id: campaign.id,
-                amount: pointAmount,
-                type: 'earn',
-                description: `캠페인 자동 완료: ${campaign.title}`,
-                created_at: new Date().toISOString()
-              }]);
+            try {
+              await supabaseKorea
+                .from('point_history')
+                .insert([{
+                  user_id: submission.user_id,
+                  campaign_id: campaign.id,
+                  amount: pointAmount,
+                  type: 'campaign_complete',
+                  reason: `캠페인 자동 완료: ${campaign.title}`,
+                  balance_after: newPoints,
+                  created_at: new Date().toISOString()
+                }]);
+            } catch (historyError) {
+              console.log('point_history 저장 실패:', historyError);
+            }
 
             const creatorName = profile.name || profile.full_name || '크리에이터';
 
-            // 알림톡 발송
+            // 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
             if (profile.phone) {
               try {
+                const completedDate = new Date().toLocaleDateString('ko-KR', {
+                  year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
+                });
                 await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-kakao-notification`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
                     receiverNum: profile.phone,
                     receiverName: creatorName,
-                    templateCode: '025100001016',
+                    templateCode: '025100001018',
                     variables: {
                       '크리에이터명': creatorName,
                       '캠페인명': campaign.title,
-                      '지급포인트': pointAmount.toLocaleString()
+                      '완료일': completedDate
                     }
                   })
                 });
@@ -174,6 +182,21 @@ exports.handler = async (event, context) => {
             }
 
             console.log(`포인트 지급 완료: user_id=${submission.user_id}, amount=${pointAmount}`);
+
+            // 네이버 웍스 포인트 지급 알림
+            try {
+              await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  isAdminNotification: true,
+                  channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                  message: `💰 포인트 자동 지급 완료\n\n크리에이터: ${creatorName}\n캠페인: ${campaign.title}\n지급 포인트: ${pointAmount.toLocaleString()}P\n현재 잔액: ${newPoints.toLocaleString()}P`
+                })
+              });
+            } catch (e) {
+              console.error('네이버 웍스 포인트 알림 실패:', e);
+            }
           }
         }
 

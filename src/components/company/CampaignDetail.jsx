@@ -2254,16 +2254,14 @@ JSON만 출력.`
 
       for (const participant of participants) {
         try {
-          // 재전달 여부 확인
-          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          // 재전달 여부 확인 (personalized_guide가 있으면 재전달)
+          const isRedelivery = !!participant.personalized_guide
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
           // 가이드 전달 상태 업데이트
           const updateData = {
             status: 'filming',
-            updated_at: new Date().toISOString(),
-            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록
-            guide_cancelled_at: null // 취소 기록 초기화
+            updated_at: new Date().toISOString()
           }
 
           // 개별 메시지가 있으면 추가
@@ -2524,6 +2522,47 @@ JSON만 출력.`
     }
   }
 
+  // 올영 가이드 개별 전달 함수
+  const handleDeliverOliveYoungGuide = async () => {
+    const hasGuide = campaign.oliveyoung_step1_guide_ai ||
+                     campaign.step1_external_url ||
+                     campaign.step1_external_file_url
+
+    if (!hasGuide) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    try {
+      // Netlify 함수 호출로 가이드 전달 + 알림톡 발송
+      const response = await fetch('/.netlify/functions/deliver-oliveyoung-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          region: region
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || '가이드 전달에 실패했습니다.')
+      }
+
+      if (result.errorCount === 0) {
+        alert(`${result.successCount}명의 크리에이터에게 올영 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${result.successCount}명 성공, ${result.errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliverOliveYoungGuide:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
 
   // AI 맞춤 가이드 생성 함수
   const handleGeneratePersonalizedGuides = async (selectedParticipantsList) => {
@@ -2656,7 +2695,7 @@ JSON만 출력.`
           }
           
           // 가이드 재전달 로그
-          if (participant.guide_confirmed) {
+          if (participant.personalized_guide) {
             console.log(`[RE-DELIVERY] Sending guide again to ${(participant.creator_name || participant.applicant_name || '크리에이터')}`)
           }
 
@@ -2665,9 +2704,7 @@ JSON만 출력.`
 
           // 재전달인 경우 상태를 변경하지 않음
           const updatePayload = {
-            updated_at: new Date().toISOString(),
-            guide_delivered_at: new Date().toISOString(), // 전달 시간 기록 (재전달 감지용)
-            guide_cancelled_at: null // 취소 기록 초기화
+            updated_at: new Date().toISOString()
           }
           if (participant.status !== 'filming') {
             updatePayload.status = 'filming'
@@ -2698,12 +2735,33 @@ JSON만 출력.`
             .maybeSingle()
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
-          // 기획형: content_submission_deadline → start_date fallback
-          const regularDeadline = campaign.content_submission_deadline || campaign.start_date
-          const deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
 
-          // 재전달 여부 확인 (이전에 전달된 적이 있거나 취소된 적이 있으면 재전달)
-          const isRedelivery = !!(participant.guide_delivered_at || participant.guide_cancelled_at)
+          // 캠페인 타입별 마감일 처리
+          let deadlineText = '미정'
+          if (campaign.campaign_type === '4week_challenge') {
+            // 4주 챌린지: 각 주차별 마감일
+            const deadlines = [
+              campaign.week1_deadline ? `1주: ${new Date(campaign.week1_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week2_deadline ? `2주: ${new Date(campaign.week2_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week3_deadline ? `3주: ${new Date(campaign.week3_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week4_deadline ? `4주: ${new Date(campaign.week4_deadline).toLocaleDateString('ko-KR')}` : null
+            ].filter(Boolean)
+            deadlineText = deadlines.length > 0 ? deadlines.join(', ') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') {
+            // 올영: STEP별 마감일
+            const deadlines = [
+              campaign.step1_deadline ? `1차: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.step2_deadline ? `2차: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : null
+            ].filter(Boolean)
+            deadlineText = deadlines.length > 0 ? deadlines.join(', ') : '미정'
+          } else {
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
+          }
+
+          // 재전달 여부 확인 (이미 filming 상태인 경우 = 이전에 가이드를 전달받은 적 있음)
+          const isRedelivery = participant.status === 'filming'
           const campaignNameForNotification = isRedelivery ? `[재전달] ${campaign.title}` : campaign.title
 
           // 팝빌 알림톡 발송
@@ -3015,44 +3073,66 @@ JSON만 출력.`
       if (pointAmount > 0 && userId && !skipPointPayment) {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('point, phone, email')
+          .select('points, phone, email')
           .eq('id', userId)
           .single()
 
         if (profile) {
-          const newPoint = (profile.point || 0) + pointAmount
+          const newPoints = (profile.points || 0) + pointAmount
           await supabase
             .from('user_profiles')
-            .update({ point: newPoint })
+            .update({ points: newPoints, updated_at: new Date().toISOString() })
             .eq('id', userId)
 
-          await supabase
-            .from('point_history')
-            .insert([{
-              user_id: userId,
-              campaign_id: campaign.id,
-              amount: pointAmount,
-              type: 'earn',
-              description: `캠페인 완료: ${campaign.title}`,
-              created_at: new Date().toISOString()
-            }])
+          // 포인트 이력 저장 (point_history 또는 point_transactions)
+          try {
+            await supabase
+              .from('point_history')
+              .insert([{
+                user_id: userId,
+                campaign_id: campaign.id,
+                amount: pointAmount,
+                type: 'campaign_complete',
+                reason: `캠페인 완료: ${campaign.title}`,
+                balance_after: newPoints,
+                created_at: new Date().toISOString()
+              }])
+          } catch (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
+            try {
+              await supabase
+                .from('point_transactions')
+                .insert([{
+                  user_id: userId,
+                  amount: pointAmount,
+                  type: 'earn',
+                  description: `캠페인 완료: ${campaign.title}`,
+                  created_at: new Date().toISOString()
+                }])
+            } catch (txError) {
+              console.log('point_transactions 저장도 실패 (무시):', txError)
+            }
+          }
 
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
-          // 크리에이터에게 알림톡 발송
+          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
           if (profile.phone) {
             try {
+              const completedDate = new Date().toLocaleDateString('ko-KR', {
+                year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
+              })
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   receiverNum: profile.phone,
                   receiverName: creatorName,
-                  templateCode: '025100001019',
+                  templateCode: '025100001018',
                   variables: {
                     '크리에이터명': creatorName,
                     '캠페인명': campaign.title,
-                    '지급포인트': pointAmount.toLocaleString()
+                    '완료일': completedDate
                   }
                 })
               })
@@ -3145,44 +3225,66 @@ JSON만 출력.`
       if (pointAmount > 0 && userId) {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('point, phone, email')
+          .select('points, phone, email')
           .eq('id', userId)
           .single()
 
         if (profile) {
-          const newPoint = (profile.point || 0) + pointAmount
+          const newPoints = (profile.points || 0) + pointAmount
           await supabase
             .from('user_profiles')
-            .update({ point: newPoint })
+            .update({ points: newPoints, updated_at: new Date().toISOString() })
             .eq('id', userId)
 
-          await supabase
-            .from('point_history')
-            .insert([{
-              user_id: userId,
-              campaign_id: campaign.id,
-              amount: pointAmount,
-              type: 'earn',
-              description: `캠페인 완료: ${campaign.title}`,
-              created_at: new Date().toISOString()
-            }])
+          // 포인트 이력 저장 (point_history 또는 point_transactions)
+          try {
+            await supabase
+              .from('point_history')
+              .insert([{
+                user_id: userId,
+                campaign_id: campaign.id,
+                amount: pointAmount,
+                type: 'campaign_complete',
+                reason: `캠페인 완료: ${campaign.title}`,
+                balance_after: newPoints,
+                created_at: new Date().toISOString()
+              }])
+          } catch (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
+            try {
+              await supabase
+                .from('point_transactions')
+                .insert([{
+                  user_id: userId,
+                  amount: pointAmount,
+                  type: 'earn',
+                  description: `캠페인 완료: ${campaign.title}`,
+                  created_at: new Date().toISOString()
+                }])
+            } catch (txError) {
+              console.log('point_transactions 저장도 실패 (무시):', txError)
+            }
+          }
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
-          // 크리에이터에게 알림톡 발송
+          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
           if (profile.phone) {
             try {
+              const completedDate = new Date().toLocaleDateString('ko-KR', {
+                year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
+              })
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   receiverNum: profile.phone,
                   receiverName: creatorName,
-                  templateCode: '025100001019',
+                  templateCode: '025100001018',
                   variables: {
                     '크리에이터명': creatorName,
                     '캠페인명': campaign.title,
-                    '지급포인트': pointAmount.toLocaleString()
+                    '완료일': completedDate
                   }
                 })
               })
@@ -3791,13 +3893,60 @@ JSON만 출력.`
         .eq('id', id)
 
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
-      
+
+      // 일본 크리에이터 선정 알림 발송 (LINE + SMS + Email + LINE 초대)
+      if (region === 'japan') {
+        alert('일본 크리에이터에게 선정 알림을 발송합니다...')
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            try {
+              // 1. 선정 알림 발송 (LINE → SMS → Email)
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'campaign_selected',
+                  creatorEmail: participant.creator_email || participant.user_email,
+                  data: {
+                    creatorName: participant.creator_name || participant.applicant_name,
+                    campaignName: campaign.title,
+                    brandName: campaign.brand_name || campaign.company_name,
+                    reward: campaign.reward_text || campaign.compensation,
+                    deadline: campaign.content_submission_deadline,
+                    guideUrl: `https://cnec.jp/creator/campaigns/${id}`
+                  }
+                })
+              })
+
+              // 2. LINE 초대장 발송 (SMS + Email)
+              await fetch('/.netlify/functions/send-line-invitation-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: participant.creator_name || participant.applicant_name,
+                  email: participant.creator_email || participant.user_email,
+                  phone: participant.phone || participant.creator_phone,
+                  language: 'ja'
+                })
+              })
+
+              console.log(`[Japan] Notification sent to: ${participant.creator_name}`)
+            } catch (notifError) {
+              console.error(`[Japan] Notification error for ${participant.creator_name}:`, notifError)
+            }
+          }
+        }
+        alert('일본 크리에이터 알림 발송 완료!')
+      }
+
       // 기획형 캠페인인 경우 맞춤 가이드 생성
       if (campaign.campaign_type === 'planned') {
         alert('크리에이터별 맞춤 가이드를 생성하고 있습니다. 잠시만 기다려주세요...')
         await generatePersonalizedGuides(selectedParticipants)
       }
-      
+
       await fetchParticipants()
       await fetchCampaignDetail()
       setSelectedParticipants([])
@@ -4342,18 +4491,29 @@ JSON만 출력.`
                                   가이드 보기
                                 </Button>
                                 {participant.status === 'selected' ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                      await handleGuideApproval([participant.id])
-                                    }}
-                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    전달하기
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                        await handleGuideApproval([participant.id])
+                                      }}
+                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                    >
+                                      <Send className="w-3 h-3 mr-1" />
+                                      전달하기
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  </>
                                 ) : participant.status === 'filming' ? (
                                   <>
                                     <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
@@ -4425,29 +4585,53 @@ JSON만 출력.`
                         {/* 4주 챌린지 가이드 섹션 - 인라인 버튼 */}
                         {campaign.campaign_type === '4week_challenge' && (
                           <div className="flex items-center gap-1.5">
-                            {campaign.challenge_weekly_guides_ai ? (
+                            {participant.personalized_guide ? (
                               <>
                                 <Button
                                   size="sm"
-                                  onClick={() => setShow4WeekGuideModal(true)}
+                                  onClick={() => {
+                                    // 가이드 타입 확인
+                                    let guideData = participant.personalized_guide
+                                    if (typeof guideData === 'string') {
+                                      try { guideData = JSON.parse(guideData) } catch { guideData = {} }
+                                    }
+                                    // 4week_ai 타입이면 캠페인 가이드 모달 열기
+                                    if (guideData?.type === '4week_ai') {
+                                      setShow4WeekGuideModal(true)
+                                    } else {
+                                      setSelectedGuide(participant)
+                                      setShowGuideModal(true)
+                                    }
+                                  }}
                                   className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-xs px-3 py-1 h-auto"
                                 >
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
                                 {participant.status === 'selected' ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 4주 챌린지 가이드를 전달하시겠습니까?`)) return
-                                      await handleDeliver4WeekGuideByWeek(1)
-                                    }}
-                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    전달하기
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                        await handleGuideApproval([participant.id])
+                                      }}
+                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                    >
+                                      <Send className="w-3 h-3 mr-1" />
+                                      전달하기
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  </>
                                 ) : participant.status === 'filming' ? (
                                   <>
                                     <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
@@ -4472,7 +4656,108 @@ JSON만 출력.`
                                 )}
                               </>
                             ) : (
-                              <span className="text-gray-500 text-xs">가이드 생성 필요</span>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                가이드 전달
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 올영 가이드 섹션 - 인라인 버튼 */}
+                        {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+                          <div className="flex items-center gap-1.5">
+                            {participant.personalized_guide ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    // 가이드 타입 확인
+                                    let guideData = participant.personalized_guide
+                                    if (typeof guideData === 'string') {
+                                      try { guideData = JSON.parse(guideData) } catch { guideData = {} }
+                                    }
+                                    // oliveyoung_ai 타입이면 캠페인 가이드 모달 열기
+                                    if (guideData?.type === 'oliveyoung_ai') {
+                                      setShowOliveyoungGuideModal(true)
+                                    } else {
+                                      setSelectedGuide(participant)
+                                      setShowGuideModal(true)
+                                    }
+                                  }}
+                                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  가이드 보기
+                                </Button>
+                                {participant.status === 'selected' ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                        await handleGuideApproval([participant.id])
+                                      }}
+                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                    >
+                                      <Send className="w-3 h-3 mr-1" />
+                                      전달하기
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  </>
+                                ) : participant.status === 'filming' ? (
+                                  <>
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                      <CheckCircle className="w-3 h-3" />
+                                      전달완료
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      취소
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    전달완료
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                가이드 전달
+                              </Button>
                             )}
                           </div>
                         )}
@@ -4524,9 +4809,8 @@ JSON만 출력.`
       const { error } = await supabase
         .from('applications')
         .update({
-          guide_confirmed: false,
-          // guide_delivered_at은 유지 (재전달 감지용)
-          guide_cancelled_at: new Date().toISOString(),
+          personalized_guide: null, // 가이드 초기화
+          updated_at: new Date().toISOString(),
           status: 'selected' // 선정됨 상태로 되돌림
         })
         .eq('id', participantId)
@@ -8889,27 +9173,107 @@ JSON만 출력.`
 
             {/* 본문 */}
             <div className="p-6 space-y-4">
-              {/* AI 가이드 생성 옵션 */}
-              <button
-                onClick={async () => {
-                  const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
-                  if (!confirm(`${creatorName}님의 AI 맞춤 가이드를 생성하시겠습니까?`)) return
-                  setShowGuideSelectModal(false)
-                  await handleGeneratePersonalizedGuides([selectedParticipantForGuide])
-                  setSelectedParticipantForGuide(null)
-                }}
-                className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                    <Sparkles className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
-                    <p className="text-sm text-gray-500">크리에이터 맞춤형 가이드를 AI가 자동 생성</p>
-                  </div>
-                </div>
-              </button>
+              {/* 기획형: AI 가이드 생성 / 올영,4주: 기존 AI 가이드 사용 */}
+              {(() => {
+                const is4Week = campaign?.campaign_type === '4week_challenge'
+                const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+
+                // 올영/4주는 캠페인 레벨의 기존 AI 가이드 사용
+                if (is4Week || isOliveyoung) {
+                  // 기존 AI 가이드가 있는지 확인
+                  const hasAiGuide = is4Week
+                    ? campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides
+                    : campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step2_guide_ai
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        if (!hasAiGuide) {
+                          alert(is4Week
+                            ? '4주 챌린지 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.'
+                            : '올영 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.')
+                          return
+                        }
+                        const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                        if (!confirm(`${creatorName}님에게 기존 AI 가이드를 전달하시겠습니까?`)) return
+
+                        try {
+                          // 캠페인 레벨 AI 가이드를 참조하는 타입으로 저장
+                          const guidePayload = {
+                            type: is4Week ? '4week_ai' : 'oliveyoung_ai',
+                            campaignId: campaign.id
+                          }
+
+                          const { error } = await supabase
+                            .from('applications')
+                            .update({
+                              personalized_guide: JSON.stringify(guidePayload),
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq('id', selectedParticipantForGuide.id)
+
+                          if (error) throw error
+
+                          alert(`${creatorName}님에게 AI 가이드가 설정되었습니다. 전달하기 버튼으로 알림톡을 발송하세요.`)
+                          setShowGuideSelectModal(false)
+                          setSelectedParticipantForGuide(null)
+                          await fetchParticipants()
+                        } catch (error) {
+                          console.error('Error saving AI guide reference:', error)
+                          alert('가이드 설정에 실패했습니다: ' + error.message)
+                        }
+                      }}
+                      disabled={!hasAiGuide}
+                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
+                        hasAiGuide
+                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
+                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                          hasAiGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
+                        }`}>
+                          <Sparkles className={`w-6 h-6 ${hasAiGuide ? 'text-purple-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <h3 className={`font-bold ${hasAiGuide ? 'text-gray-900' : 'text-gray-500'}`}>
+                            기존 AI 가이드 사용
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {is4Week ? '4주 챌린지 캠페인 가이드' : '올영 캠페인 가이드'}
+                            {!hasAiGuide && ' (미생성)'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                }
+
+                // 기획형: AI 가이드 새로 생성
+                return (
+                  <button
+                    onClick={async () => {
+                      const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                      if (!confirm(`${creatorName}님의 AI 맞춤 가이드를 생성하시겠습니까?`)) return
+                      setShowGuideSelectModal(false)
+                      await handleGeneratePersonalizedGuides([selectedParticipantForGuide])
+                      setSelectedParticipantForGuide(null)
+                    }}
+                    className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                        <Sparkles className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
+                        <p className="text-sm text-gray-500">크리에이터 맞춤형 가이드를 AI가 자동 생성</p>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })()}
 
               {/* 파일/URL 전달 옵션 */}
               <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
@@ -8931,6 +9295,7 @@ JSON만 출력.`
                     campaignId={campaign?.id}
                     prefix={`guide_${selectedParticipantForGuide.id}_`}
                     className="border-0 p-0"
+                    supabaseClient={supabase}
                   />
 
                   {/* 전달 버튼 */}
@@ -8958,12 +9323,36 @@ JSON만 출력.`
                           .from('applications')
                           .update({
                             personalized_guide: JSON.stringify(guidePayload),
-                            guide_delivered_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
                             status: 'filming'
                           })
                           .eq('id', selectedParticipantForGuide.id)
 
                         if (error) throw error
+
+                        // 알림톡 발송
+                        try {
+                          const { data: profile } = await supabase
+                            .from('user_profiles')
+                            .select('phone')
+                            .eq('id', selectedParticipantForGuide.user_id)
+                            .maybeSingle()
+
+                          if (profile?.phone) {
+                            await sendGuideDeliveredNotification(
+                              profile.phone,
+                              creatorName,
+                              {
+                                campaignName: campaign?.title || '캠페인',
+                                deadline: campaign?.content_deadline
+                                  ? new Date(campaign.content_deadline).toLocaleDateString('ko-KR')
+                                  : '확인 필요'
+                              }
+                            )
+                          }
+                        } catch (notifError) {
+                          console.error('알림톡 발송 실패:', notifError)
+                        }
 
                         alert(`${creatorName}님에게 가이드가 전달되었습니다.`)
                         setShowGuideSelectModal(false)

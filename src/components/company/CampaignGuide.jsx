@@ -441,6 +441,7 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
                   onChange={setExternalGuide}
                   campaignId={id}
                   prefix=""
+                  supabaseClient={supabaseBiz}
                 />
 
                 {/* 외부 가이드 등록 완료 상태 표시 */}

@@ -655,6 +655,7 @@ JSON 형식으로 응답해주세요:
                 onChange={(data) => setStepExternalGuides(prev => ({ ...prev, step1: data }))}
                 campaignId={id}
                 prefix="step1_"
+                supabaseClient={supabaseBiz}
               />
             )}
 
@@ -764,6 +765,7 @@ JSON 형식으로 응답해주세요:
                 onChange={(data) => setStepExternalGuides(prev => ({ ...prev, step2: data }))}
                 campaignId={id}
                 prefix="step2_"
+                supabaseClient={supabaseBiz}
               />
             )}
 
@@ -867,6 +869,7 @@ JSON 형식으로 응답해주세요:
                 onChange={(data) => setStepExternalGuides(prev => ({ ...prev, step3: data }))}
                 campaignId={id}
                 prefix="step3_"
+                supabaseClient={supabaseBiz}
               />
             )}
 

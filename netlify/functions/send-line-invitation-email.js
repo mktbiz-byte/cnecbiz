@@ -266,6 +266,11 @@ exports.handler = async (event) => {
               phoneNumber = '+' + phoneNumber;
             } else if (phoneNumber.startsWith('1') && phoneNumber.length === 11) {
               phoneNumber = '+' + phoneNumber;
+            } else {
+              // LINE 초대는 기본적으로 일본 서비스이므로 +81로 기본 설정
+              // 국가번호가 명확하지 않은 경우 일본으로 발송
+              console.log(`[LINE Invitation] No country code detected for ${phoneNumber}, defaulting to +81 (Japan)`);
+              phoneNumber = '+81' + phoneNumber;
             }
           }
 

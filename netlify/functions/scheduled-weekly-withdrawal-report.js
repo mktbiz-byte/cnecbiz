@@ -312,7 +312,7 @@ exports.handler = async (event, context) => {
         allWithdrawals.push({
           ...w,
           source: 'biz',
-          name: w.account_holder || w.creator_name || 'Unknown',
+          name: w.account_holder || 'Unknown',
           amount: w.requested_amount || w.amount || 0,
           resident_registration_number: w.resident_registration_number
         });

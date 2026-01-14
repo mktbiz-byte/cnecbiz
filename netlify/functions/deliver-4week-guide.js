@@ -47,11 +47,16 @@ exports.handler = async (event) => {
     }
 
     // 2. 주차별 가이드 및 마감일 가져오기
-    const weekGuide = campaign.challenge_weekly_guides?.[`week${weekNumber}`]
-    const weekDeadline = campaign[`week${weekNumber}_deadline`]
+    const weekKey = `week${weekNumber}`
+    const weekAiGuide = campaign.challenge_weekly_guides?.[weekKey]
+    const weekExternalUrl = campaign[`${weekKey}_external_url`]
+    const weekExternalFileUrl = campaign[`${weekKey}_external_file_url`]
+    const weekDeadline = campaign[`${weekKey}_deadline`]
 
-    if (!weekGuide) {
-      throw new Error(`Week ${weekNumber} guide not found`)
+    // AI 가이드 또는 외부 가이드가 있어야 함
+    const hasGuide = weekAiGuide || weekExternalUrl || weekExternalFileUrl
+    if (!hasGuide) {
+      throw new Error(`Week ${weekNumber} guide not found (AI guide or external guide required)`)
     }
 
     // 마감일이 설정되지 않았으면 경고 로그

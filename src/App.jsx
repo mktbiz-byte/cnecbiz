@@ -224,7 +224,8 @@ function App() {
         <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/site-management" element={<SiteManagement />} />
         <Route path="/admin/site-management-creator" element={<SiteManagementCreator />} />
-        <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
+        <Route path="/admin/revenue-charts" element={<RevenueManagementNew />} />
+        <Route path="/admin/revenue-charts-old" element={<RevenueManagementWithCharts />} />
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
         <Route path="/admin/line-chat" element={<LineChatManagement />} />
