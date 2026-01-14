@@ -2145,9 +2145,9 @@ JSON만 출력.`
           // 주차별 마감일 처리
           let deadlineText = ''
           if (campaign.campaign_type === '4week_challenge') {
-            const weekDeadlineField = `week${weekNumber}_deadline`
-            const weekDeadline = campaign[weekDeadlineField]
-            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+            // 4주 챌린지: 가장 가까운 마감일 또는 1주차 마감일 사용
+            const week1Deadline = campaign.week1_deadline || campaign.content_submission_deadline
+            deadlineText = week1Deadline ? new Date(week1Deadline).toLocaleDateString('ko-KR') : '미정'
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
@@ -2301,9 +2301,9 @@ JSON만 출력.`
           // 주차별 마감일 처리
           let deadlineText = ''
           if (campaign.campaign_type === '4week_challenge') {
-            const weekDeadlineField = `week${weekNumber}_deadline`
-            const weekDeadline = campaign[weekDeadlineField]
-            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+            // 4주 챌린지: 가장 가까운 마감일 또는 1주차 마감일 사용
+            const week1Deadline = campaign.week1_deadline || campaign.content_submission_deadline
+            deadlineText = week1Deadline ? new Date(week1Deadline).toLocaleDateString('ko-KR') : '미정'
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
@@ -2461,9 +2461,9 @@ JSON만 출력.`
           // 주차별 마감일 처리
           let deadlineText = ''
           if (campaign.campaign_type === '4week_challenge') {
-            const weekDeadlineField = `week${weekNumber}_deadline`
-            const weekDeadline = campaign[weekDeadlineField]
-            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+            // 4주 챌린지: 가장 가까운 마감일 또는 1주차 마감일 사용
+            const week1Deadline = campaign.week1_deadline || campaign.content_submission_deadline
+            deadlineText = week1Deadline ? new Date(week1Deadline).toLocaleDateString('ko-KR') : '미정'
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
@@ -4640,25 +4640,34 @@ JSON만 출력.`
                                 <Send className="w-3 h-3 mr-1" />
                                 선택 후 발송
                               </Button>
-                              {participant.personalized_guide && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                  className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                >
-                                  <XCircle className="w-3 h-3 mr-1" />
-                                  재설정
-                                </Button>
+                              {/* 가이드 발송됨 상태이면 재설정 버튼 표시 */}
+                              {(participant.status === 'filming' || participant.week1_guide_delivered || participant.week2_guide_delivered || participant.week3_guide_delivered || participant.week4_guide_delivered) && (
+                                <>
+                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                    <CheckCircle className="w-3 h-3" />
+                                    전달완료
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                    className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    재설정
+                                  </Button>
+                                </>
                               )}
                             </div>
 
-                            {/* 주차별 발송 버튼 */}
-                            {participant.personalized_guide && (
+                            {/* 주차별 발송 버튼 - 캠페인 레벨 가이드가 있으면 표시 */}
+                            {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
                               <div className="flex flex-wrap gap-1">
                                 {[1, 2, 3, 4].map((weekNum) => {
                                   const weekKey = `week${weekNum}`
-                                  const hasWeekGuide = campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                  const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
                                                        campaign[`${weekKey}_external_url`] ||
                                                        campaign[`${weekKey}_external_file_url`]
                                   const isDelivered = participant[`${weekKey}_guide_delivered`]
@@ -4840,13 +4849,28 @@ JSON만 출력.`
     }
 
     try {
+      // 4주 챌린지의 경우 주차별 데이터도 초기화
+      const updateData = {
+        personalized_guide: null, // 가이드 초기화
+        updated_at: new Date().toISOString(),
+        status: 'selected' // 선정됨 상태로 되돌림
+      }
+
+      // 4주 챌린지 주차별 데이터 초기화
+      if (campaign.campaign_type === '4week_challenge') {
+        updateData.week1_guide_delivered = false
+        updateData.week1_guide_delivered_at = null
+        updateData.week2_guide_delivered = false
+        updateData.week2_guide_delivered_at = null
+        updateData.week3_guide_delivered = false
+        updateData.week3_guide_delivered_at = null
+        updateData.week4_guide_delivered = false
+        updateData.week4_guide_delivered_at = null
+      }
+
       const { error } = await supabase
         .from('applications')
-        .update({
-          personalized_guide: null, // 가이드 초기화
-          updated_at: new Date().toISOString(),
-          status: 'selected' // 선정됨 상태로 되돌림
-        })
+        .update(updateData)
         .eq('id', participantId)
 
       if (error) throw error
