@@ -6014,17 +6014,34 @@ JSON만 출력.`
                           submissionsByStep[1] = userSubmissions
                         }
 
-                        // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저)
+                        // 각 스텝 내에서 버전/제출일 정렬 후 최신 버전만 유지
                         Object.keys(submissionsByStep).forEach(step => {
-                          submissionsByStep[step].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+                          const subs = submissionsByStep[step]
+                          if (!subs || subs.length === 0) return
+                          subs.sort((a, b) => {
+                            const aVer = a.version || 0
+                            const bVer = b.version || 0
+                            if (aVer !== bVer) return bVer - aVer
+                            return new Date(b.submitted_at) - new Date(a.submitted_at)
+                          })
+                          // 최신 버전만 유지
+                          submissionsByStep[step] = [subs[0]]
                         })
+
+                        // 이미 검수완료된 스텝 확인
+                        const approvedSteps = new Set()
+                        videoSubmissions
+                          .filter(v => v.user_id === userId && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                          .forEach(v => {
+                            const stepNum = v.week_number || v.video_number || 1
+                            approvedSteps.add(stepNum)
+                          })
 
                         const availableSteps = Object.keys(submissionsByStep).map(Number).sort((a, b) => a - b)
                         const selectedStep = selectedVideoSteps[userId] || availableSteps[0]
                         const stepSubmissions = submissionsByStep[selectedStep] || []
-                        const versionKey = `${userId}_${selectedStep}`
-                        const selectedVersion = selectedVideoVersions[versionKey] || 0
-                        const submission = stepSubmissions[selectedVersion]
+                        const submission = stepSubmissions[0]
+                        const isStepApproved = selectedStep ? approvedSteps.has(selectedStep) : false
 
                         if (!submission) return null
 
@@ -6211,7 +6228,7 @@ JSON만 출력.`
                                 </svg>
                                 영상 다운로드
                               </Button>
-                              {submission.status !== 'approved' && (
+                              {submission.status !== 'approved' && !isStepApproved && (
                                 <>
                                   <Button
                                     size="sm"
@@ -6235,7 +6252,7 @@ JSON만 출력.`
                                   </Button>
                                 </>
                               )}
-                              {submission.status === 'approved' && (
+                              {(submission.status === 'approved' || isStepApproved) && (
                                 <div className="text-center text-sm text-green-600 font-medium py-2 bg-green-50 rounded">
                                   ✓ 이 영상은 검수 완료되었습니다
                                 </div>
@@ -6379,13 +6396,18 @@ JSON만 출력.`
                   <div className="space-y-6">
                     {completedSectionParticipants.map(participant => {
                       // 해당 크리에이터의 승인된 영상들 (video_number별 최신 버전만)
-                      const allSubmissions = videoSubmissions.filter(
+                      const approvedSubmissions = videoSubmissions.filter(
                         sub => sub.user_id === participant.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status)
+                      )
+
+                      // 클린본은 status 관계없이 clean_video_url 있으면 즉시 표시
+                      const cleanVideoSubmissions = videoSubmissions.filter(
+                        sub => sub.user_id === participant.user_id && sub.clean_video_url
                       )
 
                       // video_number별로 그룹화하여 최신 버전만 유지
                       const latestByVideoNumber = {}
-                      allSubmissions.forEach(sub => {
+                      approvedSubmissions.forEach(sub => {
                         const key = sub.video_number || sub.week_number || 'default'
                         const existing = latestByVideoNumber[key]
                         if (!existing ||
@@ -6395,7 +6417,22 @@ JSON만 출력.`
                         }
                       })
 
+                      // 클린본도 video_number별 최신 버전만 유지
+                      const latestCleanByVideoNumber = {}
+                      cleanVideoSubmissions.forEach(sub => {
+                        const key = sub.video_number || sub.week_number || 'default'
+                        const existing = latestCleanByVideoNumber[key]
+                        if (!existing ||
+                            (sub.version || 0) > (existing.version || 0) ||
+                            new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
+                          latestCleanByVideoNumber[key] = sub
+                        }
+                      })
+
                       const creatorSubmissions = Object.values(latestByVideoNumber)
+                        .sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
+
+                      const cleanSubmissions = Object.values(latestCleanByVideoNumber)
                         .sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
 
                       // 멀티비디오 캠페인 체크 (올영: 2개, 4주챌린지: 4개)
@@ -6612,11 +6649,11 @@ JSON만 출력.`
                                       <Video className="w-4 h-4" />
                                       클린본
                                       <Badge className="bg-emerald-600 text-white text-xs">
-                                        {creatorSubmissions.filter(s => s.clean_video_url).length}개
+                                        {cleanSubmissions.length}개
                                       </Badge>
                                     </h5>
                                     <div className="space-y-3">
-                                      {creatorSubmissions.filter(s => s.clean_video_url).map((submission, idx) => (
+                                      {cleanSubmissions.map((submission, idx) => (
                                         <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
                                           <div className="flex items-center justify-between gap-3">
                                             <div className="flex-1">
@@ -6663,7 +6700,7 @@ JSON만 출력.`
                                           </div>
                                         </div>
                                       ))}
-                                      {creatorSubmissions.filter(s => s.clean_video_url).length === 0 && (
+                                      {cleanSubmissions.length === 0 && (
                                         <p className="text-sm text-gray-500 text-center py-2">아직 제출된 클린본이 없습니다.</p>
                                       )}
                                     </div>
@@ -6795,17 +6832,17 @@ JSON만 출력.`
                                   )}
 
                                   {/* 클린본 섹션 */}
-                                  {creatorSubmissions.filter(s => s.clean_video_url).length > 0 && (
+                                  {cleanSubmissions.length > 0 && (
                                     <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
                                       <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
                                         <Video className="w-4 h-4" />
                                         클린본
                                         <Badge className="bg-emerald-600 text-white text-xs">
-                                          {creatorSubmissions.filter(s => s.clean_video_url).length}개
+                                          {cleanSubmissions.length}개
                                         </Badge>
                                       </h5>
                                       <div className="space-y-3">
-                                        {creatorSubmissions.filter(s => s.clean_video_url).map((submission, idx) => (
+                                        {cleanSubmissions.map((submission, idx) => (
                                           <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
                                             <div className="flex items-center justify-between gap-3">
                                               <div className="flex-1">
