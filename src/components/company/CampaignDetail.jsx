@@ -4587,20 +4587,13 @@ JSON만 출력.`
                           <div className="flex flex-col gap-2">
                             {/* 가이드 보기/설정 버튼 */}
                             <div className="flex items-center gap-1.5">
-                              {participant.personalized_guide ? (
+                              {/* 4주 챌린지: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
+                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) ? (
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    let guideData = participant.personalized_guide
-                                    if (typeof guideData === 'string') {
-                                      try { guideData = JSON.parse(guideData) } catch { guideData = {} }
-                                    }
-                                    if (guideData?.type === '4week_ai' || guideData?.type === '4week_guide') {
-                                      setShow4WeekGuideModal(true)
-                                    } else {
-                                      setSelectedGuide(participant)
-                                      setShowGuideModal(true)
-                                    }
+                                    // 캠페인 레벨 가이드 모달 열기
+                                    setShow4WeekGuideModal(true)
                                   }}
                                   className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-xs px-3 py-1 h-auto"
                                 >
@@ -4729,23 +4722,14 @@ JSON만 출력.`
                         {/* 올영 가이드 섹션 - 인라인 버튼 */}
                         {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
                           <div className="flex items-center gap-1.5">
-                            {participant.personalized_guide ? (
+                            {/* 올영: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
+                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide) ? (
                               <>
                                 <Button
                                   size="sm"
                                   onClick={() => {
-                                    // 가이드 타입 확인
-                                    let guideData = participant.personalized_guide
-                                    if (typeof guideData === 'string') {
-                                      try { guideData = JSON.parse(guideData) } catch { guideData = {} }
-                                    }
-                                    // oliveyoung_ai 타입이면 캠페인 가이드 모달 열기
-                                    if (guideData?.type === 'oliveyoung_ai') {
-                                      setShowOliveyoungGuideModal(true)
-                                    } else {
-                                      setSelectedGuide(participant)
-                                      setShowGuideModal(true)
-                                    }
+                                    // 캠페인 레벨 가이드 모달 열기
+                                    setShowOliveyoungGuideModal(true)
                                   }}
                                   className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
                                 >
