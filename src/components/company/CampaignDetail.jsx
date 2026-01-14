@@ -5464,7 +5464,7 @@ JSON만 출력.`
                               }}
                               className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
                             >
-                              👁️ 프로필 보기
+                              📋 지원서 보기
                             </button>
 
                             {/* 가상선택/선정 버튼 */}
@@ -5718,7 +5718,7 @@ JSON만 출력.`
 
                           {/* 버튼들 */}
                           <div className="space-y-1.5">
-                            {/* 프로필 보기 */}
+                            {/* 지원서 보기 */}
                             <button
                               onClick={async () => {
                                 try {
@@ -5731,7 +5731,7 @@ JSON만 출력.`
                               }}
                               className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
                             >
-                              👁️ 프로필 보기
+                              📋 지원서 보기
                             </button>
 
                             {/* 가상선택 취소 */}
