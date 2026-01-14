@@ -5364,140 +5364,131 @@ JSON만 출력.`
               </Card>
             )}
 
-            {/* 지원한 크리에이터 섹션 */}
+            {/* 지원한 크리에이터 섹션 - 컴팩트 그리드 */}
             <Card>
               <CardHeader>
                 <CardTitle>지원한 크리에이터 ({applications.length}명)</CardTitle>
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {applications.map(app => {
-                    // 이미 participants에 있는지 확인 (user_id로 비교)
-                    const isAlreadyParticipant = participants.some(p =>
-                      p.user_id && app.user_id && p.user_id === app.user_id
-                    )
-
-                    return (
-                      <CreatorCard
-                        key={app.id}
-                        application={app}
-                        campaignQuestions={[
-                          campaign?.questions?.[0]?.question || campaign?.question1 || '',
-                          campaign?.questions?.[1]?.question || campaign?.question2 || '',
-                          campaign?.questions?.[2]?.question || campaign?.question3 || '',
-                          campaign?.questions?.[3]?.question || campaign?.question4 || ''
-                        ]}
-                        onVirtualSelect={handleVirtualSelect}
-                        isConfirmed={app.status === 'selected'}
-                        isAlreadyParticipant={isAlreadyParticipant}
-                        onCancel={(app) => {
-                          setCancellingApp(app)
-                          setCancelModalOpen(true)
-                        }}
-                        onViewProfile={async (app) => {
-                          // user_profiles에서 크리에이터 정보 가져오기
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('*')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-                            
-                            // applications 데이터 + user_profiles 데이터 병합
-                            setSelectedParticipant({
-                              ...app,
-                              ...profile
-                            })
-                            setShowProfileModal(true)
-                          } catch (error) {
-                            console.error('Error fetching profile:', error)
-                            alert('프로필 정보를 불러오는데 실패했습니다.')
-                          }
-                        }}
-                      onConfirm={async (app, mainChannel) => {
-                        // 개별 확정
-                        if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
-
-                        try {
-                          // 모집인원 제한 체크
-                          const currentParticipantsCount = participants.length
-                          const totalSlots = campaign.total_slots || 0
-                          const availableSlots = totalSlots - currentParticipantsCount
-
-                          if (availableSlots <= 0) {
-                            alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
-                            return
-                          }
-
-                          // 플랫폼 추출
-                          let platform = '-'
-                          const channelToCheck = mainChannel || app.main_channel || ''
-                          if (channelToCheck.includes('YouTube') || channelToCheck.includes('유튜브')) {
-                            platform = 'YouTube'
-                          } else if (channelToCheck.includes('Instagram') || channelToCheck.includes('인스타그램')) {
-                            platform = 'Instagram'
-                          } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
-                            platform = 'TikTok'
-                          }
-
-                          // 기존 application 업데이트 (새로 삽입하지 않음)
-                          const { error: updateError } = await supabase
-                            .from('applications')
-                            .update({
-                              status: 'selected',
-                              virtual_selected: false,
-                              main_channel: mainChannel || app.main_channel
-                            })
-                            .eq('id', app.id)
-
-                          if (updateError) throw updateError
-
-                          await fetchApplications()
-                          await fetchParticipants()
-
-                          // 선정 알림톡 발송
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('email, phone')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-
-                            if (profile && profile.phone) {
-                              await sendCampaignSelectedNotification(
-                                profile.phone,
-                                app.applicant_name,
-                                {
-                                  campaignName: campaign?.title || '캠페인'
-                                }
-                              )
-                            }
-                          } catch (notificationError) {
-                            console.error('Notification error:', notificationError)
-                          }
-
-                          // 선정 후 배송/가이드 세팅 모달 열기
-                          setCreatorForSetup({
-                            ...app,
-                            main_channel: mainChannel || app.main_channel
-                          })
-                          setShowPostSelectionModal(true)
-
-                          // 선정 크리에이터 탭으로 자동 이동
-                          setActiveTab('confirmed')
-                        } catch (error) {
-                          console.error('Error confirming:', error)
-                          alert('확정 처리에 실패했습니다.')
-                        }
-                      }}
-                    />
-                    )
-                  })}
-                </div>
-                {applications.length === 0 && (
+                {applications.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 지원자가 없습니다.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {applications.map(app => {
+                      const isAlreadyParticipant = participants.some(p => p.user_id && app.user_id && p.user_id === app.user_id)
+                      const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
+                      const skinTypeKorean = skinTypeMap[app.skin_type?.toLowerCase()] || app.skin_type || '-'
+                      const formatFollowers = (num) => num >= 10000 ? `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만` : (num?.toLocaleString() || '0')
+                      const formatDate = (d) => d ? `${new Date(d).getMonth() + 1}/${new Date(d).getDate()}` : ''
+
+                      return (
+                        <div key={app.id} className={`relative bg-white rounded-xl border-2 p-3 hover:shadow-lg transition-all ${
+                          app.virtual_selected ? 'border-purple-400 bg-purple-50' :
+                          app.status === 'selected' ? 'border-green-400 bg-green-50' :
+                          'border-gray-200 hover:border-gray-300'
+                        }`}>
+                          {/* 상태 배지 */}
+                          {(app.virtual_selected || app.status === 'selected') && (
+                            <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              app.status === 'selected' ? 'bg-green-500 text-white' : 'bg-purple-500 text-white'
+                            }`}>
+                              {app.status === 'selected' ? '선정' : '가상'}
+                            </div>
+                          )}
+
+                          {/* 프로필 이미지 */}
+                          <div className="flex justify-center mb-2">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
+                              {app.profile_image_url ? (
+                                <img src={app.profile_image_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-2xl font-bold text-gray-400">
+                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 이름 & 나이 */}
+                          <div className="text-center mb-2">
+                            <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
+                            <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
+                          </div>
+
+                          {/* 채널 & 팔로워 */}
+                          <div className="space-y-1 mb-2">
+                            {app.instagram_url && (
+                              <a href={app.instagram_url.startsWith('http') ? app.instagram_url : `https://instagram.com/${app.instagram_url}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
+                                <span className="text-pink-600">📷 Instagram</span>
+                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                              </a>
+                            )}
+                            {app.youtube_url && (
+                              <a href={app.youtube_url.startsWith('http') ? app.youtube_url : `https://youtube.com/@${app.youtube_url}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
+                                <span className="text-red-600">▶️ YouTube</span>
+                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                              </a>
+                            )}
+                            {app.tiktok_url && (
+                              <a href={app.tiktok_url.startsWith('http') ? app.tiktok_url : `https://tiktok.com/@${app.tiktok_url}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                                <span className="text-gray-700">🎵 TikTok</span>
+                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                              </a>
+                            )}
+                          </div>
+
+                          {/* 지원일 */}
+                          <p className="text-xs text-gray-400 text-center mb-2">📅 {formatDate(app.created_at)} 지원</p>
+
+                          {/* 버튼들 */}
+                          <div className="space-y-1.5">
+                            {/* 지원서 보기 버튼 */}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  setSelectedParticipant({ ...app, ...profile })
+                                  setShowProfileModal(true)
+                                } catch (error) {
+                                  console.error('Error:', error)
+                                }
+                              }}
+                              className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
+                            >
+                              👁️ 프로필 보기
+                            </button>
+
+                            {/* 가상선택/선정 버튼 */}
+                            {!isAlreadyParticipant && app.status !== 'selected' && (
+                              <button
+                                onClick={() => handleVirtualSelect(app.id, !app.virtual_selected, app.main_channel || app.instagram_url || app.youtube_url || app.tiktok_url)}
+                                className={`w-full py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                                  app.virtual_selected
+                                    ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                                    : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                                }`}
+                              >
+                                {app.virtual_selected ? '✓ 가상선택됨' : '⭐ 가상 선택'}
+                              </button>
+                            )}
+                            {app.status === 'selected' && (
+                              <div className="w-full py-1.5 text-xs bg-green-100 rounded-lg text-green-700 font-medium text-center">
+                                ✓ 선정 완료
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -5648,133 +5639,130 @@ JSON만 출력.`
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {applications.filter(app => app.virtual_selected).map(app => {
-                    // 이미 participants에 있는지 확인
-                    const isAlreadyParticipant = participants.some(p =>
-                      (p.creator_name || p.applicant_name) === app.applicant_name
-                    )
-
-                    return (
-                      <CreatorCard
-                        key={app.id}
-                        application={app}
-                        campaignQuestions={[
-                          campaign?.questions?.[0]?.question || campaign?.question1 || '',
-                          campaign?.questions?.[1]?.question || campaign?.question2 || '',
-                          campaign?.questions?.[2]?.question || campaign?.question3 || '',
-                          campaign?.questions?.[3]?.question || campaign?.question4 || ''
-                        ]}
-                        onVirtualSelect={handleVirtualSelect}
-                        isConfirmed={app.status === 'selected'}
-                        isAlreadyParticipant={isAlreadyParticipant}
-                        onCancel={(app) => {
-                          setCancellingApp(app)
-                          setCancelModalOpen(true)
-                        }}
-                        onViewProfile={async (app) => {
-                          // user_profiles에서 크리에이터 정보 가져오기
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('*')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-                            
-                            // applications 데이터 + user_profiles 데이터 병합
-                            setSelectedParticipant({
-                              ...app,
-                              ...profile
-                            })
-                            setShowProfileModal(true)
-                          } catch (error) {
-                            console.error('Error fetching profile:', error)
-                            alert('프로필 정보를 불러오는데 실패했습니다.')
-                          }
-                        }}
-                      onConfirm={async (app, mainChannel) => {
-                        // 개별 확정
-                        if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
-
-                        try {
-                          // 모집인원 제한 체크
-                          const currentParticipantsCount = participants.length
-                          const totalSlots = campaign.total_slots || 0
-                          const availableSlots = totalSlots - currentParticipantsCount
-
-                          if (availableSlots <= 0) {
-                            alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
-                            return
-                          }
-
-                          // 플랫폼 추출
-                          let platform = '-'
-                          const channelToCheck = mainChannel || app.main_channel || ''
-                          if (channelToCheck.includes('YouTube') || channelToCheck.includes('유튜브')) {
-                            platform = 'YouTube'
-                          } else if (channelToCheck.includes('Instagram') || channelToCheck.includes('인스타그램')) {
-                            platform = 'Instagram'
-                          } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
-                            platform = 'TikTok'
-                          }
-
-                          // 기존 application 업데이트 (새로 삽입하지 않음)
-                          const { error: updateError } = await supabase
-                            .from('applications')
-                            .update({
-                              status: 'selected',
-                              virtual_selected: false,
-                              main_channel: mainChannel || app.main_channel
-                            })
-                            .eq('id', app.id)
-
-                          if (updateError) throw updateError
-
-                          await fetchApplications()
-                          await fetchParticipants()
-
-                          // 선정 알림톡 발송
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('email, phone')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-
-                            if (profile?.phone) {
-                              await sendCampaignSelectedNotification(
-                                profile.phone,
-                                app.applicant_name,
-                                {
-                                  campaignName: campaign?.title || '캠페인'
-                                }
-                              )
-                            }
-                          } catch (notificationError) {
-                            console.error('Notification error:', notificationError)
-                          }
-
-                          // 선정 후 배송/가이드 세팅 모달 열기
-                          setCreatorForSetup({
-                            ...app,
-                            main_channel: mainChannel || app.main_channel
-                          })
-                          setShowPostSelectionModal(true)
-
-                          // 선정 크리에이터 탭으로 자동 이동
-                          setActiveTab('confirmed')
-                        } catch (error) {
-                          console.error('Error confirming:', error)
-                          alert('확정 처리에 실패했습니다.')
-                        }
-                      }}
-                    />
-                    )
-                  })}
-                </div>
-                {applications.filter(app => app.virtual_selected).length === 0 && (
+                {applications.filter(app => app.virtual_selected).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 가상 선정한 크리에이터가 없습니다.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {applications.filter(app => app.virtual_selected).map(app => {
+                      const isAlreadyParticipant = participants.some(p => (p.creator_name || p.applicant_name) === app.applicant_name)
+                      const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
+                      const skinTypeKorean = skinTypeMap[app.skin_type?.toLowerCase()] || app.skin_type || '-'
+                      const formatFollowers = (num) => num >= 10000 ? `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만` : (num?.toLocaleString() || '0')
+                      const formatDate = (d) => d ? `${new Date(d).getMonth() + 1}/${new Date(d).getDate()}` : ''
+
+                      return (
+                        <div key={app.id} className="relative bg-white rounded-xl border-2 border-purple-400 bg-purple-50 p-3 hover:shadow-lg transition-all">
+                          {/* 가상선택 배지 */}
+                          <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500 text-white">
+                            가상선택
+                          </div>
+
+                          {/* 프로필 이미지 */}
+                          <div className="flex justify-center mb-2">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
+                              {app.profile_image_url ? (
+                                <img src={app.profile_image_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-2xl font-bold text-gray-400">
+                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 이름 & 나이 */}
+                          <div className="text-center mb-2">
+                            <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
+                            <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
+                          </div>
+
+                          {/* 채널 & 팔로워 */}
+                          <div className="space-y-1 mb-2">
+                            {app.instagram_url && (
+                              <a href={app.instagram_url.startsWith('http') ? app.instagram_url : `https://instagram.com/${app.instagram_url}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
+                                <span className="text-pink-600">📷 Instagram</span>
+                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                              </a>
+                            )}
+                            {app.youtube_url && (
+                              <a href={app.youtube_url.startsWith('http') ? app.youtube_url : `https://youtube.com/@${app.youtube_url}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
+                                <span className="text-red-600">▶️ YouTube</span>
+                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                              </a>
+                            )}
+                            {app.tiktok_url && (
+                              <a href={app.tiktok_url.startsWith('http') ? app.tiktok_url : `https://tiktok.com/@${app.tiktok_url}`}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                                <span className="text-gray-700">🎵 TikTok</span>
+                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                              </a>
+                            )}
+                          </div>
+
+                          {/* 지원일 */}
+                          <p className="text-xs text-gray-400 text-center mb-2">📅 {formatDate(app.created_at)} 지원</p>
+
+                          {/* 버튼들 */}
+                          <div className="space-y-1.5">
+                            {/* 프로필 보기 */}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  setSelectedParticipant({ ...app, ...profile })
+                                  setShowProfileModal(true)
+                                } catch (error) {
+                                  console.error('Error:', error)
+                                }
+                              }}
+                              className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
+                            >
+                              👁️ 프로필 보기
+                            </button>
+
+                            {/* 가상선택 취소 */}
+                            <button
+                              onClick={() => handleVirtualSelect(app.id, false, app.main_channel)}
+                              className="w-full py-1.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
+                            >
+                              ✕ 가상선택 취소
+                            </button>
+
+                            {/* 확정하기 */}
+                            {!isAlreadyParticipant && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
+                                  try {
+                                    const { error } = await supabase.from('applications').update({
+                                      status: 'selected',
+                                      virtual_selected: false,
+                                      main_channel: app.main_channel || app.instagram_url || app.youtube_url || app.tiktok_url
+                                    }).eq('id', app.id)
+                                    if (error) throw error
+                                    await fetchApplications()
+                                    await fetchParticipants()
+                                    setActiveTab('confirmed')
+                                  } catch (error) {
+                                    alert('확정 처리 실패: ' + error.message)
+                                  }
+                                }}
+                                className="w-full py-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+                              >
+                                ✓ 확정하기
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
