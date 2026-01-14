@@ -9369,71 +9369,29 @@ JSON만 출력.`
                 const is4Week = campaign?.campaign_type === '4week_challenge'
                 const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
 
-                // 올영/4주는 캠페인 레벨의 기존 AI 가이드 사용
+                // 올영/4주는 크넥 AI 가이드 생성
                 if (is4Week || isOliveyoung) {
-                  // 기존 AI 가이드가 있는지 확인
-                  const hasAiGuide = is4Week
-                    ? campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides
-                    : campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step2_guide_ai
-
                   return (
                     <button
-                      onClick={async () => {
-                        if (!hasAiGuide) {
-                          alert(is4Week
-                            ? '4주 챌린지 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.'
-                            : '올영 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.')
-                          return
-                        }
-                        const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
-                        if (!confirm(`${creatorName}님에게 기존 AI 가이드를 전달하시겠습니까?`)) return
-
-                        try {
-                          // 캠페인 레벨 AI 가이드를 참조하는 타입으로 저장
-                          const guidePayload = {
-                            type: is4Week ? '4week_ai' : 'oliveyoung_ai',
-                            campaignId: campaign.id
-                          }
-
-                          const { error } = await supabase
-                            .from('applications')
-                            .update({
-                              personalized_guide: JSON.stringify(guidePayload),
-                              updated_at: new Date().toISOString()
-                            })
-                            .eq('id', selectedParticipantForGuide.id)
-
-                          if (error) throw error
-
-                          alert(`${creatorName}님에게 AI 가이드가 설정되었습니다. 전달하기 버튼으로 알림톡을 발송하세요.`)
-                          setShowGuideSelectModal(false)
-                          setSelectedParticipantForGuide(null)
-                          await fetchParticipants()
-                        } catch (error) {
-                          console.error('Error saving AI guide reference:', error)
-                          alert('가이드 설정에 실패했습니다: ' + error.message)
+                      onClick={() => {
+                        // 가이드 생성 모달 열기
+                        setShowGuideSelectModal(false)
+                        if (isOliveyoung) {
+                          setShowUnifiedGuideModal(true)
+                        } else {
+                          setShow4WeekGuideModal(true)
                         }
                       }}
-                      disabled={!hasAiGuide}
-                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
-                        hasAiGuide
-                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
-                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-                      }`}
+                      className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                          hasAiGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
-                        }`}>
-                          <Sparkles className={`w-6 h-6 ${hasAiGuide ? 'text-purple-600' : 'text-gray-400'}`} />
+                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                          <Sparkles className="w-6 h-6 text-purple-600" />
                         </div>
                         <div>
-                          <h3 className={`font-bold ${hasAiGuide ? 'text-gray-900' : 'text-gray-500'}`}>
-                            기존 AI 가이드 사용
-                          </h3>
+                          <h3 className="font-bold text-gray-900">크넥 AI 가이드 생성</h3>
                           <p className="text-sm text-gray-500">
-                            {is4Week ? '4주 챌린지 캠페인 가이드' : '올영 캠페인 가이드'}
-                            {!hasAiGuide && ' (미생성)'}
+                            {is4Week ? '4주 챌린지 가이드 생성 및 수정' : '올영 캠페인 가이드 생성 및 수정'}
                           </p>
                         </div>
                       </div>
