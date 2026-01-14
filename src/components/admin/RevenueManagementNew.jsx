@@ -169,15 +169,19 @@ export default function RevenueManagementNew() {
         .order('created_at', { ascending: false })
       setReceivables(recv || [])
 
-      // 크리에이터 출금 데이터 조회
+      // 크리에이터 출금 데이터 조회 (completed_at 필터는 클라이언트에서 처리)
       const { data: withdrawals } = await supabaseBiz
         .from('creator_withdrawal_requests')
         .select('id, requested_amount, amount, status, completed_at, created_at')
         .eq('status', 'completed')
-        .gte('completed_at', `${selectedYear}-01-01`)
-        .lte('completed_at', `${selectedYear}-12-31`)
-        .order('completed_at', { ascending: true })
-      setWithdrawalData(withdrawals || [])
+        .order('created_at', { ascending: true })
+
+      // 선택된 연도에 해당하는 데이터만 필터링
+      const filteredWithdrawals = (withdrawals || []).filter(w => {
+        const date = new Date(w.completed_at || w.created_at)
+        return date.getFullYear() === selectedYear
+      })
+      setWithdrawalData(filteredWithdrawals)
     } catch (error) {
       console.error('데이터 조회 오류:', error)
     }
