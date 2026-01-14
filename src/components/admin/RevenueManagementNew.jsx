@@ -362,9 +362,13 @@ export default function RevenueManagementNew() {
         const taxInfo = request.tax_invoice_info || {}
         const companyName = taxInfo.companyName || taxInfo.company_name || '포인트 충전'
 
+        const recordDate = `${createdDate.getFullYear()}-${String(createdDate.getMonth() + 1).padStart(2, '0')}-${String(createdDate.getDate()).padStart(2, '0')}`
+
         const { error: insertError } = await supabaseBiz.from('revenue_records').insert({
           corporation_id: 'haupapa',
           year_month: yearMonth,
+          record_date: recordDate,
+          type: 'revenue',
           amount: request.amount,
           source_type: 'tax_invoice',
           source_id: request.id,
@@ -414,12 +418,15 @@ export default function RevenueManagementNew() {
 
         const completedDate = new Date(withdrawal.completed_at || withdrawal.created_at)
         const yearMonth = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}`
+        const expenseDate = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}-${String(completedDate.getDate()).padStart(2, '0')}`
         const amount = withdrawal.requested_amount || withdrawal.requested_points || withdrawal.final_amount || 0
         const creatorName = withdrawal.account_holder || '크리에이터'
 
         const { error: insertError } = await supabaseBiz.from('expense_records').insert({
           corporation_id: 'haupapa',
           year_month: yearMonth,
+          expense_date: expenseDate,
+          expense_type: 'expense',
           category: '크리에이터지급',
           amount: amount,
           source_type: 'withdrawal',
