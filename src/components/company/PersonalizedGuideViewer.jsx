@@ -300,6 +300,20 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
       const [localEditedData, setLocalEditedData] = useState(null)
       const [localSaving, setLocalSaving] = useState(false)
 
+      // STEP 3 고정 안내 문구
+      const step3Instruction = {
+        title: "📌 STEP 3: 인스타그램 스토리 링크 업로드 안내",
+        content: `STEP 2 영상에 아래 제품 구매 링크(URL)를 삽입하여 지정된 날짜에 맞춰 업로드해 주세요.
+
+⚠️ 중요 사항:
+• 플랫폼: 인스타그램 스토리 한정
+• 업로드 기한: ${guideData.step3_deadline ? new Date(guideData.step3_deadline).toLocaleDateString('ko-KR') : '캠페인 상세 확인'}
+• 유지 기간: 24시간 이상 필수 유지
+• URL 삽입 위치: 스토리 링크 스티커
+
+※ 24시간 이내 삭제 시 캠페인 규정 위반으로 처리될 수 있습니다.`
+      }
+
       const handleStartEdit = () => {
         setLocalEditedData(JSON.parse(JSON.stringify(guideData)))
         setLocalEditing(true)
@@ -325,21 +339,48 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
         }
       }
 
+      // 스텝 데이터 파싱
+      const parseStepData = (stepData) => {
+        if (!stepData) return null
+        if (typeof stepData === 'object') return stepData
+        try {
+          return JSON.parse(stepData)
+        } catch {
+          return { content: stepData }
+        }
+      }
+
       const displayData = localEditing ? localEditedData : guideData
       const stepTitles = { step1: 'STEP 1: 세일 전 영상', step2: 'STEP 2: 세일 당일 영상', step3: 'STEP 3: 스토리 링크' }
+
+      // 현재 스텝 데이터
+      const currentStepData = activeStep !== 'step3' ? parseStepData(displayData[activeStep]) : null
+
+      // 스텝 데이터에서 필드 추출
+      const productInfo = currentStepData?.product_info || ''
+      const requiredDialogues = currentStepData?.required_dialogues || []
+      const requiredScenes = currentStepData?.required_scenes || []
+      const cautions = currentStepData?.cautions || ''
+      const hashtags = currentStepData?.hashtags || []
+      const referenceUrls = currentStepData?.reference_urls || []
+
+      const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
+
+      // 스토리 URL (STEP 3용)
+      const storyUrl = displayData.step3 || ''
 
       return (
         <div className="space-y-5">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100 bg-gradient-to-r from-pink-50 to-purple-50 -mx-4 -mt-4 px-4 pt-4 rounded-t-xl">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-green-500 to-emerald-500">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-pink-500 to-purple-500">
+                <Camera className="w-4 h-4 text-white" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900">올영 세일 가이드</h3>
+              <h3 className="text-lg font-bold text-gray-900">📸 올리브영 촬영 가이드</h3>
             </div>
-            {onSave && !localEditing && (
-              <Button variant="outline" size="sm" onClick={handleStartEdit} className="gap-1">
+            {onSave && !localEditing && activeStep !== 'step3' && (
+              <Button variant="outline" size="sm" onClick={handleStartEdit} className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50">
                 <Edit className="w-4 h-4" />
                 수정
               </Button>
@@ -347,91 +388,416 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
             {localEditing && (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleCancelEdit}>취소</Button>
-                <Button size="sm" onClick={handleSaveEdit} disabled={localSaving} className="bg-green-600 hover:bg-green-700">
+                <Button size="sm" onClick={handleSaveEdit} disabled={localSaving} className="bg-purple-600 hover:bg-purple-700">
                   {localSaving ? '저장 중...' : '저장'}
                 </Button>
               </div>
             )}
           </div>
 
-          {/* 제품 정보 */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-            <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              제품 정보
-            </h4>
-            {localEditing ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">브랜드</label>
-                  <input
-                    type="text"
-                    value={localEditedData.brand || ''}
-                    onChange={(e) => setLocalEditedData({...localEditedData, brand: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
-                  <input
-                    type="text"
-                    value={localEditedData.product_name || ''}
-                    onChange={(e) => setLocalEditedData({...localEditedData, product_name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                {displayData.brand && (
-                  <div><span className="text-green-600 font-medium">브랜드:</span> <span className="ml-2 text-gray-800">{displayData.brand}</span></div>
-                )}
-                {displayData.product_name && (
-                  <div><span className="text-green-600 font-medium">제품명:</span> <span className="ml-2 text-gray-800">{displayData.product_name}</span></div>
-                )}
-              </div>
-            )}
-          </div>
-
           {/* STEP 탭 */}
-          <div className="flex gap-2 border-b">
-            {['step1', 'step2', 'step3'].map((step, idx) => (
+          <div className="flex gap-2 border-b bg-white">
+            {[
+              { key: 'step1', label: 'STEP 1: 세일 전 영상' },
+              { key: 'step2', label: 'STEP 2: 세일 당일 영상' },
+              { key: 'step3', label: 'STEP 3: 스토리 링크' }
+            ].map((step) => (
               <button
-                key={step}
-                onClick={() => setActiveStep(step)}
-                className={`px-4 py-3 font-medium text-sm transition-all ${
-                  activeStep === step
-                    ? 'border-b-2 border-green-600 text-green-600 bg-green-50'
+                key={step.key}
+                onClick={() => {
+                  if (localEditing) {
+                    if (confirm('수정 중인 내용이 있습니다. 탭을 변경하시겠습니까?')) {
+                      handleCancelEdit()
+                      setActiveStep(step.key)
+                    }
+                  } else {
+                    setActiveStep(step.key)
+                  }
+                }}
+                className={`px-6 py-3 font-medium text-sm transition-all ${
+                  activeStep === step.key
+                    ? 'border-b-2 border-pink-600 text-pink-600 bg-pink-50'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                STEP {idx + 1}
+                {step.label}
               </button>
             ))}
           </div>
 
-          {/* 선택된 STEP 내용 */}
-          <div className="rounded-xl border-2 border-green-200 bg-green-50 overflow-hidden">
-            <div className="bg-green-100 px-4 py-2 border-b border-green-200">
-              <h4 className="font-bold text-green-800">{stepTitles[activeStep]}</h4>
-            </div>
-            <div className="p-4">
-              {localEditing ? (
-                <textarea
-                  value={localEditedData[activeStep] || ''}
-                  onChange={(e) => setLocalEditedData({...localEditedData, [activeStep]: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[250px]"
-                  placeholder={`${stepTitles[activeStep]} 가이드 내용을 입력하세요...`}
-                />
+          {/* STEP 3는 고정 안내 + 스토리 URL만 표시 */}
+          {activeStep === 'step3' ? (
+            <>
+              {/* 고정 안내 문구 */}
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg">
+                <h4 className="text-base font-bold text-blue-900 mb-3">{step3Instruction.title}</h4>
+                <p className="text-sm text-blue-800 whitespace-pre-wrap leading-relaxed">
+                  {step3Instruction.content}
+                </p>
+              </div>
+
+              {/* 스토리 URL */}
+              {storyUrl ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                  <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                    <span>🔗</span>
+                    스토리에 삽입할 제품 구매 링크
+                  </h4>
+                  <div className="bg-white border border-orange-200 rounded-lg p-4">
+                    <a
+                      href={storyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all font-medium"
+                    >
+                      {storyUrl}
+                    </a>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    💡 위 링크를 복사하여 인스타그램 스토리 링크 스티커에 삽입해 주세요.
+                  </p>
+                </div>
               ) : (
-                displayData[activeStep] ? (
-                  <p className="text-gray-700 whitespace-pre-wrap">{typeof displayData[activeStep] === 'string' ? displayData[activeStep] : JSON.stringify(displayData[activeStep], null, 2)}</p>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">이 스텝에 설정된 가이드가 없습니다.</p>
-                )
+                <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <p className="text-gray-500">
+                    스토리 URL이 등록되지 않았습니다.
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    관리자에게 문의해 주세요.
+                  </p>
+                </div>
               )}
-            </div>
-          </div>
+            </>
+          ) : (
+            /* STEP 1, 2 내용 */
+            <>
+              {hasContent ? (
+                <div className="space-y-6">
+                  {/* 제품 정보 */}
+                  {(productInfo || localEditing) && (
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-purple-900 mb-3 flex items-center gap-2">
+                        <span>📦</span>
+                        제품 정보
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-purple-100">
+                        {localEditing ? (
+                          <textarea
+                            value={localEditedData[activeStep]?.product_info || productInfo}
+                            onChange={(e) => {
+                              const stepData = parseStepData(localEditedData[activeStep]) || {}
+                              setLocalEditedData({
+                                ...localEditedData,
+                                [activeStep]: JSON.stringify({ ...stepData, product_info: e.target.value })
+                              })
+                            }}
+                            className="w-full p-2 border rounded text-sm min-h-[80px]"
+                            placeholder="제품 정보를 입력하세요"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                            {productInfo}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 필수 대사 */}
+                  {(requiredDialogues.length > 0 || localEditing) && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-blue-900 mb-3 flex items-center gap-2">
+                        <span>💬</span>
+                        필수 대사
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-blue-100">
+                        {localEditing ? (
+                          <div className="space-y-2">
+                            {(Array.isArray(requiredDialogues) ? requiredDialogues : []).map((dialogue, idx) => (
+                              <div key={idx} className="flex gap-2">
+                                <span className="text-blue-600 font-semibold pt-2">{idx + 1}.</span>
+                                <input
+                                  type="text"
+                                  value={dialogue}
+                                  onChange={(e) => {
+                                    const stepData = parseStepData(localEditedData[activeStep]) || {}
+                                    const newDialogues = [...(stepData.required_dialogues || [])]
+                                    newDialogues[idx] = e.target.value
+                                    setLocalEditedData({
+                                      ...localEditedData,
+                                      [activeStep]: JSON.stringify({ ...stepData, required_dialogues: newDialogues })
+                                    })
+                                  }}
+                                  className="flex-1 p-2 border rounded text-sm"
+                                />
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => {
+                                const stepData = parseStepData(localEditedData[activeStep]) || {}
+                                setLocalEditedData({
+                                  ...localEditedData,
+                                  [activeStep]: JSON.stringify({ ...stepData, required_dialogues: [...(stepData.required_dialogues || []), ''] })
+                                })
+                              }}
+                              className="text-sm text-blue-600 hover:text-blue-700"
+                            >
+                              + 대사 추가
+                            </button>
+                          </div>
+                        ) : (
+                          <ul className="space-y-2">
+                            {requiredDialogues.map((dialogue, idx) => (
+                              <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                                <span className="text-blue-600 font-semibold">{idx + 1}.</span>
+                                <span>{dialogue}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 필수 장면 */}
+                  {(requiredScenes.length > 0 || localEditing) && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-green-900 mb-3 flex items-center gap-2">
+                        <span>🎬</span>
+                        필수 장면
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-green-100">
+                        {localEditing ? (
+                          <div className="space-y-2">
+                            {(Array.isArray(requiredScenes) ? requiredScenes : []).map((scene, idx) => (
+                              <div key={idx} className="flex gap-2">
+                                <span className="text-green-600 font-semibold pt-2">{idx + 1}.</span>
+                                <input
+                                  type="text"
+                                  value={scene}
+                                  onChange={(e) => {
+                                    const stepData = parseStepData(localEditedData[activeStep]) || {}
+                                    const newScenes = [...(stepData.required_scenes || [])]
+                                    newScenes[idx] = e.target.value
+                                    setLocalEditedData({
+                                      ...localEditedData,
+                                      [activeStep]: JSON.stringify({ ...stepData, required_scenes: newScenes })
+                                    })
+                                  }}
+                                  className="flex-1 p-2 border rounded text-sm"
+                                />
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => {
+                                const stepData = parseStepData(localEditedData[activeStep]) || {}
+                                setLocalEditedData({
+                                  ...localEditedData,
+                                  [activeStep]: JSON.stringify({ ...stepData, required_scenes: [...(stepData.required_scenes || []), ''] })
+                                })
+                              }}
+                              className="text-sm text-green-600 hover:text-green-700"
+                            >
+                              + 장면 추가
+                            </button>
+                          </div>
+                        ) : (
+                          <ul className="space-y-2">
+                            {requiredScenes.map((scene, idx) => (
+                              <li key={idx} className="text-sm text-gray-800 flex gap-2">
+                                <span className="text-green-600 font-semibold">{idx + 1}.</span>
+                                <span>{scene}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 주의사항 */}
+                  {(cautions || localEditing) && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-red-900 mb-3 flex items-center gap-2">
+                        <span>⚠️</span>
+                        주의사항
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-red-100">
+                        {localEditing ? (
+                          <textarea
+                            value={localEditedData[activeStep]?.cautions || cautions}
+                            onChange={(e) => {
+                              const stepData = parseStepData(localEditedData[activeStep]) || {}
+                              setLocalEditedData({
+                                ...localEditedData,
+                                [activeStep]: JSON.stringify({ ...stepData, cautions: e.target.value })
+                              })
+                            }}
+                            className="w-full p-2 border rounded text-sm min-h-[80px]"
+                            placeholder="주의사항을 입력하세요"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                            {cautions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 필수 해시태그 */}
+                  {(hashtags.length > 0 || localEditing) && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-indigo-900 mb-3 flex items-center gap-2">
+                        <span>📌</span>
+                        필수 해시태그
+                      </h4>
+                      {localEditing ? (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            {(Array.isArray(hashtags) ? hashtags : []).map((tag, idx) => (
+                              <div key={idx} className="flex items-center gap-1 bg-indigo-100 px-2 py-1 rounded">
+                                <input
+                                  type="text"
+                                  value={tag}
+                                  onChange={(e) => {
+                                    const stepData = parseStepData(localEditedData[activeStep]) || {}
+                                    const newTags = [...(stepData.hashtags || [])]
+                                    newTags[idx] = e.target.value
+                                    setLocalEditedData({
+                                      ...localEditedData,
+                                      [activeStep]: JSON.stringify({ ...stepData, hashtags: newTags })
+                                    })
+                                  }}
+                                  className="w-24 p-1 border rounded text-sm"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => {
+                              const stepData = parseStepData(localEditedData[activeStep]) || {}
+                              setLocalEditedData({
+                                ...localEditedData,
+                                [activeStep]: JSON.stringify({ ...stepData, hashtags: [...(stepData.hashtags || []), ''] })
+                              })
+                            }}
+                            className="text-sm text-indigo-600 hover:text-indigo-700"
+                          >
+                            + 해시태그 추가
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {hashtags.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium border border-indigo-300"
+                            >
+                              {tag.startsWith('#') ? tag : `#${tag}`}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 참고 영상 URL */}
+                  {(referenceUrls.length > 0 || localEditing) && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                        <span>🔗</span>
+                        참고 영상
+                      </h4>
+                      {localEditing ? (
+                        <div className="space-y-2">
+                          {(Array.isArray(referenceUrls) ? referenceUrls : []).map((url, idx) => (
+                            <div key={idx} className="flex gap-2">
+                              <input
+                                type="text"
+                                value={url}
+                                onChange={(e) => {
+                                  const stepData = parseStepData(localEditedData[activeStep]) || {}
+                                  const newUrls = [...(stepData.reference_urls || [])]
+                                  newUrls[idx] = e.target.value
+                                  setLocalEditedData({
+                                    ...localEditedData,
+                                    [activeStep]: JSON.stringify({ ...stepData, reference_urls: newUrls })
+                                  })
+                                }}
+                                className="flex-1 p-2 border rounded text-sm"
+                                placeholder="URL을 입력하세요"
+                              />
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => {
+                              const stepData = parseStepData(localEditedData[activeStep]) || {}
+                              setLocalEditedData({
+                                ...localEditedData,
+                                [activeStep]: JSON.stringify({ ...stepData, reference_urls: [...(stepData.reference_urls || []), ''] })
+                              })
+                            }}
+                            className="text-sm text-orange-600 hover:text-orange-700"
+                          >
+                            + URL 추가
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {referenceUrls.map((url, idx) => (
+                            <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                              >
+                                {url}
+                              </a>
+                            </div>
+                          ))}
+                          <p className="text-xs text-gray-500 mt-3">
+                            💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* 내용이 없는 경우 또는 단순 텍스트 형식 */
+                <div className="rounded-xl border-2 border-pink-200 bg-pink-50 overflow-hidden">
+                  <div className="bg-pink-100 px-4 py-2 border-b border-pink-200">
+                    <h4 className="font-bold text-pink-800">{stepTitles[activeStep]}</h4>
+                  </div>
+                  <div className="p-4">
+                    {localEditing ? (
+                      <textarea
+                        value={typeof localEditedData[activeStep] === 'string' ? localEditedData[activeStep] : JSON.stringify(localEditedData[activeStep] || '', null, 2)}
+                        onChange={(e) => setLocalEditedData({...localEditedData, [activeStep]: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[250px]"
+                        placeholder={`${stepTitles[activeStep]} 가이드 내용을 입력하세요...`}
+                      />
+                    ) : (
+                      displayData[activeStep] ? (
+                        <p className="text-gray-700 whitespace-pre-wrap">{typeof displayData[activeStep] === 'string' ? displayData[activeStep] : JSON.stringify(displayData[activeStep], null, 2)}</p>
+                      ) : (
+                        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                          <p className="text-gray-500">
+                            {activeStep === 'step1' ? 'STEP 1' : 'STEP 2'}의 가이드가 등록되지 않았습니다.
+                          </p>
+                          <p className="text-sm text-gray-400 mt-2">
+                            관리자에게 문의해 주세요.
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )
     }
