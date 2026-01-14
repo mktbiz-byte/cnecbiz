@@ -43,19 +43,37 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
   if (guideData.type === '4week_ai' || guideData.type === 'oliveyoung_ai') {
     const is4Week = guideData.type === '4week_ai'
 
+    // 디버깅 로그
+    console.log('[Guide Viewer] guideData:', guideData)
+    console.log('[Guide Viewer] weeklyGuides raw:', guideData.weeklyGuides)
+    console.log('[Guide Viewer] step1 raw:', guideData.step1)
+
     // 4주 챌린지 가이드 데이터 파싱
     const parseWeeklyGuides = () => {
-      if (!guideData.weeklyGuides) return []
+      if (!guideData.weeklyGuides) {
+        console.log('[Guide Viewer] weeklyGuides is empty/undefined')
+        return []
+      }
       try {
-        const parsed = typeof guideData.weeklyGuides === 'string'
-          ? JSON.parse(guideData.weeklyGuides)
-          : guideData.weeklyGuides
+        // weeklyGuides가 이중으로 stringify 되어 있을 수 있음
+        let parsed = guideData.weeklyGuides
+        if (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed)
+          // 한번 더 파싱이 필요할 수 있음
+          if (typeof parsed === 'string') {
+            parsed = JSON.parse(parsed)
+          }
+        }
+        console.log('[Guide Viewer] parsed weeklyGuides:', parsed)
+
+        if (!parsed || typeof parsed !== 'object') return []
+
         return Object.entries(parsed).map(([week, data]) => ({
           week: week.replace('week', ''),
           ...(typeof data === 'object' ? data : { content: data })
         }))
       } catch (e) {
-        console.error('Failed to parse weekly guides:', e)
+        console.error('[Guide Viewer] Failed to parse weekly guides:', e, guideData.weeklyGuides)
         return []
       }
     }
@@ -64,21 +82,37 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
     const parseOliveyoungGuides = () => {
       const steps = []
       for (let i = 1; i <= 3; i++) {
-        const stepData = guideData[`step${i}`]
+        let stepData = guideData[`step${i}`]
         if (stepData) {
           try {
-            const parsed = typeof stepData === 'string' ? JSON.parse(stepData) : stepData
-            steps.push({ step: i, ...parsed })
+            // 이중 stringify 처리
+            if (typeof stepData === 'string') {
+              stepData = JSON.parse(stepData)
+              if (typeof stepData === 'string') {
+                stepData = JSON.parse(stepData)
+              }
+            }
+            if (typeof stepData === 'object') {
+              steps.push({ step: i, ...stepData })
+            } else {
+              steps.push({ step: i, content: stepData })
+            }
           } catch (e) {
-            steps.push({ step: i, content: stepData })
+            console.error('[Guide Viewer] Failed to parse step', i, ':', e)
+            steps.push({ step: i, content: String(stepData) })
           }
         }
       }
+      console.log('[Guide Viewer] parsed oliveyoung steps:', steps)
       return steps
     }
 
     const weeklyGuides = is4Week ? parseWeeklyGuides() : []
     const oliveyoungSteps = !is4Week ? parseOliveyoungGuides() : []
+
+    // 디버깅: 파싱 결과
+    console.log('[Guide Viewer] weeklyGuides parsed count:', weeklyGuides.length)
+    console.log('[Guide Viewer] oliveyoungSteps parsed count:', oliveyoungSteps.length)
 
     return (
       <div className="space-y-5">
@@ -202,8 +236,26 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  4주차 가이드 데이터가 없습니다. 캠페인 설정에서 가이드를 먼저 생성해주세요.
+                <div className="space-y-4">
+                  <div className="text-center py-4 text-gray-500">
+                    4주차 가이드 데이터를 파싱할 수 없습니다.
+                  </div>
+                  {/* Raw 데이터 표시 (디버깅용) */}
+                  {guideData.weeklyGuides && (
+                    <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-4">
+                      <h4 className="font-bold text-gray-700 mb-2">원본 데이터:</h4>
+                      <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-auto max-h-96">
+                        {typeof guideData.weeklyGuides === 'string'
+                          ? guideData.weeklyGuides
+                          : JSON.stringify(guideData.weeklyGuides, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {!guideData.weeklyGuides && (
+                    <div className="text-center text-sm text-gray-400">
+                      캠페인 설정에서 가이드를 먼저 생성해주세요.
+                    </div>
+                  )}
                 </div>
               )
             ) : (
@@ -248,8 +300,24 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  올영 가이드 데이터가 없습니다. 캠페인 설정에서 가이드를 먼저 생성해주세요.
+                <div className="space-y-4">
+                  <div className="text-center py-4 text-gray-500">
+                    올영 가이드 데이터를 파싱할 수 없습니다.
+                  </div>
+                  {/* Raw 데이터 표시 (디버깅용) */}
+                  {(guideData.step1 || guideData.step2 || guideData.step3) && (
+                    <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-4">
+                      <h4 className="font-bold text-gray-700 mb-2">원본 데이터:</h4>
+                      <pre className="text-xs text-gray-600 whitespace-pre-wrap overflow-auto max-h-96">
+                        {JSON.stringify({ step1: guideData.step1, step2: guideData.step2, step3: guideData.step3 }, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {!(guideData.step1 || guideData.step2 || guideData.step3) && (
+                    <div className="text-center text-sm text-gray-400">
+                      캠페인 설정에서 가이드를 먼저 생성해주세요.
+                    </div>
+                  )}
                 </div>
               )
             )}
