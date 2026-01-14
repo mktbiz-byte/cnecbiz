@@ -1254,23 +1254,93 @@ export default function RevenueManagementNew() {
 
           {/* 매출 내역 탭 */}
           <TabsContent value="revenue">
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-700">매출 내역</CardTitle>
-                <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
-                  <Plus className="w-4 h-4 mr-1" /> 매출 추가
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {revenueData.length === 0 ? (
-                    <div className="text-center py-12 text-slate-400">
-                      <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p>매출 데이터가 없습니다.</p>
-                    </div>
-                  ) : (
-                    revenueData.map(revenue => (
+            <div className="space-y-6">
+              {/* 법인별 월별 매출 요약 테이블 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">매출 요약 (법인별)</CardTitle>
+                  <Button size="sm" onClick={() => { resetRevenueForm(); setShowRevenueModal(true) }}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
+                    <Plus className="w-4 h-4 mr-1" /> 매출 추가
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="px-3 py-3 text-left font-semibold text-slate-600 sticky left-0 bg-white">법인</th>
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <th key={i} className="px-2 py-3 text-right font-semibold text-slate-600">{i + 1}월</th>
+                          ))}
+                          <th className="px-3 py-3 text-right font-semibold text-slate-700 bg-slate-50">합계</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {['haupapa', 'haulab'].map(corp => {
+                          const monthlyAmounts = Array.from({ length: 12 }, (_, i) => {
+                            const month = `${selectedYear}-${String(i + 1).padStart(2, '0')}`
+                            return revenueData
+                              .filter(r => r.year_month === month && r.corporation_id === corp)
+                              .reduce((sum, r) => sum + (r.amount || 0), 0)
+                          })
+                          const total = monthlyAmounts.reduce((a, b) => a + b, 0)
+                          if (total === 0) return null
+
+                          return (
+                            <tr key={corp} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="px-3 py-2 font-medium text-slate-700 sticky left-0 bg-white">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
+                                  corp === 'haupapa' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                                }`}>
+                                  {corp === 'haupapa' ? '하우파파' : '하우랩'}
+                                </span>
+                              </td>
+                              {monthlyAmounts.map((amount, i) => (
+                                <td key={i} className="px-2 py-2 text-right text-slate-600">
+                                  {amount > 0 ? formatCompact(amount) : '-'}
+                                </td>
+                              ))}
+                              <td className="px-3 py-2 text-right font-semibold text-slate-700 bg-slate-50">
+                                {formatCompact(total)}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                        <tr className="bg-blue-50 font-bold">
+                          <td className="px-3 py-3 text-blue-700 sticky left-0 bg-blue-50">합계</td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-3 text-right text-blue-600">
+                              {m.totalRevenue > 0 ? formatCompact(m.totalRevenue) : '-'}
+                            </td>
+                          ))}
+                          <td className="px-3 py-3 text-right text-blue-700 bg-blue-100">
+                            {formatCompact(yearlyTotals.totalRevenue)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 매출 개별 내역 리스트 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">매출 내역 (개별 항목)</CardTitle>
+                  <span className="text-sm text-slate-500">총 {revenueData.length}건</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {revenueData.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <Wallet className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>매출 데이터가 없습니다.</p>
+                      </div>
+                    ) : (
+                      [...revenueData]
+                        .sort((a, b) => new Date(b.year_month) - new Date(a.year_month))
+                        .map(revenue => (
                       <div key={revenue.id}
                         className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-4">
@@ -1316,9 +1386,10 @@ export default function RevenueManagementNew() {
                       </div>
                     ))
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* 미수금 탭 */}
