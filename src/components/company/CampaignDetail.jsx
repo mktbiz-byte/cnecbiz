@@ -6014,17 +6014,32 @@ JSON만 출력.`
                           submissionsByStep[1] = userSubmissions
                         }
 
-                        // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저)
+                        // 각 스텝 내에서 버전/제출일로 정렬 후 최신 버전만 유지
                         Object.keys(submissionsByStep).forEach(step => {
-                          submissionsByStep[step].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+                          const subs = submissionsByStep[step]
+                          if (!subs || subs.length === 0) return
+                          subs.sort((a, b) => {
+                            const aVer = a.version || 0
+                            const bVer = b.version || 0
+                            if (aVer !== bVer) return bVer - aVer
+                            return new Date(b.submitted_at) - new Date(a.submitted_at)
+                          })
+                          submissionsByStep[step] = [subs[0]] // 최신 버전만
                         })
+
+                        // 이미 검수완료된 스텝 확인
+                        const approvedSteps = new Set()
+                        videoSubmissions
+                          .filter(v => v.user_id === userId && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
+                          .forEach(v => {
+                            approvedSteps.add(v.week_number || v.video_number || 1)
+                          })
 
                         const availableSteps = Object.keys(submissionsByStep).map(Number).sort((a, b) => a - b)
                         const selectedStep = selectedVideoSteps[userId] || availableSteps[0]
                         const stepSubmissions = submissionsByStep[selectedStep] || []
-                        const versionKey = `${userId}_${selectedStep}`
-                        const selectedVersion = selectedVideoVersions[versionKey] || 0
-                        const submission = stepSubmissions[selectedVersion]
+                        const submission = stepSubmissions[0]
+                        const isStepApproved = selectedStep ? approvedSteps.has(selectedStep) : false
 
                         if (!submission) return null
 
@@ -6211,7 +6226,7 @@ JSON만 출력.`
                                 </svg>
                                 영상 다운로드
                               </Button>
-                              {submission.status !== 'approved' && (
+                              {submission.status !== 'approved' && !isStepApproved && (
                                 <>
                                   <Button
                                     size="sm"
@@ -6235,7 +6250,7 @@ JSON만 출력.`
                                   </Button>
                                 </>
                               )}
-                              {submission.status === 'approved' && (
+                              {(submission.status === 'approved' || isStepApproved) && (
                                 <div className="text-center text-sm text-green-600 font-medium py-2 bg-green-50 rounded">
                                   ✓ 이 영상은 검수 완료되었습니다
                                 </div>
