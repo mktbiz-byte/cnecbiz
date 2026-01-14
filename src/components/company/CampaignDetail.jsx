@@ -2229,22 +2229,32 @@ JSON만 출력.`
   }
 
   // 4주 챌린지 개별 주차 가이드 전달 함수
+  // 4주 챌린지 주차별 가이드 발송 (체크박스 선택 또는 전체)
   const handleDeliver4WeekGuideByWeek = async (weekNumber) => {
-    if (!campaign.challenge_weekly_guides_ai) {
+    if (!campaign.challenge_weekly_guides_ai && !campaign.challenge_guide_data && !campaign.challenge_weekly_guides) {
       alert('먼저 가이드를 생성해주세요.')
       return
     }
 
-    const participantCount = participants.length
+    // 체크박스로 선택된 사람이 있으면 그들에게만, 없으면 전체에게 발송
+    const targetParticipants = selectedParticipants.length > 0
+      ? participants.filter(p => selectedParticipants.includes(p.id))
+      : participants
+
+    const participantCount = targetParticipants.length
     if (participantCount === 0) {
-      alert('참여 크리에이터가 없습니다.')
+      alert('발송할 크리에이터가 없습니다.')
       return
     }
 
     // 개별 메시지 입력 (선택사항)
     const individualMessage = prompt(`${weekNumber}주차 가이드와 함께 전달할 메시지를 입력하세요 (선택사항):`)
 
-    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`)) {
+    const confirmMsg = selectedParticipants.length > 0
+      ? `선택된 ${participantCount}명에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`
+      : `모든 참여 크리에이터(${participantCount}명)에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`
+
+    if (!confirm(confirmMsg)) {
       return
     }
 
@@ -2252,7 +2262,7 @@ JSON만 출력.`
       let successCount = 0
       let errorCount = 0
 
-      for (const participant of participants) {
+      for (const participant of targetParticipants) {
         try {
           // 재전달 여부 확인 (personalized_guide가 있으면 재전달)
           const isRedelivery = !!participant.personalized_guide
@@ -2370,33 +2380,45 @@ JSON만 출력.`
 
       // 데이터 새로고침
       await fetchParticipants()
+
+      // 체크박스 선택 초기화
+      setSelectedParticipants([])
     } catch (error) {
       console.error('Error in handleDeliver4WeekGuideByWeek:', error)
       alert('가이드 전달에 실패했습니다: ' + error.message)
     }
   }
 
-  // 올리브영 / 4주 챌린지 가이드 전달 함수
+  // 올영/4주 챌린지 가이드 일괄 발송 (체크박스 선택 또는 전체)
   const handleDeliverOliveYoung4WeekGuide = async () => {
-    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' 
-      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide_ai)
-      : campaign.challenge_weekly_guides_ai
+    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
+      : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides)
 
     if (!hasGuide) {
       alert('먼저 가이드를 생성해주세요.')
       return
     }
 
-    const participantCount = participants.length
+    // 체크박스로 선택된 사람이 있으면 그들에게만, 없으면 전체에게 발송
+    const targetParticipants = selectedParticipants.length > 0
+      ? participants.filter(p => selectedParticipants.includes(p.id))
+      : participants
+
+    const participantCount = targetParticipants.length
     if (participantCount === 0) {
-      alert('참여 크리에이터가 없습니다.')
+      alert('발송할 크리에이터가 없습니다.')
       return
     }
 
     // 개별 메시지 입력 (선택사항)
-    const individualMessage = prompt('모든 크리에이터에게 전달할 개별 메시지를 입력하세요 (선택사항):')
+    const individualMessage = prompt('크리에이터에게 전달할 개별 메시지를 입력하세요 (선택사항):')
 
-    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 가이드를 전달하시겠습니까?`)) {
+    const confirmMsg = selectedParticipants.length > 0
+      ? `선택된 ${participantCount}명에게 가이드를 전달하시겠습니까?`
+      : `모든 참여 크리에이터(${participantCount}명)에게 가이드를 전달하시겠습니까?`
+
+    if (!confirm(confirmMsg)) {
       return
     }
 
@@ -2404,7 +2426,7 @@ JSON만 출력.`
       let successCount = 0
       let errorCount = 0
 
-      for (const participant of participants) {
+      for (const participant of targetParticipants) {
         try {
           // 가이드 전달 상태 업데이트
           const updateData = { 
@@ -2516,6 +2538,9 @@ JSON만 출력.`
 
       // 데이터 새로고침
       await fetchParticipants()
+
+      // 체크박스 선택 초기화
+      setSelectedParticipants([])
     } catch (error) {
       console.error('Error in handleDeliverOliveYoung4WeekGuide:', error)
       alert('가이드 전달에 실패했습니다: ' + error.message)
@@ -5823,7 +5848,7 @@ JSON만 출력.`
 
                           return (
                             <>
-                              {/* 한번에 보내기 */}
+                              {/* 전체 또는 선택된 크리에이터에게 보내기 */}
                               <Button
                                 size="sm"
                                 onClick={() => handleDeliverOliveYoung4WeekGuide()}
@@ -5831,7 +5856,9 @@ JSON만 출력.`
                                 className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-7"
                               >
                                 <Send className="w-3 h-3 mr-1" />
-                                한번에 보내기
+                                {selectedParticipants.length > 0
+                                  ? `선택된 ${selectedParticipants.length}명에게 보내기`
+                                  : '전체 보내기'}
                               </Button>
 
                               <span className="text-gray-400 text-xs">또는</span>
@@ -5867,6 +5894,64 @@ JSON만 출력.`
                             </>
                           )
                         })()}
+                      </div>
+                    )}
+
+                    {/* 올영 캠페인: 가이드 발송 버튼 */}
+                    {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+                      <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
+                        {(() => {
+                          const hasGuide = campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide ||
+                                           campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide ||
+                                           campaign.oliveyoung_step3_guide
+
+                          if (!hasGuide) {
+                            return <span className="text-xs text-gray-500 px-2">가이드가 설정되지 않았습니다</span>
+                          }
+
+                          return (
+                            <Button
+                              size="sm"
+                              onClick={() => handleDeliverOliveYoung4WeekGuide()}
+                              disabled={participants.length === 0}
+                              className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 h-7"
+                            >
+                              <Send className="w-3 h-3 mr-1" />
+                              {selectedParticipants.length > 0
+                                ? `선택된 ${selectedParticipants.length}명에게 가이드 보내기`
+                                : '전체 가이드 보내기'}
+                            </Button>
+                          )
+                        })()}
+                      </div>
+                    )}
+
+                    {/* 기획형 캠페인: 체크박스 선택 후 가이드 일괄 전달 */}
+                    {campaign.campaign_type === 'planned' && selectedParticipants.length > 0 && (
+                      <div className="flex items-center gap-2 bg-pink-50 p-2 rounded-lg border border-pink-200">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            // 선택된 크리에이터 중 가이드가 있는 사람들 필터링
+                            const selectedWithGuide = participants.filter(p =>
+                              selectedParticipants.includes(p.id) && p.personalized_guide
+                            )
+
+                            if (selectedWithGuide.length === 0) {
+                              alert('선택된 크리에이터 중 가이드가 생성된 사람이 없습니다. 먼저 가이드를 생성해주세요.')
+                              return
+                            }
+
+                            if (!confirm(`${selectedWithGuide.length}명에게 가이드를 전달하시겠습니까?`)) return
+
+                            await handleGuideApproval(selectedWithGuide.map(p => p.id))
+                            setSelectedParticipants([])
+                          }}
+                          className="bg-pink-600 hover:bg-pink-700 text-white text-xs px-3 py-1 h-7"
+                        >
+                          <Send className="w-3 h-3 mr-1" />
+                          선택된 {selectedParticipants.length}명에게 가이드 전달
+                        </Button>
                       </div>
                     )}
 
