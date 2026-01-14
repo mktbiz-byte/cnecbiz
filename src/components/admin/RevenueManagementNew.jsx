@@ -487,6 +487,7 @@ export default function RevenueManagementNew() {
       const data = {
         corporation_id: revenueForm.corporation,
         year_month: revenueForm.year_month,
+        record_date: `${revenueForm.year_month}-01`, // record_date 필수 필드 추가
         amount: parseInt(revenueForm.amount) || 0,
         source_type: revenueForm.source_type,
         tax_invoice_number: revenueForm.tax_invoice_number,
@@ -552,7 +553,7 @@ export default function RevenueManagementNew() {
         corporation_id: receivableForm.corporation,
         company_name: receivableForm.company_name,
         amount: parseInt(receivableForm.amount) || 0,
-        description: receivableForm.description,
+        // description 컬럼이 테이블에 없으므로 제거
         due_date: receivableForm.due_date || null,
         status: 'pending'
       }
