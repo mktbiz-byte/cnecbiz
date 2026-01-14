@@ -300,7 +300,7 @@ export default function RevenueManagementNew() {
       .slice(0, 8)
   }, [expenseData])
 
-  // 월별 크리에이터 출금 추이
+  // 월별 크리에이터 출금 추이 (expense_records에서 크리에이터지급 카테고리 사용)
   const monthlyWithdrawals = useMemo(() => {
     const months = Array.from({ length: 12 }, (_, i) => ({
       month: `${selectedYear}-${String(i + 1).padStart(2, '0')}`,
@@ -309,17 +309,22 @@ export default function RevenueManagementNew() {
       count: 0
     }))
 
-    withdrawalData.forEach(w => {
-      const completedDate = new Date(w.completed_at || w.created_at)
-      const monthIndex = completedDate.getMonth()
-      if (completedDate.getFullYear() === selectedYear && monthIndex >= 0 && monthIndex < 12) {
-        months[monthIndex].amount += (w.requested_amount || w.amount || 0)
-        months[monthIndex].count += 1
+    // expenseData에서 크리에이터지급 카테고리만 필터링
+    const creatorPayments = expenseData.filter(exp => exp.category === '크리에이터지급')
+
+    creatorPayments.forEach(exp => {
+      const yearMonth = exp.year_month || exp.expense_month
+      if (yearMonth && yearMonth.startsWith(`${selectedYear}-`)) {
+        const monthIndex = parseInt(yearMonth.split('-')[1], 10) - 1
+        if (monthIndex >= 0 && monthIndex < 12) {
+          months[monthIndex].amount += (exp.amount || 0)
+          months[monthIndex].count += 1
+        }
       }
     })
 
     return months
-  }, [withdrawalData, selectedYear])
+  }, [expenseData, selectedYear])
 
   // 연간 합계
   const yearlyTotals = useMemo(() => {
