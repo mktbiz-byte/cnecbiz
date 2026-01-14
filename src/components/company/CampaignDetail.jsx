@@ -9505,7 +9505,7 @@ JSON만 출력.`
       )}
 
       {/* Oliveyoung Guide Modal */}
-      {showOliveyoungGuideModal && campaign.campaign_type === 'oliveyoung' && (
+      {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
         <OliveyoungGuideModal
           campaign={campaign}
           onClose={() => setShowOliveyoungGuideModal(false)}
