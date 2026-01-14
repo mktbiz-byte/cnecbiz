@@ -8109,7 +8109,22 @@ JSON만 출력.`
                     />
                   ) : (
                     <PersonalizedGuideViewer
-                      guide={selectedGuide.personalized_guide}
+                      guide={
+                        /* 4주 챌린지/올영 캠페인은 캠페인 레벨 가이드 사용, 그 외는 개별 가이드 사용 */
+                        campaign.campaign_type === '4week_challenge'
+                          ? JSON.stringify({
+                              type: '4week_ai',
+                              weeklyGuides: campaign.challenge_weekly_guides_ai || campaign.challenge_weekly_guides || campaign.challenge_guide_data
+                            })
+                          : campaign.campaign_type === 'oliveyoung'
+                            ? JSON.stringify({
+                                type: 'oliveyoung_ai',
+                                step1: campaign.oliveyoung_step1_guide_ai,
+                                step2: campaign.oliveyoung_step2_guide_ai,
+                                step3: campaign.oliveyoung_step3_guide
+                              })
+                            : selectedGuide.personalized_guide
+                      }
                       creator={selectedGuide}
                       onSave={async (updatedGuide) => {
                         const { error } = await supabase
