@@ -1121,67 +1121,134 @@ export default function RevenueManagementNew() {
 
           {/* 비용 상세 탭 */}
           <TabsContent value="expense">
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-700">비용 상세</CardTitle>
-                <Button size="sm" onClick={() => { resetExpenseForm(); setShowExpenseModal(true) }}
-                  className="bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600">
-                  <Plus className="w-4 h-4 mr-1" /> 비용 추가
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="px-3 py-3 text-left font-semibold text-slate-600 sticky left-0 bg-white">카테고리</th>
-                        {Array.from({ length: 12 }, (_, i) => (
-                          <th key={i} className="px-2 py-3 text-right font-semibold text-slate-600">{i + 1}월</th>
-                        ))}
-                        <th className="px-3 py-3 text-right font-semibold text-slate-700 bg-slate-50">합계</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {EXPENSE_CATEGORIES.map(category => {
-                        const monthlyAmounts = Array.from({ length: 12 }, (_, i) => {
-                          const month = `${selectedYear}-${String(i + 1).padStart(2, '0')}`
-                          return expenseData
-                            .filter(e => e.year_month === month && e.category === category)
-                            .reduce((sum, e) => sum + (e.amount || 0), 0)
-                        })
-                        const total = monthlyAmounts.reduce((a, b) => a + b, 0)
-                        if (total === 0) return null
+            <div className="space-y-6">
+              {/* 카테고리별 월별 합계 테이블 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">비용 요약 (카테고리별)</CardTitle>
+                  <Button size="sm" onClick={() => { resetExpenseForm(); setShowExpenseModal(true) }}
+                    className="bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600">
+                    <Plus className="w-4 h-4 mr-1" /> 비용 추가
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200">
+                          <th className="px-3 py-3 text-left font-semibold text-slate-600 sticky left-0 bg-white">카테고리</th>
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <th key={i} className="px-2 py-3 text-right font-semibold text-slate-600">{i + 1}월</th>
+                          ))}
+                          <th className="px-3 py-3 text-right font-semibold text-slate-700 bg-slate-50">합계</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {EXPENSE_CATEGORIES.map(category => {
+                          const monthlyAmounts = Array.from({ length: 12 }, (_, i) => {
+                            const month = `${selectedYear}-${String(i + 1).padStart(2, '0')}`
+                            return expenseData
+                              .filter(e => e.year_month === month && e.category === category)
+                              .reduce((sum, e) => sum + (e.amount || 0), 0)
+                          })
+                          const total = monthlyAmounts.reduce((a, b) => a + b, 0)
+                          if (total === 0) return null
 
-                        return (
-                          <tr key={category} className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="px-3 py-2 font-medium text-slate-700 sticky left-0 bg-white">{category}</td>
-                            {monthlyAmounts.map((amount, i) => (
-                              <td key={i} className="px-2 py-2 text-right text-slate-600">
-                                {amount > 0 ? formatCompact(amount) : '-'}
+                          return (
+                            <tr key={category} className="border-b border-slate-100 hover:bg-slate-50/50">
+                              <td className="px-3 py-2 font-medium text-slate-700 sticky left-0 bg-white">{category}</td>
+                              {monthlyAmounts.map((amount, i) => (
+                                <td key={i} className="px-2 py-2 text-right text-slate-600">
+                                  {amount > 0 ? formatCompact(amount) : '-'}
+                                </td>
+                              ))}
+                              <td className="px-3 py-2 text-right font-semibold text-slate-700 bg-slate-50">
+                                {formatCompact(total)}
                               </td>
-                            ))}
-                            <td className="px-3 py-2 text-right font-semibold text-slate-700 bg-slate-50">
-                              {formatCompact(total)}
+                            </tr>
+                          )
+                        })}
+                        <tr className="bg-rose-50 font-bold">
+                          <td className="px-3 py-3 text-rose-700 sticky left-0 bg-rose-50">합계</td>
+                          {monthlySummary.map((m, i) => (
+                            <td key={i} className="px-2 py-3 text-right text-rose-600">
+                              {m.totalExpense > 0 ? formatCompact(m.totalExpense) : '-'}
                             </td>
-                          </tr>
-                        )
-                      })}
-                      <tr className="bg-rose-50 font-bold">
-                        <td className="px-3 py-3 text-rose-700 sticky left-0 bg-rose-50">합계</td>
-                        {monthlySummary.map((m, i) => (
-                          <td key={i} className="px-2 py-3 text-right text-rose-600">
-                            {m.totalExpense > 0 ? formatCompact(m.totalExpense) : '-'}
+                          ))}
+                          <td className="px-3 py-3 text-right text-rose-700 bg-rose-100">
+                            {formatCompact(yearlyTotals.totalExpense)}
                           </td>
-                        ))}
-                        <td className="px-3 py-3 text-right text-rose-700 bg-rose-100">
-                          {formatCompact(yearlyTotals.totalExpense)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 비용 개별 내역 리스트 */}
+              <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-700">비용 내역 (개별 항목)</CardTitle>
+                  <span className="text-sm text-slate-500">총 {expenseData.length}건</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    {expenseData.length === 0 ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p>비용 데이터가 없습니다.</p>
+                      </div>
+                    ) : (
+                      [...expenseData]
+                        .sort((a, b) => new Date(b.expense_date || b.created_at) - new Date(a.expense_date || a.created_at))
+                        .map(expense => (
+                          <div key={expense.id}
+                            className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-lg bg-rose-100 flex items-center justify-center">
+                                <CreditCard className="w-5 h-5 text-rose-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-700 flex items-center gap-2">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-rose-100 text-rose-700">
+                                    {expense.category || '기타'}
+                                  </span>
+                                  <span className="text-slate-500 text-sm">{expense.expense_date || expense.year_month}</span>
+                                </div>
+                                <div className="text-sm text-slate-500 mt-1">
+                                  {expense.description || '-'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-bold text-lg text-rose-600">{formatNumber(expense.amount)}</span>
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => {
+                                  setEditingItem(expense)
+                                  setExpenseForm({
+                                    corporation: expense.corporation_id || 'haupapa',
+                                    year_month: expense.year_month || `${selectedYear}-01`,
+                                    category: expense.category || '광고비(메타)',
+                                    amount: String(expense.amount || 0),
+                                    description: expense.description || '',
+                                    expense_date: expense.expense_date || ''
+                                  })
+                                  setShowExpenseModal(true)
+                                }}>
+                                  <Edit2 className="w-4 h-4 text-slate-400 hover:text-blue-500" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDelete('expense_records', expense.id)}>
+                                  <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-500" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* 매출 내역 탭 */}
