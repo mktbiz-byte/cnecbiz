@@ -426,6 +426,7 @@ export default function RevenueManagementNew() {
           corporation_id: 'haupapa',
           year_month: yearMonth,
           expense_date: expenseDate,
+          expense_month: yearMonth,
           expense_type: 'expense',
           category: '크리에이터지급',
           amount: amount,
