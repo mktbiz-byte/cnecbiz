@@ -363,7 +363,7 @@ export default function RevenueManagementNew() {
     try {
       const { data: withdrawals, error: fetchError } = await supabaseBiz
         .from('creator_withdrawal_requests')
-        .select('id, requested_amount, requested_points, final_amount, creator_name, account_holder, status, completed_at, created_at')
+        .select('id, requested_amount, requested_points, final_amount, account_holder, status, completed_at, created_at')
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
 
@@ -383,7 +383,7 @@ export default function RevenueManagementNew() {
         const completedDate = new Date(withdrawal.completed_at || withdrawal.created_at)
         const yearMonth = `${completedDate.getFullYear()}-${String(completedDate.getMonth() + 1).padStart(2, '0')}`
         const amount = withdrawal.requested_amount || withdrawal.requested_points || withdrawal.final_amount || 0
-        const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+        const creatorName = withdrawal.account_holder || '크리에이터'
 
         const { error: insertError } = await supabaseBiz.from('expense_records').insert({
           corporation_id: 'haupapa',
