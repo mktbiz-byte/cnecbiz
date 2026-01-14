@@ -6019,9 +6019,12 @@ JSON만 출력.`
 
                         // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저) 후 최신 버전만 유지
                         Object.keys(submissionsByStep).forEach(step => {
+                          if (!submissionsByStep[step] || submissionsByStep[step].length === 0) return
                           submissionsByStep[step].sort((a, b) => {
                             // version이 있으면 version 우선, 없으면 submitted_at으로 정렬
-                            if (a.version && b.version) return b.version - a.version
+                            const aVer = a.version || 0
+                            const bVer = b.version || 0
+                            if (aVer !== bVer) return bVer - aVer
                             return new Date(b.submitted_at) - new Date(a.submitted_at)
                           })
                           // 최신 버전만 유지
