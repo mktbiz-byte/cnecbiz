@@ -5399,13 +5399,13 @@ JSON만 출력.`
                             </div>
                           )}
 
-                          {/* 프로필 이미지 */}
+                          {/* 프로필 이미지 - 1.3배 크기 */}
                           <div className="flex justify-center mb-2">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
                               {app.profile_photo_url ? (
                                 <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-2xl font-bold text-gray-400">
+                                <span className="text-2xl font-bold text-white">
                                   {(app.applicant_name || 'C').charAt(0).toUpperCase()}
                                 </span>
                               )}
@@ -5666,13 +5666,13 @@ JSON만 출력.`
                             가상선택
                           </div>
 
-                          {/* 프로필 이미지 */}
+                          {/* 프로필 이미지 - 1.3배 크기 */}
                           <div className="flex justify-center mb-2">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
                               {app.profile_photo_url ? (
                                 <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-2xl font-bold text-gray-400">
+                                <span className="text-2xl font-bold text-white">
                                   {(app.applicant_name || 'C').charAt(0).toUpperCase()}
                                 </span>
                               )}
