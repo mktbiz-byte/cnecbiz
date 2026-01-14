@@ -295,34 +295,47 @@ export default function CampaignGuideOliveYoung() {
           throw new Error('Gemini API 키가 설정되지 않았습니다.')
         }
 
-        const prompt = `다음 제품 정보와 기업의 요구사항을 바탕으로, 크리에이터가 참고할 수 있도록 간단하고 명확한 가이드를 작성해주세요.
+        const prompt = `올리브영 세일 캠페인용 크리에이터 가이드를 작성해주세요. 기업이 작성한 내용을 기반으로 빈 부분을 채워주세요.
 
 **제품 정보**
 - 브랜드: ${productData.brand}
 - 제품명: ${productData.product_name}
 - 제품 특징: ${productData.product_features}
-- 핵심 포인트: ${productData.product_key_points}
+- 핵심 소구 포인트: ${productData.product_key_points}
 
-**기업 요구사항**
-${stepGuideModes.step1 === 'ai' ? `- STEP 1 (세일 전 영상): ${step1Guide}` : '- STEP 1: 외부 가이드 사용'}
-${stepGuideModes.step2 === 'ai' ? `- STEP 2 (올영 스케줄 맞춤 제작): ${step2Guide}` : '- STEP 2: 외부 가이드 사용'}
+**기업이 작성한 STEP별 가이드**
+${stepGuideModes.step1 === 'ai' ? `STEP 1 (상품 리뷰 영상): ${step1Guide || '(기업 미작성 - AI가 작성해주세요)'}` : 'STEP 1: 외부 가이드 사용'}
+${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 홍보 영상): ${step2Guide || '(기업 미작성 - AI가 작성해주세요)'}` : 'STEP 2: 외부 가이드 사용'}
 
-**각 스텝별 핵심 요구사항:**
-- STEP 1: 세일 전 영상 콘텐츠 1건 제작 후 SNS 업로드 (기업이 작성한 가이드 내용 포함)
-- STEP 2: 올영 스케줄에 맞춰서 제작 (기업이 작성한 가이드 내용 포함)
+**작성 요구사항:**
+각 STEP별로 아래 구조화된 JSON 형식으로 가이드를 생성해주세요.
+- product_info: 제품 정보를 1-2문장으로 정리 (브랜드명, 제품명, 핵심 특징 포함)
+- required_dialogues: 영상에 반드시 포함해야 할 대사 3-5개 (배열)
+- required_scenes: 필수 촬영 장면 2-4개 (배열)
+- cautions: 주의사항 1-2문장
+- hashtags: 필수 해시태그 3-5개 (배열, # 포함)
+- reference_urls: 빈 배열로 유지 (기업이 직접 입력)
 
-**작성 규칙:**
-- 불필요한 촬영 팁, 예시 대사 등은 절대 포함하지 마세요
-- 각 단계별로 핵심 요구사항만 2-3문장으로 간결하게
-- shooting_tips는 빈 문자열로 유지
-- 주의사항은 필수 사항만 1-2문장으로
+**중요:** 기업이 작성한 내용이 있으면 그것을 기반으로 구체화하고, 없으면 제품 정보를 기반으로 적절히 생성해주세요.
 
-JSON 형식으로 응답해주세요:
+JSON만 응답해주세요:
 {
-  "step1_guide_enhanced": "STEP 1 핵심 요구사항 (2-3문장)",
-  "step2_guide_enhanced": "STEP 2 핵심 요구사항 (2-3문장)",
-  "shooting_tips": "",
-  "cautions": "필수 사항 (1-2문장)"
+  "step1": {
+    "product_info": "브랜드 제품명 - 핵심 특징 1-2문장",
+    "required_dialogues": ["대사1", "대사2", "대사3"],
+    "required_scenes": ["장면1", "장면2"],
+    "cautions": "주의사항",
+    "hashtags": ["#해시태그1", "#해시태그2"],
+    "reference_urls": []
+  },
+  "step2": {
+    "product_info": "브랜드 제품명 - 핵심 특징 1-2문장",
+    "required_dialogues": ["대사1", "대사2", "대사3"],
+    "required_scenes": ["장면1", "장면2"],
+    "cautions": "주의사항",
+    "hashtags": ["#해시태그1", "#해시태그2", "#올영세일"],
+    "reference_urls": []
+  }
 }`
 
         const response = await fetch(
@@ -345,42 +358,64 @@ JSON 형식으로 응답해주세요:
         const result = await response.json()
         const generatedText = result.candidates[0].content.parts[0].text
 
-        // JSON 파싱
-        let step1Enhanced = step1Guide
-        let step2Enhanced = step2Guide
-        let shootingTips = ''
-        let cautions = ''
+        // JSON 파싱 - 구조화된 가이드 데이터
+        let step1Data = null
+        let step2Data = null
 
         try {
           const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0])
-            if (stepGuideModes.step1 === 'ai') {
-              step1Enhanced = parsed.step1_guide_enhanced || step1Guide
+
+            // 기본 제품 정보 (모든 STEP에서 공통으로 사용)
+            const baseProductInfo = `${productData.brand} ${productData.product_name} - ${productData.product_features?.slice(0, 100) || ''}`
+
+            if (stepGuideModes.step1 === 'ai' && parsed.step1) {
+              step1Data = {
+                product_info: parsed.step1.product_info || baseProductInfo,
+                required_dialogues: Array.isArray(parsed.step1.required_dialogues) ? parsed.step1.required_dialogues : [],
+                required_scenes: Array.isArray(parsed.step1.required_scenes) ? parsed.step1.required_scenes : [],
+                cautions: parsed.step1.cautions || '저작권 및 광고 표기 준수',
+                hashtags: Array.isArray(parsed.step1.hashtags) ? parsed.step1.hashtags : [],
+                reference_urls: []
+              }
             }
-            if (stepGuideModes.step2 === 'ai') {
-              step2Enhanced = parsed.step2_guide_enhanced || step2Guide
+            if (stepGuideModes.step2 === 'ai' && parsed.step2) {
+              step2Data = {
+                product_info: parsed.step2.product_info || baseProductInfo,
+                required_dialogues: Array.isArray(parsed.step2.required_dialogues) ? parsed.step2.required_dialogues : [],
+                required_scenes: Array.isArray(parsed.step2.required_scenes) ? parsed.step2.required_scenes : [],
+                cautions: parsed.step2.cautions || '저작권 및 광고 표기 준수',
+                hashtags: Array.isArray(parsed.step2.hashtags) ? parsed.step2.hashtags : ['#올영세일'],
+                reference_urls: []
+              }
             }
-            shootingTips = parsed.shooting_tips || ''
-            cautions = parsed.cautions || ''
           }
         } catch (e) {
           console.error('JSON 파싱 실패:', e)
-          // 파싱 실패 시 원본 사용
+          // 파싱 실패 시 기본 구조 생성
+          const fallbackData = {
+            product_info: `${productData.brand} ${productData.product_name}`,
+            required_dialogues: [],
+            required_scenes: [],
+            cautions: '저작권 및 광고 표기 준수',
+            hashtags: [],
+            reference_urls: []
+          }
+          if (stepGuideModes.step1 === 'ai') step1Data = { ...fallbackData }
+          if (stepGuideModes.step2 === 'ai') step2Data = { ...fallbackData, hashtags: ['#올영세일'] }
         }
 
-        // AI 가공된 가이드 저장 (AI 모드인 STEP만)
+        // AI 가공된 가이드 저장 (AI 모드인 STEP만) - JSON 문자열로 저장
         const aiUpdateData = {
           guide_generated_at: new Date().toISOString()
         }
-        if (stepGuideModes.step1 === 'ai') {
-          aiUpdateData.oliveyoung_step1_guide_ai = step1Enhanced
+        if (stepGuideModes.step1 === 'ai' && step1Data) {
+          aiUpdateData.oliveyoung_step1_guide_ai = JSON.stringify(step1Data)
         }
-        if (stepGuideModes.step2 === 'ai') {
-          aiUpdateData.oliveyoung_step2_guide_ai = step2Enhanced
+        if (stepGuideModes.step2 === 'ai' && step2Data) {
+          aiUpdateData.oliveyoung_step2_guide_ai = JSON.stringify(step2Data)
         }
-        aiUpdateData.oliveyoung_shooting_tips = shootingTips
-        aiUpdateData.oliveyoung_cautions = cautions
 
         const { error: finalUpdateError } = await client
           .from('campaigns')
