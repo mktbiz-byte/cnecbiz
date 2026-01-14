@@ -5854,32 +5854,64 @@ JSON만 출력.`
                     <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {/* 4주 챌린지: 주차별 일괄 발송 버튼 */}
+                    {/* 4주 챌린지: 가이드 발송 버튼 */}
                     {campaign.campaign_type === '4week_challenge' && (
-                      <div className="flex items-center gap-1 bg-purple-50 p-1 rounded-lg border border-purple-200">
-                        <span className="text-xs text-purple-700 font-medium px-2">주차별 발송:</span>
-                        {[1, 2, 3, 4].map((weekNum) => {
-                          const weekKey = `week${weekNum}`
-                          const hasWeekGuide = campaign.challenge_weekly_guides_ai?.[weekKey] ||
-                                               campaign[`${weekKey}_external_url`] ||
-                                               campaign[`${weekKey}_external_file_url`]
+                      <div className="flex items-center gap-2 bg-purple-50 p-2 rounded-lg border border-purple-200">
+                        {/* 가이드 존재 여부 확인 */}
+                        {(() => {
+                          const hasGuide = campaign.challenge_guide_data || campaign.challenge_weekly_guides || campaign.challenge_weekly_guides_ai
+                          const hasAnyWeekGuide = hasGuide || campaign.week1_external_url || campaign.week2_external_url || campaign.week3_external_url || campaign.week4_external_url
+
+                          if (!hasAnyWeekGuide) {
+                            return <span className="text-xs text-gray-500 px-2">가이드가 설정되지 않았습니다</span>
+                          }
+
                           return (
-                            <Button
-                              key={weekNum}
-                              size="sm"
-                              variant="outline"
-                              disabled={!hasWeekGuide || participants.length === 0}
-                              onClick={() => handleDeliver4WeekGuideByWeek(weekNum)}
-                              className={`text-xs px-2 py-1 h-7 ${
-                                hasWeekGuide
-                                  ? 'border-purple-400 text-purple-700 hover:bg-purple-100'
-                                  : 'border-gray-300 text-gray-400'
-                              }`}
-                            >
-                              {weekNum}주차
-                            </Button>
+                            <>
+                              {/* 한번에 보내기 */}
+                              <Button
+                                size="sm"
+                                onClick={() => handleDeliverOliveYoung4WeekGuide()}
+                                disabled={participants.length === 0}
+                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-7"
+                              >
+                                <Send className="w-3 h-3 mr-1" />
+                                한번에 보내기
+                              </Button>
+
+                              <span className="text-gray-400 text-xs">또는</span>
+
+                              {/* 주차별 보내기 */}
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-purple-700 font-medium">주차별:</span>
+                                {[1, 2, 3, 4].map((weekNum) => {
+                                  const weekKey = `week${weekNum}`
+                                  const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       campaign[`${weekKey}_external_url`] ||
+                                                       campaign[`${weekKey}_external_file_url`]
+                                  return (
+                                    <Button
+                                      key={weekNum}
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={!hasWeekGuide || participants.length === 0}
+                                      onClick={() => handleDeliver4WeekGuideByWeek(weekNum)}
+                                      className={`text-xs px-2 py-1 h-7 ${
+                                        hasWeekGuide
+                                          ? 'border-purple-400 text-purple-700 hover:bg-purple-100'
+                                          : 'border-gray-300 text-gray-400'
+                                      }`}
+                                    >
+                                      {weekNum}주
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            </>
                           )
-                        })}
+                        })()}
                       </div>
                     )}
 
