@@ -5488,9 +5488,20 @@ JSON만 출력.`
                               </button>
                             )}
                             {app.status === 'selected' && (
-                              <div className="w-full py-1.5 text-xs bg-green-100 rounded-lg text-green-700 font-medium text-center">
-                                ✓ 선정 완료
-                              </div>
+                              <>
+                                <div className="w-full py-1.5 text-xs bg-green-100 rounded-lg text-green-700 font-medium text-center">
+                                  ✓ 선정 완료
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setCancellingApp(app)
+                                    setCancelModalOpen(true)
+                                  }}
+                                  className="w-full py-1.5 text-xs bg-red-100 hover:bg-red-200 rounded-lg text-red-600 font-medium transition-colors"
+                                >
+                                  ✕ 선정 취소
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
