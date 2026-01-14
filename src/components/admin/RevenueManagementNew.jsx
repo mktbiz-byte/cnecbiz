@@ -493,10 +493,14 @@ export default function RevenueManagementNew() {
         description: revenueForm.description
       }
 
+      console.log('매출 저장 데이터:', data)
+
       if (editingItem) {
-        await supabaseBiz.from('revenue_records').update(data).eq('id', editingItem.id)
+        const { error } = await supabaseBiz.from('revenue_records').update(data).eq('id', editingItem.id)
+        if (error) throw error
       } else {
-        await supabaseBiz.from('revenue_records').insert(data)
+        const { error } = await supabaseBiz.from('revenue_records').insert(data)
+        if (error) throw error
       }
 
       setShowRevenueModal(false)
@@ -504,6 +508,7 @@ export default function RevenueManagementNew() {
       resetRevenueForm()
       fetchAllData()
     } catch (error) {
+      console.error('매출 저장 오류:', error)
       alert('저장 실패: ' + error.message)
     }
   }
@@ -513,16 +518,22 @@ export default function RevenueManagementNew() {
       const data = {
         corporation_id: expenseForm.corporation,
         year_month: expenseForm.year_month,
+        expense_month: expenseForm.year_month,
+        expense_type: 'expense',
         category: expenseForm.category,
         amount: parseInt(expenseForm.amount) || 0,
         description: expenseForm.description,
-        expense_date: expenseForm.expense_date || null
+        expense_date: expenseForm.expense_date || `${expenseForm.year_month}-01`
       }
 
+      console.log('비용 저장 데이터:', data)
+
       if (editingItem) {
-        await supabaseBiz.from('expense_records').update(data).eq('id', editingItem.id)
+        const { error } = await supabaseBiz.from('expense_records').update(data).eq('id', editingItem.id)
+        if (error) throw error
       } else {
-        await supabaseBiz.from('expense_records').insert(data)
+        const { error } = await supabaseBiz.from('expense_records').insert(data)
+        if (error) throw error
       }
 
       setShowExpenseModal(false)
@@ -530,6 +541,7 @@ export default function RevenueManagementNew() {
       resetExpenseForm()
       fetchAllData()
     } catch (error) {
+      console.error('비용 저장 오류:', error)
       alert('저장 실패: ' + error.message)
     }
   }
@@ -545,10 +557,14 @@ export default function RevenueManagementNew() {
         status: 'pending'
       }
 
+      console.log('미수금 저장 데이터:', data)
+
       if (editingItem) {
-        await supabaseBiz.from('receivables').update(data).eq('id', editingItem.id)
+        const { error } = await supabaseBiz.from('receivables').update(data).eq('id', editingItem.id)
+        if (error) throw error
       } else {
-        await supabaseBiz.from('receivables').insert(data)
+        const { error } = await supabaseBiz.from('receivables').insert(data)
+        if (error) throw error
       }
 
       setShowReceivableModal(false)
@@ -556,6 +572,7 @@ export default function RevenueManagementNew() {
       resetReceivableForm()
       fetchAllData()
     } catch (error) {
+      console.error('미수금 저장 오류:', error)
       alert('저장 실패: ' + error.message)
     }
   }
