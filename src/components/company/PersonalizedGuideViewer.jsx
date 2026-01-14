@@ -41,312 +41,402 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
 
   // 4주 챌린지 가이드 (기업이 설정한 원본 데이터)
   if (guideData.type === '4week_guide') {
-    return (
-      <div className="space-y-5">
-        {/* Header with Edit button */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-purple-500 to-indigo-500">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">4주 챌린지 가이드</h3>
-          </div>
-          {onSave && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsEditing(!isEditing)
-                if (!isEditing) {
-                  setEditedGuide(guide)
-                }
-              }}
-              className="gap-1"
-            >
-              {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
-              {isEditing ? '취소' : '수정'}
-            </Button>
-          )}
-        </div>
+    // 탭 상태 관리를 위한 내부 컴포넌트
+    const FourWeekGuideContent = () => {
+      const [activeWeek, setActiveWeek] = useState('week1')
+      const [localEditing, setLocalEditing] = useState(false)
+      const [localEditedData, setLocalEditedData] = useState(null)
+      const [localSaving, setLocalSaving] = useState(false)
 
-        {/* 제품 정보 */}
-        {(guideData.brand || guideData.product_name || guideData.product_features || guideData.precautions) && (
+      const handleStartEdit = () => {
+        // 원본 데이터를 복사해서 편집용으로 사용
+        setLocalEditedData(JSON.parse(JSON.stringify(guideData)))
+        setLocalEditing(true)
+      }
+
+      const handleCancelEdit = () => {
+        setLocalEditing(false)
+        setLocalEditedData(null)
+      }
+
+      const handleSaveEdit = async () => {
+        if (!onSave) return
+        setLocalSaving(true)
+        try {
+          await onSave(JSON.stringify(localEditedData))
+          setLocalEditing(false)
+          setLocalEditedData(null)
+          alert('가이드가 저장되었습니다.')
+        } catch (error) {
+          alert('저장 실패: ' + error.message)
+        } finally {
+          setLocalSaving(false)
+        }
+      }
+
+      const updateWeekField = (weekKey, field, value) => {
+        setLocalEditedData(prev => ({
+          ...prev,
+          [weekKey]: {
+            ...(prev[weekKey] || {}),
+            [field]: value
+          }
+        }))
+      }
+
+      const displayData = localEditing ? localEditedData : guideData
+      const currentWeekData = displayData[activeWeek] || {}
+
+      return (
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-purple-500 to-indigo-500">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">4주 챌린지 가이드</h3>
+            </div>
+            {onSave && !localEditing && (
+              <Button variant="outline" size="sm" onClick={handleStartEdit} className="gap-1">
+                <Edit className="w-4 h-4" />
+                수정
+              </Button>
+            )}
+            {localEditing && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleCancelEdit}>취소</Button>
+                <Button size="sm" onClick={handleSaveEdit} disabled={localSaving} className="bg-purple-600 hover:bg-purple-700">
+                  {localSaving ? '저장 중...' : '저장'}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* 제품 정보 */}
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
             <h4 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               제품 정보
             </h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              {guideData.brand && (
-                <div>
-                  <span className="text-purple-600 font-medium">브랜드:</span>
-                  <span className="ml-2 text-gray-800">{guideData.brand}</span>
-                </div>
-              )}
-              {guideData.product_name && (
-                <div>
-                  <span className="text-purple-600 font-medium">제품명:</span>
-                  <span className="ml-2 text-gray-800">{guideData.product_name}</span>
-                </div>
-              )}
-              {guideData.product_features && (
-                <div className="col-span-2">
-                  <span className="text-purple-600 font-medium">제품 특징:</span>
-                  <p className="mt-1 text-gray-800 whitespace-pre-wrap">{guideData.product_features}</p>
-                </div>
-              )}
-              {guideData.precautions && (
-                <div className="col-span-2">
-                  <span className="text-red-600 font-medium">⚠️ 주의사항:</span>
-                  <p className="mt-1 text-gray-800 whitespace-pre-wrap">{guideData.precautions}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {isEditing ? (
-          /* 수정 모드 */
-          <div className="space-y-4">
-            <textarea
-              value={typeof editedGuide === 'string' ? editedGuide : JSON.stringify(editedGuide, null, 2)}
-              onChange={(e) => setEditedGuide(e.target.value)}
-              className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
-              placeholder="가이드 내용을 수정하세요..."
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsEditing(false)
-                  setEditedGuide(null)
-                }}
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  setSaving(true)
-                  try {
-                    await onSave(editedGuide)
-                    setIsEditing(false)
-                    alert('가이드가 저장되었습니다.')
-                  } catch (error) {
-                    alert('저장 실패: ' + error.message)
-                  } finally {
-                    setSaving(false)
-                  }
-                }}
-                disabled={saving}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {saving ? '저장 중...' : '저장'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /* 보기 모드 - 주차별 가이드 */
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((weekNum) => {
-              const weekData = guideData[`week${weekNum}`]
-              if (!weekData || (!weekData.mission && !weekData.required_dialogue && !weekData.required_scenes && !weekData.reference_url)) {
-                return null
-              }
-              return (
-                <div key={weekNum} className="rounded-xl border-2 border-purple-200 bg-purple-50 overflow-hidden">
-                  <div className="bg-purple-100 px-4 py-2 border-b border-purple-200">
-                    <h4 className="font-bold text-purple-800">{weekNum}주차</h4>
+            {localEditing ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">브랜드</label>
+                    <input
+                      type="text"
+                      value={localEditedData.brand || ''}
+                      onChange={(e) => setLocalEditedData({...localEditedData, brand: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
                   </div>
-                  <div className="p-4 space-y-3">
-                    {weekData.mission && (
-                      <div>
-                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4" />
-                          미션
-                        </span>
-                        <p className="text-gray-700 mt-1 whitespace-pre-wrap">{weekData.mission}</p>
-                      </div>
-                    )}
-                    {weekData.required_dialogue && (
-                      <div>
-                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
-                          <MessageSquare className="w-4 h-4" />
-                          필수 대사
-                        </span>
-                        <p className="text-gray-700 mt-1 whitespace-pre-wrap bg-white/60 p-2 rounded-lg border border-purple-100">
-                          "{weekData.required_dialogue}"
-                        </p>
-                      </div>
-                    )}
-                    {weekData.required_scenes && (
-                      <div>
-                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
-                          <Camera className="w-4 h-4" />
-                          필수 장면
-                        </span>
-                        <p className="text-gray-700 mt-1 whitespace-pre-wrap">{weekData.required_scenes}</p>
-                      </div>
-                    )}
-                    {weekData.reference_url && (
-                      <div>
-                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
-                          <ExternalLink className="w-4 h-4" />
-                          참고 URL
-                        </span>
-                        <a
-                          href={weekData.reference_url.startsWith('http') ? weekData.reference_url : `https://${weekData.reference_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline mt-1 block text-sm break-all"
-                        >
-                          {weekData.reference_url}
-                        </a>
-                      </div>
-                    )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
+                    <input
+                      type="text"
+                      value={localEditedData.product_name || ''}
+                      onChange={(e) => setLocalEditedData({...localEditedData, product_name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
                   </div>
                 </div>
-              )
-            })}
-
-            {/* 주차별 데이터가 하나도 없을 경우 */}
-            {![1, 2, 3, 4].some(weekNum => {
-              const weekData = guideData[`week${weekNum}`]
-              return weekData && (weekData.mission || weekData.required_dialogue || weekData.required_scenes || weekData.reference_url)
-            }) && (
-              <div className="text-center py-8 text-gray-500">
-                <p>가이드 데이터가 없습니다.</p>
-                <p className="text-sm mt-1">캠페인 설정에서 4주 챌린지 가이드를 먼저 설정해주세요.</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">제품 특징</label>
+                  <textarea
+                    value={localEditedData.product_features || ''}
+                    onChange={(e) => setLocalEditedData({...localEditedData, product_features: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-red-600 mb-1">⚠️ 주의사항</label>
+                  <textarea
+                    value={localEditedData.precautions || ''}
+                    onChange={(e) => setLocalEditedData({...localEditedData, precautions: e.target.value})}
+                    className="w-full px-3 py-2 border border-red-200 rounded-md text-sm bg-red-50"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {displayData.brand && (
+                  <div><span className="text-purple-600 font-medium">브랜드:</span> <span className="ml-2 text-gray-800">{displayData.brand}</span></div>
+                )}
+                {displayData.product_name && (
+                  <div><span className="text-purple-600 font-medium">제품명:</span> <span className="ml-2 text-gray-800">{displayData.product_name}</span></div>
+                )}
+                {displayData.product_features && (
+                  <div className="col-span-2"><span className="text-purple-600 font-medium">제품 특징:</span><p className="mt-1 text-gray-800 whitespace-pre-wrap">{displayData.product_features}</p></div>
+                )}
+                {displayData.precautions && (
+                  <div className="col-span-2"><span className="text-red-600 font-medium">⚠️ 주의사항:</span><p className="mt-1 text-gray-800 whitespace-pre-wrap">{displayData.precautions}</p></div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
-    )
+
+          {/* 주차 탭 */}
+          <div className="flex gap-2 border-b">
+            {['week1', 'week2', 'week3', 'week4'].map((week, idx) => (
+              <button
+                key={week}
+                onClick={() => setActiveWeek(week)}
+                className={`px-6 py-3 font-medium text-sm transition-all ${
+                  activeWeek === week
+                    ? 'border-b-2 border-purple-600 text-purple-600 bg-purple-50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                {idx + 1}주차
+              </button>
+            ))}
+          </div>
+
+          {/* 선택된 주차 내용 */}
+          <div className="rounded-xl border-2 border-purple-200 bg-purple-50 overflow-hidden">
+            <div className="bg-purple-100 px-4 py-2 border-b border-purple-200">
+              <h4 className="font-bold text-purple-800">{activeWeek.replace('week', '')}주차 가이드</h4>
+            </div>
+            <div className="p-4 space-y-4">
+              {localEditing ? (
+                <>
+                  <div>
+                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
+                      <CheckCircle className="w-4 h-4" /> 미션
+                    </label>
+                    <textarea
+                      value={currentWeekData.mission || ''}
+                      onChange={(e) => updateWeekField(activeWeek, 'mission', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      rows={3}
+                      placeholder="이번 주차 미션을 입력하세요"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
+                      <MessageSquare className="w-4 h-4" /> 필수 대사
+                    </label>
+                    <textarea
+                      value={currentWeekData.required_dialogue || ''}
+                      onChange={(e) => updateWeekField(activeWeek, 'required_dialogue', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      rows={2}
+                      placeholder="필수로 포함해야 하는 대사"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
+                      <Camera className="w-4 h-4" /> 필수 장면
+                    </label>
+                    <textarea
+                      value={currentWeekData.required_scenes || ''}
+                      onChange={(e) => updateWeekField(activeWeek, 'required_scenes', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      rows={2}
+                      placeholder="필수로 촬영해야 하는 장면"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-purple-700 flex items-center gap-1 mb-1">
+                      <ExternalLink className="w-4 h-4" /> 참고 URL
+                    </label>
+                    <input
+                      type="text"
+                      value={currentWeekData.reference_url || ''}
+                      onChange={(e) => updateWeekField(activeWeek, 'reference_url', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      placeholder="참고할 영상 URL"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {currentWeekData.mission && (
+                    <div>
+                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><CheckCircle className="w-4 h-4" /> 미션</span>
+                      <p className="text-gray-700 mt-1 whitespace-pre-wrap">{currentWeekData.mission}</p>
+                    </div>
+                  )}
+                  {currentWeekData.required_dialogue && (
+                    <div>
+                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><MessageSquare className="w-4 h-4" /> 필수 대사</span>
+                      <p className="text-gray-700 mt-1 whitespace-pre-wrap bg-white/60 p-2 rounded-lg border border-purple-100">"{currentWeekData.required_dialogue}"</p>
+                    </div>
+                  )}
+                  {currentWeekData.required_scenes && (
+                    <div>
+                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><Camera className="w-4 h-4" /> 필수 장면</span>
+                      <p className="text-gray-700 mt-1 whitespace-pre-wrap">{currentWeekData.required_scenes}</p>
+                    </div>
+                  )}
+                  {currentWeekData.reference_url && (
+                    <div>
+                      <span className="text-sm font-semibold text-purple-700 flex items-center gap-1"><ExternalLink className="w-4 h-4" /> 참고 URL</span>
+                      <a href={currentWeekData.reference_url.startsWith('http') ? currentWeekData.reference_url : `https://${currentWeekData.reference_url}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline mt-1 block text-sm break-all">{currentWeekData.reference_url}</a>
+                    </div>
+                  )}
+                  {!currentWeekData.mission && !currentWeekData.required_dialogue && !currentWeekData.required_scenes && !currentWeekData.reference_url && (
+                    <p className="text-gray-500 text-center py-4">이 주차에 설정된 가이드가 없습니다.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return <FourWeekGuideContent />
   }
 
   // 올영 가이드 (기업이 설정한 원본 데이터)
   if (guideData.type === 'oliveyoung_guide') {
-    const steps = [
-      { num: 1, data: guideData.step1, title: 'STEP 1' },
-      { num: 2, data: guideData.step2, title: 'STEP 2' },
-      { num: 3, data: guideData.step3, title: 'STEP 3' }
-    ].filter(s => s.data)
+    const OliveYoungGuideContent = () => {
+      const [activeStep, setActiveStep] = useState('step1')
+      const [localEditing, setLocalEditing] = useState(false)
+      const [localEditedData, setLocalEditedData] = useState(null)
+      const [localSaving, setLocalSaving] = useState(false)
 
-    return (
-      <div className="space-y-5">
-        {/* Header with Edit button */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-green-500 to-emerald-500">
-              <Sparkles className="w-4 h-4 text-white" />
+      const handleStartEdit = () => {
+        setLocalEditedData(JSON.parse(JSON.stringify(guideData)))
+        setLocalEditing(true)
+      }
+
+      const handleCancelEdit = () => {
+        setLocalEditing(false)
+        setLocalEditedData(null)
+      }
+
+      const handleSaveEdit = async () => {
+        if (!onSave) return
+        setLocalSaving(true)
+        try {
+          await onSave(JSON.stringify(localEditedData))
+          setLocalEditing(false)
+          setLocalEditedData(null)
+          alert('가이드가 저장되었습니다.')
+        } catch (error) {
+          alert('저장 실패: ' + error.message)
+        } finally {
+          setLocalSaving(false)
+        }
+      }
+
+      const displayData = localEditing ? localEditedData : guideData
+      const stepTitles = { step1: 'STEP 1: 세일 전 영상', step2: 'STEP 2: 세일 당일 영상', step3: 'STEP 3: 스토리 링크' }
+
+      return (
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-green-500 to-emerald-500">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">올영 세일 가이드</h3>
             </div>
-            <h3 className="text-lg font-bold text-gray-900">올영 세일 가이드</h3>
+            {onSave && !localEditing && (
+              <Button variant="outline" size="sm" onClick={handleStartEdit} className="gap-1">
+                <Edit className="w-4 h-4" />
+                수정
+              </Button>
+            )}
+            {localEditing && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleCancelEdit}>취소</Button>
+                <Button size="sm" onClick={handleSaveEdit} disabled={localSaving} className="bg-green-600 hover:bg-green-700">
+                  {localSaving ? '저장 중...' : '저장'}
+                </Button>
+              </div>
+            )}
           </div>
-          {onSave && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsEditing(!isEditing)
-                if (!isEditing) {
-                  setEditedGuide(guide)
-                }
-              }}
-              className="gap-1"
-            >
-              {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
-              {isEditing ? '취소' : '수정'}
-            </Button>
-          )}
-        </div>
 
-        {/* 제품 정보 */}
-        {(guideData.brand || guideData.product_name) && (
+          {/* 제품 정보 */}
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
             <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               제품 정보
             </h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              {guideData.brand && (
+            {localEditing ? (
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="text-green-600 font-medium">브랜드:</span>
-                  <span className="ml-2 text-gray-800">{guideData.brand}</span>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">브랜드</label>
+                  <input
+                    type="text"
+                    value={localEditedData.brand || ''}
+                    onChange={(e) => setLocalEditedData({...localEditedData, brand: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
                 </div>
-              )}
-              {guideData.product_name && (
                 <div>
-                  <span className="text-green-600 font-medium">제품명:</span>
-                  <span className="ml-2 text-gray-800">{guideData.product_name}</span>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">제품명</label>
+                  <input
+                    type="text"
+                    value={localEditedData.product_name || ''}
+                    onChange={(e) => setLocalEditedData({...localEditedData, product_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {isEditing ? (
-          /* 수정 모드 */
-          <div className="space-y-4">
-            <textarea
-              value={typeof editedGuide === 'string' ? editedGuide : JSON.stringify(editedGuide, null, 2)}
-              onChange={(e) => setEditedGuide(e.target.value)}
-              className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"
-              placeholder="가이드 내용을 수정하세요..."
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsEditing(false)
-                  setEditedGuide(null)
-                }}
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  setSaving(true)
-                  try {
-                    await onSave(editedGuide)
-                    setIsEditing(false)
-                    alert('가이드가 저장되었습니다.')
-                  } catch (error) {
-                    alert('저장 실패: ' + error.message)
-                  } finally {
-                    setSaving(false)
-                  }
-                }}
-                disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {saving ? '저장 중...' : '저장'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /* 보기 모드 - 스텝별 가이드 */
-          <div className="space-y-4">
-            {steps.length > 0 ? (
-              steps.map(({ num, data, title }) => (
-                <div key={num} className="rounded-xl border-2 border-green-200 bg-green-50 overflow-hidden">
-                  <div className="bg-green-100 px-4 py-2 border-b border-green-200">
-                    <h4 className="font-bold text-green-800">{title}</h4>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-gray-700 whitespace-pre-wrap">{typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</p>
-                  </div>
-                </div>
-              ))
+              </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <p>가이드 데이터가 없습니다.</p>
-                <p className="text-sm mt-1">캠페인 설정에서 올영 가이드를 먼저 설정해주세요.</p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {displayData.brand && (
+                  <div><span className="text-green-600 font-medium">브랜드:</span> <span className="ml-2 text-gray-800">{displayData.brand}</span></div>
+                )}
+                {displayData.product_name && (
+                  <div><span className="text-green-600 font-medium">제품명:</span> <span className="ml-2 text-gray-800">{displayData.product_name}</span></div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
-    )
+
+          {/* STEP 탭 */}
+          <div className="flex gap-2 border-b">
+            {['step1', 'step2', 'step3'].map((step, idx) => (
+              <button
+                key={step}
+                onClick={() => setActiveStep(step)}
+                className={`px-4 py-3 font-medium text-sm transition-all ${
+                  activeStep === step
+                    ? 'border-b-2 border-green-600 text-green-600 bg-green-50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                STEP {idx + 1}
+              </button>
+            ))}
+          </div>
+
+          {/* 선택된 STEP 내용 */}
+          <div className="rounded-xl border-2 border-green-200 bg-green-50 overflow-hidden">
+            <div className="bg-green-100 px-4 py-2 border-b border-green-200">
+              <h4 className="font-bold text-green-800">{stepTitles[activeStep]}</h4>
+            </div>
+            <div className="p-4">
+              {localEditing ? (
+                <textarea
+                  value={localEditedData[activeStep] || ''}
+                  onChange={(e) => setLocalEditedData({...localEditedData, [activeStep]: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[250px]"
+                  placeholder={`${stepTitles[activeStep]} 가이드 내용을 입력하세요...`}
+                />
+              ) : (
+                displayData[activeStep] ? (
+                  <p className="text-gray-700 whitespace-pre-wrap">{typeof displayData[activeStep] === 'string' ? displayData[activeStep] : JSON.stringify(displayData[activeStep], null, 2)}</p>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">이 스텝에 설정된 가이드가 없습니다.</p>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return <OliveYoungGuideContent />
   }
 
   // 올영/4주 캠페인 레벨 AI 가이드 타입 처리 (레거시)

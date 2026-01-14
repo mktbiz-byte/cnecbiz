@@ -8122,33 +8122,44 @@ JSON만 출력.`
                   </>
                 ) : (
                   <>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditingGuide(true)
-                        // Properly convert object to JSON string if needed
-                        const guide = selectedGuide.personalized_guide
-                        if (typeof guide === 'object' && guide !== null) {
-                          setEditedGuideContent(JSON.stringify(guide, null, 2))
-                        } else {
-                          setEditedGuideContent(guide || '')
-                        }
-                      }}
-                      className="border-purple-600 text-purple-600 hover:bg-purple-50"
-                    >
-                      직접 수정
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowAIEditModal(true)
-                        setAIEditPrompt('')
-                      }}
-                      className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
-                    >
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      AI로 수정
-                    </Button>
+                    {/* 올영/4주 가이드는 PersonalizedGuideViewer에서 직접 수정하므로 버튼 숨김 */}
+                    {(() => {
+                      const guide = selectedGuide.personalized_guide
+                      const guideType = typeof guide === 'object' ? guide?.type : null
+                      const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide'
+
+                      if (isOliveYoungOr4Week) return null
+
+                      return (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingGuide(true)
+                              if (typeof guide === 'object' && guide !== null) {
+                                setEditedGuideContent(JSON.stringify(guide, null, 2))
+                              } else {
+                                setEditedGuideContent(guide || '')
+                              }
+                            }}
+                            className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                          >
+                            직접 수정
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setShowAIEditModal(true)
+                              setAIEditPrompt('')
+                            }}
+                            className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                          >
+                            <Sparkles className="w-4 h-4 mr-1" />
+                            AI로 수정
+                          </Button>
+                        </>
+                      )
+                    })()}
                     <Button
                       onClick={async () => {
                         try {
