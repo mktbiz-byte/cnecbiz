@@ -5974,9 +5974,7 @@ JSON만 출력.`
 
                   // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
                   // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
-                  const filteredSubmissions = videoSubmissions.filter(v =>
-                    !['completed', 'rejected'].includes(v.status)
-                  )
+                  const filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
 
                   // user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
@@ -6016,34 +6014,17 @@ JSON만 출력.`
                           submissionsByStep[1] = userSubmissions
                         }
 
-                        // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저) 후 최신 버전만 유지
+                        // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저)
                         Object.keys(submissionsByStep).forEach(step => {
-                          if (!submissionsByStep[step] || submissionsByStep[step].length === 0) return
-                          submissionsByStep[step].sort((a, b) => {
-                            // version이 있으면 version 우선, 없으면 submitted_at으로 정렬
-                            const aVer = a.version || 0
-                            const bVer = b.version || 0
-                            if (aVer !== bVer) return bVer - aVer
-                            return new Date(b.submitted_at) - new Date(a.submitted_at)
-                          })
-                          // 최신 버전만 유지
-                          submissionsByStep[step] = [submissionsByStep[step][0]]
+                          submissionsByStep[step].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
                         })
-
-                        // 해당 user의 모든 submission에서 approved/completed/final_confirmed 상태 확인
-                        const approvedSteps = new Set()
-                        videoSubmissions
-                          .filter(v => v.user_id === userId && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status))
-                          .forEach(v => {
-                            const step = v.week_number || v.video_number || 1
-                            approvedSteps.add(step)
-                          })
 
                         const availableSteps = Object.keys(submissionsByStep).map(Number).sort((a, b) => a - b)
                         const selectedStep = selectedVideoSteps[userId] || availableSteps[0]
                         const stepSubmissions = submissionsByStep[selectedStep] || []
-                        const submission = stepSubmissions[0] // 최신 버전만 표시
-                        const isStepApproved = approvedSteps.has(selectedStep) // 해당 스텝이 이미 검수완료됨
+                        const versionKey = `${userId}_${selectedStep}`
+                        const selectedVersion = selectedVideoVersions[versionKey] || 0
+                        const submission = stepSubmissions[selectedVersion]
 
                         if (!submission) return null
 
@@ -6230,7 +6211,7 @@ JSON만 출력.`
                                 </svg>
                                 영상 다운로드
                               </Button>
-                              {submission.status !== 'approved' && !isStepApproved && (
+                              {submission.status !== 'approved' && (
                                 <>
                                   <Button
                                     size="sm"
@@ -6254,7 +6235,7 @@ JSON만 출력.`
                                   </Button>
                                 </>
                               )}
-                              {(submission.status === 'approved' || isStepApproved) && (
+                              {submission.status === 'approved' && (
                                 <div className="text-center text-sm text-green-600 font-medium py-2 bg-green-50 rounded">
                                   ✓ 이 영상은 검수 완료되었습니다
                                 </div>
@@ -6397,48 +6378,10 @@ JSON만 출력.`
                   return (
                   <div className="space-y-6">
                     {completedSectionParticipants.map(participant => {
-                      // 해당 크리에이터의 승인된 영상들 (video_number별 최신 버전만)
-                      const approvedSubmissions = videoSubmissions.filter(
+                      // 해당 크리에이터의 승인된 영상들
+                      const creatorSubmissions = videoSubmissions.filter(
                         sub => sub.user_id === participant.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status)
-                      )
-
-                      // 클린본은 status와 관계없이 clean_video_url이 있으면 표시 (업로드 즉시 표시)
-                      const cleanVideoSubmissions = videoSubmissions.filter(
-                        sub => sub.user_id === participant.user_id && sub.clean_video_url
-                      )
-
-                      // 편집본: 승인된 영상들만
-                      const allSubmissions = approvedSubmissions
-
-                      // video_number별로 그룹화하여 최신 버전만 유지
-                      const latestByVideoNumber = {}
-                      allSubmissions.forEach(sub => {
-                        const key = sub.video_number || sub.week_number || 'default'
-                        const existing = latestByVideoNumber[key]
-                        if (!existing ||
-                            (sub.version || 0) > (existing.version || 0) ||
-                            new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
-                          latestByVideoNumber[key] = sub
-                        }
-                      })
-
-                      // 클린본도 video_number별로 최신 버전만 유지
-                      const latestCleanByVideoNumber = {}
-                      cleanVideoSubmissions.forEach(sub => {
-                        const key = sub.video_number || sub.week_number || 'default'
-                        const existing = latestCleanByVideoNumber[key]
-                        if (!existing ||
-                            (sub.version || 0) > (existing.version || 0) ||
-                            new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
-                          latestCleanByVideoNumber[key] = sub
-                        }
-                      })
-
-                      const creatorSubmissions = Object.values(latestByVideoNumber)
-                        .sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
-
-                      const cleanSubmissions = Object.values(latestCleanByVideoNumber)
-                        .sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
+                      ).sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
 
                       // 멀티비디오 캠페인 체크 (올영: 2개, 4주챌린지: 4개)
                       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
@@ -6503,21 +6446,26 @@ JSON만 출력.`
                           {/* 영상 목록 */}
                           {creatorSubmissions.length > 0 ? (
                             <div className="space-y-4">
-                              {/* 기획형 캠페인 (4주/올영): 편집본과 클린본 섹션 분리 */}
-                              {isMultiVideoCampaign ? (
-                                <>
-                                  {/* 편집본 섹션 */}
-                                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                    <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                                      <Video className="w-4 h-4" />
-                                      편집본
-                                      <Badge className="bg-blue-600 text-white text-xs">
-                                        {creatorSubmissions.filter(s => s.video_file_url).length}개
-                                      </Badge>
-                                    </h5>
-                                    <div className="space-y-3">
-                                      {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
-                                        // SNS URL 가져오기
+                              {creatorSubmissions.map((submission, idx) => (
+                                <div key={submission.id} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+                                  <div className="flex items-start justify-between gap-4">
+                                    {/* 영상 정보 */}
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Video className="w-4 h-4 text-purple-600" />
+                                        <span className="font-semibold text-gray-800">
+                                          {submission.week_number ? `${submission.week_number}주차 영상` :
+                                           submission.video_number ? `영상 ${submission.video_number}` :
+                                           `영상 ${idx + 1}`}
+                                        </span>
+                                        {submission.version && submission.version > 1 && (
+                                          <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                        )}
+                                      </div>
+
+                                      {/* SNS 업로드 URL (video_submissions 또는 campaign_participants에서) */}
+                                      {(() => {
+                                        // 4주 챌린지/올리브영의 경우 주차/영상번호에 맞는 URL 가져오기
                                         let snsUrl = submission.sns_upload_url
                                         if (!snsUrl && is4WeekChallenge && submission.week_number) {
                                           snsUrl = participant[`week${submission.week_number}_url`]
@@ -6525,378 +6473,239 @@ JSON만 출력.`
                                           snsUrl = participant[`step${submission.video_number}_url`]
                                         }
                                         if (!snsUrl) snsUrl = participant.sns_upload_url
+                                        return snsUrl ? (
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Link className="w-4 h-4 text-blue-500" />
+                                            <a
+                                              href={snsUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-sm text-blue-600 hover:underline truncate max-w-md"
+                                            >
+                                              {snsUrl}
+                                            </a>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 px-2 text-blue-600 hover:bg-blue-50"
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(snsUrl)
+                                                alert('SNS 링크가 복사되었습니다!')
+                                              }}
+                                            >
+                                              <Copy className="w-3 h-3" />
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 px-2 text-gray-500 hover:bg-gray-100"
+                                              onClick={() => {
+                                                setAdminSnsEditData({
+                                                  submissionId: submission.id,
+                                                  participantId: participant.id,
+                                                  snsUrl: snsUrl,
+                                                  adCode: submission.ad_code || submission.partnership_code || participant.partnership_code || '',
+                                                  isEditMode: true
+                                                })
+                                                setShowAdminSnsEditModal(true)
+                                              }}
+                                            >
+                                              <Edit2 className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Link className="w-4 h-4 text-gray-400" />
+                                            <span className="text-sm text-gray-400">SNS URL 미등록</span>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 px-2 text-blue-600 hover:bg-blue-50"
+                                              onClick={() => {
+                                                setAdminSnsEditData({
+                                                  submissionId: submission.id,
+                                                  participantId: participant.id,
+                                                  snsUrl: '',
+                                                  adCode: submission.ad_code || submission.partnership_code || '',
+                                                  isEditMode: false
+                                                })
+                                                setShowAdminSnsEditModal(true)
+                                              }}
+                                            >
+                                              <Edit2 className="w-3 h-3 mr-1" />
+                                              입력
+                                            </Button>
+                                          </div>
+                                        )
+                                      })()}
 
-                                        // 광고코드 가져오기
+                                      {/* 파트너십 광고 코드 (영상별 또는 참가자별) */}
+                                      {(() => {
+                                        // 4주 챌린지/올리브영의 경우 주차/영상번호에 맞는 광고코드 가져오기
                                         let adCode = submission.ad_code || submission.partnership_code
                                         if (!adCode && is4WeekChallenge && submission.week_number) {
                                           adCode = participant[`week${submission.week_number}_partnership_code`]
                                         } else if (!adCode && isOliveyoung && submission.video_number) {
+                                          // 올리브영: step1,2는 step1_2_partnership_code, step3는 step3_partnership_code
                                           adCode = submission.video_number === 3
                                             ? participant.step3_partnership_code
                                             : participant.step1_2_partnership_code
                                         }
                                         if (!adCode) adCode = participant.partnership_code
-
-                                        return (
-                                          <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
-                                            <div className="flex items-center justify-between gap-3">
-                                              <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                  <span className="font-medium text-gray-800">
-                                                    {submission.week_number ? `${submission.week_number}주차` :
-                                                     submission.video_number ? `영상 ${submission.video_number}` :
-                                                     `영상 ${idx + 1}`}
-                                                  </span>
-                                                  {submission.version && submission.version > 1 && (
-                                                    <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
-                                                  )}
-                                                </div>
-                                                {/* SNS URL */}
-                                                {snsUrl && (
-                                                  <div className="flex items-center gap-2 text-sm">
-                                                    <Link className="w-3 h-3 text-blue-500" />
-                                                    <a href={snsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px]">
-                                                      {snsUrl}
-                                                    </a>
-                                                    <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(snsUrl); alert('SNS 링크가 복사되었습니다!') }}>
-                                                      <Copy className="w-3 h-3" />
-                                                    </Button>
-                                                    <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl, adCode: adCode || '', isEditMode: true }); setShowAdminSnsEditModal(true) }}>
-                                                      <Edit2 className="w-3 h-3" />
-                                                    </Button>
-                                                  </div>
-                                                )}
-                                                {/* 광고코드 */}
-                                                {adCode && (
-                                                  <div className="flex items-center gap-2 text-sm mt-1">
-                                                    <Hash className="w-3 h-3 text-orange-500" />
-                                                    <code className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{adCode}</code>
-                                                    <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(adCode); alert('광고코드가 복사되었습니다!') }}>
-                                                      <Copy className="w-3 h-3" />
-                                                    </Button>
-                                                  </div>
-                                                )}
-                                                <div className="text-xs text-gray-500 mt-1">
-                                                  제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
-                                                  {submission.approved_at && <span> · 승인: {new Date(submission.approved_at).toLocaleDateString('ko-KR')}</span>}
-                                                </div>
-                                              </div>
-                                              <div className="flex flex-col gap-1">
-                                                <Button
-                                                  size="sm"
-                                                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                                                  onClick={async () => {
-                                                    try {
-                                                      const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
-                                                      const blob = await response.blob()
-                                                      const blobUrl = window.URL.createObjectURL(blob)
-                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                                      const weekLabel = submission.week_number ? `_${submission.week_number}주차` : (submission.video_number ? `_영상${submission.video_number}` : '')
-                                                      const link = document.createElement('a')
-                                                      link.href = blobUrl
-                                                      link.download = `${creatorName}${weekLabel}_편집본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                                      document.body.appendChild(link)
-                                                      link.click()
-                                                      document.body.removeChild(link)
-                                                      window.URL.revokeObjectURL(blobUrl)
-                                                    } catch (error) {
-                                                      console.error('Download failed:', error)
-                                                      window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
-                                                    }
-                                                  }}
-                                                >
-                                                  <Download className="w-4 h-4 mr-1" />
-                                                  편집본
-                                                </Button>
-                                                {snsUrl && (
-                                                  <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
-                                                    <ExternalLink className="w-4 h-4 mr-1" />
-                                                    SNS 보기
-                                                  </Button>
-                                                )}
-                                                {submission.final_confirmed_at ? (
-                                                  <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
-                                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                                    확정
-                                                  </Badge>
-                                                ) : submission.status === 'approved' && (
-                                                  <Button
-                                                    size="sm"
-                                                    className="bg-purple-600 hover:bg-purple-700 text-white"
-                                                    onClick={async () => {
-                                                      if (!snsUrl) {
-                                                        setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl: '', adCode: adCode || '', isEditMode: false })
-                                                        setShowAdminSnsEditModal(true)
-                                                        return
-                                                      }
-                                                      if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
-                                                      await handleFinalConfirmation(submission)
-                                                    }}
-                                                  >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    최종 확정
-                                                  </Button>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        )
-                                      })}
-                                      {creatorSubmissions.filter(s => s.video_file_url).length === 0 && (
-                                        <p className="text-sm text-gray-500 text-center py-2">아직 제출된 편집본이 없습니다.</p>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* 클린본 섹션 */}
-                                  <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                                    <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
-                                      <Video className="w-4 h-4" />
-                                      클린본
-                                      <Badge className="bg-emerald-600 text-white text-xs">
-                                        {cleanSubmissions.length}개
-                                      </Badge>
-                                    </h5>
-                                    <div className="space-y-3">
-                                      {cleanSubmissions.map((submission, idx) => (
-                                        <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
-                                          <div className="flex items-center justify-between gap-3">
-                                            <div className="flex-1">
-                                              <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-medium text-gray-800">
-                                                  {submission.week_number ? `${submission.week_number}주차` :
-                                                   submission.video_number ? `영상 ${submission.video_number}` :
-                                                   `영상 ${idx + 1}`}
-                                                </span>
-                                                {submission.version && submission.version > 1 && (
-                                                  <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
-                                                )}
-                                              </div>
-                                              <div className="text-xs text-gray-500">
-                                                제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
-                                              </div>
-                                            </div>
+                                        return adCode ? (
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Hash className="w-4 h-4 text-orange-500" />
+                                            <span className="text-sm text-gray-600">광고코드:</span>
+                                            <code className="text-sm bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-mono">
+                                              {adCode}
+                                            </code>
                                             <Button
                                               size="sm"
-                                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                              onClick={async () => {
-                                                try {
-                                                  const response = await fetch(submission.clean_video_url)
-                                                  const blob = await response.blob()
-                                                  const blobUrl = window.URL.createObjectURL(blob)
-                                                  const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                                  const weekLabel = submission.week_number ? `_${submission.week_number}주차` : (submission.video_number ? `_영상${submission.video_number}` : '')
-                                                  const link = document.createElement('a')
-                                                  link.href = blobUrl
-                                                  link.download = `${creatorName}${weekLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                                  document.body.appendChild(link)
-                                                  link.click()
-                                                  document.body.removeChild(link)
-                                                  window.URL.revokeObjectURL(blobUrl)
-                                                } catch (error) {
-                                                  console.error('Download failed:', error)
-                                                  window.open(submission.clean_video_url, '_blank')
-                                                }
+                                              variant="ghost"
+                                              className="h-6 px-2 text-orange-600 hover:bg-orange-50"
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(adCode)
+                                                alert('광고코드가 복사되었습니다!')
                                               }}
                                             >
-                                              <Download className="w-4 h-4 mr-1" />
-                                              클린본
+                                              <Copy className="w-3 h-3" />
                                             </Button>
                                           </div>
-                                        </div>
-                                      ))}
-                                      {cleanSubmissions.length === 0 && (
-                                        <p className="text-sm text-gray-500 text-center py-2">아직 제출된 클린본이 없습니다.</p>
+                                        ) : (
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Hash className="w-4 h-4 text-gray-400" />
+                                            <span className="text-sm text-gray-400">광고코드 미등록</span>
+                                          </div>
+                                        )
+                                      })()}
+
+                                      {/* 제출일/승인일 */}
+                                      <div className="text-xs text-gray-500 mt-2">
+                                        제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                        {submission.approved_at && (
+                                          <span className="ml-2">
+                                            · 승인: {new Date(submission.approved_at).toLocaleDateString('ko-KR')}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* 버튼 그룹 */}
+                                    <div className="flex flex-col gap-2">
+                                      {/* 클린본 다운로드 */}
+                                      {submission.clean_video_url && (
+                                        <Button
+                                          size="sm"
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                          onClick={async () => {
+                                            try {
+                                              const response = await fetch(submission.clean_video_url)
+                                              const blob = await response.blob()
+                                              const blobUrl = window.URL.createObjectURL(blob)
+                                              const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                              const weekLabel = submission.week_number ? `_week${submission.week_number}` : (submission.video_number ? `_v${submission.video_number}` : '')
+
+                                              const link = document.createElement('a')
+                                              link.href = blobUrl
+                                              link.download = `${creatorName}${weekLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                              document.body.appendChild(link)
+                                              link.click()
+                                              document.body.removeChild(link)
+                                              window.URL.revokeObjectURL(blobUrl)
+                                            } catch (error) {
+                                              console.error('Download failed:', error)
+                                              window.open(submission.clean_video_url, '_blank')
+                                            }
+                                          }}
+                                        >
+                                          <Download className="w-4 h-4 mr-1" />
+                                          클린본
+                                        </Button>
+                                      )}
+
+                                      {/* 편집본 다운로드 */}
+                                      {submission.video_file_url && (
+                                        <Button
+                                          size="sm"
+                                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                                          onClick={async () => {
+                                            try {
+                                              const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
+                                              const blob = await response.blob()
+                                              const blobUrl = window.URL.createObjectURL(blob)
+                                              const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                              const weekLabel = submission.week_number ? `_week${submission.week_number}` : (submission.video_number ? `_v${submission.video_number}` : '')
+
+                                              const link = document.createElement('a')
+                                              link.href = blobUrl
+                                              link.download = `${creatorName}${weekLabel}_편집본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                              document.body.appendChild(link)
+                                              link.click()
+                                              document.body.removeChild(link)
+                                              window.URL.revokeObjectURL(blobUrl)
+                                            } catch (error) {
+                                              console.error('Download failed:', error)
+                                              window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
+                                            }
+                                          }}
+                                        >
+                                          <Download className="w-4 h-4 mr-1" />
+                                          편집본
+                                        </Button>
+                                      )}
+
+                                      {/* SNS 링크 열기 */}
+                                      {(submission.sns_upload_url || participant.sns_upload_url) && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                          onClick={() => window.open(submission.sns_upload_url || participant.sns_upload_url, '_blank')}
+                                        >
+                                          <ExternalLink className="w-4 h-4 mr-1" />
+                                          SNS 보기
+                                        </Button>
+                                      )}
+
+                                      {/* 최종 확정 버튼 - 단일 영상 캠페인만 개별 표시 */}
+                                      {!isMultiVideoCampaign && submission.status === 'approved' && !submission.final_confirmed_at && (
+                                        <Button
+                                          size="sm"
+                                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                                          onClick={async () => {
+                                            const snsUrl = submission.sns_upload_url || participant.sns_upload_url
+                                            if (!snsUrl) {
+                                              // SNS URL이 없으면 관리자가 직접 입력할 수 있는 모달 표시
+                                              setAdminSnsEditData({
+                                                submissionId: submission.id,
+                                                participantId: participant.id,
+                                                snsUrl: '',
+                                                adCode: submission.ad_code || submission.partnership_code || '',
+                                                isEditMode: false
+                                              })
+                                              setShowAdminSnsEditModal(true)
+                                              return
+                                            }
+                                            if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
+                                            await handleFinalConfirmation(submission)
+                                          }}
+                                        >
+                                          <CheckCircle className="w-4 h-4 mr-1" />
+                                          최종 확정
+                                        </Button>
+                                      )}
+
+                                      {/* 최종 확정 완료 표시 */}
+                                      {submission.final_confirmed_at && (
+                                        <Badge className="bg-purple-100 text-purple-700 px-3 py-1">
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                          확정 완료
+                                        </Badge>
                                       )}
                                     </div>
                                   </div>
-                                </>
-                              ) : (
-                                /* 일반 캠페인: 편집본과 클린본 섹션 분리 */
-                                <>
-                                  {/* 편집본 섹션 */}
-                                  {creatorSubmissions.filter(s => s.video_file_url).length > 0 && (
-                                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                      <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                                        <Video className="w-4 h-4" />
-                                        편집본
-                                        <Badge className="bg-blue-600 text-white text-xs">
-                                          {creatorSubmissions.filter(s => s.video_file_url).length}개
-                                        </Badge>
-                                      </h5>
-                                      <div className="space-y-3">
-                                        {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
-                                          const snsUrl = submission.sns_upload_url || participant.sns_upload_url
-                                          const adCode = submission.ad_code || submission.partnership_code || participant.partnership_code
-
-                                          return (
-                                            <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
-                                              <div className="flex items-center justify-between gap-3">
-                                                <div className="flex-1">
-                                                  <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-medium text-gray-800">
-                                                      {submission.video_number ? `영상 ${submission.video_number}` : `영상 ${idx + 1}`}
-                                                    </span>
-                                                    {submission.version && submission.version > 1 && (
-                                                      <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
-                                                    )}
-                                                  </div>
-                                                  {/* SNS URL */}
-                                                  {snsUrl && (
-                                                    <div className="flex items-center gap-2 text-sm">
-                                                      <Link className="w-3 h-3 text-blue-500" />
-                                                      <a href={snsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px]">
-                                                        {snsUrl}
-                                                      </a>
-                                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(snsUrl); alert('SNS 링크가 복사되었습니다!') }}>
-                                                        <Copy className="w-3 h-3" />
-                                                      </Button>
-                                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl, adCode: adCode || '', isEditMode: true }); setShowAdminSnsEditModal(true) }}>
-                                                        <Edit2 className="w-3 h-3" />
-                                                      </Button>
-                                                    </div>
-                                                  )}
-                                                  {/* 광고코드 */}
-                                                  {adCode && (
-                                                    <div className="flex items-center gap-2 text-sm mt-1">
-                                                      <Hash className="w-3 h-3 text-orange-500" />
-                                                      <code className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{adCode}</code>
-                                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(adCode); alert('광고코드가 복사되었습니다!') }}>
-                                                        <Copy className="w-3 h-3" />
-                                                      </Button>
-                                                    </div>
-                                                  )}
-                                                  <div className="text-xs text-gray-500 mt-1">
-                                                    제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
-                                                    {submission.approved_at && <span> · 승인: {new Date(submission.approved_at).toLocaleDateString('ko-KR')}</span>}
-                                                  </div>
-                                                </div>
-                                                <div className="flex flex-col gap-1">
-                                                  <Button
-                                                    size="sm"
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                                    onClick={async () => {
-                                                      try {
-                                                        const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
-                                                        const blob = await response.blob()
-                                                        const blobUrl = window.URL.createObjectURL(blob)
-                                                        const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                                        const videoLabel = submission.video_number ? `_영상${submission.video_number}` : ''
-                                                        const link = document.createElement('a')
-                                                        link.href = blobUrl
-                                                        link.download = `${creatorName}${videoLabel}_편집본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                                        document.body.appendChild(link)
-                                                        link.click()
-                                                        document.body.removeChild(link)
-                                                        window.URL.revokeObjectURL(blobUrl)
-                                                      } catch (error) {
-                                                        console.error('Download failed:', error)
-                                                        window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
-                                                      }
-                                                    }}
-                                                  >
-                                                    <Download className="w-4 h-4 mr-1" />
-                                                    편집본
-                                                  </Button>
-                                                  {snsUrl && (
-                                                    <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
-                                                      <ExternalLink className="w-4 h-4 mr-1" />
-                                                      SNS 보기
-                                                    </Button>
-                                                  )}
-                                                  {submission.final_confirmed_at ? (
-                                                    <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
-                                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                                      확정
-                                                    </Badge>
-                                                  ) : submission.status === 'approved' && (
-                                                    <Button
-                                                      size="sm"
-                                                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                                                      onClick={async () => {
-                                                        if (!snsUrl) {
-                                                          setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl: '', adCode: adCode || '', isEditMode: false })
-                                                          setShowAdminSnsEditModal(true)
-                                                          return
-                                                        }
-                                                        if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
-                                                        await handleFinalConfirmation(submission)
-                                                      }}
-                                                    >
-                                                      <CheckCircle className="w-4 h-4 mr-1" />
-                                                      최종 확정
-                                                    </Button>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          )
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* 클린본 섹션 */}
-                                  {cleanSubmissions.length > 0 && (
-                                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-                                      <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
-                                        <Video className="w-4 h-4" />
-                                        클린본
-                                        <Badge className="bg-emerald-600 text-white text-xs">
-                                          {cleanSubmissions.length}개
-                                        </Badge>
-                                      </h5>
-                                      <div className="space-y-3">
-                                        {cleanSubmissions.map((submission, idx) => (
-                                          <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
-                                            <div className="flex items-center justify-between gap-3">
-                                              <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                  <span className="font-medium text-gray-800">
-                                                    {submission.video_number ? `영상 ${submission.video_number}` : `영상 ${idx + 1}`}
-                                                  </span>
-                                                  {submission.version && submission.version > 1 && (
-                                                    <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
-                                                  )}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                  제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
-                                                </div>
-                                              </div>
-                                              <Button
-                                                size="sm"
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                onClick={async () => {
-                                                  try {
-                                                    const response = await fetch(submission.clean_video_url)
-                                                    const blob = await response.blob()
-                                                    const blobUrl = window.URL.createObjectURL(blob)
-                                                    const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                                    const videoLabel = submission.video_number ? `_영상${submission.video_number}` : ''
-                                                    const link = document.createElement('a')
-                                                    link.href = blobUrl
-                                                    link.download = `${creatorName}${videoLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                                    document.body.appendChild(link)
-                                                    link.click()
-                                                    document.body.removeChild(link)
-                                                    window.URL.revokeObjectURL(blobUrl)
-                                                  } catch (error) {
-                                                    console.error('Download failed:', error)
-                                                    window.open(submission.clean_video_url, '_blank')
-                                                  }
-                                                }}
-                                              >
-                                                <Download className="w-4 h-4 mr-1" />
-                                                클린본
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </>
-                              )}
+                                </div>
+                              ))}
 
                               {/* 멀티비디오 캠페인 전체 최종 확정 버튼 */}
                               {isMultiVideoCampaign && !allVideosConfirmed && (
@@ -9369,29 +9178,71 @@ JSON만 출력.`
                 const is4Week = campaign?.campaign_type === '4week_challenge'
                 const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
 
-                // 올영/4주는 크넥 AI 가이드 생성
+                // 올영/4주는 캠페인 레벨의 기존 AI 가이드 사용
                 if (is4Week || isOliveyoung) {
+                  // 기존 AI 가이드가 있는지 확인
+                  const hasAiGuide = is4Week
+                    ? campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides
+                    : campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step2_guide_ai
+
                   return (
                     <button
-                      onClick={() => {
-                        // 가이드 생성 모달 열기
-                        setShowGuideSelectModal(false)
-                        if (isOliveyoung) {
-                          setShowUnifiedGuideModal(true)
-                        } else {
-                          setShow4WeekGuideModal(true)
+                      onClick={async () => {
+                        if (!hasAiGuide) {
+                          alert(is4Week
+                            ? '4주 챌린지 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.'
+                            : '올영 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.')
+                          return
+                        }
+                        const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                        if (!confirm(`${creatorName}님에게 기존 AI 가이드를 전달하시겠습니까?`)) return
+
+                        try {
+                          // 캠페인 레벨 AI 가이드를 참조하는 타입으로 저장
+                          const guidePayload = {
+                            type: is4Week ? '4week_ai' : 'oliveyoung_ai',
+                            campaignId: campaign.id
+                          }
+
+                          const { error } = await supabase
+                            .from('applications')
+                            .update({
+                              personalized_guide: JSON.stringify(guidePayload),
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq('id', selectedParticipantForGuide.id)
+
+                          if (error) throw error
+
+                          alert(`${creatorName}님에게 AI 가이드가 설정되었습니다. 전달하기 버튼으로 알림톡을 발송하세요.`)
+                          setShowGuideSelectModal(false)
+                          setSelectedParticipantForGuide(null)
+                          await fetchParticipants()
+                        } catch (error) {
+                          console.error('Error saving AI guide reference:', error)
+                          alert('가이드 설정에 실패했습니다: ' + error.message)
                         }
                       }}
-                      className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                      disabled={!hasAiGuide}
+                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
+                        hasAiGuide
+                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
+                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                      }`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                          <Sparkles className="w-6 h-6 text-purple-600" />
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                          hasAiGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
+                        }`}>
+                          <Sparkles className={`w-6 h-6 ${hasAiGuide ? 'text-purple-600' : 'text-gray-400'}`} />
                         </div>
                         <div>
-                          <h3 className="font-bold text-gray-900">크넥 AI 가이드 생성</h3>
+                          <h3 className={`font-bold ${hasAiGuide ? 'text-gray-900' : 'text-gray-500'}`}>
+                            기존 AI 가이드 사용
+                          </h3>
                           <p className="text-sm text-gray-500">
-                            {is4Week ? '4주 챌린지 가이드 생성 및 수정' : '올영 캠페인 가이드 생성 및 수정'}
+                            {is4Week ? '4주 챌린지 캠페인 가이드' : '올영 캠페인 가이드'}
+                            {!hasAiGuide && ' (미생성)'}
                           </p>
                         </div>
                       </div>
