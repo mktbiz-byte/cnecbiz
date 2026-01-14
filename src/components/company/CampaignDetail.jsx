@@ -7521,6 +7521,27 @@ JSON만 출력.`
         </Card>
       </div>
 
+      {/* 가이드 생성 중 로딩 오버레이 */}
+      {isGeneratingAllGuides && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center shadow-2xl">
+            <div className="w-20 h-20 mx-auto mb-6 relative">
+              <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
+              <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-purple-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">크넥 AI 가이드 생성 중</h3>
+            <p className="text-gray-600 mb-4">크리에이터 맞춤형 가이드를 생성하고 있습니다.</p>
+            <p className="text-sm text-gray-500">잠시만 기다려주세요... (약 10-20초 소요)</p>
+            <div className="mt-6 flex justify-center gap-1">
+              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 맞춤 가이드 모달 */}
       {showGuideModal && selectedGuide && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
