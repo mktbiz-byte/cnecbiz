@@ -9356,34 +9356,75 @@ JSON만 출력.`
 
                 // 올영/4주: 캠페인 레벨 가이드 사용 (STEP별/주차별)
                 if (is4Week || isOliveyoung) {
+                  // 4주: challenge_guide_data에 기업이 설정한 원본 데이터 (미션, 필수사항, 주의사항 등)
+                  // 올영: oliveyoung_step1_guide 등에 기업이 설정한 원본 데이터
                   const hasGuide = is4Week
-                    ? (campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides)
-                    : (campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step1_guide)
+                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides)
+                    : (campaign?.oliveyoung_step1_guide)
 
                   return (
                     <button
                       onClick={async () => {
                         if (!hasGuide) {
                           alert(is4Week
-                            ? '4주 챌린지 가이드가 생성되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 생성해주세요.'
-                            : '올영 가이드가 생성되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 생성해주세요.')
+                            ? '4주 챌린지 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.'
+                            : '올영 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.')
                           return
                         }
 
                         const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
 
-                        // 캠페인 레벨 가이드를 참조하는 형태로 저장
-                        const guidePayload = {
-                          type: is4Week ? '4week_ai' : 'oliveyoung_ai',
-                          campaignId: campaign.id,
-                          ...(is4Week ? {
-                            weeklyGuides: campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides
-                          } : {
-                            step1: campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step1_guide,
-                            step2: campaign?.oliveyoung_step2_guide_ai || campaign?.oliveyoung_step2_guide,
-                            step3: campaign?.oliveyoung_step3_guide_ai || campaign?.oliveyoung_step3_guide
-                          })
+                        // 기업이 설정한 원본 데이터를 가져옴
+                        let guidePayload
+                        if (is4Week) {
+                          // 4주 챌린지: challenge_guide_data 사용 (기업이 설정한 미션, 필수대사, 필수장면, 참고URL 등)
+                          const guideData = campaign?.challenge_guide_data || {}
+                          guidePayload = {
+                            type: '4week_guide',
+                            campaignId: campaign.id,
+                            brand: guideData.brand || campaign?.brand || '',
+                            product_name: guideData.product_name || campaign?.product_name || '',
+                            product_features: guideData.product_features || campaign?.product_features || '',
+                            precautions: guideData.precautions || campaign?.product_key_points || '',
+                            week1: {
+                              mission: guideData.week1?.mission || '',
+                              required_dialogue: guideData.week1?.required_dialogue || '',
+                              required_scenes: guideData.week1?.required_scenes || '',
+                              reference_url: guideData.week1?.reference_url || ''
+                            },
+                            week2: {
+                              mission: guideData.week2?.mission || '',
+                              required_dialogue: guideData.week2?.required_dialogue || '',
+                              required_scenes: guideData.week2?.required_scenes || '',
+                              reference_url: guideData.week2?.reference_url || ''
+                            },
+                            week3: {
+                              mission: guideData.week3?.mission || '',
+                              required_dialogue: guideData.week3?.required_dialogue || '',
+                              required_scenes: guideData.week3?.required_scenes || '',
+                              reference_url: guideData.week3?.reference_url || ''
+                            },
+                            week4: {
+                              mission: guideData.week4?.mission || '',
+                              required_dialogue: guideData.week4?.required_dialogue || '',
+                              required_scenes: guideData.week4?.required_scenes || '',
+                              reference_url: guideData.week4?.reference_url || ''
+                            }
+                          }
+                        } else {
+                          // 올영: step별 가이드 사용
+                          guidePayload = {
+                            type: 'oliveyoung_guide',
+                            campaignId: campaign.id,
+                            brand: campaign?.brand || '',
+                            product_name: campaign?.product_name || '',
+                            step1: campaign?.oliveyoung_step1_guide || '',
+                            step2: campaign?.oliveyoung_step2_guide || '',
+                            step3: campaign?.oliveyoung_step3_guide || ''
+                          }
                         }
+
+                        console.log('[Guide] Saving guide payload:', guidePayload)
 
                         try {
                           const { error } = await supabase
@@ -9434,7 +9475,7 @@ JSON만 출력.`
                           </h3>
                           <p className="text-sm text-gray-500">
                             {is4Week ? '1~4주차 미션 및 주의사항' : 'STEP 1~3 가이드'}
-                            {!hasGuide && ' (캠페인 설정에서 먼저 생성 필요)'}
+                            {!hasGuide && ' (캠페인 설정에서 먼저 설정 필요)'}
                           </p>
                         </div>
                       </div>

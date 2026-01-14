@@ -39,7 +39,317 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
     )
   }
 
-  // 올영/4주 캠페인 레벨 AI 가이드 타입 처리
+  // 4주 챌린지 가이드 (기업이 설정한 원본 데이터)
+  if (guideData.type === '4week_guide') {
+    return (
+      <div className="space-y-5">
+        {/* Header with Edit button */}
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-purple-500 to-indigo-500">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">4주 챌린지 가이드</h3>
+          </div>
+          {onSave && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsEditing(!isEditing)
+                if (!isEditing) {
+                  setEditedGuide(guide)
+                }
+              }}
+              className="gap-1"
+            >
+              {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+              {isEditing ? '취소' : '수정'}
+            </Button>
+          )}
+        </div>
+
+        {/* 제품 정보 */}
+        {(guideData.brand || guideData.product_name || guideData.product_features || guideData.precautions) && (
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-200">
+            <h4 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              제품 정보
+            </h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {guideData.brand && (
+                <div>
+                  <span className="text-purple-600 font-medium">브랜드:</span>
+                  <span className="ml-2 text-gray-800">{guideData.brand}</span>
+                </div>
+              )}
+              {guideData.product_name && (
+                <div>
+                  <span className="text-purple-600 font-medium">제품명:</span>
+                  <span className="ml-2 text-gray-800">{guideData.product_name}</span>
+                </div>
+              )}
+              {guideData.product_features && (
+                <div className="col-span-2">
+                  <span className="text-purple-600 font-medium">제품 특징:</span>
+                  <p className="mt-1 text-gray-800 whitespace-pre-wrap">{guideData.product_features}</p>
+                </div>
+              )}
+              {guideData.precautions && (
+                <div className="col-span-2">
+                  <span className="text-red-600 font-medium">⚠️ 주의사항:</span>
+                  <p className="mt-1 text-gray-800 whitespace-pre-wrap">{guideData.precautions}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isEditing ? (
+          /* 수정 모드 */
+          <div className="space-y-4">
+            <textarea
+              value={typeof editedGuide === 'string' ? editedGuide : JSON.stringify(editedGuide, null, 2)}
+              onChange={(e) => setEditedGuide(e.target.value)}
+              className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
+              placeholder="가이드 내용을 수정하세요..."
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditedGuide(null)
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  setSaving(true)
+                  try {
+                    await onSave(editedGuide)
+                    setIsEditing(false)
+                    alert('가이드가 저장되었습니다.')
+                  } catch (error) {
+                    alert('저장 실패: ' + error.message)
+                  } finally {
+                    setSaving(false)
+                  }
+                }}
+                disabled={saving}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {saving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* 보기 모드 - 주차별 가이드 */
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((weekNum) => {
+              const weekData = guideData[`week${weekNum}`]
+              if (!weekData || (!weekData.mission && !weekData.required_dialogue && !weekData.required_scenes && !weekData.reference_url)) {
+                return null
+              }
+              return (
+                <div key={weekNum} className="rounded-xl border-2 border-purple-200 bg-purple-50 overflow-hidden">
+                  <div className="bg-purple-100 px-4 py-2 border-b border-purple-200">
+                    <h4 className="font-bold text-purple-800">{weekNum}주차</h4>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    {weekData.mission && (
+                      <div>
+                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" />
+                          미션
+                        </span>
+                        <p className="text-gray-700 mt-1 whitespace-pre-wrap">{weekData.mission}</p>
+                      </div>
+                    )}
+                    {weekData.required_dialogue && (
+                      <div>
+                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
+                          <MessageSquare className="w-4 h-4" />
+                          필수 대사
+                        </span>
+                        <p className="text-gray-700 mt-1 whitespace-pre-wrap bg-white/60 p-2 rounded-lg border border-purple-100">
+                          "{weekData.required_dialogue}"
+                        </p>
+                      </div>
+                    )}
+                    {weekData.required_scenes && (
+                      <div>
+                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
+                          <Camera className="w-4 h-4" />
+                          필수 장면
+                        </span>
+                        <p className="text-gray-700 mt-1 whitespace-pre-wrap">{weekData.required_scenes}</p>
+                      </div>
+                    )}
+                    {weekData.reference_url && (
+                      <div>
+                        <span className="text-sm font-semibold text-purple-700 flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                          참고 URL
+                        </span>
+                        <a
+                          href={weekData.reference_url.startsWith('http') ? weekData.reference_url : `https://${weekData.reference_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline mt-1 block text-sm break-all"
+                        >
+                          {weekData.reference_url}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* 주차별 데이터가 하나도 없을 경우 */}
+            {![1, 2, 3, 4].some(weekNum => {
+              const weekData = guideData[`week${weekNum}`]
+              return weekData && (weekData.mission || weekData.required_dialogue || weekData.required_scenes || weekData.reference_url)
+            }) && (
+              <div className="text-center py-8 text-gray-500">
+                <p>가이드 데이터가 없습니다.</p>
+                <p className="text-sm mt-1">캠페인 설정에서 4주 챌린지 가이드를 먼저 설정해주세요.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // 올영 가이드 (기업이 설정한 원본 데이터)
+  if (guideData.type === 'oliveyoung_guide') {
+    const steps = [
+      { num: 1, data: guideData.step1, title: 'STEP 1' },
+      { num: 2, data: guideData.step2, title: 'STEP 2' },
+      { num: 3, data: guideData.step3, title: 'STEP 3' }
+    ].filter(s => s.data)
+
+    return (
+      <div className="space-y-5">
+        {/* Header with Edit button */}
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md bg-gradient-to-br from-green-500 to-emerald-500">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">올영 세일 가이드</h3>
+          </div>
+          {onSave && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsEditing(!isEditing)
+                if (!isEditing) {
+                  setEditedGuide(guide)
+                }
+              }}
+              className="gap-1"
+            >
+              {isEditing ? <X className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+              {isEditing ? '취소' : '수정'}
+            </Button>
+          )}
+        </div>
+
+        {/* 제품 정보 */}
+        {(guideData.brand || guideData.product_name) && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+            <h4 className="font-bold text-green-900 mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              제품 정보
+            </h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {guideData.brand && (
+                <div>
+                  <span className="text-green-600 font-medium">브랜드:</span>
+                  <span className="ml-2 text-gray-800">{guideData.brand}</span>
+                </div>
+              )}
+              {guideData.product_name && (
+                <div>
+                  <span className="text-green-600 font-medium">제품명:</span>
+                  <span className="ml-2 text-gray-800">{guideData.product_name}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isEditing ? (
+          /* 수정 모드 */
+          <div className="space-y-4">
+            <textarea
+              value={typeof editedGuide === 'string' ? editedGuide : JSON.stringify(editedGuide, null, 2)}
+              onChange={(e) => setEditedGuide(e.target.value)}
+              className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"
+              placeholder="가이드 내용을 수정하세요..."
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditedGuide(null)
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={async () => {
+                  setSaving(true)
+                  try {
+                    await onSave(editedGuide)
+                    setIsEditing(false)
+                    alert('가이드가 저장되었습니다.')
+                  } catch (error) {
+                    alert('저장 실패: ' + error.message)
+                  } finally {
+                    setSaving(false)
+                  }
+                }}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {saving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* 보기 모드 - 스텝별 가이드 */
+          <div className="space-y-4">
+            {steps.length > 0 ? (
+              steps.map(({ num, data, title }) => (
+                <div key={num} className="rounded-xl border-2 border-green-200 bg-green-50 overflow-hidden">
+                  <div className="bg-green-100 px-4 py-2 border-b border-green-200">
+                    <h4 className="font-bold text-green-800">{title}</h4>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-gray-700 whitespace-pre-wrap">{typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>가이드 데이터가 없습니다.</p>
+                <p className="text-sm mt-1">캠페인 설정에서 올영 가이드를 먼저 설정해주세요.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // 올영/4주 캠페인 레벨 AI 가이드 타입 처리 (레거시)
   if (guideData.type === '4week_ai' || guideData.type === 'oliveyoung_ai') {
     const is4Week = guideData.type === '4week_ai'
 
