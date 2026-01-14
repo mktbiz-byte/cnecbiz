@@ -5470,7 +5470,14 @@ JSON만 출력.`
                             {/* 가상선택/선정 버튼 */}
                             {!isAlreadyParticipant && app.status !== 'selected' && (
                               <button
-                                onClick={() => handleVirtualSelect(app.id, !app.virtual_selected, app.main_channel || app.instagram_url || app.youtube_url || app.tiktok_url)}
+                                onClick={() => {
+                                  // main_channel은 채널 타입 값만 허용 (instagram, youtube, tiktok 등)
+                                  const channel = app.main_channel ||
+                                    (app.instagram_url ? 'instagram' : null) ||
+                                    (app.youtube_url ? 'youtube' : null) ||
+                                    (app.tiktok_url ? 'tiktok' : null)
+                                  handleVirtualSelect(app.id, !app.virtual_selected, channel)
+                                }}
                                 className={`w-full py-1.5 text-xs rounded-lg font-medium transition-colors ${
                                   app.virtual_selected
                                     ? 'bg-purple-500 hover:bg-purple-600 text-white'
@@ -5744,7 +5751,7 @@ JSON만 출력.`
                                     const { error } = await supabase.from('applications').update({
                                       status: 'selected',
                                       virtual_selected: false,
-                                      main_channel: app.main_channel || app.instagram_url || app.youtube_url || app.tiktok_url
+                                      main_channel: app.main_channel || (app.instagram_url ? 'instagram' : null) || (app.youtube_url ? 'youtube' : null) || (app.tiktok_url ? 'tiktok' : null)
                                     }).eq('id', app.id)
                                     if (error) throw error
                                     await fetchApplications()
