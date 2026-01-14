@@ -94,6 +94,7 @@ export default function RevenueManagementNew() {
   const [revenueData, setRevenueData] = useState([])
   const [expenseData, setExpenseData] = useState([])
   const [receivables, setReceivables] = useState([])
+  const [withdrawalData, setWithdrawalData] = useState([])
 
   const [showRevenueModal, setShowRevenueModal] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -167,6 +168,16 @@ export default function RevenueManagementNew() {
         .select('*')
         .order('created_at', { ascending: false })
       setReceivables(recv || [])
+
+      // 크리에이터 출금 데이터 조회
+      const { data: withdrawals } = await supabaseBiz
+        .from('creator_withdrawal_requests')
+        .select('id, requested_amount, amount, status, completed_at, created_at')
+        .eq('status', 'completed')
+        .gte('completed_at', `${selectedYear}-01-01`)
+        .lte('completed_at', `${selectedYear}-12-31`)
+        .order('completed_at', { ascending: true })
+      setWithdrawalData(withdrawals || [])
     } catch (error) {
       console.error('데이터 조회 오류:', error)
     }
@@ -279,6 +290,27 @@ export default function RevenueManagementNew() {
       .sort((a, b) => b.value - a.value)
       .slice(0, 8)
   }, [expenseData])
+
+  // 월별 크리에이터 출금 추이
+  const monthlyWithdrawals = useMemo(() => {
+    const months = Array.from({ length: 12 }, (_, i) => ({
+      month: `${selectedYear}-${String(i + 1).padStart(2, '0')}`,
+      name: `${i + 1}월`,
+      amount: 0,
+      count: 0
+    }))
+
+    withdrawalData.forEach(w => {
+      const completedDate = new Date(w.completed_at || w.created_at)
+      const monthIndex = completedDate.getMonth()
+      if (completedDate.getFullYear() === selectedYear && monthIndex >= 0 && monthIndex < 12) {
+        months[monthIndex].amount += (w.requested_amount || w.amount || 0)
+        months[monthIndex].count += 1
+      }
+    })
+
+    return months
+  }, [withdrawalData, selectedYear])
 
   // 연간 합계
   const yearlyTotals = useMemo(() => {
@@ -875,43 +907,36 @@ export default function RevenueManagementNew() {
                 </CardContent>
               </Card>
 
-              {/* 비용 구성 */}
+              {/* 크리에이터 출금 추이 */}
               <Card className="border-0 shadow-lg bg-white/80 backdrop-blur">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg font-semibold text-slate-700 flex items-center gap-2">
-                    <PieChart className="w-5 h-5 text-rose-500" />
-                    비용 구성 (TOP 8)
+                    <Users className="w-5 h-5 text-orange-500" />
+                    크리에이터 출금 추이
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={expenseByCategory}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={100}
-                          paddingAngle={2}
-                          dataKey="value"
-                        >
-                          {expenseByCategory.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS.pie[index % COLORS.pie.length]} />
-                          ))}
-                        </Pie>
+                      <BarChart data={monthlyWithdrawals} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: '#64748b' }}
+                          tickFormatter={(v) => `${(v / 10000).toFixed(0)}만`}
+                        />
                         <Tooltip
-                          formatter={(value) => formatNumber(value)}
+                          formatter={(value, name) => [formatNumber(value), name === 'amount' ? '출금액' : '건수']}
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                         />
-                        <Legend
-                          layout="vertical"
-                          align="right"
-                          verticalAlign="middle"
-                          formatter={(value) => <span className="text-sm text-slate-600">{value}</span>}
-                        />
-                      </RechartsPieChart>
+                        <Legend />
+                        <Bar dataKey="amount" name="출금액" fill="#F97316" radius={[4, 4, 0, 0]} />
+                      </BarChart>
                     </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 text-center text-sm text-slate-500">
+                    연간 총 출금: {formatNumber(monthlyWithdrawals.reduce((sum, m) => sum + m.amount, 0))}
+                    ({monthlyWithdrawals.reduce((sum, m) => sum + m.count, 0)}건)
                   </div>
                 </CardContent>
               </Card>
