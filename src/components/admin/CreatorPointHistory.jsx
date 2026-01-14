@@ -78,7 +78,7 @@ export default function CreatorPointHistory() {
         const { data: koreaData, error: koreaError } = await supabaseKorea
           .from('point_transactions')
           .select('*')
-          .in('transaction_type', ['admin_add', 'admin_deduct', 'campaign_reward', 'bonus', 'refund'])
+          .in('transaction_type', ['admin_add', 'admin_deduct', 'campaign_reward', 'campaign_complete', 'earn', 'bonus', 'refund'])
           .order('created_at', { ascending: false })
           .limit(500)
 
@@ -156,6 +156,77 @@ export default function CreatorPointHistory() {
           })
 
           allTransactions = [...allTransactions, ...koreaTransactions]
+        }
+
+        // Korea DB에서 point_history도 조회 (캠페인 완료 포인트)
+        try {
+          const { data: historyData, error: historyError } = await supabaseKorea
+            .from('point_history')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500)
+
+          if (!historyError && historyData && historyData.length > 0) {
+            console.log('Korea DB point_history:', historyData.length, '건')
+
+            // 프로필 맵 재사용
+            const { data: allProfiles } = await supabaseKorea
+              .from('user_profiles')
+              .select('*')
+              .limit(2000)
+
+            const profileMap = {}
+            if (allProfiles) {
+              allProfiles.forEach(p => {
+                const normalizedProfile = {
+                  id: p.id,
+                  user_id: p.user_id,
+                  name: p.name || p.creator_name || p.channel_name || p.full_name || null,
+                  channel_name: p.channel_name || p.name || p.creator_name || null,
+                  email: p.email || null,
+                  phone: p.phone || p.phone_number || p.mobile || p.contact || null
+                }
+                if (p.id) profileMap[p.id] = normalizedProfile
+                if (p.user_id) profileMap[p.user_id] = normalizedProfile
+              })
+            }
+
+            // 캠페인 정보 조회
+            const campaignIds = [...new Set(historyData.map(t => t.campaign_id).filter(Boolean))]
+            let campaignMap = {}
+            if (campaignIds.length > 0) {
+              const { data: campaignData } = await supabaseKorea
+                .from('campaigns')
+                .select('id, title')
+                .in('id', campaignIds)
+              if (campaignData) {
+                campaignData.forEach(c => campaignMap[c.id] = c)
+              }
+            }
+
+            const historyTransactions = historyData.map(t => {
+              const profile = profileMap[t.user_id]
+              const campaign = campaignMap[t.campaign_id]
+              return {
+                id: t.id,
+                user_id: t.user_id,
+                amount: t.amount,
+                transaction_type: t.type || 'campaign_complete',
+                description: t.reason || t.description || `캠페인 완료: ${campaign?.title || ''}`,
+                related_campaign_id: t.campaign_id,
+                created_at: t.created_at,
+                creator_name: profile?.channel_name || profile?.name || t.user_id?.substring(0, 8) + '...',
+                creator_email: profile?.email || '',
+                creator_phone: profile?.phone || '',
+                campaign_title: campaign?.title || null,
+                source_db: 'korea_history'
+              }
+            })
+
+            allTransactions = [...allTransactions, ...historyTransactions]
+          }
+        } catch (historyError) {
+          console.log('point_history 조회 스킵 (테이블 없을 수 있음):', historyError.message)
         }
       }
 
