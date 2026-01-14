@@ -5974,9 +5974,8 @@ JSON만 출력.`
 
                   // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
                   // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
-                  // 클린본만 있는 영상(video_file_url 없음)은 영상확인에서 제외
                   const filteredSubmissions = videoSubmissions.filter(v =>
-                    !['completed', 'rejected'].includes(v.status) && v.video_file_url
+                    !['completed', 'rejected'].includes(v.status)
                   )
 
                   // user_id로만 그룹화
