@@ -295,35 +295,50 @@ export default function CampaignGuideOliveYoung() {
           throw new Error('Gemini API 키가 설정되지 않았습니다.')
         }
 
-        const prompt = `다음 제품 정보와 기업의 요구사항을 바탕으로, 크리에이터가 참고할 수 있도록 간단하고 명확한 가이드를 작성해주세요.
+        const prompt = `당신은 올리브영 세일 캠페인용 크리에이터 가이드를 작성하는 전문가입니다.
+반드시 아래 JSON 형식으로만 응답해주세요. 다른 텍스트는 절대 포함하지 마세요.
 
 **제품 정보**
 - 브랜드: ${productData.brand}
 - 제품명: ${productData.product_name}
 - 제품 특징: ${productData.product_features}
-- 핵심 포인트: ${productData.product_key_points}
+- 핵심 소구 포인트: ${productData.product_key_points}
 
-**기업 요구사항**
-${stepGuideModes.step1 === 'ai' ? `- STEP 1 (세일 전 영상): ${step1Guide}` : '- STEP 1: 외부 가이드 사용'}
-${stepGuideModes.step2 === 'ai' ? `- STEP 2 (올영 스케줄 맞춤 제작): ${step2Guide}` : '- STEP 2: 외부 가이드 사용'}
+**기업이 작성한 가이드 내용 (이 내용을 text_guide에 포함하고, 구조화된 필드도 생성)**
+${stepGuideModes.step1 === 'ai' ? `STEP 1 (세일 전 상품 리뷰 영상): ${step1Guide || '제품 리뷰 및 사용 후기 영상'}` : 'STEP 1: 외부 가이드 사용'}
+${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2Guide || '올영세일 홍보 영상'}` : 'STEP 2: 외부 가이드 사용'}
 
-**각 스텝별 핵심 요구사항:**
-- STEP 1: 세일 전 영상 콘텐츠 1건 제작 후 SNS 업로드 (기업이 작성한 가이드 내용 포함)
-- STEP 2: 올영 스케줄에 맞춰서 제작 (기업이 작성한 가이드 내용 포함)
+**필수 생성 필드:**
+1. text_guide: 기업이 작성한 가이드 내용을 기반으로 크리에이터가 따라야 할 상세 촬영 가이드 (2-3문장)
+2. product_info: "${productData.brand} ${productData.product_name}" 형식으로 제품 정보
+3. required_dialogues: 영상에서 반드시 말해야 할 대사 3-5개 (구체적인 멘트)
+4. required_scenes: 반드시 촬영해야 할 장면 2-4개
+5. cautions: 주의사항 (저작권, 광고 표기 등)
+6. hashtags: 필수 해시태그 3-5개 (#포함, STEP2는 반드시 #올영세일 포함)
+7. reference_urls: 빈 배열 []
 
-**작성 규칙:**
-- 불필요한 촬영 팁, 예시 대사 등은 절대 포함하지 마세요
-- 각 단계별로 핵심 요구사항만 2-3문장으로 간결하게
-- shooting_tips는 빈 문자열로 유지
-- 주의사항은 필수 사항만 1-2문장으로
-
-JSON 형식으로 응답해주세요:
+\`\`\`json
 {
-  "step1_guide_enhanced": "STEP 1 핵심 요구사항 (2-3문장)",
-  "step2_guide_enhanced": "STEP 2 핵심 요구사항 (2-3문장)",
-  "shooting_tips": "",
-  "cautions": "필수 사항 (1-2문장)"
-}`
+  "step1": {
+    "text_guide": "기업 가이드 기반 상세 촬영 안내 2-3문장",
+    "product_info": "${productData.brand} ${productData.product_name} - 제품 핵심 특징",
+    "required_dialogues": ["이 제품 진짜 대박이에요", "수분감이 24시간 지속돼요", "올리브영에서 꼭 찾아보세요"],
+    "required_scenes": ["제품 클로즈업", "사용 전후 비교", "텍스처 시연"],
+    "cautions": "광고임을 명시하고, 저작권이 있는 음악 사용 금지",
+    "hashtags": ["#${productData.brand?.replace(/\s/g, '') || '브랜드명'}", "#올리브영", "#뷰티리뷰"],
+    "reference_urls": []
+  },
+  "step2": {
+    "text_guide": "올영세일 기간 홍보 영상 촬영 안내 2-3문장",
+    "product_info": "${productData.brand} ${productData.product_name} - 제품 핵심 특징",
+    "required_dialogues": ["드디어 올영세일 시작!", "이 가격에 득템하세요", "올리브영 앱에서 지금 바로"],
+    "required_scenes": ["할인 가격 강조", "제품 사용 장면", "구매 유도 CTA"],
+    "cautions": "광고임을 명시하고, 저작권이 있는 음악 사용 금지",
+    "hashtags": ["#올영세일", "#${productData.brand?.replace(/\s/g, '') || '브랜드명'}", "#올리브영", "#뷰티득템"],
+    "reference_urls": []
+  }
+}
+\`\`\``
 
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
@@ -345,42 +360,77 @@ JSON 형식으로 응답해주세요:
         const result = await response.json()
         const generatedText = result.candidates[0].content.parts[0].text
 
-        // JSON 파싱
-        let step1Enhanced = step1Guide
-        let step2Enhanced = step2Guide
-        let shootingTips = ''
-        let cautions = ''
+        // JSON 파싱 - 구조화된 가이드 데이터
+        let step1Data = null
+        let step2Data = null
+
+        // 기본 제품 정보 (모든 STEP에서 공통으로 사용)
+        const baseProductInfo = `${productData.brand} ${productData.product_name} - ${productData.product_features?.slice(0, 100) || ''}`
 
         try {
-          const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0])
-            if (stepGuideModes.step1 === 'ai') {
-              step1Enhanced = parsed.step1_guide_enhanced || step1Guide
+          // JSON 블록 추출 (```json ... ``` 또는 { ... })
+          let jsonStr = generatedText
+          const codeBlockMatch = generatedText.match(/```json\s*([\s\S]*?)\s*```/)
+          if (codeBlockMatch) {
+            jsonStr = codeBlockMatch[1]
+          } else {
+            const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+            if (jsonMatch) {
+              jsonStr = jsonMatch[0]
             }
-            if (stepGuideModes.step2 === 'ai') {
-              step2Enhanced = parsed.step2_guide_enhanced || step2Guide
+          }
+
+          const parsed = JSON.parse(jsonStr)
+          console.log('[AI Guide] Parsed JSON:', parsed)
+
+          if (stepGuideModes.step1 === 'ai' && parsed.step1) {
+            step1Data = {
+              text_guide: parsed.step1.text_guide || step1Guide || '',
+              product_info: parsed.step1.product_info || baseProductInfo,
+              required_dialogues: Array.isArray(parsed.step1.required_dialogues) ? parsed.step1.required_dialogues : [],
+              required_scenes: Array.isArray(parsed.step1.required_scenes) ? parsed.step1.required_scenes : [],
+              cautions: parsed.step1.cautions || '광고임을 명시하고, 저작권이 있는 음악 사용 금지',
+              hashtags: Array.isArray(parsed.step1.hashtags) ? parsed.step1.hashtags : [`#${productData.brand?.replace(/\s/g, '') || '브랜드'}`, '#올리브영'],
+              reference_urls: Array.isArray(parsed.step1.reference_urls) ? parsed.step1.reference_urls : []
             }
-            shootingTips = parsed.shooting_tips || ''
-            cautions = parsed.cautions || ''
+          }
+          if (stepGuideModes.step2 === 'ai' && parsed.step2) {
+            step2Data = {
+              text_guide: parsed.step2.text_guide || step2Guide || '',
+              product_info: parsed.step2.product_info || baseProductInfo,
+              required_dialogues: Array.isArray(parsed.step2.required_dialogues) ? parsed.step2.required_dialogues : [],
+              required_scenes: Array.isArray(parsed.step2.required_scenes) ? parsed.step2.required_scenes : [],
+              cautions: parsed.step2.cautions || '광고임을 명시하고, 저작권이 있는 음악 사용 금지',
+              hashtags: Array.isArray(parsed.step2.hashtags) ? parsed.step2.hashtags.includes('#올영세일') ? parsed.step2.hashtags : ['#올영세일', ...parsed.step2.hashtags] : ['#올영세일'],
+              reference_urls: Array.isArray(parsed.step2.reference_urls) ? parsed.step2.reference_urls : []
+            }
           }
         } catch (e) {
-          console.error('JSON 파싱 실패:', e)
-          // 파싱 실패 시 원본 사용
+          console.error('JSON 파싱 실패:', e, generatedText)
+          // 파싱 실패 시 기본 구조 생성 (기업이 입력한 가이드를 text_guide로 사용)
+          const fallbackData = {
+            text_guide: '',
+            product_info: baseProductInfo,
+            required_dialogues: ['제품의 핵심 특징을 언급해주세요', '사용 후 느낌을 설명해주세요', '구매를 유도하는 멘트를 해주세요'],
+            required_scenes: ['제품 클로즈업', '사용 장면', 'Before/After 비교'],
+            cautions: '광고임을 명시하고, 저작권이 있는 음악 사용 금지',
+            hashtags: [`#${productData.brand?.replace(/\s/g, '') || '브랜드'}`, '#올리브영'],
+            reference_urls: []
+          }
+          if (stepGuideModes.step1 === 'ai') step1Data = { ...fallbackData, text_guide: step1Guide || '' }
+          if (stepGuideModes.step2 === 'ai') step2Data = { ...fallbackData, text_guide: step2Guide || '', hashtags: ['#올영세일', ...fallbackData.hashtags] }
         }
 
-        // AI 가공된 가이드 저장 (AI 모드인 STEP만)
+        // AI 가공된 가이드 저장 (AI 모드인 STEP만) - JSON 문자열로 저장
         const aiUpdateData = {
           guide_generated_at: new Date().toISOString()
         }
-        if (stepGuideModes.step1 === 'ai') {
-          aiUpdateData.oliveyoung_step1_guide_ai = step1Enhanced
+        if (stepGuideModes.step1 === 'ai' && step1Data) {
+          aiUpdateData.oliveyoung_step1_guide_ai = JSON.stringify(step1Data)
         }
-        if (stepGuideModes.step2 === 'ai') {
-          aiUpdateData.oliveyoung_step2_guide_ai = step2Enhanced
+        if (stepGuideModes.step2 === 'ai' && step2Data) {
+          aiUpdateData.oliveyoung_step2_guide_ai = JSON.stringify(step2Data)
         }
-        aiUpdateData.oliveyoung_shooting_tips = shootingTips
-        aiUpdateData.oliveyoung_cautions = cautions
 
         const { error: finalUpdateError } = await client
           .from('campaigns')

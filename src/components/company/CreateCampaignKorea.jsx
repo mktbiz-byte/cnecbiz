@@ -911,6 +911,7 @@ const CampaignCreationKorea = () => {
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.remaining_slots,
         application_deadline: campaignForm.application_deadline || null,
+        shipping_date: campaignForm.shipping_date || null,  // 제품 발송 예정일
         start_date: campaignForm.start_date || null,
         end_date: campaignForm.end_date || null,
         reward_points: campaignForm.reward_points,

@@ -487,6 +487,8 @@ export default function RevenueManagementNew() {
       const data = {
         corporation_id: revenueForm.corporation,
         year_month: revenueForm.year_month,
+        record_date: `${revenueForm.year_month}-01`, // record_date 필수 필드 추가
+        type: 'revenue', // type 필수 필드 추가
         amount: parseInt(revenueForm.amount) || 0,
         source_type: revenueForm.source_type,
         tax_invoice_number: revenueForm.tax_invoice_number,
@@ -549,10 +551,10 @@ export default function RevenueManagementNew() {
   const handleSaveReceivable = async () => {
     try {
       const data = {
-        corporation_id: receivableForm.corporation,
+        corporation: receivableForm.corporation || 'haupapa',
         company_name: receivableForm.company_name,
+        description: receivableForm.description || '',
         amount: parseInt(receivableForm.amount) || 0,
-        description: receivableForm.description,
         due_date: receivableForm.due_date || null,
         status: 'pending'
       }
