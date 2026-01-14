@@ -9349,11 +9349,100 @@ JSON만 출력.`
 
             {/* 본문 */}
             <div className="p-6 space-y-4">
-              {/* 모든 캠페인 타입: 크넥 AI 가이드 생성 */}
+              {/* 캠페인 타입별 가이드 선택 */}
               {(() => {
                 const is4Week = campaign?.campaign_type === '4week_challenge'
                 const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
 
+                // 올영/4주: 캠페인 레벨 가이드 사용 (STEP별/주차별)
+                if (is4Week || isOliveyoung) {
+                  const hasGuide = is4Week
+                    ? (campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides)
+                    : (campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step1_guide)
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        if (!hasGuide) {
+                          alert(is4Week
+                            ? '4주 챌린지 가이드가 생성되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 생성해주세요.'
+                            : '올영 가이드가 생성되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 생성해주세요.')
+                          return
+                        }
+
+                        const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+
+                        // 캠페인 레벨 가이드를 참조하는 형태로 저장
+                        const guidePayload = {
+                          type: is4Week ? '4week_ai' : 'oliveyoung_ai',
+                          campaignId: campaign.id,
+                          ...(is4Week ? {
+                            weeklyGuides: campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides
+                          } : {
+                            step1: campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step1_guide,
+                            step2: campaign?.oliveyoung_step2_guide_ai || campaign?.oliveyoung_step2_guide,
+                            step3: campaign?.oliveyoung_step3_guide_ai || campaign?.oliveyoung_step3_guide
+                          })
+                        }
+
+                        try {
+                          const { error } = await supabase
+                            .from('applications')
+                            .update({
+                              personalized_guide: JSON.stringify(guidePayload),
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq('id', selectedParticipantForGuide.id)
+
+                          if (error) throw error
+
+                          // 참여자 목록 새로고침
+                          await fetchParticipants()
+
+                          // 가이드 확인 모달 열기
+                          const updatedParticipant = {
+                            ...selectedParticipantForGuide,
+                            personalized_guide: JSON.stringify(guidePayload)
+                          }
+                          setSelectedGuide(updatedParticipant)
+                          setShowGuideModal(true)
+                          setShowGuideSelectModal(false)
+                          setSelectedParticipantForGuide(null)
+
+                          alert(`${creatorName}님에게 ${is4Week ? '4주 챌린지' : '올영'} 가이드가 설정되었습니다. 내용 확인 후 발송해주세요.`)
+                        } catch (error) {
+                          console.error('Error saving guide reference:', error)
+                          alert('가이드 설정에 실패했습니다: ' + error.message)
+                        }
+                      }}
+                      disabled={!hasGuide}
+                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
+                        hasGuide
+                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
+                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                          hasGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
+                        }`}>
+                          <Sparkles className={`w-6 h-6 ${hasGuide ? 'text-purple-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <h3 className={`font-bold ${hasGuide ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {is4Week ? '4주 챌린지 가이드 전달' : '올영 세일 가이드 전달'}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {is4Week ? '1~4주차 미션 및 주의사항' : 'STEP 1~3 가이드'}
+                            {!hasGuide && ' (캠페인 설정에서 먼저 생성 필요)'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                }
+
+                // 기획형: 크넥 AI 맞춤 가이드 생성
                 return (
                   <button
                     onClick={async () => {
@@ -9371,13 +9460,7 @@ JSON만 출력.`
                           .eq('id', selectedParticipantForGuide.user_id)
                           .maybeSingle()
 
-                        // 올영/4주는 캠페인 레벨 가이드를 베이스로 사용
-                        let baseGuide = campaign.guide_content || campaign.ai_generated_guide || ''
-                        if (is4Week) {
-                          baseGuide = campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides || baseGuide
-                        } else if (isOliveyoung) {
-                          baseGuide = campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step2_guide_ai || baseGuide
-                        }
+                        const baseGuide = campaign.guide_content || campaign.ai_generated_guide || ''
 
                         // AI 가이드 생성 요청
                         const response = await fetch('/.netlify/functions/generate-personalized-guide', {
@@ -9408,7 +9491,7 @@ JSON만 출력.`
                               video_duration: campaign.video_duration
                             },
                             baseGuide: baseGuide,
-                            campaignType: is4Week ? '4week_challenge' : (isOliveyoung ? 'oliveyoung' : 'planned')
+                            campaignType: 'planned'
                           })
                         })
 
