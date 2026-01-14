@@ -9328,102 +9328,125 @@ JSON만 출력.`
 
             {/* 본문 */}
             <div className="p-6 space-y-4">
-              {/* 기획형: AI 가이드 생성 / 올영,4주: 기존 AI 가이드 사용 */}
+              {/* 모든 캠페인 타입: 크넥 AI 가이드 생성 */}
               {(() => {
                 const is4Week = campaign?.campaign_type === '4week_challenge'
                 const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
 
-                // 올영/4주는 캠페인 레벨의 기존 AI 가이드 사용
-                if (is4Week || isOliveyoung) {
-                  // 기존 AI 가이드가 있는지 확인
-                  const hasAiGuide = is4Week
-                    ? campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides
-                    : campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step2_guide_ai
-
-                  return (
-                    <button
-                      onClick={async () => {
-                        if (!hasAiGuide) {
-                          alert(is4Week
-                            ? '4주 챌린지 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.'
-                            : '올영 AI 가이드가 생성되지 않았습니다. 캠페인 설정에서 먼저 가이드를 생성해주세요.')
-                          return
-                        }
-                        const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
-                        if (!confirm(`${creatorName}님에게 기존 AI 가이드를 전달하시겠습니까?`)) return
-
-                        try {
-                          // 캠페인 레벨 AI 가이드를 참조하는 타입으로 저장
-                          const guidePayload = {
-                            type: is4Week ? '4week_ai' : 'oliveyoung_ai',
-                            campaignId: campaign.id
-                          }
-
-                          const { error } = await supabase
-                            .from('applications')
-                            .update({
-                              personalized_guide: JSON.stringify(guidePayload),
-                              updated_at: new Date().toISOString()
-                            })
-                            .eq('id', selectedParticipantForGuide.id)
-
-                          if (error) throw error
-
-                          alert(`${creatorName}님에게 AI 가이드가 설정되었습니다. 전달하기 버튼으로 알림톡을 발송하세요.`)
-                          setShowGuideSelectModal(false)
-                          setSelectedParticipantForGuide(null)
-                          await fetchParticipants()
-                        } catch (error) {
-                          console.error('Error saving AI guide reference:', error)
-                          alert('가이드 설정에 실패했습니다: ' + error.message)
-                        }
-                      }}
-                      disabled={!hasAiGuide}
-                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
-                        hasAiGuide
-                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
-                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                          hasAiGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
-                        }`}>
-                          <Sparkles className={`w-6 h-6 ${hasAiGuide ? 'text-purple-600' : 'text-gray-400'}`} />
-                        </div>
-                        <div>
-                          <h3 className={`font-bold ${hasAiGuide ? 'text-gray-900' : 'text-gray-500'}`}>
-                            기존 AI 가이드 사용
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {is4Week ? '4주 챌린지 캠페인 가이드' : '올영 캠페인 가이드'}
-                            {!hasAiGuide && ' (미생성)'}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  )
-                }
-
-                // 기획형: AI 가이드 새로 생성
                 return (
                   <button
                     onClick={async () => {
                       const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
-                      if (!confirm(`${creatorName}님의 AI 맞춤 가이드를 생성하시겠습니까?`)) return
+                      if (!confirm(`${creatorName}님의 크넥 AI 맞춤 가이드를 생성하시겠습니까?`)) return
+
                       setShowGuideSelectModal(false)
-                      await handleGeneratePersonalizedGuides([selectedParticipantForGuide])
-                      setSelectedParticipantForGuide(null)
+                      setIsGeneratingAllGuides(true)
+
+                      try {
+                        // 크리에이터 프로필 정보 가져오기
+                        const { data: profile } = await supabase
+                          .from('user_profiles')
+                          .select('*')
+                          .eq('id', selectedParticipantForGuide.user_id)
+                          .maybeSingle()
+
+                        // 올영/4주는 캠페인 레벨 가이드를 베이스로 사용
+                        let baseGuide = campaign.guide_content || campaign.ai_generated_guide || ''
+                        if (is4Week) {
+                          baseGuide = campaign?.challenge_weekly_guides_ai || campaign?.challenge_weekly_guides || baseGuide
+                        } else if (isOliveyoung) {
+                          baseGuide = campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step2_guide_ai || baseGuide
+                        }
+
+                        // AI 가이드 생성 요청
+                        const response = await fetch('/.netlify/functions/generate-personalized-guide', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            creatorAnalysis: {
+                              platform: selectedParticipantForGuide.main_channel || selectedParticipantForGuide.platform || 'instagram',
+                              followers: profile?.instagram_followers || profile?.followers_count || 0,
+                              skinType: profile?.skin_type || null,
+                              contentAnalysis: {
+                                engagementRate: profile?.engagement_rate || 5,
+                                topHashtags: [],
+                                contentType: 'mixed',
+                                videoRatio: 50
+                              },
+                              style: {
+                                tone: profile?.content_style || '친근하고 자연스러운',
+                                topics: [profile?.bio || '라이프스타일', '뷰티'],
+                                videoStyle: 'natural'
+                              }
+                            },
+                            productInfo: {
+                              brand: campaign.brand || '',
+                              product_name: campaign.title || '',
+                              product_features: campaign.product_features || campaign.description || '',
+                              product_key_points: campaign.product_key_points || campaign.key_message || '',
+                              video_duration: campaign.video_duration
+                            },
+                            baseGuide: baseGuide,
+                            campaignType: is4Week ? '4week_challenge' : (isOliveyoung ? 'oliveyoung' : 'planned')
+                          })
+                        })
+
+                        if (!response.ok) {
+                          throw new Error('AI 가이드 생성 실패')
+                        }
+
+                        const { guide } = await response.json()
+
+                        // 생성된 가이드를 applications 테이블에 저장
+                        const { error: updateError } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: guide,
+                            updated_at: new Date().toISOString()
+                          })
+                          .eq('id', selectedParticipantForGuide.id)
+
+                        if (updateError) throw updateError
+
+                        // 참여자 목록 새로고침
+                        await fetchParticipants()
+
+                        // 가이드 확인 모달 열기
+                        const updatedParticipant = { ...selectedParticipantForGuide, personalized_guide: guide }
+                        setSelectedGuide(updatedParticipant)
+                        setShowGuideModal(true)
+                        setSelectedParticipantForGuide(null)
+
+                        alert('가이드가 생성되었습니다. 내용을 확인하고 수정한 뒤 발송해주세요.')
+
+                      } catch (error) {
+                        console.error('Error generating guide:', error)
+                        alert('가이드 생성에 실패했습니다: ' + error.message)
+                        setSelectedParticipantForGuide(null)
+                      } finally {
+                        setIsGeneratingAllGuides(false)
+                      }
                     }}
-                    className="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-left group"
+                    disabled={isGeneratingAllGuides}
+                    className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
+                      isGeneratingAllGuides
+                        ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                        : 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
+                    }`}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                        <Sparkles className="w-6 h-6 text-purple-600" />
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                        isGeneratingAllGuides ? 'bg-gray-100' : 'bg-purple-100 group-hover:bg-purple-200'
+                      }`}>
+                        <Sparkles className={`w-6 h-6 ${isGeneratingAllGuides ? 'text-gray-400 animate-spin' : 'text-purple-600'}`} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900">AI 가이드 생성</h3>
-                        <p className="text-sm text-gray-500">크리에이터 맞춤형 가이드를 AI가 자동 생성</p>
+                        <h3 className={`font-bold ${isGeneratingAllGuides ? 'text-gray-500' : 'text-gray-900'}`}>
+                          {isGeneratingAllGuides ? '가이드 생성 중...' : '크넥 AI 가이드 생성'}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {is4Week ? '4주 챌린지' : isOliveyoung ? '올영 캠페인' : '기획형'} 맞춤 가이드 자동 생성
+                        </p>
                       </div>
                     </div>
                   </button>
