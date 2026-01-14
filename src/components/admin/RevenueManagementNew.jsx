@@ -551,7 +551,8 @@ export default function RevenueManagementNew() {
   const handleSaveReceivable = async () => {
     try {
       const data = {
-        corporation_id: receivableForm.corporation,
+        // corporation_id는 UUID 타입이므로 문자열 저장 불가 - 제거
+        corporation_name: receivableForm.corporation === 'haupapa' ? '하우파파' : '하우랩',
         company_name: receivableForm.company_name,
         amount: parseInt(receivableForm.amount) || 0,
         due_date: receivableForm.due_date || null,
