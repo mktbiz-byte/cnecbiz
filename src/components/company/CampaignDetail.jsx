@@ -4588,7 +4588,7 @@ JSON만 출력.`
                             {/* 가이드 보기/설정 버튼 */}
                             <div className="flex items-center gap-1.5">
                               {/* 4주 챌린지: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) ? (
+                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
                                 <Button
                                   size="sm"
                                   onClick={() => {
@@ -4600,20 +4600,21 @@ JSON만 출력.`
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedParticipantForGuide(participant)
-                                    setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
-                                    setShowGuideSelectModal(true)
-                                  }}
-                                  className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
-                                >
-                                  <Sparkles className="w-3 h-3 mr-1" />
-                                  가이드 설정
-                                </Button>
                               )}
+                              {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="text-purple-600 border-purple-300 hover:bg-purple-50 text-xs px-3 py-1 h-auto"
+                              >
+                                <Send className="w-3 h-3 mr-1" />
+                                선택 후 발송
+                              </Button>
                               {participant.personalized_guide && (
                                 <Button
                                   size="sm"
@@ -4723,79 +4724,49 @@ JSON만 출력.`
                         {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
                           <div className="flex items-center gap-1.5">
                             {/* 올영: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
-                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    // 캠페인 레벨 가이드 모달 열기
-                                    setShowOliveyoungGuideModal(true)
-                                  }}
-                                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
-                                >
-                                  <Eye className="w-3 h-3 mr-1" />
-                                  가이드 보기
-                                </Button>
-                                {participant.status === 'selected' ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={async () => {
-                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                        await handleGuideApproval([participant.id])
-                                      }}
-                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                    >
-                                      <Send className="w-3 h-3 mr-1" />
-                                      전달하기
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                    >
-                                      <XCircle className="w-3 h-3 mr-1" />
-                                      재설정
-                                    </Button>
-                                  </>
-                                ) : participant.status === 'filming' ? (
-                                  <>
-                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
-                                      <CheckCircle className="w-3 h-3" />
-                                      전달완료
-                                    </span>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
-                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
-                                    >
-                                      <XCircle className="w-3 h-3 mr-1" />
-                                      취소
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
-                                    <CheckCircle className="w-3 h-3" />
-                                    전달완료
-                                  </span>
-                                )}
-                              </>
-                            ) : (
+                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) && (
                               <Button
                                 size="sm"
                                 onClick={() => {
-                                  setSelectedParticipantForGuide(participant)
-                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
-                                  setShowGuideSelectModal(true)
+                                  // 캠페인 레벨 가이드 모달 열기
+                                  setShowOliveyoungGuideModal(true)
                                 }}
-                                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs px-3 py-1 h-auto"
+                                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
                               >
-                                <Sparkles className="w-3 h-3 mr-1" />
-                                가이드 전달
+                                <Eye className="w-3 h-3 mr-1" />
+                                가이드 보기
                               </Button>
+                            )}
+                            {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedParticipantForGuide(participant)
+                                setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                setShowGuideSelectModal(true)
+                              }}
+                              className="text-green-600 border-green-300 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                            >
+                              <Send className="w-3 h-3 mr-1" />
+                              선택 후 발송
+                            </Button>
+                            {participant.status === 'filming' && (
+                              <>
+                                <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                  <CheckCircle className="w-3 h-3" />
+                                  전달완료
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                  className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                >
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  재설정
+                                </Button>
+                              </>
                             )}
                           </div>
                         )}
@@ -9479,13 +9450,13 @@ JSON만 출력.`
                 const is4Week = campaign?.campaign_type === '4week_challenge'
                 const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
 
-                // 올영/4주: 캠페인 레벨 가이드 사용 (STEP별/주차별)
+                // 올영/4주: 캠페인 레벨 가이드 사용 옵션
                 if (is4Week || isOliveyoung) {
                   // 4주: challenge_guide_data에 기업이 설정한 원본 데이터 (미션, 필수사항, 주의사항 등)
                   // 올영: oliveyoung_step1_guide 등에 기업이 설정한 원본 데이터
                   const hasGuide = is4Week
-                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides)
-                    : (campaign?.oliveyoung_step1_guide)
+                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai)
+                    : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
 
                   return (
                     <button
