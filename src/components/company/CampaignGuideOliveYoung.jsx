@@ -295,7 +295,8 @@ export default function CampaignGuideOliveYoung() {
           throw new Error('Gemini API 키가 설정되지 않았습니다.')
         }
 
-        const prompt = `올리브영 세일 캠페인용 크리에이터 가이드를 작성해주세요. 기업이 작성한 내용을 기반으로 빈 부분을 채워주세요.
+        const prompt = `당신은 올리브영 세일 캠페인용 크리에이터 가이드를 작성하는 전문가입니다.
+반드시 아래 JSON 형식으로만 응답해주세요. 다른 텍스트는 절대 포함하지 마세요.
 
 **제품 정보**
 - 브랜드: ${productData.brand}
@@ -303,40 +304,41 @@ export default function CampaignGuideOliveYoung() {
 - 제품 특징: ${productData.product_features}
 - 핵심 소구 포인트: ${productData.product_key_points}
 
-**기업이 작성한 STEP별 가이드**
-${stepGuideModes.step1 === 'ai' ? `STEP 1 (상품 리뷰 영상): ${step1Guide || '(기업 미작성 - AI가 작성해주세요)'}` : 'STEP 1: 외부 가이드 사용'}
-${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 홍보 영상): ${step2Guide || '(기업 미작성 - AI가 작성해주세요)'}` : 'STEP 2: 외부 가이드 사용'}
+**기업이 작성한 가이드 내용 (이 내용을 text_guide에 포함하고, 구조화된 필드도 생성)**
+${stepGuideModes.step1 === 'ai' ? `STEP 1 (세일 전 상품 리뷰 영상): ${step1Guide || '제품 리뷰 및 사용 후기 영상'}` : 'STEP 1: 외부 가이드 사용'}
+${stepGuideModes.step2 === 'ai' ? `STEP 2 (세일 당일 홍보 영상): ${step2Guide || '올영세일 홍보 영상'}` : 'STEP 2: 외부 가이드 사용'}
 
-**작성 요구사항:**
-각 STEP별로 아래 구조화된 JSON 형식으로 가이드를 생성해주세요.
-- product_info: 제품 정보를 1-2문장으로 정리 (브랜드명, 제품명, 핵심 특징 포함)
-- required_dialogues: 영상에 반드시 포함해야 할 대사 3-5개 (배열)
-- required_scenes: 필수 촬영 장면 2-4개 (배열)
-- cautions: 주의사항 1-2문장
-- hashtags: 필수 해시태그 3-5개 (배열, # 포함)
-- reference_urls: 빈 배열로 유지 (기업이 직접 입력)
+**필수 생성 필드:**
+1. text_guide: 기업이 작성한 가이드 내용을 기반으로 크리에이터가 따라야 할 상세 촬영 가이드 (2-3문장)
+2. product_info: "${productData.brand} ${productData.product_name}" 형식으로 제품 정보
+3. required_dialogues: 영상에서 반드시 말해야 할 대사 3-5개 (구체적인 멘트)
+4. required_scenes: 반드시 촬영해야 할 장면 2-4개
+5. cautions: 주의사항 (저작권, 광고 표기 등)
+6. hashtags: 필수 해시태그 3-5개 (#포함, STEP2는 반드시 #올영세일 포함)
+7. reference_urls: 빈 배열 []
 
-**중요:** 기업이 작성한 내용이 있으면 그것을 기반으로 구체화하고, 없으면 제품 정보를 기반으로 적절히 생성해주세요.
-
-JSON만 응답해주세요:
+\`\`\`json
 {
   "step1": {
-    "product_info": "브랜드 제품명 - 핵심 특징 1-2문장",
-    "required_dialogues": ["대사1", "대사2", "대사3"],
-    "required_scenes": ["장면1", "장면2"],
-    "cautions": "주의사항",
-    "hashtags": ["#해시태그1", "#해시태그2"],
+    "text_guide": "기업 가이드 기반 상세 촬영 안내 2-3문장",
+    "product_info": "${productData.brand} ${productData.product_name} - 제품 핵심 특징",
+    "required_dialogues": ["이 제품 진짜 대박이에요", "수분감이 24시간 지속돼요", "올리브영에서 꼭 찾아보세요"],
+    "required_scenes": ["제품 클로즈업", "사용 전후 비교", "텍스처 시연"],
+    "cautions": "광고임을 명시하고, 저작권이 있는 음악 사용 금지",
+    "hashtags": ["#${productData.brand?.replace(/\s/g, '') || '브랜드명'}", "#올리브영", "#뷰티리뷰"],
     "reference_urls": []
   },
   "step2": {
-    "product_info": "브랜드 제품명 - 핵심 특징 1-2문장",
-    "required_dialogues": ["대사1", "대사2", "대사3"],
-    "required_scenes": ["장면1", "장면2"],
-    "cautions": "주의사항",
-    "hashtags": ["#해시태그1", "#해시태그2", "#올영세일"],
+    "text_guide": "올영세일 기간 홍보 영상 촬영 안내 2-3문장",
+    "product_info": "${productData.brand} ${productData.product_name} - 제품 핵심 특징",
+    "required_dialogues": ["드디어 올영세일 시작!", "이 가격에 득템하세요", "올리브영 앱에서 지금 바로"],
+    "required_scenes": ["할인 가격 강조", "제품 사용 장면", "구매 유도 CTA"],
+    "cautions": "광고임을 명시하고, 저작권이 있는 음악 사용 금지",
+    "hashtags": ["#올영세일", "#${productData.brand?.replace(/\s/g, '') || '브랜드명'}", "#올리브영", "#뷰티득템"],
     "reference_urls": []
   }
-}`
+}
+\`\`\``
 
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
@@ -362,48 +364,61 @@ JSON만 응답해주세요:
         let step1Data = null
         let step2Data = null
 
+        // 기본 제품 정보 (모든 STEP에서 공통으로 사용)
+        const baseProductInfo = `${productData.brand} ${productData.product_name} - ${productData.product_features?.slice(0, 100) || ''}`
+
         try {
-          const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0])
-
-            // 기본 제품 정보 (모든 STEP에서 공통으로 사용)
-            const baseProductInfo = `${productData.brand} ${productData.product_name} - ${productData.product_features?.slice(0, 100) || ''}`
-
-            if (stepGuideModes.step1 === 'ai' && parsed.step1) {
-              step1Data = {
-                product_info: parsed.step1.product_info || baseProductInfo,
-                required_dialogues: Array.isArray(parsed.step1.required_dialogues) ? parsed.step1.required_dialogues : [],
-                required_scenes: Array.isArray(parsed.step1.required_scenes) ? parsed.step1.required_scenes : [],
-                cautions: parsed.step1.cautions || '저작권 및 광고 표기 준수',
-                hashtags: Array.isArray(parsed.step1.hashtags) ? parsed.step1.hashtags : [],
-                reference_urls: []
-              }
+          // JSON 블록 추출 (```json ... ``` 또는 { ... })
+          let jsonStr = generatedText
+          const codeBlockMatch = generatedText.match(/```json\s*([\s\S]*?)\s*```/)
+          if (codeBlockMatch) {
+            jsonStr = codeBlockMatch[1]
+          } else {
+            const jsonMatch = generatedText.match(/\{[\s\S]*\}/)
+            if (jsonMatch) {
+              jsonStr = jsonMatch[0]
             }
-            if (stepGuideModes.step2 === 'ai' && parsed.step2) {
-              step2Data = {
-                product_info: parsed.step2.product_info || baseProductInfo,
-                required_dialogues: Array.isArray(parsed.step2.required_dialogues) ? parsed.step2.required_dialogues : [],
-                required_scenes: Array.isArray(parsed.step2.required_scenes) ? parsed.step2.required_scenes : [],
-                cautions: parsed.step2.cautions || '저작권 및 광고 표기 준수',
-                hashtags: Array.isArray(parsed.step2.hashtags) ? parsed.step2.hashtags : ['#올영세일'],
-                reference_urls: []
-              }
+          }
+
+          const parsed = JSON.parse(jsonStr)
+          console.log('[AI Guide] Parsed JSON:', parsed)
+
+          if (stepGuideModes.step1 === 'ai' && parsed.step1) {
+            step1Data = {
+              text_guide: parsed.step1.text_guide || step1Guide || '',
+              product_info: parsed.step1.product_info || baseProductInfo,
+              required_dialogues: Array.isArray(parsed.step1.required_dialogues) ? parsed.step1.required_dialogues : [],
+              required_scenes: Array.isArray(parsed.step1.required_scenes) ? parsed.step1.required_scenes : [],
+              cautions: parsed.step1.cautions || '광고임을 명시하고, 저작권이 있는 음악 사용 금지',
+              hashtags: Array.isArray(parsed.step1.hashtags) ? parsed.step1.hashtags : [`#${productData.brand?.replace(/\s/g, '') || '브랜드'}`, '#올리브영'],
+              reference_urls: Array.isArray(parsed.step1.reference_urls) ? parsed.step1.reference_urls : []
+            }
+          }
+          if (stepGuideModes.step2 === 'ai' && parsed.step2) {
+            step2Data = {
+              text_guide: parsed.step2.text_guide || step2Guide || '',
+              product_info: parsed.step2.product_info || baseProductInfo,
+              required_dialogues: Array.isArray(parsed.step2.required_dialogues) ? parsed.step2.required_dialogues : [],
+              required_scenes: Array.isArray(parsed.step2.required_scenes) ? parsed.step2.required_scenes : [],
+              cautions: parsed.step2.cautions || '광고임을 명시하고, 저작권이 있는 음악 사용 금지',
+              hashtags: Array.isArray(parsed.step2.hashtags) ? parsed.step2.hashtags.includes('#올영세일') ? parsed.step2.hashtags : ['#올영세일', ...parsed.step2.hashtags] : ['#올영세일'],
+              reference_urls: Array.isArray(parsed.step2.reference_urls) ? parsed.step2.reference_urls : []
             }
           }
         } catch (e) {
-          console.error('JSON 파싱 실패:', e)
-          // 파싱 실패 시 기본 구조 생성
+          console.error('JSON 파싱 실패:', e, generatedText)
+          // 파싱 실패 시 기본 구조 생성 (기업이 입력한 가이드를 text_guide로 사용)
           const fallbackData = {
-            product_info: `${productData.brand} ${productData.product_name}`,
-            required_dialogues: [],
-            required_scenes: [],
-            cautions: '저작권 및 광고 표기 준수',
-            hashtags: [],
+            text_guide: '',
+            product_info: baseProductInfo,
+            required_dialogues: ['제품의 핵심 특징을 언급해주세요', '사용 후 느낌을 설명해주세요', '구매를 유도하는 멘트를 해주세요'],
+            required_scenes: ['제품 클로즈업', '사용 장면', 'Before/After 비교'],
+            cautions: '광고임을 명시하고, 저작권이 있는 음악 사용 금지',
+            hashtags: [`#${productData.brand?.replace(/\s/g, '') || '브랜드'}`, '#올리브영'],
             reference_urls: []
           }
-          if (stepGuideModes.step1 === 'ai') step1Data = { ...fallbackData }
-          if (stepGuideModes.step2 === 'ai') step2Data = { ...fallbackData, hashtags: ['#올영세일'] }
+          if (stepGuideModes.step1 === 'ai') step1Data = { ...fallbackData, text_guide: step1Guide || '' }
+          if (stepGuideModes.step2 === 'ai') step2Data = { ...fallbackData, text_guide: step2Guide || '', hashtags: ['#올영세일', ...fallbackData.hashtags] }
         }
 
         // AI 가공된 가이드 저장 (AI 모드인 STEP만) - JSON 문자열로 저장

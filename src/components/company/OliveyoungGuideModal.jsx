@@ -591,69 +591,77 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
                     </div>
                   )}
 
-                  {/* 참고 영상 URL */}
-                  {(referenceUrls.length > 0 || isEditing) && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
-                        <span>🔗</span>
-                        참고 영상
-                      </h4>
-                      {isEditing ? (
-                        <div className="space-y-2">
-                          {referenceUrls.map((url, idx) => (
-                            <div key={idx} className="flex gap-2">
-                              <input
-                                type="text"
-                                value={url}
-                                onChange={(e) => {
-                                  const newUrls = [...referenceUrls]
-                                  newUrls[idx] = e.target.value
-                                  setEditedData({ ...editedData, reference_urls: newUrls })
-                                }}
-                                className="flex-1 p-2 border rounded text-sm"
-                                placeholder="URL을 입력하세요"
-                              />
-                              <button
-                                onClick={() => {
-                                  const newUrls = referenceUrls.filter((_, i) => i !== idx)
-                                  setEditedData({ ...editedData, reference_urls: newUrls })
-                                }}
-                                className="px-2 text-red-600 hover:text-red-700"
-                              >
-                                삭제
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => {
-                              setEditedData({ ...editedData, reference_urls: [...referenceUrls, ''] })
-                            }}
-                            className="text-sm text-orange-600 hover:text-orange-700"
-                          >
-                            + URL 추가
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {referenceUrls.map((url, idx) => (
-                            <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
-                              >
-                                {url}
-                              </a>
-                            </div>
-                          ))}
-                          <p className="text-xs text-gray-500 mt-3">
-                            💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* 참고 영상 URL - 항상 표시 */}
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                    <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                      <span>🔗</span>
+                      참고 영상
+                      <span className="text-xs text-orange-600 font-normal">(선택사항)</span>
+                    </h4>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        {referenceUrls.map((url, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <input
+                              type="text"
+                              value={url}
+                              onChange={(e) => {
+                                const newUrls = [...referenceUrls]
+                                newUrls[idx] = e.target.value
+                                setEditedData({ ...editedData, reference_urls: newUrls })
+                              }}
+                              className="flex-1 p-2 border rounded text-sm"
+                              placeholder="URL을 입력하세요"
+                            />
+                            <button
+                              onClick={() => {
+                                const newUrls = referenceUrls.filter((_, i) => i !== idx)
+                                setEditedData({ ...editedData, reference_urls: newUrls })
+                              }}
+                              className="px-2 text-red-600 hover:text-red-700"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => {
+                            setEditedData({ ...editedData, reference_urls: [...referenceUrls, ''] })
+                          }}
+                          className="text-sm text-orange-600 hover:text-orange-700"
+                        >
+                          + URL 추가
+                        </button>
+                      </div>
+                    ) : referenceUrls.length > 0 ? (
+                      <div className="space-y-3">
+                        {referenceUrls.map((url, idx) => (
+                          <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                            >
+                              {url}
+                            </a>
+                          </div>
+                        ))}
+                        <p className="text-xs text-gray-500 mt-3">
+                          💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-orange-100 rounded-lg p-4 text-center">
+                        <p className="text-sm text-gray-500">
+                          참고 영상 URL이 등록되지 않았습니다.
+                        </p>
+                        <p className="text-xs text-orange-600 mt-2">
+                          📝 우측 상단의 수정 버튼을 클릭하여 참고 영상 URL을 추가할 수 있습니다.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
