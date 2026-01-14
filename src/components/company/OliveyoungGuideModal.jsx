@@ -75,14 +75,31 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
 
   const handleEdit = () => {
     const currentData = activeStep === 'step1' ? step1Data : step2Data
-    setEditedData(JSON.parse(JSON.stringify(currentData || {
-      product_info: '',
+    // 캠페인 정보를 기본값으로 사용
+    const defaultProductInfo = campaign.brand && campaign.product_name
+      ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
+      : ''
+
+    const baseData = {
+      product_info: defaultProductInfo,
       required_dialogues: [],
       required_scenes: [],
       cautions: '',
-      hashtags: [],
+      hashtags: activeStep === 'step2' ? ['#올영세일'] : [],
       reference_urls: []
-    })))
+    }
+
+    // 기존 데이터가 있으면 병합, 없으면 기본값 사용
+    if (currentData && typeof currentData === 'object') {
+      setEditedData({
+        ...baseData,
+        ...currentData,
+        // product_info가 비어있으면 캠페인 정보로 채움
+        product_info: currentData.product_info || defaultProductInfo
+      })
+    } else {
+      setEditedData(baseData)
+    }
     setIsEditing(true)
   }
 
@@ -134,7 +151,12 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   const currentExternalGuide = getCurrentExternalGuide()
 
   // Extract all fields from JSON (only for STEP 1 and 2)
-  const productInfo = currentStepData?.product_info || ''
+  // 캠페인 기본 정보를 fallback으로 사용
+  const campaignProductInfo = campaign.brand && campaign.product_name
+    ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
+    : ''
+
+  const productInfo = currentStepData?.product_info || campaignProductInfo
   const requiredDialogues = currentStepData?.required_dialogues || []
   const requiredScenes = currentStepData?.required_scenes || []
   const cautions = currentStepData?.cautions || ''
