@@ -6378,10 +6378,25 @@ JSON만 출력.`
                   return (
                   <div className="space-y-6">
                     {completedSectionParticipants.map(participant => {
-                      // 해당 크리에이터의 승인된 영상들
-                      const creatorSubmissions = videoSubmissions.filter(
+                      // 해당 크리에이터의 승인된 영상들 (video_number별 최신 버전만)
+                      const allSubmissions = videoSubmissions.filter(
                         sub => sub.user_id === participant.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status)
-                      ).sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
+                      )
+
+                      // video_number별로 그룹화하여 최신 버전만 유지
+                      const latestByVideoNumber = {}
+                      allSubmissions.forEach(sub => {
+                        const key = sub.video_number || sub.week_number || 'default'
+                        const existing = latestByVideoNumber[key]
+                        if (!existing ||
+                            (sub.version || 0) > (existing.version || 0) ||
+                            new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
+                          latestByVideoNumber[key] = sub
+                        }
+                      })
+
+                      const creatorSubmissions = Object.values(latestByVideoNumber)
+                        .sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
 
                       // 멀티비디오 캠페인 체크 (올영: 2개, 4주챌린지: 4개)
                       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
