@@ -9617,14 +9617,15 @@ JSON만 출력.`
                             }
                           }
                         } else {
-                          // 올영: step별 가이드 사용
+                          // 올영: AI 가이드 우선 사용, 없으면 일반 가이드
                           guidePayload = {
                             type: 'oliveyoung_guide',
                             campaignId: campaign.id,
                             brand: campaign?.brand || '',
                             product_name: campaign?.product_name || '',
-                            step1: campaign?.oliveyoung_step1_guide || '',
-                            step2: campaign?.oliveyoung_step2_guide || '',
+                            product_features: campaign?.product_features || '',
+                            step1: campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step1_guide || '',
+                            step2: campaign?.oliveyoung_step2_guide_ai || campaign?.oliveyoung_step2_guide || '',
                             step3: campaign?.oliveyoung_step3_guide || ''
                           }
                         }

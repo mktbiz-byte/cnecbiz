@@ -450,15 +450,22 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
       // 현재 스텝 데이터
       const currentStepData = activeStep !== 'step3' ? parseStepData(displayData[activeStep]) : null
 
+      // 캠페인 기본 정보를 fallback으로 사용
+      const campaignProductInfo = guideData.brand && guideData.product_name
+        ? `${guideData.brand} ${guideData.product_name}${guideData.product_features ? ' - ' + guideData.product_features.slice(0, 100) : ''}`
+        : ''
+
       // 스텝 데이터에서 필드 추출
-      const productInfo = currentStepData?.product_info || ''
+      const productInfo = currentStepData?.product_info || campaignProductInfo
       const requiredDialogues = currentStepData?.required_dialogues || []
       const requiredScenes = currentStepData?.required_scenes || []
       const cautions = currentStepData?.cautions || ''
       const hashtags = currentStepData?.hashtags || []
       const referenceUrls = currentStepData?.reference_urls || []
+      // 텍스트 가이드 (기존 plain text 형식 지원)
+      const textGuide = currentStepData?.text_guide || currentStepData?.content || ''
 
-      const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
+      const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0 || textGuide
 
       // 스토리 URL (STEP 3용)
       const storyUrl = displayData.step3 || ''
@@ -901,6 +908,21 @@ export default function PersonalizedGuideViewer({ guide, creator, onSave, additi
                           </p>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* 텍스트 가이드 (기존 plain text 형식 지원) */}
+                  {textGuide && !localEditing && (
+                    <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-pink-900 mb-3 flex items-center gap-2">
+                        <span>📝</span>
+                        {stepTitles[activeStep]} 가이드
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-pink-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {textGuide}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
