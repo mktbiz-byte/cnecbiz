@@ -5402,8 +5402,8 @@ JSON만 출력.`
                           {/* 프로필 이미지 */}
                           <div className="flex justify-center mb-2">
                             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
-                              {app.profile_image_url ? (
-                                <img src={app.profile_image_url} alt="" className="w-full h-full object-cover" />
+                              {app.profile_photo_url ? (
+                                <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
                                 <span className="text-2xl font-bold text-gray-400">
                                   {(app.applicant_name || 'C').charAt(0).toUpperCase()}
@@ -5662,8 +5662,8 @@ JSON만 출력.`
                           {/* 프로필 이미지 */}
                           <div className="flex justify-center mb-2">
                             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
-                              {app.profile_image_url ? (
-                                <img src={app.profile_image_url} alt="" className="w-full h-full object-cover" />
+                              {app.profile_photo_url ? (
+                                <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
                                 <span className="text-2xl font-bold text-gray-400">
                                   {(app.applicant_name || 'C').charAt(0).toUpperCase()}
