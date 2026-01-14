@@ -14,7 +14,7 @@ import {
   Zap, Users, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   PieChart, BarChart3, Wallet, CreditCard, DollarSign
 } from 'lucide-react'
-import { supabaseBiz } from '../../lib/supabaseClients'
+import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -392,13 +392,48 @@ export default function RevenueManagementNew() {
 
     setLoading(true)
     try {
-      const { data: withdrawals, error: fetchError } = await supabaseBiz
+      let allWithdrawals = []
+
+      // 1. BIZ DB에서 완료된 출금 조회 (creator_withdrawal_requests)
+      const { data: bizWithdrawals, error: bizError } = await supabaseBiz
         .from('creator_withdrawal_requests')
         .select('*')
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
 
-      if (fetchError) throw fetchError
+      if (bizError) {
+        console.error('BIZ DB 조회 오류:', bizError)
+      } else if (bizWithdrawals && bizWithdrawals.length > 0) {
+        console.log('BIZ DB 완료 출금:', bizWithdrawals.length, '건')
+        allWithdrawals = [...allWithdrawals, ...bizWithdrawals.map(w => ({
+          ...w,
+          final_amount: w.final_amount || Math.round((w.amount || 0) * 0.967),
+          source_db: 'biz'
+        }))]
+      }
+
+      // 2. Korea DB에서 완료된 출금 조회 (withdrawals 테이블)
+      if (supabaseKorea) {
+        const { data: koreaWithdrawals, error: koreaError } = await supabaseKorea
+          .from('withdrawals')
+          .select('*')
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+
+        if (koreaError) {
+          console.error('Korea DB 조회 오류:', koreaError)
+        } else if (koreaWithdrawals && koreaWithdrawals.length > 0) {
+          console.log('Korea DB 완료 출금:', koreaWithdrawals.length, '건')
+          allWithdrawals = [...allWithdrawals, ...koreaWithdrawals.map(w => ({
+            ...w,
+            account_holder: w.bank_account_holder || w.account_holder,
+            final_amount: w.final_amount || Math.round((w.amount || 0) * 0.967),
+            source_db: 'korea'
+          }))]
+        }
+      }
+
+      console.log('총 완료 출금:', allWithdrawals.length, '건')
 
       const { data: existingExpenses } = await supabaseBiz
         .from('expense_records')
@@ -408,7 +443,7 @@ export default function RevenueManagementNew() {
       const existingIds = new Set((existingExpenses || []).map(e => e.source_id))
 
       let syncCount = 0
-      for (const withdrawal of (withdrawals || [])) {
+      for (const withdrawal of allWithdrawals) {
         if (existingIds.has(withdrawal.id)) continue
 
         const completedDate = new Date(withdrawal.completed_at || withdrawal.processed_at || withdrawal.created_at)
