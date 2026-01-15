@@ -523,22 +523,38 @@ JSON 형식으로 작성해주세요.`
                 const weekData = guideData[weekKey]
                 const aiData = parsed[weekKey]
 
+                // 기업이 입력한 원본 데이터를 배열로 변환
+                const originalDialogues = weekData.required_dialogue
+                  ? weekData.required_dialogue.split('\n').filter(d => d.trim()).map(d => d.trim())
+                  : []
+                const originalScenes = weekData.required_scenes
+                  ? weekData.required_scenes.split('\n').filter(s => s.trim()).map(s => s.trim())
+                  : []
+
                 if (aiData) {
-                  // JSON 구조로 저장
+                  // JSON 구조로 저장 - AI 데이터가 있으면 우선 사용, 없으면 원본 사용
                   simpleGuidesAI[weekKey] = {
                     product_info: aiData.product_info || `${guideData.product_name}: ${weekData.mission}`,
-                    required_dialogues: aiData.required_dialogues || [],
-                    required_scenes: aiData.required_scenes || [],
+                    mission: weekData.mission || '',  // 원본 미션 추가
+                    required_dialogues: (aiData.required_dialogues && aiData.required_dialogues.length > 0)
+                      ? aiData.required_dialogues
+                      : originalDialogues,  // AI가 비어있으면 원본 사용
+                    required_scenes: (aiData.required_scenes && aiData.required_scenes.length > 0)
+                      ? aiData.required_scenes
+                      : originalScenes,  // AI가 비어있으면 원본 사용
                     hashtags: aiData.hashtags || [],
+                    cautions: guideData.precautions || '',  // 주의사항 추가
                     reference_urls: weekData.reference_url ? [weekData.reference_url] : []
                   }
                 } else {
-                  // AI 데이터 없으면 기본 구조 사용
+                  // AI 데이터 없으면 원본 데이터 사용
                   simpleGuidesAI[weekKey] = {
                     product_info: `${guideData.product_name}: ${weekData.mission}`,
-                    required_dialogues: [],
-                    required_scenes: [],
+                    mission: weekData.mission || '',
+                    required_dialogues: originalDialogues,
+                    required_scenes: originalScenes,
                     hashtags: [],
+                    cautions: guideData.precautions || '',
                     reference_urls: weekData.reference_url ? [weekData.reference_url] : []
                   }
                 }
@@ -553,15 +569,25 @@ JSON 형식으로 작성해주세요.`
         }
         } catch (aiError) {
           console.error('AI 생성 실패:', aiError)
-          // AI 실패 시 기본 구조 사용 (AI 모드 주차만)
+          // AI 실패 시 원본 데이터 사용 (AI 모드 주차만)
           for (const weekNum of aiWeeks) {
             const weekKey = `week${weekNum}`
             const weekData = guideData[weekKey]
+            // 원본 데이터를 배열로 변환
+            const originalDialogues = weekData.required_dialogue
+              ? weekData.required_dialogue.split('\n').filter(d => d.trim()).map(d => d.trim())
+              : []
+            const originalScenes = weekData.required_scenes
+              ? weekData.required_scenes.split('\n').filter(s => s.trim()).map(s => s.trim())
+              : []
+
             simpleGuidesAI[weekKey] = {
               product_info: `${guideData.product_name}: ${weekData.mission}`,
-              required_dialogues: [],
-              required_scenes: [],
+              mission: weekData.mission || '',
+              required_dialogues: originalDialogues,
+              required_scenes: originalScenes,
               hashtags: [],
+              cautions: guideData.precautions || '',
               reference_urls: weekData.reference_url ? [weekData.reference_url] : []
             }
           }
