@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
-  ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2
+  ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
+  Key, Check, AlertCircle
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 
@@ -51,10 +52,92 @@ export default function NewsletterShowcaseManagement() {
   const [saving, setSaving] = useState(false)
   const [fetchingStibee, setFetchingStibee] = useState(false)
 
+  // API 키 관리
+  const [stibeeApiKey, setStibeeApiKey] = useState('')
+  const [apiKeyLoaded, setApiKeyLoaded] = useState(false)
+  const [savingApiKey, setSavingApiKey] = useState(false)
+  const [showApiKey, setShowApiKey] = useState(false)
+
   useEffect(() => {
     checkAuth()
     fetchNewsletters()
+    fetchApiKey()
   }, [])
+
+  // API 키 조회
+  const fetchApiKey = async () => {
+    try {
+      const { data, error } = await supabaseBiz
+        .from('api_keys')
+        .select('api_key')
+        .eq('service_name', 'stibee')
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (data?.api_key) {
+        setStibeeApiKey(data.api_key)
+        setApiKeyLoaded(true)
+      }
+    } catch (error) {
+      console.error('API 키 조회 오류:', error)
+    }
+  }
+
+  // API 키 저장
+  const saveApiKey = async () => {
+    if (!stibeeApiKey.trim()) {
+      alert('API 키를 입력해주세요.')
+      return
+    }
+
+    setSavingApiKey(true)
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+
+      // 기존 키 확인
+      const { data: existing } = await supabaseBiz
+        .from('api_keys')
+        .select('id')
+        .eq('service_name', 'stibee')
+        .maybeSingle()
+
+      if (existing) {
+        // 업데이트
+        const { error } = await supabaseBiz
+          .from('api_keys')
+          .update({
+            api_key: stibeeApiKey.trim(),
+            is_active: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id)
+
+        if (error) throw error
+        alert('스티비 API 키가 업데이트되었습니다.')
+      } else {
+        // 새로 저장
+        const { error } = await supabaseBiz
+          .from('api_keys')
+          .insert({
+            service_name: 'stibee',
+            api_key: stibeeApiKey.trim(),
+            description: '스티비 뉴스레터 API 키',
+            is_active: true,
+            created_by: user?.id
+          })
+
+        if (error) throw error
+        alert('스티비 API 키가 저장되었습니다.')
+      }
+
+      setApiKeyLoaded(true)
+    } catch (error) {
+      console.error('API 키 저장 오류:', error)
+      alert('API 키 저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingApiKey(false)
+    }
+  }
 
   // 스티비에서 뉴스레터 가져오기
   const fetchFromStibee = async () => {
@@ -342,6 +425,55 @@ export default function NewsletterShowcaseManagement() {
             </Button>
           </div>
         </div>
+
+        {/* API 키 설정 */}
+        <Card className={!apiKeyLoaded ? 'border-orange-300 bg-orange-50' : ''}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Key className="w-5 h-5 text-gray-600" />
+              <span className="font-medium">스티비 API 키 설정</span>
+              {apiKeyLoaded ? (
+                <span className="flex items-center gap-1 text-green-600 text-sm">
+                  <Check className="w-4 h-4" /> 등록됨
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-orange-600 text-sm">
+                  <AlertCircle className="w-4 h-4" /> 미등록
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={stibeeApiKey}
+                  onChange={(e) => setStibeeApiKey(e.target.value)}
+                  placeholder="스티비 API 키를 입력하세요"
+                  className="pr-20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
+                >
+                  {showApiKey ? '숨기기' : '보기'}
+                </button>
+              </div>
+              <Button
+                onClick={saveApiKey}
+                disabled={savingApiKey}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {savingApiKey ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : apiKeyLoaded ? '업데이트' : '저장'}
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              스티비 &gt; 설정 &gt; API 키에서 발급받은 키를 입력하세요. 뉴스레터를 자동으로 가져오려면 API 키가 필요합니다.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* 통계 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

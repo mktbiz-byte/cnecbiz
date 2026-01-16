@@ -1,9 +1,12 @@
 const { createClient } = require('@supabase/supabase-js')
 
-const supabaseBiz = createClient(
-  process.env.VITE_SUPABASE_BIZ_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+// Supabase 클라이언트는 핸들러 내부에서 생성 (환경변수 확인 후)
+const getSupabase = () => {
+  const url = process.env.VITE_SUPABASE_BIZ_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createClient(url, key)
+}
 
 exports.handler = async (event) => {
   // CORS 헤더
@@ -26,7 +29,29 @@ exports.handler = async (event) => {
   }
 
   try {
-    const STIBEE_API_KEY = process.env.STIBEE_API_KEY
+    const supabaseBiz = getSupabase()
+    if (!supabaseBiz) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ success: false, error: 'Supabase 연결 실패' })
+      }
+    }
+
+    // 1. 환경변수에서 먼저 확인
+    let STIBEE_API_KEY = process.env.STIBEE_API_KEY
+
+    // 2. 환경변수에 없으면 DB에서 가져오기
+    if (!STIBEE_API_KEY) {
+      const { data: apiKeyData } = await supabaseBiz
+        .from('api_keys')
+        .select('api_key')
+        .eq('service_name', 'stibee')
+        .eq('is_active', true)
+        .maybeSingle()
+
+      STIBEE_API_KEY = apiKeyData?.api_key
+    }
 
     if (!STIBEE_API_KEY) {
       return {
@@ -34,7 +59,7 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: false,
-          error: 'STIBEE_API_KEY가 설정되지 않았습니다. Netlify 환경변수에 추가해주세요.'
+          error: 'STIBEE_API_KEY가 설정되지 않았습니다. 관리자 페이지 → 뉴스레터 쇼케이스에서 API 키를 등록해주세요.'
         })
       }
     }

@@ -84,3 +84,59 @@ CREATE POLICY "Admin can delete newsletters"
 -- 5. 샘플 카테고리 및 설명
 COMMENT ON TABLE newsletters IS '스티비 뉴스레터 쇼케이스 - 기업에게 보여줄 뉴스레터 관리';
 COMMENT ON COLUMN newsletters.category IS 'marketing: 마케팅 인사이트, insight: 산업 트렌드, case_study: 성공 사례, tips: 실용 팁, news: 업계 뉴스';
+
+-- =====================================================
+-- API Keys Storage
+-- 외부 API 키 저장 (환경변수 대신 DB에 저장)
+-- =====================================================
+
+-- 6. API 키 테이블
+CREATE TABLE IF NOT EXISTS api_keys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_name TEXT NOT NULL UNIQUE,    -- 서비스명 (stibee, popbill, etc.)
+  api_key TEXT NOT NULL,                -- API 키 값
+  description TEXT,                      -- 설명
+  is_active BOOLEAN DEFAULT true,        -- 활성화 여부
+  created_by UUID,                       -- 등록한 관리자
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 인덱스
+CREATE INDEX IF NOT EXISTS idx_api_keys_service_name ON api_keys(service_name);
+CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+
+-- 업데이트 트리거
+CREATE OR REPLACE FUNCTION update_api_keys_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_api_keys_updated_at_trigger
+  BEFORE UPDATE ON api_keys
+  FOR EACH ROW
+  EXECUTE FUNCTION update_api_keys_updated_at();
+
+-- RLS 정책 (관리자만 접근 가능)
+ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admin can view api_keys"
+  ON api_keys FOR SELECT
+  USING (true);
+
+CREATE POLICY "Admin can insert api_keys"
+  ON api_keys FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Admin can update api_keys"
+  ON api_keys FOR UPDATE
+  USING (true);
+
+CREATE POLICY "Admin can delete api_keys"
+  ON api_keys FOR DELETE
+  USING (true);
+
+COMMENT ON TABLE api_keys IS '외부 API 키 저장 - 환경변수 대신 DB에서 관리';
