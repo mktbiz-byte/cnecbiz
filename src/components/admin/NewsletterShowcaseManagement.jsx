@@ -65,6 +65,11 @@ export default function NewsletterShowcaseManagement() {
   const [selectedListId, setSelectedListId] = useState('')
   const [loadingLists, setLoadingLists] = useState(false)
 
+  // 썸네일 추출
+  const [extractingThumbnails, setExtractingThumbnails] = useState(false)
+  const [extractingThumbnailFor, setExtractingThumbnailFor] = useState(null)
+  const [availableImages, setAvailableImages] = useState([])
+
   useEffect(() => {
     checkAuth()
     fetchNewsletters()
@@ -410,6 +415,71 @@ export default function NewsletterShowcaseManagement() {
     setShowPreviewModal(true)
   }
 
+  // 썸네일 일괄 추출
+  const handleExtractThumbnails = async () => {
+    if (!confirm('썸네일이 없는 뉴스레터에서 이미지를 추출합니다. 계속하시겠습니까?')) return
+
+    setExtractingThumbnails(true)
+    try {
+      const response = await fetch('/.netlify/functions/extract-newsletter-thumbnail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'bulk' })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert(result.message)
+        fetchNewsletters()
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('썸네일 추출 오류:', error)
+      alert('썸네일 추출에 실패했습니다: ' + error.message)
+    } finally {
+      setExtractingThumbnails(false)
+    }
+  }
+
+  // 단일 뉴스레터 썸네일 추출
+  const handleExtractSingleThumbnail = async (newsletter) => {
+    if (!newsletter.stibee_url) {
+      alert('스티비 URL이 없습니다.')
+      return
+    }
+
+    setExtractingThumbnailFor(newsletter.id)
+    try {
+      const response = await fetch('/.netlify/functions/extract-newsletter-thumbnail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'single',
+          newsletterId: newsletter.id,
+          stibeeUrl: newsletter.stibee_url
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setAvailableImages(result.allImages || [])
+        if (result.thumbnailUrl) {
+          setFormData(prev => ({ ...prev, thumbnail_url: result.thumbnailUrl }))
+          alert('썸네일이 추출되었습니다. 다른 이미지를 선택할 수도 있습니다.')
+        }
+        fetchNewsletters()
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('썸네일 추출 오류:', error)
+      alert('썸네일 추출에 실패했습니다: ' + error.message)
+    } finally {
+      setExtractingThumbnailFor(null)
+    }
+  }
+
   // 체크박스 토글
   const handleSelectToggle = (id) => {
     setSelectedIds(prev =>
@@ -534,6 +604,19 @@ export default function NewsletterShowcaseManagement() {
                 <Download className="w-4 h-4 mr-2" />
               )}
               {fetchingStibee ? '가져오는 중...' : '스티비에서 가져오기'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExtractThumbnails}
+              disabled={extractingThumbnails}
+              className="border-purple-500 text-purple-600 hover:bg-purple-50"
+            >
+              {extractingThumbnails ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Image className="w-4 h-4 mr-2" />
+              )}
+              {extractingThumbnails ? '추출 중...' : '썸네일 추출'}
             </Button>
             <Button variant="outline" onClick={() => window.open('/newsletters', '_blank')}>
               <ExternalLink className="w-4 h-4 mr-2" />
@@ -1081,11 +1164,31 @@ export default function NewsletterShowcaseManagement() {
 
             <div>
               <label className="block text-sm font-medium mb-1">썸네일 이미지 URL</label>
-              <Input
-                value={formData.thumbnail_url}
-                onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-                placeholder="이미지 URL (선택)"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={formData.thumbnail_url}
+                  onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                  placeholder="이미지 URL (선택)"
+                  className="flex-1"
+                />
+                {isEditing && selectedNewsletter?.stibee_url && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleExtractSingleThumbnail(selectedNewsletter)}
+                    disabled={extractingThumbnailFor === selectedNewsletter?.id}
+                    className="whitespace-nowrap"
+                  >
+                    {extractingThumbnailFor === selectedNewsletter?.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Image className="w-4 h-4 mr-1" />
+                    )}
+                    자동 추출
+                  </Button>
+                )}
+              </div>
+              {/* 현재 썸네일 미리보기 */}
               {formData.thumbnail_url && (
                 <div className="mt-2 border rounded-lg overflow-hidden w-40 h-24">
                   <img
@@ -1093,6 +1196,26 @@ export default function NewsletterShowcaseManagement() {
                     alt="썸네일 미리보기"
                     className="w-full h-full object-cover"
                   />
+                </div>
+              )}
+              {/* 추출된 이미지 선택 옵션 */}
+              {availableImages.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500 mb-2">추출된 이미지에서 선택:</p>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {availableImages.map((imgUrl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, thumbnail_url: imgUrl })}
+                        className={`flex-shrink-0 w-20 h-14 border-2 rounded overflow-hidden ${
+                          formData.thumbnail_url === imgUrl ? 'border-blue-500' : 'border-gray-200'
+                        }`}
+                      >
+                        <img src={imgUrl} alt={`이미지 ${idx + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
