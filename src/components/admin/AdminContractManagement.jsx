@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   FileSignature, Send, Eye, Download, Clock,
-  CheckCircle, XCircle, Plus, Search, Filter, RefreshCw
+  CheckCircle, XCircle, Plus, Search, Filter, RefreshCw, Trash2
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -383,6 +383,26 @@ export default function AdminContractManagement() {
     }
   }
 
+  // 계약서 삭제
+  const handleDeleteContract = async (contractId) => {
+    if (!confirm('정말 이 계약서를 삭제하시겠습니까?\n삭제된 계약서는 복구할 수 없습니다.')) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('contracts')
+        .delete()
+        .eq('id', contractId)
+
+      if (error) throw error
+
+      alert('계약서가 삭제되었습니다.')
+      fetchContracts()
+    } catch (error) {
+      console.error('계약서 삭제 오류:', error)
+      alert(`계약서 삭제에 실패했습니다: ${error.message}`)
+    }
+  }
+
   const filteredContracts = contracts.filter(contract =>
     contract.recipient_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contract.recipient_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -574,6 +594,16 @@ export default function AdminContractManagement() {
                                     >
                                       <RefreshCw className="w-4 h-4 mr-1" />
                                       재발송
+                                    </Button>
+                                  )}
+                                  {contract.status !== 'signed' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteContract(contract.id)}
+                                      className="text-red-600 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
                                     </Button>
                                   )}
                                 </div>
