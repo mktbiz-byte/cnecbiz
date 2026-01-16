@@ -8,6 +8,9 @@
 CREATE TABLE IF NOT EXISTS newsletters (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
+  -- 스티비 연동
+  stibee_id TEXT UNIQUE,                     -- 스티비 이메일 ID (중복 방지)
+
   -- 기본 정보
   title TEXT NOT NULL,                       -- 뉴스레터 제목
   description TEXT,                          -- 간단 설명

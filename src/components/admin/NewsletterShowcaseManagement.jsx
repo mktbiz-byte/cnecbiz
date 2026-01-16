@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
-  ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2
+  ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 
@@ -49,11 +49,39 @@ export default function NewsletterShowcaseManagement() {
   })
 
   const [saving, setSaving] = useState(false)
+  const [fetchingStibee, setFetchingStibee] = useState(false)
 
   useEffect(() => {
     checkAuth()
     fetchNewsletters()
   }, [])
+
+  // 스티비에서 뉴스레터 가져오기
+  const fetchFromStibee = async () => {
+    if (fetchingStibee) return
+
+    setFetchingStibee(true)
+    try {
+      const response = await fetch('/.netlify/functions/fetch-stibee-newsletters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`${result.message}\n\n새로 가져온 뉴스레터: ${result.saved}개\n전체 가져온 이메일: ${result.fetched}개`)
+        fetchNewsletters() // 목록 새로고침
+      } else {
+        alert('스티비 연동 오류: ' + result.error)
+      }
+    } catch (error) {
+      console.error('스티비 연동 오류:', error)
+      alert('스티비에서 데이터를 가져오는데 실패했습니다: ' + error.message)
+    } finally {
+      setFetchingStibee(false)
+    }
+  }
 
   const checkAuth = async () => {
     const { data: { user } } = await supabaseBiz.auth.getUser()
@@ -291,6 +319,19 @@ export default function NewsletterShowcaseManagement() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={fetchFromStibee}
+              disabled={fetchingStibee}
+              className="border-green-500 text-green-600 hover:bg-green-50"
+            >
+              {fetchingStibee ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              {fetchingStibee ? '가져오는 중...' : '스티비에서 가져오기'}
+            </Button>
             <Button variant="outline" onClick={() => window.open('/newsletters', '_blank')}>
               <ExternalLink className="w-4 h-4 mr-2" />
               미리보기
