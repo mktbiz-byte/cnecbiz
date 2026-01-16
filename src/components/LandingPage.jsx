@@ -322,6 +322,7 @@ export default function LandingPage() {
               <a href="#showcase" className="text-gray-400 hover:text-white transition-colors text-sm">포트폴리오</a>
               <a href="#pricing" className="text-gray-400 hover:text-white transition-colors text-sm">요금제</a>
               <a href="#voucher" className="text-gray-400 hover:text-white transition-colors text-sm">수출바우처</a>
+              <button onClick={() => navigate('/newsletters')} className="text-gray-400 hover:text-white transition-colors text-sm">뉴스레터</button>
               <a href="#faq" className="text-gray-400 hover:text-white transition-colors text-sm">FAQ</a>
             </nav>
 
@@ -365,6 +366,7 @@ export default function LandingPage() {
                 <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">포트폴리오</a>
                 <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">요금제</a>
                 <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">수출바우처</a>
+                <button onClick={() => { navigate('/newsletters'); setMobileMenuOpen(false); }} className="text-gray-400 py-2 text-left">뉴스레터</button>
                 <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">FAQ</a>
               </nav>
               <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-800">
@@ -703,6 +705,35 @@ export default function LandingPage() {
               </details>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Newsletter Banner */}
+      <section className="py-16 sm:py-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 relative overflow-hidden">
+        {/* 배경 장식 */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-6 backdrop-blur-sm">
+            <Mail className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white">
+            인플루언서 마케팅 인사이트
+          </h2>
+          <p className="text-white/80 text-lg mb-8 max-w-2xl mx-auto">
+            K-뷰티 마케팅 트렌드, 크리에이터 협업 노하우, 성공 사례까지<br className="hidden sm:block" />
+            매주 엄선된 콘텐츠를 무료로 받아보세요.
+          </p>
+          <button
+            onClick={() => navigate('/newsletters')}
+            className="px-8 py-4 bg-white text-indigo-700 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all shadow-xl hover:shadow-2xl inline-flex items-center gap-2"
+          >
+            뉴스레터 보러가기
+            <ArrowRight className="w-5 h-5" />
+          </button>
         </div>
       </section>
 
