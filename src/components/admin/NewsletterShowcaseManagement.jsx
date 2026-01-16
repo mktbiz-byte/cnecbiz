@@ -540,6 +540,55 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // 선택한 뉴스레터 썸네일 일괄 추출
+  const handleBulkExtractThumbnails = async () => {
+    if (selectedIds.length === 0) return
+
+    const selectedNewsletters = newsletters.filter(n => selectedIds.includes(n.id))
+    if (!confirm(`${selectedNewsletters.length}개 뉴스레터의 썸네일을 추출하시겠습니까?`)) return
+
+    setExtractingThumbnails(true)
+    let successCount = 0
+    let failCount = 0
+
+    for (const newsletter of selectedNewsletters) {
+      if (!newsletter.stibee_url) {
+        failCount++
+        continue
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/extract-newsletter-thumbnail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'single',
+            newsletterId: newsletter.id,
+            stibeeUrl: newsletter.stibee_url
+          })
+        })
+
+        const result = await response.json()
+        if (result.success && result.thumbnailUrl) {
+          successCount++
+        } else {
+          failCount++
+        }
+      } catch (error) {
+        console.error(`썸네일 추출 실패 (${newsletter.id}):`, error)
+        failCount++
+      }
+
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+
+    setExtractingThumbnails(false)
+    alert(`썸네일 추출 완료: 성공 ${successCount}개, 실패 ${failCount}개`)
+    setSelectedIds([])
+    fetchNewsletters()
+  }
+
   const filteredNewsletters = newsletters.filter(newsletter => {
     const matchesSearch = !searchTerm ||
       newsletter.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -819,6 +868,19 @@ export default function NewsletterShowcaseManagement() {
               {selectedIds.length > 0 && (
                 <>
                   <span className="text-sm text-gray-500">{selectedIds.length}개 선택</span>
+                  <Button
+                    size="sm"
+                    onClick={handleBulkExtractThumbnails}
+                    disabled={extractingThumbnails}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {extractingThumbnails ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Image className="w-4 h-4 mr-1" />
+                    )}
+                    썸네일 추출
+                  </Button>
                   <Button
                     size="sm"
                     onClick={handleBulkActivate}
