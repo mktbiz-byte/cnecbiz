@@ -186,10 +186,11 @@ exports.handler = async (event) => {
       let offset = 0
       let hasMore = true
 
-      // 페이지네이션으로 모든 이메일 가져오기
+      // 페이지네이션으로 모든 이메일 가져오기 (status 필터 없이 전체 조회)
       while (hasMore) {
         try {
-          const emailsResponse = await fetch(`https://api.stibee.com/v1/lists/${currentListId}/emails?status=COMPLETE&offset=${offset}&limit=${LIMIT}`, {
+          // status 필터 제거 - 스티비 API에서 COMPLETE가 아닌 다른 상태값 사용할 수 있음
+          const emailsResponse = await fetch(`https://api.stibee.com/v1/lists/${currentListId}/emails?offset=${offset}&limit=${LIMIT}`, {
             method: 'GET',
             headers: {
               'AccessToken': STIBEE_API_KEY,
@@ -199,7 +200,7 @@ exports.handler = async (event) => {
 
           if (emailsResponse.ok) {
             const emailsData = await emailsResponse.json()
-            console.log(`List ${currentListId} emails (offset ${offset}):`, JSON.stringify(emailsData).slice(0, 300))
+            console.log(`List ${currentListId} emails (offset ${offset}):`, JSON.stringify(emailsData).slice(0, 500))
 
             const emails = emailsData.Value || emailsData.value || []
             if (Array.isArray(emails) && emails.length > 0) {
