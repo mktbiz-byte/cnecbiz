@@ -23,6 +23,7 @@ export default function CreatorPointHistory() {
   const [transactions, setTransactions] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
+  const [dateFilter, setDateFilter] = useState('month') // 기본값: 최근 1개월
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState({
     totalPaid: 0,
@@ -39,7 +40,7 @@ export default function CreatorPointHistory() {
   useEffect(() => {
     checkAuth()
     fetchTransactions()
-  }, [])
+  }, [dateFilter])
 
   useEffect(() => {
     calculateStats()
@@ -68,19 +69,41 @@ export default function CreatorPointHistory() {
     }
   }
 
+  // 날짜 필터 시작일 계산
+  const getDateFilterStart = () => {
+    const now = new Date()
+    if (dateFilter === 'today') {
+      return new Date(now.setHours(0, 0, 0, 0)).toISOString()
+    } else if (dateFilter === 'week') {
+      return new Date(now.setDate(now.getDate() - 7)).toISOString()
+    } else if (dateFilter === 'month') {
+      return new Date(now.setMonth(now.getMonth() - 1)).toISOString()
+    } else if (dateFilter === '3months') {
+      return new Date(now.setMonth(now.getMonth() - 3)).toISOString()
+    }
+    return null // 'all'인 경우
+  }
+
   const fetchTransactions = async () => {
     setLoading(true)
     try {
       let allTransactions = []
+      const dateStart = getDateFilterStart()
 
       // Korea DB에서 point_transactions 조회
       if (supabaseKorea) {
         // point_transactions 테이블의 실제 필드는 'type' (earn, withdraw, bonus, adjustment 등)
-        const { data: koreaData, error: koreaError } = await supabaseKorea
+        let query = supabaseKorea
           .from('point_transactions')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(500)
+
+        if (dateStart) {
+          query = query.gte('created_at', dateStart)
+        }
+
+        const { data: koreaData, error: koreaError } = await query
 
         if (!koreaError && koreaData) {
           console.log('Korea DB point_transactions:', koreaData.length, '건')
@@ -167,11 +190,17 @@ export default function CreatorPointHistory() {
 
         // Korea DB에서 point_history도 조회 (캠페인 완료 포인트)
         try {
-          const { data: historyData, error: historyError } = await supabaseKorea
+          let historyQuery = supabaseKorea
             .from('point_history')
             .select('*')
             .order('created_at', { ascending: false })
             .limit(500)
+
+          if (dateStart) {
+            historyQuery = historyQuery.gte('created_at', dateStart)
+          }
+
+          const { data: historyData, error: historyError } = await historyQuery
 
           if (!historyError && historyData && historyData.length > 0) {
             console.log('Korea DB point_history:', historyData.length, '건')
@@ -239,11 +268,17 @@ export default function CreatorPointHistory() {
 
       // BIZ DB에서 creator_points 조회 (테이블이 없을 수 있음)
       try {
-        const { data: bizData, error: bizError } = await supabaseBiz
+        let bizQuery = supabaseBiz
           .from('creator_points')
           .select('*, featured_creators(channel_name, name, email)')
           .order('created_at', { ascending: false })
           .limit(500)
+
+        if (dateStart) {
+          bizQuery = bizQuery.gte('created_at', dateStart)
+        }
+
+        const { data: bizData, error: bizError } = await bizQuery
 
         if (!bizError && bizData && bizData.length > 0) {
           const bizTransactions = bizData.map(t => ({
@@ -532,50 +567,93 @@ export default function CreatorPointHistory() {
           {/* 필터 및 검색 */}
           <Card className="mb-6">
             <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="크리에이터명, 이메일, 사유, 캠페인명, User ID로 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4">
+                {/* 날짜 필터 */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-sm text-gray-500 mr-2">기간:</span>
                   <Button
-                    variant={filterType === 'all' ? 'default' : 'outline'}
+                    variant={dateFilter === 'today' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setFilterType('all')}
+                    onClick={() => setDateFilter('today')}
+                  >
+                    오늘
+                  </Button>
+                  <Button
+                    variant={dateFilter === 'week' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('week')}
+                  >
+                    1주일
+                  </Button>
+                  <Button
+                    variant={dateFilter === 'month' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('month')}
+                  >
+                    1개월
+                  </Button>
+                  <Button
+                    variant={dateFilter === '3months' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('3months')}
+                  >
+                    3개월
+                  </Button>
+                  <Button
+                    variant={dateFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('all')}
                   >
                     전체
                   </Button>
-                  <Button
-                    variant={filterType === 'add' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterType('add')}
-                    className={filterType === 'add' ? '' : 'text-green-600 border-green-300'}
-                  >
-                    지급
-                  </Button>
-                  <Button
-                    variant={filterType === 'deduct' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterType('deduct')}
-                    className={filterType === 'deduct' ? '' : 'text-red-600 border-red-300'}
-                  >
-                    차감
-                  </Button>
-                  <Button
-                    variant={filterType === 'campaign' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterType('campaign')}
-                    className={filterType === 'campaign' ? '' : 'text-blue-600 border-blue-300'}
-                  >
-                    캠페인
-                  </Button>
+                </div>
+
+                {/* 검색 및 유형 필터 */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="크리에이터명, 이메일, 사유, 캠페인명, User ID로 검색..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant={filterType === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('all')}
+                    >
+                      전체
+                    </Button>
+                    <Button
+                      variant={filterType === 'add' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('add')}
+                      className={filterType === 'add' ? '' : 'text-green-600 border-green-300'}
+                    >
+                      지급
+                    </Button>
+                    <Button
+                      variant={filterType === 'deduct' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('deduct')}
+                      className={filterType === 'deduct' ? '' : 'text-red-600 border-red-300'}
+                    >
+                      차감
+                    </Button>
+                    <Button
+                      variant={filterType === 'campaign' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('campaign')}
+                      className={filterType === 'campaign' ? '' : 'text-blue-600 border-blue-300'}
+                    >
+                      캠페인
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
