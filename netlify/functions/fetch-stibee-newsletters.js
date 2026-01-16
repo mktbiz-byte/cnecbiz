@@ -287,34 +287,9 @@ exports.handler = async (event) => {
       const stibeeId = email.id?.toString() || email.emailId?.toString()
       if (!stibeeId) continue
 
-      // HTML 본문 가져오기 (v2 API)
+      // HTML 본문은 permanentLink로 대체 (v2 content API가 작동하지 않음)
+      // 뉴스레터 보기는 permanentLink(https://stib.ee/xxx)를 사용
       let htmlContent = null
-      if (fetchContent !== false) {
-        try {
-          const contentUrl = `https://api.stibee.com/v2/emails/${stibeeId}/content`
-          console.log(`Fetching content for email ${stibeeId}...`)
-
-          const contentResponse = await fetch(contentUrl, {
-            method: 'GET',
-            headers: {
-              'AccessToken': STIBEE_API_KEY,
-              'Content-Type': 'application/json'
-            }
-          })
-
-          if (contentResponse.ok) {
-            const contentData = await contentResponse.json()
-            // content 응답에서 HTML 추출
-            htmlContent = contentData.Value?.html || contentData.value?.html ||
-                          contentData.html || contentData.content || contentData.body || null
-            console.log(`Got HTML content for ${stibeeId}: ${htmlContent ? htmlContent.length + ' chars' : 'null'}`)
-          } else {
-            console.log(`Failed to get content for ${stibeeId}: ${contentResponse.status}`)
-          }
-        } catch (contentErr) {
-          console.error(`Error fetching content for ${stibeeId}:`, contentErr.message)
-        }
-      }
 
       // 이미 저장된 뉴스레터인지 확인
       const { data: existing } = await supabaseBiz
