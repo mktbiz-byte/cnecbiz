@@ -194,13 +194,27 @@ export default function NewsletterShowcaseManagement() {
         body: JSON.stringify({ listId: selectedListId })
       })
 
-      const result = await response.json()
+      // 응답 텍스트를 먼저 가져옴
+      const responseText = await response.text()
+
+      // JSON 파싱 시도
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error('JSON 파싱 실패. 응답:', responseText.substring(0, 500))
+        throw new Error('서버에서 잘못된 응답을 받았습니다. 잠시 후 다시 시도해주세요.')
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || `서버 오류 (${response.status})`)
+      }
 
       if (result.success) {
         alert(`${result.message}\n\n새로 가져온 뉴스레터: ${result.saved}개\n전체 가져온 이메일: ${result.fetched}개`)
         fetchNewsletters() // 목록 새로고침
       } else {
-        alert('스티비 연동 오류: ' + result.error)
+        alert('스티비 연동 오류: ' + (result.error || '알 수 없는 오류'))
       }
     } catch (error) {
       console.error('스티비 연동 오류:', error)
