@@ -466,15 +466,16 @@ export default function NewsletterShowcase() {
                 )}
               </div>
               <div className="flex gap-2">
-                {selectedNewsletter?.stibee_url && (
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(selectedNewsletter.stibee_url, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    새 탭에서 열기
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDetailModal(false)
+                    navigate(`/newsletter/${selectedNewsletter?.id}`)
+                  }}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  자세히 보기
+                </Button>
                 <Button onClick={() => setShowDetailModal(false)}>
                   닫기
                 </Button>
