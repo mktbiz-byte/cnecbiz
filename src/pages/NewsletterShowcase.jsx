@@ -410,28 +410,56 @@ export default function NewsletterShowcase() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden relative">
             {selectedNewsletter?.is_members_only && !user ? (
-              <div className="flex flex-col items-center justify-center h-[65vh] text-gray-500 p-8">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                  <Lock className="w-10 h-10 text-blue-600" />
+              <>
+                {/* 맛보기 콘텐츠 (블러 처리) */}
+                <div className="w-full h-[65vh] overflow-hidden relative">
+                  {selectedNewsletter?.html_content ? (
+                    <div
+                      className="w-full h-full overflow-auto p-4 bg-white blur-sm pointer-events-none select-none"
+                      dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
+                    />
+                  ) : selectedNewsletter?.stibee_url ? (
+                    <iframe
+                      src={selectedNewsletter.stibee_url}
+                      className="w-full h-full border-0 blur-sm pointer-events-none"
+                      title={selectedNewsletter.title}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100" />
+                  )}
+
+                  {/* 그라데이션 오버레이 */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">회원 전용 콘텐츠</h3>
-                <p className="text-gray-600 mb-6 text-center max-w-md">
-                  이 뉴스레터는 회원 전용 콘텐츠입니다.<br />
-                  로그인 후 이용해주세요.
-                </p>
-                <Button
-                  onClick={() => {
-                    setShowDetailModal(false)
-                    navigate('/login')
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  로그인하기
-                </Button>
-              </div>
+
+                {/* 잠금 오버레이 */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 mx-4 max-w-md text-center border">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Lock className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">회원 전용 콘텐츠</h3>
+                    <p className="text-gray-600 mb-6">
+                      전체 내용을 보시려면<br />로그인이 필요합니다.
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setShowDetailModal(false)
+                        navigate('/login')
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 w-full"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      로그인하기
+                    </Button>
+                    <p className="text-xs text-gray-400 mt-4">
+                      아직 회원이 아니신가요? 무료로 가입하세요!
+                    </p>
+                  </div>
+                </div>
+              </>
             ) : selectedNewsletter?.html_content ? (
               <div
                 className="w-full h-[65vh] overflow-auto p-4 bg-white"
