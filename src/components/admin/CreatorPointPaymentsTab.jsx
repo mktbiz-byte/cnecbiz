@@ -20,6 +20,7 @@ export default function CreatorPointPaymentsTab() {
     try {
       const supabase = supabaseKorea || supabaseBiz
 
+      // 캠페인 포인트 지급: earn, campaign_complete 등 다양한 타입으로 저장됨
       let query = supabase
         .from('point_history')
         .select(`
@@ -30,7 +31,7 @@ export default function CreatorPointPaymentsTab() {
             phone
           )
         `)
-        .eq('type', 'earn')
+        .in('type', ['earn', 'campaign_complete', 'campaign_reward', 'bonus'])
         .order('created_at', { ascending: false })
         .limit(500)
 

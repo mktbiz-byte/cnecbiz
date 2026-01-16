@@ -75,10 +75,10 @@ export default function CreatorPointHistory() {
 
       // Korea DB에서 point_transactions 조회
       if (supabaseKorea) {
+        // point_transactions 테이블의 실제 필드는 'type' (earn, withdraw, bonus, adjustment 등)
         const { data: koreaData, error: koreaError } = await supabaseKorea
           .from('point_transactions')
           .select('*')
-          .in('transaction_type', ['admin_add', 'admin_deduct', 'campaign_reward', 'campaign_complete', 'earn', 'bonus', 'refund'])
           .order('created_at', { ascending: false })
           .limit(500)
 
@@ -144,8 +144,15 @@ export default function CreatorPointHistory() {
               }
             }
 
+            // type 필드를 transaction_type으로 매핑 (캠페인 완료인 경우 description에서 판단)
+            let transactionType = t.type || t.transaction_type || 'earn'
+            if (t.description?.includes('캠페인 완료') || t.description?.includes('캠페인 보상')) {
+              transactionType = 'campaign_reward'
+            }
+
             return {
               ...t,
+              transaction_type: transactionType,
               creator_name: creatorName || t.user_id?.substring(0, 8) + '...',
               creator_email: profile?.email || '',
               creator_phone: profile?.phone || '',
@@ -281,7 +288,11 @@ export default function CreatorPointHistory() {
       const amount = Math.abs(t.amount || 0)
       if (t.amount > 0) {
         totalPaid += amount
-        if (t.transaction_type === 'campaign_reward' || t.transaction_type === 'bonus') {
+        // 캠페인 보상: campaign_reward, campaign_complete, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
+        if (t.transaction_type === 'campaign_reward' ||
+            t.transaction_type === 'campaign_complete' ||
+            t.transaction_type === 'bonus' ||
+            t.description?.includes('캠페인')) {
           campaignRewards += amount
         } else if (t.transaction_type === 'admin_add') {
           adminAdd += amount
@@ -305,8 +316,11 @@ export default function CreatorPointHistory() {
       } else if (filterType === 'campaign') {
         filtered = filtered.filter(t =>
           t.transaction_type === 'campaign_reward' ||
+          t.transaction_type === 'campaign_complete' ||
           t.transaction_type === 'bonus' ||
-          t.related_campaign_id
+          t.related_campaign_id ||
+          t.campaign_id ||
+          t.description?.includes('캠페인')
         )
       }
     }
@@ -338,6 +352,8 @@ export default function CreatorPointHistory() {
     const types = {
       'admin_add': { color: 'bg-blue-100 text-blue-700', label: '관리자 지급' },
       'campaign_reward': { color: 'bg-green-100 text-green-700', label: '캠페인 보상' },
+      'campaign_complete': { color: 'bg-green-100 text-green-700', label: '캠페인 완료' },
+      'earn': { color: 'bg-emerald-100 text-emerald-700', label: '포인트 적립' },
       'bonus': { color: 'bg-purple-100 text-purple-700', label: '보너스' },
       'refund': { color: 'bg-orange-100 text-orange-700', label: '환불' },
     }
