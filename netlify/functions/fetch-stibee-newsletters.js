@@ -74,32 +74,53 @@ exports.handler = async (event) => {
       }
     }
 
-    // 1단계: 주소록(List) 목록 가져오기
-    const listsResponse = await fetch('https://api.stibee.com/v1/lists', {
-      method: 'GET',
-      headers: {
-        'AccessToken': STIBEE_API_KEY,
-        'Content-Type': 'application/json'
-      }
-    })
+    // 1단계: 주소록(List) 목록 가져오기 (페이지네이션 적용)
+    let allLists = []
+    const LIST_LIMIT = 100
+    let listOffset = 0
+    let hasMoreLists = true
 
-    if (!listsResponse.ok) {
-      const errorText = await listsResponse.text()
-      console.error('Stibee Lists API error:', listsResponse.status, errorText)
-      return {
-        statusCode: listsResponse.status,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: `스티비 주소록 API 오류: ${listsResponse.status} - ${errorText}`
-        })
+    while (hasMoreLists) {
+      const listsResponse = await fetch(`https://api.stibee.com/v1/lists?offset=${listOffset}&limit=${LIST_LIMIT}`, {
+        method: 'GET',
+        headers: {
+          'AccessToken': STIBEE_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!listsResponse.ok) {
+        const errorText = await listsResponse.text()
+        console.error('Stibee Lists API error:', listsResponse.status, errorText)
+        return {
+          statusCode: listsResponse.status,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: `스티비 주소록 API 오류: ${listsResponse.status} - ${errorText}`
+          })
+        }
+      }
+
+      const listsData = await listsResponse.json()
+      console.log(`Stibee Lists response (offset ${listOffset}):`, JSON.stringify(listsData).slice(0, 500))
+
+      const lists = listsData.Value || listsData.value || []
+
+      if (Array.isArray(lists) && lists.length > 0) {
+        allLists = allLists.concat(lists)
+        listOffset += LIST_LIMIT
+
+        // 가져온 개수가 LIMIT보다 작으면 더 이상 없음
+        if (lists.length < LIST_LIMIT) {
+          hasMoreLists = false
+        }
+      } else {
+        hasMoreLists = false
       }
     }
 
-    const listsData = await listsResponse.json()
-    console.log('Stibee Lists response:', JSON.stringify(listsData).slice(0, 500))
-
-    const allLists = listsData.Value || listsData.value || []
+    console.log(`Total lists fetched: ${allLists.length}`)
 
     if (!Array.isArray(allLists) || allLists.length === 0) {
       return {
