@@ -28,7 +28,7 @@ export default function NewsletterShowcaseManagement() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all') // all, active, inactive
-  const [viewMode, setViewMode] = useState('card') // card, list
+  const [viewMode, setViewMode] = useState('list') // card, list
   const [selectedIds, setSelectedIds] = useState([]) // 선택된 뉴스레터 ID들
 
   // 모달 상태
@@ -1033,7 +1033,7 @@ export default function NewsletterShowcaseManagement() {
                 {filteredNewsletters.map((newsletter) => (
                   <Card
                     key={newsletter.id}
-                    className={`overflow-hidden transition-all ${
+                    className={`relative overflow-hidden transition-all ${
                       !newsletter.is_active ? 'opacity-60' : ''
                     } ${newsletter.is_featured ? 'ring-2 ring-yellow-400' : ''} ${selectedIds.includes(newsletter.id) ? 'ring-2 ring-blue-500' : ''}`}
                   >
@@ -1043,13 +1043,13 @@ export default function NewsletterShowcaseManagement() {
                         type="checkbox"
                         checked={selectedIds.includes(newsletter.id)}
                         onChange={() => handleSelectToggle(newsletter.id)}
-                        className="w-5 h-5 rounded border-gray-300 bg-white/80"
+                        className="w-5 h-5 rounded border-gray-300 bg-white/90 shadow cursor-pointer"
                       />
                     </div>
 
                     {/* 썸네일 */}
                     <div
-                      className="relative h-40 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center cursor-pointer"
+                      className="h-40 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center cursor-pointer"
                       onClick={() => openPreview(newsletter)}
                     >
                       {newsletter.thumbnail_url ? (
