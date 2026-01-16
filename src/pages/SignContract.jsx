@@ -20,10 +20,10 @@ const SIGNATURE_STYLES = [
 
 // 도장 스타일 정의
 const STAMP_STYLES = [
-  { id: 'circle1', name: '원형 법인인감 1', type: 'circle1' },
-  { id: 'circle2', name: '원형 법인인감 2', type: 'circle2' },
+  { id: 'circle1', name: '원형 법인인감', type: 'circle1' },
   { id: 'square', name: '사각 법인인감', type: 'square' },
-  { id: 'oval', name: '타원형 개인도장', type: 'oval' },
+  { id: 'oval', name: '타원형 직인', type: 'oval' },
+  { id: 'modern', name: '모던 직인', type: 'modern' },
 ]
 
 export default function SignContract() {
@@ -117,238 +117,147 @@ export default function SignContract() {
     }
   }
 
-  // 도장 스타일 자동 생성 (Black Han Sans + 강화된 인장 효과)
+  // SVG 기반 고퀄리티 도장 생성
   const generateStamps = (companyName, ceoName) => {
+    const stampColor = '#c23a3a'
+    const cleanCompanyName = companyName.replace(/^주식회사\s*/, '').replace(/\s*주식회사$/, '').substring(0, 4)
+    const cleanCeoName = ceoName.substring(0, 3)
+
+    // SVG를 Data URL로 변환
+    const svgToDataUrl = (svgString) => {
+      const encoded = encodeURIComponent(svgString)
+      return `data:image/svg+xml,${encoded}`
+    }
+
+    // 필터 정의 (도장 찍힌 느낌)
+    const stampFilter = `
+      <defs>
+        <filter id="stamp-texture" x="-20%" y="-20%" width="140%" height="140%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="5" result="noise"/>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="2" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <filter id="rough-edge" x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="2" result="noise"/>
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5"/>
+        </filter>
+      </defs>
+    `
+
     const stamps = STAMP_STYLES.map(style => {
-      const canvas = document.createElement('canvas')
-      const scale = 2
-      canvas.width = 400 * scale
-      canvas.height = 400 * scale
-      const ctx = canvas.getContext('2d')
-      ctx.scale(scale, scale)
-
-      const centerX = 200
-      const centerY = 200
-      const stampColor = '#c23a3a' // 선명한 인주색
-
-      ctx.clearRect(0, 0, 400, 400)
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = 'high'
-
-      // 회사명 정리 (주식회사 제거)
-      const cleanCompanyName = companyName.replace(/^주식회사\s*/, '').replace(/\s*주식회사$/, '').substring(0, 4)
-
-      // 인장 스타일 텍스트 (Black Han Sans - 매우 굵은 고딕)
-      const drawSealText = (text, x, y, fontSize, isVertical = false) => {
-        ctx.font = `${fontSize}px 'Black Han Sans', sans-serif`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillStyle = stampColor
-
-        if (isVertical) {
-          const chars = text.split('')
-          const charHeight = fontSize * 1.05
-          const totalHeight = (chars.length - 1) * charHeight
-          chars.forEach((char, i) => {
-            const cy = y - totalHeight / 2 + i * charHeight
-            ctx.fillText(char, x, cy)
-          })
-        } else {
-          ctx.fillText(text, x, y)
-        }
-      }
-
-      // 실제 도장 찍힌 느낌의 텍스처
-      const addRealisticTexture = () => {
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const data = imageData.data
-
-        for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 3] > 0) {
-            // 색상 미세 변화 (인주 불균일)
-            const colorNoise = (Math.random() - 0.5) * 25
-            data[i] = Math.min(255, Math.max(0, data[i] + colorNoise))
-            data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + colorNoise * 0.3))
-            data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + colorNoise * 0.3))
-
-            // 5% 확률로 잉크 빠짐 효과
-            if (Math.random() > 0.95) {
-              data[i + 3] = Math.max(80, data[i + 3] - Math.random() * 100)
-            }
-          }
-        }
-        ctx.putImageData(imageData, 0, 0)
-      }
+      let svgContent = ''
 
       if (style.type === 'circle1') {
-        // 원형 법인인감 - 전통 스타일
-        const outerRadius = 168
-        const innerRadius = 58
+        // 원형 법인인감 - 전문적인 디자인
+        svgContent = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+            ${stampFilter}
+            <g filter="url(#rough-edge)">
+              <!-- 외곽 이중 원 -->
+              <circle cx="100" cy="100" r="92" fill="none" stroke="${stampColor}" stroke-width="6"/>
+              <circle cx="100" cy="100" r="82" fill="none" stroke="${stampColor}" stroke-width="2"/>
 
-        // 굵은 외곽 원
-        ctx.strokeStyle = stampColor
-        ctx.lineWidth = 12
-        ctx.beginPath()
-        ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2)
-        ctx.stroke()
+              <!-- 내부 원 -->
+              <circle cx="100" cy="100" r="32" fill="none" stroke="${stampColor}" stroke-width="3"/>
 
-        // 내부 원
-        ctx.lineWidth = 6
-        ctx.beginPath()
-        ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2)
-        ctx.stroke()
+              <!-- 중앙 텍스트: 대표이사 -->
+              <text x="100" y="94" text-anchor="middle" font-family="serif" font-size="18" font-weight="900" fill="${stampColor}">대표</text>
+              <text x="100" y="114" text-anchor="middle" font-family="serif" font-size="18" font-weight="900" fill="${stampColor}">이사</text>
 
-        // 중앙: 대표이사 (2줄)
-        drawSealText('대표', centerX, centerY - 16, 38)
-        drawSealText('이사', centerX, centerY + 22, 38)
+              <!-- 상단 회사명 (원형 배치) -->
+              <text font-family="serif" font-size="14" font-weight="700" fill="${stampColor}">
+                <textPath href="#topArc" startOffset="50%" text-anchor="middle">${cleanCompanyName}</textPath>
+              </text>
+              <path id="topArc" d="M 30,100 A 70,70 0 0,1 170,100" fill="none"/>
 
-        // 상단 호: 회사명 (균등 배치)
-        const textRadius = (outerRadius + innerRadius) / 2 + 2
-        const companyChars = cleanCompanyName.split('')
-        ctx.font = "28px 'Black Han Sans', sans-serif"
-        ctx.fillStyle = stampColor
+              <!-- 하단 주식회사 -->
+              <text font-family="serif" font-size="12" font-weight="700" fill="${stampColor}">
+                <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">주식회사</textPath>
+              </text>
+              <path id="bottomArc" d="M 170,100 A 70,70 0 0,1 30,100" fill="none"/>
 
-        const arcSpan = Math.PI * 0.55
-        const charCount = companyChars.length
-        companyChars.forEach((char, i) => {
-          const angle = charCount === 1
-            ? -Math.PI / 2
-            : -Math.PI / 2 - arcSpan / 2 + (arcSpan / (charCount - 1)) * i
-          const x = centerX + textRadius * Math.cos(angle)
-          const y = centerY + textRadius * Math.sin(angle)
-          ctx.save()
-          ctx.translate(x, y)
-          ctx.rotate(angle + Math.PI / 2)
-          ctx.fillText(char, 0, 0)
-          ctx.restore()
-        })
-
-        // 하단 호: 주식회사
-        ctx.font = "24px 'Black Han Sans', sans-serif"
-        const bottomChars = ['주', '식', '회', '사']
-        const bottomArcSpan = Math.PI * 0.45
-        bottomChars.forEach((char, i) => {
-          const angle = Math.PI / 2 + bottomArcSpan / 2 - (bottomArcSpan / 3) * i
-          const x = centerX + textRadius * Math.cos(angle)
-          const y = centerY + textRadius * Math.sin(angle)
-          ctx.save()
-          ctx.translate(x, y)
-          ctx.rotate(angle - Math.PI / 2)
-          ctx.fillText(char, 0, 0)
-          ctx.restore()
-        })
-
-        // 좌우 별 장식
-        ctx.font = "18px serif"
-        ctx.fillText('★', centerX - textRadius - 3, centerY)
-        ctx.fillText('★', centerX + textRadius + 3, centerY)
-
-        addRealisticTexture()
-
-      } else if (style.type === 'circle2') {
-        // 원형 법인인감 2 - 모던 심플
-        const outerRadius = 168
-        const innerRadius = 52
-
-        // 굵은 외곽 원
-        ctx.strokeStyle = stampColor
-        ctx.lineWidth = 14
-        ctx.beginPath()
-        ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2)
-        ctx.stroke()
-
-        // 내부 원
-        ctx.lineWidth = 5
-        ctx.beginPath()
-        ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2)
-        ctx.stroke()
-
-        // 중앙: 대표
-        drawSealText('대표', centerX, centerY, 46)
-
-        // 좌우 수평선
-        ctx.lineWidth = 5
-        ctx.beginPath()
-        ctx.moveTo(centerX - innerRadius - 10, centerY)
-        ctx.lineTo(centerX - outerRadius + 18, centerY)
-        ctx.moveTo(centerX + innerRadius + 10, centerY)
-        ctx.lineTo(centerX + outerRadius - 18, centerY)
-        ctx.stroke()
-
-        // 회사명 (상단)
-        const textRadius = (outerRadius + innerRadius) / 2 + 2
-        const companyText = cleanCompanyName + '㈜'
-        const companyChars = companyText.split('')
-        ctx.font = "26px 'Black Han Sans', sans-serif"
-        ctx.fillStyle = stampColor
-
-        const arcSpan = Math.PI * 0.75
-        companyChars.forEach((char, i) => {
-          const angle = -Math.PI / 2 - arcSpan / 2 + (arcSpan / (companyChars.length - 1)) * i
-          const x = centerX + textRadius * Math.cos(angle)
-          const y = centerY + textRadius * Math.sin(angle)
-          ctx.save()
-          ctx.translate(x, y)
-          ctx.rotate(angle + Math.PI / 2)
-          ctx.fillText(char, 0, 0)
-          ctx.restore()
-        })
-
-        addRealisticTexture()
-
-      } else if (style.type === 'oval') {
-        // 타원형 개인도장
-        const radiusX = 62
-        const radiusY = 130
-
-        // 굵은 외곽 타원
-        ctx.strokeStyle = stampColor
-        ctx.lineWidth = 10
-        ctx.beginPath()
-        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2)
-        ctx.stroke()
-
-        // 이름 세로 배치
-        drawSealText(ceoName.substring(0, 3), centerX, centerY, 52, true)
-
-        addRealisticTexture()
-
+              <!-- 좌우 별 -->
+              <text x="28" y="103" font-size="10" fill="${stampColor}">★</text>
+              <text x="168" y="103" font-size="10" fill="${stampColor}">★</text>
+            </g>
+          </svg>
+        `
       } else if (style.type === 'square') {
-        // 사각 법인인감 - 전통 관인
-        const size = 280
-        const startX = centerX - size / 2
-        const startY = centerY - size / 2
+        // 사각 법인인감 - 전통 관인 스타일
+        svgContent = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+            ${stampFilter}
+            <g filter="url(#rough-edge)">
+              <!-- 외곽 사각형 -->
+              <rect x="20" y="20" width="160" height="160" fill="none" stroke="${stampColor}" stroke-width="6"/>
 
-        // 굵은 외곽 사각형
-        ctx.strokeStyle = stampColor
-        ctx.lineWidth = 12
-        ctx.strokeRect(startX, startY, size, size)
+              <!-- 십자 구분선 -->
+              <line x1="100" y1="26" x2="100" y2="174" stroke="${stampColor}" stroke-width="3"/>
+              <line x1="26" y1="100" x2="174" y2="100" stroke="${stampColor}" stroke-width="3"/>
 
-        // 십자 구분선
-        ctx.lineWidth = 6
-        ctx.beginPath()
-        ctx.moveTo(centerX, startY + 16)
-        ctx.lineTo(centerX, startY + size - 16)
-        ctx.moveTo(startX + 16, centerY)
-        ctx.lineTo(startX + size - 16, centerY)
-        ctx.stroke()
+              <!-- 4칸 글자 (세로 읽기: 우상→우하→좌상→좌하) -->
+              <text x="140" y="70" text-anchor="middle" font-family="serif" font-size="36" font-weight="900" fill="${stampColor}">대</text>
+              <text x="140" y="145" text-anchor="middle" font-family="serif" font-size="36" font-weight="900" fill="${stampColor}">표</text>
+              <text x="60" y="70" text-anchor="middle" font-family="serif" font-size="36" font-weight="900" fill="${stampColor}">이</text>
+              <text x="60" y="145" text-anchor="middle" font-family="serif" font-size="36" font-weight="900" fill="${stampColor}">사</text>
+            </g>
+          </svg>
+        `
+      } else if (style.type === 'oval') {
+        // 타원형 직인
+        const nameChars = cleanCeoName.split('')
+        const nameTexts = nameChars.map((char, i) => {
+          const y = 100 - (nameChars.length - 1) * 25 / 2 + i * 25
+          return `<text x="100" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="serif" font-size="28" font-weight="900" fill="${stampColor}">${char}</text>`
+        }).join('')
 
-        // 4칸에 대표이사 (전통 읽기: 우→좌, 상→하)
-        const qSize = size / 4
-        drawSealText('대', centerX + qSize, centerY - qSize, 58)
-        drawSealText('표', centerX + qSize, centerY + qSize, 58)
-        drawSealText('이', centerX - qSize, centerY - qSize, 58)
-        drawSealText('사', centerX - qSize, centerY + qSize, 58)
+        svgContent = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+            ${stampFilter}
+            <g filter="url(#rough-edge)">
+              <!-- 외곽 타원 -->
+              <ellipse cx="100" cy="100" rx="35" ry="70" fill="none" stroke="${stampColor}" stroke-width="5"/>
 
-        addRealisticTexture()
+              <!-- 이름 세로 배치 -->
+              ${nameTexts}
+            </g>
+          </svg>
+        `
+      } else if (style.type === 'modern') {
+        // 모던 직인 - 깔끔한 원형
+        svgContent = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
+            ${stampFilter}
+            <g filter="url(#rough-edge)">
+              <!-- 굵은 외곽 원 -->
+              <circle cx="100" cy="100" r="90" fill="none" stroke="${stampColor}" stroke-width="8"/>
+
+              <!-- 내부 원 -->
+              <circle cx="100" cy="100" r="35" fill="none" stroke="${stampColor}" stroke-width="3"/>
+
+              <!-- 좌우 가로선 -->
+              <line x1="15" y1="100" x2="62" y2="100" stroke="${stampColor}" stroke-width="3"/>
+              <line x1="138" y1="100" x2="185" y2="100" stroke="${stampColor}" stroke-width="3"/>
+
+              <!-- 중앙 텍스트 -->
+              <text x="100" y="106" text-anchor="middle" font-family="serif" font-size="24" font-weight="900" fill="${stampColor}">대표</text>
+
+              <!-- 상단 회사명 -->
+              <text font-family="serif" font-size="13" font-weight="700" fill="${stampColor}">
+                <textPath href="#modernTopArc" startOffset="50%" text-anchor="middle">${cleanCompanyName}㈜</textPath>
+              </text>
+              <path id="modernTopArc" d="M 25,100 A 75,75 0 0,1 175,100" fill="none"/>
+            </g>
+          </svg>
+        `
       }
 
       return {
         id: style.id,
         name: style.name,
-        dataUrl: canvas.toDataURL('image/png')
+        dataUrl: svgToDataUrl(svgContent)
       }
     })
+
     setGeneratedStamps(stamps)
     if (!selectedGeneratedStamp) {
       setSelectedGeneratedStamp(stamps[0]?.dataUrl)
