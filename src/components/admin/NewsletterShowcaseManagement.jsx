@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
-  Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square
+  Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 
@@ -255,6 +255,7 @@ export default function NewsletterShowcaseManagement() {
       const { data, error } = await supabaseBiz
         .from('newsletters')
         .select('*')
+        .order('display_order', { ascending: true })
         .order('published_at', { ascending: false })
 
       if (error) throw error
@@ -589,6 +590,79 @@ export default function NewsletterShowcaseManagement() {
     fetchNewsletters()
   }
 
+  // 순서 위로 이동
+  const handleMoveUp = async (newsletter, index) => {
+    if (index === 0) return // 이미 맨 위
+
+    const prevNewsletter = filteredNewsletters[index - 1]
+    const currentOrder = newsletter.display_order ?? index
+    const prevOrder = prevNewsletter.display_order ?? (index - 1)
+
+    try {
+      // 두 뉴스레터의 순서를 교환
+      await supabaseBiz
+        .from('newsletters')
+        .update({ display_order: prevOrder })
+        .eq('id', newsletter.id)
+
+      await supabaseBiz
+        .from('newsletters')
+        .update({ display_order: currentOrder })
+        .eq('id', prevNewsletter.id)
+
+      fetchNewsletters()
+    } catch (error) {
+      console.error('순서 변경 오류:', error)
+      alert('순서 변경에 실패했습니다.')
+    }
+  }
+
+  // 순서 아래로 이동
+  const handleMoveDown = async (newsletter, index) => {
+    if (index >= filteredNewsletters.length - 1) return // 이미 맨 아래
+
+    const nextNewsletter = filteredNewsletters[index + 1]
+    const currentOrder = newsletter.display_order ?? index
+    const nextOrder = nextNewsletter.display_order ?? (index + 1)
+
+    try {
+      // 두 뉴스레터의 순서를 교환
+      await supabaseBiz
+        .from('newsletters')
+        .update({ display_order: nextOrder })
+        .eq('id', newsletter.id)
+
+      await supabaseBiz
+        .from('newsletters')
+        .update({ display_order: currentOrder })
+        .eq('id', nextNewsletter.id)
+
+      fetchNewsletters()
+    } catch (error) {
+      console.error('순서 변경 오류:', error)
+      alert('순서 변경에 실패했습니다.')
+    }
+  }
+
+  // 순서 초기화 (현재 순서대로 display_order 재설정)
+  const handleResetOrder = async () => {
+    if (!confirm('모든 뉴스레터의 표시 순서를 현재 목록 순서대로 초기화하시겠습니까?')) return
+
+    try {
+      for (let i = 0; i < filteredNewsletters.length; i++) {
+        await supabaseBiz
+          .from('newsletters')
+          .update({ display_order: i })
+          .eq('id', filteredNewsletters[i].id)
+      }
+      alert('순서가 초기화되었습니다.')
+      fetchNewsletters()
+    } catch (error) {
+      console.error('순서 초기화 오류:', error)
+      alert('순서 초기화에 실패했습니다.')
+    }
+  }
+
   const filteredNewsletters = newsletters.filter(newsletter => {
     const matchesSearch = !searchTerm ||
       newsletter.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -841,6 +915,10 @@ export default function NewsletterShowcaseManagement() {
                   <List className="w-4 h-4" />
                 </button>
               </div>
+              <Button variant="outline" size="sm" onClick={handleResetOrder} title="순서 초기화">
+                <GripVertical className="w-4 h-4 mr-1" />
+                순서 초기화
+              </Button>
               <Button variant="outline" size="sm" onClick={fetchNewsletters}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 새로고침
@@ -868,6 +946,45 @@ export default function NewsletterShowcaseManagement() {
               {selectedIds.length > 0 && (
                 <>
                   <span className="text-sm text-gray-500">{selectedIds.length}개 선택</span>
+                  {/* 카테고리 일괄 변경 */}
+                  <div className="flex items-center gap-1">
+                    <select
+                      id="bulkCategory"
+                      className="text-sm border rounded px-2 py-1.5"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>카테고리</option>
+                      {CATEGORIES.map(cat => (
+                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        const select = document.getElementById('bulkCategory')
+                        const category = select.value
+                        if (!category) {
+                          alert('카테고리를 선택하세요.')
+                          return
+                        }
+                        if (!confirm(`${selectedIds.length}개 뉴스레터의 카테고리를 변경하시겠습니까?`)) return
+                        try {
+                          await supabaseBiz
+                            .from('newsletters')
+                            .update({ category })
+                            .in('id', selectedIds)
+                          alert('카테고리가 변경되었습니다.')
+                          setSelectedIds([])
+                          fetchNewsletters()
+                        } catch (err) {
+                          alert('카테고리 변경에 실패했습니다.')
+                        }
+                      }}
+                    >
+                      적용
+                    </Button>
+                  </div>
                   <Button
                     size="sm"
                     onClick={handleBulkExtractThumbnails}
@@ -919,6 +1036,7 @@ export default function NewsletterShowcaseManagement() {
                           className="w-4 h-4 rounded border-gray-300"
                         />
                       </th>
+                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-16">순서</th>
                       <th className="p-3 text-left text-sm font-medium text-gray-600">제목</th>
                       <th className="p-3 text-left text-sm font-medium text-gray-600 w-24">카테고리</th>
                       <th className="p-3 text-left text-sm font-medium text-gray-600 w-28">발행일</th>
@@ -928,7 +1046,7 @@ export default function NewsletterShowcaseManagement() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredNewsletters.map((newsletter) => (
+                    {filteredNewsletters.map((newsletter, index) => (
                       <tr
                         key={newsletter.id}
                         className={`border-b hover:bg-gray-50 ${!newsletter.is_active ? 'opacity-60' : ''} ${selectedIds.includes(newsletter.id) ? 'bg-blue-50' : ''}`}
@@ -940,6 +1058,26 @@ export default function NewsletterShowcaseManagement() {
                             onChange={() => handleSelectToggle(newsletter.id)}
                             className="w-4 h-4 rounded border-gray-300"
                           />
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button
+                              onClick={() => handleMoveUp(newsletter, index)}
+                              disabled={index === 0}
+                              className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+                              title="위로 이동"
+                            >
+                              <ArrowUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleMoveDown(newsletter, index)}
+                              disabled={index >= filteredNewsletters.length - 1}
+                              className={`p-1 rounded ${index >= filteredNewsletters.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+                              title="아래로 이동"
+                            >
+                              <ArrowDown className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-3">
