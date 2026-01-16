@@ -3185,33 +3185,39 @@ JSON만 출력.`
             .eq('id', userId)
 
           // 포인트 이력 저장 (point_history 또는 point_transactions)
-          try {
-            await supabase
-              .from('point_history')
+          // Supabase는 에러를 throw하지 않으므로 { data, error } 체크 필요
+          const { error: historyError } = await supabase
+            .from('point_history')
+            .insert([{
+              user_id: userId,
+              campaign_id: campaign.id,
+              amount: pointAmount,
+              type: 'campaign_complete',
+              reason: `캠페인 완료: ${campaign.title}`,
+              balance_after: newPoints,
+              created_at: new Date().toISOString()
+            }])
+
+          if (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError.message)
+            const { error: txError } = await supabase
+              .from('point_transactions')
               .insert([{
                 user_id: userId,
-                campaign_id: campaign.id,
                 amount: pointAmount,
-                type: 'campaign_complete',
-                reason: `캠페인 완료: ${campaign.title}`,
-                balance_after: newPoints,
+                type: 'earn',
+                description: `캠페인 완료: ${campaign.title}`,
+                related_campaign_id: campaign.id,
                 created_at: new Date().toISOString()
               }])
-          } catch (historyError) {
-            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
-            try {
-              await supabase
-                .from('point_transactions')
-                .insert([{
-                  user_id: userId,
-                  amount: pointAmount,
-                  type: 'earn',
-                  description: `캠페인 완료: ${campaign.title}`,
-                  created_at: new Date().toISOString()
-                }])
-            } catch (txError) {
-              console.log('point_transactions 저장도 실패 (무시):', txError)
+
+            if (txError) {
+              console.log('point_transactions 저장도 실패:', txError.message)
+            } else {
+              console.log('point_transactions에 저장 완료')
             }
+          } else {
+            console.log('point_history에 저장 완료')
           }
 
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
@@ -3338,33 +3344,39 @@ JSON만 출력.`
             .eq('id', userId)
 
           // 포인트 이력 저장 (point_history 또는 point_transactions)
-          try {
-            await supabase
-              .from('point_history')
+          // Supabase는 에러를 throw하지 않으므로 { data, error } 체크 필요
+          const { error: historyError2 } = await supabase
+            .from('point_history')
+            .insert([{
+              user_id: userId,
+              campaign_id: campaign.id,
+              amount: pointAmount,
+              type: 'campaign_complete',
+              reason: `캠페인 완료: ${campaign.title}`,
+              balance_after: newPoints,
+              created_at: new Date().toISOString()
+            }])
+
+          if (historyError2) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError2.message)
+            const { error: txError2 } = await supabase
+              .from('point_transactions')
               .insert([{
                 user_id: userId,
-                campaign_id: campaign.id,
                 amount: pointAmount,
-                type: 'campaign_complete',
-                reason: `캠페인 완료: ${campaign.title}`,
-                balance_after: newPoints,
+                type: 'earn',
+                description: `캠페인 완료: ${campaign.title}`,
+                related_campaign_id: campaign.id,
                 created_at: new Date().toISOString()
               }])
-          } catch (historyError) {
-            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
-            try {
-              await supabase
-                .from('point_transactions')
-                .insert([{
-                  user_id: userId,
-                  amount: pointAmount,
-                  type: 'earn',
-                  description: `캠페인 완료: ${campaign.title}`,
-                  created_at: new Date().toISOString()
-                }])
-            } catch (txError) {
-              console.log('point_transactions 저장도 실패 (무시):', txError)
+
+            if (txError2) {
+              console.log('point_transactions 저장도 실패:', txError2.message)
+            } else {
+              console.log('point_transactions에 저장 완료')
             }
+          } else {
+            console.log('point_history에 저장 완료')
           }
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
