@@ -965,6 +965,51 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // 특정 위치로 이동
+  const handleMoveToPosition = async (newsletter, currentIndex, targetPosition) => {
+    // 입력값 검증
+    const target = parseInt(targetPosition)
+    if (isNaN(target) || target < 1 || target > filteredNewsletters.length) {
+      alert(`1~${filteredNewsletters.length} 사이의 숫자를 입력하세요.`)
+      return
+    }
+
+    const targetIndex = target - 1 // 0-based index
+    if (targetIndex === currentIndex) return // 같은 위치면 무시
+
+    try {
+      // 이동 방향에 따라 영향받는 항목들의 순서를 조정
+      if (targetIndex < currentIndex) {
+        // 위로 이동: target ~ current-1 까지 +1
+        for (let i = targetIndex; i < currentIndex; i++) {
+          await supabaseBiz
+            .from('newsletters')
+            .update({ display_order: i + 1 })
+            .eq('id', filteredNewsletters[i].id)
+        }
+      } else {
+        // 아래로 이동: current+1 ~ target 까지 -1
+        for (let i = currentIndex + 1; i <= targetIndex; i++) {
+          await supabaseBiz
+            .from('newsletters')
+            .update({ display_order: i - 1 })
+            .eq('id', filteredNewsletters[i].id)
+        }
+      }
+
+      // 현재 항목을 목표 위치로 이동
+      await supabaseBiz
+        .from('newsletters')
+        .update({ display_order: targetIndex })
+        .eq('id', newsletter.id)
+
+      await fetchNewsletters()
+    } catch (error) {
+      console.error('위치 이동 오류:', error)
+      alert('위치 이동에 실패했습니다: ' + error.message)
+    }
+  }
+
   // 순서 초기화 (현재 순서대로 display_order 재설정)
   const handleResetOrder = async () => {
     if (!confirm('모든 뉴스레터의 표시 순서를 현재 목록 순서대로 초기화하시겠습니까?')) return
@@ -1425,22 +1470,32 @@ export default function NewsletterShowcaseManagement() {
                           />
                         </td>
                         <td className="p-3">
-                          <div className="flex items-center justify-center gap-0.5">
+                          <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => handleMoveUp(newsletter, index)}
                               disabled={index === 0}
-                              className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+                              className={`p-0.5 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
                               title="위로 이동"
                             >
-                              <ArrowUp className="w-4 h-4" />
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                const target = prompt(`이동할 위치를 입력하세요 (1~${filteredNewsletters.length})`, index + 1)
+                                if (target) handleMoveToPosition(newsletter, index, target)
+                              }}
+                              className="min-w-[28px] px-1.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded border border-transparent hover:border-blue-200 cursor-pointer"
+                              title="클릭하여 위치 직접 입력"
+                            >
+                              {index + 1}
                             </button>
                             <button
                               onClick={() => handleMoveDown(newsletter, index)}
                               disabled={index >= filteredNewsletters.length - 1}
-                              className={`p-1 rounded ${index >= filteredNewsletters.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
+                              className={`p-0.5 rounded ${index >= filteredNewsletters.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`}
                               title="아래로 이동"
                             >
-                              <ArrowDown className="w-4 h-4" />
+                              <ArrowDown className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
