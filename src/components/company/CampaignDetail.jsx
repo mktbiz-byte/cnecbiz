@@ -264,7 +264,7 @@ export default function CampaignDetail() {
     phone_number: '',
     postal_code: '',
     address: '',
-    detail_address: ''
+    delivery_notes: ''
   })
   const [savingAddress, setSavingAddress] = useState(false)
   // Bulk guide generation state
@@ -1199,7 +1199,7 @@ export default function CampaignDetail() {
       phone_number: participant.phone_number || participant.phone || '',
       postal_code: participant.postal_code || '',
       address: participant.address || '',
-      detail_address: participant.detail_address || ''
+      delivery_notes: participant.delivery_notes || participant.delivery_request || ''
     })
   }
 
@@ -1213,7 +1213,7 @@ export default function CampaignDetail() {
         phone_number: addressFormData.phone_number,
         postal_code: addressFormData.postal_code,
         address: addressFormData.address,
-        detail_address: addressFormData.detail_address
+        delivery_notes: addressFormData.delivery_notes
       }
 
       const { error } = await supabase
@@ -4521,12 +4521,12 @@ JSON만 출력.`
                                 />
                               </div>
                               <div className="col-span-2">
-                                <label className="text-xs text-gray-600">상세주소</label>
+                                <label className="text-xs text-gray-600">배송 요청사항</label>
                                 <input
                                   type="text"
-                                  value={addressFormData.detail_address}
-                                  onChange={(e) => setAddressFormData({...addressFormData, detail_address: e.target.value})}
-                                  placeholder="Apt 4B"
+                                  value={addressFormData.delivery_notes}
+                                  onChange={(e) => setAddressFormData({...addressFormData, delivery_notes: e.target.value})}
+                                  placeholder="문 앞에 놓아주세요"
                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
                                 />
                               </div>
