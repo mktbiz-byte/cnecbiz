@@ -58,11 +58,23 @@ export default function NewsletterShowcaseManagement() {
   const [savingApiKey, setSavingApiKey] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
 
+  // 스티비 주소록 관리
+  const [stibeeLists, setStibeeLists] = useState([])
+  const [selectedListId, setSelectedListId] = useState('')
+  const [loadingLists, setLoadingLists] = useState(false)
+
   useEffect(() => {
     checkAuth()
     fetchNewsletters()
     fetchApiKey()
   }, [])
+
+  // API 키가 로드되면 주소록 목록 가져오기
+  useEffect(() => {
+    if (apiKeyLoaded) {
+      fetchStibeeLists()
+    }
+  }, [apiKeyLoaded])
 
   // API 키 조회
   const fetchApiKey = async () => {
@@ -139,15 +151,47 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // 스티비 주소록 목록 가져오기
+  const fetchStibeeLists = async () => {
+    setLoadingLists(true)
+    try {
+      const response = await fetch('/.netlify/functions/fetch-stibee-newsletters', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'lists' })
+      })
+
+      const result = await response.json()
+
+      if (result.success && result.lists) {
+        setStibeeLists(result.lists)
+        // 첫 번째 주소록 자동 선택
+        if (result.lists.length > 0 && !selectedListId) {
+          setSelectedListId(result.lists[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('주소록 조회 오류:', error)
+    } finally {
+      setLoadingLists(false)
+    }
+  }
+
   // 스티비에서 뉴스레터 가져오기
   const fetchFromStibee = async () => {
     if (fetchingStibee) return
+
+    if (!selectedListId) {
+      alert('가져올 주소록을 선택해주세요.')
+      return
+    }
 
     setFetchingStibee(true)
     try {
       const response = await fetch('/.netlify/functions/fetch-stibee-newsletters', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listId: selectedListId })
       })
 
       const result = await response.json()
@@ -472,6 +516,45 @@ export default function NewsletterShowcaseManagement() {
             <p className="text-xs text-gray-500 mt-2">
               스티비 &gt; 설정 &gt; API 키에서 발급받은 키를 입력하세요. 뉴스레터를 자동으로 가져오려면 API 키가 필요합니다.
             </p>
+
+            {/* 주소록 선택 */}
+            {apiKeyLoaded && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-medium">주소록 선택</span>
+                  {loadingLists && <Loader2 className="w-3 h-3 animate-spin text-gray-400" />}
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    className="flex-1 p-2 border rounded-lg text-sm"
+                    value={selectedListId}
+                    onChange={(e) => setSelectedListId(e.target.value)}
+                    disabled={loadingLists || stibeeLists.length === 0}
+                  >
+                    {stibeeLists.length === 0 ? (
+                      <option value="">주소록 없음</option>
+                    ) : (
+                      stibeeLists.map((list) => (
+                        <option key={list.id} value={list.id}>
+                          {list.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchStibeeLists}
+                    disabled={loadingLists}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loadingLists ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  뉴스레터를 가져올 주소록을 선택하세요. "스티비에서 가져오기" 버튼을 누르면 선택된 주소록의 발송 완료된 메일을 가져옵니다.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

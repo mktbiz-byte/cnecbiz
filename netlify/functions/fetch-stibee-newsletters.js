@@ -38,6 +38,16 @@ exports.handler = async (event) => {
       }
     }
 
+    // 요청 바디 파싱
+    let requestBody = {}
+    try {
+      requestBody = JSON.parse(event.body || '{}')
+    } catch (e) {
+      requestBody = {}
+    }
+
+    const { action, listId, listName } = requestBody
+
     // 1. 환경변수에서 먼저 확인
     let STIBEE_API_KEY = process.env.STIBEE_API_KEY
 
@@ -89,9 +99,9 @@ exports.handler = async (event) => {
     const listsData = await listsResponse.json()
     console.log('Stibee Lists response:', JSON.stringify(listsData).slice(0, 500))
 
-    const lists = listsData.Value || listsData.value || []
+    const allLists = listsData.Value || listsData.value || []
 
-    if (!Array.isArray(lists) || lists.length === 0) {
+    if (!Array.isArray(allLists) || allLists.length === 0) {
       return {
         statusCode: 200,
         headers,
@@ -100,20 +110,59 @@ exports.handler = async (event) => {
           message: '스티비 주소록이 없습니다.',
           fetched: 0,
           saved: 0,
-          emails: []
+          emails: [],
+          lists: []
         })
       }
     }
 
-    // 2단계: 각 주소록에서 발송 완료된 이메일 가져오기
+    // action이 'lists'이면 주소록 목록만 반환
+    if (action === 'lists') {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          lists: allLists.map(l => ({
+            id: l.id || l.listId,
+            name: l.name || l.title || '이름 없음'
+          }))
+        })
+      }
+    }
+
+    // 특정 주소록만 필터링 (listId 또는 listName으로)
+    let targetLists = allLists
+    if (listId) {
+      targetLists = allLists.filter(l => (l.id || l.listId)?.toString() === listId.toString())
+    } else if (listName) {
+      targetLists = allLists.filter(l => (l.name || l.title || '').includes(listName))
+    }
+
+    if (targetLists.length === 0) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: `주소록을 찾을 수 없습니다. (검색: ${listId || listName})`,
+          lists: allLists.map(l => ({
+            id: l.id || l.listId,
+            name: l.name || l.title || '이름 없음'
+          }))
+        })
+      }
+    }
+
+    // 2단계: 선택된 주소록에서 발송 완료된 이메일 가져오기
     let allEmails = []
 
-    for (const list of lists) {
-      const listId = list.id || list.listId
-      if (!listId) continue
+    for (const list of targetLists) {
+      const currentListId = list.id || list.listId
+      if (!currentListId) continue
 
       try {
-        const emailsResponse = await fetch(`https://api.stibee.com/v1/lists/${listId}/emails?status=COMPLETE&offset=0&limit=100`, {
+        const emailsResponse = await fetch(`https://api.stibee.com/v1/lists/${currentListId}/emails?status=COMPLETE&offset=0&limit=100`, {
           method: 'GET',
           headers: {
             'AccessToken': STIBEE_API_KEY,
