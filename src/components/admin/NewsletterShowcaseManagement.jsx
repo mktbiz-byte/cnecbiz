@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,9 +10,11 @@ import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
   Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock,
-  FileText, Code
+  FileText, Code, X, Maximize2, Monitor, Smartphone
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 
 const CATEGORIES = [
   { value: 'marketing', label: '마케팅 인사이트' },
@@ -77,6 +79,29 @@ export default function NewsletterShowcaseManagement() {
   const [showHtmlEditor, setShowHtmlEditor] = useState(false)
   const [htmlContent, setHtmlContent] = useState('')
 
+  // 전체 화면 비주얼 에디터
+  const [showFullEditor, setShowFullEditor] = useState(false)
+  const [editorMode, setEditorMode] = useState('visual') // visual, code, preview
+  const [previewDevice, setPreviewDevice] = useState('desktop') // desktop, mobile
+
+  // ReactQuill 설정
+  const quillModules = useMemo(() => ({
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+      [{ 'align': [] }],
+      ['link', 'image'],
+      ['clean']
+    ]
+  }), [])
+
+  const quillFormats = [
+    'header', 'bold', 'italic', 'underline', 'strike',
+    'color', 'background', 'list', 'bullet', 'align', 'link', 'image'
+  ]
+
   useEffect(() => {
     checkAuth()
     fetchNewsletters()
@@ -89,6 +114,17 @@ export default function NewsletterShowcaseManagement() {
       fetchStibeeLists()
     }
   }, [apiKeyLoaded])
+
+  // ESC 키로 전체 화면 에디터 닫기
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showFullEditor) {
+        setShowFullEditor(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showFullEditor])
 
   // API 키 조회
   const fetchApiKey = async () => {
@@ -588,6 +624,7 @@ export default function NewsletterShowcaseManagement() {
       if (error) throw error
       alert('콘텐츠가 저장되었습니다.')
       setShowHtmlEditor(false)
+      setShowFullEditor(false)
       fetchNewsletters()
     } catch (error) {
       console.error('콘텐츠 저장 오류:', error)
@@ -595,6 +632,48 @@ export default function NewsletterShowcaseManagement() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // 전체 화면 에디터 열기
+  const openFullScreenEditor = async (newsletter) => {
+    setSelectedNewsletter(newsletter)
+
+    // 콘텐츠가 없으면 먼저 가져오기
+    if (!newsletter.html_content && newsletter.stibee_url) {
+      setFetchingContent(true)
+      try {
+        const response = await fetch('/.netlify/functions/extract-newsletter-thumbnail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'fetchContent',
+            newsletterId: newsletter.id,
+            stibeeUrl: newsletter.stibee_url
+          })
+        })
+
+        const result = await response.json()
+        if (result.success) {
+          const { data } = await supabaseBiz
+            .from('newsletters')
+            .select('html_content')
+            .eq('id', newsletter.id)
+            .single()
+          if (data) {
+            setHtmlContent(data.html_content || '')
+          }
+        }
+      } catch (error) {
+        console.error('콘텐츠 가져오기 오류:', error)
+      } finally {
+        setFetchingContent(false)
+      }
+    } else {
+      setHtmlContent(newsletter.html_content || '')
+    }
+
+    setEditorMode('visual')
+    setShowFullEditor(true)
   }
 
   // 체크박스 토글
@@ -1279,12 +1358,21 @@ export default function NewsletterShowcaseManagement() {
                             <button
                               onClick={() => openEditModal(newsletter)}
                               className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
+                              title="기본 정보 편집"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={() => openFullScreenEditor(newsletter)}
+                              className="p-1.5 rounded hover:bg-blue-50 text-blue-500"
+                              title="비주얼 에디터"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleDelete(newsletter)}
                               className="p-1.5 rounded hover:bg-red-50 text-red-500"
+                              title="삭제"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1635,46 +1723,21 @@ export default function NewsletterShowcaseManagement() {
                       ) : (
                         <Download className="w-4 h-4 mr-1" />
                       )}
-                      스티비에서 가져오기
+                      가져오기
                     </Button>
                     <Button
                       type="button"
-                      variant="outline"
                       size="sm"
-                      onClick={() => setShowHtmlEditor(!showHtmlEditor)}
+                      onClick={() => openFullScreenEditor(selectedNewsletter)}
+                      className="bg-blue-600 hover:bg-blue-700"
                     >
-                      <FileText className="w-4 h-4 mr-1" />
-                      {showHtmlEditor ? '접기' : '편집하기'}
+                      <Maximize2 className="w-4 h-4 mr-1" />
+                      비주얼 에디터
                     </Button>
                   </div>
                 </div>
 
-                {showHtmlEditor && (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={htmlContent}
-                      onChange={(e) => setHtmlContent(e.target.value)}
-                      placeholder="HTML 콘텐츠를 입력하거나 스티비에서 가져오세요..."
-                      className="font-mono text-sm h-64"
-                    />
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
-                        {htmlContent ? `${htmlContent.length.toLocaleString()} 글자` : '콘텐츠 없음'}
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleSaveHtmlContent}
-                        disabled={saving}
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        {saving ? '저장 중...' : 'HTML 저장'}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {!showHtmlEditor && selectedNewsletter?.html_content && (
+                {selectedNewsletter?.html_content && (
                   <p className="text-xs text-gray-500">
                     저장된 콘텐츠: {selectedNewsletter.html_content.length.toLocaleString()} 글자
                   </p>
@@ -1729,6 +1792,204 @@ export default function NewsletterShowcaseManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 전체 화면 비주얼 에디터 */}
+      {showFullEditor && (
+        <div className="fixed inset-0 bg-white z-50 flex flex-col">
+          {/* 에디터 헤더 */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+            <div className="flex items-center gap-4">
+              <h2 className="font-bold text-lg truncate max-w-md">{selectedNewsletter?.title}</h2>
+              {selectedNewsletter?.content_source && (
+                <span className={`text-xs px-2 py-1 rounded ${
+                  selectedNewsletter.content_source === 'custom'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {selectedNewsletter.content_source === 'custom' ? '수정됨' : '원본'}
+                </span>
+              )}
+            </div>
+
+            {/* 모드 선택 탭 */}
+            <div className="flex items-center gap-1 bg-gray-200 rounded-lg p-1">
+              <button
+                onClick={() => setEditorMode('visual')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
+                  editorMode === 'visual'
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Edit className="w-4 h-4 inline mr-1" />
+                비주얼 편집
+              </button>
+              <button
+                onClick={() => setEditorMode('code')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
+                  editorMode === 'code'
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Code className="w-4 h-4 inline mr-1" />
+                코드
+              </button>
+              <button
+                onClick={() => setEditorMode('preview')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
+                  editorMode === 'preview'
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Eye className="w-4 h-4 inline mr-1" />
+                미리보기
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* 미리보기 디바이스 선택 */}
+              {editorMode === 'preview' && (
+                <div className="flex items-center gap-1 mr-4">
+                  <button
+                    onClick={() => setPreviewDevice('desktop')}
+                    className={`p-2 rounded ${previewDevice === 'desktop' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                    title="데스크톱"
+                  >
+                    <Monitor className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setPreviewDevice('mobile')}
+                    className={`p-2 rounded ${previewDevice === 'mobile' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                    title="모바일"
+                  >
+                    <Smartphone className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                onClick={() => handleFetchHtmlContent(selectedNewsletter)}
+                disabled={fetchingContent}
+              >
+                {fetchingContent ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : (
+                  <Download className="w-4 h-4 mr-1" />
+                )}
+                스티비에서 다시 가져오기
+              </Button>
+              <Button
+                onClick={handleSaveHtmlContent}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {saving ? '저장 중...' : '저장'}
+              </Button>
+              <button
+                onClick={() => setShowFullEditor(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg ml-2"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* 에디터 본문 */}
+          <div className="flex-1 overflow-hidden">
+            {fetchingContent ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+                  <p className="text-gray-600">콘텐츠를 불러오는 중...</p>
+                </div>
+              </div>
+            ) : editorMode === 'visual' ? (
+              <div className="h-full flex flex-col">
+                <ReactQuill
+                  theme="snow"
+                  value={htmlContent}
+                  onChange={setHtmlContent}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  className="flex-1 overflow-auto"
+                  style={{ height: 'calc(100vh - 120px)' }}
+                />
+                <style>{`
+                  .ql-container {
+                    font-size: 16px;
+                    height: calc(100% - 42px) !important;
+                  }
+                  .ql-editor {
+                    min-height: 100%;
+                    padding: 40px;
+                    max-width: 800px;
+                    margin: 0 auto;
+                  }
+                  .ql-editor img {
+                    max-width: 100%;
+                    height: auto;
+                  }
+                  .ql-toolbar {
+                    border-top: none !important;
+                    border-left: none !important;
+                    border-right: none !important;
+                    background: #f9fafb;
+                    position: sticky;
+                    top: 0;
+                    z-index: 10;
+                  }
+                `}</style>
+              </div>
+            ) : editorMode === 'code' ? (
+              <div className="h-full p-4 bg-gray-900">
+                <Textarea
+                  value={htmlContent}
+                  onChange={(e) => setHtmlContent(e.target.value)}
+                  className="w-full h-full font-mono text-sm bg-gray-900 text-green-400 border-0 resize-none focus:ring-0"
+                  placeholder="HTML 코드..."
+                />
+              </div>
+            ) : (
+              <div className="h-full overflow-auto bg-gray-100 flex justify-center p-8">
+                <div
+                  className={`bg-white shadow-lg transition-all duration-300 ${
+                    previewDevice === 'mobile'
+                      ? 'w-[375px] rounded-3xl border-8 border-gray-800'
+                      : 'w-full max-w-4xl rounded-lg'
+                  }`}
+                  style={{ minHeight: previewDevice === 'mobile' ? '667px' : 'auto' }}
+                >
+                  <div
+                    className="p-6 newsletter-preview"
+                    dangerouslySetInnerHTML={{ __html: htmlContent }}
+                  />
+                  <style>{`
+                    .newsletter-preview img {
+                      max-width: 100%;
+                      height: auto;
+                    }
+                    .newsletter-preview table {
+                      max-width: 100%;
+                    }
+                    .newsletter-preview a {
+                      color: #2563eb;
+                    }
+                  `}</style>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 에디터 푸터 상태바 */}
+          <div className="px-4 py-2 border-t bg-gray-50 flex items-center justify-between text-sm text-gray-500">
+            <span>{htmlContent ? `${htmlContent.length.toLocaleString()} 글자` : '콘텐츠 없음'}</span>
+            <span>ESC를 눌러 닫기</span>
+          </div>
+        </div>
+      )}
     </>
   )
 }
