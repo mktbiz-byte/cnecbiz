@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, Edit3, Stamp, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
+import { CompanyContractTemplate } from '../templates/CompanyContractTemplate'
 
 export default function SignContract() {
   const { contractId } = useParams()
@@ -18,10 +19,41 @@ export default function SignContract() {
   const [signatureImage, setSignatureImage] = useState(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [signed, setSigned] = useState(false)
+  const [renderedContent, setRenderedContent] = useState('')
 
   useEffect(() => {
     loadContract()
   }, [contractId])
+
+  // 계약서 내용 렌더링 (JSON → HTML)
+  const renderContractContent = (content, contractData) => {
+    // 이미 HTML인 경우 그대로 반환
+    if (typeof content === 'string' && content.trim().startsWith('<')) {
+      return content
+    }
+
+    // JSON 문자열인 경우 파싱
+    let contentData = content
+    if (typeof content === 'string') {
+      try {
+        contentData = JSON.parse(content)
+      } catch (e) {
+        // 파싱 실패시 원본 반환
+        return content
+      }
+    }
+
+    // CompanyContractTemplate으로 HTML 생성
+    return CompanyContractTemplate({
+      companyName: contentData.companyName || contractData.recipient_name || '',
+      ceoName: contentData.ceoName || '',
+      address: contentData.address || '',
+      brandName: contentData.brandName || contentData.campaignName || '',
+      contractDate: contractData.created_at
+        ? new Date(contractData.created_at).toLocaleDateString('ko-KR')
+        : new Date().toLocaleDateString('ko-KR')
+    })
+  }
 
   const loadContract = async () => {
     try {
@@ -33,7 +65,7 @@ export default function SignContract() {
         .single()
 
       if (error) throw error
-      
+
       if (data.status === 'signed') {
         setSigned(true)
       } else if (data.status !== 'sent') {
@@ -46,6 +78,10 @@ export default function SignContract() {
       }
 
       setContract(data)
+
+      // 계약서 내용 렌더링
+      const html = renderContractContent(data.content, data)
+      setRenderedContent(html)
     } catch (error) {
       console.error('계약서 로드 실패:', error)
       alert(error.message || '계약서를 불러오는데 실패했습니다.')
@@ -55,17 +91,27 @@ export default function SignContract() {
     }
   }
 
+  // 캔버스 좌표 계산 (스케일링 적용)
+  const getCanvasCoordinates = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect()
+    // CSS 크기와 캔버스 내부 해상도의 비율 계산
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    }
+  }
+
   // 캔버스 그리기 시작
   const startDrawing = (e) => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    const rect = canvas.getBoundingClientRect()
-    
+    const { x, y } = getCanvasCoordinates(e, canvas)
+
     ctx.beginPath()
-    ctx.moveTo(
-      e.clientX - rect.left,
-      e.clientY - rect.top
-    )
+    ctx.moveTo(x, y)
     setIsDrawing(true)
   }
 
@@ -75,12 +121,9 @@ export default function SignContract() {
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
-    const rect = canvas.getBoundingClientRect()
+    const { x, y } = getCanvasCoordinates(e, canvas)
 
-    ctx.lineTo(
-      e.clientX - rect.left,
-      e.clientY - rect.top
-    )
+    ctx.lineTo(x, y)
     ctx.strokeStyle = '#000'
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
@@ -197,9 +240,9 @@ export default function SignContract() {
             </p>
           </CardHeader>
           <CardContent>
-            <div 
+            <div
               className="prose max-w-none border rounded-lg p-6 bg-white"
-              dangerouslySetInnerHTML={{ __html: contract.content }}
+              dangerouslySetInnerHTML={{ __html: renderedContent }}
             />
           </CardContent>
         </Card>
