@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
-  Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock
+  Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock,
+  FileText, Code
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 
@@ -70,6 +71,11 @@ export default function NewsletterShowcaseManagement() {
   const [extractingThumbnails, setExtractingThumbnails] = useState(false)
   const [extractingThumbnailFor, setExtractingThumbnailFor] = useState(null)
   const [availableImages, setAvailableImages] = useState([])
+
+  // HTML 콘텐츠 편집
+  const [fetchingContent, setFetchingContent] = useState(false)
+  const [showHtmlEditor, setShowHtmlEditor] = useState(false)
+  const [htmlContent, setHtmlContent] = useState('')
 
   useEffect(() => {
     checkAuth()
@@ -324,6 +330,8 @@ export default function NewsletterShowcaseManagement() {
       is_featured: newsletter.is_featured || false,
       is_members_only: newsletter.is_members_only || false
     })
+    setHtmlContent(newsletter.html_content || '')
+    setShowHtmlEditor(false)
     setIsEditing(true)
     setShowAddModal(true)
   }
@@ -515,6 +523,77 @@ export default function NewsletterShowcaseManagement() {
       alert('썸네일 추출에 실패했습니다: ' + error.message)
     } finally {
       setExtractingThumbnailFor(null)
+    }
+  }
+
+  // HTML 콘텐츠 가져오기
+  const handleFetchHtmlContent = async (newsletter) => {
+    if (!newsletter?.stibee_url) {
+      alert('스티비 URL이 없습니다.')
+      return
+    }
+
+    setFetchingContent(true)
+    try {
+      const response = await fetch('/.netlify/functions/extract-newsletter-thumbnail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'fetchContent',
+          newsletterId: newsletter.id,
+          stibeeUrl: newsletter.stibee_url
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        alert('HTML 콘텐츠가 저장되었습니다.')
+        fetchNewsletters()
+        // 모달에서 편집 중이면 콘텐츠 새로고침
+        if (selectedNewsletter?.id === newsletter.id) {
+          const { data } = await supabaseBiz
+            .from('newsletters')
+            .select('html_content')
+            .eq('id', newsletter.id)
+            .single()
+          if (data) {
+            setHtmlContent(data.html_content || '')
+          }
+        }
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('콘텐츠 가져오기 오류:', error)
+      alert('콘텐츠 가져오기에 실패했습니다: ' + error.message)
+    } finally {
+      setFetchingContent(false)
+    }
+  }
+
+  // HTML 콘텐츠 저장
+  const handleSaveHtmlContent = async () => {
+    if (!selectedNewsletter) return
+
+    setSaving(true)
+    try {
+      const { error } = await supabaseBiz
+        .from('newsletters')
+        .update({
+          html_content: htmlContent,
+          content_source: 'custom'
+        })
+        .eq('id', selectedNewsletter.id)
+
+      if (error) throw error
+      alert('콘텐츠가 저장되었습니다.')
+      setShowHtmlEditor(false)
+      fetchNewsletters()
+    } catch (error) {
+      console.error('콘텐츠 저장 오류:', error)
+      alert('콘텐츠 저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -1525,6 +1604,83 @@ export default function NewsletterShowcaseManagement() {
                 <span>회원 전용</span>
               </label>
             </div>
+
+            {/* HTML 콘텐츠 편집 섹션 */}
+            {isEditing && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Code className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium text-sm">HTML 콘텐츠</span>
+                    {selectedNewsletter?.content_source && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        selectedNewsletter.content_source === 'custom'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {selectedNewsletter.content_source === 'custom' ? '수정됨' : '원본'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFetchHtmlContent(selectedNewsletter)}
+                      disabled={fetchingContent}
+                    >
+                      {fetchingContent ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4 mr-1" />
+                      )}
+                      스티비에서 가져오기
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowHtmlEditor(!showHtmlEditor)}
+                    >
+                      <FileText className="w-4 h-4 mr-1" />
+                      {showHtmlEditor ? '접기' : '편집하기'}
+                    </Button>
+                  </div>
+                </div>
+
+                {showHtmlEditor && (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={htmlContent}
+                      onChange={(e) => setHtmlContent(e.target.value)}
+                      placeholder="HTML 콘텐츠를 입력하거나 스티비에서 가져오세요..."
+                      className="font-mono text-sm h-64"
+                    />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        {htmlContent ? `${htmlContent.length.toLocaleString()} 글자` : '콘텐츠 없음'}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleSaveHtmlContent}
+                        disabled={saving}
+                        className="bg-purple-600 hover:bg-purple-700"
+                      >
+                        {saving ? '저장 중...' : 'HTML 저장'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {!showHtmlEditor && selectedNewsletter?.html_content && (
+                  <p className="text-xs text-gray-500">
+                    저장된 콘텐츠: {selectedNewsletter.html_content.length.toLocaleString()} 글자
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>

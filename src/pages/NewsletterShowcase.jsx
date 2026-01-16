@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { supabaseBiz } from '../lib/supabaseClients'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -352,6 +352,15 @@ export default function NewsletterShowcase() {
                           ))}
                         </div>
                       )}
+
+                      {/* SEO용 개별 페이지 링크 */}
+                      <Link
+                        to={`/newsletter/${newsletter.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-3 text-xs text-blue-600 hover:underline inline-block"
+                      >
+                        자세히 보기 →
+                      </Link>
                     </CardContent>
                   </Card>
                 ))}
@@ -423,6 +432,11 @@ export default function NewsletterShowcase() {
                   로그인하기
                 </Button>
               </div>
+            ) : selectedNewsletter?.html_content ? (
+              <div
+                className="w-full h-[65vh] overflow-auto p-4 bg-white"
+                dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
+              />
             ) : selectedNewsletter?.stibee_url ? (
               <iframe
                 src={selectedNewsletter.stibee_url}

@@ -115,6 +115,7 @@ import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemp
 import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import NewsletterShowcase from './pages/NewsletterShowcase'
+import NewsletterDetail from './pages/NewsletterDetail'
 
 import AuthCallback from './components/AuthCallback'
 import RegularCampaignIntro from './pages/RegularCampaignIntro'
@@ -136,6 +137,7 @@ function App() {
         <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/invitation/:id" element={<InvitationLanding />} />
         <Route path="/newsletters" element={<NewsletterShowcase />} />
+        <Route path="/newsletter/:id" element={<NewsletterDetail />} />
         <Route path="/us-shipping-info" element={<USShippingInfoForm />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />

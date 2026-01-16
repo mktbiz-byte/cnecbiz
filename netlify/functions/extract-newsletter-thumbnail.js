@@ -100,6 +100,59 @@ exports.handler = async (event) => {
       }
     }
 
+    // HTML 콘텐츠 가져오기 및 저장
+    if (action === 'fetchContent' && stibeeUrl && newsletterId) {
+      console.log('Fetching HTML content from:', stibeeUrl)
+
+      const response = await fetch(stibeeUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status}`)
+      }
+
+      const html = await response.text()
+
+      // body 태그 내용만 추출 (스타일 유지)
+      let contentHtml = html
+
+      // style 태그들 추출
+      const styleMatches = html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []
+      const styles = styleMatches.join('\n')
+
+      // body 내용 추출
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+      if (bodyMatch) {
+        contentHtml = styles + bodyMatch[1]
+      }
+
+      // DB에 HTML 콘텐츠 저장
+      const { error } = await supabaseBiz
+        .from('newsletters')
+        .update({
+          html_content: contentHtml,
+          content_source: 'stibee'
+        })
+        .eq('id', newsletterId)
+
+      if (error) {
+        throw new Error(`DB 저장 실패: ${error.message}`)
+      }
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          message: 'HTML 콘텐츠가 저장되었습니다.',
+          contentLength: contentHtml.length
+        })
+      }
+    }
+
     // 여러 뉴스레터 일괄 썸네일 추출
     if (action === 'bulk') {
       const { data: newsletters } = await supabaseBiz
