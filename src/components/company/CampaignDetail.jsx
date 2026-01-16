@@ -134,8 +134,8 @@ const getGradeRecommendation = (gradeLevel) => {
   switch (gradeLevel) {
     case 5: // MUSE
       return {
-        text: '최상위 크리에이터',
-        description: '최고 수준의 퀄리티와 실적을 보유한 프리미엄 크리에이터입니다',
+        text: 'TOP 크리에이터',
+        description: '크넥이 엄선한 최상위 크리에이터. 높은 전환율과 퀄리티 보장',
         emoji: '👑',
         bgClass: 'bg-gradient-to-r from-amber-500 to-orange-500',
         textClass: 'text-white',
@@ -144,9 +144,9 @@ const getGradeRecommendation = (gradeLevel) => {
       }
     case 4: // ICONIC
       return {
-        text: '강력 추천',
-        description: '브랜드 만족도와 콘텐츠 퀄리티가 검증된 인기 크리에이터입니다',
-        emoji: '🌟',
+        text: '적극 추천',
+        description: '검증된 실적! 브랜드 만족도 90% 이상, 재협업률 높음',
+        emoji: '🔥',
         bgClass: 'bg-gradient-to-r from-pink-500 to-rose-500',
         textClass: 'text-white',
         borderClass: 'border-pink-400',
@@ -155,7 +155,7 @@ const getGradeRecommendation = (gradeLevel) => {
     case 3: // BLOOM
       return {
         text: '추천',
-        description: '성장 중인 유망한 크리에이터입니다. 안정적인 협업이 가능합니다',
+        description: '안정적인 협업 가능. 마감 준수율 우수, 퀄리티 검증됨',
         emoji: '💜',
         bgClass: 'bg-gradient-to-r from-violet-500 to-purple-500',
         textClass: 'text-white',
@@ -164,8 +164,8 @@ const getGradeRecommendation = (gradeLevel) => {
       }
     case 2: // GLOW
       return {
-        text: '성장 중',
-        description: '활발히 활동하며 성장 중인 크리에이터입니다',
+        text: '활동 우수',
+        description: '활발한 활동과 빠른 응답. 협업 경험 보유',
         emoji: '✨',
         bgClass: 'bg-blue-500',
         textClass: 'text-white',
