@@ -91,6 +91,7 @@ import FourWeekGuideViewer from './FourWeekGuideViewer'
 import PersonalizedGuideViewer from './PersonalizedGuideViewer'
 import USJapanGuideViewer from './USJapanGuideViewer'
 import * as XLSX from 'xlsx'
+import { GRADE_LEVELS } from '../../services/creatorGradeService'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
 import ExternalGuideUploader from '../common/ExternalGuideUploader'
@@ -123,6 +124,57 @@ const normalizeSnsUrl = (url, platform) => {
       return `https://www.tiktok.com/@${handle}`
     default:
       return url
+  }
+}
+
+// 등급별 추천 배지 정보 생성
+const getGradeRecommendation = (gradeLevel) => {
+  if (!gradeLevel) return null
+
+  switch (gradeLevel) {
+    case 5: // MUSE
+      return {
+        text: 'TOP 크리에이터',
+        description: '크넥이 엄선한 최상위 크리에이터. 높은 전환율과 퀄리티 보장',
+        emoji: '👑',
+        bgClass: 'bg-gradient-to-r from-amber-500 to-orange-500',
+        textClass: 'text-white',
+        borderClass: 'border-amber-400',
+        priority: 5
+      }
+    case 4: // ICONIC
+      return {
+        text: '적극 추천',
+        description: '검증된 실적! 브랜드 만족도 90% 이상, 재협업률 높음',
+        emoji: '🔥',
+        bgClass: 'bg-gradient-to-r from-pink-500 to-rose-500',
+        textClass: 'text-white',
+        borderClass: 'border-pink-400',
+        priority: 4
+      }
+    case 3: // BLOOM
+      return {
+        text: '추천',
+        description: '안정적인 협업 가능. 마감 준수율 우수, 퀄리티 검증됨',
+        emoji: '💜',
+        bgClass: 'bg-gradient-to-r from-violet-500 to-purple-500',
+        textClass: 'text-white',
+        borderClass: 'border-violet-400',
+        priority: 3
+      }
+    case 2: // GLOW
+      return {
+        text: '활동 우수',
+        description: '활발한 활동과 빠른 응답. 협업 경험 보유',
+        emoji: '✨',
+        bgClass: 'bg-blue-500',
+        textClass: 'text-white',
+        borderClass: 'border-blue-400',
+        priority: 2
+      }
+    case 1: // FRESH
+    default:
+      return null // FRESH는 배지 표시 안함
   }
 }
 
@@ -211,8 +263,7 @@ export default function CampaignDetail() {
   const [addressFormData, setAddressFormData] = useState({
     phone_number: '',
     postal_code: '',
-    address: '',
-    detail_address: ''
+    address: ''
   })
   const [savingAddress, setSavingAddress] = useState(false)
   // Bulk guide generation state
@@ -819,6 +870,22 @@ export default function CampaignDetail() {
         }
       }
 
+      // featured_creators에서 등급 정보 가져오기
+      let featuredCreators = []
+      try {
+        const { data: fcData, error: fcError } = await supabaseKorea
+          .from('featured_creators')
+          .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended, is_active')
+          .eq('is_active', true)
+
+        if (!fcError && fcData) {
+          featuredCreators = fcData
+          console.log('Fetched featured_creators for grades:', fcData.length)
+        }
+      } catch (e) {
+        console.log('featured_creators 테이블 조회 실패:', e)
+      }
+
       // user_id가 있는 경우 user_profiles에서 추가 정보 가져오기
       const enrichedData = (data || []).map((app) => {
         console.log('Application data:', app.applicant_name, 'user_id:', app.user_id)
@@ -832,6 +899,15 @@ export default function CampaignDetail() {
             p.user_id === app.user_id ||
             (app.email && p.email === app.email)
           )
+        }
+
+        // featured_creators에서 등급 정보 찾기
+        const featuredCreator = featuredCreators.find(fc => fc.user_id === app.user_id)
+        const gradeInfo = {
+          cnec_grade_level: featuredCreator?.cnec_grade_level || null,
+          cnec_grade_name: featuredCreator?.cnec_grade_name || null,
+          cnec_total_score: featuredCreator?.cnec_total_score || null,
+          is_cnec_recommended: featuredCreator?.is_cnec_recommended || false
         }
 
         console.log('Profile for', app.applicant_name, ':', profile ? 'found' : 'not found', 'profile_image:', profile?.profile_image)
@@ -873,6 +949,7 @@ export default function CampaignDetail() {
           const profileImage = profile.profile_image || profile.profile_photo_url || profile.profile_image_url || profile.avatar_url
           const enriched = {
             ...app,
+            ...gradeInfo,
             applicant_name: resolvedName,
             profile_photo_url: profileImage,
             instagram_followers: profile.instagram_followers || app.instagram_followers || 0,
@@ -899,6 +976,7 @@ export default function CampaignDetail() {
         console.log('Returning original app data for:', app.applicant_name)
         return {
           ...app,
+          ...gradeInfo,
           applicant_name: resolvedName
         }
       })
@@ -1119,8 +1197,7 @@ export default function CampaignDetail() {
     setAddressFormData({
       phone_number: participant.phone_number || participant.phone || '',
       postal_code: participant.postal_code || '',
-      address: participant.address || '',
-      detail_address: participant.detail_address || ''
+      address: participant.address || ''
     })
   }
 
@@ -1132,10 +1209,8 @@ export default function CampaignDetail() {
     try {
       const updateData = {
         phone_number: addressFormData.phone_number,
-        phone: addressFormData.phone_number, // 호환성 위해 phone 필드도 업데이트
         postal_code: addressFormData.postal_code,
-        address: addressFormData.address,
-        detail_address: addressFormData.detail_address
+        address: addressFormData.address
       }
 
       const { error } = await supabase
@@ -3110,33 +3185,39 @@ JSON만 출력.`
             .eq('id', userId)
 
           // 포인트 이력 저장 (point_history 또는 point_transactions)
-          try {
-            await supabase
-              .from('point_history')
+          // Supabase는 에러를 throw하지 않으므로 { data, error } 체크 필요
+          const { error: historyError } = await supabase
+            .from('point_history')
+            .insert([{
+              user_id: userId,
+              campaign_id: campaign.id,
+              amount: pointAmount,
+              type: 'campaign_complete',
+              reason: `캠페인 완료: ${campaign.title}`,
+              balance_after: newPoints,
+              created_at: new Date().toISOString()
+            }])
+
+          if (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError.message)
+            const { error: txError } = await supabase
+              .from('point_transactions')
               .insert([{
                 user_id: userId,
-                campaign_id: campaign.id,
                 amount: pointAmount,
-                type: 'campaign_complete',
-                reason: `캠페인 완료: ${campaign.title}`,
-                balance_after: newPoints,
+                type: 'earn',
+                description: `캠페인 완료: ${campaign.title}`,
+                related_campaign_id: campaign.id,
                 created_at: new Date().toISOString()
               }])
-          } catch (historyError) {
-            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
-            try {
-              await supabase
-                .from('point_transactions')
-                .insert([{
-                  user_id: userId,
-                  amount: pointAmount,
-                  type: 'earn',
-                  description: `캠페인 완료: ${campaign.title}`,
-                  created_at: new Date().toISOString()
-                }])
-            } catch (txError) {
-              console.log('point_transactions 저장도 실패 (무시):', txError)
+
+            if (txError) {
+              console.log('point_transactions 저장도 실패:', txError.message)
+            } else {
+              console.log('point_transactions에 저장 완료')
             }
+          } else {
+            console.log('point_history에 저장 완료')
           }
 
           const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
@@ -3161,8 +3242,9 @@ JSON만 출력.`
                   }
                 })
               })
+              console.log('캠페인 완료 포인트 지급 알림톡 발송 성공')
             } catch (e) {
-              console.error('알림톡 발송 실패:', e)
+              console.error('캠페인 완료 포인트 지급 알림톡 발송 실패:', e)
             }
           }
 
@@ -3262,33 +3344,39 @@ JSON만 출력.`
             .eq('id', userId)
 
           // 포인트 이력 저장 (point_history 또는 point_transactions)
-          try {
-            await supabase
-              .from('point_history')
+          // Supabase는 에러를 throw하지 않으므로 { data, error } 체크 필요
+          const { error: historyError2 } = await supabase
+            .from('point_history')
+            .insert([{
+              user_id: userId,
+              campaign_id: campaign.id,
+              amount: pointAmount,
+              type: 'campaign_complete',
+              reason: `캠페인 완료: ${campaign.title}`,
+              balance_after: newPoints,
+              created_at: new Date().toISOString()
+            }])
+
+          if (historyError2) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError2.message)
+            const { error: txError2 } = await supabase
+              .from('point_transactions')
               .insert([{
                 user_id: userId,
-                campaign_id: campaign.id,
                 amount: pointAmount,
-                type: 'campaign_complete',
-                reason: `캠페인 완료: ${campaign.title}`,
-                balance_after: newPoints,
+                type: 'earn',
+                description: `캠페인 완료: ${campaign.title}`,
+                related_campaign_id: campaign.id,
                 created_at: new Date().toISOString()
               }])
-          } catch (historyError) {
-            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
-            try {
-              await supabase
-                .from('point_transactions')
-                .insert([{
-                  user_id: userId,
-                  amount: pointAmount,
-                  type: 'earn',
-                  description: `캠페인 완료: ${campaign.title}`,
-                  created_at: new Date().toISOString()
-                }])
-            } catch (txError) {
-              console.log('point_transactions 저장도 실패 (무시):', txError)
+
+            if (txError2) {
+              console.log('point_transactions 저장도 실패:', txError2.message)
+            } else {
+              console.log('point_transactions에 저장 완료')
             }
+          } else {
+            console.log('point_history에 저장 완료')
           }
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
@@ -4293,12 +4381,19 @@ JSON만 출력.`
             const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
             // 프로필 이미지 - profile_photo_url (user_profiles에서 가져온 것) 우선
             const profileImage = participant.profile_photo_url || participant.profile_image_url || participant.creator_profile_image || participant.profile_image || participant.avatar_url
-            // SNS URL 가져오기
+            // SNS URL 가져오기 (normalizeSnsUrl 적용)
             const platform = (participant.creator_platform || participant.main_channel || participant.platform || '').toLowerCase()
-            const snsUrl = platform.includes('instagram') ? participant.instagram_url :
+            const rawSnsUrl = platform.includes('instagram') ? participant.instagram_url :
                           platform.includes('youtube') ? participant.youtube_url :
                           platform.includes('tiktok') ? participant.tiktok_url :
                           participant.instagram_url || participant.youtube_url || participant.tiktok_url
+            const snsUrlPlatform = platform.includes('instagram') ? 'instagram' :
+                          platform.includes('youtube') ? 'youtube' :
+                          platform.includes('tiktok') ? 'tiktok' :
+                          participant.instagram_url ? 'instagram' :
+                          participant.youtube_url ? 'youtube' :
+                          participant.tiktok_url ? 'tiktok' : 'instagram'
+            const snsUrl = normalizeSnsUrl(rawSnsUrl, snsUrlPlatform)
             const shippingAddress = participant.shipping_address || participant.address || ''
             const shippingPhone = participant.shipping_phone || participant.phone || participant.phone_number || participant.creator_phone || ''
             const courierCompany = trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''
@@ -4349,7 +4444,7 @@ JSON만 출력.`
                         <h3 className="text-base font-bold text-gray-900 truncate">{creatorName}</h3>
                         {snsUrl ? (
                           <a
-                            href={snsUrl.startsWith('http') ? snsUrl : `https://${snsUrl}`}
+                            href={snsUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1 hover:opacity-80 cursor-pointer transition-opacity`}
@@ -4430,17 +4525,7 @@ JSON만 출력.`
                                   type="text"
                                   value={addressFormData.address}
                                   onChange={(e) => setAddressFormData({...addressFormData, address: e.target.value})}
-                                  placeholder="2027 Jewell Ridge, Vista, CA"
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                                />
-                              </div>
-                              <div className="col-span-2">
-                                <label className="text-xs text-gray-600">상세주소</label>
-                                <input
-                                  type="text"
-                                  value={addressFormData.detail_address}
-                                  onChange={(e) => setAddressFormData({...addressFormData, detail_address: e.target.value})}
-                                  placeholder="Apt 4B"
+                                  placeholder="서울 성동구 성수일로10길 3 101동 613호"
                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
                                 />
                               </div>
@@ -5457,9 +5542,9 @@ JSON만 출력.`
                             </div>
                           )}
 
-                          {/* 프로필 이미지 - 1.3배 크기 */}
+                          {/* 프로필 이미지 - 네모 */}
                           <div className="flex justify-center mb-2">
-                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
+                            <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
                               {app.profile_photo_url ? (
                                 <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
@@ -5469,6 +5554,19 @@ JSON만 출력.`
                               )}
                             </div>
                           </div>
+
+                          {/* 등급 추천 배지 */}
+                          {(() => {
+                            const gradeRec = getGradeRecommendation(app.cnec_grade_level)
+                            if (!gradeRec) return null
+                            return (
+                              <div className={`mb-2 px-2 py-1 rounded-md text-center ${gradeRec.bgClass}`} title={gradeRec.description}>
+                                <span className={`text-xs font-bold ${gradeRec.textClass}`}>
+                                  {gradeRec.emoji} {gradeRec.text}
+                                </span>
+                              </div>
+                            )
+                          })()}
 
                           {/* 이름 & 나이 */}
                           <div className="text-center mb-2">
@@ -5735,9 +5833,9 @@ JSON만 출력.`
                             가상선택
                           </div>
 
-                          {/* 프로필 이미지 - 1.3배 크기 */}
+                          {/* 프로필 이미지 - 네모 */}
                           <div className="flex justify-center mb-2">
-                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
+                            <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
                               {app.profile_photo_url ? (
                                 <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
                               ) : (
@@ -5747,6 +5845,19 @@ JSON만 출력.`
                               )}
                             </div>
                           </div>
+
+                          {/* 등급 추천 배지 */}
+                          {(() => {
+                            const gradeRec = getGradeRecommendation(app.cnec_grade_level)
+                            if (!gradeRec) return null
+                            return (
+                              <div className={`mb-2 px-2 py-1 rounded-md text-center ${gradeRec.bgClass}`} title={gradeRec.description}>
+                                <span className={`text-xs font-bold ${gradeRec.textClass}`}>
+                                  {gradeRec.emoji} {gradeRec.text}
+                                </span>
+                              </div>
+                            )
+                          })()}
 
                           {/* 이름 & 나이 */}
                           <div className="text-center mb-2">

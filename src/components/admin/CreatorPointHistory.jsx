@@ -23,6 +23,7 @@ export default function CreatorPointHistory() {
   const [transactions, setTransactions] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
+  const [dateFilter, setDateFilter] = useState('month') // 기본값: 최근 1개월
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState({
     totalPaid: 0,
@@ -39,7 +40,7 @@ export default function CreatorPointHistory() {
   useEffect(() => {
     checkAuth()
     fetchTransactions()
-  }, [])
+  }, [dateFilter])
 
   useEffect(() => {
     calculateStats()
@@ -68,19 +69,41 @@ export default function CreatorPointHistory() {
     }
   }
 
+  // 날짜 필터 시작일 계산
+  const getDateFilterStart = () => {
+    const now = new Date()
+    if (dateFilter === 'today') {
+      return new Date(now.setHours(0, 0, 0, 0)).toISOString()
+    } else if (dateFilter === 'week') {
+      return new Date(now.setDate(now.getDate() - 7)).toISOString()
+    } else if (dateFilter === 'month') {
+      return new Date(now.setMonth(now.getMonth() - 1)).toISOString()
+    } else if (dateFilter === '3months') {
+      return new Date(now.setMonth(now.getMonth() - 3)).toISOString()
+    }
+    return null // 'all'인 경우
+  }
+
   const fetchTransactions = async () => {
     setLoading(true)
     try {
       let allTransactions = []
+      const dateStart = getDateFilterStart()
 
       // Korea DB에서 point_transactions 조회
       if (supabaseKorea) {
-        const { data: koreaData, error: koreaError } = await supabaseKorea
+        // point_transactions 테이블의 실제 필드는 'type' (earn, withdraw, bonus, adjustment 등)
+        let query = supabaseKorea
           .from('point_transactions')
           .select('*')
-          .in('transaction_type', ['admin_add', 'admin_deduct', 'campaign_reward', 'campaign_complete', 'earn', 'bonus', 'refund'])
           .order('created_at', { ascending: false })
           .limit(500)
+
+        if (dateStart) {
+          query = query.gte('created_at', dateStart)
+        }
+
+        const { data: koreaData, error: koreaError } = await query
 
         if (!koreaError && koreaData) {
           console.log('Korea DB point_transactions:', koreaData.length, '건')
@@ -144,8 +167,15 @@ export default function CreatorPointHistory() {
               }
             }
 
+            // type 필드를 transaction_type으로 매핑 (캠페인 완료인 경우 description에서 판단)
+            let transactionType = t.type || t.transaction_type || 'earn'
+            if (t.description?.includes('캠페인 완료') || t.description?.includes('캠페인 보상')) {
+              transactionType = 'campaign_reward'
+            }
+
             return {
               ...t,
+              transaction_type: transactionType,
               creator_name: creatorName || t.user_id?.substring(0, 8) + '...',
               creator_email: profile?.email || '',
               creator_phone: profile?.phone || '',
@@ -160,11 +190,17 @@ export default function CreatorPointHistory() {
 
         // Korea DB에서 point_history도 조회 (캠페인 완료 포인트)
         try {
-          const { data: historyData, error: historyError } = await supabaseKorea
+          let historyQuery = supabaseKorea
             .from('point_history')
             .select('*')
             .order('created_at', { ascending: false })
             .limit(500)
+
+          if (dateStart) {
+            historyQuery = historyQuery.gte('created_at', dateStart)
+          }
+
+          const { data: historyData, error: historyError } = await historyQuery
 
           if (!historyError && historyData && historyData.length > 0) {
             console.log('Korea DB point_history:', historyData.length, '건')
@@ -232,11 +268,17 @@ export default function CreatorPointHistory() {
 
       // BIZ DB에서 creator_points 조회 (테이블이 없을 수 있음)
       try {
-        const { data: bizData, error: bizError } = await supabaseBiz
+        let bizQuery = supabaseBiz
           .from('creator_points')
           .select('*, featured_creators(channel_name, name, email)')
           .order('created_at', { ascending: false })
           .limit(500)
+
+        if (dateStart) {
+          bizQuery = bizQuery.gte('created_at', dateStart)
+        }
+
+        const { data: bizData, error: bizError } = await bizQuery
 
         if (!bizError && bizData && bizData.length > 0) {
           const bizTransactions = bizData.map(t => ({
@@ -260,6 +302,98 @@ export default function CreatorPointHistory() {
         console.log('BIZ DB creator_points 조회 스킵 (테이블 없을 수 있음)')
       }
 
+      // 완료된 캠페인 신청에서 포인트 지급 내역 조회 (point_history에 저장되지 않은 경우 대비)
+      if (supabaseKorea) {
+        try {
+          // 먼저 completed 상태의 applications 조회
+          let appQuery = supabaseKorea
+            .from('applications')
+            .select('id, user_id, campaign_id, status, updated_at, created_at')
+            .eq('status', 'completed')
+            .order('updated_at', { ascending: false })
+            .limit(500)
+
+          if (dateStart) {
+            appQuery = appQuery.gte('updated_at', dateStart)
+          }
+
+          const { data: completedApps, error: appError } = await appQuery
+
+          if (appError) {
+            console.log('applications 조회 에러:', appError.message)
+          }
+
+          if (!appError && completedApps && completedApps.length > 0) {
+            console.log('완료된 캠페인 신청:', completedApps.length, '건')
+
+            // 캠페인 정보 별도 조회 (조인 대신)
+            const campaignIds = [...new Set(completedApps.map(a => a.campaign_id).filter(Boolean))]
+            let campaignMap = {}
+            if (campaignIds.length > 0) {
+              const { data: campaigns } = await supabaseKorea
+                .from('campaigns')
+                .select('id, title, reward_points')
+                .in('id', campaignIds)
+              if (campaigns) {
+                campaigns.forEach(c => { campaignMap[c.id] = c })
+              }
+            }
+
+            // 이미 추가된 트랜잭션의 campaign_id + user_id 조합 체크 (중복 방지)
+            const existingKeys = new Set(
+              allTransactions
+                .filter(t => t.related_campaign_id || t.campaign_id)
+                .map(t => `${t.related_campaign_id || t.campaign_id}_${t.user_id}`)
+            )
+
+            // 프로필 정보 조회
+            const userIds = [...new Set(completedApps.map(a => a.user_id).filter(Boolean))]
+            let profileMap = {}
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabaseKorea
+                .from('user_profiles')
+                .select('id, name, channel_name, email, phone')
+                .in('id', userIds)
+              if (profiles) {
+                profiles.forEach(p => { profileMap[p.id] = p })
+              }
+            }
+
+            const appTransactions = completedApps
+              .filter(app => {
+                // 중복 체크
+                const key = `${app.campaign_id}_${app.user_id}`
+                return !existingKeys.has(key)
+              })
+              .map(app => {
+                const profile = profileMap[app.user_id]
+                const campaign = campaignMap[app.campaign_id]
+                const pointAmount = campaign?.reward_points || 0
+                return {
+                  id: `app_${app.id}`,
+                  user_id: app.user_id,
+                  amount: pointAmount,
+                  transaction_type: 'campaign_reward',
+                  description: `캠페인 완료: ${campaign?.title || ''}`,
+                  related_campaign_id: app.campaign_id,
+                  created_at: app.updated_at || app.created_at,
+                  creator_name: profile?.channel_name || profile?.name || app.user_id?.substring(0, 8) + '...',
+                  creator_email: profile?.email || '',
+                  creator_phone: profile?.phone || '',
+                  campaign_title: campaign?.title || null,
+                  source_db: 'korea_applications'
+                }
+              })
+              .filter(t => t.amount > 0) // 포인트가 있는 것만
+
+            console.log('캠페인 완료 포인트 지급 (applications 기반):', appTransactions.length, '건')
+            allTransactions = [...allTransactions, ...appTransactions]
+          }
+        } catch (appError) {
+          console.log('완료된 캠페인 신청 조회 스킵:', appError.message)
+        }
+      }
+
       // 날짜순 정렬
       allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
@@ -281,7 +415,11 @@ export default function CreatorPointHistory() {
       const amount = Math.abs(t.amount || 0)
       if (t.amount > 0) {
         totalPaid += amount
-        if (t.transaction_type === 'campaign_reward' || t.transaction_type === 'bonus') {
+        // 캠페인 보상: campaign_reward, campaign_complete, bonus 타입이거나 description에 캠페인 관련 내용이 있는 경우
+        if (t.transaction_type === 'campaign_reward' ||
+            t.transaction_type === 'campaign_complete' ||
+            t.transaction_type === 'bonus' ||
+            t.description?.includes('캠페인')) {
           campaignRewards += amount
         } else if (t.transaction_type === 'admin_add') {
           adminAdd += amount
@@ -305,8 +443,11 @@ export default function CreatorPointHistory() {
       } else if (filterType === 'campaign') {
         filtered = filtered.filter(t =>
           t.transaction_type === 'campaign_reward' ||
+          t.transaction_type === 'campaign_complete' ||
           t.transaction_type === 'bonus' ||
-          t.related_campaign_id
+          t.related_campaign_id ||
+          t.campaign_id ||
+          t.description?.includes('캠페인')
         )
       }
     }
@@ -338,6 +479,8 @@ export default function CreatorPointHistory() {
     const types = {
       'admin_add': { color: 'bg-blue-100 text-blue-700', label: '관리자 지급' },
       'campaign_reward': { color: 'bg-green-100 text-green-700', label: '캠페인 보상' },
+      'campaign_complete': { color: 'bg-green-100 text-green-700', label: '캠페인 완료' },
+      'earn': { color: 'bg-emerald-100 text-emerald-700', label: '포인트 적립' },
       'bonus': { color: 'bg-purple-100 text-purple-700', label: '보너스' },
       'refund': { color: 'bg-orange-100 text-orange-700', label: '환불' },
     }
@@ -516,50 +659,93 @@ export default function CreatorPointHistory() {
           {/* 필터 및 검색 */}
           <Card className="mb-6">
             <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    placeholder="크리에이터명, 이메일, 사유, 캠페인명, User ID로 검색..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4">
+                {/* 날짜 필터 */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-sm text-gray-500 mr-2">기간:</span>
                   <Button
-                    variant={filterType === 'all' ? 'default' : 'outline'}
+                    variant={dateFilter === 'today' ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setFilterType('all')}
+                    onClick={() => setDateFilter('today')}
+                  >
+                    오늘
+                  </Button>
+                  <Button
+                    variant={dateFilter === 'week' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('week')}
+                  >
+                    1주일
+                  </Button>
+                  <Button
+                    variant={dateFilter === 'month' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('month')}
+                  >
+                    1개월
+                  </Button>
+                  <Button
+                    variant={dateFilter === '3months' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('3months')}
+                  >
+                    3개월
+                  </Button>
+                  <Button
+                    variant={dateFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setDateFilter('all')}
                   >
                     전체
                   </Button>
-                  <Button
-                    variant={filterType === 'add' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterType('add')}
-                    className={filterType === 'add' ? '' : 'text-green-600 border-green-300'}
-                  >
-                    지급
-                  </Button>
-                  <Button
-                    variant={filterType === 'deduct' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterType('deduct')}
-                    className={filterType === 'deduct' ? '' : 'text-red-600 border-red-300'}
-                  >
-                    차감
-                  </Button>
-                  <Button
-                    variant={filterType === 'campaign' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilterType('campaign')}
-                    className={filterType === 'campaign' ? '' : 'text-blue-600 border-blue-300'}
-                  >
-                    캠페인
-                  </Button>
+                </div>
+
+                {/* 검색 및 유형 필터 */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="크리에이터명, 이메일, 사유, 캠페인명, User ID로 검색..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant={filterType === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('all')}
+                    >
+                      전체
+                    </Button>
+                    <Button
+                      variant={filterType === 'add' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('add')}
+                      className={filterType === 'add' ? '' : 'text-green-600 border-green-300'}
+                    >
+                      지급
+                    </Button>
+                    <Button
+                      variant={filterType === 'deduct' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('deduct')}
+                      className={filterType === 'deduct' ? '' : 'text-red-600 border-red-300'}
+                    >
+                      차감
+                    </Button>
+                    <Button
+                      variant={filterType === 'campaign' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterType('campaign')}
+                      className={filterType === 'campaign' ? '' : 'text-blue-600 border-blue-300'}
+                    >
+                      캠페인
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>

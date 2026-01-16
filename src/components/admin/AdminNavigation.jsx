@@ -4,7 +4,7 @@ import {
   Shield, Building2, TrendingUp, Users, Video,
   CreditCard, Menu, X, LogOut, Wallet, BarChart3, MessageSquare, Settings,
   FileSignature, MessageCircle, Youtube, Coins, ChevronDown, ChevronRight,
-  Briefcase, UserCircle, DollarSign, Cog, Upload
+  Briefcase, UserCircle, DollarSign, Cog, Upload, Mail
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 
@@ -111,6 +111,7 @@ export default function AdminNavigation() {
         { path: '/admin/contracts', icon: FileSignature, label: '계약서 관리' },
         { path: '/admin/site-management', icon: Settings, label: '사이트 관리' },
         { path: '/admin/site-management-creator', icon: Settings, label: '사이트 (크리에이터)' },
+        { path: '/admin/newsletters', icon: Mail, label: '뉴스레터 쇼케이스' },
         { path: '/admin/manage-admins', icon: Shield, label: '관리자 권한' },
       ]
     },

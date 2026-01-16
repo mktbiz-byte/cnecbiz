@@ -2,13 +2,8 @@ export const CompanyContractTemplate = (data) => {
   const {
     companyName = '',
     ceoName = '',
-    businessNumber = '',
     address = '',
-    email = '',
-    phone = '',
-    campaignTitle = '',
-    campaignBudget = '',
-    campaignPeriod = '',
+    brandName = '',
     contractDate = new Date().toLocaleDateString('ko-KR'),
   } = data
 
@@ -18,7 +13,7 @@ export const CompanyContractTemplate = (data) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>크리에이터 섭외 및 콘텐츠 활용 위임 계약서</title>
+  <title>콘텐츠 지식재산권 사용 계약서 (프리미엄 패키지)</title>
   <style>
     @page {
       size: A4;
@@ -40,308 +35,340 @@ export const CompanyContractTemplate = (data) => {
       padding-bottom: 20px;
     }
     .header h1 {
-      font-size: 28px;
+      font-size: 24px;
       font-weight: bold;
       margin: 0 0 10px 0;
       color: #1e40af;
     }
     .header p {
-      font-size: 14px;
-      color: #666;
+      font-size: 16px;
+      color: #374151;
       margin: 5px 0;
     }
-    .section {
-      margin: 30px 0;
-    }
-    .section-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #1e40af;
-      margin-bottom: 15px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    .content {
-      margin: 15px 0;
-      padding-left: 10px;
-    }
     .article {
-      margin: 20px 0;
+      margin: 25px 0;
     }
     .article-title {
       font-weight: bold;
       font-size: 16px;
       margin-bottom: 10px;
-      color: #374151;
+      color: #1e40af;
     }
     .article-content {
-      margin-left: 20px;
-      line-height: 2;
+      line-height: 1.9;
+      text-align: justify;
     }
-    .info-box {
-      background: #f3f4f6;
-      border-left: 4px solid #2563eb;
-      padding: 15px;
-      margin: 20px 0;
+    .article-content ol {
+      margin: 10px 0;
+      padding-left: 25px;
     }
-    .info-row {
-      display: flex;
+    .article-content li {
       margin: 8px 0;
     }
-    .info-label {
-      font-weight: bold;
-      min-width: 120px;
-      color: #374151;
+    .brand-section {
+      margin: 40px 0;
+      padding: 20px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
     }
-    .info-value {
+    .brand-label {
+      font-weight: bold;
+      color: #374151;
+      margin-bottom: 10px;
+    }
+    .brand-value {
+      font-size: 18px;
+      color: #1e40af;
+      padding: 10px;
+      background: white;
+      border-bottom: 2px solid #2563eb;
+      min-height: 30px;
+    }
+    .signature-section {
+      margin-top: 50px;
+      display: flex;
+      gap: 30px;
+    }
+    .signature-box {
+      flex: 1;
+      padding: 20px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+    }
+    .signature-title {
+      font-weight: bold;
+      font-size: 14px;
+      color: #1e40af;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .signature-row {
+      display: flex;
+      margin: 8px 0;
+      font-size: 14px;
+    }
+    .signature-label {
+      min-width: 60px;
+      color: #6b7280;
+    }
+    .signature-value {
       flex: 1;
       color: #1f2937;
     }
-    .signature-section {
-      margin-top: 60px;
-      padding-top: 30px;
-      border-top: 2px solid #e5e7eb;
+    .signature-line {
+      margin-top: 20px;
+      text-align: right;
+      color: #6b7280;
+      font-size: 14px;
     }
-    .signature-box {
-      margin: 30px 0;
+    .company-stamp {
+      display: inline-block;
+      width: 75px;
+      height: 75px;
+      border: 3px solid #c41e3a;
+      color: #c41e3a;
+      font-weight: bold;
+      text-align: center;
+      position: relative;
+      background:
+        linear-gradient(#c41e3a, #c41e3a) center/calc(100% - 10px) 2px no-repeat,
+        linear-gradient(#c41e3a, #c41e3a) center/2px calc(100% - 10px) no-repeat;
+    }
+    .company-stamp::before {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      right: 3px;
+      bottom: 3px;
+      border: 1.5px solid #c41e3a;
+    }
+    .stamp-text {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(4, 1fr);
+      height: 100%;
+      padding: 6px;
+      box-sizing: border-box;
+    }
+    .stamp-text span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-family: '바탕', 'Batang', serif;
+      font-weight: 900;
+    }
+    .stamp-area {
+      text-align: right;
+      margin-top: 15px;
+    }
+    .signer-signature-area {
+      min-height: 80px;
+      border: 1px dashed #d1d5db;
+      border-radius: 4px;
+      margin-top: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 12px;
+    }
+    .confirmation-section {
+      margin-top: 40px;
       padding: 20px;
-      border: 2px solid #d1d5db;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
       border-radius: 8px;
     }
-    .signature-line {
-      margin: 15px 0;
-      padding: 10px 0;
-      border-bottom: 1px solid #9ca3af;
-      min-height: 40px;
-    }
-    .date {
-      text-align: center;
-      font-size: 16px;
-      margin: 40px 0 30px 0;
+    .confirmation-title {
       font-weight: bold;
+      color: #92400e;
+      margin-bottom: 15px;
+    }
+    .confirmation-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 12px 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #d97706;
+      border-radius: 3px;
+      flex-shrink: 0;
+      margin-top: 2px;
     }
     .footer {
-      margin-top: 50px;
+      margin-top: 40px;
       text-align: center;
-      font-size: 14px;
-      color: #6b7280;
+      font-size: 12px;
+      color: #9ca3af;
       border-top: 1px solid #e5e7eb;
       padding-top: 20px;
-    }
-    ul {
-      margin: 10px 0;
-      padding-left: 30px;
-    }
-    li {
-      margin: 8px 0;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>크리에이터 섭외 및 콘텐츠 활용 위임 계약서</h1>
-    <p>Creator Recruitment and Content Usage Agreement</p>
+    <h1>콘텐츠 지식재산권 사용 계약서</h1>
+    <p>(프리미엄 패키지)</p>
   </div>
 
-  <div class="section">
-    <div class="section-title">계약 당사자</div>
-    <div class="info-box">
-      <div class="info-row">
-        <div class="info-label">위임자 (갑)</div>
-        <div class="info-value">${companyName}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">대표자</div>
-        <div class="info-value">${ceoName}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">사업자등록번호</div>
-        <div class="info-value">${businessNumber}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">주소</div>
-        <div class="info-value">${address}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">이메일</div>
-        <div class="info-value">${email}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">연락처</div>
-        <div class="info-value">${phone}</div>
-      </div>
-    </div>
-
-    <div class="info-box" style="margin-top: 20px;">
-      <div class="info-row">
-        <div class="info-label">수임자 (을)</div>
-        <div class="info-value">주식회사 씨넥</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">대표자</div>
-        <div class="info-value">김민규</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">사업자등록번호</div>
-        <div class="info-value">123-45-67890</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">주소</div>
-        <div class="info-value">서울특별시 강남구 테헤란로 123</div>
-      </div>
+  <div class="article">
+    <div class="article-title">제1조 (계약 목적)</div>
+    <div class="article-content">
+      본 계약은 주식회사 하우파파(이하 "갑")와 콘텐츠 사용자(이하 "을")가 프리미엄 패키지 형태의
+      콘텐츠 제작 및 활용에 대해 권리와 의무를 규정함을 목적으로 한다.
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">캠페인 정보</div>
-    <div class="info-box">
-      <div class="info-row">
-        <div class="info-label">캠페인명</div>
-        <div class="info-value">${campaignTitle}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">예산</div>
-        <div class="info-value">${campaignBudget}</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">계약 기간</div>
-        <div class="info-value">${campaignPeriod}</div>
-      </div>
+  <div class="article">
+    <div class="article-title">제2조 (지식재산권 귀속)</div>
+    <div class="article-content">
+      <ol>
+        <li>콘텐츠에 대한 모든 지식재산권은 갑에게 귀속된다.</li>
+        <li>을은 본 계약에 따라 콘텐츠를 사용권한 범위 내에서 활용할 수 있으며, 갑의 사전 서면 동의 없이 제3자에게 권리를 양도할 수 없다.</li>
+      </ol>
     </div>
   </div>
 
-  <div class="section">
-    <div class="article">
-      <div class="article-title">제1조 (목적)</div>
-      <div class="article-content">
-        본 계약은 갑이 을에게 크리에이터 섭외 및 콘텐츠 2차 활용에 관한 업무를 위임하고, 
-        을이 이를 수행함에 있어 필요한 제반 사항을 정함을 목적으로 합니다.
-      </div>
-    </div>
-
-    <div class="article">
-      <div class="article-title">제2조 (위임 업무의 범위)</div>
-      <div class="article-content">
-        을은 갑으로부터 다음 각 호의 업무를 위임받습니다:
-        <ul>
-          <li>캠페인에 적합한 크리에이터 발굴 및 섭외</li>
-          <li>크리에이터와의 계약 체결 및 관리</li>
-          <li>크리에이터가 제작한 콘텐츠의 2차 활용 권한 확보</li>
-          <li>콘텐츠 활용 범위 및 기간 협의</li>
-          <li>크리에이터에게 대가 지급</li>
-          <li>기타 캠페인 진행에 필요한 제반 업무</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="article">
-      <div class="article-title">제3조 (콘텐츠 2차 활용 권한)</div>
-      <div class="article-content">
-        <ul>
-          <li>을은 크리에이터로부터 콘텐츠 2차 활용 권한을 확보하여 갑에게 제공합니다.</li>
-          <li>갑은 을이 확보한 권한 범위 내에서 콘텐츠를 활용할 수 있습니다.</li>
-          <li>콘텐츠 활용 범위: 광고, 마케팅, SNS 게시, 웹사이트 게재 등</li>
-          <li>활용 기간: 계약서에 명시된 기간 또는 별도 협의된 기간</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="article">
-      <div class="article-title">제4조 (대가 및 지급)</div>
-      <div class="article-content">
-        <ul>
-          <li>갑은 을에게 캠페인 예산을 포인트로 충전하여 지급합니다.</li>
-          <li>을은 크리에이터에게 합의된 금액을 지급하고, 나머지는 수수료로 정산합니다.</li>
-          <li>포인트 충전 시 세금계산서 또는 현금영수증이 발행됩니다.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="article">
-      <div class="article-title">제5조 (갑의 의무)</div>
-      <div class="article-content">
-        <ul>
-          <li>갑은 캠페인 진행에 필요한 정보와 자료를 을에게 제공해야 합니다.</li>
-          <li>갑은 계약 체결 후 7일 이내에 포인트를 충전해야 합니다.</li>
-          <li>갑은 을이 확보한 콘텐츠 활용 권한 범위를 준수해야 합니다.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="article">
-      <div class="article-title">제6조 (을의 의무)</div>
-      <div class="article-content">
-        <ul>
-          <li>을은 캠페인 목적에 적합한 크리에이터를 성실히 섭외해야 합니다.</li>
-          <li>을은 크리에이터와의 계약 내용을 갑에게 투명하게 공개해야 합니다.</li>
-          <li>을은 크리에이터에게 합의된 금액을 정확히 지급해야 합니다.</li>
-          <li>을은 콘텐츠 활용 권한을 명확히 확보하여 갑에게 제공해야 합니다.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="article">
-      <div class="article-title">제7조 (계약 해지)</div>
-      <div class="article-content">
-        <ul>
-          <li>양 당사자는 상대방이 본 계약을 위반한 경우 계약을 해지할 수 있습니다.</li>
-          <li>계약 해지 시 이미 지급된 금액은 환불되지 않습니다.</li>
-          <li>단, 을의 귀책사유로 인한 해지 시 갑은 환불을 요청할 수 있습니다.</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="article">
-      <div class="article-title">제8조 (분쟁 해결)</div>
-      <div class="article-content">
-        본 계약과 관련하여 분쟁이 발생한 경우, 양 당사자는 상호 협의하여 해결하며, 
-        협의가 이루어지지 않을 경우 대한민국 법률에 따라 관할 법원에서 해결합니다.
-      </div>
+  <div class="article">
+    <div class="article-title">제3조 (콘텐츠 제작 및 인도)</div>
+    <div class="article-content">
+      <ol>
+        <li>갑은 계약 체결 후 정해진 기한 내 콘텐츠를 을에게 제공한다.</li>
+        <li>콘텐츠는 완성본(mp4 파일)으로 제공되며, 클린본(원본 영상 파일)은 별도 구매 시 1건당 10만원(VAT 별도)으로 제공한다.</li>
+      </ol>
     </div>
   </div>
 
-  <div class="date">
-    계약일: ${contractDate}
+  <div class="article">
+    <div class="article-title">제4조 (수정 범위 및 조건)</div>
+    <div class="article-content">
+      <ol>
+        <li>프리미엄 패키지 계약에서는 수정 가능을 원칙으로 하나, 사전에 합의된 가이드에 포함되지 않은 수정은 불가하다.</li>
+        <li>을은 납품된 콘텐츠에 대해 1회 무료 수정을 요청할 수 있다.</li>
+        <li>무료 수정 범위는 가이드 내에서의 자막, 음성, 색감, 장면 전환 등 경미한 후편집으로 한정된다.</li>
+        <li>가이드 외 요청, 기획 변경, 추가 촬영, 2회차 이상 수정이 필요한 경우, 별도 비용이 발생하며 갑과 협의 후 진행한다.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제5조 (사용 기간)</div>
+    <div class="article-content">
+      콘텐츠 사용 권한은 최종 업로드일로부터 1년간 유효하다.
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제6조 (사용료 지급)</div>
+    <div class="article-content">
+      <ol>
+        <li>사용료는 견적서 기준으로 산정하며, 세금계산서 발행일로부터 14일 이내 전액 지급한다.</li>
+        <li>추가 수정 및 기획 변경, 추가 촬영, 클린본 구매 비용은 별도 합의에 따라 을이 부담한다.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제7조 (계약 해제·해지)</div>
+    <div class="article-content">
+      <ol>
+        <li>을이 계약 조건을 위반하거나 업로드 일정을 지연할 경우, 갑은 계약을 해지할 수 있으며 실제 발생한 손해에 대해 손해배상을 청구할 수 있다.</li>
+        <li>협의된 일정 내 업로드가 불가한 경우, 갑과 을은 상호 협의하여 스케줄을 조정할 수 있다.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-title">제8조 (기타)</div>
+    <div class="article-content">
+      본 계약에 명시되지 않은 사항은 관련 법령 및 일반 상관례에 따른다.
+    </div>
+  </div>
+
+  <div class="brand-section">
+    <div class="brand-label">진행 브랜드명</div>
+    <div class="brand-value">${brandName || '___________________________'}</div>
   </div>
 
   <div class="signature-section">
     <div class="signature-box">
-      <div class="section-title">위임자 (갑) 서명</div>
-      <div class="info-row">
-        <div class="info-label">회사명</div>
-        <div class="info-value">${companyName}</div>
+      <div class="signature-title">[지식재산권자 (갑)]</div>
+      <div class="signature-row">
+        <div class="signature-label">회사명:</div>
+        <div class="signature-value">주식회사 하우파파</div>
       </div>
-      <div class="info-row">
-        <div class="info-label">대표자</div>
-        <div class="info-value">${ceoName}</div>
+      <div class="signature-row">
+        <div class="signature-label">주소:</div>
+        <div class="signature-value">서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</div>
       </div>
-      <div class="signature-line">
-        <div style="text-align: right; color: #6b7280;">서명: _____________________</div>
+      <div class="signature-row">
+        <div class="signature-label">대표자:</div>
+        <div class="signature-value">박현용</div>
+      </div>
+      <div class="stamp-area">
+        <div class="company-stamp">
+          <div class="stamp-text">
+            <span>하</span><span>주</span>
+            <span>우</span><span>식</span>
+            <span>파</span><span>회</span>
+            <span>파</span><span>사</span>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="signature-box">
-      <div class="section-title">수임자 (을)</div>
-      <div class="info-row">
-        <div class="info-label">회사명</div>
-        <div class="info-value">주식회사 씨넥</div>
+      <div class="signature-title">[콘텐츠 사용자 (을)]</div>
+      <div class="signature-row">
+        <div class="signature-label">회사명:</div>
+        <div class="signature-value" id="signer-company">${companyName || '___________________________'}</div>
       </div>
-      <div class="info-row">
-        <div class="info-label">대표자</div>
-        <div class="info-value">김민규</div>
+      <div class="signature-row">
+        <div class="signature-label">주소:</div>
+        <div class="signature-value" id="signer-address">${address || '___________________________'}</div>
       </div>
-      <div class="signature-line">
-        <div style="text-align: right; color: #6b7280;">서명: _____________________</div>
+      <div class="signature-row">
+        <div class="signature-label">대표자:</div>
+        <div class="signature-value" id="signer-ceo">${ceoName || '___________________________'}</div>
+      </div>
+      <div class="signer-signature-area" id="signer-signature">
+        서명란
       </div>
     </div>
   </div>
 
+  <div class="confirmation-section">
+    <div class="confirmation-title">확인 사항 (체크 필수)</div>
+    <div class="confirmation-item">
+      <div class="checkbox"></div>
+      <div>본 계약의 프리미엄 패키지 콘텐츠는 사전에 합의된 가이드 범위 내에서만 수정 가능하며, 1회 무료 수정을 초과하거나 기획 변경·추가 촬영이 필요한 경우 별도 비용이 발생한다는 점을 확인하였습니다.</div>
+    </div>
+    <div class="confirmation-item">
+      <div class="checkbox"></div>
+      <div>본 계약의 콘텐츠는 최종 업로드일로부터 1년간 사용 가능하며, 이후 활용은 별도의 계약 또는 비용 협의가 필요함을 확인하였습니다.</div>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 40px; font-size: 14px; color: #6b7280;">
+    계약일: ${contractDate}
+  </div>
+
   <div class="footer">
     <p>본 계약서는 전자문서 및 전자거래 기본법에 따라 전자적 형태로 작성되었으며, 법적 효력을 가집니다.</p>
-    <p>© ${new Date().getFullYear()} CNEC Inc. All rights reserved.</p>
+    <p style="margin-top: 10px;">주식회사 하우파파 | 대표 박현용 | 사업자등록번호 575-81-02253</p>
+    <p>서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</p>
+    <p>© ${new Date().getFullYear()} HOWPAPA Inc. All rights reserved.</p>
   </div>
 </body>
 </html>
   `
 }
-

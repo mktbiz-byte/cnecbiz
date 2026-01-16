@@ -46,14 +46,14 @@ export default function SiteEditor() {
     cta_button: '무료로 시작하기',
     
     // Footer
-    footer_company_name: 'HOWPAPA',
-    footer_business_number: '575-81-02255',
-    footer_sales_number: '2022-서울반포-3903호',
-    footer_address: '서울 마포구 백범로 31길 21 서울창업허브 별관 312호',
-    footer_email: 'cnec@cnecbiz.com',
-    footer_phone: '02-1234-5678',
-    footer_ceo: '대표자명',
-    footer_privacy_officer: '개인정보보호책임자'
+    footer_company_name: '주식회사 하우파파',
+    footer_business_number: '575-81-02253',
+    footer_sales_number: '2022-서울마포-3903호',
+    footer_address: '서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호',
+    footer_email: 'howpapa@howpapa.co.kr',
+    footer_phone: '1833-6025',
+    footer_ceo: '박현용',
+    footer_privacy_officer: '이지훈'
   })
 
   useEffect(() => {

@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  FileSignature, Send, Eye, Download, Clock, 
-  CheckCircle, XCircle, Plus, Search, Filter
+import {
+  FileSignature, Send, Eye, Download, Clock,
+  CheckCircle, XCircle, Plus, Search, Filter, RefreshCw, Trash2
 } from 'lucide-react'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
@@ -26,6 +26,7 @@ export default function AdminContractManagement() {
   // 새 계약서 발송 폼
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [contractType, setContractType] = useState('campaign') // campaign or portrait_rights
+  const [sendImmediately, setSendImmediately] = useState(true) // 생성 시 바로 발송
   const [newContract, setNewContract] = useState({
     recipientEmail: '',
     recipientName: '',
@@ -33,6 +34,12 @@ export default function AdminContractManagement() {
     title: '',
     data: {}
   })
+
+  // 재발송 모달
+  const [showResendModal, setShowResendModal] = useState(false)
+  const [resendContract, setResendContract] = useState(null)
+  const [resendEmail, setResendEmail] = useState('')
+  const [resending, setResending] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -136,9 +143,54 @@ export default function AdminContractManagement() {
     if (!confirm('계약서를 발송하시겠습니까?')) return
 
     try {
+      // 계약서 정보 가져오기
+      const contract = contracts.find(c => c.id === contractId)
+      if (!contract) {
+        throw new Error('계약서를 찾을 수 없습니다.')
+      }
+
+      if (!contract.recipient_email) {
+        throw new Error('수신자 이메일이 없습니다.')
+      }
+
+      // 서명 페이지 URL 생성
+      const signUrl = `${window.location.origin}/sign-contract/${contractId}`
+      const expiresAt = contract.expires_at
+        ? new Date(contract.expires_at).toLocaleDateString('ko-KR')
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')
+
+      // 이메일 템플릿 발송
+      const templateKey = contract.contract_type === 'campaign'
+        ? 'contract_sign_request'
+        : 'portrait_rights_sign_request'
+
+      const emailResponse = await fetch('/.netlify/functions/send-template-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateKey: templateKey,
+          to: contract.recipient_email,
+          variables: {
+            recipientName: contract.recipient_name || contract.recipient_email,
+            companyName: '크넥',
+            contractTitle: contract.title || '계약서',
+            signUrl: signUrl,
+            expiresAt: expiresAt
+          }
+        })
+      })
+
+      const emailResult = await emailResponse.json()
+
+      if (!emailResult.success) {
+        console.error('이메일 발송 실패:', emailResult.error)
+        throw new Error(emailResult.error || '이메일 발송에 실패했습니다.')
+      }
+
+      // 상태 업데이트
       const { error } = await supabaseBiz
         .from('contracts')
-        .update({ 
+        .update({
           status: 'sent',
           sent_at: new Date().toISOString()
         })
@@ -146,11 +198,11 @@ export default function AdminContractManagement() {
 
       if (error) throw error
 
-      alert('계약서가 발송되었습니다.')
+      alert('계약서가 이메일로 발송되었습니다.')
       fetchContracts()
     } catch (error) {
       console.error('계약서 발송 오류:', error)
-      alert('계약서 발송에 실패했습니다.')
+      alert(`계약서 발송에 실패했습니다: ${error.message}`)
     }
   }
 
@@ -174,21 +226,67 @@ export default function AdminContractManagement() {
         date: new Date().toLocaleDateString('ko-KR')
       }
 
-      const { error } = await supabaseBiz
+      const contractTitle = newContract.title || (contractType === 'campaign' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서')
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+
+      const { data: createdContract, error } = await supabaseBiz
         .from('contracts')
         .insert([{
           contract_type: contractType,
           recipient_email: newContract.recipientEmail,
           recipient_name: newContract.recipientName,
-          title: newContract.title || (contractType === 'campaign' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서'),
+          title: contractTitle,
           content: JSON.stringify(contractData),
-          status: 'pending',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
+          status: sendImmediately ? 'sent' : 'pending',
+          sent_at: sendImmediately ? new Date().toISOString() : null,
+          expires_at: expiresAt.toISOString()
         }])
+        .select()
+        .single()
 
       if (error) throw error
 
-      alert('계약서가 생성되었습니다.')
+      // 생성 시 바로 발송 옵션이 켜져 있으면 이메일 발송
+      if (sendImmediately && createdContract) {
+        const signUrl = `${window.location.origin}/sign-contract/${createdContract.id}`
+        const templateKey = contractType === 'campaign'
+          ? 'contract_sign_request'
+          : 'portrait_rights_sign_request'
+
+        const emailResponse = await fetch('/.netlify/functions/send-template-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateKey: templateKey,
+            to: newContract.recipientEmail,
+            variables: {
+              recipientName: newContract.recipientName,
+              companyName: newContract.companyName || '크넥',
+              contractTitle: contractTitle,
+              signUrl: signUrl,
+              expiresAt: expiresAt.toLocaleDateString('ko-KR')
+            }
+          })
+        })
+
+        const emailResult = await emailResponse.json()
+
+        if (!emailResult.success) {
+          console.error('이메일 발송 실패:', emailResult.error)
+          // 이메일 실패시 상태를 pending으로 되돌림
+          await supabaseBiz
+            .from('contracts')
+            .update({ status: 'pending', sent_at: null })
+            .eq('id', createdContract.id)
+
+          alert(`계약서는 생성되었으나 이메일 발송에 실패했습니다: ${emailResult.error}`)
+        } else {
+          alert('계약서가 생성되고 이메일로 발송되었습니다.')
+        }
+      } else {
+        alert('계약서가 생성되었습니다.')
+      }
+
       setShowCreateForm(false)
       setNewContract({
         recipientEmail: '',
@@ -201,6 +299,107 @@ export default function AdminContractManagement() {
     } catch (error) {
       console.error('계약서 생성 오류:', error)
       alert(`계약서 생성에 실패했습니다: ${error.message || JSON.stringify(error)}`)
+    }
+  }
+
+  // 재발송 모달 열기
+  const openResendModal = (contract) => {
+    setResendContract(contract)
+    setResendEmail(contract.recipient_email || '')
+    setShowResendModal(true)
+  }
+
+  // 재발송 실행
+  const handleResendContract = async () => {
+    if (!resendContract || !resendEmail) {
+      alert('이메일을 입력해주세요.')
+      return
+    }
+
+    setResending(true)
+    try {
+      // 이메일이 변경된 경우 DB 업데이트
+      if (resendEmail !== resendContract.recipient_email) {
+        const { error: updateError } = await supabaseBiz
+          .from('contracts')
+          .update({ recipient_email: resendEmail })
+          .eq('id', resendContract.id)
+
+        if (updateError) throw updateError
+      }
+
+      // 서명 페이지 URL 생성
+      const signUrl = `${window.location.origin}/sign-contract/${resendContract.id}`
+      const expiresAt = resendContract.expires_at
+        ? new Date(resendContract.expires_at).toLocaleDateString('ko-KR')
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')
+
+      // 이메일 템플릿 발송
+      const templateKey = resendContract.contract_type === 'campaign'
+        ? 'contract_sign_request'
+        : 'portrait_rights_sign_request'
+
+      const emailResponse = await fetch('/.netlify/functions/send-template-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateKey: templateKey,
+          to: resendEmail,
+          variables: {
+            recipientName: resendContract.recipient_name || resendEmail,
+            companyName: '크넥',
+            contractTitle: resendContract.title || '계약서',
+            signUrl: signUrl,
+            expiresAt: expiresAt
+          }
+        })
+      })
+
+      const emailResult = await emailResponse.json()
+
+      if (!emailResult.success) {
+        throw new Error(emailResult.error || '이메일 발송에 실패했습니다.')
+      }
+
+      // 발송 시간 업데이트
+      await supabaseBiz
+        .from('contracts')
+        .update({
+          status: 'sent',
+          sent_at: new Date().toISOString()
+        })
+        .eq('id', resendContract.id)
+
+      alert('계약서가 재발송되었습니다.')
+      setShowResendModal(false)
+      setResendContract(null)
+      setResendEmail('')
+      fetchContracts()
+    } catch (error) {
+      console.error('계약서 재발송 오류:', error)
+      alert(`계약서 재발송에 실패했습니다: ${error.message}`)
+    } finally {
+      setResending(false)
+    }
+  }
+
+  // 계약서 삭제
+  const handleDeleteContract = async (contractId) => {
+    if (!confirm('정말 이 계약서를 삭제하시겠습니까?\n삭제된 계약서는 복구할 수 없습니다.')) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('contracts')
+        .delete()
+        .eq('id', contractId)
+
+      if (error) throw error
+
+      alert('계약서가 삭제되었습니다.')
+      fetchContracts()
+    } catch (error) {
+      console.error('계약서 삭제 오류:', error)
+      alert(`계약서 삭제에 실패했습니다: ${error.message}`)
     }
   }
 
@@ -386,6 +585,27 @@ export default function AdminContractManagement() {
                                       발송
                                     </Button>
                                   )}
+                                  {(contract.status === 'sent' || contract.status === 'expired') && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openResendModal(contract)}
+                                      className="text-orange-600 hover:bg-orange-50"
+                                    >
+                                      <RefreshCw className="w-4 h-4 mr-1" />
+                                      재발송
+                                    </Button>
+                                  )}
+                                  {contract.status !== 'signed' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteContract(contract.id)}
+                                      className="text-red-600 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -476,12 +696,25 @@ export default function AdminContractManagement() {
                   />
                 </div>
 
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="sendImmediately"
+                    checked={sendImmediately}
+                    onChange={(e) => setSendImmediately(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="sendImmediately" className="text-sm text-gray-700">
+                    생성 시 바로 이메일로 발송
+                  </label>
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <Button
                     onClick={handleCreateContract}
                     className="flex-1 bg-blue-600 hover:bg-blue-700"
                   >
-                    생성
+                    {sendImmediately ? '생성 및 발송' : '생성'}
                   </Button>
                   <Button
                     variant="outline"
@@ -518,10 +751,71 @@ export default function AdminContractManagement() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div 
+                <div
                   className="border rounded-lg p-4 bg-white"
                   dangerouslySetInnerHTML={{ __html: previewContent }}
                 />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* 재발송 모달 */}
+        {showResendModal && resendContract && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md bg-white">
+              <CardHeader>
+                <CardTitle>계약서 재발송</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">계약서: {resendContract.title}</p>
+                  <p className="text-sm text-gray-600 mb-4">수신자: {resendContract.recipient_name}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    수신자 이메일 <span className="text-gray-500">(수정 가능)</span>
+                  </label>
+                  <Input
+                    type="email"
+                    value={resendEmail}
+                    onChange={(e) => setResendEmail(e.target.value)}
+                    placeholder="이메일 주소"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    onClick={handleResendContract}
+                    disabled={resending || !resendEmail}
+                    className="flex-1 bg-orange-600 hover:bg-orange-700"
+                  >
+                    {resending ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                        발송 중...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        재발송
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowResendModal(false)
+                      setResendContract(null)
+                      setResendEmail('')
+                    }}
+                    className="flex-1"
+                    disabled={resending}
+                  >
+                    취소
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

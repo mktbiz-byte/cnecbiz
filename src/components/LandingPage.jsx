@@ -132,6 +132,7 @@ export default function LandingPage() {
   const [user, setUser] = useState(null)
   const [userRole, setUserRole] = useState(null)
   const [faqs, setFaqs] = useState([])
+  const [featuredNewsletters, setFeaturedNewsletters] = useState([])
   const [pageContent, setPageContent] = useState({
     hero_title: 'K-뷰티를 세계로,',
     hero_subtitle: '14일 만에 완성하는 숏폼',
@@ -173,7 +174,40 @@ export default function LandingPage() {
     checkAuth()
     fetchFaqs()
     fetchPageContent()
+    fetchFeaturedNewsletters()
   }, [])
+
+  // 추천 뉴스레터 또는 최신 뉴스레터 가져오기
+  const fetchFeaturedNewsletters = async () => {
+    try {
+      // 먼저 추천(is_featured) 뉴스레터 확인
+      const { data: featured, error: featuredError } = await supabaseBiz
+        .from('newsletters')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_featured', true)
+        .order('display_order', { ascending: true })
+        .limit(4)
+
+      if (!featuredError && featured && featured.length > 0) {
+        setFeaturedNewsletters(featured)
+      } else {
+        // 추천이 없으면 최신 4개
+        const { data: recent, error: recentError } = await supabaseBiz
+          .from('newsletters')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_order', { ascending: true })
+          .limit(4)
+
+        if (!recentError && recent) {
+          setFeaturedNewsletters(recent)
+        }
+      }
+    } catch (error) {
+      console.error('뉴스레터 조회 오류:', error)
+    }
+  }
 
   const checkAuth = async () => {
     const { data: { session } } = await supabaseBiz.auth.getSession()
@@ -322,6 +356,7 @@ export default function LandingPage() {
               <a href="#showcase" className="text-gray-400 hover:text-white transition-colors text-sm">포트폴리오</a>
               <a href="#pricing" className="text-gray-400 hover:text-white transition-colors text-sm">요금제</a>
               <a href="#voucher" className="text-gray-400 hover:text-white transition-colors text-sm">수출바우처</a>
+              <button onClick={() => navigate('/newsletters')} className="text-gray-400 hover:text-white transition-colors text-sm">뉴스레터</button>
               <a href="#faq" className="text-gray-400 hover:text-white transition-colors text-sm">FAQ</a>
             </nav>
 
@@ -365,6 +400,7 @@ export default function LandingPage() {
                 <a href="#showcase" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">포트폴리오</a>
                 <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">요금제</a>
                 <a href="#voucher" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">수출바우처</a>
+                <button onClick={() => { navigate('/newsletters'); setMobileMenuOpen(false); }} className="text-gray-400 py-2 text-left">뉴스레터</button>
                 <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-gray-400 py-2">FAQ</a>
               </nav>
               <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-800">
@@ -466,6 +502,78 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Featured Newsletters Section */}
+      {featuredNewsletters.length > 0 && (
+        <section className="py-16 sm:py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-gray-900">
+                금주의 <span className="text-blue-600">뉴스레터</span>
+              </h2>
+              <p className="text-gray-600">인플루언서 마케팅 트렌드와 인사이트를 확인하세요</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredNewsletters.map((newsletter) => (
+                <div
+                  key={newsletter.id}
+                  onClick={() => navigate(`/newsletter/${newsletter.id}`)}
+                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer group border border-gray-100"
+                >
+                  {/* 썸네일 */}
+                  <div className="h-40 bg-gradient-to-br from-blue-500 to-indigo-600 relative overflow-hidden">
+                    {newsletter.thumbnail_url ? (
+                      <img
+                        src={newsletter.thumbnail_url}
+                        alt={newsletter.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Mail className="w-12 h-12 text-white/50" />
+                      </div>
+                    )}
+                    {newsletter.is_featured && (
+                      <span className="absolute top-3 left-3 px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-medium rounded-full flex items-center gap-1">
+                        <Star className="w-3 h-3" /> 추천
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 콘텐츠 */}
+                  <div className="p-4">
+                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                      {newsletter.title}
+                    </h3>
+                    {newsletter.description && (
+                      <p className="text-gray-500 text-sm line-clamp-2 mb-3">
+                        {newsletter.description}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      {newsletter.published_at && (
+                        <span>{new Date(newsletter.published_at).toLocaleDateString('ko-KR')}</span>
+                      )}
+                      <span className="text-blue-600 font-medium group-hover:underline">읽기 →</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center mt-8">
+              <button
+                onClick={() => navigate('/newsletters')}
+                className="px-6 py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-colors inline-flex items-center gap-2"
+              >
+                모든 뉴스레터 보기
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Partner Brands Section */}
       <section className="py-16 sm:py-24 bg-gray-50">
@@ -703,6 +811,35 @@ export default function LandingPage() {
               </details>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Newsletter Banner */}
+      <section className="py-16 sm:py-20 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 relative overflow-hidden">
+        {/* 배경 장식 */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-6 backdrop-blur-sm">
+            <Mail className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white">
+            인플루언서 마케팅 인사이트
+          </h2>
+          <p className="text-white/80 text-lg mb-8 max-w-2xl mx-auto">
+            K-뷰티 마케팅 트렌드, 크리에이터 협업 노하우, 성공 사례까지<br className="hidden sm:block" />
+            매주 엄선된 콘텐츠를 무료로 받아보세요.
+          </p>
+          <button
+            onClick={() => navigate('/newsletters')}
+            className="px-8 py-4 bg-white text-indigo-700 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all shadow-xl hover:shadow-2xl inline-flex items-center gap-2"
+          >
+            뉴스레터 보러가기
+            <ArrowRight className="w-5 h-5" />
+          </button>
         </div>
       </section>
 

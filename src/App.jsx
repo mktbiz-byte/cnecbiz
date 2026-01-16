@@ -113,6 +113,9 @@ import LineMessagesManagement from './components/admin/LineMessagesManagement'
 import TestNaverWorks from './pages/TestNaverWorks'
 import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemplatePrototype'
 import ConsultationBanner from './components/ConsultationBanner'
+import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
+import NewsletterShowcase from './pages/NewsletterShowcase'
+import NewsletterDetail from './pages/NewsletterDetail'
 
 import AuthCallback from './components/AuthCallback'
 import RegularCampaignIntro from './pages/RegularCampaignIntro'
@@ -133,6 +136,8 @@ function App() {
         <Route path="/campaigns/intro/4week" element={<FourWeekChallengeCampaignIntro />} />
         <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/invitation/:id" element={<InvitationLanding />} />
+        <Route path="/newsletters" element={<NewsletterShowcase />} />
+        <Route path="/newsletter/:id" element={<NewsletterDetail />} />
         <Route path="/us-shipping-info" element={<USShippingInfoForm />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />
@@ -231,6 +236,7 @@ function App() {
         <Route path="/admin/line-chat" element={<LineChatManagement />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
+        <Route path="/admin/newsletters" element={<NewsletterShowcaseManagement />} />
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />
         <Route path="/admin/line-messages" element={<LineMessagesManagement />} />
