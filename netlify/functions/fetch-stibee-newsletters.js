@@ -64,8 +64,8 @@ exports.handler = async (event) => {
       }
     }
 
-    // 스티비 API v2로 이메일 목록 가져오기
-    const response = await fetch('https://api.stibee.com/v2/emails?status=COMPLETE&limit=100', {
+    // 1단계: 주소록(List) 목록 가져오기
+    const listsResponse = await fetch('https://api.stibee.com/v1/lists', {
       method: 'GET',
       headers: {
         'AccessToken': STIBEE_API_KEY,
@@ -73,24 +73,69 @@ exports.handler = async (event) => {
       }
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Stibee API error:', response.status, errorText)
+    if (!listsResponse.ok) {
+      const errorText = await listsResponse.text()
+      console.error('Stibee Lists API error:', listsResponse.status, errorText)
       return {
-        statusCode: response.status,
+        statusCode: listsResponse.status,
         headers,
         body: JSON.stringify({
           success: false,
-          error: `스티비 API 오류: ${response.status} - ${errorText}`
+          error: `스티비 주소록 API 오류: ${listsResponse.status} - ${errorText}`
         })
       }
     }
 
-    const data = await response.json()
-    console.log('Stibee API response:', JSON.stringify(data).slice(0, 500))
+    const listsData = await listsResponse.json()
+    console.log('Stibee Lists response:', JSON.stringify(listsData).slice(0, 500))
 
-    // 이메일 목록 파싱
-    const emails = data.value || data.emails || data.data || []
+    const lists = listsData.Value || listsData.value || []
+
+    if (!Array.isArray(lists) || lists.length === 0) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          message: '스티비 주소록이 없습니다.',
+          fetched: 0,
+          saved: 0,
+          emails: []
+        })
+      }
+    }
+
+    // 2단계: 각 주소록에서 발송 완료된 이메일 가져오기
+    let allEmails = []
+
+    for (const list of lists) {
+      const listId = list.id || list.listId
+      if (!listId) continue
+
+      try {
+        const emailsResponse = await fetch(`https://api.stibee.com/v1/lists/${listId}/emails?status=COMPLETE&offset=0&limit=100`, {
+          method: 'GET',
+          headers: {
+            'AccessToken': STIBEE_API_KEY,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (emailsResponse.ok) {
+          const emailsData = await emailsResponse.json()
+          console.log(`List ${listId} emails:`, JSON.stringify(emailsData).slice(0, 300))
+
+          const emails = emailsData.Value || emailsData.value || []
+          if (Array.isArray(emails)) {
+            allEmails = allEmails.concat(emails)
+          }
+        }
+      } catch (err) {
+        console.error(`Error fetching emails for list ${listId}:`, err)
+      }
+    }
+
+    const emails = allEmails
 
     if (!Array.isArray(emails)) {
       return {
