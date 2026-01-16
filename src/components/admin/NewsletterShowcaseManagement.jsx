@@ -76,6 +76,10 @@ export default function NewsletterShowcaseManagement() {
   const [selectedListId, setSelectedListId] = useState('')
   const [loadingLists, setLoadingLists] = useState(false)
 
+  // 구독 기본 주소록 설정
+  const [defaultListId, setDefaultListId] = useState('')
+  const [savingDefaultList, setSavingDefaultList] = useState(false)
+
   // 썸네일 추출
   const [extractingThumbnails, setExtractingThumbnails] = useState(false)
   const [extractingThumbnailFor, setExtractingThumbnailFor] = useState(null)
@@ -126,6 +130,7 @@ export default function NewsletterShowcaseManagement() {
     checkAuth()
     fetchNewsletters()
     fetchApiKey()
+    fetchDefaultListId()
   }, [])
 
   // API 키가 로드되면 주소록 목록 가져오기
@@ -218,6 +223,48 @@ export default function NewsletterShowcaseManagement() {
       alert('API 키 저장에 실패했습니다: ' + error.message)
     } finally {
       setSavingApiKey(false)
+    }
+  }
+
+  // 기본 구독 주소록 ID 조회
+  const fetchDefaultListId = async () => {
+    try {
+      const { data } = await supabaseBiz
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'stibee_default_list_id')
+        .maybeSingle()
+
+      if (data?.value) {
+        setDefaultListId(data.value)
+      }
+    } catch (error) {
+      console.error('기본 주소록 조회 오류:', error)
+    }
+  }
+
+  // 기본 구독 주소록 ID 저장
+  const saveDefaultListId = async (listId) => {
+    setSavingDefaultList(true)
+    try {
+      // upsert 사용
+      const { error } = await supabaseBiz
+        .from('site_settings')
+        .upsert({
+          key: 'stibee_default_list_id',
+          value: listId,
+          description: '웹사이트 뉴스레터 구독 시 사용할 스티비 주소록 ID',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' })
+
+      if (error) throw error
+      setDefaultListId(listId)
+      alert('기본 구독 주소록이 설정되었습니다.')
+    } catch (error) {
+      console.error('기본 주소록 저장 오류:', error)
+      alert('저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingDefaultList(false)
     }
   }
 
@@ -1050,6 +1097,49 @@ export default function NewsletterShowcaseManagement() {
                 <p className="text-xs text-gray-500 mt-1">
                   뉴스레터를 가져올 주소록을 선택하세요. "스티비에서 가져오기" 버튼을 누르면 선택된 주소록의 발송 완료된 메일을 가져옵니다.
                 </p>
+
+                {/* 구독 기본 주소록 설정 */}
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium">웹사이트 구독 설정</span>
+                    {defaultListId && (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        <Check className="w-3 h-3" /> 설정됨
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      className="flex-1 p-2 border rounded-lg text-sm"
+                      value={defaultListId}
+                      onChange={(e) => setDefaultListId(e.target.value)}
+                      disabled={stibeeLists.length === 0}
+                    >
+                      <option value="">구독 주소록 선택...</option>
+                      {stibeeLists.map((list) => (
+                        <option key={list.id} value={list.id}>
+                          {list.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => saveDefaultListId(defaultListId)}
+                      disabled={!defaultListId || savingDefaultList}
+                    >
+                      {savingDefaultList ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        '저장'
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    SEO로 유입된 방문자가 뉴스레터 페이지에서 구독 시 추가될 스티비 주소록을 선택하세요.
+                  </p>
+                </div>
               </div>
             )}
           </CardContent>

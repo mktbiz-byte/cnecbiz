@@ -3,8 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabaseBiz } from '../lib/supabaseClients'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
-  Mail, ArrowLeft, Star, Calendar, Lock, LogIn, Share2
+  Mail, ArrowLeft, Star, Calendar, Lock, LogIn, Share2, Send, Check, Loader2
 } from 'lucide-react'
 
 export default function NewsletterDetail() {
@@ -15,6 +16,11 @@ export default function NewsletterDetail() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState(null)
   const [relatedNewsletters, setRelatedNewsletters] = useState([])
+
+  // 구독 폼 상태
+  const [subscribeEmail, setSubscribeEmail] = useState('')
+  const [subscribing, setSubscribing] = useState(false)
+  const [subscribeResult, setSubscribeResult] = useState(null) // { success: bool, message: string }
 
   useEffect(() => {
     checkAuth()
@@ -86,6 +92,39 @@ export default function NewsletterDetail() {
     } else {
       await navigator.clipboard.writeText(url)
       alert('링크가 복사되었습니다.')
+    }
+  }
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault()
+    if (!subscribeEmail || subscribing) return
+
+    setSubscribing(true)
+    setSubscribeResult(null)
+
+    try {
+      const response = await fetch('/.netlify/functions/subscribe-newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: subscribeEmail })
+      })
+
+      const result = await response.json()
+      setSubscribeResult({
+        success: result.success,
+        message: result.message || result.error
+      })
+
+      if (result.success) {
+        setSubscribeEmail('')
+      }
+    } catch (error) {
+      setSubscribeResult({
+        success: false,
+        message: '구독 처리 중 오류가 발생했습니다.'
+      })
+    } finally {
+      setSubscribing(false)
     }
   }
 
@@ -267,6 +306,62 @@ export default function NewsletterDetail() {
               </div>
             )}
           </article>
+
+          {/* 뉴스레터 구독 CTA */}
+          <section className="mt-12 p-6 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-full mb-4">
+                <Mail className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                이런 콘텐츠, 더 받아보고 싶으신가요?
+              </h3>
+              <p className="text-gray-600">
+                인플루언서 마케팅 인사이트를 이메일로 받아보세요.
+              </p>
+            </div>
+
+            {subscribeResult?.success ? (
+              <div className="flex items-center justify-center gap-2 py-4 text-green-600">
+                <Check className="w-5 h-5" />
+                <span className="font-medium">{subscribeResult.message}</span>
+              </div>
+            ) : (
+              <form onSubmit={handleSubscribe} className="max-w-md mx-auto">
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="이메일 주소를 입력하세요"
+                    value={subscribeEmail}
+                    onChange={(e) => setSubscribeEmail(e.target.value)}
+                    className="flex-1 h-12 bg-white"
+                    disabled={subscribing}
+                    required
+                  />
+                  <Button
+                    type="submit"
+                    disabled={subscribing || !subscribeEmail}
+                    className="h-12 px-6 bg-blue-600 hover:bg-blue-700"
+                  >
+                    {subscribing ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        구독
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {subscribeResult && !subscribeResult.success && (
+                  <p className="text-red-500 text-sm mt-2 text-center">{subscribeResult.message}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  구독은 언제든 취소할 수 있습니다.
+                </p>
+              </form>
+            )}
+          </section>
 
           {/* 관련 뉴스레터 */}
           {relatedNewsletters.length > 0 && (
