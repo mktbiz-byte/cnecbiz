@@ -4373,12 +4373,19 @@ JSON만 출력.`
             const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
             // 프로필 이미지 - profile_photo_url (user_profiles에서 가져온 것) 우선
             const profileImage = participant.profile_photo_url || participant.profile_image_url || participant.creator_profile_image || participant.profile_image || participant.avatar_url
-            // SNS URL 가져오기
+            // SNS URL 가져오기 (normalizeSnsUrl 적용)
             const platform = (participant.creator_platform || participant.main_channel || participant.platform || '').toLowerCase()
-            const snsUrl = platform.includes('instagram') ? participant.instagram_url :
+            const rawSnsUrl = platform.includes('instagram') ? participant.instagram_url :
                           platform.includes('youtube') ? participant.youtube_url :
                           platform.includes('tiktok') ? participant.tiktok_url :
                           participant.instagram_url || participant.youtube_url || participant.tiktok_url
+            const snsUrlPlatform = platform.includes('instagram') ? 'instagram' :
+                          platform.includes('youtube') ? 'youtube' :
+                          platform.includes('tiktok') ? 'tiktok' :
+                          participant.instagram_url ? 'instagram' :
+                          participant.youtube_url ? 'youtube' :
+                          participant.tiktok_url ? 'tiktok' : 'instagram'
+            const snsUrl = normalizeSnsUrl(rawSnsUrl, snsUrlPlatform)
             const shippingAddress = participant.shipping_address || participant.address || ''
             const shippingPhone = participant.shipping_phone || participant.phone || participant.phone_number || participant.creator_phone || ''
             const courierCompany = trackingChanges[participant.id]?.shipping_company ?? participant.shipping_company ?? ''
@@ -4429,7 +4436,7 @@ JSON만 출력.`
                         <h3 className="text-base font-bold text-gray-900 truncate">{creatorName}</h3>
                         {snsUrl ? (
                           <a
-                            href={snsUrl.startsWith('http') ? snsUrl : `https://${snsUrl}`}
+                            href={snsUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${platformConfig.bg} ${platformConfig.color} flex items-center gap-1 hover:opacity-80 cursor-pointer transition-opacity`}
