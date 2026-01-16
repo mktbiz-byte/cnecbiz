@@ -154,33 +154,51 @@ exports.handler = async (event) => {
       }
     }
 
-    // 2단계: 선택된 주소록에서 발송 완료된 이메일 가져오기
+    // 2단계: 선택된 주소록에서 발송 완료된 이메일 가져오기 (페이지네이션 적용)
     let allEmails = []
+    const LIMIT = 100
 
     for (const list of targetLists) {
       const currentListId = list.id || list.listId
       if (!currentListId) continue
 
-      try {
-        const emailsResponse = await fetch(`https://api.stibee.com/v1/lists/${currentListId}/emails?status=COMPLETE&offset=0&limit=100`, {
-          method: 'GET',
-          headers: {
-            'AccessToken': STIBEE_API_KEY,
-            'Content-Type': 'application/json'
-          }
-        })
+      let offset = 0
+      let hasMore = true
 
-        if (emailsResponse.ok) {
-          const emailsData = await emailsResponse.json()
-          console.log(`List ${listId} emails:`, JSON.stringify(emailsData).slice(0, 300))
+      // 페이지네이션으로 모든 이메일 가져오기
+      while (hasMore) {
+        try {
+          const emailsResponse = await fetch(`https://api.stibee.com/v1/lists/${currentListId}/emails?status=COMPLETE&offset=${offset}&limit=${LIMIT}`, {
+            method: 'GET',
+            headers: {
+              'AccessToken': STIBEE_API_KEY,
+              'Content-Type': 'application/json'
+            }
+          })
 
-          const emails = emailsData.Value || emailsData.value || []
-          if (Array.isArray(emails)) {
-            allEmails = allEmails.concat(emails)
+          if (emailsResponse.ok) {
+            const emailsData = await emailsResponse.json()
+            console.log(`List ${currentListId} emails (offset ${offset}):`, JSON.stringify(emailsData).slice(0, 300))
+
+            const emails = emailsData.Value || emailsData.value || []
+            if (Array.isArray(emails) && emails.length > 0) {
+              allEmails = allEmails.concat(emails)
+              offset += LIMIT
+
+              // 가져온 개수가 LIMIT보다 작으면 더 이상 없음
+              if (emails.length < LIMIT) {
+                hasMore = false
+              }
+            } else {
+              hasMore = false
+            }
+          } else {
+            hasMore = false
           }
+        } catch (err) {
+          console.error(`Error fetching emails for list ${currentListId} at offset ${offset}:`, err)
+          hasMore = false
         }
-      } catch (err) {
-        console.error(`Error fetching emails for list ${listId}:`, err)
       }
     }
 
