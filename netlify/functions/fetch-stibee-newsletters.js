@@ -312,7 +312,6 @@ exports.handler = async (event) => {
         stibee_url: email.permanentLink || email.shareUrl || email.webUrl || `https://stibee.com/api/v1.0/emails/share/${stibeeId}`,
         published_at: email.sentTime || email.sendAt || email.sentAt || email.createdAt || null,
         thumbnail_url: email.thumbnailUrl || email.thumbnail || null,
-        html_content: null,
         updated_at: new Date().toISOString()
       }
 
