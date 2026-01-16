@@ -24,18 +24,19 @@ export default function NewsletterDetail() {
   const [subscribeResult, setSubscribeResult] = useState(null) // { success: bool, message: string }
 
   useEffect(() => {
-    checkAuth()
-    fetchNewsletter()
-  }, [id])
-
-  const checkAuth = async () => {
-    try {
-      const { data: { user } } = await supabaseBiz.auth.getUser()
-      setUser(user)
-    } catch (error) {
-      console.error('Auth check error:', error)
+    const init = async () => {
+      // 먼저 사용자 확인
+      try {
+        const { data: { user } } = await supabaseBiz.auth.getUser()
+        setUser(user)
+      } catch (error) {
+        console.error('Auth check error:', error)
+      }
+      // 그 다음 뉴스레터 로드
+      await fetchNewsletter()
     }
-  }
+    init()
+  }, [id])
 
   const fetchNewsletter = async () => {
     setLoading(true)

@@ -85,6 +85,7 @@ export default function NewsletterShowcaseManagement() {
   const [extractingThumbnailFor, setExtractingThumbnailFor] = useState(null)
   const [availableImages, setAvailableImages] = useState([])
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
+  const thumbnailInputRef = React.useRef(null)
 
   // HTML 콘텐츠 편집
   const [fetchingContent, setFetchingContent] = useState(false)
@@ -630,6 +631,59 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // 썸네일 이미지 업로드
+  const handleThumbnailUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // 파일 타입 검증
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드 가능합니다.')
+      return
+    }
+
+    // 파일 크기 검증 (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('파일 크기는 5MB 이하여야 합니다.')
+      return
+    }
+
+    setUploadingThumbnail(true)
+    try {
+      // 파일명 생성 (타임스탬프 + 원본 파일명)
+      const timestamp = Date.now()
+      const ext = file.name.split('.').pop()
+      const fileName = `newsletter_${timestamp}.${ext}`
+
+      // Supabase Storage에 업로드
+      const { data, error } = await supabaseBiz.storage
+        .from('newsletter-thumbnails')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (error) throw error
+
+      // 공개 URL 가져오기
+      const { data: { publicUrl } } = supabaseBiz.storage
+        .from('newsletter-thumbnails')
+        .getPublicUrl(fileName)
+
+      setFormData(prev => ({ ...prev, thumbnail_url: publicUrl }))
+      alert('썸네일이 업로드되었습니다.')
+    } catch (error) {
+      console.error('썸네일 업로드 오류:', error)
+      alert('썸네일 업로드에 실패했습니다: ' + error.message)
+    } finally {
+      setUploadingThumbnail(false)
+      // 입력 초기화 (같은 파일 재선택 가능하도록)
+      if (thumbnailInputRef.current) {
+        thumbnailInputRef.current.value = ''
+      }
+    }
+  }
+
   // HTML 콘텐츠 가져오기
   const handleFetchHtmlContent = async (newsletter) => {
     if (!newsletter?.stibee_url) {
@@ -863,20 +917,24 @@ export default function NewsletterShowcaseManagement() {
 
     try {
       // 두 뉴스레터의 순서를 교환
-      await supabaseBiz
+      const { error: err1 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: prevOrder })
         .eq('id', newsletter.id)
 
-      await supabaseBiz
+      if (err1) throw err1
+
+      const { error: err2 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: currentOrder })
         .eq('id', prevNewsletter.id)
 
+      if (err2) throw err2
+
       fetchNewsletters()
     } catch (error) {
       console.error('순서 변경 오류:', error)
-      alert('순서 변경에 실패했습니다.')
+      alert('순서 변경에 실패했습니다: ' + error.message)
     }
   }
 
@@ -890,20 +948,24 @@ export default function NewsletterShowcaseManagement() {
 
     try {
       // 두 뉴스레터의 순서를 교환
-      await supabaseBiz
+      const { error: err1 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: nextOrder })
         .eq('id', newsletter.id)
 
-      await supabaseBiz
+      if (err1) throw err1
+
+      const { error: err2 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: currentOrder })
         .eq('id', nextNewsletter.id)
 
+      if (err2) throw err2
+
       fetchNewsletters()
     } catch (error) {
       console.error('순서 변경 오류:', error)
-      alert('순서 변경에 실패했습니다.')
+      alert('순서 변경에 실패했습니다: ' + error.message)
     }
   }
 
@@ -1714,14 +1776,36 @@ export default function NewsletterShowcaseManagement() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">썸네일 이미지 URL</label>
+              <label className="block text-sm font-medium mb-1">썸네일 이미지</label>
               <div className="flex gap-2">
                 <Input
                   value={formData.thumbnail_url}
                   onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-                  placeholder="이미지 URL (선택)"
+                  placeholder="이미지 URL을 입력하거나 파일을 업로드하세요"
                   className="flex-1"
                 />
+                {/* 파일 업로드 버튼 */}
+                <input
+                  ref={thumbnailInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => thumbnailInputRef.current?.click()}
+                  disabled={uploadingThumbnail}
+                  className="whitespace-nowrap"
+                >
+                  {uploadingThumbnail ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4 mr-1" />
+                  )}
+                  업로드
+                </Button>
                 {isEditing && selectedNewsletter?.stibee_url && (
                   <Button
                     type="button"
@@ -1741,12 +1825,24 @@ export default function NewsletterShowcaseManagement() {
               </div>
               {/* 현재 썸네일 미리보기 */}
               {formData.thumbnail_url && (
-                <div className="mt-2 border rounded-lg overflow-hidden w-40 h-24">
-                  <img
-                    src={formData.thumbnail_url}
-                    alt="썸네일 미리보기"
-                    className="w-full h-full object-cover"
-                  />
+                <div className="mt-2 flex items-end gap-3">
+                  <div className="border rounded-lg overflow-hidden w-40 h-24">
+                    <img
+                      src={formData.thumbnail_url}
+                      alt="썸네일 미리보기"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, thumbnail_url: '' })}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    삭제
+                  </Button>
                 </div>
               )}
               {/* 추출된 이미지 선택 옵션 */}
