@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseBiz } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,11 +10,18 @@ import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
   Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock,
-  FileText, Code, X, Maximize2, Monitor, Smartphone
+  FileText, Code, X, Maximize2, Monitor, Smartphone, Bold, Italic, Underline, Strikethrough, ListOrdered, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, Type
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
-import ReactQuill from 'react-quill'
-import 'react-quill/dist/quill.snow.css'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import { Link as LinkExtension } from '@tiptap/extension-link'
+import { Image as ImageExtension } from '@tiptap/extension-image'
+import { TextAlign } from '@tiptap/extension-text-align'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
+import { Highlight } from '@tiptap/extension-highlight'
+import { Underline as UnderlineExtension } from '@tiptap/extension-underline'
 
 const CATEGORIES = [
   { value: 'marketing', label: '마케팅 인사이트' },
@@ -84,23 +91,36 @@ export default function NewsletterShowcaseManagement() {
   const [editorMode, setEditorMode] = useState('visual') // visual, code, preview
   const [previewDevice, setPreviewDevice] = useState('desktop') // desktop, mobile
 
-  // ReactQuill 설정
-  const quillModules = useMemo(() => ({
-    toolbar: [
-      [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'align': [] }],
-      ['link', 'image'],
-      ['clean']
-    ]
-  }), [])
+  // Tiptap 에디터 설정
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      UnderlineExtension,
+      LinkExtension.configure({
+        openOnClick: false,
+      }),
+      ImageExtension,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+      TextStyle,
+      Color,
+      Highlight.configure({
+        multicolor: true,
+      }),
+    ],
+    content: htmlContent,
+    onUpdate: ({ editor }) => {
+      setHtmlContent(editor.getHTML())
+    },
+  }, [showFullEditor])
 
-  const quillFormats = [
-    'header', 'bold', 'italic', 'underline', 'strike',
-    'color', 'background', 'list', 'bullet', 'align', 'link', 'image'
-  ]
+  // 에디터 내용 업데이트
+  useEffect(() => {
+    if (editor && htmlContent !== editor.getHTML()) {
+      editor.commands.setContent(htmlContent)
+    }
+  }, [htmlContent, editor])
 
   useEffect(() => {
     checkAuth()
@@ -1908,38 +1928,201 @@ export default function NewsletterShowcaseManagement() {
               </div>
             ) : editorMode === 'visual' ? (
               <div className="h-full flex flex-col">
-                <ReactQuill
-                  theme="snow"
-                  value={htmlContent}
-                  onChange={setHtmlContent}
-                  modules={quillModules}
-                  formats={quillFormats}
-                  className="flex-1 overflow-auto"
-                  style={{ height: 'calc(100vh - 120px)' }}
-                />
+                {/* Tiptap 툴바 */}
+                {editor && (
+                  <div className="flex items-center gap-1 px-4 py-2 border-b bg-gray-50 flex-wrap">
+                    <button
+                      onClick={() => editor.chain().focus().toggleBold().run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('bold') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="굵게"
+                    >
+                      <Bold className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleItalic().run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('italic') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="기울임"
+                    >
+                      <Italic className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleUnderline().run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('underline') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="밑줄"
+                    >
+                      <Underline className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleStrike().run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('strike') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="취소선"
+                    >
+                      <Strikethrough className="w-4 h-4" />
+                    </button>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                    <button
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('heading', { level: 1 }) ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="제목 1"
+                    >
+                      <Heading1 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('heading', { level: 2 }) ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="제목 2"
+                    >
+                      <Heading2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().setParagraph().run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('paragraph') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="본문"
+                    >
+                      <Type className="w-4 h-4" />
+                    </button>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                    <button
+                      onClick={() => editor.chain().focus().toggleBulletList().run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('bulletList') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="글머리 기호"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('orderedList') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="번호 목록"
+                    >
+                      <ListOrdered className="w-4 h-4" />
+                    </button>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                    <button
+                      onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive({ textAlign: 'left' }) ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="왼쪽 정렬"
+                    >
+                      <AlignLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive({ textAlign: 'center' }) ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="가운데 정렬"
+                    >
+                      <AlignCenter className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive({ textAlign: 'right' }) ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="오른쪽 정렬"
+                    >
+                      <AlignRight className="w-4 h-4" />
+                    </button>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                    <button
+                      onClick={() => {
+                        const url = window.prompt('링크 URL을 입력하세요:')
+                        if (url) {
+                          editor.chain().focus().setLink({ href: url }).run()
+                        }
+                      }}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('link') ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="링크"
+                    >
+                      <Link2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const url = window.prompt('이미지 URL을 입력하세요:')
+                        if (url) {
+                          editor.chain().focus().setImage({ src: url }).run()
+                        }
+                      }}
+                      className="p-2 rounded hover:bg-gray-200"
+                      title="이미지"
+                    >
+                      <Image className="w-4 h-4" />
+                    </button>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                    <button
+                      onClick={() => editor.chain().focus().undo().run()}
+                      disabled={!editor.can().undo()}
+                      className="p-2 rounded hover:bg-gray-200 disabled:opacity-30"
+                      title="실행 취소"
+                    >
+                      <Undo className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => editor.chain().focus().redo().run()}
+                      disabled={!editor.can().redo()}
+                      className="p-2 rounded hover:bg-gray-200 disabled:opacity-30"
+                      title="다시 실행"
+                    >
+                      <Redo className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Tiptap 에디터 */}
+                <div className="flex-1 overflow-auto bg-white">
+                  <EditorContent
+                    editor={editor}
+                    className="tiptap-editor h-full"
+                  />
+                </div>
+
                 <style>{`
-                  .ql-container {
-                    font-size: 16px;
-                    height: calc(100% - 42px) !important;
-                  }
-                  .ql-editor {
-                    min-height: 100%;
+                  .tiptap-editor .ProseMirror {
+                    min-height: calc(100vh - 200px);
                     padding: 40px;
                     max-width: 800px;
                     margin: 0 auto;
+                    outline: none;
                   }
-                  .ql-editor img {
+                  .tiptap-editor .ProseMirror p {
+                    margin: 1em 0;
+                  }
+                  .tiptap-editor .ProseMirror h1 {
+                    font-size: 2em;
+                    font-weight: bold;
+                    margin: 0.67em 0;
+                  }
+                  .tiptap-editor .ProseMirror h2 {
+                    font-size: 1.5em;
+                    font-weight: bold;
+                    margin: 0.83em 0;
+                  }
+                  .tiptap-editor .ProseMirror img {
                     max-width: 100%;
                     height: auto;
                   }
-                  .ql-toolbar {
-                    border-top: none !important;
-                    border-left: none !important;
-                    border-right: none !important;
-                    background: #f9fafb;
-                    position: sticky;
-                    top: 0;
-                    z-index: 10;
+                  .tiptap-editor .ProseMirror ul,
+                  .tiptap-editor .ProseMirror ol {
+                    padding-left: 1.5em;
+                    margin: 1em 0;
+                  }
+                  .tiptap-editor .ProseMirror a {
+                    color: #2563eb;
+                    text-decoration: underline;
+                  }
+                  .tiptap-editor .ProseMirror table {
+                    max-width: 100%;
+                    border-collapse: collapse;
+                  }
+                  .tiptap-editor .ProseMirror td,
+                  .tiptap-editor .ProseMirror th {
+                    border: 1px solid #ccc;
+                    padding: 8px;
                   }
                 `}</style>
               </div>
