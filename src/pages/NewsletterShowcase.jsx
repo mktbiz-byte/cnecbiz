@@ -73,7 +73,7 @@ export default function NewsletterShowcase() {
         .from('newsletters')
         .select('*')
         .eq('is_active', true)
-        .order('is_featured', { ascending: false })
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('published_at', { ascending: false })
 
       if (error) throw error
