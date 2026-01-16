@@ -10,7 +10,7 @@ import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
   Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock,
-  FileText, Code, X, Maximize2, Monitor, Smartphone, Bold, Italic, Underline, Strikethrough, ListOrdered, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, Type
+  FileText, Code, X, Maximize2, Monitor, Smartphone, Bold, Italic, Underline, Strikethrough, ListOrdered, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, Type, Upload
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -80,10 +80,11 @@ export default function NewsletterShowcaseManagement() {
   const [defaultListId, setDefaultListId] = useState('')
   const [savingDefaultList, setSavingDefaultList] = useState(false)
 
-  // 썸네일 추출
+  // 썸네일 추출 및 업로드
   const [extractingThumbnails, setExtractingThumbnails] = useState(false)
   const [extractingThumbnailFor, setExtractingThumbnailFor] = useState(null)
   const [availableImages, setAvailableImages] = useState([])
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
 
   // HTML 콘텐츠 편집
   const [fetchingContent, setFetchingContent] = useState(false)
