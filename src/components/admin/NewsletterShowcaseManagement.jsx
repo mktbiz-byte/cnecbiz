@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
-  Key, Check, AlertCircle
+  Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 
@@ -28,6 +28,8 @@ export default function NewsletterShowcaseManagement() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all') // all, active, inactive
+  const [viewMode, setViewMode] = useState('card') // card, list
+  const [selectedIds, setSelectedIds] = useState([]) // 선택된 뉴스레터 ID들
 
   // 모달 상태
   const [showAddModal, setShowAddModal] = useState(false)
@@ -408,6 +410,66 @@ export default function NewsletterShowcaseManagement() {
     setShowPreviewModal(true)
   }
 
+  // 체크박스 토글
+  const handleSelectToggle = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id)
+        ? prev.filter(i => i !== id)
+        : [...prev, id]
+    )
+  }
+
+  // 전체 선택/해제
+  const handleSelectAll = () => {
+    if (selectedIds.length === filteredNewsletters.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filteredNewsletters.map(n => n.id))
+    }
+  }
+
+  // 일괄 활성화
+  const handleBulkActivate = async () => {
+    if (selectedIds.length === 0) return
+    if (!confirm(`${selectedIds.length}개 뉴스레터를 활성화하시겠습니까?`)) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('newsletters')
+        .update({ is_active: true })
+        .in('id', selectedIds)
+
+      if (error) throw error
+      alert('활성화되었습니다.')
+      setSelectedIds([])
+      fetchNewsletters()
+    } catch (error) {
+      console.error('일괄 활성화 오류:', error)
+      alert('활성화에 실패했습니다.')
+    }
+  }
+
+  // 일괄 비활성화
+  const handleBulkDeactivate = async () => {
+    if (selectedIds.length === 0) return
+    if (!confirm(`${selectedIds.length}개 뉴스레터를 비활성화하시겠습니까?`)) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('newsletters')
+        .update({ is_active: false })
+        .in('id', selectedIds)
+
+      if (error) throw error
+      alert('비활성화되었습니다.')
+      setSelectedIds([])
+      fetchNewsletters()
+    } catch (error) {
+      console.error('일괄 비활성화 오류:', error)
+      alert('비활성화에 실패했습니다.')
+    }
+  }
+
   const filteredNewsletters = newsletters.filter(newsletter => {
     const matchesSearch = !searchTerm ||
       newsletter.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -632,6 +694,21 @@ export default function NewsletterShowcaseManagement() {
                   />
                 </div>
               </div>
+              {/* 뷰 모드 토글 */}
+              <div className="flex gap-1 border rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('card')}
+                  className={`p-1.5 rounded ${viewMode === 'card' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
               <Button variant="outline" size="sm" onClick={fetchNewsletters}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 새로고침
@@ -642,26 +719,175 @@ export default function NewsletterShowcaseManagement() {
 
         {/* 뉴스레터 목록 */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>뉴스레터 목록 ({filteredNewsletters.length}개)</CardTitle>
+            {/* 일괄 작업 버튼 */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+              >
+                {selectedIds.length === filteredNewsletters.length && filteredNewsletters.length > 0
+                  ? <><CheckSquare className="w-4 h-4 mr-1" /> 전체 해제</>
+                  : <><Square className="w-4 h-4 mr-1" /> 전체 선택</>
+                }
+              </Button>
+              {selectedIds.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-500">{selectedIds.length}개 선택</span>
+                  <Button
+                    size="sm"
+                    onClick={handleBulkActivate}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Eye className="w-4 h-4 mr-1" /> 일괄 활성화
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBulkDeactivate}
+                    className="text-orange-600 border-orange-300"
+                  >
+                    <EyeOff className="w-4 h-4 mr-1" /> 일괄 비활성화
+                  </Button>
+                </>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {filteredNewsletters.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 뉴스레터가 없습니다. 새 뉴스레터를 추가해주세요.
               </div>
+            ) : viewMode === 'list' ? (
+              /* 리스트 뷰 */
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="p-3 text-left w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.length === filteredNewsletters.length && filteredNewsletters.length > 0}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                      </th>
+                      <th className="p-3 text-left text-sm font-medium text-gray-600">제목</th>
+                      <th className="p-3 text-left text-sm font-medium text-gray-600 w-24">카테고리</th>
+                      <th className="p-3 text-left text-sm font-medium text-gray-600 w-28">발행일</th>
+                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">상태</th>
+                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">추천</th>
+                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-32">액션</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredNewsletters.map((newsletter) => (
+                      <tr
+                        key={newsletter.id}
+                        className={`border-b hover:bg-gray-50 ${!newsletter.is_active ? 'opacity-60' : ''} ${selectedIds.includes(newsletter.id) ? 'bg-blue-50' : ''}`}
+                      >
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(newsletter.id)}
+                            onChange={() => handleSelectToggle(newsletter.id)}
+                            className="w-4 h-4 rounded border-gray-300"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-12 h-12 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 cursor-pointer"
+                              onClick={() => openPreview(newsletter)}
+                            >
+                              {newsletter.thumbnail_url ? (
+                                <img src={newsletter.thumbnail_url} alt="" className="w-full h-full object-cover rounded" />
+                              ) : (
+                                <Mail className="w-5 h-5 text-white/50" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 truncate">{newsletter.title}</div>
+                              <div className="text-xs text-gray-500 truncate">{newsletter.description || '설명 없음'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
+                            {getCategoryLabel(newsletter.category)}
+                          </span>
+                        </td>
+                        <td className="p-3 text-sm text-gray-600">
+                          {newsletter.published_at
+                            ? new Date(newsletter.published_at).toLocaleDateString('ko-KR')
+                            : '-'}
+                        </td>
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleToggleActive(newsletter)}
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              newsletter.is_active
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {newsletter.is_active ? '활성' : '비활성'}
+                          </button>
+                        </td>
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleToggleFeatured(newsletter)}
+                            className={`p-1.5 rounded ${newsletter.is_featured ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+                          >
+                            <Star className={`w-4 h-4 ${newsletter.is_featured ? 'fill-yellow-500' : ''}`} />
+                          </button>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex justify-center gap-1">
+                            <button
+                              onClick={() => openEditModal(newsletter)}
+                              className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(newsletter)}
+                              className="p-1.5 rounded hover:bg-red-50 text-red-500"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
+              /* 카드 뷰 */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredNewsletters.map((newsletter) => (
                   <Card
                     key={newsletter.id}
                     className={`overflow-hidden transition-all ${
                       !newsletter.is_active ? 'opacity-60' : ''
-                    } ${newsletter.is_featured ? 'ring-2 ring-yellow-400' : ''}`}
+                    } ${newsletter.is_featured ? 'ring-2 ring-yellow-400' : ''} ${selectedIds.includes(newsletter.id) ? 'ring-2 ring-blue-500' : ''}`}
                   >
+                    {/* 체크박스 */}
+                    <div className="absolute top-2 left-2 z-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(newsletter.id)}
+                        onChange={() => handleSelectToggle(newsletter.id)}
+                        className="w-5 h-5 rounded border-gray-300 bg-white/80"
+                      />
+                    </div>
+
                     {/* 썸네일 */}
                     <div
-                      className="h-40 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center cursor-pointer"
+                      className="relative h-40 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center cursor-pointer"
                       onClick={() => openPreview(newsletter)}
                     >
                       {newsletter.thumbnail_url ? (
