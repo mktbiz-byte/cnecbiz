@@ -172,7 +172,7 @@ export default function AdminContractManagement() {
           to: contract.recipient_email,
           variables: {
             recipientName: contract.recipient_name || contract.recipient_email,
-            companyName: '씨넥비즈',
+            companyName: '크넥',
             contractTitle: contract.title || '계약서',
             signUrl: signUrl,
             expiresAt: expiresAt
@@ -261,7 +261,7 @@ export default function AdminContractManagement() {
             to: newContract.recipientEmail,
             variables: {
               recipientName: newContract.recipientName,
-              companyName: newContract.companyName || '씨넥비즈',
+              companyName: newContract.companyName || '크넥',
               contractTitle: contractTitle,
               signUrl: signUrl,
               expiresAt: expiresAt.toLocaleDateString('ko-KR')
@@ -347,7 +347,7 @@ export default function AdminContractManagement() {
           to: resendEmail,
           variables: {
             recipientName: resendContract.recipient_name || resendEmail,
-            companyName: '씨넥비즈',
+            companyName: '크넥',
             contractTitle: resendContract.title || '계약서',
             signUrl: signUrl,
             expiresAt: expiresAt

@@ -15,7 +15,7 @@ export default function Footer() {
             <div>
               <h3 className="text-white text-lg font-bold mb-4">CNEC (크넥)</h3>
               <p className="text-sm mb-2">
-                <span className="font-semibold">상호:</span> HOWPAPA (하우파파)
+                <span className="font-semibold">상호:</span> 주식회사 하우파파
               </p>
               <p className="text-sm mb-2">
                 <span className="font-semibold">대표자:</span> 박현용
@@ -27,13 +27,13 @@ export default function Footer() {
                 <span className="font-semibold">통신판매업 신고번호:</span> 2022-서울마포-3903호
               </p>
               <p className="text-sm mb-2">
-                <span className="font-semibold">주소:</span> 서울 마포구 백범로 31길 21 서울창업허브 별관 312호
+                <span className="font-semibold">주소:</span> 서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호
               </p>
               <p className="text-sm mb-2">
                 <span className="font-semibold">고객센터:</span> 1833-6025
               </p>
               <p className="text-sm mb-2">
-                <span className="font-semibold">이메일:</span> cnec@cnecbiz.com
+                <span className="font-semibold">이메일:</span> howpapa@howpapa.co.kr
               </p>
             </div>
             {/* 빠른 링크 */}
@@ -400,10 +400,10 @@ export default function Footer() {
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg mt-2">
                   <p className="text-gray-700 mb-1"><strong>▶ 개인정보 보호책임자</strong></p>
-                  <p className="text-gray-700">성명: 박현용</p>
-                  <p className="text-gray-700">직책: 대표이사</p>
+                  <p className="text-gray-700">성명: 이지훈</p>
+                  <p className="text-gray-700">직책: 개인정보관리책임자</p>
                   <p className="text-gray-700">연락처: 1833-6025</p>
-                  <p className="text-gray-700">이메일: cnec@cnecbiz.com</p>
+                  <p className="text-gray-700">이메일: howpapa@howpapa.co.kr</p>
                 </div>
                 <p className="text-gray-700 leading-relaxed mt-3">
                   ② 정보주체께서는 회사의 서비스(또는 사업)을 이용하시면서 발생한 모든 개인정보 보호 관련 문의, 불만처리, 피해구제 등에 관한 사항을 개인정보 보호책임자 및 담당부서로 문의하실 수 있습니다. 회사는 정보주체의 문의에 대해 지체 없이 답변 및 처리해드릴 것입니다.
@@ -419,7 +419,7 @@ export default function Footer() {
                   <p className="text-gray-700 mb-1"><strong>▶ 개인정보 열람청구 접수·처리 부서</strong></p>
                   <p className="text-gray-700">부서명: 고객지원팀</p>
                   <p className="text-gray-700">연락처: 1833-6025</p>
-                  <p className="text-gray-700">이메일: cnec@cnecbiz.com</p>
+                  <p className="text-gray-700">이메일: howpapa@howpapa.co.kr</p>
                 </div>
               </section>
 

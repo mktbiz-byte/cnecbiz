@@ -255,7 +255,7 @@ export const CompanyContractTemplate = (data) => {
       </div>
       <div class="signature-row">
         <div class="signature-label">주소:</div>
-        <div class="signature-value">서울 마포구 백범로31길 21, 서울창업허브 별관 312호</div>
+        <div class="signature-value">서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</div>
       </div>
       <div class="signature-row">
         <div class="signature-label">대표자:</div>
@@ -300,6 +300,8 @@ export const CompanyContractTemplate = (data) => {
 
   <div class="footer">
     <p>본 계약서는 전자문서 및 전자거래 기본법에 따라 전자적 형태로 작성되었으며, 법적 효력을 가집니다.</p>
+    <p style="margin-top: 10px;">주식회사 하우파파 | 대표 박현용 | 사업자등록번호 575-81-02253</p>
+    <p>서울 중구 퇴계로36길 2 동국대학교 충무로 영상센터 1009호</p>
     <p>© ${new Date().getFullYear()} HOWPAPA Inc. All rights reserved.</p>
   </div>
 </body>
