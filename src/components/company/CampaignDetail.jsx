@@ -5479,7 +5479,7 @@ JSON만 출력.`
                           {/* 채널 & 팔로워 */}
                           <div className="space-y-1 mb-2">
                             {app.instagram_url && (
-                              <a href={app.instagram_url.startsWith('http') ? app.instagram_url : `https://instagram.com/${app.instagram_url}`}
+                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
                                 target="_blank" rel="noopener noreferrer"
                                 className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
                                 <span className="text-pink-600">📷 Instagram</span>
@@ -5487,7 +5487,7 @@ JSON만 출력.`
                               </a>
                             )}
                             {app.youtube_url && (
-                              <a href={app.youtube_url.startsWith('http') ? app.youtube_url : `https://youtube.com/@${app.youtube_url}`}
+                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
                                 target="_blank" rel="noopener noreferrer"
                                 className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
                                 <span className="text-red-600">▶️ YouTube</span>
@@ -5495,7 +5495,7 @@ JSON만 출력.`
                               </a>
                             )}
                             {app.tiktok_url && (
-                              <a href={app.tiktok_url.startsWith('http') ? app.tiktok_url : `https://tiktok.com/@${app.tiktok_url}`}
+                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
                                 target="_blank" rel="noopener noreferrer"
                                 className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
                                 <span className="text-gray-700">🎵 TikTok</span>
@@ -5757,7 +5757,7 @@ JSON만 출력.`
                           {/* 채널 & 팔로워 */}
                           <div className="space-y-1 mb-2">
                             {app.instagram_url && (
-                              <a href={app.instagram_url.startsWith('http') ? app.instagram_url : `https://instagram.com/${app.instagram_url}`}
+                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
                                 target="_blank" rel="noopener noreferrer"
                                 className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
                                 <span className="text-pink-600">📷 Instagram</span>
@@ -5765,7 +5765,7 @@ JSON만 출력.`
                               </a>
                             )}
                             {app.youtube_url && (
-                              <a href={app.youtube_url.startsWith('http') ? app.youtube_url : `https://youtube.com/@${app.youtube_url}`}
+                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
                                 target="_blank" rel="noopener noreferrer"
                                 className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
                                 <span className="text-red-600">▶️ YouTube</span>
@@ -5773,7 +5773,7 @@ JSON만 출력.`
                               </a>
                             )}
                             {app.tiktok_url && (
-                              <a href={app.tiktok_url.startsWith('http') ? app.tiktok_url : `https://tiktok.com/@${app.tiktok_url}`}
+                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
                                 target="_blank" rel="noopener noreferrer"
                                 className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
                                 <span className="text-gray-700">🎵 TikTok</span>

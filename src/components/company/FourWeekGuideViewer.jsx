@@ -30,27 +30,46 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
 
   // Parse and merge challenge_weekly_guides and challenge_weekly_guides_ai
   const parseWeeklyGuides = () => {
-    const aiGuides = campaign.challenge_weekly_guides_ai 
+    const aiGuides = campaign.challenge_weekly_guides_ai
       ? (typeof campaign.challenge_weekly_guides_ai === 'string'
           ? JSON.parse(campaign.challenge_weekly_guides_ai)
           : campaign.challenge_weekly_guides_ai)
       : null
     const oldGuides = campaign.challenge_weekly_guides || {}
 
+    // 원본 데이터를 배열로 변환하는 헬퍼 함수
+    const parseToArray = (data) => {
+      if (!data) return []
+      if (Array.isArray(data)) return data.filter(d => d && d.trim())
+      if (typeof data === 'string') {
+        return data.split('\n').filter(d => d.trim()).map(d => d.trim())
+      }
+      return []
+    }
+
     const mergedGuides = {}
     ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
       const aiWeekData = aiGuides?.[week]
       const oldWeekData = oldGuides[week] || {}
-      
+
+      // 원본 데이터 파싱
+      const oldDialogues = parseToArray(oldWeekData.required_dialogue)
+      const oldScenes = parseToArray(oldWeekData.required_scenes)
+
       // If AI guide exists and is an object (not a string), use it with fallback to old data
       if (aiWeekData && typeof aiWeekData === 'object') {
+        // AI 데이터도 배열로 파싱
+        const aiDialogues = parseToArray(aiWeekData.required_dialogues)
+        const aiScenes = parseToArray(aiWeekData.required_scenes)
+
         mergedGuides[week] = {
           mission: aiWeekData.mission || oldWeekData.mission || '',
-          required_dialogues: aiWeekData.required_dialogues || (oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : []),
-          required_scenes: aiWeekData.required_scenes || (oldWeekData.required_scenes ? [oldWeekData.required_scenes] : []),
+          // AI 데이터가 비어있으면 원본 사용
+          required_dialogues: aiDialogues.length > 0 ? aiDialogues : oldDialogues,
+          required_scenes: aiScenes.length > 0 ? aiScenes : oldScenes,
           hashtags: aiWeekData.hashtags || [],
           product_info: aiWeekData.product_info || '',
-          cautions: aiWeekData.cautions || oldWeekData.cautions || '',
+          cautions: aiWeekData.cautions || oldWeekData.cautions || campaign.product_key_points || '',
           reference_urls: aiWeekData.reference_urls || (oldWeekData.reference ? [oldWeekData.reference] : [])
         }
       } else if (aiWeekData && typeof aiWeekData === 'string') {
@@ -58,27 +77,27 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
         mergedGuides[week] = {
           mission: aiWeekData,  // Use AI guide text as mission
           ai_description: aiWeekData,  // Also keep as AI description
-          required_dialogues: oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : [],
-          required_scenes: oldWeekData.required_scenes ? [oldWeekData.required_scenes] : [],
+          required_dialogues: oldDialogues,
+          required_scenes: oldScenes,
           hashtags: [],
           product_info: '',
-          cautions: oldWeekData.cautions || '',
+          cautions: oldWeekData.cautions || campaign.product_key_points || '',
           reference_urls: oldWeekData.reference ? [oldWeekData.reference] : []
         }
       } else {
         // No AI guide, use old data
         mergedGuides[week] = {
           mission: oldWeekData.mission || '',
-          required_dialogues: oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : [],
-          required_scenes: oldWeekData.required_scenes ? [oldWeekData.required_scenes] : [],
+          required_dialogues: oldDialogues,
+          required_scenes: oldScenes,
           hashtags: [],
           product_info: '',
-          cautions: oldWeekData.cautions || '',
+          cautions: oldWeekData.cautions || campaign.product_key_points || '',
           reference_urls: oldWeekData.reference ? [oldWeekData.reference] : []
         }
       }
     })
-    
+
     return mergedGuides
   }
 
