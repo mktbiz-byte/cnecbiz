@@ -125,18 +125,41 @@ export const CompanyContractTemplate = (data) => {
     }
     .company-stamp {
       display: inline-block;
-      width: 70px;
-      height: 70px;
-      border: 3px solid #dc2626;
-      border-radius: 50%;
-      color: #dc2626;
-      font-size: 11px;
+      width: 75px;
+      height: 75px;
+      border: 3px solid #c41e3a;
+      color: #c41e3a;
       font-weight: bold;
       text-align: center;
-      line-height: 1.2;
-      padding: 12px 5px;
-      margin-top: 10px;
-      transform: rotate(-5deg);
+      position: relative;
+      background:
+        linear-gradient(#c41e3a, #c41e3a) center/calc(100% - 10px) 2px no-repeat,
+        linear-gradient(#c41e3a, #c41e3a) center/2px calc(100% - 10px) no-repeat;
+    }
+    .company-stamp::before {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      right: 3px;
+      bottom: 3px;
+      border: 1.5px solid #c41e3a;
+    }
+    .stamp-text {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(4, 1fr);
+      height: 100%;
+      padding: 6px;
+      box-sizing: border-box;
+    }
+    .stamp-text span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-family: '바탕', 'Batang', serif;
+      font-weight: 900;
     }
     .stamp-area {
       text-align: right;
@@ -293,7 +316,12 @@ export const CompanyContractTemplate = (data) => {
       </div>
       <div class="stamp-area">
         <div class="company-stamp">
-          주식회사<br/>하우파파<br/>대표이사
+          <div class="stamp-text">
+            <span>하</span><span>주</span>
+            <span>우</span><span>식</span>
+            <span>파</span><span>회</span>
+            <span>파</span><span>사</span>
+          </div>
         </div>
       </div>
     </div>
