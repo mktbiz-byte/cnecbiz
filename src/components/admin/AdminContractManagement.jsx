@@ -26,6 +26,7 @@ export default function AdminContractManagement() {
   // 새 계약서 발송 폼
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [contractType, setContractType] = useState('campaign') // campaign or portrait_rights
+  const [sendImmediately, setSendImmediately] = useState(true) // 생성 시 바로 발송
   const [newContract, setNewContract] = useState({
     recipientEmail: '',
     recipientName: '',
@@ -136,9 +137,53 @@ export default function AdminContractManagement() {
     if (!confirm('계약서를 발송하시겠습니까?')) return
 
     try {
+      // 계약서 정보 가져오기
+      const contract = contracts.find(c => c.id === contractId)
+      if (!contract) {
+        throw new Error('계약서를 찾을 수 없습니다.')
+      }
+
+      if (!contract.recipient_email) {
+        throw new Error('수신자 이메일이 없습니다.')
+      }
+
+      // 서명 페이지 URL 생성
+      const signUrl = `${window.location.origin}/sign-contract/${contractId}`
+      const expiresAt = contract.expires_at
+        ? new Date(contract.expires_at).toLocaleDateString('ko-KR')
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')
+
+      // 이메일 템플릿 발송
+      const templateKey = contract.contract_type === 'campaign'
+        ? 'contract_sign_request'
+        : 'portrait_rights_sign_request'
+
+      const emailResponse = await fetch('/.netlify/functions/send-template-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateKey: templateKey,
+          to: contract.recipient_email,
+          variables: {
+            creator_name: contract.recipient_name || contract.recipient_email,
+            contract_title: contract.title || '계약서',
+            sign_url: signUrl,
+            expires_at: expiresAt
+          }
+        })
+      })
+
+      const emailResult = await emailResponse.json()
+
+      if (!emailResult.success) {
+        console.error('이메일 발송 실패:', emailResult.error)
+        throw new Error(emailResult.error || '이메일 발송에 실패했습니다.')
+      }
+
+      // 상태 업데이트
       const { error } = await supabaseBiz
         .from('contracts')
-        .update({ 
+        .update({
           status: 'sent',
           sent_at: new Date().toISOString()
         })
@@ -146,11 +191,11 @@ export default function AdminContractManagement() {
 
       if (error) throw error
 
-      alert('계약서가 발송되었습니다.')
+      alert('계약서가 이메일로 발송되었습니다.')
       fetchContracts()
     } catch (error) {
       console.error('계약서 발송 오류:', error)
-      alert('계약서 발송에 실패했습니다.')
+      alert(`계약서 발송에 실패했습니다: ${error.message}`)
     }
   }
 
@@ -174,21 +219,66 @@ export default function AdminContractManagement() {
         date: new Date().toLocaleDateString('ko-KR')
       }
 
-      const { error } = await supabaseBiz
+      const contractTitle = newContract.title || (contractType === 'campaign' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서')
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+
+      const { data: createdContract, error } = await supabaseBiz
         .from('contracts')
         .insert([{
           contract_type: contractType,
           recipient_email: newContract.recipientEmail,
           recipient_name: newContract.recipientName,
-          title: newContract.title || (contractType === 'campaign' ? '크리에이터 섭외 계약서' : '콘텐츠 2차 활용 동의서'),
+          title: contractTitle,
           content: JSON.stringify(contractData),
-          status: 'pending',
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30일 후
+          status: sendImmediately ? 'sent' : 'pending',
+          sent_at: sendImmediately ? new Date().toISOString() : null,
+          expires_at: expiresAt.toISOString()
         }])
+        .select()
+        .single()
 
       if (error) throw error
 
-      alert('계약서가 생성되었습니다.')
+      // 생성 시 바로 발송 옵션이 켜져 있으면 이메일 발송
+      if (sendImmediately && createdContract) {
+        const signUrl = `${window.location.origin}/sign-contract/${createdContract.id}`
+        const templateKey = contractType === 'campaign'
+          ? 'contract_sign_request'
+          : 'portrait_rights_sign_request'
+
+        const emailResponse = await fetch('/.netlify/functions/send-template-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateKey: templateKey,
+            to: newContract.recipientEmail,
+            variables: {
+              creator_name: newContract.recipientName,
+              contract_title: contractTitle,
+              sign_url: signUrl,
+              expires_at: expiresAt.toLocaleDateString('ko-KR')
+            }
+          })
+        })
+
+        const emailResult = await emailResponse.json()
+
+        if (!emailResult.success) {
+          console.error('이메일 발송 실패:', emailResult.error)
+          // 이메일 실패시 상태를 pending으로 되돌림
+          await supabaseBiz
+            .from('contracts')
+            .update({ status: 'pending', sent_at: null })
+            .eq('id', createdContract.id)
+
+          alert(`계약서는 생성되었으나 이메일 발송에 실패했습니다: ${emailResult.error}`)
+        } else {
+          alert('계약서가 생성되고 이메일로 발송되었습니다.')
+        }
+      } else {
+        alert('계약서가 생성되었습니다.')
+      }
+
       setShowCreateForm(false)
       setNewContract({
         recipientEmail: '',
@@ -476,12 +566,25 @@ export default function AdminContractManagement() {
                   />
                 </div>
 
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="sendImmediately"
+                    checked={sendImmediately}
+                    onChange={(e) => setSendImmediately(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="sendImmediately" className="text-sm text-gray-700">
+                    생성 시 바로 이메일로 발송
+                  </label>
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <Button
                     onClick={handleCreateContract}
                     className="flex-1 bg-blue-600 hover:bg-blue-700"
                   >
-                    생성
+                    {sendImmediately ? '생성 및 발송' : '생성'}
                   </Button>
                   <Button
                     variant="outline"
