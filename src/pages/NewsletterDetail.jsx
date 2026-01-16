@@ -18,6 +18,7 @@ export default function NewsletterDetail() {
   const [relatedNewsletters, setRelatedNewsletters] = useState([])
 
   // 구독 폼 상태
+  const [subscribeName, setSubscribeName] = useState('')
   const [subscribeEmail, setSubscribeEmail] = useState('')
   const [subscribing, setSubscribing] = useState(false)
   const [subscribeResult, setSubscribeResult] = useState(null) // { success: bool, message: string }
@@ -106,7 +107,10 @@ export default function NewsletterDetail() {
       const response = await fetch('/.netlify/functions/subscribe-newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: subscribeEmail })
+        body: JSON.stringify({
+          email: subscribeEmail,
+          name: subscribeName
+        })
       })
 
       const result = await response.json()
@@ -116,6 +120,7 @@ export default function NewsletterDetail() {
       })
 
       if (result.success) {
+        setSubscribeName('')
         setSubscribeEmail('')
       }
     } catch (error) {
@@ -328,30 +333,40 @@ export default function NewsletterDetail() {
               </div>
             ) : (
               <form onSubmit={handleSubscribe} className="max-w-md mx-auto">
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="이메일 주소를 입력하세요"
-                    value={subscribeEmail}
-                    onChange={(e) => setSubscribeEmail(e.target.value)}
-                    className="flex-1 h-12 bg-white"
-                    disabled={subscribing}
-                    required
-                  />
-                  <Button
-                    type="submit"
-                    disabled={subscribing || !subscribeEmail}
-                    className="h-12 px-6 bg-blue-600 hover:bg-blue-700"
-                  >
-                    {subscribing ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-2" />
-                        구독
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="이름"
+                      value={subscribeName}
+                      onChange={(e) => setSubscribeName(e.target.value)}
+                      className="w-28 h-12 bg-white"
+                      disabled={subscribing}
+                    />
+                    <Input
+                      type="email"
+                      placeholder="이메일 주소"
+                      value={subscribeEmail}
+                      onChange={(e) => setSubscribeEmail(e.target.value)}
+                      className="flex-1 h-12 bg-white"
+                      disabled={subscribing}
+                      required
+                    />
+                    <Button
+                      type="submit"
+                      disabled={subscribing || !subscribeEmail}
+                      className="h-12 px-6 bg-blue-600 hover:bg-blue-700"
+                    >
+                      {subscribing ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4 mr-1" />
+                          구독
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 {subscribeResult && !subscribeResult.success && (
                   <p className="text-red-500 text-sm mt-2 text-center">{subscribeResult.message}</p>
