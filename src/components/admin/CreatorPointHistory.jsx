@@ -302,6 +302,95 @@ export default function CreatorPointHistory() {
         console.log('BIZ DB creator_points 조회 스킵 (테이블 없을 수 있음)')
       }
 
+      // 완료된 캠페인 신청에서 포인트 지급 내역 조회 (point_history에 저장되지 않은 경우 대비)
+      if (supabaseKorea) {
+        try {
+          let appQuery = supabaseKorea
+            .from('applications')
+            .select(`
+              id,
+              user_id,
+              campaign_id,
+              status,
+              final_confirmed_at,
+              created_at,
+              creator_name,
+              applicant_name,
+              campaigns:campaign_id (
+                id,
+                title,
+                reward_points,
+                point
+              )
+            `)
+            .eq('status', 'completed')
+            .not('final_confirmed_at', 'is', null)
+            .order('final_confirmed_at', { ascending: false })
+            .limit(500)
+
+          if (dateStart) {
+            appQuery = appQuery.gte('final_confirmed_at', dateStart)
+          }
+
+          const { data: completedApps, error: appError } = await appQuery
+
+          if (!appError && completedApps && completedApps.length > 0) {
+            console.log('완료된 캠페인 신청:', completedApps.length, '건')
+
+            // 이미 추가된 트랜잭션의 campaign_id + user_id 조합 체크 (중복 방지)
+            const existingKeys = new Set(
+              allTransactions
+                .filter(t => t.related_campaign_id || t.campaign_id)
+                .map(t => `${t.related_campaign_id || t.campaign_id}_${t.user_id}`)
+            )
+
+            // 프로필 정보 조회
+            const userIds = [...new Set(completedApps.map(a => a.user_id).filter(Boolean))]
+            let profileMap = {}
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabaseKorea
+                .from('user_profiles')
+                .select('id, name, channel_name, email, phone')
+                .in('id', userIds)
+              if (profiles) {
+                profiles.forEach(p => { profileMap[p.id] = p })
+              }
+            }
+
+            const appTransactions = completedApps
+              .filter(app => {
+                // 중복 체크
+                const key = `${app.campaign_id}_${app.user_id}`
+                return !existingKeys.has(key)
+              })
+              .map(app => {
+                const profile = profileMap[app.user_id]
+                const pointAmount = app.campaigns?.reward_points || app.campaigns?.point || 0
+                return {
+                  id: `app_${app.id}`,
+                  user_id: app.user_id,
+                  amount: pointAmount,
+                  transaction_type: 'campaign_reward',
+                  description: `캠페인 완료: ${app.campaigns?.title || ''}`,
+                  related_campaign_id: app.campaign_id,
+                  created_at: app.final_confirmed_at || app.created_at,
+                  creator_name: app.creator_name || app.applicant_name || profile?.channel_name || profile?.name || app.user_id?.substring(0, 8) + '...',
+                  creator_email: profile?.email || '',
+                  creator_phone: profile?.phone || '',
+                  campaign_title: app.campaigns?.title || null,
+                  source_db: 'korea_applications'
+                }
+              })
+              .filter(t => t.amount > 0) // 포인트가 있는 것만
+
+            console.log('캠페인 완료 포인트 지급 (applications 기반):', appTransactions.length, '건')
+            allTransactions = [...allTransactions, ...appTransactions]
+          }
+        } catch (appError) {
+          console.log('완료된 캠페인 신청 조회 스킵:', appError.message)
+        }
+      }
+
       // 날짜순 정렬
       allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
