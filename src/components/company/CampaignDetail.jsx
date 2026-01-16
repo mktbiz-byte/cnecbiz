@@ -263,8 +263,7 @@ export default function CampaignDetail() {
   const [addressFormData, setAddressFormData] = useState({
     phone_number: '',
     postal_code: '',
-    address: '',
-    delivery_notes: ''
+    address: ''
   })
   const [savingAddress, setSavingAddress] = useState(false)
   // Bulk guide generation state
@@ -1198,8 +1197,7 @@ export default function CampaignDetail() {
     setAddressFormData({
       phone_number: participant.phone_number || participant.phone || '',
       postal_code: participant.postal_code || '',
-      address: participant.address || '',
-      delivery_notes: participant.delivery_notes || participant.delivery_request || ''
+      address: participant.address || ''
     })
   }
 
@@ -1212,8 +1210,7 @@ export default function CampaignDetail() {
       const updateData = {
         phone_number: addressFormData.phone_number,
         postal_code: addressFormData.postal_code,
-        address: addressFormData.address,
-        delivery_notes: addressFormData.delivery_notes
+        address: addressFormData.address
       }
 
       const { error } = await supabase
@@ -4516,17 +4513,7 @@ JSON만 출력.`
                                   type="text"
                                   value={addressFormData.address}
                                   onChange={(e) => setAddressFormData({...addressFormData, address: e.target.value})}
-                                  placeholder="2027 Jewell Ridge, Vista, CA"
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                                />
-                              </div>
-                              <div className="col-span-2">
-                                <label className="text-xs text-gray-600">배송 요청사항</label>
-                                <input
-                                  type="text"
-                                  value={addressFormData.delivery_notes}
-                                  onChange={(e) => setAddressFormData({...addressFormData, delivery_notes: e.target.value})}
-                                  placeholder="문 앞에 놓아주세요"
+                                  placeholder="서울 성동구 성수일로10길 3 101동 613호"
                                   className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
                                 />
                               </div>
