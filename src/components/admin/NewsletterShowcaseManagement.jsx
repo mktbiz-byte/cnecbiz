@@ -253,13 +253,31 @@ export default function NewsletterShowcaseManagement() {
   const fetchNewsletters = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabaseBiz
+      // display_order 컬럼이 있으면 사용, 없으면 published_at만 사용
+      let query = supabaseBiz
         .from('newsletters')
         .select('*')
-        .order('display_order', { ascending: true })
+
+      // 먼저 display_order로 시도
+      const { data, error } = await query
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('published_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        // display_order 컬럼이 없으면 published_at만으로 재시도
+        if (error.message?.includes('display_order') || error.code === '42703') {
+          console.log('display_order 컬럼 없음, published_at로 정렬')
+          const { data: fallbackData, error: fallbackError } = await supabaseBiz
+            .from('newsletters')
+            .select('*')
+            .order('published_at', { ascending: false })
+
+          if (fallbackError) throw fallbackError
+          setNewsletters(fallbackData || [])
+          return
+        }
+        throw error
+      }
       setNewsletters(data || [])
     } catch (error) {
       console.error('뉴스레터 조회 오류:', error)
