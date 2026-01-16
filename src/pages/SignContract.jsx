@@ -117,19 +117,18 @@ export default function SignContract() {
     }
   }
 
-  // SVG 기반 고퀄리티 도장 생성 (꽉 찬 버전)
+  // SVG 기반 고퀄리티 도장 생성 (세련된 버전)
   const generateStamps = (companyName, ceoName) => {
-    const stampColor = '#c23a3a'
+    const stampColor = '#d32f2f' // 선명한 빨강
     const cleanCompanyName = companyName.replace(/^주식회사\s*/, '').replace(/\s*주식회사$/, '').substring(0, 4)
     const cleanCeoName = ceoName.substring(0, 3)
 
-    // SVG를 Data URL로 변환
     const svgToDataUrl = (svgString) => {
       const encoded = encodeURIComponent(svgString)
       return `data:image/svg+xml,${encoded}`
     }
 
-    // 원형 배치 텍스트 생성 (굵은 글씨)
+    // 원형 배치 텍스트 (적당한 굵기)
     const createArcText = (text, centerX, centerY, radius, startAngle, endAngle, fontSize) => {
       const chars = text.split('')
       const angleStep = (endAngle - startAngle) / (chars.length - 1 || 1)
@@ -143,7 +142,7 @@ export default function SignContract() {
         const y = centerY + radius * Math.sin(rad)
         const rotation = angle + 90
 
-        return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', 'Noto Serif KR', sans-serif" font-size="${fontSize}" font-weight="900" fill="${stampColor}" transform="rotate(${rotation}, ${x}, ${y})">${char}</text>`
+        return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="${fontSize}" font-weight="700" fill="${stampColor}" transform="rotate(${rotation}, ${x}, ${y})">${char}</text>`
       }).join('')
     }
 
@@ -151,89 +150,61 @@ export default function SignContract() {
       let svgContent = ''
 
       if (style.type === 'circle1') {
-        // 원형 법인인감 - 꽉 찬 디자인
-        const topText = createArcText(cleanCompanyName, 100, 100, 62, -130, -50, 22)
-        const bottomText = createArcText('주식회사', 100, 100, 62, 130, 50, 18)
+        // 원형 법인인감 - 깔끔한 디자인
+        const topText = createArcText(cleanCompanyName, 100, 100, 60, -125, -55, 15)
+        const bottomText = createArcText('주식회사', 100, 100, 60, 125, 55, 13)
 
         svgContent = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
-            <!-- 외곽 원 -->
-            <circle cx="100" cy="100" r="94" fill="none" stroke="${stampColor}" stroke-width="6"/>
-            <circle cx="100" cy="100" r="84" fill="none" stroke="${stampColor}" stroke-width="2"/>
-
-            <!-- 내부 원 -->
-            <circle cx="100" cy="100" r="38" fill="none" stroke="${stampColor}" stroke-width="3"/>
-
-            <!-- 중앙: 대표이사 (크게) -->
-            <text x="100" y="92" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="26" font-weight="900" fill="${stampColor}">대표</text>
-            <text x="100" y="118" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="26" font-weight="900" fill="${stampColor}">이사</text>
-
-            <!-- 상단 회사명 -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+            <circle cx="100" cy="100" r="92" fill="none" stroke="${stampColor}" stroke-width="4"/>
+            <circle cx="100" cy="100" r="82" fill="none" stroke="${stampColor}" stroke-width="1"/>
+            <circle cx="100" cy="100" r="32" fill="none" stroke="${stampColor}" stroke-width="2"/>
+            <text x="100" y="94" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="18" font-weight="700" fill="${stampColor}">대표</text>
+            <text x="100" y="112" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="18" font-weight="700" fill="${stampColor}">이사</text>
             ${topText}
-
-            <!-- 하단 주식회사 -->
             ${bottomText}
-
-            <!-- 좌우 별 -->
-            <text x="38" y="100" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="${stampColor}">★</text>
-            <text x="162" y="100" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="${stampColor}">★</text>
+            <text x="40" y="100" text-anchor="middle" font-size="8" fill="${stampColor}">★</text>
+            <text x="160" y="100" text-anchor="middle" font-size="8" fill="${stampColor}">★</text>
           </svg>
         `
       } else if (style.type === 'square') {
         // 사각 법인인감
         svgContent = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
-            <!-- 외곽 사각형 -->
-            <rect x="20" y="20" width="160" height="160" fill="none" stroke="${stampColor}" stroke-width="6"/>
-
-            <!-- 십자 구분선 -->
-            <line x1="100" y1="26" x2="100" y2="174" stroke="${stampColor}" stroke-width="3"/>
-            <line x1="26" y1="100" x2="174" y2="100" stroke="${stampColor}" stroke-width="3"/>
-
-            <!-- 4칸 글자 (크게) -->
-            <text x="140" y="62" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="52" font-weight="900" fill="${stampColor}">대</text>
-            <text x="140" y="140" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="52" font-weight="900" fill="${stampColor}">표</text>
-            <text x="60" y="62" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="52" font-weight="900" fill="${stampColor}">이</text>
-            <text x="60" y="140" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="52" font-weight="900" fill="${stampColor}">사</text>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+            <rect x="25" y="25" width="150" height="150" fill="none" stroke="${stampColor}" stroke-width="4"/>
+            <line x1="100" y1="30" x2="100" y2="170" stroke="${stampColor}" stroke-width="2"/>
+            <line x1="30" y1="100" x2="170" y2="100" stroke="${stampColor}" stroke-width="2"/>
+            <text x="138" y="65" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="38" font-weight="700" fill="${stampColor}">대</text>
+            <text x="138" y="137" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="38" font-weight="700" fill="${stampColor}">표</text>
+            <text x="62" y="65" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="38" font-weight="700" fill="${stampColor}">이</text>
+            <text x="62" y="137" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="38" font-weight="700" fill="${stampColor}">사</text>
           </svg>
         `
       } else if (style.type === 'oval') {
         // 타원형 직인
         const nameChars = cleanCeoName.split('')
         const nameTexts = nameChars.map((char, i) => {
-          const y = 100 - (nameChars.length - 1) * 35 / 2 + i * 35
-          return `<text x="100" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="42" font-weight="900" fill="${stampColor}">${char}</text>`
+          const y = 100 - (nameChars.length - 1) * 28 / 2 + i * 28
+          return `<text x="100" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="30" font-weight="700" fill="${stampColor}">${char}</text>`
         }).join('')
 
         svgContent = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
-            <!-- 외곽 타원 -->
-            <ellipse cx="100" cy="100" rx="45" ry="85" fill="none" stroke="${stampColor}" stroke-width="5"/>
-
-            <!-- 이름 -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+            <ellipse cx="100" cy="100" rx="40" ry="78" fill="none" stroke="${stampColor}" stroke-width="3"/>
             ${nameTexts}
           </svg>
         `
       } else if (style.type === 'modern') {
-        // 모던 직인 - 회사명도 곡선으로
-        const topText = createArcText(cleanCompanyName + '㈜', 100, 100, 65, -140, -40, 18)
+        // 모던 직인
+        const topText = createArcText(cleanCompanyName + '㈜', 100, 100, 62, -135, -45, 14)
 
         svgContent = `
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="400" height="400">
-            <!-- 외곽 원 -->
-            <circle cx="100" cy="100" r="92" fill="none" stroke="${stampColor}" stroke-width="7"/>
-
-            <!-- 내부 원 -->
-            <circle cx="100" cy="100" r="38" fill="none" stroke="${stampColor}" stroke-width="3"/>
-
-            <!-- 좌우 가로선 -->
-            <line x1="12" y1="100" x2="58" y2="100" stroke="${stampColor}" stroke-width="3"/>
-            <line x1="142" y1="100" x2="188" y2="100" stroke="${stampColor}" stroke-width="3"/>
-
-            <!-- 중앙: 대표 -->
-            <text x="100" y="103" text-anchor="middle" dominant-baseline="middle" font-family="'Black Han Sans', sans-serif" font-size="32" font-weight="900" fill="${stampColor}">대표</text>
-
-            <!-- 상단 회사명 (곡선) -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+            <circle cx="100" cy="100" r="90" fill="none" stroke="${stampColor}" stroke-width="5"/>
+            <circle cx="100" cy="100" r="32" fill="none" stroke="${stampColor}" stroke-width="2"/>
+            <line x1="15" y1="100" x2="65" y2="100" stroke="${stampColor}" stroke-width="2"/>
+            <line x1="135" y1="100" x2="185" y2="100" stroke="${stampColor}" stroke-width="2"/>
+            <text x="100" y="102" text-anchor="middle" dominant-baseline="middle" font-family="'Noto Serif KR', serif" font-size="22" font-weight="700" fill="${stampColor}">대표</text>
             ${topText}
           </svg>
         `
@@ -621,20 +592,20 @@ export default function SignContract() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-600 mb-4">원하는 도장 스타일을 선택해주세요.</p>
-                    <div className="grid grid-cols-2 gap-6">
+                    <p className="text-sm text-gray-600 mb-3">원하는 도장 스타일을 선택해주세요.</p>
+                    <div className="grid grid-cols-2 gap-4">
                       {generatedStamps.map((stamp) => (
                         <div
                           key={stamp.id}
                           onClick={() => setSelectedGeneratedStamp(stamp.dataUrl)}
-                          className={`border-2 rounded-xl p-6 cursor-pointer transition-all bg-white hover:shadow-lg ${
+                          className={`border rounded-lg p-4 cursor-pointer transition-all bg-white hover:shadow ${
                             selectedGeneratedStamp === stamp.dataUrl
-                              ? 'border-blue-500 ring-2 ring-blue-200 shadow-md'
-                              : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-blue-500 ring-1 ring-blue-200'
+                              : 'border-gray-200'
                           }`}
                         >
-                          <img src={stamp.dataUrl} alt={stamp.name} className="w-full h-40 object-contain" />
-                          <p className="text-sm text-center text-gray-600 mt-3 font-medium">{stamp.name}</p>
+                          <img src={stamp.dataUrl} alt={stamp.name} className="w-24 h-24 mx-auto object-contain" />
+                          <p className="text-xs text-center text-gray-500 mt-2">{stamp.name}</p>
                         </div>
                       ))}
                     </div>
