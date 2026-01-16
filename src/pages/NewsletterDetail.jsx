@@ -293,22 +293,57 @@ export default function NewsletterDetail() {
                 )}
               </div>
             ) : (
-              <div className="py-16 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Lock className="w-8 h-8 text-blue-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">회원 전용 콘텐츠</h2>
-                <p className="text-gray-600 mb-6">
-                  이 뉴스레터는 회원 전용입니다.<br />
-                  로그인 후 이용해주세요.
-                </p>
-                <Button
-                  onClick={() => navigate('/login')}
-                  className="bg-blue-600 hover:bg-blue-700"
+              /* 회원 전용: 맛보기 콘텐츠 + 페이드아웃 + 잠금 카드 */
+              <div className="relative">
+                {/* 콘텐츠 맛보기 (선명하게 보여줌) */}
+                <div
+                  className="newsletter-content pointer-events-none select-none overflow-hidden"
+                  style={{ maxHeight: '500px' }}
                 >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  로그인
-                </Button>
+                  {newsletter.html_content ? (
+                    <div dangerouslySetInnerHTML={{ __html: newsletter.html_content }} />
+                  ) : newsletter.stibee_url ? (
+                    <iframe
+                      src={newsletter.stibee_url}
+                      className="w-full border-0 pointer-events-none"
+                      style={{ height: '500px' }}
+                      title={newsletter.title}
+                    />
+                  ) : null}
+                </div>
+
+                {/* 페이드아웃 그라데이션 */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 pointer-events-none"
+                  style={{
+                    height: '300px',
+                    background: 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.9) 50%, white 80%)'
+                  }}
+                />
+
+                {/* 잠금 카드 */}
+                <div className="relative -mt-20 flex justify-center">
+                  <div className="bg-white rounded-2xl shadow-xl p-8 mx-4 max-w-md text-center border-2 border-blue-100">
+                    <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Lock className="w-7 h-7 text-blue-600" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">계속 읽으시려면?</h2>
+                    <p className="text-gray-600 mb-6">
+                      회원 전용 콘텐츠입니다.<br />
+                      로그인하고 전체 내용을 확인하세요.
+                    </p>
+                    <Button
+                      onClick={() => navigate('/login')}
+                      className="bg-blue-600 hover:bg-blue-700 w-full"
+                    >
+                      <LogIn className="w-4 h-4 mr-2" />
+                      로그인하기
+                    </Button>
+                    <p className="text-xs text-gray-400 mt-4">
+                      아직 회원이 아니신가요? 무료로 가입하세요!
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </article>

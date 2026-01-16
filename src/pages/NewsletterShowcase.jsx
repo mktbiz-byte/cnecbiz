@@ -412,37 +412,43 @@ export default function NewsletterShowcase() {
 
           <div className="flex-1 overflow-hidden relative">
             {selectedNewsletter?.is_members_only && !user ? (
-              <>
-                {/* 맛보기 콘텐츠 (블러 처리) */}
-                <div className="w-full h-[65vh] overflow-hidden relative">
+              <div className="w-full h-[65vh] relative">
+                {/* 콘텐츠 맛보기 (상단 40%는 선명하게, 이후 페이드아웃) */}
+                <div className="w-full h-full overflow-hidden">
                   {selectedNewsletter?.html_content ? (
                     <div
-                      className="w-full h-full overflow-auto p-4 bg-white blur-sm pointer-events-none select-none"
+                      className="w-full p-4 bg-white pointer-events-none select-none"
                       dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
                     />
                   ) : selectedNewsletter?.stibee_url ? (
                     <iframe
                       src={selectedNewsletter.stibee_url}
-                      className="w-full h-full border-0 blur-sm pointer-events-none"
+                      className="w-full h-full border-0 pointer-events-none"
                       title={selectedNewsletter.title}
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-100" />
                   )}
-
-                  {/* 그라데이션 오버레이 */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white" />
                 </div>
 
-                {/* 잠금 오버레이 */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 mx-4 max-w-md text-center border">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Lock className="w-8 h-8 text-blue-600" />
+                {/* 하단 페이드아웃 그라데이션 (40%부터 시작) */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 pointer-events-none"
+                  style={{
+                    height: '60%',
+                    background: 'linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.8) 30%, rgba(255,255,255,0.95) 50%, white 70%)'
+                  }}
+                />
+
+                {/* 잠금 카드 (하단에 위치) */}
+                <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-8">
+                  <div className="bg-white rounded-2xl shadow-2xl p-6 mx-4 max-w-sm text-center border-2 border-blue-100">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Lock className="w-6 h-6 text-blue-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">회원 전용 콘텐츠</h3>
-                    <p className="text-gray-600 mb-6">
-                      전체 내용을 보시려면<br />로그인이 필요합니다.
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">계속 읽으시려면?</h3>
+                    <p className="text-gray-500 text-sm mb-4">
+                      로그인하고 전체 내용을 확인하세요.
                     </p>
                     <Button
                       onClick={() => {
@@ -454,12 +460,9 @@ export default function NewsletterShowcase() {
                       <LogIn className="w-4 h-4 mr-2" />
                       로그인하기
                     </Button>
-                    <p className="text-xs text-gray-400 mt-4">
-                      아직 회원이 아니신가요? 무료로 가입하세요!
-                    </p>
                   </div>
                 </div>
-              </>
+              </div>
             ) : selectedNewsletter?.html_content ? (
               <div
                 className="w-full h-[65vh] overflow-auto p-4 bg-white"
