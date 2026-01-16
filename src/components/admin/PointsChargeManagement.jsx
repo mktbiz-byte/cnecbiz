@@ -3,10 +3,11 @@ import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckCircle, XCircle, Clock, Search, Filter, CreditCard, Building2, FileText } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Search, Filter, CreditCard, Building2, FileText, Coins } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import BankTransactionsTab from './BankTransactionsTab'
 import TaxInvoiceRequestsTab from './TaxInvoiceRequestsTab'
+import CreatorPointPaymentsTab from './CreatorPointPaymentsTab'
 
 export default function PointsChargeManagement() {
   const [activeTab, setActiveTab] = useState('requests') // requests, transactions, tax_invoices
@@ -454,6 +455,19 @@ export default function PointsChargeManagement() {
                 세금계산서 신청 내역
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('creator_payments')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'creator_payments'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Coins className="w-4 h-4" />
+                크리에이터 포인트 지급
+              </div>
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -462,6 +476,8 @@ export default function PointsChargeManagement() {
         <BankTransactionsTab />
       ) : activeTab === 'tax_invoices' ? (
         <TaxInvoiceRequestsTab />
+      ) : activeTab === 'creator_payments' ? (
+        <CreatorPointPaymentsTab />
       ) : (
         <>
       {/* 필터 및 검색 */}
