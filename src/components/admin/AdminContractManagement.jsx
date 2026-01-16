@@ -171,10 +171,11 @@ export default function AdminContractManagement() {
           templateKey: templateKey,
           to: contract.recipient_email,
           variables: {
-            creator_name: contract.recipient_name || contract.recipient_email,
-            contract_title: contract.title || '계약서',
-            sign_url: signUrl,
-            expires_at: expiresAt
+            recipientName: contract.recipient_name || contract.recipient_email,
+            companyName: '씨넥비즈',
+            contractTitle: contract.title || '계약서',
+            signUrl: signUrl,
+            expiresAt: expiresAt
           }
         })
       })
@@ -259,10 +260,11 @@ export default function AdminContractManagement() {
             templateKey: templateKey,
             to: newContract.recipientEmail,
             variables: {
-              creator_name: newContract.recipientName,
-              contract_title: contractTitle,
-              sign_url: signUrl,
-              expires_at: expiresAt.toLocaleDateString('ko-KR')
+              recipientName: newContract.recipientName,
+              companyName: newContract.companyName || '씨넥비즈',
+              contractTitle: contractTitle,
+              signUrl: signUrl,
+              expiresAt: expiresAt.toLocaleDateString('ko-KR')
             }
           })
         })
@@ -344,10 +346,11 @@ export default function AdminContractManagement() {
           templateKey: templateKey,
           to: resendEmail,
           variables: {
-            creator_name: resendContract.recipient_name || resendEmail,
-            contract_title: resendContract.title || '계약서',
-            sign_url: signUrl,
-            expires_at: expiresAt
+            recipientName: resendContract.recipient_name || resendEmail,
+            companyName: '씨넥비즈',
+            contractTitle: resendContract.title || '계약서',
+            signUrl: signUrl,
+            expiresAt: expiresAt
           }
         })
       })
