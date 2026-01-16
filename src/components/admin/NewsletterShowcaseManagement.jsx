@@ -907,60 +907,26 @@ export default function NewsletterShowcaseManagement() {
     fetchNewsletters()
   }
 
-  // 순서 초기화 헬퍼 (display_order가 NULL인 항목들에 인덱스 값 설정)
-  const ensureDisplayOrders = async () => {
-    const needsInit = filteredNewsletters.some(n => n.display_order === null || n.display_order === undefined)
-    if (!needsInit) return
-
-    for (let i = 0; i < filteredNewsletters.length; i++) {
-      const n = filteredNewsletters[i]
-      if (n.display_order === null || n.display_order === undefined) {
-        await supabaseBiz
-          .from('newsletters')
-          .update({ display_order: i })
-          .eq('id', n.id)
-      }
-    }
-  }
-
   // 순서 위로 이동
   const handleMoveUp = async (newsletter, index) => {
-    if (index === 0) return // 이미 맨 위
+    if (index === 0) return
+
+    const prevNewsletter = filteredNewsletters[index - 1]
 
     try {
-      // display_order가 NULL인 경우 먼저 초기화
-      await ensureDisplayOrders()
-
-      const prevId = filteredNewsletters[index - 1].id
-      const currentId = newsletter.id
-
-      // 최신 데이터 가져오기
-      const { data: items, error: fetchError } = await supabaseBiz
-        .from('newsletters')
-        .select('id, display_order')
-        .in('id', [currentId, prevId])
-
-      if (fetchError) throw fetchError
-      if (!items || items.length !== 2) throw new Error('데이터를 찾을 수 없습니다')
-
-      const current = items.find(i => i.id === currentId)
-      const prev = items.find(i => i.id === prevId)
-
-      // display_order 값이 같거나 NULL이면 인덱스 기반으로 설정
-      const currentOrder = current.display_order ?? index
-      const prevOrder = prev.display_order ?? (index - 1)
-
-      // 순서 교환
+      // 단순히 현재 화면의 인덱스 값으로 교환
       const { error: err1 } = await supabaseBiz
         .from('newsletters')
-        .update({ display_order: prevOrder })
-        .eq('id', currentId)
+        .update({ display_order: index - 1 })
+        .eq('id', newsletter.id)
+
       if (err1) throw err1
 
       const { error: err2 } = await supabaseBiz
         .from('newsletters')
-        .update({ display_order: currentOrder })
-        .eq('id', prevId)
+        .update({ display_order: index })
+        .eq('id', prevNewsletter.id)
+
       if (err2) throw err2
 
       await fetchNewsletters()
@@ -972,42 +938,24 @@ export default function NewsletterShowcaseManagement() {
 
   // 순서 아래로 이동
   const handleMoveDown = async (newsletter, index) => {
-    if (index >= filteredNewsletters.length - 1) return // 이미 맨 아래
+    if (index >= filteredNewsletters.length - 1) return
+
+    const nextNewsletter = filteredNewsletters[index + 1]
 
     try {
-      // display_order가 NULL인 경우 먼저 초기화
-      await ensureDisplayOrders()
-
-      const nextId = filteredNewsletters[index + 1].id
-      const currentId = newsletter.id
-
-      // 최신 데이터 가져오기
-      const { data: items, error: fetchError } = await supabaseBiz
-        .from('newsletters')
-        .select('id, display_order')
-        .in('id', [currentId, nextId])
-
-      if (fetchError) throw fetchError
-      if (!items || items.length !== 2) throw new Error('데이터를 찾을 수 없습니다')
-
-      const current = items.find(i => i.id === currentId)
-      const next = items.find(i => i.id === nextId)
-
-      // display_order 값이 같거나 NULL이면 인덱스 기반으로 설정
-      const currentOrder = current.display_order ?? index
-      const nextOrder = next.display_order ?? (index + 1)
-
-      // 순서 교환
+      // 단순히 현재 화면의 인덱스 값으로 교환
       const { error: err1 } = await supabaseBiz
         .from('newsletters')
-        .update({ display_order: nextOrder })
-        .eq('id', currentId)
+        .update({ display_order: index + 1 })
+        .eq('id', newsletter.id)
+
       if (err1) throw err1
 
       const { error: err2 } = await supabaseBiz
         .from('newsletters')
-        .update({ display_order: currentOrder })
-        .eq('id', nextId)
+        .update({ display_order: index })
+        .eq('id', nextNewsletter.id)
+
       if (err2) throw err2
 
       await fetchNewsletters()
