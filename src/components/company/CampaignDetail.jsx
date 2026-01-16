@@ -1211,7 +1211,6 @@ export default function CampaignDetail() {
     try {
       const updateData = {
         phone_number: addressFormData.phone_number,
-        phone: addressFormData.phone_number, // 호환성 위해 phone 필드도 업데이트
         postal_code: addressFormData.postal_code,
         address: addressFormData.address,
         detail_address: addressFormData.detail_address
