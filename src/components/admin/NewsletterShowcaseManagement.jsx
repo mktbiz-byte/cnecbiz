@@ -2019,8 +2019,15 @@ export default function NewsletterShowcaseManagement() {
             <DialogTitle>{selectedNewsletter?.title}</DialogTitle>
           </DialogHeader>
 
-          <div className="py-4">
-            {selectedNewsletter?.stibee_url ? (
+          <div className="py-4 overflow-y-auto max-h-[60vh]">
+            {selectedNewsletter?.html_content ? (
+              // 저장된 HTML 콘텐츠가 있으면 해당 콘텐츠 표시
+              <div
+                className="prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
+              />
+            ) : selectedNewsletter?.stibee_url ? (
+              // HTML 콘텐츠가 없으면 스티비 원본 iframe 표시
               <iframe
                 src={selectedNewsletter.stibee_url}
                 className="w-full h-[60vh] border rounded-lg"
@@ -2028,19 +2035,19 @@ export default function NewsletterShowcaseManagement() {
               />
             ) : (
               <div className="text-center py-12 text-gray-500">
-                스티비 URL이 설정되지 않았습니다.
+                콘텐츠가 없습니다.
               </div>
             )}
           </div>
 
-          <DialogFooter>
-            {selectedNewsletter?.stibee_url && (
+          <DialogFooter className="gap-2">
+            {selectedNewsletter?.html_content && selectedNewsletter?.stibee_url && (
               <Button
                 variant="outline"
                 onClick={() => window.open(selectedNewsletter.stibee_url, '_blank')}
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
-                새 탭에서 열기
+                스티비 원본
               </Button>
             )}
             <Button onClick={() => setShowPreviewModal(false)}>닫기</Button>
