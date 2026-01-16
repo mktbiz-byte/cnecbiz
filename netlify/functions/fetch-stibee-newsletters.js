@@ -278,65 +278,90 @@ exports.handler = async (event) => {
       }
     }
 
-    // 가져온 이메일을 newsletters 테이블에 저장
-    let savedCount = 0
+    // 가져온 이메일을 newsletters 테이블에 배치로 저장 (성능 최적화)
+    console.log('Starting batch save...')
+
+    // 1. 기존 stibee_id 목록 한 번에 조회
+    const stibeeIds = allEmails
+      .map(e => (e.id?.toString() || e.emailId?.toString()))
+      .filter(Boolean)
+
+    const { data: existingNewsletters } = await supabaseBiz
+      .from('newsletters')
+      .select('id, stibee_id')
+      .in('stibee_id', stibeeIds)
+
+    const existingMap = new Map(
+      (existingNewsletters || []).map(n => [n.stibee_id, n.id])
+    )
+    console.log(`Found ${existingMap.size} existing newsletters`)
+
+    // 2. 새로 추가할 데이터와 업데이트할 데이터 분리
+    const toInsert = []
+    const toUpdate = []
     const savedEmails = []
 
     for (const email of allEmails) {
-      // 스티비 이메일 ID
       const stibeeId = email.id?.toString() || email.emailId?.toString()
       if (!stibeeId) continue
 
-      // HTML 본문은 permanentLink로 대체 (v2 content API가 작동하지 않음)
-      // 뉴스레터 보기는 permanentLink(https://stib.ee/xxx)를 사용
-      let htmlContent = null
-
-      // 이미 저장된 뉴스레터인지 확인
-      const { data: existing } = await supabaseBiz
-        .from('newsletters')
-        .select('id')
-        .eq('stibee_id', stibeeId)
-        .maybeSingle()
-
-      // v2 API 응답 필드: id, subject, permanentLink, sentTime, createdTime, status, listId
       const newsletterData = {
+        stibee_id: stibeeId,
         title: email.subject || email.title || '제목 없음',
         description: email.previewText || email.description || null,
         stibee_url: email.permanentLink || email.shareUrl || email.webUrl || `https://stibee.com/api/v1.0/emails/share/${stibeeId}`,
         published_at: email.sentTime || email.sendAt || email.sentAt || email.createdAt || null,
         thumbnail_url: email.thumbnailUrl || email.thumbnail || null,
-        html_content: htmlContent,
+        html_content: null,
         updated_at: new Date().toISOString()
       }
 
-      if (existing) {
-        // 업데이트
-        const { error: updateError } = await supabaseBiz
-          .from('newsletters')
-          .update(newsletterData)
-          .eq('id', existing.id)
-
-        if (!updateError) {
-          savedEmails.push({ id: stibeeId, title: email.subject || email.title, action: 'updated', hasHtml: !!htmlContent })
-        }
+      if (existingMap.has(stibeeId)) {
+        toUpdate.push({ ...newsletterData, id: existingMap.get(stibeeId) })
+        savedEmails.push({ id: stibeeId, title: newsletterData.title, action: 'updated' })
       } else {
-        // 새로 삽입
-        const { error: insertError } = await supabaseBiz
-          .from('newsletters')
-          .insert({
-            stibee_id: stibeeId,
-            ...newsletterData,
-            category: 'other',
-            is_active: false,
-            is_featured: false
-          })
-
-        if (!insertError) {
-          savedCount++
-          savedEmails.push({ id: stibeeId, title: email.subject || email.title, action: 'created', hasHtml: !!htmlContent })
-        }
+        toInsert.push({
+          ...newsletterData,
+          category: 'other',
+          is_active: false,
+          is_featured: false
+        })
+        savedEmails.push({ id: stibeeId, title: newsletterData.title, action: 'created' })
       }
     }
+
+    console.log(`To insert: ${toInsert.length}, To update: ${toUpdate.length}`)
+
+    // 3. 배치 삽입 (50개씩)
+    let savedCount = 0
+    const BATCH_SIZE = 50
+
+    for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + BATCH_SIZE)
+      const { error: insertError } = await supabaseBiz
+        .from('newsletters')
+        .insert(batch)
+
+      if (!insertError) {
+        savedCount += batch.length
+      } else {
+        console.error('Batch insert error:', insertError.message)
+      }
+    }
+
+    // 4. 배치 업데이트 (upsert 사용)
+    for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+      const batch = toUpdate.slice(i, i + BATCH_SIZE)
+      const { error: updateError } = await supabaseBiz
+        .from('newsletters')
+        .upsert(batch, { onConflict: 'stibee_id' })
+
+      if (updateError) {
+        console.error('Batch update error:', updateError.message)
+      }
+    }
+
+    console.log(`Batch save complete. Inserted: ${savedCount}`)
 
     return {
       statusCode: 200,
