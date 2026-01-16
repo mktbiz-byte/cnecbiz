@@ -34,12 +34,18 @@
 [functions."scheduled-weekly-withdrawal-report"]
   schedule = "0 1 * * 1"  # 매주 월요일 오전 10시 (한국시간 = UTC+9) - 출금 신청 주간 보고서
 
-# Sitemap for newsletters (SEO)
+# SEO: Sitemaps
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+
 [[redirects]]
   from = "/sitemap-newsletters.xml"
   to = "/.netlify/functions/newsletter-sitemap"
   status = 200
 
+# SPA fallback (must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"
