@@ -123,6 +123,36 @@ export const CompanyContractTemplate = (data) => {
       color: #6b7280;
       font-size: 14px;
     }
+    .company-stamp {
+      display: inline-block;
+      width: 70px;
+      height: 70px;
+      border: 3px solid #dc2626;
+      border-radius: 50%;
+      color: #dc2626;
+      font-size: 11px;
+      font-weight: bold;
+      text-align: center;
+      line-height: 1.2;
+      padding: 12px 5px;
+      margin-top: 10px;
+      transform: rotate(-5deg);
+    }
+    .stamp-area {
+      text-align: right;
+      margin-top: 15px;
+    }
+    .signer-signature-area {
+      min-height: 80px;
+      border: 1px dashed #d1d5db;
+      border-radius: 4px;
+      margin-top: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      font-size: 12px;
+    }
     .confirmation-section {
       margin-top: 40px;
       padding: 20px;
@@ -261,24 +291,30 @@ export const CompanyContractTemplate = (data) => {
         <div class="signature-label">대표자:</div>
         <div class="signature-value">박현용</div>
       </div>
-      <div class="signature-line">(인)</div>
+      <div class="stamp-area">
+        <div class="company-stamp">
+          주식회사<br/>하우파파<br/>대표이사
+        </div>
+      </div>
     </div>
 
     <div class="signature-box">
       <div class="signature-title">[콘텐츠 사용자 (을)]</div>
       <div class="signature-row">
         <div class="signature-label">회사명:</div>
-        <div class="signature-value">${companyName || '___________________________'}</div>
+        <div class="signature-value" id="signer-company">${companyName || '___________________________'}</div>
       </div>
       <div class="signature-row">
         <div class="signature-label">주소:</div>
-        <div class="signature-value">${address || '___________________________'}</div>
+        <div class="signature-value" id="signer-address">${address || '___________________________'}</div>
       </div>
       <div class="signature-row">
         <div class="signature-label">대표자:</div>
-        <div class="signature-value">${ceoName || '___________________________'}</div>
+        <div class="signature-value" id="signer-ceo">${ceoName || '___________________________'}</div>
       </div>
-      <div class="signature-line">(인)</div>
+      <div class="signer-signature-area" id="signer-signature">
+        서명란
+      </div>
     </div>
   </div>
 

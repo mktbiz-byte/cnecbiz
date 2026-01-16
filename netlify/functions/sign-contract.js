@@ -16,10 +16,11 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  */
 exports.handler = async (event) => {
   try {
-    const { 
-      contractId, 
-      signatureType, 
+    const {
+      contractId,
+      signatureType,
       signatureData,
+      signerInfo,
       ipAddress,
       userAgent
     } = JSON.parse(event.body);
@@ -117,14 +118,23 @@ exports.handler = async (event) => {
     }
 
     // 계약서 업데이트 (서명 완료)
+    const updateData = {
+      status: 'signed',
+      creator_signature_url: signatureUrl,
+      signature_type: signatureType,
+      signed_at: new Date().toISOString()
+    };
+
+    // 서명자 정보가 있으면 추가
+    if (signerInfo) {
+      updateData.signer_company_name = signerInfo.companyName;
+      updateData.signer_address = signerInfo.address;
+      updateData.signer_ceo_name = signerInfo.ceoName;
+    }
+
     const { error: updateError } = await supabase
       .from('contracts')
-      .update({
-        status: 'signed',
-        creator_signature_url: signatureUrl,
-        signature_type: signatureType,
-        signed_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', contractId);
 
     if (updateError) {
@@ -139,17 +149,24 @@ exports.handler = async (event) => {
     }
 
     // 서명 로그 저장
+    const logData = {
+      contract_id: contractId,
+      signer_type: 'creator',
+      signer_id: contract.creator_id,
+      signature_url: signatureUrl,
+      signature_type: signatureType,
+      ip_address: ipAddress,
+      user_agent: userAgent
+    };
+
+    // 서명자 정보가 있으면 로그에 추가
+    if (signerInfo) {
+      logData.signer_info = JSON.stringify(signerInfo);
+    }
+
     await supabase
       .from('contract_signature_logs')
-      .insert({
-        contract_id: contractId,
-        signer_type: 'creator',
-        signer_id: contract.creator_id,
-        signature_url: signatureUrl,
-        signature_type: signatureType,
-        ip_address: ipAddress,
-        user_agent: userAgent
-      });
+      .insert(logData);
 
     // TODO: 서명 완료된 계약서 PDF 생성 및 암호화
     // TODO: 기업에게 서명 완료 이메일 발송

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, Edit3, Stamp, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
@@ -20,6 +21,13 @@ export default function SignContract() {
   const [isDrawing, setIsDrawing] = useState(false)
   const [signed, setSigned] = useState(false)
   const [renderedContent, setRenderedContent] = useState('')
+
+  // 서명자 정보 (을)
+  const [signerInfo, setSignerInfo] = useState({
+    companyName: '',
+    address: '',
+    ceoName: ''
+  })
 
   useEffect(() => {
     loadContract()
@@ -157,6 +165,20 @@ export default function SignContract() {
   // 서명 제출
   const handleSubmit = async () => {
     try {
+      // 서명자 정보 검증
+      if (!signerInfo.companyName.trim()) {
+        alert('회사명을 입력해주세요.')
+        return
+      }
+      if (!signerInfo.address.trim()) {
+        alert('주소를 입력해주세요.')
+        return
+      }
+      if (!signerInfo.ceoName.trim()) {
+        alert('대표자명을 입력해주세요.')
+        return
+      }
+
       setSigning(true)
 
       let signatureData = null
@@ -185,7 +207,8 @@ export default function SignContract() {
           contractId: contractId,
           signatureType: signatureType,
           signatureData: signatureData,
-          ipAddress: '', // TODO: IP 주소 가져오기
+          signerInfo: signerInfo,
+          ipAddress: '',
           userAgent: navigator.userAgent
         })
       })
@@ -244,6 +267,43 @@ export default function SignContract() {
               className="prose max-w-none border rounded-lg p-6 bg-white"
               dangerouslySetInnerHTML={{ __html: renderedContent }}
             />
+          </CardContent>
+        </Card>
+
+        {/* 서명자 정보 입력 (을) */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>콘텐츠 사용자 정보 (을)</CardTitle>
+            <p className="text-sm text-gray-600">계약서에 기재될 귀사의 정보를 입력해주세요.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="companyName">회사명 *</Label>
+              <Input
+                id="companyName"
+                placeholder="예: 주식회사 OOO"
+                value={signerInfo.companyName}
+                onChange={(e) => setSignerInfo(prev => ({ ...prev, companyName: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address">주소 *</Label>
+              <Input
+                id="address"
+                placeholder="예: 서울시 강남구 테헤란로 123"
+                value={signerInfo.address}
+                onChange={(e) => setSignerInfo(prev => ({ ...prev, address: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ceoName">대표자명 *</Label>
+              <Input
+                id="ceoName"
+                placeholder="예: 홍길동"
+                value={signerInfo.ceoName}
+                onChange={(e) => setSignerInfo(prev => ({ ...prev, ceoName: e.target.value }))}
+              />
+            </div>
           </CardContent>
         </Card>
 
