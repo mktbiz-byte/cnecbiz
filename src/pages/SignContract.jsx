@@ -117,59 +117,94 @@ export default function SignContract() {
     }
   }
 
-  // 도장 스타일 자동 생성
+  // 도장 스타일 자동 생성 (고품질)
   const generateStamps = (companyName, ceoName) => {
     const stamps = STAMP_STYLES.map(style => {
       const canvas = document.createElement('canvas')
-      canvas.width = 200
-      canvas.height = 200
+      // 고해상도 캔버스 (2x for retina)
+      const scale = 2
+      canvas.width = 400 * scale
+      canvas.height = 400 * scale
       const ctx = canvas.getContext('2d')
-      const centerX = canvas.width / 2
-      const centerY = canvas.height / 2
-      const stampColor = '#c41e3a'
+      ctx.scale(scale, scale)
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      const centerX = 200
+      const centerY = 200
+      const stampColor = '#c41e3a' // 전통 인주 색상
+
+      ctx.clearRect(0, 0, 400, 400)
+
+      // 안티앨리어싱 설정
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
 
       // 회사명 정리
-      const cleanCompanyName = companyName.replace(/^주식회사\s*/, '').replace(/\s*주식회사$/, '')
+      const cleanCompanyName = companyName.replace(/^주식회사\s*/, '').replace(/\s*주식회사$/, '').substring(0, 6)
+
+      // 도장 텍스처 효과 함수
+      const addStampTexture = () => {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const data = imageData.data
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] > 0) { // 알파값이 있는 픽셀만
+            const noise = (Math.random() - 0.5) * 15
+            data[i] = Math.min(255, Math.max(0, data[i] + noise))
+            data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise))
+            data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise))
+            // 일부 픽셀 투명도 살짝 변경 (찍힌 느낌)
+            if (Math.random() > 0.97) {
+              data[i + 3] = Math.max(100, data[i + 3] - Math.random() * 80)
+            }
+          }
+        }
+        ctx.putImageData(imageData, 0, 0)
+      }
 
       if (style.type === 'circle1') {
-        // 원형 법인인감 스타일 1 - 대표이사 + 회사명/주식회사
-        const outerRadius = 90
-        const innerRadius = 45
+        // 원형 법인인감 - 프리미엄 스타일
+        const outerRadius = 170
+        const middleRadius = 155
+        const innerRadius = 70
 
-        // 외곽 원 (두꺼운 선)
+        // 외곽 원 (두꺼운)
         ctx.beginPath()
         ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2)
         ctx.strokeStyle = stampColor
+        ctx.lineWidth = 10
+        ctx.stroke()
+
+        // 중간 원 (얇은)
+        ctx.beginPath()
+        ctx.arc(centerX, centerY, middleRadius, 0, Math.PI * 2)
+        ctx.lineWidth = 2
+        ctx.stroke()
+
+        // 내부 원
+        ctx.beginPath()
+        ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2)
         ctx.lineWidth = 5
         ctx.stroke()
 
-        // 내부 원 (중앙 대표이사 영역)
-        ctx.beginPath()
-        ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2)
-        ctx.strokeStyle = stampColor
-        ctx.lineWidth = 3
-        ctx.stroke()
-
-        // 중앙에 대표이사 (2줄)
+        // 중앙에 대표이사 (세로 2줄)
         ctx.fillStyle = stampColor
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.font = "bold 24px '바탕', 'Batang', serif"
-        ctx.fillText('대표', centerX, centerY - 12)
-        ctx.fillText('이사', centerX, centerY + 14)
+        ctx.font = "bold 40px '바탕', 'Batang', 'Times New Roman', serif"
+        ctx.fillText('대표', centerX, centerY - 18)
+        ctx.fillText('이사', centerX, centerY + 22)
 
-        // 회사명을 원형으로 배치 (상단 반원)
-        const textRadius = (outerRadius + innerRadius) / 2
-        const companyChars = cleanCompanyName.substring(0, 8).split('')
-        const totalAngle = Math.PI * 0.8
-        const startAngle = -Math.PI / 2 - totalAngle / 2
-        const angleStep = totalAngle / Math.max(companyChars.length - 1, 1)
+        // 회사명 (상단 호) - 더 정교하게
+        const textRadius = (middleRadius + innerRadius) / 2 + 8
+        const companyChars = cleanCompanyName.split('')
+        const arcAngle = Math.PI * 0.65
+        const startAngle = -Math.PI / 2 - arcAngle / 2
 
-        ctx.font = "bold 16px '바탕', 'Batang', serif"
+        ctx.font = "bold 28px '바탕', 'Batang', 'Times New Roman', serif"
         companyChars.forEach((char, i) => {
-          const angle = startAngle + (companyChars.length === 1 ? totalAngle / 2 : i * angleStep)
+          const charCount = companyChars.length
+          const angle = charCount === 1
+            ? -Math.PI / 2
+            : startAngle + (arcAngle / (charCount - 1)) * i
           const x = centerX + textRadius * Math.cos(angle)
           const y = centerY + textRadius * Math.sin(angle)
           ctx.save()
@@ -179,13 +214,13 @@ export default function SignContract() {
           ctx.restore()
         })
 
-        // 주식회사를 원형으로 배치 (하단 반원)
+        // 주식회사 (하단 호)
         const bottomChars = '주식회사'.split('')
-        const bottomStartAngle = Math.PI / 2 + totalAngle / 2
-        const bottomAngleStep = totalAngle / (bottomChars.length - 1)
-
+        const bottomArcAngle = Math.PI * 0.55
+        const bottomStartAngle = Math.PI / 2 + bottomArcAngle / 2
+        ctx.font = "bold 24px '바탕', 'Batang', 'Times New Roman', serif"
         bottomChars.forEach((char, i) => {
-          const angle = bottomStartAngle - i * bottomAngleStep
+          const angle = bottomStartAngle - (bottomArcAngle / (bottomChars.length - 1)) * i
           const x = centerX + textRadius * Math.cos(angle)
           const y = centerY + textRadius * Math.sin(angle)
           ctx.save()
@@ -195,57 +230,63 @@ export default function SignContract() {
           ctx.restore()
         })
 
-        // 구분 별 장식 (좌우)
-        ctx.font = "bold 12px sans-serif"
-        const starAngle1 = -Math.PI / 2 - totalAngle / 2 - 0.2
-        const starAngle2 = -Math.PI / 2 + totalAngle / 2 + 0.2
-        ctx.fillText('★', centerX + textRadius * Math.cos(starAngle1), centerY + textRadius * Math.sin(starAngle1))
-        ctx.fillText('★', centerX + textRadius * Math.cos(starAngle2), centerY + textRadius * Math.sin(starAngle2))
+        // 좌우 별 장식
+        ctx.font = "bold 18px serif"
+        const starY = centerY
+        ctx.fillText('★', centerX - textRadius - 8, starY)
+        ctx.fillText('★', centerX + textRadius + 8, starY)
+
+        addStampTexture()
 
       } else if (style.type === 'circle2') {
-        // 원형 법인인감 스타일 2 - 대표 중앙, 회사명 전체 원형
-        const outerRadius = 90
-        const middleRadius = 65
-        const innerRadius = 35
+        // 원형 법인인감 2 - 클래식 스타일
+        const outerRadius = 170
+        const innerRadius = 58
 
-        // 외곽 원
+        // 외곽 원 (굵은 선)
         ctx.beginPath()
         ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2)
         ctx.strokeStyle = stampColor
-        ctx.lineWidth = 4
+        ctx.lineWidth = 8
         ctx.stroke()
 
-        // 중간 원
+        // 외곽 내부 원 (얇은)
         ctx.beginPath()
-        ctx.arc(centerX, centerY, middleRadius, 0, Math.PI * 2)
-        ctx.strokeStyle = stampColor
+        ctx.arc(centerX, centerY, outerRadius - 15, 0, Math.PI * 2)
         ctx.lineWidth = 2
         ctx.stroke()
 
         // 내부 원
         ctx.beginPath()
         ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2)
-        ctx.strokeStyle = stampColor
-        ctx.lineWidth = 2
+        ctx.lineWidth = 4
         ctx.stroke()
 
         // 중앙에 대표
         ctx.fillStyle = stampColor
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.font = "bold 28px '바탕', 'Batang', serif"
+        ctx.font = "bold 48px '바탕', 'Batang', 'Times New Roman', serif"
         ctx.fillText('대표', centerX, centerY)
 
-        // 회사명 + 주식회사를 전체 원형으로 배치
-        const fullText = `${cleanCompanyName}주식회사`
-        const textChars = fullText.split('')
-        const textRadius = (outerRadius + middleRadius) / 2
-        const fullAngle = Math.PI * 2 - 0.3
-        const charAngle = fullAngle / textChars.length
+        // 좌우 수평 구분선
+        ctx.beginPath()
+        ctx.moveTo(centerX - innerRadius - 12, centerY)
+        ctx.lineTo(centerX - outerRadius + 22, centerY)
+        ctx.moveTo(centerX + innerRadius + 12, centerY)
+        ctx.lineTo(centerX + outerRadius - 22, centerY)
+        ctx.lineWidth = 4
+        ctx.stroke()
 
-        ctx.font = "bold 14px '바탕', 'Batang', serif"
+        // 회사명 + 주식회사 (원형 배치)
+        const fullText = cleanCompanyName + '주식회사'
+        const textChars = fullText.split('')
+        const textRadius = (outerRadius + outerRadius - 15) / 2 - 12
+
+        ctx.font = "bold 22px '바탕', 'Batang', 'Times New Roman', serif"
+        const totalChars = textChars.length
         textChars.forEach((char, i) => {
-          const angle = -Math.PI / 2 + i * charAngle
+          const angle = -Math.PI / 2 + (Math.PI * 2 / totalChars) * i
           const x = centerX + textRadius * Math.cos(angle)
           const y = centerY + textRadius * Math.sin(angle)
           ctx.save()
@@ -255,83 +296,88 @@ export default function SignContract() {
           ctx.restore()
         })
 
-        // 구분선
-        ctx.beginPath()
-        ctx.moveTo(centerX + innerRadius + 5, centerY)
-        ctx.lineTo(centerX + middleRadius - 5, centerY)
-        ctx.moveTo(centerX - innerRadius - 5, centerY)
-        ctx.lineTo(centerX - middleRadius + 5, centerY)
-        ctx.strokeStyle = stampColor
-        ctx.lineWidth = 2
-        ctx.stroke()
+        addStampTexture()
 
       } else if (style.type === 'oval') {
-        // 타원형 개인 도장
-        const radiusX = 40
-        const radiusY = 75
+        // 타원형 개인 도장 (전통 인장 스타일)
+        const radiusX = 70
+        const radiusY = 140
 
-        // 외곽 타원
+        // 외곽 타원 (굵은)
         ctx.beginPath()
         ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2)
         ctx.strokeStyle = stampColor
-        ctx.lineWidth = 4
+        ctx.lineWidth = 8
         ctx.stroke()
 
-        // 내부 타원
+        // 내부 타원 (장식)
         ctx.beginPath()
-        ctx.ellipse(centerX, centerY, radiusX - 6, radiusY - 6, 0, 0, Math.PI * 2)
-        ctx.strokeStyle = stampColor
+        ctx.ellipse(centerX, centerY, radiusX - 12, radiusY - 12, 0, 0, Math.PI * 2)
         ctx.lineWidth = 2
         ctx.stroke()
 
-        // 이름을 세로로 배치
+        // 이름을 세로로 배치 (전통 서체)
         const nameChars = ceoName.substring(0, 3).split('')
-        ctx.font = "bold 28px '바탕', 'Batang', serif"
+        ctx.font = "bold 52px '바탕', 'Batang', 'Times New Roman', serif"
         ctx.fillStyle = stampColor
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
 
-        const charHeight = 35
-        const startY = centerY - ((nameChars.length - 1) * charHeight) / 2
+        const charHeight = 70
+        const totalHeight = (nameChars.length - 1) * charHeight
         nameChars.forEach((char, i) => {
-          ctx.fillText(char, centerX, startY + i * charHeight)
+          ctx.fillText(char, centerX, centerY - totalHeight / 2 + i * charHeight)
         })
 
+        // 위아래 장식 가로선
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(centerX - 35, centerY - radiusY + 25)
+        ctx.lineTo(centerX + 35, centerY - radiusY + 25)
+        ctx.moveTo(centerX - 35, centerY + radiusY - 25)
+        ctx.lineTo(centerX + 35, centerY + radiusY - 25)
+        ctx.stroke()
+
+        addStampTexture()
+
       } else if (style.type === 'square') {
-        // 사각 법인인감 - 실제 스타일
-        const size = 150
+        // 사각 법인인감 (전통 관인 스타일)
+        const size = 280
         const startX = centerX - size / 2
         const startY = centerY - size / 2
 
-        // 외곽 사각형
+        // 외곽 사각형 (굵은 테두리)
         ctx.strokeStyle = stampColor
-        ctx.lineWidth = 5
+        ctx.lineWidth = 10
         ctx.strokeRect(startX, startY, size, size)
 
-        // 내부 사각형
+        // 내부 사각형 (장식)
         ctx.lineWidth = 2
-        ctx.strokeRect(startX + 8, startY + 8, size - 16, size - 16)
+        ctx.strokeRect(startX + 14, startY + 14, size - 28, size - 28)
 
-        // 십자선
-        ctx.lineWidth = 2
+        // 십자선 (굵은)
+        ctx.lineWidth = 5
         ctx.beginPath()
-        ctx.moveTo(centerX, startY + 12)
-        ctx.lineTo(centerX, startY + size - 12)
-        ctx.moveTo(startX + 12, centerY)
-        ctx.lineTo(startX + size - 12, centerY)
+        ctx.moveTo(centerX, startY + 20)
+        ctx.lineTo(centerX, startY + size - 20)
+        ctx.moveTo(startX + 20, centerY)
+        ctx.lineTo(startX + size - 20, centerY)
         ctx.stroke()
 
-        // 4분할 텍스트 배치
-        ctx.font = "bold 28px '바탕', 'Batang', serif"
+        // 4분할 텍스트 (대표이사) - 전통 읽기 순서: 세로로 읽기
+        ctx.font = "bold 58px '바탕', 'Batang', 'Times New Roman', serif"
         ctx.fillStyle = stampColor
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
 
-        // 대표이사 4글자 배치 (읽는 순서: 우상→좌상→우하→좌하 = 대→표→이→사)
-        ctx.fillText('대', centerX + size/4, centerY - size/4)
-        ctx.fillText('표', centerX - size/4, centerY - size/4)
-        ctx.fillText('이', centerX + size/4, centerY + size/4)
-        ctx.fillText('사', centerX - size/4, centerY + size/4)
+        // 읽는 순서: 우상→우하→좌상→좌하 (대표이사)
+        const qSize = size / 4
+        ctx.fillText('대', centerX + qSize, centerY - qSize)
+        ctx.fillText('표', centerX + qSize, centerY + qSize)
+        ctx.fillText('이', centerX - qSize, centerY - qSize)
+        ctx.fillText('사', centerX - qSize, centerY + qSize)
+
+        addStampTexture()
       }
 
       return {
@@ -715,20 +761,20 @@ export default function SignContract() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-600">원하는 도장 스타일을 선택해주세요.</p>
-                    <div className="grid grid-cols-3 gap-4">
+                    <p className="text-sm text-gray-600 mb-4">원하는 도장 스타일을 선택해주세요.</p>
+                    <div className="grid grid-cols-2 gap-6">
                       {generatedStamps.map((stamp) => (
                         <div
                           key={stamp.id}
                           onClick={() => setSelectedGeneratedStamp(stamp.dataUrl)}
-                          className={`border-2 rounded-lg p-4 cursor-pointer transition-all bg-white hover:shadow-md ${
+                          className={`border-2 rounded-xl p-6 cursor-pointer transition-all bg-white hover:shadow-lg ${
                             selectedGeneratedStamp === stamp.dataUrl
-                              ? 'border-blue-500 ring-2 ring-blue-200'
-                              : 'border-gray-200'
+                              ? 'border-blue-500 ring-2 ring-blue-200 shadow-md'
+                              : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          <img src={stamp.dataUrl} alt={stamp.name} className="w-full h-28 object-contain" />
-                          <p className="text-xs text-center text-gray-500 mt-2">{stamp.name}</p>
+                          <img src={stamp.dataUrl} alt={stamp.name} className="w-full h-40 object-contain" />
+                          <p className="text-sm text-center text-gray-600 mt-3 font-medium">{stamp.name}</p>
                         </div>
                       ))}
                     </div>
