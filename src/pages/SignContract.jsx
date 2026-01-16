@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, Edit3, Stamp, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { supabaseBiz } from '../lib/supabaseClients'
@@ -27,6 +28,12 @@ export default function SignContract() {
     companyName: '',
     address: '',
     ceoName: ''
+  })
+
+  // 확인 사항 체크박스
+  const [confirmations, setConfirmations] = useState({
+    confirm1: false,
+    confirm2: false
   })
 
   useEffect(() => {
@@ -179,6 +186,12 @@ export default function SignContract() {
         return
       }
 
+      // 확인 사항 체크 검증
+      if (!confirmations.confirm1 || !confirmations.confirm2) {
+        alert('확인 사항을 모두 체크해주세요.')
+        return
+      }
+
       setSigning(true)
 
       let signatureData = null
@@ -303,6 +316,38 @@ export default function SignContract() {
                 value={signerInfo.ceoName}
                 onChange={(e) => setSignerInfo(prev => ({ ...prev, ceoName: e.target.value }))}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 확인 사항 체크 */}
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardHeader>
+            <CardTitle className="text-amber-800">확인 사항</CardTitle>
+            <p className="text-sm text-amber-700">아래 내용을 확인하고 체크해주세요.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="confirm1"
+                checked={confirmations.confirm1}
+                onCheckedChange={(checked) => setConfirmations(prev => ({ ...prev, confirm1: checked }))}
+                className="mt-1"
+              />
+              <label htmlFor="confirm1" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
+                본 계약의 프리미엄 패키지 콘텐츠는 사전에 합의된 가이드 범위 내에서만 수정 가능하며, 1회 무료 수정을 초과하거나 기획 변경·추가 촬영이 필요한 경우 별도 비용이 발생한다는 점을 확인하였습니다.
+              </label>
+            </div>
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="confirm2"
+                checked={confirmations.confirm2}
+                onCheckedChange={(checked) => setConfirmations(prev => ({ ...prev, confirm2: checked }))}
+                className="mt-1"
+              />
+              <label htmlFor="confirm2" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
+                본 계약의 콘텐츠는 최종 업로드일로부터 1년간 사용 가능하며, 이후 활용은 별도의 계약 또는 비용 협의가 필요함을 확인하였습니다.
+              </label>
             </div>
           </CardContent>
         </Card>
