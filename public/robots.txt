@@ -1,0 +1,23 @@
+# robots.txt for cnecbiz.com
+# CNEC - 크리에이터 마케팅 플랫폼
+
+User-agent: *
+Allow: /
+Allow: /newsletters
+Allow: /newsletter/
+Allow: /guidebook
+
+# 관리자/비공개 영역 차단
+Disallow: /admin/
+Disallow: /company/
+Disallow: /creator/
+Disallow: /login
+Disallow: /signup
+Disallow: /sign-contract/
+
+# Sitemaps
+Sitemap: https://cnecbiz.com/sitemap.xml
+Sitemap: https://cnecbiz.com/sitemap-newsletters.xml
+
+# Crawl-delay (optional, for polite crawling)
+Crawl-delay: 1
