@@ -344,9 +344,9 @@ export default function PointsChargeManagement() {
   const stats = {
     total: chargeRequests.filter(r => r.status !== 'cancelled').length,
     pending: chargeRequests.filter(r => r.status === 'pending').length,
-    completed: chargeRequests.filter(r => r.status === 'completed').length,
+    completed: chargeRequests.filter(r => r.status === 'completed' || r.status === 'confirmed').length,
     totalAmount: chargeRequests
-      .filter(r => r.status === 'completed')
+      .filter(r => r.status === 'completed' || r.status === 'confirmed')
       .reduce((sum, r) => sum + r.amount, 0)
   }
 

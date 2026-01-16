@@ -57,6 +57,13 @@ const CampaignCreationKorea = () => {
     week2_deadline: '',
     week3_deadline: '',
     week4_deadline: '',
+    // SNS 업로드 예정일
+    step1_sns_deadline: '',
+    step2_sns_deadline: '',
+    week1_sns_deadline: '',
+    week2_sns_deadline: '',
+    week3_sns_deadline: '',
+    week4_sns_deadline: '',
     bonus_amount: 0  // 지원율 높이기 추가 금액
   })
 
@@ -300,7 +307,7 @@ const CampaignCreationKorea = () => {
 
         const { data: company, error } = await supabaseBiz
           .from('companies')
-          .select('ceo_name, business_type, business_category, company_postal_code, company_address')
+          .select('id, phone, notification_phone, ceo_name, business_type, business_category, company_postal_code, company_address')
           .eq('user_id', user.id)
           .single()
 
@@ -309,7 +316,15 @@ const CampaignCreationKorea = () => {
           return
         }
 
-        setCompanyInfo(company)
+        // phone이 없으면 notification_phone 사용
+        const companyWithPhone = {
+          ...company,
+          phone: company?.phone || company?.notification_phone
+        }
+
+        console.log('[CreateCampaignKorea] Company info loaded:', companyWithPhone)
+        console.log('[CreateCampaignKorea] Company id:', companyWithPhone?.id, 'phone:', companyWithPhone?.phone)
+        setCompanyInfo(companyWithPhone)
 
         // 세금계산서 필수 필드 체크 (대표자명, 업태, 종목, 우편번호, 주소)
         const isComplete = !!(
@@ -630,7 +645,14 @@ const CampaignCreationKorea = () => {
           week1_deadline: formatDate(data.week1_deadline),
           week2_deadline: formatDate(data.week2_deadline),
           week3_deadline: formatDate(data.week3_deadline),
-          week4_deadline: formatDate(data.week4_deadline)
+          week4_deadline: formatDate(data.week4_deadline),
+          // SNS 업로드 예정일
+          step1_sns_deadline: formatDate(data.step1_sns_deadline),
+          step2_sns_deadline: formatDate(data.step2_sns_deadline),
+          week1_sns_deadline: formatDate(data.week1_sns_deadline),
+          week2_sns_deadline: formatDate(data.week2_sns_deadline),
+          week3_sns_deadline: formatDate(data.week3_sns_deadline),
+          week4_sns_deadline: formatDate(data.week4_sns_deadline)
         })
 
         // 수정 모드일 때 브랜드 정보 섹션으로 스크롤
@@ -889,6 +911,7 @@ const CampaignCreationKorea = () => {
         total_slots: campaignForm.total_slots,
         remaining_slots: campaignForm.remaining_slots,
         application_deadline: campaignForm.application_deadline || null,
+        shipping_date: campaignForm.shipping_date || null,  // 제품 발송 예정일
         start_date: campaignForm.start_date || null,
         end_date: campaignForm.end_date || null,
         reward_points: campaignForm.reward_points,
@@ -903,7 +926,18 @@ const CampaignCreationKorea = () => {
         week1_deadline: campaignForm.week1_deadline || null,
         week2_deadline: campaignForm.week2_deadline || null,
         week3_deadline: campaignForm.week3_deadline || null,
-        week4_deadline: campaignForm.week4_deadline || null
+        week4_deadline: campaignForm.week4_deadline || null,
+        // 영상 제출 마감일 및 SNS 업로드 예정일
+        content_submission_deadline: campaignForm.start_date || null,  // 기획형: start_date = 영상 제출 마감일
+        sns_upload_deadline: campaignForm.end_date || null,  // 기획형: end_date = SNS 업로드 예정일
+        // 올리브영 SNS 업로드 예정일
+        step1_sns_deadline: campaignForm.step1_sns_deadline || null,
+        step2_sns_deadline: campaignForm.step2_sns_deadline || null,
+        // 4주 챌린지 SNS 업로드 예정일
+        week1_sns_deadline: campaignForm.week1_sns_deadline || null,
+        week2_sns_deadline: campaignForm.week2_sns_deadline || null,
+        week3_sns_deadline: campaignForm.week3_sns_deadline || null,
+        week4_sns_deadline: campaignForm.week4_sns_deadline || null
       }
 
       // 카테고리명 가져오기 (이모지 제거, 배열 처리)
@@ -970,6 +1004,16 @@ const CampaignCreationKorea = () => {
       if (!isAdmin) {
         campaignData.company_id = currentUser.id
         campaignData.company_email = userEmail
+        // BIZ DB의 companies 테이블 id와 phone 추가
+        console.log('[CreateCampaignKorea] Saving - companyInfo:', companyInfo)
+        if (companyInfo?.id) {
+          campaignData.company_biz_id = companyInfo.id
+          console.log('[CreateCampaignKorea] Setting company_biz_id:', companyInfo.id)
+        }
+        if (companyInfo?.phone) {
+          campaignData.company_phone = companyInfo.phone
+          console.log('[CreateCampaignKorea] Setting company_phone:', companyInfo.phone)
+        }
       }
 
       const client = supabaseKorea || supabaseBiz
@@ -2380,12 +2424,20 @@ const CampaignCreationKorea = () => {
                             const step3 = new Date(step2)
                             step3.setDate(step3.getDate() + 3)
 
+                            // SNS 업로드 예정일: 각 영상 제출 마감일 + 2일
+                            const step1Sns = new Date(step1)
+                            step1Sns.setDate(step1Sns.getDate() + 2)
+                            const step2Sns = new Date(step2)
+                            step2Sns.setDate(step2Sns.getDate() + 2)
+
                             setCampaignForm(prev => ({
                               ...prev,
                               shipping_date: e.target.value,
                               step1_deadline: step1.toISOString().split('T')[0],
                               step2_deadline: step2.toISOString().split('T')[0],
-                              step3_deadline: step3.toISOString().split('T')[0]
+                              step3_deadline: step3.toISOString().split('T')[0],
+                              step1_sns_deadline: step1Sns.toISOString().split('T')[0],
+                              step2_sns_deadline: step2Sns.toISOString().split('T')[0]
                             }))
                           }}
                           className="mt-1"
@@ -2413,12 +2465,26 @@ const CampaignCreationKorea = () => {
                                   <span className="text-xs text-pink-600 bg-pink-100 px-2 py-0.5 rounded">발송일 +7일</span>
                                 </div>
                                 <p className="text-xs text-gray-500 mb-2">제품을 받고 사용 후 솔직한 리뷰 영상 업로드 (1회)</p>
-                                <Input
-                                  type="date"
-                                  value={campaignForm.step1_deadline}
-                                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
-                                  className="mt-1 bg-white"
-                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <span className="text-xs text-gray-500">영상 제출 마감</span>
+                                    <Input
+                                      type="date"
+                                      value={campaignForm.step1_deadline}
+                                      onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_deadline: e.target.value }))}
+                                      className="mt-1 bg-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <span className="text-xs text-gray-500">SNS 업로드 예정</span>
+                                    <Input
+                                      type="date"
+                                      value={campaignForm.step1_sns_deadline}
+                                      onChange={(e) => setCampaignForm(prev => ({ ...prev, step1_sns_deadline: e.target.value }))}
+                                      className="mt-1 bg-white"
+                                    />
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -2435,12 +2501,26 @@ const CampaignCreationKorea = () => {
                                   <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded">STEP1 +5일</span>
                                 </div>
                                 <p className="text-xs text-gray-500 mb-2">"진짜 좋아서 올영세일/할인행사에 산다"는 구매 유도 영상 (1회)</p>
-                                <Input
-                                  type="date"
-                                  value={campaignForm.step2_deadline}
-                                  onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_deadline: e.target.value }))}
-                                  className="mt-1 bg-white"
-                                />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <span className="text-xs text-gray-500">영상 제출 마감</span>
+                                    <Input
+                                      type="date"
+                                      value={campaignForm.step2_deadline}
+                                      onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_deadline: e.target.value }))}
+                                      className="mt-1 bg-white"
+                                    />
+                                  </div>
+                                  <div>
+                                    <span className="text-xs text-gray-500">SNS 업로드 예정</span>
+                                    <Input
+                                      type="date"
+                                      value={campaignForm.step2_sns_deadline}
+                                      onChange={(e) => setCampaignForm(prev => ({ ...prev, step2_sns_deadline: e.target.value }))}
+                                      className="mt-1 bg-white"
+                                    />
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -3158,83 +3238,157 @@ const CampaignCreationKorea = () => {
                       <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                          <Label htmlFor="week1_deadline" className="text-purple-700 font-semibold">Week 1 콘텐츠 마감일 *</Label>
+                          <Label htmlFor="week1_deadline" className="text-purple-700 font-semibold">Week 1 *</Label>
                         </div>
-                        <Input
-                          id="week1_deadline"
-                          type="date"
-                          value={campaignForm.week1_deadline}
-                          onChange={(e) => {
-                            const week1 = e.target.value
-                            if (week1) {
-                              const week1Date = new Date(week1)
-                              const week2Date = new Date(week1Date)
-                              week2Date.setDate(week2Date.getDate() + 7)
-                              const week3Date = new Date(week1Date)
-                              week3Date.setDate(week3Date.getDate() + 14)
-                              const week4Date = new Date(week1Date)
-                              week4Date.setDate(week4Date.getDate() + 21)
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <span className="text-xs text-gray-500">영상 제출 마감</span>
+                            <Input
+                              id="week1_deadline"
+                              type="date"
+                              value={campaignForm.week1_deadline}
+                              onChange={(e) => {
+                                const week1 = e.target.value
+                                if (week1) {
+                                  const week1Date = new Date(week1)
+                                  const week2Date = new Date(week1Date)
+                                  week2Date.setDate(week2Date.getDate() + 7)
+                                  const week3Date = new Date(week1Date)
+                                  week3Date.setDate(week3Date.getDate() + 14)
+                                  const week4Date = new Date(week1Date)
+                                  week4Date.setDate(week4Date.getDate() + 21)
 
-                              setCampaignForm(prev => ({
-                                ...prev,
-                                week1_deadline: week1,
-                                week2_deadline: week2Date.toISOString().split('T')[0],
-                                week3_deadline: week3Date.toISOString().split('T')[0],
-                                week4_deadline: week4Date.toISOString().split('T')[0]
-                              }))
-                            } else {
-                              setCampaignForm(prev => ({
-                                ...prev,
-                                week1_deadline: '',
-                                week2_deadline: '',
-                                week3_deadline: '',
-                                week4_deadline: ''
-                              }))
-                            }
-                          }}
-                          className="bg-white"
-                          required
-                        />
-                        <p className="text-xs text-purple-600 mt-2">첫 번째 콘텐츠 업로드 마감</p>
+                                  // SNS 업로드 예정일: 각 영상 제출 마감일 + 2일
+                                  const week1SnsDate = new Date(week1Date)
+                                  week1SnsDate.setDate(week1SnsDate.getDate() + 2)
+                                  const week2SnsDate = new Date(week2Date)
+                                  week2SnsDate.setDate(week2SnsDate.getDate() + 2)
+                                  const week3SnsDate = new Date(week3Date)
+                                  week3SnsDate.setDate(week3SnsDate.getDate() + 2)
+                                  const week4SnsDate = new Date(week4Date)
+                                  week4SnsDate.setDate(week4SnsDate.getDate() + 2)
+
+                                  setCampaignForm(prev => ({
+                                    ...prev,
+                                    week1_deadline: week1,
+                                    week2_deadline: week2Date.toISOString().split('T')[0],
+                                    week3_deadline: week3Date.toISOString().split('T')[0],
+                                    week4_deadline: week4Date.toISOString().split('T')[0],
+                                    week1_sns_deadline: week1SnsDate.toISOString().split('T')[0],
+                                    week2_sns_deadline: week2SnsDate.toISOString().split('T')[0],
+                                    week3_sns_deadline: week3SnsDate.toISOString().split('T')[0],
+                                    week4_sns_deadline: week4SnsDate.toISOString().split('T')[0]
+                                  }))
+                                } else {
+                                  setCampaignForm(prev => ({
+                                    ...prev,
+                                    week1_deadline: '',
+                                    week2_deadline: '',
+                                    week3_deadline: '',
+                                    week4_deadline: '',
+                                    week1_sns_deadline: '',
+                                    week2_sns_deadline: '',
+                                    week3_sns_deadline: '',
+                                    week4_sns_deadline: ''
+                                  }))
+                                }
+                              }}
+                              className="mt-1 bg-white"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">SNS 업로드 예정</span>
+                            <Input
+                              type="date"
+                              value={campaignForm.week1_sns_deadline}
+                              onChange={(e) => setCampaignForm(prev => ({ ...prev, week1_sns_deadline: e.target.value }))}
+                              className="mt-1 bg-white"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-purple-600 mt-2">Week 1 날짜 설정 시 Week 2~4 마감일 자동 계산 (+7일씩)</p>
                       </div>
 
                       {/* Week 2~4 수정 가능 */}
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
                             <span className="text-xs font-medium text-gray-600">Week 2</span>
                           </div>
-                          <Input
-                            type="date"
-                            value={campaignForm.week2_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week2_deadline: e.target.value }))}
-                            className="h-9 text-sm"
-                          />
+                          <div className="space-y-2">
+                            <div>
+                              <span className="text-xs text-gray-500">영상 제출</span>
+                              <Input
+                                type="date"
+                                value={campaignForm.week2_deadline}
+                                onChange={(e) => setCampaignForm(prev => ({ ...prev, week2_deadline: e.target.value }))}
+                                className="h-9 text-sm mt-1"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-xs text-gray-500">SNS 업로드</span>
+                              <Input
+                                type="date"
+                                value={campaignForm.week2_sns_deadline}
+                                onChange={(e) => setCampaignForm(prev => ({ ...prev, week2_sns_deadline: e.target.value }))}
+                                className="h-9 text-sm mt-1"
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
                             <span className="text-xs font-medium text-gray-600">Week 3</span>
                           </div>
-                          <Input
-                            type="date"
-                            value={campaignForm.week3_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week3_deadline: e.target.value }))}
-                            className="h-9 text-sm"
-                          />
+                          <div className="space-y-2">
+                            <div>
+                              <span className="text-xs text-gray-500">영상 제출</span>
+                              <Input
+                                type="date"
+                                value={campaignForm.week3_deadline}
+                                onChange={(e) => setCampaignForm(prev => ({ ...prev, week3_deadline: e.target.value }))}
+                                className="h-9 text-sm mt-1"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-xs text-gray-500">SNS 업로드</span>
+                              <Input
+                                type="date"
+                                value={campaignForm.week3_sns_deadline}
+                                onChange={(e) => setCampaignForm(prev => ({ ...prev, week3_sns_deadline: e.target.value }))}
+                                className="h-9 text-sm mt-1"
+                              />
+                            </div>
+                          </div>
                         </div>
                         <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="w-5 h-5 bg-purple-400 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
                             <span className="text-xs font-medium text-gray-600">Week 4</span>
                           </div>
-                          <Input
-                            type="date"
-                            value={campaignForm.week4_deadline}
-                            onChange={(e) => setCampaignForm(prev => ({ ...prev, week4_deadline: e.target.value }))}
-                            className="h-9 text-sm"
-                          />
+                          <div className="space-y-2">
+                            <div>
+                              <span className="text-xs text-gray-500">영상 제출</span>
+                              <Input
+                                type="date"
+                                value={campaignForm.week4_deadline}
+                                onChange={(e) => setCampaignForm(prev => ({ ...prev, week4_deadline: e.target.value }))}
+                                className="h-9 text-sm mt-1"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-xs text-gray-500">SNS 업로드</span>
+                              <Input
+                                type="date"
+                                value={campaignForm.week4_sns_deadline}
+                                onChange={(e) => setCampaignForm(prev => ({ ...prev, week4_sns_deadline: e.target.value }))}
+                                className="h-9 text-sm mt-1"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

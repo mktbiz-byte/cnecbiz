@@ -15,11 +15,13 @@ import {
   AlertCircle,
   Video,
   Edit3,
+  Edit2,
   Upload,
   X,
   MapPin,
   Truck,
   Sparkles,
+  Loader2,
   MessageSquare,
   Calendar,
   Download,
@@ -29,7 +31,9 @@ import {
   Trash2,
   Copy,
   Link,
-  ExternalLink
+  ExternalLink,
+  Mail,
+  XCircle
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
 
@@ -85,9 +89,11 @@ import FourWeekGuideManager from './FourWeekGuideManager'
 
 import FourWeekGuideViewer from './FourWeekGuideViewer'
 import PersonalizedGuideViewer from './PersonalizedGuideViewer'
+import USJapanGuideViewer from './USJapanGuideViewer'
 import * as XLSX from 'xlsx'
 import CampaignGuideViewer from './CampaignGuideViewer'
 import PostSelectionSetupModal from './PostSelectionSetupModal'
+import ExternalGuideUploader from '../common/ExternalGuideUploader'
 
 // SNS URL 정규화 (ID만 입력하거나 @가 있는 경우 처리)
 const normalizeSnsUrl = (url, platform) => {
@@ -140,6 +146,7 @@ export default function CampaignDetail() {
   const [loadingCnecPlus, setLoadingCnecPlus] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshingViews, setRefreshingViews] = useState({})
+  const [requestingShippingInfo, setRequestingShippingInfo] = useState(false)
   // URL tab 파라미터가 있으면 해당 탭으로, 없으면 applications
   const [activeTab, setActiveTab] = useState(tabParam === 'applicants' ? 'applications' : (tabParam || 'applications'))
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -158,6 +165,7 @@ export default function CampaignDetail() {
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [showExtensionModal, setShowExtensionModal] = useState(false)
   const [revisionComment, setRevisionComment] = useState('')
+  const [uploadDeadline, setUploadDeadline] = useState('승인 완료 후 1일 이내')
   const [isGeneratingRecommendations, setIsGeneratingRecommendations] = useState(false)
   const [selectedConfirmedParticipants, setSelectedConfirmedParticipants] = useState([])
   const [editingGuide, setEditingGuide] = useState(false)
@@ -174,11 +182,9 @@ export default function CampaignDetail() {
   const [isGeneratingAllGuides, setIsGeneratingAllGuides] = useState(false)
   const [editingDeadline, setEditingDeadline] = useState(null)
   const [videoSubmissions, setVideoSubmissions] = useState([])
-  const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id: version_index}
+  const [selectedVideoVersions, setSelectedVideoVersions] = useState({}) // {user_id_step: version_index}
+  const [selectedVideoSteps, setSelectedVideoSteps] = useState({}) // {user_id: step_number (week or video number)}
   const [signedVideoUrls, setSignedVideoUrls] = useState({}) // {submission_id: signed_url}
-  const [showIndividualMessageModal, setShowIndividualMessageModal] = useState(false)
-  const [individualMessage, setIndividualMessage] = useState('')
-  const [selectedParticipantForMessage, setSelectedParticipantForMessage] = useState(null)
   const [showUnifiedGuideModal, setShowUnifiedGuideModal] = useState(false)
   const [unifiedGuideTab, setUnifiedGuideTab] = useState('step1')
   const [isGeneratingUnifiedGuide, setIsGeneratingUnifiedGuide] = useState(false)
@@ -197,8 +203,37 @@ export default function CampaignDetail() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showPostSelectionModal, setShowPostSelectionModal] = useState(false)
   const [creatorForSetup, setCreatorForSetup] = useState(null)
+  const [showGuideSelectModal, setShowGuideSelectModal] = useState(false) // 가이드 유형 선택 모달
+  const [selectedParticipantForGuide, setSelectedParticipantForGuide] = useState(null) // 가이드 생성 대상 참여자
+  const [externalGuideData, setExternalGuideData] = useState({ type: null, url: null, fileUrl: null, fileName: null, title: '' }) // 외부 가이드 데이터
+  // Address editing state
+  const [editingAddressFor, setEditingAddressFor] = useState(null)
+  const [addressFormData, setAddressFormData] = useState({
+    phone_number: '',
+    postal_code: '',
+    address: '',
+    detail_address: ''
+  })
+  const [savingAddress, setSavingAddress] = useState(false)
+  // Bulk guide generation state
+  const [isGeneratingBulkGuides, setIsGeneratingBulkGuides] = useState(false)
+  const [bulkGuideProgress, setBulkGuideProgress] = useState({ current: 0, total: 0 })
+  // Bulk guide email sending state
+  const [sendingBulkGuideEmail, setSendingBulkGuideEmail] = useState(false)
   const [fourWeekGuideTab, setFourWeekGuideTab] = useState('week1')
   const [isGenerating4WeekGuide, setIsGenerating4WeekGuide] = useState(false)
+  // Admin SNS/Ad code edit state
+  const [showAdminSnsEditModal, setShowAdminSnsEditModal] = useState(false)
+  const [showDeadlineEditModal, setShowDeadlineEditModal] = useState(false)
+  const [deadlineEditData, setDeadlineEditData] = useState({})
+  const [adminSnsEditData, setAdminSnsEditData] = useState({
+    submissionId: null,
+    participantId: null,
+    snsUrl: '',
+    adCode: '',
+    isEditMode: false
+  })
+  const [savingAdminSnsEdit, setSavingAdminSnsEdit] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(1)
   const [singleWeekGuideData, setSingleWeekGuideData] = useState({ required_dialogue: '', required_scenes: '', examples: '', reference_urls: '' })
   const [showSingleWeekModal, setShowSingleWeekModal] = useState(false)
@@ -373,15 +408,66 @@ export default function CampaignDetail() {
 
   const fetchParticipants = async () => {
     try {
-      // 모든 지역에서 applications 테이블 사용, 선정된 크리에이터만 표시
+      // BIZ DB에서 applications 가져오기 (sns_uploaded: 4주/올영에서 SNS URL 입력 완료 상태)
       const { data, error } = await supabase
         .from('applications')
         .select('*')
         .eq('campaign_id', id)
-        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed'])
+        .in('status', ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'])
         .order('created_at', { ascending: false })
 
       if (error) throw error
+
+      // BIZ DB 결과
+      let combinedData = data || []
+      console.log('[fetchParticipants] BIZ DB participants:', combinedData.length)
+      if (combinedData.length > 0) {
+        console.log('[fetchParticipants] Participant statuses:', combinedData.map(p => p.status))
+      }
+
+      // BIZ DB에 없으면 Korea DB에서 참가자 가져오기 시도 (올영/4주 캠페인용)
+      if (combinedData.length === 0 && supabaseKorea) {
+        console.log('[fetchParticipants] BIZ DB empty, trying Korea DB...')
+
+        // 1. 먼저 applications 테이블 (cnec-kr은 여기에 저장)
+        try {
+          const { data: appData, error: appError } = await supabaseKorea
+            .from('applications')
+            .select('*')
+            .eq('campaign_id', id)
+
+          if (appError) {
+            console.log('[fetchParticipants] Korea applications error:', appError.message)
+          } else if (appData && appData.length > 0) {
+            // 상태 필터링 (sns_uploaded 추가 - 4주/올영에서 SNS URL 입력 완료 상태)
+            combinedData = appData.filter(a =>
+              ['selected', 'approved', 'virtual_selected', 'filming', 'video_submitted', 'revision_requested', 'completed', 'sns_uploaded'].includes(a.status)
+            )
+            console.log('[fetchParticipants] Got from Korea applications:', combinedData.length, 'filtered from', appData.length)
+          }
+        } catch (e) {
+          console.log('[fetchParticipants] applications exception:', e.message)
+        }
+
+        // 2. applications에서 못 찾았으면 campaign_participants 테이블
+        if (combinedData.length === 0) {
+          try {
+            const { data: cpData, error: cpError } = await supabaseKorea
+              .from('campaign_participants')
+              .select('*')
+              .eq('campaign_id', id)
+
+            if (cpError) {
+              console.log('[fetchParticipants] Korea campaign_participants error:', cpError.message)
+            } else if (cpData && cpData.length > 0) {
+              combinedData = cpData
+              console.log('[fetchParticipants] Got from Korea campaign_participants:', cpData.length)
+            }
+          } catch (e) {
+            console.log('[fetchParticipants] campaign_participants exception:', e.message)
+          }
+        }
+      }
 
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
       const { data: allProfiles, error: profilesError } = await supabase
@@ -398,7 +484,7 @@ export default function CampaignDetail() {
       }
 
       // user_id가 있는 경우 user_profiles에서 프로필 사진 가져오기
-      const enrichedData = (data || []).map((app) => {
+      const enrichedData = combinedData.map((app) => {
         // 먼저 app에 이미 있는 프로필 사진 확인
         console.log('App fields for', app.applicant_name, ':', {
           user_id: app.user_id,
@@ -472,6 +558,8 @@ export default function CampaignDetail() {
           ...app,
           applicant_name: resolvedName,
           profile_photo_url: profileImage || null,
+          // 이메일 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
+          email: profile?.email || app.email || app.applicant_email,
           // SNS URL 병합 (user_profiles에서 가져온 값 우선, 없으면 application에서)
           instagram_url: profile?.instagram_url || app.instagram_url,
           youtube_url: profile?.youtube_url || app.youtube_url,
@@ -479,9 +567,104 @@ export default function CampaignDetail() {
         }
       })
 
-      console.log('Fetched participants:', enrichedData)
-      console.log('Participants count:', enrichedData?.length || 0)
-      setParticipants(enrichedData || [])
+      // Korea DB에서 SNS URL 데이터 가져오기 (applications 우선 - cnec-kr은 여기에 저장)
+      let partnershipData = []
+      console.log('[fetchParticipants] supabaseKorea available:', !!supabaseKorea)
+      console.log('[fetchParticipants] Campaign ID:', id)
+
+      if (supabaseKorea) {
+        // 1. 먼저 applications 테이블에서 시도 (cnec-kr은 여기에 저장)
+        console.log('[fetchParticipants] Trying Korea DB applications table first...')
+        const { data: appData, error: appError } = await supabaseKorea
+          .from('applications')
+          .select(`
+            user_id, partnership_code, sns_upload_url,
+            step1_url, step2_url, step3_url,
+            step1_2_partnership_code, step3_partnership_code,
+            week1_url, week2_url, week3_url, week4_url,
+            week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code
+          `)
+          .eq('campaign_id', id)
+
+        if (appError) {
+          console.log('[fetchParticipants] Korea applications error:', appError.message)
+        } else if (appData && appData.length > 0) {
+          partnershipData = appData
+          console.log('[fetchParticipants] Korea applications records:', appData.length)
+        }
+
+        // 2. applications에서 못 찾았으면 campaign_participants 테이블에서 시도
+        if (partnershipData.length === 0) {
+          console.log('[fetchParticipants] Trying Korea DB campaign_participants table...')
+          const { data: cpData, error: cpError } = await supabaseKorea
+            .from('campaign_participants')
+            .select(`
+              user_id, partnership_code, sns_upload_url,
+              step1_url, step2_url, step3_url,
+              step1_2_partnership_code, step3_partnership_code,
+              week1_url, week2_url, week3_url, week4_url,
+              week1_partnership_code, week2_partnership_code, week3_partnership_code, week4_partnership_code
+            `)
+            .eq('campaign_id', id)
+
+          if (cpError) {
+            console.log('[fetchParticipants] campaign_participants error:', cpError.message)
+          } else if (cpData && cpData.length > 0) {
+            partnershipData = cpData
+            console.log('[fetchParticipants] campaign_participants records:', cpData.length)
+          }
+        }
+
+        // 결과 로깅
+        if (partnershipData.length > 0) {
+          console.log('[fetchParticipants] First record SNS URLs:', {
+            step1: partnershipData[0].step1_url,
+            step2: partnershipData[0].step2_url,
+            step3: partnershipData[0].step3_url,
+            week1: partnershipData[0].week1_url,
+            week2: partnershipData[0].week2_url
+          })
+        } else {
+          console.warn('[fetchParticipants] No partnership data found in Korea DB')
+        }
+      } else {
+        console.warn('[fetchParticipants] supabaseKorea not available')
+      }
+
+      // partnership_code 및 올영/4주챌린지 필드 병합
+      console.log('[fetchParticipants] BIZ DB participants:', enrichedData.length)
+      console.log('[fetchParticipants] Korea DB partnership data:', partnershipData.length)
+
+      const finalData = enrichedData.map(app => {
+        const partnerInfo = partnershipData.find(p => p.user_id === app.user_id)
+        if (partnerInfo) {
+          console.log('[fetchParticipants] Matched user_id:', app.user_id, '- has step1_url:', !!partnerInfo.step1_url, 'week1_url:', !!partnerInfo.week1_url)
+        }
+        return {
+          ...app,
+          partnership_code: partnerInfo?.partnership_code || app.partnership_code,
+          sns_upload_url: partnerInfo?.sns_upload_url || app.sns_upload_url,
+          // 올리브영 필드
+          step1_url: partnerInfo?.step1_url || app.step1_url,
+          step2_url: partnerInfo?.step2_url || app.step2_url,
+          step3_url: partnerInfo?.step3_url || app.step3_url,
+          step1_2_partnership_code: partnerInfo?.step1_2_partnership_code || app.step1_2_partnership_code,
+          step3_partnership_code: partnerInfo?.step3_partnership_code || app.step3_partnership_code,
+          // 4주 챌린지 필드
+          week1_url: partnerInfo?.week1_url || app.week1_url,
+          week2_url: partnerInfo?.week2_url || app.week2_url,
+          week3_url: partnerInfo?.week3_url || app.week3_url,
+          week4_url: partnerInfo?.week4_url || app.week4_url,
+          week1_partnership_code: partnerInfo?.week1_partnership_code || app.week1_partnership_code,
+          week2_partnership_code: partnerInfo?.week2_partnership_code || app.week2_partnership_code,
+          week3_partnership_code: partnerInfo?.week3_partnership_code || app.week3_partnership_code,
+          week4_partnership_code: partnerInfo?.week4_partnership_code || app.week4_partnership_code
+        }
+      })
+
+      console.log('Fetched participants:', finalData)
+      console.log('Participants count:', finalData?.length || 0)
+      setParticipants(finalData || [])
     } catch (error) {
       console.error('Error fetching participants:', error)
     }
@@ -606,6 +789,22 @@ export default function CampaignDetail() {
 
       if (error) throw error
 
+      // US 지역 디버깅: applications 테이블의 실제 필드 구조 확인
+      if (data && data.length > 0) {
+        console.log('[DEBUG US] applications 테이블 필드 목록:', Object.keys(data[0]))
+        console.log('[DEBUG US] 첫 번째 application 전체 데이터:', JSON.stringify(data[0], null, 2))
+        console.log('[DEBUG US] 주소/연락처 관련 필드 확인:', {
+          phone: data[0].phone,
+          phone_number: data[0].phone_number,
+          creator_phone: data[0].creator_phone,
+          shipping_phone: data[0].shipping_phone,
+          address: data[0].address,
+          shipping_address: data[0].shipping_address,
+          postal_code: data[0].postal_code,
+          detail_address: data[0].detail_address
+        })
+      }
+
       // 모든 user_profiles를 먼저 가져와서 JavaScript에서 매칭 (400 에러 우회)
       const { data: allProfiles, error: profilesError } = await supabase
         .from('user_profiles')
@@ -682,9 +881,18 @@ export default function CampaignDetail() {
             // SNS URL도 병합
             instagram_url: profile.instagram_url || app.instagram_url,
             youtube_url: profile.youtube_url || app.youtube_url,
-            tiktok_url: profile.tiktok_url || app.tiktok_url
+            tiktok_url: profile.tiktok_url || app.tiktok_url,
+            // 연락처/주소 정보 병합 (US 등 해외 지역용)
+            phone: profile.phone || profile.phone_number || app.phone || app.phone_number || '',
+            phone_number: profile.phone_number || profile.phone || app.phone_number || app.phone || '',
+            shipping_phone: profile.phone || profile.phone_number || app.shipping_phone || app.phone || '',
+            creator_phone: profile.phone || profile.phone_number || app.creator_phone || '',
+            address: profile.address || profile.shipping_address || app.address || app.shipping_address || '',
+            shipping_address: profile.shipping_address || profile.address || app.shipping_address || app.address || '',
+            postal_code: profile.postal_code || app.postal_code || '',
+            detail_address: profile.detail_address || profile.address_detail || app.detail_address || ''
           }
-          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url)
+          console.log('Enriched:', enriched.applicant_name, 'Photo:', enriched.profile_photo_url, 'Phone:', enriched.phone, 'Address:', enriched.address)
           return enriched
         }
 
@@ -902,6 +1110,451 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error updating tracking number:', error)
       alert('송장번호 저장에 실패했습니다.')
+    }
+  }
+
+  // 주소 편집 시작
+  const handleStartEditAddress = (participant) => {
+    setEditingAddressFor(participant.id)
+    setAddressFormData({
+      phone_number: participant.phone_number || participant.phone || '',
+      postal_code: participant.postal_code || '',
+      address: participant.address || '',
+      detail_address: participant.detail_address || ''
+    })
+  }
+
+  // 주소 저장
+  const handleSaveAddress = async () => {
+    if (!editingAddressFor) return
+
+    setSavingAddress(true)
+    try {
+      const updateData = {
+        phone_number: addressFormData.phone_number,
+        phone: addressFormData.phone_number, // 호환성 위해 phone 필드도 업데이트
+        postal_code: addressFormData.postal_code,
+        address: addressFormData.address,
+        detail_address: addressFormData.detail_address
+      }
+
+      const { error } = await supabase
+        .from('applications')
+        .update(updateData)
+        .eq('id', editingAddressFor)
+
+      if (error) throw error
+
+      // 로컬 상태 업데이트
+      setParticipants(prev => prev.map(p =>
+        p.id === editingAddressFor
+          ? { ...p, ...updateData }
+          : p
+      ))
+
+      setEditingAddressFor(null)
+      alert('주소가 저장되었습니다.')
+    } catch (error) {
+      console.error('Error saving address:', error)
+      alert('주소 저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingAddress(false)
+    }
+  }
+
+  // US/Japan 캠페인: 선택된 크리에이터 전체 가이드 생성
+  const handleBulkGuideGeneration = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('가이드를 생성할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    if (!confirm(`${selectedParticipants.length}명의 크리에이터에게 AI 가이드를 생성하시겠습니까?`)) {
+      return
+    }
+
+    setIsGeneratingBulkGuides(true)
+    setBulkGuideProgress({ current: 0, total: selectedParticipants.length })
+
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+    if (!apiKey) {
+      alert('API 키가 설정되지 않았습니다.')
+      setIsGeneratingBulkGuides(false)
+      return
+    }
+
+    const isJapan = region === 'japan'
+    const regionContext = isJapan
+      ? `[일본 시장 특성]
+- 일본 소비자의 라이프스타일에 맞게 작성
+- 정중하고 세련된 표현 사용
+- 제품의 섬세한 디테일과 품질 강조
+- 미니멀하고 깔끔한 촬영 스타일`
+      : `[미국 시장 특성]
+- 미국 소비자의 라이프스타일에 맞게 작성
+- 직접적이고 자신감 있는 표현 사용
+- 실용적인 효과와 결과 강조
+- 역동적이고 밝은 촬영 스타일`
+
+    const productName = campaign?.product_name || campaign?.title || '제품'
+    const brandName = campaign?.brand_name || campaign?.brand || '브랜드'
+    const productInfo = campaign?.product_info || campaign?.description || campaign?.product_description || ''
+    const category = campaign?.category || ''
+    const guidelines = campaign?.guidelines || ''
+    const dialogueSource = campaign?.required_dialogues || campaign?.required_dialogue || ''
+    const reqDialogues = Array.isArray(dialogueSource) ? dialogueSource.join('\n- ') : dialogueSource
+    const scenesSource = campaign?.required_scenes || ''
+    const reqScenes = Array.isArray(scenesSource) ? scenesSource.join('\n- ') : scenesSource
+
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < selectedParticipants.length; i++) {
+      const participantId = selectedParticipants[i]
+      const participant = participants.find(p => p.id === participantId)
+
+      if (!participant) continue
+
+      setBulkGuideProgress({ current: i + 1, total: selectedParticipants.length })
+
+      try {
+        const prompt = `당신은 UGC 영상 촬영 가이드 전문가입니다.
+${isJapan ? '일본' : '미국'} 시장을 타겟으로 10개의 촬영 씬 가이드를 작성해주세요.
+
+⚠️ 중요: 모든 내용(scene_description, dialogue, shooting_tip)은 반드시 한국어로 작성!
+대사(dialogue)도 한국어로 작성하세요. 번역은 별도로 진행됩니다.
+
+[캠페인 정보]
+- 제품명: ${productName}
+- 브랜드: ${brandName}
+- 카테고리: ${category}
+- 제품 설명: ${productInfo}
+${guidelines ? `- 가이드라인: ${guidelines}` : ''}
+
+${regionContext}
+
+${reqDialogues ? `[필수 대사 - 반드시 포함]\n- ${reqDialogues}` : ''}
+${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
+
+[핵심 요청사항]
+1. ⚡ 첫 번째 씬은 반드시 "훅(Hook)" - 3초 내 시청자 관심 집중
+2. 🔄 B&A(Before & After) 중심 구성
+3. 📍 ${isJapan ? '일본' : '미국'} 라이프스타일 반영
+4. 필수 대사/촬영장면 반드시 포함
+5. 마지막 씬은 CTA로 마무리
+6. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
+
+응답 형식 (JSON만):
+{"scenes": [{"order": 1, "scene_type": "훅", "scene_description": "장면 설명 (한국어)", "dialogue": "대사 (한국어)", "shooting_tip": "촬영 팁 (한국어)"}]}
+JSON만 출력.`
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+            })
+          }
+        )
+
+        if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+        const data = await response.json()
+        const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+
+        if (!jsonMatch) {
+          console.error('[Bulk Guide] JSON 파싱 실패 - responseText:', responseText.substring(0, 500))
+          throw new Error('JSON 파싱 실패')
+        }
+
+        const result = JSON.parse(jsonMatch[0])
+
+        if (!result.scenes || !Array.isArray(result.scenes)) {
+          console.error('[Bulk Guide] scenes 배열 없음 - result:', result)
+          throw new Error('AI 응답에 scenes 배열이 없습니다')
+        }
+
+        // 자동 번역 - 영어(US) 또는 일본어(Japan)
+        const targetLang = isJapan ? '일본어' : '영어'
+        const translatePrompt = `다음 촬영 가이드의 각 항목을 ${targetLang}로 번역해주세요.
+자연스럽고 현지화된 표현을 사용하세요.
+
+번역할 내용:
+${result.scenes.map((s, i) => `장면 ${i + 1}:
+- 장면 설명: ${s.scene_description}
+- 대사: ${s.dialogue}
+- 촬영 팁: ${s.shooting_tip}`).join('\n\n')}
+
+응답 형식 (JSON만):
+{"translations": [{"scene_description": "번역된 장면 설명", "dialogue": "번역된 대사", "shooting_tip": "번역된 촬영 팁"}]}
+JSON만 출력.`
+
+        let translations = []
+        try {
+          const transResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: translatePrompt }] }],
+                generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+              })
+            }
+          )
+
+          if (transResponse.ok) {
+            const transData = await transResponse.json()
+            const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
+            const transMatch = transText.match(/\{[\s\S]*\}/)
+            if (transMatch) {
+              const transResult = JSON.parse(transMatch[0])
+              translations = transResult.translations || []
+            }
+          }
+          console.log('[Bulk Guide] 번역 완료 - translations:', translations.length)
+        } catch (transErr) {
+          console.error('[Bulk Guide] 번역 실패:', transErr)
+        }
+
+        const guideData = {
+          scenes: result.scenes.map((scene, idx) => ({
+            order: idx + 1,
+            scene_type: scene.scene_type || '',
+            scene_description: scene.scene_description || '',
+            scene_description_translated: translations[idx]?.scene_description || '',
+            dialogue: scene.dialogue || '',
+            dialogue_translated: translations[idx]?.dialogue || '',
+            shooting_tip: scene.shooting_tip || '',
+            shooting_tip_translated: translations[idx]?.shooting_tip || ''
+          })),
+          dialogue_style: 'natural',
+          tempo: 'normal',
+          mood: 'bright',
+          target_language: isJapan ? 'japanese' : 'english',
+          updated_at: new Date().toISOString()
+        }
+
+        console.log('[Bulk Guide] 저장 시작 - region:', region, 'participantId:', participantId)
+
+        // US/Japan 캠페인은 API 사용 (RLS 우회)
+        if (region === 'us' || region === 'japan') {
+          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              region: region,
+              applicationId: participantId,
+              guide: guideData
+            })
+          })
+
+          const saveResult = await saveResponse.json()
+          console.log('[Bulk Guide] 저장 결과:', saveResponse.ok, saveResult)
+
+          if (!saveResponse.ok) {
+            throw new Error(saveResult.error || saveResult.details || 'Failed to save guide')
+          }
+        } else {
+          const { error } = await supabase
+            .from('applications')
+            .update({ personalized_guide: guideData })
+            .eq('id', participantId)
+
+          if (error) throw error
+        }
+        successCount++
+        console.log('[Bulk Guide] 성공 - participant:', participant.applicant_name || participant.creator_name)
+      } catch (err) {
+        console.error(`[Bulk Guide] 실패 - ${participant.applicant_name || participant.creator_name}:`, err.message, err)
+        failCount++
+      }
+
+      // Rate limiting - 2초 대기 (생성 + 번역으로 API 2회 호출)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+
+    setIsGeneratingBulkGuides(false)
+    setBulkGuideProgress({ current: 0, total: 0 })
+    setSelectedParticipants([])
+
+    // Refresh data
+    await fetchParticipants()
+
+    alert(`가이드 생성 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+  }
+
+  // US/Japan 캠페인: 선택된 크리에이터에게 가이드 이메일 일괄 발송
+  const handleBulkGuideEmailSend = async () => {
+    if (selectedParticipants.length === 0) {
+      alert('가이드를 발송할 크리에이터를 선택해주세요.')
+      return
+    }
+
+    // 선택된 크리에이터 중 가이드가 있는 크리에이터만 필터링
+    const participantsWithGuide = participants.filter(p =>
+      selectedParticipants.includes(p.id) && p.personalized_guide
+    )
+
+    if (participantsWithGuide.length === 0) {
+      alert('선택된 크리에이터 중 가이드가 생성된 크리에이터가 없습니다.\n먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    // 이메일이 없는 크리에이터 확인
+    const creatorsWithoutEmail = participantsWithGuide.filter(p => !p.email)
+    if (creatorsWithoutEmail.length > 0) {
+      const skipCount = creatorsWithoutEmail.length
+      if (!confirm(`${participantsWithGuide.length}명 중 ${skipCount}명은 이메일이 없어 발송되지 않습니다.\n${participantsWithGuide.length - skipCount}명에게 가이드 이메일을 발송하시겠습니까?`)) {
+        return
+      }
+    } else {
+      if (!confirm(`${participantsWithGuide.length}명의 크리에이터에게 가이드 이메일을 발송하시겠습니까?`)) {
+        return
+      }
+    }
+
+    setSendingBulkGuideEmail(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      const isJapan = region === 'japan'
+      const targetLanguageKey = isJapan ? 'labelJa' : 'labelEn'
+
+      for (const participant of participantsWithGuide) {
+        if (!participant.email) {
+          failCount++
+          continue
+        }
+
+        try {
+          // personalized_guide 파싱
+          const guide = typeof participant.personalized_guide === 'string'
+            ? JSON.parse(participant.personalized_guide)
+            : participant.personalized_guide
+
+          // 가이드 내용 준비
+          const guideContent = {
+            campaign_title: campaign?.title || campaign?.product_name,
+            brand_name: campaign?.brand_name || campaign?.brand,
+            dialogue_style: guide.dialogue_style,
+            tempo: guide.tempo,
+            mood: guide.mood,
+            scenes: (guide.scenes || []).map(scene => ({
+              order: scene.order,
+              scene_type: scene.scene_type,
+              scene_description: scene.scene_description_translated || scene.scene_description,
+              dialogue: scene.dialogue_translated || scene.dialogue,
+              shooting_tip: scene.shooting_tip_translated || scene.shooting_tip
+            })),
+            required_dialogues: guide.required_dialogues || [],
+            required_scenes: guide.required_scenes || []
+          }
+
+          const response = await fetch('/.netlify/functions/send-scene-guide-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaign_id: id,
+              region,
+              guide_content: guideContent,
+              creators: [{
+                id: participant.id,
+                name: participant.applicant_name || participant.creator_name,
+                email: participant.email
+              }]
+            })
+          })
+
+          if (response.ok) {
+            successCount++
+          } else {
+            failCount++
+            console.error(`Email failed for ${participant.email}:`, await response.text())
+          }
+        } catch (err) {
+          failCount++
+          console.error(`Error sending email to ${participant.email}:`, err)
+        }
+      }
+
+      if (successCount > 0) {
+        alert(`가이드 이메일 발송 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+      } else {
+        alert('가이드 이메일 발송에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('Bulk email error:', error)
+      alert('이메일 발송 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setSendingBulkGuideEmail(false)
+    }
+  }
+
+  // US 캠페인: 배송정보 요청 이메일 발송
+  const handleRequestShippingInfo = async () => {
+    if (participants.length === 0) {
+      alert('선정된 크리에이터가 없습니다.')
+      return
+    }
+
+    // 체크박스로 선택한 크리에이터가 없으면 알림
+    if (selectedParticipants.length === 0) {
+      alert('배송정보 요청을 보낼 크리에이터를 체크박스로 선택해주세요.')
+      return
+    }
+
+    // 선택한 크리에이터 중 주소/연락처가 없는 크리에이터만 필터링
+    const selectedCreators = participants.filter(p => selectedParticipants.includes(p.id))
+    const creatorsWithoutShipping = selectedCreators.filter(p =>
+      !p.phone_number || !p.address
+    )
+
+    if (creatorsWithoutShipping.length === 0) {
+      alert('선택한 크리에이터가 모두 이미 배송정보를 입력했습니다.')
+      return
+    }
+
+    if (!confirm(`${creatorsWithoutShipping.length}명의 크리에이터에게 배송정보 입력 요청 이메일을 발송하시겠습니까?`)) {
+      return
+    }
+
+    setRequestingShippingInfo(true)
+    try {
+      const { data: { session } } = await supabaseBiz.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('로그인이 필요합니다')
+      }
+
+      const response = await fetch('/.netlify/functions/request-us-shipping-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          application_ids: creatorsWithoutShipping.map(p => p.id),
+          campaign_id: id
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(result.message)
+      } else {
+        throw new Error(result.error || 'Failed to send emails')
+      }
+    } catch (error) {
+      console.error('Error requesting shipping info:', error)
+      alert('이메일 발송에 실패했습니다: ' + error.message)
+    } finally {
+      setRequestingShippingInfo(false)
     }
   }
 
@@ -1492,13 +2145,15 @@ export default function CampaignDetail() {
           // 주차별 마감일 처리
           let deadlineText = ''
           if (campaign.campaign_type === '4week_challenge') {
-            const weekDeadlineField = `week${weekNumber}_deadline`
-            const weekDeadline = campaign[weekDeadlineField]
-            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+            // 4주 챌린지: 가장 가까운 마감일 또는 1주차 마감일 사용
+            const week1Deadline = campaign.week1_deadline || campaign.content_submission_deadline
+            deadlineText = week1Deadline ? new Date(week1Deadline).toLocaleDateString('ko-KR') : '미정'
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
-            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
           }
 
           // 팝빌 알림톡 발송
@@ -1574,22 +2229,32 @@ export default function CampaignDetail() {
   }
 
   // 4주 챌린지 개별 주차 가이드 전달 함수
+  // 4주 챌린지 주차별 가이드 발송 (체크박스 선택 또는 전체)
   const handleDeliver4WeekGuideByWeek = async (weekNumber) => {
-    if (!campaign.challenge_weekly_guides_ai) {
+    if (!campaign.challenge_weekly_guides_ai && !campaign.challenge_guide_data && !campaign.challenge_weekly_guides) {
       alert('먼저 가이드를 생성해주세요.')
       return
     }
 
-    const participantCount = participants.length
+    // 체크박스로 선택된 사람이 있으면 그들에게만, 없으면 전체에게 발송
+    const targetParticipants = selectedParticipants.length > 0
+      ? participants.filter(p => selectedParticipants.includes(p.id))
+      : participants
+
+    const participantCount = targetParticipants.length
     if (participantCount === 0) {
-      alert('참여 크리에이터가 없습니다.')
+      alert('발송할 크리에이터가 없습니다.')
       return
     }
 
     // 개별 메시지 입력 (선택사항)
     const individualMessage = prompt(`${weekNumber}주차 가이드와 함께 전달할 메시지를 입력하세요 (선택사항):`)
 
-    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`)) {
+    const confirmMsg = selectedParticipants.length > 0
+      ? `선택된 ${participantCount}명에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`
+      : `모든 참여 크리에이터(${participantCount}명)에게 ${weekNumber}주차 가이드를 전달하시겠습니까?`
+
+    if (!confirm(confirmMsg)) {
       return
     }
 
@@ -1597,14 +2262,18 @@ export default function CampaignDetail() {
       let successCount = 0
       let errorCount = 0
 
-      for (const participant of participants) {
+      for (const participant of targetParticipants) {
         try {
+          // 재전달 여부 확인 (personalized_guide가 있으면 재전달)
+          const isRedelivery = !!participant.personalized_guide
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
           // 가이드 전달 상태 업데이트
-          const updateData = { 
+          const updateData = {
             status: 'filming',
             updated_at: new Date().toISOString()
           }
-          
+
           // 개별 메시지가 있으면 추가
           let message = `${weekNumber}주차 가이드`
           if (individualMessage && individualMessage.trim()) {
@@ -1629,33 +2298,37 @@ export default function CampaignDetail() {
             .eq('id', participant.user_id)
             .maybeSingle()
 
+          // 주차별 마감일 처리
+          let deadlineText = ''
+          if (campaign.campaign_type === '4week_challenge') {
+            // 4주 챌린지: 가장 가까운 마감일 또는 1주차 마감일 사용
+            const week1Deadline = campaign.week1_deadline || campaign.content_submission_deadline
+            deadlineText = week1Deadline ? new Date(week1Deadline).toLocaleDateString('ko-KR') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
+            deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
+          } else {
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
+          }
+
+          // 알림톡용 캠페인명 (재전달 표시 포함)
+          const campaignNameForNotification = isRedelivery
+            ? `[재전달] ${campaign.title} ${weekNumber}주차`
+            : `${campaign.title} ${weekNumber}주차`
+
           // 팝빌 알림톡 발송
           if (profile?.phone) {
             try {
-              // 주차별 마감일 처리
-              let deadlineText = ''
-              if (campaign.campaign_type === '4week_challenge') {
-                // 4주 챌린지: 해당 주차 마감일 사용
-                const weekDeadlineField = `week${weekNumber}_deadline`
-                const weekDeadline = campaign[weekDeadlineField]
-                deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
-              } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
-                // 올리브영: STEP1 마감일 사용
-                deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
-              } else {
-                deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
-              }
-
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   receiverNum: profile.phone,
-                  receiverName: (participant.creator_name || participant.applicant_name || '크리에이터'),
+                  receiverName: creatorName,
                   templateCode: '025100001012',
                   variables: {
-                    '크리에이터명': (participant.creator_name || participant.applicant_name || '크리에이터'),
-                    '캠페인명': `${campaign.title} ${weekNumber}주차`,
+                    '크리에이터명': creatorName,
+                    '캠페인명': campaignNameForNotification,
                     '제출기한': deadlineText
                   }
                 })
@@ -1672,12 +2345,15 @@ export default function CampaignDetail() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 to: participant.creator_email,
-                subject: `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 전달`,
+                subject: isRedelivery
+                  ? `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 재전달`
+                  : `[CNEC] ${campaign.title} ${weekNumber}주차 가이드 전달`,
                 html: `
-                  <h2>${(participant.creator_name || participant.applicant_name || '크리에이터')}님, ${weekNumber}주차 촬영 가이드가 전달되었습니다.</h2>
+                  <h2>${creatorName}님, ${weekNumber}주차 촬영 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다.</h2>
+                  ${isRedelivery ? '<p style="color: #EF4444; font-weight: bold;">※ 이전 가이드가 수정되었습니다. 새 가이드를 반드시 확인해 주세요.</p>' : ''}
                   <p><strong>캠페인:</strong> ${campaign.title}</p>
                   <p><strong>주차:</strong> ${weekNumber}주차</p>
-                  <p><strong>영상 제출 기한:</strong> ${campaign.content_submission_deadline || '미정'}</p>
+                  <p><strong>영상 제출 기한:</strong> ${deadlineText}</p>
                   <p>크리에이터 대시보드에서 ${weekNumber}주차 가이드를 확인하시고, 가이드에 따라 촬영을 진행해 주세요.</p>
                   ${individualMessage && individualMessage.trim() ? `<p><strong>추가 메시지:</strong> ${individualMessage.trim()}</p>` : ''}
                   <p>기한 내 미제출 시 패널티가 부과될 수 있습니다.</p>
@@ -1704,33 +2380,45 @@ export default function CampaignDetail() {
 
       // 데이터 새로고침
       await fetchParticipants()
+
+      // 체크박스 선택 초기화
+      setSelectedParticipants([])
     } catch (error) {
       console.error('Error in handleDeliver4WeekGuideByWeek:', error)
       alert('가이드 전달에 실패했습니다: ' + error.message)
     }
   }
 
-  // 올리브영 / 4주 챌린지 가이드 전달 함수
+  // 올영/4주 챌린지 가이드 일괄 발송 (체크박스 선택 또는 전체)
   const handleDeliverOliveYoung4WeekGuide = async () => {
-    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' 
-      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step3_guide_ai)
-      : campaign.challenge_weekly_guides_ai
+    const hasGuide = campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung'
+      ? (campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide)
+      : (campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides)
 
     if (!hasGuide) {
       alert('먼저 가이드를 생성해주세요.')
       return
     }
 
-    const participantCount = participants.length
+    // 체크박스로 선택된 사람이 있으면 그들에게만, 없으면 전체에게 발송
+    const targetParticipants = selectedParticipants.length > 0
+      ? participants.filter(p => selectedParticipants.includes(p.id))
+      : participants
+
+    const participantCount = targetParticipants.length
     if (participantCount === 0) {
-      alert('참여 크리에이터가 없습니다.')
+      alert('발송할 크리에이터가 없습니다.')
       return
     }
 
     // 개별 메시지 입력 (선택사항)
-    const individualMessage = prompt('모든 크리에이터에게 전달할 개별 메시지를 입력하세요 (선택사항):')
+    const individualMessage = prompt('크리에이터에게 전달할 개별 메시지를 입력하세요 (선택사항):')
 
-    if (!confirm(`모든 참여 크리에이터(${participantCount}명)에게 가이드를 전달하시겠습니까?`)) {
+    const confirmMsg = selectedParticipants.length > 0
+      ? `선택된 ${participantCount}명에게 가이드를 전달하시겠습니까?`
+      : `모든 참여 크리에이터(${participantCount}명)에게 가이드를 전달하시겠습니까?`
+
+    if (!confirm(confirmMsg)) {
       return
     }
 
@@ -1738,7 +2426,7 @@ export default function CampaignDetail() {
       let successCount = 0
       let errorCount = 0
 
-      for (const participant of participants) {
+      for (const participant of targetParticipants) {
         try {
           // 가이드 전달 상태 업데이트
           const updateData = { 
@@ -1773,13 +2461,15 @@ export default function CampaignDetail() {
           // 주차별 마감일 처리
           let deadlineText = ''
           if (campaign.campaign_type === '4week_challenge') {
-            const weekDeadlineField = `week${weekNumber}_deadline`
-            const weekDeadline = campaign[weekDeadlineField]
-            deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+            // 4주 챌린지: 가장 가까운 마감일 또는 1주차 마감일 사용
+            const week1Deadline = campaign.week1_deadline || campaign.content_submission_deadline
+            deadlineText = week1Deadline ? new Date(week1Deadline).toLocaleDateString('ko-KR') : '미정'
           } else if (campaign.campaign_type === 'oliveyoung_sale' || campaign.campaign_type === 'oliveyoung') {
             deadlineText = campaign.step1_deadline ? new Date(campaign.step1_deadline).toLocaleDateString('ko-KR') : '미정'
           } else {
-            deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
           }
 
           // 팝빌 알림톡 발송
@@ -1848,12 +2538,56 @@ export default function CampaignDetail() {
 
       // 데이터 새로고침
       await fetchParticipants()
+
+      // 체크박스 선택 초기화
+      setSelectedParticipants([])
     } catch (error) {
       console.error('Error in handleDeliverOliveYoung4WeekGuide:', error)
       alert('가이드 전달에 실패했습니다: ' + error.message)
     }
   }
 
+  // 올영 가이드 개별 전달 함수
+  const handleDeliverOliveYoungGuide = async () => {
+    const hasGuide = campaign.oliveyoung_step1_guide_ai ||
+                     campaign.step1_external_url ||
+                     campaign.step1_external_file_url
+
+    if (!hasGuide) {
+      alert('먼저 가이드를 생성해주세요.')
+      return
+    }
+
+    try {
+      // Netlify 함수 호출로 가이드 전달 + 알림톡 발송
+      const response = await fetch('/.netlify/functions/deliver-oliveyoung-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          region: region
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || '가이드 전달에 실패했습니다.')
+      }
+
+      if (result.errorCount === 0) {
+        alert(`${result.successCount}명의 크리에이터에게 올영 가이드가 성공적으로 전달되었습니다!`)
+      } else {
+        alert(`${result.successCount}명 성공, ${result.errorCount}명 실패했습니다.`)
+      }
+
+      // 데이터 새로고침
+      await fetchParticipants()
+    } catch (error) {
+      console.error('Error in handleDeliverOliveYoungGuide:', error)
+      alert('가이드 전달에 실패했습니다: ' + error.message)
+    }
+  }
 
   // AI 맞춤 가이드 생성 함수
   const handleGeneratePersonalizedGuides = async (selectedParticipantsList) => {
@@ -1986,13 +2720,13 @@ export default function CampaignDetail() {
           }
           
           // 가이드 재전달 로그
-          if (participant.guide_confirmed) {
+          if (participant.personalized_guide) {
             console.log(`[RE-DELIVERY] Sending guide again to ${(participant.creator_name || participant.applicant_name || '크리에이터')}`)
           }
 
           // 가이드 전달 상태 업데이트 및 촬영중으로 변경
           console.log('[DEBUG] Updating application status to filming:', participantId)
-          
+
           // 재전달인 경우 상태를 변경하지 않음
           const updatePayload = {
             updated_at: new Date().toISOString()
@@ -2000,7 +2734,6 @@ export default function CampaignDetail() {
           if (participant.status !== 'filming') {
             updatePayload.status = 'filming'
           }
-          // guide_confirmed 필드는 한국 DB에 없으므로 제거
           
           const { data: updateData, error: updateError } = await supabase
             .from('applications')
@@ -2027,7 +2760,34 @@ export default function CampaignDetail() {
             .maybeSingle()
 
           const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
-          const deadlineText = campaign.content_submission_deadline ? new Date(campaign.content_submission_deadline).toLocaleDateString('ko-KR') : '미정'
+
+          // 캠페인 타입별 마감일 처리
+          let deadlineText = '미정'
+          if (campaign.campaign_type === '4week_challenge') {
+            // 4주 챌린지: 각 주차별 마감일
+            const deadlines = [
+              campaign.week1_deadline ? `1주: ${new Date(campaign.week1_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week2_deadline ? `2주: ${new Date(campaign.week2_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week3_deadline ? `3주: ${new Date(campaign.week3_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.week4_deadline ? `4주: ${new Date(campaign.week4_deadline).toLocaleDateString('ko-KR')}` : null
+            ].filter(Boolean)
+            deadlineText = deadlines.length > 0 ? deadlines.join(', ') : '미정'
+          } else if (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') {
+            // 올영: STEP별 마감일
+            const deadlines = [
+              campaign.step1_deadline ? `1차: ${new Date(campaign.step1_deadline).toLocaleDateString('ko-KR')}` : null,
+              campaign.step2_deadline ? `2차: ${new Date(campaign.step2_deadline).toLocaleDateString('ko-KR')}` : null
+            ].filter(Boolean)
+            deadlineText = deadlines.length > 0 ? deadlines.join(', ') : '미정'
+          } else {
+            // 기획형: content_submission_deadline → start_date fallback
+            const regularDeadline = campaign.content_submission_deadline || campaign.start_date
+            deadlineText = regularDeadline ? new Date(regularDeadline).toLocaleDateString('ko-KR') : '미정'
+          }
+
+          // 재전달 여부 확인 (이미 filming 상태인 경우 = 이전에 가이드를 전달받은 적 있음)
+          const isRedelivery = participant.status === 'filming'
+          const campaignNameForNotification = isRedelivery ? `[재전달] ${campaign.title}` : campaign.title
 
           // 팝빌 알림톡 발송
           if (profile?.phone) {
@@ -2041,7 +2801,7 @@ export default function CampaignDetail() {
                     templateCode: '025100001012',
                     variables: {
                       '크리에이터명': creatorName,
-                      '캠페인명': campaign.title,
+                      '캠페인명': campaignNameForNotification,
                       '제출기한': deadlineText
                     }
                   })
@@ -2060,12 +2820,15 @@ export default function CampaignDetail() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   to: emailTo,
-                  subject: `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
+                  subject: isRedelivery
+                    ? `[CNEC] 캠페인 가이드가 재전달되었습니다 - ${campaign.title}`
+                    : `[CNEC] 캠페인 가이드가 전달되었습니다 - ${campaign.title}`,
                   html: `
                     <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <h2 style="color: #3B82F6;">캠페인 가이드가 전달되었습니다!</h2>
+                      <h2 style="color: #3B82F6;">캠페인 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다!</h2>
                       <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
-                      <p>참여하신 캠페인의 촬영 가이드가 전달되었습니다.</p>
+                      <p>참여하신 캠페인의 촬영 가이드가 ${isRedelivery ? '재전달' : '전달'}되었습니다.</p>
+                      ${isRedelivery ? '<p style="color: #EF4444; font-weight: bold;">※ 이전 가이드가 수정되었습니다. 새 가이드를 반드시 확인해 주세요.</p>' : ''}
                       <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3B82F6;">
                         <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
                         <p style="margin: 5px 0;"><strong>제출 기한:</strong> ${deadlineText}</p>
@@ -2106,12 +2869,23 @@ export default function CampaignDetail() {
     }
   }
   
-  // 영상 검수 완료 및 포인트 지급
-  const handleVideoApproval = async (submission) => {
+  // 영상 검수 완료 (포인트 지급 없음 - 최종 확정 시 지급)
+  const handleVideoApproval = async (submission, customUploadDeadline = null) => {
     try {
       const videoClient = supabaseKorea || supabaseBiz
 
-      // 1. video_submissions 상태 업데이트
+      // 업로드 기한 입력받기 (customUploadDeadline이 없으면 prompt)
+      const inputDeadline = customUploadDeadline || prompt(
+        '업로드 기한을 입력해주세요.\n(예: 2024년 1월 15일, 승인 후 3일 이내)',
+        '승인 완료 후 1일 이내'
+      )
+
+      if (!inputDeadline) {
+        alert('업로드 기한을 입력해주세요.')
+        return
+      }
+
+      // 1. video_submissions 상태 업데이트 (approved로 변경)
       const { error: videoError } = await supabase
         .from('video_submissions')
         .update({
@@ -2123,96 +2897,255 @@ export default function CampaignDetail() {
 
       if (videoError) throw videoError
 
-      // 다중 영상 캠페인 타입 체크 (4주 챌린지: 4개, 올영: 2개)
+      // 다중 영상 캠페인 타입 체크
       const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
       const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
       const isMultiVideoChallenge = is4WeekChallenge || isOliveyoung
       const requiredVideos = is4WeekChallenge ? [1, 2, 3, 4] : isOliveyoung ? [1, 2] : [1]
 
-      let allVideosCompleted = false
+      let allVideosApproved = false
       let currentWeek = submission.week_number || 1
 
       if (isMultiVideoChallenge) {
-        // 해당 application의 모든 주차/영상 조회
-        const { data: allSubmissions, error: submissionsError } = await videoClient
+        const { data: allSubmissions } = await videoClient
           .from('video_submissions')
           .select('week_number, status')
           .eq('application_id', submission.application_id)
           .eq('campaign_id', campaign.id)
 
-        if (submissionsError) {
-          console.error('Error fetching all submissions:', submissionsError)
-        } else {
-          // 현재 승인하는 영상을 포함하여 모든 필수 영상이 approved인지 확인
+        if (allSubmissions) {
           const weekStatuses = {}
           allSubmissions.forEach(sub => {
-            // 현재 승인하는 영상은 approved로 처리
             if (sub.week_number === currentWeek) {
               weekStatuses[sub.week_number] = 'approved'
             } else {
               weekStatuses[sub.week_number] = sub.status
             }
           })
-
-          // 모든 필수 영상이 approved인지 확인
-          allVideosCompleted = requiredVideos.every(week => weekStatuses[week] === 'approved')
-          const challengeType = is4WeekChallenge ? '4주 챌린지' : '올영'
-          console.log(`${challengeType} 완료 여부 체크:`, { weekStatuses, allVideosCompleted, currentWeek, requiredVideos })
+          allVideosApproved = requiredVideos.every(week => weekStatuses[week] === 'approved')
         }
       }
 
-      // 2. applications 상태 업데이트 (다중 영상 캠페인은 모든 영상 완료 시에만)
-      if (!isMultiVideoChallenge || allVideosCompleted) {
-        const { error: appError } = await supabase
+      // 2. applications 상태를 approved로 (completed가 아닌 approved - 최종 확정 대기)
+      if (!isMultiVideoChallenge || allVideosApproved) {
+        await supabase
           .from('applications')
           .update({
-            status: 'completed'
+            status: 'approved',
+            upload_deadline: inputDeadline
           })
           .eq('id', submission.application_id)
-
-        if (appError) throw appError
       }
 
-      // 3. 포인트 지급 (다중 영상 캠페인은 모든 영상 완료 시에만)
-      const pointAmount = campaign.reward_points || campaign.point || 0
-      const shouldAwardPoints = !isMultiVideoChallenge || allVideosCompleted
+      // 3. 크리에이터에게 영상 승인 완료 알림톡 발송
+      const participant = participants.find(p => p.user_id === submission.user_id)
+      if (participant) {
+        // 먼저 applications 테이블에서 직접 phone_number 확인 (한국 캠페인용)
+        let phone = participant.phone_number || participant.phone
+        let email = participant.email
+        let creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
 
-      if (shouldAwardPoints && pointAmount > 0 && submission.applications?.user_id) {
-        // user_profiles의 point 업데이트
-        const { data: profile, error: profileError } = await supabase
+        // applications에 전화번호가 없으면 user_profiles에서 조회
+        if (!phone && participant.user_id) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone, email, full_name')
+            .eq('id', participant.user_id)
+            .single()
+
+          if (profile) {
+            phone = profile.phone
+            email = email || profile.email
+            creatorName = profile.full_name || creatorName
+          }
+        }
+
+        console.log('알림톡 발송 정보:', { phone, email, creatorName, source: participant.phone_number ? 'applications' : 'user_profiles' })
+
+        if (phone) {
+          try {
+            console.log('알림톡 발송 시도:', { phone, creatorName, campaign: campaign?.title, deadline: inputDeadline })
+            const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: phone.replace(/-/g, ''),
+                receiverName: creatorName,
+                templateCode: '025100001017',
+                variables: {
+                  '크리에이터명': creatorName,
+                  '캠페인명': campaign?.title || '캠페인',
+                  '업로드기한': inputDeadline
+                }
+              })
+            })
+            const kakaoResult = await kakaoResponse.json()
+            console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
+            if (!kakaoResponse.ok || !kakaoResult.success) {
+              console.error('알림톡 발송 실패 응답:', kakaoResult)
+              // 상세 오류 표시
+              const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
+              console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
+            }
+          } catch (kakaoError) {
+            console.error('알림톡 발송 실패:', kakaoError)
+          }
+        } else {
+          console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: participant?.user_id, phone_number: participant?.phone_number, phone: participant?.phone })
+        }
+
+        // 이메일 발송
+        if (email) {
+          try {
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: email,
+                subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
+                    <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                    <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${inputDeadline}</p>
+                    </div>
+                    <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ 영상 승인 완료 이메일 발송 성공')
+          } catch (emailError) {
+            console.error('영상 승인 이메일 발송 실패:', emailError)
+          }
+        }
+
+        // 네이버 웍스 알림 (검수 완료)
+        try {
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[영상 검수 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n업로드 기한: ${inputDeadline}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+          console.log('✓ 검수 완료 네이버 웍스 알림 발송 성공')
+        } catch (worksError) {
+          console.error('네이버 웍스 알림 발송 실패:', worksError)
+        }
+      } else {
+        console.log('알림톡 발송 스킵 - 참가자 없음:', submission.user_id)
+      }
+
+      await fetchVideoSubmissions()
+      await fetchParticipants()
+
+      // 알림 메시지 (포인트 금액 표시 안함)
+      if (isMultiVideoChallenge) {
+        const videoLabel = is4WeekChallenge ? `${currentWeek}주차` : `${currentWeek}번째`
+        const totalVideos = is4WeekChallenge ? 4 : 2
+        if (allVideosApproved) {
+          alert(`${videoLabel} 영상이 승인되었습니다.\n\n크리에이터에게 알림톡이 발송되었습니다.\n업로드 기한: ${inputDeadline}\n\nSNS 업로드를 확인한 후 '최종 확정' 버튼을 눌러주세요.`)
+        } else {
+          alert(`${videoLabel} 영상이 승인되었습니다.\n\n크리에이터에게 알림톡이 발송되었습니다.\n업로드 기한: ${inputDeadline}\n\n(${totalVideos}개 영상 모두 승인 후 최종 확정이 가능합니다)`)
+        }
+      } else {
+        alert(`영상이 승인되었습니다.\n\n크리에이터에게 알림톡이 발송되었습니다.\n업로드 기한: ${inputDeadline}\n\nSNS 업로드를 확인한 후 '최종 확정' 버튼을 눌러주세요.`)
+      }
+    } catch (error) {
+      console.error('Error approving video:', error)
+      alert('영상 승인에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 최종 확정 및 포인트 지급 (SNS 업로드 확인 후)
+  // skipPointPayment: 멀티비디오 캠페인에서 마지막 영상이 아닌 경우 true
+  const handleFinalConfirmation = async (submission, skipPointPayment = false) => {
+    try {
+      const videoClient = supabaseKorea || supabaseBiz
+      const pointAmount = campaign.reward_points || campaign.point || 0
+
+      // 1. video_submissions를 completed로 업데이트
+      await videoClient
+        .from('video_submissions')
+        .update({
+          status: 'completed',
+          final_confirmed_at: new Date().toISOString()
+        })
+        .eq('id', submission.id)
+
+      // 2. application 정보 가져오기 (user_id 포함)
+      const { data: applicationData } = await supabase
+        .from('applications')
+        .select('id, user_id, creator_name, applicant_name')
+        .eq('id', submission.application_id)
+        .single()
+
+      // 3. applications를 completed로 업데이트
+      await supabase
+        .from('applications')
+        .update({ status: 'completed' })
+        .eq('id', submission.application_id)
+
+      // 4. 포인트 지급 (skipPointPayment가 false일 때만)
+      const userId = applicationData?.user_id || submission.user_id
+      if (pointAmount > 0 && userId && !skipPointPayment) {
+        const { data: profile } = await supabase
           .from('user_profiles')
-          .select('point, phone, email')
-          .eq('id', submission.applications.user_id)
+          .select('points, phone, email')
+          .eq('id', userId)
           .single()
 
-        if (!profileError && profile) {
-          const newPoint = (profile.point || 0) + pointAmount
+        if (profile) {
+          const newPoints = (profile.points || 0) + pointAmount
           await supabase
             .from('user_profiles')
-            .update({ point: newPoint })
-            .eq('id', submission.applications.user_id)
+            .update({ points: newPoints, updated_at: new Date().toISOString() })
+            .eq('id', userId)
 
-          // point_history 기록
-          await supabase
-            .from('point_history')
-            .insert([{
-              user_id: submission.applications.user_id,
-              campaign_id: campaign.id,
-              amount: pointAmount,
-              type: 'earn',
-              description: `캠페인 영상 승인: ${campaign.title}`,
-              created_at: new Date().toISOString()
-            }])
+          // 포인트 이력 저장 (point_history 또는 point_transactions)
+          try {
+            await supabase
+              .from('point_history')
+              .insert([{
+                user_id: userId,
+                campaign_id: campaign.id,
+                amount: pointAmount,
+                type: 'campaign_complete',
+                reason: `캠페인 완료: ${campaign.title}`,
+                balance_after: newPoints,
+                created_at: new Date().toISOString()
+              }])
+          } catch (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
+            try {
+              await supabase
+                .from('point_transactions')
+                .insert([{
+                  user_id: userId,
+                  amount: pointAmount,
+                  type: 'earn',
+                  description: `캠페인 완료: ${campaign.title}`,
+                  created_at: new Date().toISOString()
+                }])
+            } catch (txError) {
+              console.log('point_transactions 저장도 실패 (무시):', txError)
+            }
+          }
 
-          const creatorName = submission.applications?.creator_name || submission.applications?.applicant_name || '크리에이터'
+          const creatorName = applicationData?.creator_name || applicationData?.applicant_name || '크리에이터'
 
-          // 4. 팝빌 알림톡 발송 (검수 완료 및 포인트 지급)
+          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
           if (profile.phone) {
             try {
               const completedDate = new Date().toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+                year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
               })
               await fetch('/.netlify/functions/send-kakao-notification', {
                 method: 'POST',
@@ -2220,7 +3153,7 @@ export default function CampaignDetail() {
                 body: JSON.stringify({
                   receiverNum: profile.phone,
                   receiverName: creatorName,
-                  templateCode: '025100001018',  // 캠페인 완료 포인트 지급 알림 템플릿
+                  templateCode: '025100001018',
                   variables: {
                     '크리에이터명': creatorName,
                     '캠페인명': campaign.title,
@@ -2229,12 +3162,12 @@ export default function CampaignDetail() {
                 })
               })
               console.log('캠페인 완료 포인트 지급 알림톡 발송 성공')
-            } catch (alimtalkError) {
-              console.error('캠페인 완료 포인트 지급 알림톡 발송 실패:', alimtalkError)
+            } catch (e) {
+              console.error('캠페인 완료 포인트 지급 알림톡 발송 실패:', e)
             }
           }
 
-          // 5. 이메일 발송 (검수 완료)
+          // 크리에이터에게 이메일 발송
           if (profile.email) {
             try {
               await fetch('/.netlify/functions/send-email', {
@@ -2242,83 +3175,485 @@ export default function CampaignDetail() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   to: profile.email,
-                  subject: `[CNEC] 영상 검수 완료 - ${campaign.title}`,
+                  subject: `[CNEC] 캠페인 완료 - ${campaign.title}`,
                   html: `
-                    <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                      <h2 style="color: #10B981;">영상 검수가 완료되었습니다!</h2>
-                      <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
-                      <p>참여하신 캠페인의 영상 검수가 완료되었습니다.</p>
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #10B981;">캠페인이 완료되었습니다!</h2>
+                      <p>${creatorName}님, 참여하신 캠페인이 완료되어 포인트가 지급되었습니다.</p>
                       <div style="background: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                        <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
-                        <p style="margin: 5px 0;"><strong>지급 포인트:</strong> ${pointAmount.toLocaleString()}P</p>
+                        <p><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p><strong>지급 포인트:</strong> ${pointAmount.toLocaleString()}P</p>
                       </div>
-                      <p>지급된 포인트는 마이페이지에서 확인하실 수 있습니다.</p>
-                      <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
                     </div>
                   `
                 })
               })
-              console.log('검수 완료 이메일 발송 성공')
-            } catch (emailError) {
-              console.error('검수 완료 이메일 발송 실패:', emailError)
+            } catch (e) {
+              console.error('이메일 발송 실패:', e)
             }
           }
 
-          // 6. 네이버 웍스 알림 발송 (포인트 지급 완료)
+          // 네이버 웍스 알림
           try {
-            const koreanDate = new Date().toLocaleString('ko-KR', {
-              timeZone: 'Asia/Seoul',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
-            const snsUploadUrl = submission.sns_upload_url || ''
-            const naverWorksMessage = `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P${snsUploadUrl ? `\n\nSNS 업로드 링크:\n${snsUploadUrl}` : ''}\n\n${koreanDate}`
-
             await fetch('/.netlify/functions/send-naver-works-message', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 isAdminNotification: true,
-                message: naverWorksMessage,
-                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                message: `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
               })
             })
-            console.log('포인트 지급 네이버 웍스 알림 발송 성공')
-          } catch (naverWorksError) {
-            console.error('포인트 지급 네이버 웍스 알림 발송 실패:', naverWorksError)
+          } catch (e) {
+            console.error('네이버 웍스 알림 실패:', e)
           }
         }
       }
 
-      // 7. 데이터 새로고침
       await fetchVideoSubmissions()
       await fetchParticipants()
 
-      // 알림 메시지 생성
-      let alertMessage = ''
-      if (isMultiVideoChallenge) {
-        const challengeName = is4WeekChallenge ? '4주 챌린지' : '올영 캠페인'
-        const videoLabel = is4WeekChallenge ? `${currentWeek}주차` : `${currentWeek}번째`
-        const totalVideos = is4WeekChallenge ? 4 : 2
-
-        if (allVideosCompleted) {
-          alertMessage = `${videoLabel} 영상이 승인되었습니다. ${challengeName}이(가) 완료되어 ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : '완료 처리되었습니다.'}`
-        } else {
-          alertMessage = `${videoLabel} 영상이 승인되었습니다. (${totalVideos}개 영상 모두 완료 시 포인트가 지급됩니다)`
-        }
-      } else {
-        alertMessage = `영상이 승인되었습니다. ${pointAmount > 0 ? `${pointAmount.toLocaleString()}포인트가 지급되었습니다.` : ''}`
-      }
-      alert(alertMessage)
+      // 기업에게는 포인트 금액 안 보여줌
+      alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
     } catch (error) {
-      console.error('Error approving video:', error)
-      alert('영상 승인에 실패했습니다: ' + error.message)
+      console.error('Error in final confirmation:', error)
+      alert('최종 확정에 실패했습니다: ' + error.message)
     }
   }
-  
+
+  // 멀티비디오 캠페인 최종 확정 (videoSubmissions가 없는 경우 - 올영/4주 applications에서 직접 처리)
+  const handleMultiVideoFinalConfirmationWithoutSubmissions = async (participant, videoCount) => {
+    try {
+      const pointAmount = campaign.reward_points || campaign.point || 0
+      const userId = participant.user_id
+
+      // 1. Korea DB의 applications 상태 업데이트
+      if (supabaseKorea) {
+        await supabaseKorea
+          .from('applications')
+          .update({
+            status: 'completed',
+            final_confirmed_at: new Date().toISOString()
+          })
+          .eq('id', participant.id)
+      }
+
+      // 2. BIZ DB의 applications 상태 업데이트 (있으면)
+      await supabase
+        .from('applications')
+        .update({
+          status: 'completed',
+          final_confirmed_at: new Date().toISOString()
+        })
+        .eq('id', participant.id)
+
+      // 3. 포인트 지급
+      if (pointAmount > 0 && userId) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('points, phone, email')
+          .eq('id', userId)
+          .single()
+
+        if (profile) {
+          const newPoints = (profile.points || 0) + pointAmount
+          await supabase
+            .from('user_profiles')
+            .update({ points: newPoints, updated_at: new Date().toISOString() })
+            .eq('id', userId)
+
+          // 포인트 이력 저장 (point_history 또는 point_transactions)
+          try {
+            await supabase
+              .from('point_history')
+              .insert([{
+                user_id: userId,
+                campaign_id: campaign.id,
+                amount: pointAmount,
+                type: 'campaign_complete',
+                reason: `캠페인 완료: ${campaign.title}`,
+                balance_after: newPoints,
+                created_at: new Date().toISOString()
+              }])
+          } catch (historyError) {
+            console.log('point_history 저장 실패, point_transactions 시도:', historyError)
+            try {
+              await supabase
+                .from('point_transactions')
+                .insert([{
+                  user_id: userId,
+                  amount: pointAmount,
+                  type: 'earn',
+                  description: `캠페인 완료: ${campaign.title}`,
+                  created_at: new Date().toISOString()
+                }])
+            } catch (txError) {
+              console.log('point_transactions 저장도 실패 (무시):', txError)
+            }
+          }
+
+          const creatorName = participant.creator_name || participant.applicant_name || '크리에이터'
+
+          // 크리에이터에게 알림톡 발송 (캠페인 완료 포인트 지급 - 025100001018)
+          if (profile.phone) {
+            try {
+              const completedDate = new Date().toLocaleDateString('ko-KR', {
+                year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Seoul'
+              })
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: creatorName,
+                  templateCode: '025100001018',
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '캠페인명': campaign.title,
+                    '완료일': completedDate
+                  }
+                })
+              })
+            } catch (e) {
+              console.error('알림톡 발송 실패:', e)
+            }
+          }
+
+          // 크리에이터에게 이메일 발송
+          if (profile.email) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profile.email,
+                  subject: `[CNEC] 캠페인 완료 - ${campaign.title}`,
+                  html: `
+                    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #10B981;">캠페인이 완료되었습니다!</h2>
+                      <p>${creatorName}님, 참여하신 캠페인이 완료되어 포인트가 지급되었습니다.</p>
+                      <div style="background: #F3F4F6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p><strong>캠페인:</strong> ${campaign.title}</p>
+                        <p><strong>지급 포인트:</strong> ${pointAmount.toLocaleString()}P</p>
+                      </div>
+                    </div>
+                  `
+                })
+              })
+            } catch (e) {
+              console.error('이메일 발송 실패:', e)
+            }
+          }
+
+          // 네이버 웍스 알림
+          try {
+            await fetch('/.netlify/functions/send-naver-works-message', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                isAdminNotification: true,
+                channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+                message: `[포인트 지급 완료]\n\n캠페인: ${campaign.title}\n크리에이터: ${creatorName}\n지급 포인트: ${pointAmount.toLocaleString()}P\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+              })
+            })
+          } catch (e) {
+            console.error('네이버 웍스 알림 실패:', e)
+          }
+        }
+      }
+
+      await fetchParticipants()
+      alert('최종 확정되었습니다. 크리에이터에게 포인트가 지급되었습니다.')
+    } catch (error) {
+      console.error('Error in multi-video final confirmation:', error)
+      alert('최종 확정에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 관리자용: SNS URL 및 광고코드 수정 후 최종 확정
+  const handleAdminSnsEdit = async () => {
+    // 멀티비디오 캠페인 편집 (올리브영/4주 챌린지)
+    if (adminSnsEditData.isMultiVideoEdit) {
+      if (!confirm('SNS 정보를 저장하시겠습니까?')) return
+
+      setSavingAdminSnsEdit(true)
+      try {
+        const updateData = {}
+        const campaignType = adminSnsEditData.campaignType
+
+        if (campaignType === '4week_challenge') {
+          // 4주 챌린지
+          if (adminSnsEditData.week1_url) updateData.week1_url = adminSnsEditData.week1_url.trim()
+          if (adminSnsEditData.week2_url) updateData.week2_url = adminSnsEditData.week2_url.trim()
+          if (adminSnsEditData.week3_url) updateData.week3_url = adminSnsEditData.week3_url.trim()
+          if (adminSnsEditData.week4_url) updateData.week4_url = adminSnsEditData.week4_url.trim()
+          if (adminSnsEditData.week1_partnership_code) updateData.week1_partnership_code = adminSnsEditData.week1_partnership_code.trim()
+          if (adminSnsEditData.week2_partnership_code) updateData.week2_partnership_code = adminSnsEditData.week2_partnership_code.trim()
+          if (adminSnsEditData.week3_partnership_code) updateData.week3_partnership_code = adminSnsEditData.week3_partnership_code.trim()
+          if (adminSnsEditData.week4_partnership_code) updateData.week4_partnership_code = adminSnsEditData.week4_partnership_code.trim()
+        } else if (campaignType === 'oliveyoung' || campaignType === 'oliveyoung_sale') {
+          // 올리브영
+          if (adminSnsEditData.step1_url) updateData.step1_url = adminSnsEditData.step1_url.trim()
+          if (adminSnsEditData.step2_url) updateData.step2_url = adminSnsEditData.step2_url.trim()
+          if (adminSnsEditData.step3_url) updateData.step3_url = adminSnsEditData.step3_url.trim()
+          if (adminSnsEditData.step1_2_partnership_code) updateData.step1_2_partnership_code = adminSnsEditData.step1_2_partnership_code.trim()
+          if (adminSnsEditData.step3_partnership_code) updateData.step3_partnership_code = adminSnsEditData.step3_partnership_code.trim()
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          // BIZ DB applications 테이블 업데이트
+          await supabase
+            .from('applications')
+            .update(updateData)
+            .eq('id', adminSnsEditData.participantId)
+
+          // Korea DB campaign_participants 테이블에도 업데이트 (user_id로 매칭)
+          if (supabaseKorea && adminSnsEditData.userId) {
+            const { error: koreaError } = await supabaseKorea
+              .from('campaign_participants')
+              .update(updateData)
+              .eq('campaign_id', id)
+              .eq('user_id', adminSnsEditData.userId)
+
+            if (koreaError) {
+              console.error('Korea DB update error:', koreaError)
+            }
+          }
+        }
+
+        setShowAdminSnsEditModal(false)
+        setAdminSnsEditData({})
+        await fetchParticipants()
+
+        // 기업에게 SNS 업로드 완료 알림 발송
+        try {
+          const participant = participants.find(p => p.id === adminSnsEditData.participantId)
+          const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
+
+          // 기업 정보 조회
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('contact_email, contact_phone, company_name')
+            .eq('id', campaign.company_id)
+            .single()
+
+          if (companyData?.contact_phone) {
+            // 카카오톡 알림
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverName: companyData.company_name || '담당자',
+                templateCode: '025100001009',
+                variables: {
+                  '회사명': companyData.company_name || '담당자',
+                  '캠페인명': campaign?.title || '캠페인'
+                }
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
+          }
+
+          if (companyData?.contact_email) {
+            // 이메일 알림
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: companyData.contact_email,
+                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
+                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
+                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
+                    </div>
+                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
+          }
+
+          // 네이버 웍스 알림
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[SNS 업로드 완료 - 멀티비디오]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+        } catch (notifyError) {
+          console.error('기업 알림 발송 실패:', notifyError)
+        }
+
+        alert('저장되었습니다.')
+      } catch (error) {
+        console.error('Error saving multi-video SNS edit:', error)
+        alert('저장에 실패했습니다: ' + error.message)
+      } finally {
+        setSavingAdminSnsEdit(false)
+      }
+      return
+    }
+
+    // 기존 단일 영상 캠페인 편집
+    if (!adminSnsEditData.snsUrl?.trim()) {
+      alert('SNS URL을 입력해주세요.')
+      return
+    }
+
+    // 수정 모드일 때는 확인 없이 저장만
+    if (!adminSnsEditData.isEditMode) {
+      if (!confirm('SNS 정보를 저장하고 최종 확정하시겠습니까?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) {
+        return
+      }
+    }
+
+    setSavingAdminSnsEdit(true)
+    try {
+      const videoClient = supabaseKorea || supabaseBiz
+
+      // video_submissions 테이블에 SNS URL 및 광고코드 업데이트
+      if (adminSnsEditData.submissionId) {
+        const updateData = { sns_upload_url: adminSnsEditData.snsUrl.trim() }
+        if (adminSnsEditData.adCode?.trim()) {
+          updateData.ad_code = adminSnsEditData.adCode.trim()
+          updateData.partnership_code = adminSnsEditData.adCode.trim() // 호환성
+        }
+        await videoClient
+          .from('video_submissions')
+          .update(updateData)
+          .eq('id', adminSnsEditData.submissionId)
+      }
+
+      // applications 테이블에도 SNS URL 및 광고코드 업데이트 (단일 영상용 호환성)
+      if (adminSnsEditData.participantId) {
+        const updateData = { sns_upload_url: adminSnsEditData.snsUrl.trim() }
+        if (adminSnsEditData.adCode?.trim()) {
+          updateData.partnership_code = adminSnsEditData.adCode.trim()
+        }
+        await supabase
+          .from('applications')
+          .update(updateData)
+          .eq('id', adminSnsEditData.participantId)
+      }
+
+      setShowAdminSnsEditModal(false)
+
+      // 수정 모드일 때는 저장만 하고 종료
+      if (adminSnsEditData.isEditMode) {
+        setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+        await fetchVideoSubmissions()
+        await fetchParticipants()
+
+        // 기업에게 SNS 업로드 완료 알림 발송
+        try {
+          const participant = participants.find(p => p.id === adminSnsEditData.participantId)
+          const creatorName = participant?.creator_name || participant?.applicant_name || '크리에이터'
+
+          // 기업 정보 조회
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('contact_email, contact_phone, company_name')
+            .eq('id', campaign.company_id)
+            .single()
+
+          if (companyData?.contact_phone) {
+            // 카카오톡 알림
+            await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyData.contact_phone.replace(/-/g, ''),
+                receiverName: companyData.company_name || '담당자',
+                templateCode: '025100001009',
+                variables: {
+                  '회사명': companyData.company_name || '담당자',
+                  '캠페인명': campaign?.title || '캠페인'
+                }
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 카카오톡 알림 발송 성공')
+          }
+
+          if (companyData?.contact_email) {
+            // 이메일 알림
+            await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: companyData.contact_email,
+                subject: `[CNEC] ${campaign?.title || '캠페인'} - SNS 업로드 완료`,
+                html: `
+                  <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #10B981;">SNS 업로드가 완료되었습니다!</h2>
+                    <p>안녕하세요, <strong>${companyData.company_name || '담당자'}</strong>님!</p>
+                    <p>신청하신 캠페인의 크리에이터가 최종 영상 수정을 완료하고 SNS에 업로드했습니다.</p>
+                    <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                      <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                      <p style="margin: 5px 0;"><strong>크리에이터:</strong> ${creatorName}</p>
+                    </div>
+                    <p>관리자 페이지에서 최종 보고서와 성과 지표를 확인해 주세요.</p>
+                    <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀<br/>문의: 1833-6025</p>
+                  </div>
+                `
+              })
+            })
+            console.log('✓ SNS 업로드 완료 기업 이메일 발송 성공')
+          }
+
+          // 네이버 웍스 알림
+          await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+              message: `[SNS 업로드 완료]\n\n캠페인: ${campaign?.title || '캠페인'}\n크리에이터: ${creatorName}\n기업: ${companyData?.company_name || '-'}\n\n${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`
+            })
+          })
+        } catch (notifyError) {
+          console.error('기업 알림 발송 실패:', notifyError)
+        }
+
+        alert('저장되었습니다.')
+        return
+      }
+
+      // 신규 등록 모드일 때는 최종 확정 진행
+      const submissionId = adminSnsEditData.submissionId
+      const { data: submission } = await videoClient
+        .from('video_submissions')
+        .select('*')
+        .eq('id', submissionId)
+        .single()
+
+      setAdminSnsEditData({ submissionId: null, participantId: null, snsUrl: '', adCode: '', isEditMode: false })
+
+      if (submission) {
+        await handleFinalConfirmation(submission)
+      } else {
+        await fetchVideoSubmissions()
+        await fetchParticipants()
+        alert('SNS 정보가 저장되었습니다.')
+      }
+    } catch (error) {
+      console.error('Error saving admin SNS edit:', error)
+      alert('저장에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingAdminSnsEdit(false)
+    }
+  }
+
   // 크리에이터별 맞춤 가이드 생성성
   const generatePersonalizedGuides = async (participantIds) => {
     try {
@@ -2584,13 +3919,60 @@ export default function CampaignDetail() {
         .eq('id', id)
 
       alert(`${selectedParticipants.length}명의 크리에이터가 확정되었습니다!`)
-      
+
+      // 일본 크리에이터 선정 알림 발송 (LINE + SMS + Email + LINE 초대)
+      if (region === 'japan') {
+        alert('일본 크리에이터에게 선정 알림을 발송합니다...')
+        for (const participantId of selectedParticipants) {
+          const participant = participants.find(p => p.id === participantId) ||
+                             applications.find(a => a.id === participantId)
+          if (participant) {
+            try {
+              // 1. 선정 알림 발송 (LINE → SMS → Email)
+              await fetch('/.netlify/functions/send-japan-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'campaign_selected',
+                  creatorEmail: participant.creator_email || participant.user_email,
+                  data: {
+                    creatorName: participant.creator_name || participant.applicant_name,
+                    campaignName: campaign.title,
+                    brandName: campaign.brand_name || campaign.company_name,
+                    reward: campaign.reward_text || campaign.compensation,
+                    deadline: campaign.content_submission_deadline,
+                    guideUrl: `https://cnec.jp/creator/campaigns/${id}`
+                  }
+                })
+              })
+
+              // 2. LINE 초대장 발송 (SMS + Email)
+              await fetch('/.netlify/functions/send-line-invitation-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: participant.creator_name || participant.applicant_name,
+                  email: participant.creator_email || participant.user_email,
+                  phone: participant.phone || participant.creator_phone,
+                  language: 'ja'
+                })
+              })
+
+              console.log(`[Japan] Notification sent to: ${participant.creator_name}`)
+            } catch (notifError) {
+              console.error(`[Japan] Notification error for ${participant.creator_name}:`, notifError)
+            }
+          }
+        }
+        alert('일본 크리에이터 알림 발송 완료!')
+      }
+
       // 기획형 캠페인인 경우 맞춤 가이드 생성
       if (campaign.campaign_type === 'planned') {
         alert('크리에이터별 맞춤 가이드를 생성하고 있습니다. 잠시만 기다려주세요...')
         await generatePersonalizedGuides(selectedParticipants)
       }
-      
+
       await fetchParticipants()
       await fetchCampaignDetail()
       setSelectedParticipants([])
@@ -2673,13 +4055,13 @@ export default function CampaignDetail() {
       )
     }
 
-    // 상태별 카운트
+    // 상태별 카운트 (sns_uploaded: 4주/올영 SNS 업로드 완료 상태 포함)
     const statusCounts = {
       guideWaiting: filteredParticipants.filter(p => ['selected', 'guide_confirmation'].includes(p.status)).length,
       filming: filteredParticipants.filter(p => p.status === 'filming').length,
       revision: filteredParticipants.filter(p => p.status === 'revision_requested').length,
       submitted: filteredParticipants.filter(p => p.status === 'video_submitted').length,
-      approved: filteredParticipants.filter(p => ['approved', 'completed'].includes(p.status)).length
+      approved: filteredParticipants.filter(p => ['approved', 'completed', 'sns_uploaded'].includes(p.status)).length
     }
 
     // 상태 설정
@@ -2729,6 +4111,13 @@ export default function CampaignDetail() {
         },
         completed: {
           label: '완료',
+          icon: CheckCircle,
+          bgClass: 'bg-gradient-to-r from-emerald-500 to-green-600',
+          textClass: 'text-white',
+          dotClass: 'bg-green-300'
+        },
+        sns_uploaded: {
+          label: 'SNS 업로드',
           icon: CheckCircle,
           bgClass: 'bg-gradient-to-r from-emerald-500 to-green-600',
           textClass: 'text-white',
@@ -2846,9 +4235,52 @@ export default function CampaignDetail() {
             </span>
           </label>
           {selectedParticipants.length > 0 && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-              {selectedParticipants.length}명 선택됨
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                {selectedParticipants.length}명 선택됨
+              </span>
+              {/* US/Japan 캠페인: 가이드 전체 생성 버튼 */}
+              {(region === 'us' || region === 'japan') && (
+                <>
+                  <Button
+                    onClick={handleBulkGuideGeneration}
+                    disabled={isGeneratingBulkGuides}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                    size="sm"
+                  >
+                    {isGeneratingBulkGuides ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        생성 중 ({bulkGuideProgress.current}/{bulkGuideProgress.total})
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        가이드 전체 생성
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleBulkGuideEmailSend}
+                    disabled={sendingBulkGuideEmail}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
+                    size="sm"
+                  >
+                    {sendingBulkGuideEmail ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        발송 중...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-1" />
+                        가이드 이메일 발송
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
           )}
         </div>
 
@@ -2956,11 +4388,84 @@ export default function CampaignDetail() {
                           <span>{shippingPhone || '연락처 미입력'}</span>
                         </div>
 
-                        {/* 배송 주소 - 전체 표시 */}
+                        {/* 배송 주소 - 전체 표시 + 수정 버튼 */}
                         <div className="flex items-center gap-1.5 text-xs text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg min-w-0 flex-shrink">
                           <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
                           <span className="break-all">{shippingAddress || '주소 미입력'}</span>
+                          <button
+                            onClick={() => handleStartEditAddress(participant)}
+                            className="ml-1 p-0.5 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded"
+                            title="주소 수정"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
                         </div>
+
+                        {/* 주소 수정 폼 (인라인) */}
+                        {editingAddressFor === participant.id && (
+                          <div className="w-full mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs text-gray-600">연락처</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.phone_number}
+                                  onChange={(e) => setAddressFormData({...addressFormData, phone_number: e.target.value})}
+                                  placeholder="+1 123 456 7890"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-600">우편번호</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.postal_code}
+                                  onChange={(e) => setAddressFormData({...addressFormData, postal_code: e.target.value})}
+                                  placeholder="92081"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">주소</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.address}
+                                  onChange={(e) => setAddressFormData({...addressFormData, address: e.target.value})}
+                                  placeholder="2027 Jewell Ridge, Vista, CA"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="text-xs text-gray-600">상세주소</label>
+                                <input
+                                  type="text"
+                                  value={addressFormData.detail_address}
+                                  onChange={(e) => setAddressFormData({...addressFormData, detail_address: e.target.value})}
+                                  placeholder="Apt 4B"
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingAddressFor(null)}
+                                className="text-xs px-2 py-1 h-auto"
+                              >
+                                취소
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleSaveAddress}
+                                disabled={savingAddress}
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-auto"
+                              >
+                                {savingAddress ? '저장 중...' : '저장'}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* 택배사 + 송장번호 인라인 */}
                         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg">
@@ -3011,20 +4516,46 @@ export default function CampaignDetail() {
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                                {!participant.guide_confirmed ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
-                                      await handleGuideApproval([participant.id])
-                                    }}
-                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
-                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    전달하기
-                                  </Button>
+                                {participant.status === 'selected' ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+                                        await handleGuideApproval([participant.id])
+                                      }}
+                                      className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                                    >
+                                      <Send className="w-3 h-3 mr-1" />
+                                      전달하기
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      재설정
+                                    </Button>
+                                  </>
+                                ) : participant.status === 'filming' ? (
+                                  <>
+                                    <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                      <CheckCircle className="w-3 h-3" />
+                                      전달완료
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                      className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                    >
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      취소
+                                    </Button>
+                                  </>
                                 ) : (
                                   <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                     <CheckCircle className="w-3 h-3" />
@@ -3035,84 +4566,246 @@ export default function CampaignDetail() {
                             ) : (
                               <Button
                                 size="sm"
-                                onClick={async () => {
-                                  if (!confirm(`${creatorName}님의 맞춤 가이드를 생성하시겠습니까?`)) return
-                                  await handleGeneratePersonalizedGuides([participant])
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
                                 }}
                                 className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
                               >
                                 <Sparkles className="w-3 h-3 mr-1" />
-                                AI 가이드 생성
+                                가이드 전달
                               </Button>
                             )}
                           </div>
                         )}
 
-                        {/* 4주 챌린지 가이드 섹션 - 인라인 버튼 */}
-                        {campaign.campaign_type === '4week_challenge' && (
+                        {/* US/Japan 캠페인: 씬 가이드 작성 버튼 */}
+                        {(region === 'us' || region === 'japan') && (
                           <div className="flex items-center gap-1.5">
-                            {campaign.challenge_weekly_guides_ai ? (
-                              <>
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`/company/campaigns/scene-guide?id=${id}&applicationId=${participant.id}&region=${region}`)}
+                              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-xs px-3 py-1 h-auto"
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              씬 가이드 작성
+                            </Button>
+                            {participant.personalized_guide && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedGuide(participant)
+                                  setShowGuideModal(true)
+                                }}
+                                className="text-purple-600 border-purple-500 hover:bg-purple-50 text-xs px-3 py-1 h-auto"
+                              >
+                                <Eye className="w-3 h-3 mr-1" />
+                                가이드 보기
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 4주 챌린지 가이드 섹션 - 주차별 발송 */}
+                        {campaign.campaign_type === '4week_challenge' && (
+                          <div className="flex flex-col gap-2">
+                            {/* 가이드 보기/설정 버튼 */}
+                            <div className="flex items-center gap-1.5">
+                              {/* 4주 챌린지: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
+                              {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
                                 <Button
                                   size="sm"
-                                  onClick={() => setShow4WeekGuideModal(true)}
+                                  onClick={() => {
+                                    // 캠페인 레벨 가이드 모달 열기
+                                    setShow4WeekGuideModal(true)
+                                  }}
                                   className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-xs px-3 py-1 h-auto"
                                 >
                                   <Eye className="w-3 h-3 mr-1" />
                                   가이드 보기
                                 </Button>
-                                {!participant.guide_confirmed ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={async () => {
-                                      if (!confirm(`${creatorName}님에게 4주 챌린지 가이드를 전달하시겠습니까?`)) return
-                                      await handleDeliver4WeekGuideByWeek(1)
-                                    }}
-                                    disabled={['filming', 'video_submitted', 'revision_requested', 'approved', 'completed'].includes(participant.status)}
-                                    className="text-green-600 border-green-500 hover:bg-green-50 text-xs px-3 py-1 h-auto"
-                                  >
-                                    <Send className="w-3 h-3 mr-1" />
-                                    전달하기
-                                  </Button>
-                                ) : (
+                              )}
+                              {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedParticipantForGuide(participant)
+                                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                  setShowGuideSelectModal(true)
+                                }}
+                                className="text-purple-600 border-purple-300 hover:bg-purple-50 text-xs px-3 py-1 h-auto"
+                              >
+                                <Send className="w-3 h-3 mr-1" />
+                                선택 후 발송
+                              </Button>
+                              {/* 가이드 발송됨 상태이면 재설정 버튼 표시 */}
+                              {(participant.status === 'filming' || participant.week1_guide_delivered || participant.week2_guide_delivered || participant.week3_guide_delivered || participant.week4_guide_delivered) && (
+                                <>
                                   <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
                                     <CheckCircle className="w-3 h-3" />
                                     전달완료
                                   </span>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-gray-500 text-xs">가이드 생성 필요</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                    className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    재설정
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+
+                            {/* 주차별 발송 버튼 - 캠페인 레벨 가이드가 있으면 표시 */}
+                            {(campaign.challenge_weekly_guides_ai || campaign.challenge_guide_data || campaign.challenge_weekly_guides) && (
+                              <div className="flex flex-wrap gap-1">
+                                {[1, 2, 3, 4].map((weekNum) => {
+                                  const weekKey = `week${weekNum}`
+                                  const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       campaign[`${weekKey}_external_url`] ||
+                                                       campaign[`${weekKey}_external_file_url`]
+                                  const isDelivered = participant[`${weekKey}_guide_delivered`]
+                                  const weekDeadline = campaign[`${weekKey}_deadline`]
+
+                                  return (
+                                    <div key={weekNum} className="flex items-center">
+                                      {isDelivered ? (
+                                        <span className="flex items-center gap-0.5 text-green-600 text-[10px] font-medium px-1.5 py-0.5 bg-green-50 rounded border border-green-200">
+                                          <CheckCircle className="w-2.5 h-2.5" />
+                                          {weekNum}주
+                                        </span>
+                                      ) : hasWeekGuide ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={async () => {
+                                            const deadlineText = weekDeadline
+                                              ? new Date(weekDeadline).toLocaleDateString('ko-KR')
+                                              : '미정'
+                                            if (!confirm(`${creatorName}님에게 ${weekNum}주차 가이드를 전달하시겠습니까?\n\n마감일: ${deadlineText}`)) return
+
+                                            try {
+                                              // 개별 크리에이터에게 주차별 가이드 발송
+                                              const { error } = await supabase
+                                                .from('applications')
+                                                .update({
+                                                  [`week${weekNum}_guide_delivered`]: true,
+                                                  [`week${weekNum}_guide_delivered_at`]: new Date().toISOString(),
+                                                  status: 'filming',
+                                                  updated_at: new Date().toISOString()
+                                                })
+                                                .eq('id', participant.id)
+
+                                              if (error) throw error
+
+                                              // 알림톡 발송
+                                              const { data: profile } = await supabase
+                                                .from('user_profiles')
+                                                .select('phone')
+                                                .eq('id', participant.user_id)
+                                                .maybeSingle()
+
+                                              if (profile?.phone) {
+                                                try {
+                                                  await fetch('/.netlify/functions/send-kakao-notification', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                      receiverNum: profile.phone,
+                                                      receiverName: creatorName,
+                                                      templateCode: '025100001012',
+                                                      variables: {
+                                                        '크리에이터명': creatorName,
+                                                        '캠페인명': `${campaign.title} (${weekNum}주차)`,
+                                                        '제출기한': deadlineText
+                                                      }
+                                                    })
+                                                  })
+                                                } catch (e) { console.error('Alimtalk error:', e) }
+                                              }
+
+                                              alert(`${creatorName}님에게 ${weekNum}주차 가이드가 전달되었습니다!`)
+                                              await fetchParticipants()
+                                            } catch (error) {
+                                              alert('가이드 전달 실패: ' + error.message)
+                                            }
+                                          }}
+                                          className="text-purple-600 border-purple-400 hover:bg-purple-50 text-[10px] px-1.5 py-0.5 h-auto"
+                                        >
+                                          <Send className="w-2.5 h-2.5 mr-0.5" />
+                                          {weekNum}주
+                                        </Button>
+                                      ) : (
+                                        <span className="flex items-center gap-0.5 text-gray-400 text-[10px] px-1.5 py-0.5 bg-gray-50 rounded border border-gray-200">
+                                          {weekNum}주 미설정
+                                        </span>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
                             )}
                           </div>
                         )}
 
-                        {/* 4주 챌린지 메시지 섹션 - 인라인 버튼 */}
-                        {campaign.campaign_type === '4week_challenge' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedParticipantForMessage(participant)
-                              setIndividualMessage(participant.personalized_guide || '')
-                              setShowIndividualMessageModal(true)
-                            }}
-                            className="text-indigo-600 border-indigo-400 hover:bg-indigo-50 text-xs px-3 py-1 h-auto"
-                          >
-                            {participant.personalized_guide ? (
-                              <>
+                        {/* 올영 가이드 섹션 - 인라인 버튼 */}
+                        {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+                          <div className="flex items-center gap-1.5">
+                            {/* 올영: 캠페인 레벨 가이드가 있으면 가이드 보기 버튼 표시 */}
+                            {(campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide || campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide || campaign.oliveyoung_step3_guide) && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  // 캠페인 레벨 가이드 모달 열기
+                                  setShowOliveyoungGuideModal(true)
+                                }}
+                                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white text-xs px-3 py-1 h-auto"
+                              >
                                 <Eye className="w-3 h-3 mr-1" />
-                                가이드 확인
-                              </>
-                            ) : (
+                                가이드 보기
+                              </Button>
+                            )}
+                            {/* 선택 후 발송 버튼 (AI 가이드 or 파일/URL 선택) */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedParticipantForGuide(participant)
+                                setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                                setShowGuideSelectModal(true)
+                              }}
+                              className="text-green-600 border-green-300 hover:bg-green-50 text-xs px-3 py-1 h-auto"
+                            >
+                              <Send className="w-3 h-3 mr-1" />
+                              선택 후 발송
+                            </Button>
+                            {participant.status === 'filming' && (
                               <>
-                                <Edit3 className="w-3 h-3 mr-1" />
-                                메시지 작성
+                                <span className="flex items-center gap-1 text-green-600 text-xs font-medium px-2">
+                                  <CheckCircle className="w-3 h-3" />
+                                  전달완료
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelGuideDelivery(participant.id, creatorName)}
+                                  className="text-red-500 border-red-300 hover:bg-red-50 text-xs px-2 py-1 h-auto"
+                                >
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  재설정
+                                </Button>
                               </>
                             )}
-                          </Button>
+                          </div>
                         )}
+
                       </div>
                     </div>
                   </div>
@@ -3147,6 +4840,48 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Error updating creator status:', error)
       alert('상태 업데이트에 실패했습니다.')
+    }
+  }
+
+  // 가이드 전달 취소 함수
+  const handleCancelGuideDelivery = async (participantId, creatorName) => {
+    if (!confirm(`${creatorName}님의 가이드 전달을 취소하시겠습니까?\n\n취소 후 다시 전달할 수 있습니다.`)) {
+      return
+    }
+
+    try {
+      // 4주 챌린지의 경우 주차별 데이터도 초기화
+      const updateData = {
+        personalized_guide: null, // 가이드 초기화
+        updated_at: new Date().toISOString(),
+        status: 'selected' // 선정됨 상태로 되돌림
+      }
+
+      // 4주 챌린지 주차별 데이터 초기화
+      if (campaign.campaign_type === '4week_challenge') {
+        updateData.week1_guide_delivered = false
+        updateData.week1_guide_delivered_at = null
+        updateData.week2_guide_delivered = false
+        updateData.week2_guide_delivered_at = null
+        updateData.week3_guide_delivered = false
+        updateData.week3_guide_delivered_at = null
+        updateData.week4_guide_delivered = false
+        updateData.week4_guide_delivered_at = null
+      }
+
+      const { error } = await supabase
+        .from('applications')
+        .update(updateData)
+        .eq('id', participantId)
+
+      if (error) throw error
+
+      // 참여자 목록 재로드
+      await fetchParticipants()
+      alert(`${creatorName}님의 가이드 전달이 취소되었습니다. 다시 전달할 수 있습니다.`)
+    } catch (error) {
+      console.error('Error cancelling guide delivery:', error)
+      alert('가이드 전달 취소에 실패했습니다: ' + error.message)
     }
   }
 
@@ -3688,140 +5423,149 @@ export default function CampaignDetail() {
               </Card>
             )}
 
-            {/* 지원한 크리에이터 섹션 */}
+            {/* 지원한 크리에이터 섹션 - 컴팩트 그리드 */}
             <Card>
               <CardHeader>
                 <CardTitle>지원한 크리에이터 ({applications.length}명)</CardTitle>
                 <p className="text-sm text-gray-600">캠페인에 직접 지원한 신청자들입니다.</p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {applications.map(app => {
-                    // 이미 participants에 있는지 확인 (user_id로 비교)
-                    const isAlreadyParticipant = participants.some(p =>
-                      p.user_id && app.user_id && p.user_id === app.user_id
-                    )
-
-                    return (
-                      <CreatorCard
-                        key={app.id}
-                        application={app}
-                        campaignQuestions={[
-                          campaign?.questions?.[0]?.question || campaign?.question1 || '',
-                          campaign?.questions?.[1]?.question || campaign?.question2 || '',
-                          campaign?.questions?.[2]?.question || campaign?.question3 || '',
-                          campaign?.questions?.[3]?.question || campaign?.question4 || ''
-                        ]}
-                        onVirtualSelect={handleVirtualSelect}
-                        isConfirmed={app.status === 'selected'}
-                        isAlreadyParticipant={isAlreadyParticipant}
-                        onCancel={(app) => {
-                          setCancellingApp(app)
-                          setCancelModalOpen(true)
-                        }}
-                        onViewProfile={async (app) => {
-                          // user_profiles에서 크리에이터 정보 가져오기
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('*')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-                            
-                            // applications 데이터 + user_profiles 데이터 병합
-                            setSelectedParticipant({
-                              ...app,
-                              ...profile
-                            })
-                            setShowProfileModal(true)
-                          } catch (error) {
-                            console.error('Error fetching profile:', error)
-                            alert('프로필 정보를 불러오는데 실패했습니다.')
-                          }
-                        }}
-                      onConfirm={async (app, mainChannel) => {
-                        // 개별 확정
-                        if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
-
-                        try {
-                          // 모집인원 제한 체크
-                          const currentParticipantsCount = participants.length
-                          const totalSlots = campaign.total_slots || 0
-                          const availableSlots = totalSlots - currentParticipantsCount
-
-                          if (availableSlots <= 0) {
-                            alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
-                            return
-                          }
-
-                          // 플랫폼 추출
-                          let platform = '-'
-                          const channelToCheck = mainChannel || app.main_channel || ''
-                          if (channelToCheck.includes('YouTube') || channelToCheck.includes('유튜브')) {
-                            platform = 'YouTube'
-                          } else if (channelToCheck.includes('Instagram') || channelToCheck.includes('인스타그램')) {
-                            platform = 'Instagram'
-                          } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
-                            platform = 'TikTok'
-                          }
-
-                          // 기존 application 업데이트 (새로 삽입하지 않음)
-                          const { error: updateError } = await supabase
-                            .from('applications')
-                            .update({
-                              status: 'selected',
-                              virtual_selected: false,
-                              main_channel: mainChannel || app.main_channel
-                            })
-                            .eq('id', app.id)
-
-                          if (updateError) throw updateError
-
-                          await fetchApplications()
-                          await fetchParticipants()
-
-                          // 선정 알림톡 발송
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('email, phone')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-
-                            if (profile && profile.phone) {
-                              await sendCampaignSelectedNotification(
-                                profile.phone,
-                                app.applicant_name,
-                                {
-                                  campaignName: campaign?.title || '캠페인'
-                                }
-                              )
-                            }
-                          } catch (notificationError) {
-                            console.error('Notification error:', notificationError)
-                          }
-
-                          // 선정 후 배송/가이드 세팅 모달 열기
-                          setCreatorForSetup({
-                            ...app,
-                            main_channel: mainChannel || app.main_channel
-                          })
-                          setShowPostSelectionModal(true)
-
-                          // 선정 크리에이터 탭으로 자동 이동
-                          setActiveTab('confirmed')
-                        } catch (error) {
-                          console.error('Error confirming:', error)
-                          alert('확정 처리에 실패했습니다.')
-                        }
-                      }}
-                    />
-                    )
-                  })}
-                </div>
-                {applications.length === 0 && (
+                {applications.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 지원자가 없습니다.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {applications.map(app => {
+                      const isAlreadyParticipant = participants.some(p => p.user_id && app.user_id && p.user_id === app.user_id)
+                      const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
+                      const skinTypeKorean = skinTypeMap[app.skin_type?.toLowerCase()] || app.skin_type || '-'
+                      const formatFollowers = (num) => num >= 10000 ? `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만` : (num?.toLocaleString() || '0')
+                      const formatDate = (d) => d ? `${new Date(d).getMonth() + 1}/${new Date(d).getDate()}` : ''
+
+                      return (
+                        <div key={app.id} className={`relative bg-white rounded-xl border-2 p-3 hover:shadow-lg transition-all ${
+                          app.virtual_selected ? 'border-purple-400 bg-purple-50' :
+                          app.status === 'selected' ? 'border-green-400 bg-green-50' :
+                          'border-gray-200 hover:border-gray-300'
+                        }`}>
+                          {/* 상태 배지 */}
+                          {(app.virtual_selected || app.status === 'selected') && (
+                            <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              app.status === 'selected' ? 'bg-green-500 text-white' : 'bg-purple-500 text-white'
+                            }`}>
+                              {app.status === 'selected' ? '선정' : '가상'}
+                            </div>
+                          )}
+
+                          {/* 프로필 이미지 - 1.3배 크기 */}
+                          <div className="flex justify-center mb-2">
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
+                              {app.profile_photo_url ? (
+                                <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-2xl font-bold text-white">
+                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 이름 & 나이 */}
+                          <div className="text-center mb-2">
+                            <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
+                            <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
+                          </div>
+
+                          {/* 채널 & 팔로워 */}
+                          <div className="space-y-1 mb-2">
+                            {app.instagram_url && (
+                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
+                                <span className="text-pink-600">📷 Instagram</span>
+                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                              </a>
+                            )}
+                            {app.youtube_url && (
+                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
+                                <span className="text-red-600">▶️ YouTube</span>
+                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                              </a>
+                            )}
+                            {app.tiktok_url && (
+                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                                <span className="text-gray-700">🎵 TikTok</span>
+                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                              </a>
+                            )}
+                          </div>
+
+                          {/* 지원일 */}
+                          <p className="text-xs text-gray-400 text-center mb-2">📅 {formatDate(app.created_at)} 지원</p>
+
+                          {/* 버튼들 */}
+                          <div className="space-y-1.5">
+                            {/* 지원서 보기 버튼 */}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  setSelectedParticipant({ ...app, ...profile })
+                                  setShowProfileModal(true)
+                                } catch (error) {
+                                  console.error('Error:', error)
+                                }
+                              }}
+                              className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
+                            >
+                              📋 지원서 보기
+                            </button>
+
+                            {/* 가상선택/선정 버튼 */}
+                            {!isAlreadyParticipant && app.status !== 'selected' && (
+                              <button
+                                onClick={() => {
+                                  // main_channel은 채널 타입 값만 허용 (instagram, youtube, tiktok 등)
+                                  const channel = app.main_channel ||
+                                    (app.instagram_url ? 'instagram' : null) ||
+                                    (app.youtube_url ? 'youtube' : null) ||
+                                    (app.tiktok_url ? 'tiktok' : null)
+                                  handleVirtualSelect(app.id, !app.virtual_selected, channel)
+                                }}
+                                className={`w-full py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                                  app.virtual_selected
+                                    ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                                    : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                                }`}
+                              >
+                                {app.virtual_selected ? '✓ 가상선택됨' : '⭐ 가상 선택'}
+                              </button>
+                            )}
+                            {app.status === 'selected' && (
+                              <>
+                                <div className="w-full py-1.5 text-xs bg-green-100 rounded-lg text-green-700 font-medium text-center">
+                                  ✓ 선정 완료
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setCancellingApp(app)
+                                    setCancelModalOpen(true)
+                                  }}
+                                  className="w-full py-1.5 text-xs bg-red-100 hover:bg-red-200 rounded-lg text-red-600 font-medium transition-colors"
+                                >
+                                  ✕ 선정 취소
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -3972,133 +5716,130 @@ export default function CampaignDetail() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {applications.filter(app => app.virtual_selected).map(app => {
-                    // 이미 participants에 있는지 확인
-                    const isAlreadyParticipant = participants.some(p =>
-                      (p.creator_name || p.applicant_name) === app.applicant_name
-                    )
-
-                    return (
-                      <CreatorCard
-                        key={app.id}
-                        application={app}
-                        campaignQuestions={[
-                          campaign?.questions?.[0]?.question || campaign?.question1 || '',
-                          campaign?.questions?.[1]?.question || campaign?.question2 || '',
-                          campaign?.questions?.[2]?.question || campaign?.question3 || '',
-                          campaign?.questions?.[3]?.question || campaign?.question4 || ''
-                        ]}
-                        onVirtualSelect={handleVirtualSelect}
-                        isConfirmed={app.status === 'selected'}
-                        isAlreadyParticipant={isAlreadyParticipant}
-                        onCancel={(app) => {
-                          setCancellingApp(app)
-                          setCancelModalOpen(true)
-                        }}
-                        onViewProfile={async (app) => {
-                          // user_profiles에서 크리에이터 정보 가져오기
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('*')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-                            
-                            // applications 데이터 + user_profiles 데이터 병합
-                            setSelectedParticipant({
-                              ...app,
-                              ...profile
-                            })
-                            setShowProfileModal(true)
-                          } catch (error) {
-                            console.error('Error fetching profile:', error)
-                            alert('프로필 정보를 불러오는데 실패했습니다.')
-                          }
-                        }}
-                      onConfirm={async (app, mainChannel) => {
-                        // 개별 확정
-                        if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
-
-                        try {
-                          // 모집인원 제한 체크
-                          const currentParticipantsCount = participants.length
-                          const totalSlots = campaign.total_slots || 0
-                          const availableSlots = totalSlots - currentParticipantsCount
-
-                          if (availableSlots <= 0) {
-                            alert(`모집인원(${totalSlots}명)이 이미 충족되었습니다.\n현재 참여 크리에이터: ${currentParticipantsCount}명`)
-                            return
-                          }
-
-                          // 플랫폼 추출
-                          let platform = '-'
-                          const channelToCheck = mainChannel || app.main_channel || ''
-                          if (channelToCheck.includes('YouTube') || channelToCheck.includes('유튜브')) {
-                            platform = 'YouTube'
-                          } else if (channelToCheck.includes('Instagram') || channelToCheck.includes('인스타그램')) {
-                            platform = 'Instagram'
-                          } else if (channelToCheck.includes('TikTok') || channelToCheck.includes('틱톡')) {
-                            platform = 'TikTok'
-                          }
-
-                          // 기존 application 업데이트 (새로 삽입하지 않음)
-                          const { error: updateError } = await supabase
-                            .from('applications')
-                            .update({
-                              status: 'selected',
-                              virtual_selected: false,
-                              main_channel: mainChannel || app.main_channel
-                            })
-                            .eq('id', app.id)
-
-                          if (updateError) throw updateError
-
-                          await fetchApplications()
-                          await fetchParticipants()
-
-                          // 선정 알림톡 발송
-                          try {
-                            const { data: profile } = await supabase
-                              .from('user_profiles')
-                              .select('email, phone')
-                              .eq('id', app.user_id)
-                              .maybeSingle()
-
-                            if (profile?.phone) {
-                              await sendCampaignSelectedNotification(
-                                profile.phone,
-                                app.applicant_name,
-                                {
-                                  campaignName: campaign?.title || '캠페인'
-                                }
-                              )
-                            }
-                          } catch (notificationError) {
-                            console.error('Notification error:', notificationError)
-                          }
-
-                          // 선정 후 배송/가이드 세팅 모달 열기
-                          setCreatorForSetup({
-                            ...app,
-                            main_channel: mainChannel || app.main_channel
-                          })
-                          setShowPostSelectionModal(true)
-
-                          // 선정 크리에이터 탭으로 자동 이동
-                          setActiveTab('confirmed')
-                        } catch (error) {
-                          console.error('Error confirming:', error)
-                          alert('확정 처리에 실패했습니다.')
-                        }
-                      }}
-                    />
-                    )
-                  })}
-                </div>
-                {applications.filter(app => app.virtual_selected).length === 0 && (
+                {applications.filter(app => app.virtual_selected).length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     아직 가상 선정한 크리에이터가 없습니다.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {applications.filter(app => app.virtual_selected).map(app => {
+                      const isAlreadyParticipant = participants.some(p => (p.creator_name || p.applicant_name) === app.applicant_name)
+                      const skinTypeMap = { 'dry': '건성', 'oily': '지성', 'combination': '복합성', 'sensitive': '민감성', 'normal': '중성' }
+                      const skinTypeKorean = skinTypeMap[app.skin_type?.toLowerCase()] || app.skin_type || '-'
+                      const formatFollowers = (num) => num >= 10000 ? `${(num / 10000).toFixed(1).replace(/\.0$/, '')}만` : (num?.toLocaleString() || '0')
+                      const formatDate = (d) => d ? `${new Date(d).getMonth() + 1}/${new Date(d).getDate()}` : ''
+
+                      return (
+                        <div key={app.id} className="relative bg-white rounded-xl border-2 border-purple-400 bg-purple-50 p-3 hover:shadow-lg transition-all">
+                          {/* 가상선택 배지 */}
+                          <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500 text-white">
+                            가상선택
+                          </div>
+
+                          {/* 프로필 이미지 - 1.3배 크기 */}
+                          <div className="flex justify-center mb-2">
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center overflow-hidden shadow-md">
+                              {app.profile_photo_url ? (
+                                <img src={app.profile_photo_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-2xl font-bold text-white">
+                                  {(app.applicant_name || 'C').charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 이름 & 나이 */}
+                          <div className="text-center mb-2">
+                            <p className="font-semibold text-gray-900 truncate text-sm">{app.applicant_name || '-'}</p>
+                            <p className="text-xs text-gray-500">{app.age ? `${app.age}세` : ''} {skinTypeKorean !== '-' ? `· ${skinTypeKorean}` : ''}</p>
+                          </div>
+
+                          {/* 채널 & 팔로워 */}
+                          <div className="space-y-1 mb-2">
+                            {app.instagram_url && (
+                              <a href={normalizeSnsUrl(app.instagram_url, 'instagram')}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-pink-50 rounded hover:bg-pink-100">
+                                <span className="text-pink-600">📷 Instagram</span>
+                                <span className="font-medium text-pink-700">{formatFollowers(app.instagram_followers)}</span>
+                              </a>
+                            )}
+                            {app.youtube_url && (
+                              <a href={normalizeSnsUrl(app.youtube_url, 'youtube')}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-red-50 rounded hover:bg-red-100">
+                                <span className="text-red-600">▶️ YouTube</span>
+                                <span className="font-medium text-red-700">{formatFollowers(app.youtube_subscribers)}</span>
+                              </a>
+                            )}
+                            {app.tiktok_url && (
+                              <a href={normalizeSnsUrl(app.tiktok_url, 'tiktok')}
+                                target="_blank" rel="noopener noreferrer"
+                                className="flex items-center justify-between text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                                <span className="text-gray-700">🎵 TikTok</span>
+                                <span className="font-medium text-gray-800">{formatFollowers(app.tiktok_followers)}</span>
+                              </a>
+                            )}
+                          </div>
+
+                          {/* 지원일 */}
+                          <p className="text-xs text-gray-400 text-center mb-2">📅 {formatDate(app.created_at)} 지원</p>
+
+                          {/* 버튼들 */}
+                          <div className="space-y-1.5">
+                            {/* 지원서 보기 */}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', app.user_id).maybeSingle()
+                                  setSelectedParticipant({ ...app, ...profile })
+                                  setShowProfileModal(true)
+                                } catch (error) {
+                                  console.error('Error:', error)
+                                }
+                              }}
+                              className="w-full py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors"
+                            >
+                              📋 지원서 보기
+                            </button>
+
+                            {/* 가상선택 취소 */}
+                            <button
+                              onClick={() => handleVirtualSelect(app.id, false, app.main_channel)}
+                              className="w-full py-1.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-colors"
+                            >
+                              ✕ 가상선택 취소
+                            </button>
+
+                            {/* 확정하기 */}
+                            {!isAlreadyParticipant && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`${app.applicant_name}님을 확정하시겠습니까?`)) return
+                                  try {
+                                    const { error } = await supabase.from('applications').update({
+                                      status: 'selected',
+                                      virtual_selected: false,
+                                      main_channel: app.main_channel || (app.instagram_url ? 'instagram' : null) || (app.youtube_url ? 'youtube' : null) || (app.tiktok_url ? 'tiktok' : null)
+                                    }).eq('id', app.id)
+                                    if (error) throw error
+                                    await fetchApplications()
+                                    await fetchParticipants()
+                                    setActiveTab('confirmed')
+                                  } catch (error) {
+                                    alert('확정 처리 실패: ' + error.message)
+                                  }
+                                }}
+                                className="w-full py-1.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+                              >
+                                ✓ 확정하기
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -4117,7 +5858,141 @@ export default function CampaignDetail() {
                     </CardTitle>
                     <p className="text-sm text-green-600 mt-1">선정된 크리에이터의 배송, 가이드, 진행 상태를 관리하세요</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* 4주 챌린지: 가이드 발송 버튼 */}
+                    {campaign.campaign_type === '4week_challenge' && (
+                      <div className="flex items-center gap-2 bg-purple-50 p-2 rounded-lg border border-purple-200">
+                        {/* 가이드 존재 여부 확인 */}
+                        {(() => {
+                          const hasGuide = campaign.challenge_guide_data || campaign.challenge_weekly_guides || campaign.challenge_weekly_guides_ai
+                          const hasAnyWeekGuide = hasGuide || campaign.week1_external_url || campaign.week2_external_url || campaign.week3_external_url || campaign.week4_external_url
+
+                          if (!hasAnyWeekGuide) {
+                            return <span className="text-xs text-gray-500 px-2">가이드가 설정되지 않았습니다</span>
+                          }
+
+                          return (
+                            <>
+                              {/* 전체 또는 선택된 크리에이터에게 보내기 */}
+                              <Button
+                                size="sm"
+                                onClick={() => handleDeliverOliveYoung4WeekGuide()}
+                                disabled={participants.length === 0}
+                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-7"
+                              >
+                                <Send className="w-3 h-3 mr-1" />
+                                {selectedParticipants.length > 0
+                                  ? `선택된 ${selectedParticipants.length}명에게 보내기`
+                                  : '전체 보내기'}
+                              </Button>
+
+                              <span className="text-gray-400 text-xs">또는</span>
+
+                              {/* 주차별 보내기 */}
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-purple-700 font-medium">주차별:</span>
+                                {[1, 2, 3, 4].map((weekNum) => {
+                                  const weekKey = `week${weekNum}`
+                                  const hasWeekGuide = campaign.challenge_guide_data?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides?.[weekKey] ||
+                                                       campaign.challenge_weekly_guides_ai?.[weekKey] ||
+                                                       campaign[`${weekKey}_external_url`] ||
+                                                       campaign[`${weekKey}_external_file_url`]
+                                  return (
+                                    <Button
+                                      key={weekNum}
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={!hasWeekGuide || participants.length === 0}
+                                      onClick={() => handleDeliver4WeekGuideByWeek(weekNum)}
+                                      className={`text-xs px-2 py-1 h-7 ${
+                                        hasWeekGuide
+                                          ? 'border-purple-400 text-purple-700 hover:bg-purple-100'
+                                          : 'border-gray-300 text-gray-400'
+                                      }`}
+                                    >
+                                      {weekNum}주
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            </>
+                          )
+                        })()}
+                      </div>
+                    )}
+
+                    {/* 올영 캠페인: 가이드 발송 버튼 */}
+                    {(campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
+                      <div className="flex items-center gap-2 bg-green-50 p-2 rounded-lg border border-green-200">
+                        {(() => {
+                          const hasGuide = campaign.oliveyoung_step1_guide_ai || campaign.oliveyoung_step1_guide ||
+                                           campaign.oliveyoung_step2_guide_ai || campaign.oliveyoung_step2_guide ||
+                                           campaign.oliveyoung_step3_guide
+
+                          if (!hasGuide) {
+                            return <span className="text-xs text-gray-500 px-2">가이드가 설정되지 않았습니다</span>
+                          }
+
+                          return (
+                            <Button
+                              size="sm"
+                              onClick={() => handleDeliverOliveYoung4WeekGuide()}
+                              disabled={participants.length === 0}
+                              className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 h-7"
+                            >
+                              <Send className="w-3 h-3 mr-1" />
+                              {selectedParticipants.length > 0
+                                ? `선택된 ${selectedParticipants.length}명에게 가이드 보내기`
+                                : '전체 가이드 보내기'}
+                            </Button>
+                          )
+                        })()}
+                      </div>
+                    )}
+
+                    {/* 기획형 캠페인: 체크박스 선택 후 가이드 일괄 전달 */}
+                    {campaign.campaign_type === 'planned' && selectedParticipants.length > 0 && (
+                      <div className="flex items-center gap-2 bg-pink-50 p-2 rounded-lg border border-pink-200">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            // 선택된 크리에이터 중 가이드가 있는 사람들 필터링
+                            const selectedWithGuide = participants.filter(p =>
+                              selectedParticipants.includes(p.id) && p.personalized_guide
+                            )
+
+                            if (selectedWithGuide.length === 0) {
+                              alert('선택된 크리에이터 중 가이드가 생성된 사람이 없습니다. 먼저 가이드를 생성해주세요.')
+                              return
+                            }
+
+                            if (!confirm(`${selectedWithGuide.length}명에게 가이드를 전달하시겠습니까?`)) return
+
+                            await handleGuideApproval(selectedWithGuide.map(p => p.id))
+                            setSelectedParticipants([])
+                          }}
+                          className="bg-pink-600 hover:bg-pink-700 text-white text-xs px-3 py-1 h-7"
+                        >
+                          <Send className="w-3 h-3 mr-1" />
+                          선택된 {selectedParticipants.length}명에게 가이드 전달
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* US 캠페인: 배송정보 요청 이메일 발송 */}
+                    {region === 'us' && (
+                      <Button
+                        variant="outline"
+                        onClick={handleRequestShippingInfo}
+                        className="bg-white border-orange-200 hover:bg-orange-50 text-orange-700"
+                        disabled={participants.length === 0 || requestingShippingInfo}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {requestingShippingInfo ? 'Sending...' : 'Request Shipping Info'}
+                      </Button>
+                    )}
+
                     {/* 배송정보 엑셀 다운로드 */}
                     <Button
                       variant="outline"
@@ -4274,11 +6149,20 @@ export default function CampaignDetail() {
                 </div>
 
                 {(() => {
-                  // Group video submissions by user_id
-                  // Show all non-approved submissions (submitted, video_submitted, revision_requested, resubmitted, pending, null)
+                  // Group video submissions by user_id only
                   console.log('All video submissions:', videoSubmissions)
                   console.log('Video submission statuses:', videoSubmissions.map(v => ({ id: v.id, status: v.status })))
-                  const filteredSubmissions = videoSubmissions.filter(v => !['approved', 'completed', 'rejected'].includes(v.status))
+
+                  // 캠페인 타입 확인
+                  const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                  const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                  const isMultiStepCampaign = is4WeekChallenge || isOliveyoung
+
+                  // 검수완료(approved) 상태도 포함해서 보여주기 (rejected, completed만 제외)
+                  // 멀티스텝 캠페인에서는 다른 주차/영상도 확인해야 하므로 유지
+                  const filteredSubmissions = videoSubmissions.filter(v => !['completed', 'rejected'].includes(v.status))
+
+                  // user_id로만 그룹화
                   const groupedByUser = filteredSubmissions.reduce((acc, submission) => {
                     if (!acc[submission.user_id]) {
                       acc[submission.user_id] = []
@@ -4286,12 +6170,7 @@ export default function CampaignDetail() {
                     acc[submission.user_id].push(submission)
                     return acc
                   }, {})
-                  
-                  // Sort each group by submitted_at (oldest first)
-                  Object.keys(groupedByUser).forEach(userId => {
-                    groupedByUser[userId].sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at))
-                  })
-                  
+
                   if (Object.keys(groupedByUser).length === 0) {
                     return (
                       <div className="text-center py-12 text-gray-500">
@@ -4299,61 +6178,109 @@ export default function CampaignDetail() {
                       </div>
                     )
                   }
-                  
+
                   return (
                     <div className="space-y-6">
-                      {Object.entries(groupedByUser).map(([userId, submissions]) => {
-                        const selectedVersion = selectedVideoVersions[userId] || 0
-                        const submission = submissions[selectedVersion]
+                      {Object.entries(groupedByUser).map(([userId, userSubmissions]) => {
+                        // 멀티스텝 캠페인인 경우 주차/영상번호별로 다시 그룹화
+                        const submissionsByStep = {}
+                        if (is4WeekChallenge) {
+                          userSubmissions.forEach(sub => {
+                            const step = sub.week_number || 1
+                            if (!submissionsByStep[step]) submissionsByStep[step] = []
+                            submissionsByStep[step].push(sub)
+                          })
+                        } else if (isOliveyoung) {
+                          userSubmissions.forEach(sub => {
+                            const step = sub.video_number || 1
+                            if (!submissionsByStep[step]) submissionsByStep[step] = []
+                            submissionsByStep[step].push(sub)
+                          })
+                        } else {
+                          submissionsByStep[1] = userSubmissions
+                        }
+
+                        // 각 스텝 내에서 submitted_at으로 정렬 (최신 먼저)
+                        Object.keys(submissionsByStep).forEach(step => {
+                          submissionsByStep[step].sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))
+                        })
+
+                        const availableSteps = Object.keys(submissionsByStep).map(Number).sort((a, b) => a - b)
+                        const selectedStep = selectedVideoSteps[userId] || availableSteps[0]
+                        const stepSubmissions = submissionsByStep[selectedStep] || []
+                        const versionKey = `${userId}_${selectedStep}`
+                        const selectedVersion = selectedVideoVersions[versionKey] || 0
+                        const submission = stepSubmissions[selectedVersion]
+
+                        if (!submission) return null
+
                         return (
-                      <div key={submission.id} className="border rounded-lg p-6 bg-white shadow-sm">
+                      <div key={userId} className="border rounded-lg p-6 bg-white shadow-sm">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                           {/* 왼쪽: 영상 플레이어 */}
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <div>
                                 <h4 className="font-semibold text-lg">{participants.find(p => p.user_id === submission.user_id)?.applicant_name || '크리에이터'}</h4>
-                                <div className="flex gap-2 mt-1">
-                                  {submission.video_number && (
-                                    <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded">
-                                      영상 {submission.video_number}
-                                    </span>
-                                  )}
-                                  {submission.week_number && (
-                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                                      {submission.week_number}주차
-                                    </span>
-                                  )}
-                                  {submission.version && (
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
-                                      V{submission.version}
-                                    </span>
-                                  )}
-                                </div>
                               </div>
-                              {submissions.length > 1 && (
-                                <div className="flex gap-2">
-                                  {submissions.map((_, index) => (
-                                    <button
-                                      key={index}
-                                      onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [userId]: index }))}
-                                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                                        selectedVersion === index
-                                          ? 'bg-blue-600 text-white'
-                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                      }`}
-                                    >
-                                      v{index + 1}
-                                    </button>
-                                  ))}
-                                </div>
+                            </div>
+
+                            {/* 주차/영상번호 탭 (4주 챌린지, 올리브영) */}
+                            {isMultiStepCampaign && availableSteps.length > 0 && (
+                              <div className="flex gap-2 mb-3">
+                                {availableSteps.map(step => (
+                                  <button
+                                    key={step}
+                                    onClick={() => setSelectedVideoSteps(prev => ({ ...prev, [userId]: step }))}
+                                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                      selectedStep === step
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                    }`}
+                                  >
+                                    {is4WeekChallenge ? `${step}주차` : `영상 ${step}`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* 버전 탭 */}
+                            {stepSubmissions.length > 1 && (
+                              <div className="flex gap-2 mb-3">
+                                {stepSubmissions.map((sub, index) => (
+                                  <button
+                                    key={index}
+                                    onClick={() => setSelectedVideoVersions(prev => ({ ...prev, [versionKey]: index }))}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                      selectedVersion === index
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                  >
+                                    v{sub.version || (stepSubmissions.length - index)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* 현재 선택된 주차/버전 표시 */}
+                            <div className="flex gap-2 mb-3">
+                              {isMultiStepCampaign && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                                  {is4WeekChallenge ? `${selectedStep}주차` : `영상 ${selectedStep}`}
+                                </span>
+                              )}
+                              {submission.version && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-semibold">
+                                  V{submission.version}
+                                </span>
                               )}
                             </div>
-                            
+
                             {submission.video_file_url && (
                               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                                 <video
-                                  key={`${userId}-${selectedVersion}-${submission.id}`}
+                                  key={`${userId}-${selectedStep}-${selectedVersion}-${submission.id}`}
                                   controls
                                   autoPlay
                                   muted
@@ -4366,7 +6293,7 @@ export default function CampaignDetail() {
                                 </video>
                               </div>
                             )}
-                            
+
                             <div className="mt-4 space-y-2">
                               {submission.sns_title && (
                                 <div>
@@ -4382,11 +6309,13 @@ export default function CampaignDetail() {
                               )}
                             </div>
                           </div>
-                          
+
                           {/* 오른쪽: 정보 및 버튼 */}
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              {submission.status === 'submitted' ? (
+                              {submission.status === 'approved' ? (
+                                <Badge className="bg-green-100 text-green-700">검수 완료</Badge>
+                              ) : submission.status === 'submitted' ? (
                                 <Badge className="bg-blue-100 text-blue-700">검토 대기</Badge>
                               ) : (
                                 <Badge className="bg-yellow-100 text-yellow-700">수정 요청됨</Badge>
@@ -4423,12 +6352,16 @@ export default function CampaignDetail() {
                                 </div>
                               )}
                               
-                              {submission.partnership_code && (
-                                <div>
-                                  <p className="text-gray-500">파트너십 광고 코드</p>
-                                  <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{submission.partnership_code}</p>
-                                </div>
-                              )}
+                              {(() => {
+                                const participant = participants.find(p => p.user_id === submission.user_id)
+                                const partnershipCode = participant?.partnership_code || submission.partnership_code
+                                return partnershipCode ? (
+                                  <div>
+                                    <p className="text-gray-500">파트너십 광고 코드</p>
+                                    <p className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{partnershipCode}</p>
+                                  </div>
+                                ) : null
+                              })()}
                             </div>
                             
                             <div className="flex flex-col gap-2 pt-4">
@@ -4464,26 +6397,35 @@ export default function CampaignDetail() {
                                 </svg>
                                 영상 다운로드
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => {
-                                  navigate(`/video-review/${submission.id}`)
-                                }}
-                              >
-                                영상 수정 요청하기
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                                onClick={async () => {
-                                  if (!confirm('이 영상을 검수 완료하시겠습니까? 포인트가 지급됩니다.')) return
-                                  await handleVideoApproval(submission)
-                                }}
-                              >
-                                검수 완료
-                              </Button>
+                              {submission.status !== 'approved' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => {
+                                      navigate(`/video-review/${submission.id}`)
+                                    }}
+                                  >
+                                    영상 수정 요청하기
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={async () => {
+                                      if (!confirm('이 영상을 검수 완료하시겠습니까?\n\nSNS 업로드 확인 후 "최종 확정" 버튼을 눌러주세요.')) return
+                                      await handleVideoApproval(submission)
+                                    }}
+                                  >
+                                    검수 완료
+                                  </Button>
+                                </>
+                              )}
+                              {submission.status === 'approved' && (
+                                <div className="text-center text-sm text-green-600 font-medium py-2 bg-green-50 rounded">
+                                  ✓ 이 영상은 검수 완료되었습니다
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -4501,23 +6443,49 @@ export default function CampaignDetail() {
           <TabsContent value="completed">
             <Card>
               <CardHeader>
+                {(() => {
+                  // 멀티비디오 캠페인 여부 체크
+                  const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                  const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
+
+                  // 완료 섹션에 표시할 참가자 필터
+                  // - 일반 캠페인: approved/completed 상태
+                  // - 멀티비디오 캠페인: approved/completed/sns_uploaded 상태 OR SNS URL이 하나라도 입력된 경우
+                  // - campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시 (데이터 직접 입력 대응)
+                  // - video_submissions에 approved된 영상이 있는 경우도 포함
+                  const completedSectionParticipants = participants.filter(p => {
+                    if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
+                    // 4주 챌린지 URL이 있으면 표시
+                    if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
+                    // 올리브영 URL이 있으면 표시
+                    if (p.step1_url || p.step2_url || p.step3_url) return true
+                    // video_submissions에 approved/completed된 영상이 있으면 표시
+                    const hasApprovedVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
+                    )
+                    if (hasApprovedVideo) return true
+                    return false
+                  })
+
+                  return (
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-green-600" />
                     완료된 크리에이터
                     <Badge className="bg-green-100 text-green-700 ml-2">
-                      {participants.filter(p => ['approved', 'completed'].includes(p.status)).length}명
+                      {completedSectionParticipants.length}명
                     </Badge>
                   </CardTitle>
-                  {participants.filter(p => ['approved', 'completed'].includes(p.status)).length > 0 && (
+                  {completedSectionParticipants.length > 0 && (
                     <Button
                       size="sm"
                       variant="outline"
                       className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
                       onClick={async () => {
-                        const completedParticipants = participants.filter(p => ['approved', 'completed'].includes(p.status))
+                        const completedParticipants = participants.filter(p => ['approved', 'completed', 'sns_uploaded'].includes(p.status))
                         const completedSubmissions = videoSubmissions.filter(sub =>
-                          sub.status === 'approved' &&
+                          ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status) &&
                           completedParticipants.some(p => p.user_id === sub.user_id)
                         )
 
@@ -4557,20 +6525,105 @@ export default function CampaignDetail() {
                     </Button>
                   )}
                 </div>
+                  )
+                })()}
               </CardHeader>
               <CardContent>
-                {participants.filter(p => ['approved', 'completed'].includes(p.status)).length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>아직 완료된 크리에이터가 없습니다.</p>
-                  </div>
-                ) : (
+                {(() => {
+                  // 멀티비디오 캠페인 여부 체크 (CardContent용)
+                  const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                  const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                  const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
+
+                  // 완료 섹션에 표시할 참가자 필터
+                  // campaign_type과 관계없이 멀티비디오 SNS URL이 있으면 표시
+                  // video_submissions에 approved된 영상이 있는 경우도 포함
+                  const completedSectionParticipants = participants.filter(p => {
+                    if (['approved', 'completed', 'sns_uploaded'].includes(p.status)) return true
+                    // 4주 챌린지 URL이 있으면 표시
+                    if (p.week1_url || p.week2_url || p.week3_url || p.week4_url) return true
+                    // 올리브영 URL이 있으면 표시
+                    if (p.step1_url || p.step2_url || p.step3_url) return true
+                    // video_submissions에 approved/completed된 영상이 있으면 표시
+                    const hasApprovedVideo = videoSubmissions.some(
+                      v => v.user_id === p.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(v.status)
+                    )
+                    if (hasApprovedVideo) return true
+                    return false
+                  })
+
+                  if (completedSectionParticipants.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        <CheckCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>아직 완료된 크리에이터가 없습니다.</p>
+                      </div>
+                    )
+                  }
+
+                  return (
                   <div className="space-y-6">
-                    {participants.filter(p => ['approved', 'completed'].includes(p.status)).map(participant => {
-                      // 해당 크리에이터의 승인된 영상들
-                      const creatorSubmissions = videoSubmissions.filter(
-                        sub => sub.user_id === participant.user_id && sub.status === 'approved'
-                      ).sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
+                    {completedSectionParticipants.map(participant => {
+                      // 해당 크리에이터의 승인된 영상들 (video_number별 최신 버전만)
+                      const allSubmissions = videoSubmissions.filter(
+                        sub => sub.user_id === participant.user_id && ['approved', 'completed', 'sns_uploaded', 'final_confirmed'].includes(sub.status)
+                      )
+
+                      // video_number별로 그룹화하여 최신 버전만 유지
+                      const latestByVideoNumber = {}
+                      allSubmissions.forEach(sub => {
+                        const key = sub.video_number || sub.week_number || 'default'
+                        const existing = latestByVideoNumber[key]
+                        if (!existing ||
+                            (sub.version || 0) > (existing.version || 0) ||
+                            new Date(sub.submitted_at) > new Date(existing.submitted_at)) {
+                          latestByVideoNumber[key] = sub
+                        }
+                      })
+
+                      const creatorSubmissions = Object.values(latestByVideoNumber)
+                        .sort((a, b) => (a.week_number || a.video_number || 0) - (b.week_number || b.video_number || 0))
+
+                      // 멀티비디오 캠페인 체크 (올영: 2개, 4주챌린지: 4개)
+                      const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+                      const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+                      const isMultiVideoCampaign = is4WeekChallenge || isOliveyoung
+                      const requiredVideoCount = is4WeekChallenge ? 4 : isOliveyoung ? 2 : 1
+
+                      // 멀티비디오 캠페인의 SNS URL/광고코드 체크 (campaign_participants 테이블 컬럼 사용)
+                      let allVideosHaveSnsUrl = false
+                      let allVideosHaveAdCode = false
+                      let multiVideoStatus = []
+
+                      if (is4WeekChallenge) {
+                        // 4주 챌린지: week1_url ~ week4_url, week1_partnership_code ~ week4_partnership_code
+                        multiVideoStatus = [
+                          { week: 1, url: participant.week1_url, code: participant.week1_partnership_code },
+                          { week: 2, url: participant.week2_url, code: participant.week2_partnership_code },
+                          { week: 3, url: participant.week3_url, code: participant.week3_partnership_code },
+                          { week: 4, url: participant.week4_url, code: participant.week4_partnership_code }
+                        ]
+                        allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
+                        allVideosHaveAdCode = multiVideoStatus.every(s => s.code)
+                      } else if (isOliveyoung) {
+                        // 올리브영: step1_url, step2_url, step3_url (3개), step1_2_partnership_code, step3_partnership_code (2개)
+                        multiVideoStatus = [
+                          { step: 1, url: participant.step1_url, code: participant.step1_2_partnership_code },
+                          { step: 2, url: participant.step2_url, code: participant.step1_2_partnership_code },
+                          { step: 3, url: participant.step3_url, code: participant.step3_partnership_code }
+                        ]
+                        allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
+                        allVideosHaveAdCode = participant.step1_2_partnership_code && participant.step3_partnership_code
+                      } else {
+                        // 일반/기획형: sns_upload_url, partnership_code
+                        allVideosHaveSnsUrl = !!participant.sns_upload_url || creatorSubmissions.every(sub => sub.sns_upload_url)
+                        allVideosHaveAdCode = !!participant.partnership_code || creatorSubmissions.every(sub => sub.ad_code || sub.partnership_code)
+                      }
+
+                      // 이미 최종 확정된 영상이 있는지 체크
+                      const hasConfirmedVideo = creatorSubmissions.some(sub => sub.final_confirmed_at)
+                      const allVideosConfirmed = creatorSubmissions.length > 0 &&
+                        creatorSubmissions.every(sub => sub.final_confirmed_at)
 
                       return (
                         <div key={participant.id} className="border rounded-xl p-5 bg-gradient-to-r from-green-50 to-emerald-50 shadow-sm">
@@ -4594,143 +6647,723 @@ export default function CampaignDetail() {
                           {/* 영상 목록 */}
                           {creatorSubmissions.length > 0 ? (
                             <div className="space-y-4">
-                              {creatorSubmissions.map((submission, idx) => (
-                                <div key={submission.id} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
-                                  <div className="flex items-start justify-between gap-4">
-                                    {/* 영상 정보 */}
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <Video className="w-4 h-4 text-purple-600" />
-                                        <span className="font-semibold text-gray-800">
-                                          {submission.week_number ? `${submission.week_number}주차 영상` :
-                                           submission.video_number ? `영상 ${submission.video_number}` :
-                                           `영상 ${idx + 1}`}
-                                        </span>
-                                        {submission.version && submission.version > 1 && (
-                                          <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
-                                        )}
-                                      </div>
+                              {/* 기획형 캠페인 (4주/올영): 편집본과 클린본 섹션 분리 */}
+                              {isMultiVideoCampaign ? (
+                                <>
+                                  {/* 편집본 섹션 */}
+                                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                    <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                                      <Video className="w-4 h-4" />
+                                      편집본
+                                      <Badge className="bg-blue-600 text-white text-xs">
+                                        {creatorSubmissions.filter(s => s.video_file_url).length}개
+                                      </Badge>
+                                    </h5>
+                                    <div className="space-y-3">
+                                      {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
+                                        // SNS URL 가져오기
+                                        let snsUrl = submission.sns_upload_url
+                                        if (!snsUrl && is4WeekChallenge && submission.week_number) {
+                                          snsUrl = participant[`week${submission.week_number}_url`]
+                                        } else if (!snsUrl && isOliveyoung && submission.video_number) {
+                                          snsUrl = participant[`step${submission.video_number}_url`]
+                                        }
+                                        if (!snsUrl) snsUrl = participant.sns_upload_url
 
-                                      {/* SNS 업로드 URL */}
-                                      {submission.sns_upload_url && (
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <Link className="w-4 h-4 text-blue-500" />
-                                          <a
-                                            href={submission.sns_upload_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-sm text-blue-600 hover:underline truncate max-w-md"
-                                          >
-                                            {submission.sns_upload_url}
-                                          </a>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 px-2 text-blue-600 hover:bg-blue-50"
-                                            onClick={() => {
-                                              navigator.clipboard.writeText(submission.sns_upload_url)
-                                              alert('SNS 링크가 복사되었습니다!')
-                                            }}
-                                          >
-                                            <Copy className="w-3 h-3" />
-                                          </Button>
-                                        </div>
-                                      )}
+                                        // 광고코드 가져오기
+                                        let adCode = submission.ad_code || submission.partnership_code
+                                        if (!adCode && is4WeekChallenge && submission.week_number) {
+                                          adCode = participant[`week${submission.week_number}_partnership_code`]
+                                        } else if (!adCode && isOliveyoung && submission.video_number) {
+                                          adCode = submission.video_number === 3
+                                            ? participant.step3_partnership_code
+                                            : participant.step1_2_partnership_code
+                                        }
+                                        if (!adCode) adCode = participant.partnership_code
 
-                                      {/* 파트너십 광고 코드 */}
-                                      {submission.partnership_code && (
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <Hash className="w-4 h-4 text-orange-500" />
-                                          <span className="text-sm text-gray-600">광고코드:</span>
-                                          <code className="text-sm bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-mono">
-                                            {submission.partnership_code}
-                                          </code>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 px-2 text-orange-600 hover:bg-orange-50"
-                                            onClick={() => {
-                                              navigator.clipboard.writeText(submission.partnership_code)
-                                              alert('광고코드가 복사되었습니다!')
-                                            }}
-                                          >
-                                            <Copy className="w-3 h-3" />
-                                          </Button>
-                                        </div>
-                                      )}
-
-                                      {/* 제출일/승인일 */}
-                                      <div className="text-xs text-gray-500 mt-2">
-                                        제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
-                                        {submission.approved_at && (
-                                          <span className="ml-2">
-                                            · 승인: {new Date(submission.approved_at).toLocaleDateString('ko-KR')}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* 버튼 그룹 */}
-                                    <div className="flex flex-col gap-2">
-                                      {/* 영상 다운로드 */}
-                                      <Button
-                                        size="sm"
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                        onClick={async () => {
-                                          try {
-                                            const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
-                                            const blob = await response.blob()
-                                            const blobUrl = window.URL.createObjectURL(blob)
-                                            const creatorName = participant.creator_name || participant.applicant_name || 'creator'
-                                            const weekLabel = submission.week_number ? `_week${submission.week_number}` : (submission.video_number ? `_v${submission.video_number}` : '')
-
-                                            const link = document.createElement('a')
-                                            link.href = blobUrl
-                                            link.download = `${creatorName}${weekLabel}_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
-                                            document.body.appendChild(link)
-                                            link.click()
-                                            document.body.removeChild(link)
-                                            window.URL.revokeObjectURL(blobUrl)
-                                          } catch (error) {
-                                            console.error('Download failed:', error)
-                                            window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
-                                          }
-                                        }}
-                                      >
-                                        <Download className="w-4 h-4 mr-1" />
-                                        다운로드
-                                      </Button>
-
-                                      {/* SNS 링크 열기 */}
-                                      {submission.sns_upload_url && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                                          onClick={() => window.open(submission.sns_upload_url, '_blank')}
-                                        >
-                                          <ExternalLink className="w-4 h-4 mr-1" />
-                                          SNS 보기
-                                        </Button>
+                                        return (
+                                          <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                            <div className="flex items-center justify-between gap-3">
+                                              <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <span className="font-medium text-gray-800">
+                                                    {submission.week_number ? `${submission.week_number}주차` :
+                                                     submission.video_number ? `영상 ${submission.video_number}` :
+                                                     `영상 ${idx + 1}`}
+                                                  </span>
+                                                  {submission.version && submission.version > 1 && (
+                                                    <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                                  )}
+                                                </div>
+                                                {/* SNS URL */}
+                                                {snsUrl && (
+                                                  <div className="flex items-center gap-2 text-sm">
+                                                    <Link className="w-3 h-3 text-blue-500" />
+                                                    <a href={snsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px]">
+                                                      {snsUrl}
+                                                    </a>
+                                                    <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(snsUrl); alert('SNS 링크가 복사되었습니다!') }}>
+                                                      <Copy className="w-3 h-3" />
+                                                    </Button>
+                                                    <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl, adCode: adCode || '', isEditMode: true }); setShowAdminSnsEditModal(true) }}>
+                                                      <Edit2 className="w-3 h-3" />
+                                                    </Button>
+                                                  </div>
+                                                )}
+                                                {/* 광고코드 */}
+                                                {adCode && (
+                                                  <div className="flex items-center gap-2 text-sm mt-1">
+                                                    <Hash className="w-3 h-3 text-orange-500" />
+                                                    <code className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{adCode}</code>
+                                                    <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(adCode); alert('광고코드가 복사되었습니다!') }}>
+                                                      <Copy className="w-3 h-3" />
+                                                    </Button>
+                                                  </div>
+                                                )}
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                  제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                                  {submission.approved_at && <span> · 승인: {new Date(submission.approved_at).toLocaleDateString('ko-KR')}</span>}
+                                                </div>
+                                              </div>
+                                              <div className="flex flex-col gap-1">
+                                                <Button
+                                                  size="sm"
+                                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                  onClick={async () => {
+                                                    try {
+                                                      const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
+                                                      const blob = await response.blob()
+                                                      const blobUrl = window.URL.createObjectURL(blob)
+                                                      const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                      const weekLabel = submission.week_number ? `_${submission.week_number}주차` : (submission.video_number ? `_영상${submission.video_number}` : '')
+                                                      const link = document.createElement('a')
+                                                      link.href = blobUrl
+                                                      link.download = `${creatorName}${weekLabel}_편집본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                      document.body.appendChild(link)
+                                                      link.click()
+                                                      document.body.removeChild(link)
+                                                      window.URL.revokeObjectURL(blobUrl)
+                                                    } catch (error) {
+                                                      console.error('Download failed:', error)
+                                                      window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
+                                                    }
+                                                  }}
+                                                >
+                                                  <Download className="w-4 h-4 mr-1" />
+                                                  편집본
+                                                </Button>
+                                                {snsUrl && (
+                                                  <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
+                                                    <ExternalLink className="w-4 h-4 mr-1" />
+                                                    SNS 보기
+                                                  </Button>
+                                                )}
+                                                {submission.final_confirmed_at ? (
+                                                  <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
+                                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                                    확정
+                                                  </Badge>
+                                                ) : submission.status === 'approved' && (
+                                                  <Button
+                                                    size="sm"
+                                                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                                                    onClick={async () => {
+                                                      if (!snsUrl) {
+                                                        setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl: '', adCode: adCode || '', isEditMode: false })
+                                                        setShowAdminSnsEditModal(true)
+                                                        return
+                                                      }
+                                                      if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
+                                                      await handleFinalConfirmation(submission)
+                                                    }}
+                                                  >
+                                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                                    최종 확정
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                      {creatorSubmissions.filter(s => s.video_file_url).length === 0 && (
+                                        <p className="text-sm text-gray-500 text-center py-2">아직 제출된 편집본이 없습니다.</p>
                                       )}
                                     </div>
                                   </div>
+
+                                  {/* 클린본 섹션 */}
+                                  <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                                    <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                                      <Video className="w-4 h-4" />
+                                      클린본
+                                      <Badge className="bg-emerald-600 text-white text-xs">
+                                        {creatorSubmissions.filter(s => s.clean_video_url).length}개
+                                      </Badge>
+                                    </h5>
+                                    <div className="space-y-3">
+                                      {creatorSubmissions.filter(s => s.clean_video_url).map((submission, idx) => (
+                                        <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                          <div className="flex items-center justify-between gap-3">
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-medium text-gray-800">
+                                                  {submission.week_number ? `${submission.week_number}주차` :
+                                                   submission.video_number ? `영상 ${submission.video_number}` :
+                                                   `영상 ${idx + 1}`}
+                                                </span>
+                                                {submission.version && submission.version > 1 && (
+                                                  <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                                )}
+                                              </div>
+                                              <div className="text-xs text-gray-500">
+                                                제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                              </div>
+                                            </div>
+                                            <Button
+                                              size="sm"
+                                              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                              onClick={async () => {
+                                                try {
+                                                  const response = await fetch(submission.clean_video_url)
+                                                  const blob = await response.blob()
+                                                  const blobUrl = window.URL.createObjectURL(blob)
+                                                  const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                  const weekLabel = submission.week_number ? `_${submission.week_number}주차` : (submission.video_number ? `_영상${submission.video_number}` : '')
+                                                  const link = document.createElement('a')
+                                                  link.href = blobUrl
+                                                  link.download = `${creatorName}${weekLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                  document.body.appendChild(link)
+                                                  link.click()
+                                                  document.body.removeChild(link)
+                                                  window.URL.revokeObjectURL(blobUrl)
+                                                } catch (error) {
+                                                  console.error('Download failed:', error)
+                                                  window.open(submission.clean_video_url, '_blank')
+                                                }
+                                              }}
+                                            >
+                                              <Download className="w-4 h-4 mr-1" />
+                                              클린본
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {creatorSubmissions.filter(s => s.clean_video_url).length === 0 && (
+                                        <p className="text-sm text-gray-500 text-center py-2">아직 제출된 클린본이 없습니다.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              ) : (
+                                /* 일반 캠페인: 편집본과 클린본 섹션 분리 */
+                                <>
+                                  {/* 편집본 섹션 */}
+                                  {creatorSubmissions.filter(s => s.video_file_url).length > 0 && (
+                                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                      <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                                        <Video className="w-4 h-4" />
+                                        편집본
+                                        <Badge className="bg-blue-600 text-white text-xs">
+                                          {creatorSubmissions.filter(s => s.video_file_url).length}개
+                                        </Badge>
+                                      </h5>
+                                      <div className="space-y-3">
+                                        {creatorSubmissions.filter(s => s.video_file_url).map((submission, idx) => {
+                                          const snsUrl = submission.sns_upload_url || participant.sns_upload_url
+                                          const adCode = submission.ad_code || submission.partnership_code || participant.partnership_code
+
+                                          return (
+                                            <div key={`edit-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                                              <div className="flex items-center justify-between gap-3">
+                                                <div className="flex-1">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-medium text-gray-800">
+                                                      {submission.video_number ? `영상 ${submission.video_number}` : `영상 ${idx + 1}`}
+                                                    </span>
+                                                    {submission.version && submission.version > 1 && (
+                                                      <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                                    )}
+                                                  </div>
+                                                  {/* SNS URL */}
+                                                  {snsUrl && (
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                      <Link className="w-3 h-3 text-blue-500" />
+                                                      <a href={snsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px]">
+                                                        {snsUrl}
+                                                      </a>
+                                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(snsUrl); alert('SNS 링크가 복사되었습니다!') }}>
+                                                        <Copy className="w-3 h-3" />
+                                                      </Button>
+                                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl, adCode: adCode || '', isEditMode: true }); setShowAdminSnsEditModal(true) }}>
+                                                        <Edit2 className="w-3 h-3" />
+                                                      </Button>
+                                                    </div>
+                                                  )}
+                                                  {/* 광고코드 */}
+                                                  {adCode && (
+                                                    <div className="flex items-center gap-2 text-sm mt-1">
+                                                      <Hash className="w-3 h-3 text-orange-500" />
+                                                      <code className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded">{adCode}</code>
+                                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => { navigator.clipboard.writeText(adCode); alert('광고코드가 복사되었습니다!') }}>
+                                                        <Copy className="w-3 h-3" />
+                                                      </Button>
+                                                    </div>
+                                                  )}
+                                                  <div className="text-xs text-gray-500 mt-1">
+                                                    제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                                    {submission.approved_at && <span> · 승인: {new Date(submission.approved_at).toLocaleDateString('ko-KR')}</span>}
+                                                  </div>
+                                                </div>
+                                                <div className="flex flex-col gap-1">
+                                                  <Button
+                                                    size="sm"
+                                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                    onClick={async () => {
+                                                      try {
+                                                        const response = await fetch(signedVideoUrls[submission.id] || submission.video_file_url)
+                                                        const blob = await response.blob()
+                                                        const blobUrl = window.URL.createObjectURL(blob)
+                                                        const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                        const videoLabel = submission.video_number ? `_영상${submission.video_number}` : ''
+                                                        const link = document.createElement('a')
+                                                        link.href = blobUrl
+                                                        link.download = `${creatorName}${videoLabel}_편집본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                        document.body.appendChild(link)
+                                                        link.click()
+                                                        document.body.removeChild(link)
+                                                        window.URL.revokeObjectURL(blobUrl)
+                                                      } catch (error) {
+                                                        console.error('Download failed:', error)
+                                                        window.open(signedVideoUrls[submission.id] || submission.video_file_url, '_blank')
+                                                      }
+                                                    }}
+                                                  >
+                                                    <Download className="w-4 h-4 mr-1" />
+                                                    편집본
+                                                  </Button>
+                                                  {snsUrl && (
+                                                    <Button size="sm" variant="outline" className="text-blue-600 border-blue-300 hover:bg-blue-50" onClick={() => window.open(snsUrl, '_blank')}>
+                                                      <ExternalLink className="w-4 h-4 mr-1" />
+                                                      SNS 보기
+                                                    </Button>
+                                                  )}
+                                                  {submission.final_confirmed_at ? (
+                                                    <Badge className="bg-purple-100 text-purple-700 px-2 py-1 text-xs">
+                                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                                      확정
+                                                    </Badge>
+                                                  ) : submission.status === 'approved' && (
+                                                    <Button
+                                                      size="sm"
+                                                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                                                      onClick={async () => {
+                                                        if (!snsUrl) {
+                                                          setAdminSnsEditData({ submissionId: submission.id, participantId: participant.id, snsUrl: '', adCode: adCode || '', isEditMode: false })
+                                                          setShowAdminSnsEditModal(true)
+                                                          return
+                                                        }
+                                                        if (!confirm('SNS 업로드를 확인하셨나요?\n\n최종 확정 시 크리에이터에게 포인트가 지급됩니다.')) return
+                                                        await handleFinalConfirmation(submission)
+                                                      }}
+                                                    >
+                                                      <CheckCircle className="w-4 h-4 mr-1" />
+                                                      최종 확정
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* 클린본 섹션 */}
+                                  {creatorSubmissions.filter(s => s.clean_video_url).length > 0 && (
+                                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                                      <h5 className="font-semibold text-emerald-800 mb-3 flex items-center gap-2">
+                                        <Video className="w-4 h-4" />
+                                        클린본
+                                        <Badge className="bg-emerald-600 text-white text-xs">
+                                          {creatorSubmissions.filter(s => s.clean_video_url).length}개
+                                        </Badge>
+                                      </h5>
+                                      <div className="space-y-3">
+                                        {creatorSubmissions.filter(s => s.clean_video_url).map((submission, idx) => (
+                                          <div key={`clean-${submission.id}`} className="bg-white rounded-lg p-3 shadow-sm border border-emerald-100">
+                                            <div className="flex items-center justify-between gap-3">
+                                              <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <span className="font-medium text-gray-800">
+                                                    {submission.video_number ? `영상 ${submission.video_number}` : `영상 ${idx + 1}`}
+                                                  </span>
+                                                  {submission.version && submission.version > 1 && (
+                                                    <Badge variant="outline" className="text-xs">v{submission.version}</Badge>
+                                                  )}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                  제출: {new Date(submission.submitted_at).toLocaleDateString('ko-KR')}
+                                                </div>
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                onClick={async () => {
+                                                  try {
+                                                    const response = await fetch(submission.clean_video_url)
+                                                    const blob = await response.blob()
+                                                    const blobUrl = window.URL.createObjectURL(blob)
+                                                    const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                    const videoLabel = submission.video_number ? `_영상${submission.video_number}` : ''
+                                                    const link = document.createElement('a')
+                                                    link.href = blobUrl
+                                                    link.download = `${creatorName}${videoLabel}_클린본_${new Date(submission.submitted_at).toISOString().split('T')[0]}.mp4`
+                                                    document.body.appendChild(link)
+                                                    link.click()
+                                                    document.body.removeChild(link)
+                                                    window.URL.revokeObjectURL(blobUrl)
+                                                  } catch (error) {
+                                                    console.error('Download failed:', error)
+                                                    window.open(submission.clean_video_url, '_blank')
+                                                  }
+                                                }}
+                                              >
+                                                <Download className="w-4 h-4 mr-1" />
+                                                클린본
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {/* 멀티비디오 캠페인 전체 최종 확정 버튼 */}
+                              {isMultiVideoCampaign && !allVideosConfirmed && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                  {/* 영상별 상태 요약 - 멀티비디오 캠페인용 */}
+                                  <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">
+                                      {is4WeekChallenge ? '4주 챌린지' : '올리브영'} SNS 업로드 현황
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                      {multiVideoStatus.map((status, i) => {
+                                        const label = is4WeekChallenge ? `${status.week}주차` : `STEP${status.step}`
+                                        return (
+                                          <div key={i} className="flex items-center gap-1">
+                                            <span className={status.url ? 'text-green-600' : 'text-gray-400'}>
+                                              {status.url ? <CheckCircle className="w-3 h-3 inline" /> : <Clock className="w-3 h-3 inline" />}
+                                              <span className="ml-1">{label}</span>
+                                            </span>
+                                            <span className={`ml-1 ${status.url ? 'text-green-600' : 'text-orange-500'}`}>
+                                              {status.url ? '✓URL' : '⚠URL없음'}
+                                            </span>
+                                            <span className={`ml-1 ${status.code ? 'text-green-600' : 'text-orange-500'}`}>
+                                              {status.code ? '✓코드' : '⚠코드없음'}
+                                            </span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                    {/* 광고코드 요약 */}
+                                    <div className="mt-2 pt-2 border-t border-gray-200 text-xs">
+                                      {is4WeekChallenge ? (
+                                        <div className="space-y-1">
+                                          <p className={participant.week1_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            1주차 광고코드: {participant.week1_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.week2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            2주차 광고코드: {participant.week2_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.week3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            3주차 광고코드: {participant.week3_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.week4_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            4주차 광고코드: {participant.week4_partnership_code || '미등록'}
+                                          </p>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-1">
+                                          <p className={participant.step1_2_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            STEP1~2 광고코드: {participant.step1_2_partnership_code || '미등록'}
+                                          </p>
+                                          <p className={participant.step3_partnership_code ? 'text-green-600' : 'text-orange-500'}>
+                                            STEP3 광고코드: {participant.step3_partnership_code || '미등록'}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* 전체 최종 확정 버튼 */}
+                                  {allVideosHaveSnsUrl ? (
+                                    <Button
+                                      className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                                      onClick={async () => {
+                                        // 광고코드 체크 (campaign_participants 기준)
+                                        if (!allVideosHaveAdCode) {
+                                          const adCodeWarning = is4WeekChallenge
+                                            ? '일부 주차에 광고코드가 없습니다.'
+                                            : '일부 STEP에 광고코드가 없습니다.'
+                                          if (!confirm(`${adCodeWarning}\n\n광고코드 없이 최종 확정하시겠습니까?`)) return
+                                        }
+                                        const videoCount = is4WeekChallenge ? 4 : isOliveyoung ? 3 : creatorSubmissions.length
+                                        if (!confirm(`전체 최종 확정하시겠습니까?\n\n크리에이터에게 포인트가 지급됩니다.`)) return
+
+                                        // 모든 영상 한 번에 최종 확정 (마지막 영상에서만 포인트 지급)
+                                        for (let i = 0; i < creatorSubmissions.length; i++) {
+                                          const isLastVideo = i === creatorSubmissions.length - 1
+                                          await handleFinalConfirmation(creatorSubmissions[i], !isLastVideo)
+                                        }
+                                      }}
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      전체 최종 확정
+                                    </Button>
+                                  ) : (
+                                    <div className="text-center text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                                      ⚠️ 모든 {is4WeekChallenge ? '주차' : 'STEP'}에 SNS URL이 등록되어야 최종 확정이 가능합니다.
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mt-2 text-blue-600 border-blue-300"
+                                        onClick={() => {
+                                          // 기존 값들을 미리 채워서 모달 열기
+                                          const editData = {
+                                            participantId: participant.id,
+                                            userId: participant.user_id,
+                                            campaignType: campaign.campaign_type,
+                                            isMultiVideoEdit: true
+                                          }
+                                          if (campaign.campaign_type === '4week_challenge') {
+                                            editData.week1_url = participant.week1_url || ''
+                                            editData.week2_url = participant.week2_url || ''
+                                            editData.week3_url = participant.week3_url || ''
+                                            editData.week4_url = participant.week4_url || ''
+                                            editData.week1_partnership_code = participant.week1_partnership_code || ''
+                                            editData.week2_partnership_code = participant.week2_partnership_code || ''
+                                            editData.week3_partnership_code = participant.week3_partnership_code || ''
+                                            editData.week4_partnership_code = participant.week4_partnership_code || ''
+                                          } else {
+                                            editData.step1_url = participant.step1_url || ''
+                                            editData.step2_url = participant.step2_url || ''
+                                            editData.step3_url = participant.step3_url || ''
+                                            editData.step1_2_partnership_code = participant.step1_2_partnership_code || ''
+                                            editData.step3_partnership_code = participant.step3_partnership_code || ''
+                                          }
+                                          setAdminSnsEditData(editData)
+                                          setShowAdminSnsEditModal(true)
+                                        }}
+                                      >
+                                        <Edit2 className="w-3 h-3 mr-1" />
+                                        관리자 입력
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
-                              ))}
+                              )}
+
+                              {/* 멀티비디오 전체 확정 완료 표시 */}
+                              {isMultiVideoCampaign && allVideosConfirmed && (
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                  <Badge className="w-full justify-center bg-purple-100 text-purple-700 py-2">
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    전체 영상 최종 확정 완료 ({requiredVideoCount}개)
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
                           ) : (
-                            <div className="text-center py-4 text-gray-500 bg-white rounded-lg">
-                              <p className="text-sm">제출된 영상 파일이 없습니다.</p>
-                              {participant.content_url && (
-                                <a
-                                  href={participant.content_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-blue-600 hover:underline mt-2"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                  콘텐츠 URL 보기
-                                </a>
+                            <div className="bg-white rounded-lg">
+                              {/* 멀티비디오 캠페인: 컴팩트 UI */}
+                              {isMultiVideoCampaign && multiVideoStatus.length > 0 ? (
+                                <div className="space-y-3">
+                                  {/* 컴팩트 테이블 형식 */}
+                                  <div className="overflow-hidden rounded-lg border border-gray-200">
+                                    <table className="w-full text-xs">
+                                      <thead className="bg-gray-50">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left font-medium text-gray-600">{is4WeekChallenge ? '주차' : 'STEP'}</th>
+                                          <th className="px-3 py-2 text-left font-medium text-gray-600">영상</th>
+                                          <th className="px-3 py-2 text-left font-medium text-gray-600">SNS URL</th>
+                                          <th className="px-3 py-2 text-left font-medium text-gray-600">광고코드</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100">
+                                        {(() => {
+                                          const participantVideos = videoSubmissions.filter(sub => sub.user_id === participant.user_id)
+                                          const items = is4WeekChallenge ? [1, 2, 3, 4] : [1, 2, 3]
+
+                                          return items.map(num => {
+                                            const label = is4WeekChallenge ? `${num}주차` : `STEP${num}`
+                                            const url = is4WeekChallenge ? participant[`week${num}_url`] : participant[`step${num}_url`]
+                                            const code = is4WeekChallenge
+                                              ? participant[`week${num}_partnership_code`]
+                                              : (num <= 2 ? participant.step1_2_partnership_code : participant.step3_partnership_code)
+
+                                            // 최신 영상 찾기
+                                            const videos = participantVideos
+                                              .filter(v => is4WeekChallenge ? v.week_number === num : v.video_number === num)
+                                              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                            const latestVideo = videos[0]
+
+                                            return (
+                                              <tr key={num} className="hover:bg-gray-50">
+                                                <td className="px-3 py-2 font-medium text-gray-700">{label}</td>
+                                                <td className="px-3 py-2">
+                                                  {latestVideo ? (
+                                                    <div className="flex gap-1">
+                                                      {latestVideo.clean_video_url && (
+                                                        <button
+                                                          onClick={async () => {
+                                                            try {
+                                                              const response = await fetch(latestVideo.clean_video_url)
+                                                              const blob = await response.blob()
+                                                              const blobUrl = window.URL.createObjectURL(blob)
+                                                              const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                              const link = document.createElement('a')
+                                                              link.href = blobUrl
+                                                              link.download = `${creatorName}_${label}_클린본.mp4`
+                                                              document.body.appendChild(link)
+                                                              link.click()
+                                                              document.body.removeChild(link)
+                                                              window.URL.revokeObjectURL(blobUrl)
+                                                            } catch (e) { window.open(latestVideo.clean_video_url, '_blank') }
+                                                          }}
+                                                          className="px-2 py-1 text-xs bg-emerald-500 text-white rounded hover:bg-emerald-600 transition"
+                                                        >
+                                                          클린
+                                                        </button>
+                                                      )}
+                                                      {latestVideo.video_file_url && (
+                                                        <button
+                                                          onClick={async () => {
+                                                            try {
+                                                              const videoUrl = signedVideoUrls[latestVideo.id] || latestVideo.video_file_url
+                                                              const response = await fetch(videoUrl)
+                                                              const blob = await response.blob()
+                                                              const blobUrl = window.URL.createObjectURL(blob)
+                                                              const creatorName = participant.creator_name || participant.applicant_name || 'creator'
+                                                              const link = document.createElement('a')
+                                                              link.href = blobUrl
+                                                              link.download = `${creatorName}_${label}_편집본.mp4`
+                                                              document.body.appendChild(link)
+                                                              link.click()
+                                                              document.body.removeChild(link)
+                                                              window.URL.revokeObjectURL(blobUrl)
+                                                            } catch (e) { window.open(signedVideoUrls[latestVideo.id] || latestVideo.video_file_url, '_blank') }
+                                                          }}
+                                                          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                                                        >
+                                                          편집
+                                                        </button>
+                                                      )}
+                                                      {!latestVideo.clean_video_url && !latestVideo.video_file_url && (
+                                                        <span className="text-gray-400">-</span>
+                                                      )}
+                                                    </div>
+                                                  ) : (
+                                                    <span className="text-gray-400">-</span>
+                                                  )}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                  {url ? (
+                                                    <a href={url} target="_blank" rel="noopener noreferrer"
+                                                       className="text-blue-600 hover:underline flex items-center gap-1">
+                                                      <ExternalLink className="w-3 h-3" />
+                                                      <span className="truncate max-w-[120px]">링크</span>
+                                                    </a>
+                                                  ) : (
+                                                    <span className="text-orange-500">미등록</span>
+                                                  )}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                  {code ? (
+                                                    <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{code}</code>
+                                                  ) : (
+                                                    <span className="text-orange-500">미등록</span>
+                                                  )}
+                                                </td>
+                                              </tr>
+                                            )
+                                          })
+                                        })()}
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  {/* 액션 버튼 */}
+                                  <div className="flex gap-2">
+                                    {allVideosHaveSnsUrl ? (
+                                      <Button
+                                        size="sm"
+                                        className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                                        onClick={async () => {
+                                          if (!allVideosHaveAdCode) {
+                                            if (!confirm('일부 광고코드가 없습니다. 계속하시겠습니까?')) return
+                                          }
+                                          if (!confirm('전체 최종 확정하시겠습니까?\n크리에이터에게 포인트가 지급됩니다.')) return
+                                          await handleMultiVideoFinalConfirmationWithoutSubmissions(participant, is4WeekChallenge ? 4 : 3)
+                                        }}
+                                      >
+                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                        최종 확정
+                                      </Button>
+                                    ) : (
+                                      <div className="flex-1 text-center text-xs text-orange-600 bg-orange-50 py-2 px-3 rounded-lg">
+                                        모든 SNS URL 등록 필요
+                                      </div>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-gray-600"
+                                      onClick={() => {
+                                        const editData = {
+                                          participantId: participant.id,
+                                          userId: participant.user_id,
+                                          campaignType: campaign.campaign_type,
+                                          isMultiVideoEdit: true
+                                        }
+                                        if (campaign.campaign_type === '4week_challenge') {
+                                          editData.week1_url = participant.week1_url || ''
+                                          editData.week2_url = participant.week2_url || ''
+                                          editData.week3_url = participant.week3_url || ''
+                                          editData.week4_url = participant.week4_url || ''
+                                          editData.week1_partnership_code = participant.week1_partnership_code || ''
+                                          editData.week2_partnership_code = participant.week2_partnership_code || ''
+                                          editData.week3_partnership_code = participant.week3_partnership_code || ''
+                                          editData.week4_partnership_code = participant.week4_partnership_code || ''
+                                        } else {
+                                          editData.step1_url = participant.step1_url || ''
+                                          editData.step2_url = participant.step2_url || ''
+                                          editData.step3_url = participant.step3_url || ''
+                                          editData.step1_2_partnership_code = participant.step1_2_partnership_code || ''
+                                          editData.step3_partnership_code = participant.step3_partnership_code || ''
+                                        }
+                                        setAdminSnsEditData(editData)
+                                        setShowAdminSnsEditModal(true)
+                                      }}
+                                    >
+                                      <Edit2 className="w-3 h-3 mr-1" />
+                                      수정
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-center py-3 text-gray-500 text-sm">
+                                  제출된 영상이 없습니다.
+                                  {participant.content_url && (
+                                    <a href={participant.content_url} target="_blank" rel="noopener noreferrer"
+                                       className="inline-flex items-center gap-1 text-blue-600 hover:underline ml-2">
+                                      <ExternalLink className="w-3 h-3" /> 콘텐츠 보기
+                                    </a>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}
@@ -4738,7 +7371,8 @@ export default function CampaignDetail() {
                       )
                     })}
                   </div>
-                )}
+                  )
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
@@ -4866,33 +7500,227 @@ export default function CampaignDetail() {
             <div className="grid grid-cols-2 gap-4 pt-4 border-t">
               <div>
                 <p className="text-sm text-gray-600">모집 마감일</p>
-                <p className="font-medium">{new Date(campaign.application_deadline).toLocaleDateString()}</p>
+                <p className="font-medium">
+                  {campaign.application_deadline
+                    ? new Date(campaign.application_deadline).toLocaleDateString()
+                    : <span className="text-red-500">미설정</span>}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">캠페인 기간</p>
                 <p className="font-medium">
-                  {campaign.campaign_type === '4week_challenge' ? (
-                    <>
-                      {campaign.week1_deadline && `1주차: ${new Date(campaign.week1_deadline).toLocaleDateString()}`}
-                      {campaign.week2_deadline && ` / 2주차: ${new Date(campaign.week2_deadline).toLocaleDateString()}`}
-                      {campaign.week3_deadline && ` / 3주차: ${new Date(campaign.week3_deadline).toLocaleDateString()}`}
-                      {campaign.week4_deadline && ` / 4주차: ${new Date(campaign.week4_deadline).toLocaleDateString()}`}
-                    </>
-                  ) : campaign.campaign_type === 'oliveyoung' ? (
-                    <>
-                      {campaign.step1_deadline && `1차: ${new Date(campaign.step1_deadline).toLocaleDateString()}`}
-                      {campaign.step2_deadline && ` / 2차: ${new Date(campaign.step2_deadline).toLocaleDateString()}`}
-                      {campaign.step3_deadline && ` / 3차: ${new Date(campaign.step3_deadline).toLocaleDateString()}`}
-                    </>
-                  ) : (
-                    `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
-                  )}
+                  {campaign.start_date && campaign.end_date
+                    ? `${new Date(campaign.start_date).toLocaleDateString()} - ${new Date(campaign.end_date).toLocaleDateString()}`
+                    : <span className="text-red-500">미설정</span>}
                 </p>
               </div>
+            </div>
+
+            {/* 영상 제출 마감일 */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600 font-medium">영상 제출 마감일</p>
+                {isAdmin ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDeadlineEditModal(true)}
+                  >
+                    <Edit2 className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                ) : (
+                  <a
+                    href="http://pf.kakao.com/_FxhqTG/chat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-400 hover:text-blue-500"
+                  >
+                    수정 요청 →
+                  </a>
+                )}
+              </div>
+              {campaign.campaign_type === '4week_challenge' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">1주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week1_deadline
+                        ? new Date(campaign.week1_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">2주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week2_deadline
+                        ? new Date(campaign.week2_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">3주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week3_deadline
+                        ? new Date(campaign.week3_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-purple-50 rounded-lg text-center">
+                    <p className="text-xs text-purple-600">4주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week4_deadline
+                        ? new Date(campaign.week4_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-green-50 rounded-lg text-center">
+                    <p className="text-xs text-green-600">1차 영상</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step1_deadline
+                        ? new Date(campaign.step1_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-green-50 rounded-lg text-center">
+                    <p className="text-xs text-green-600">2차 영상</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step2_deadline
+                        ? new Date(campaign.step2_deadline).toLocaleDateString()
+                        : <span className="text-red-500">미설정</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-blue-50 rounded-lg text-center w-fit">
+                  <p className="text-xs text-blue-600">영상 제출 마감</p>
+                  <p className="font-medium text-sm">
+                    {(campaign.content_submission_deadline || campaign.start_date)
+                      ? new Date(campaign.content_submission_deadline || campaign.start_date).toLocaleDateString()
+                      : <span className="text-red-500">미설정</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* SNS 업로드 예정일 */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600 font-medium">SNS 업로드 예정일</p>
+                {isAdmin ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setShowDeadlineEditModal(true)}
+                  >
+                    <Edit2 className="w-3 h-3 mr-1" />
+                    수정
+                  </Button>
+                ) : (
+                  <a
+                    href="http://pf.kakao.com/_FxhqTG/chat"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-400 hover:text-blue-500"
+                  >
+                    수정 요청 →
+                  </a>
+                )}
+              </div>
+              {campaign.campaign_type === '4week_challenge' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">1주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week1_sns_deadline
+                        ? new Date(campaign.week1_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">2주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week2_sns_deadline
+                        ? new Date(campaign.week2_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">3주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week3_sns_deadline
+                        ? new Date(campaign.week3_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">4주차</p>
+                    <p className="font-medium text-sm">
+                      {campaign.week4_sns_deadline
+                        ? new Date(campaign.week4_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">1차 SNS</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step1_sns_deadline
+                        ? new Date(campaign.step1_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-pink-50 rounded-lg text-center">
+                    <p className="text-xs text-pink-600">2차 SNS</p>
+                    <p className="font-medium text-sm">
+                      {campaign.step2_sns_deadline
+                        ? new Date(campaign.step2_sns_deadline).toLocaleDateString()
+                        : <span className="text-gray-400">-</span>}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-2 bg-pink-50 rounded-lg text-center w-fit">
+                  <p className="text-xs text-pink-600">SNS 업로드</p>
+                  <p className="font-medium text-sm">
+                    {(campaign.sns_upload_deadline || campaign.end_date)
+                      ? new Date(campaign.sns_upload_deadline || campaign.end_date).toLocaleDateString()
+                      : <span className="text-gray-400">-</span>}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* 가이드 생성 중 로딩 오버레이 */}
+      {isGeneratingAllGuides && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 text-center shadow-2xl">
+            <div className="w-20 h-20 mx-auto mb-6 relative">
+              <div className="absolute inset-0 border-4 border-purple-200 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
+              <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-purple-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">크넥 AI 가이드 생성 중</h3>
+            <p className="text-gray-600 mb-4">크리에이터 맞춤형 가이드를 생성하고 있습니다.</p>
+            <p className="text-sm text-gray-500">잠시만 기다려주세요... (약 10-20초 소요)</p>
+            <div className="mt-6 flex justify-center gap-1">
+              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 맞춤 가이드 모달 */}
       {showGuideModal && selectedGuide && (
@@ -5128,56 +7956,145 @@ export default function CampaignDetail() {
                               </div>
                             )}
 
-                            {/* 촬영 씬 */}
+                            {/* 촬영 씬 - Support both shooting_scenes and scenes format */}
                             <div className="bg-gray-50 p-4 rounded-lg">
-                              <h4 className="font-semibold mb-3">촬영 씬 ({guideData.shooting_scenes?.length || 0}개)</h4>
+                              <h4 className="font-semibold mb-3">
+                                촬영 씬 ({(guideData.scenes || guideData.shooting_scenes)?.length || 0}개)
+                                {(region === 'us' || region === 'japan') && (
+                                  <span className="ml-2 text-sm font-normal text-blue-600">
+                                    ({region === 'japan' ? '일본어' : '영어'} 번역 포함)
+                                  </span>
+                                )}
+                              </h4>
                               <div className="space-y-4">
-                                {(guideData.shooting_scenes || []).map((scene, idx) => (
-                                  <div key={idx} className="bg-white p-3 rounded border">
-                                    <div className="font-medium text-sm mb-2">씬 {scene.order}</div>
-                                    <div className="space-y-2 text-sm">
-                                      <div>
-                                        <span className="text-gray-600">타입:</span>
+                                {(guideData.scenes || guideData.shooting_scenes || []).map((scene, idx) => {
+                                  const scenesKey = guideData.scenes ? 'scenes' : 'shooting_scenes';
+                                  const isUSJapan = region === 'us' || region === 'japan';
+                                  const targetLang = region === 'japan' ? '일본어' : '영어';
+
+                                  return (
+                                    <div key={idx} className="bg-white p-4 rounded border">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <span className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                          {scene.order || idx + 1}
+                                        </span>
                                         <input
                                           type="text"
                                           value={scene.scene_type || ''}
                                           onChange={(e) => {
                                             const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].scene_type = e.target.value;
+                                            updated[scenesKey][idx].scene_type = e.target.value;
                                             setEditedGuideContent(JSON.stringify(updated, null, 2));
                                           }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
+                                          className="px-3 py-1.5 border rounded-lg text-sm flex-1"
+                                          placeholder="씬 타입 (예: 훅, 제품 소개)"
                                         />
                                       </div>
-                                      <div>
-                                        <span className="text-gray-600">장면 설명:</span>
-                                        <textarea
-                                          value={scene.scene_description || ''}
-                                          onChange={(e) => {
-                                            const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].scene_description = e.target.value;
-                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
-                                          }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
-                                          rows={2}
-                                        />
+
+                                      {/* Scene Description - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">장면 설명 (한국어)</label>
+                                          <textarea
+                                            value={scene.scene_description || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].scene_description = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg resize-none"
+                                            rows={3}
+                                            placeholder="촬영해야 할 장면 설명"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-blue-600 font-medium mb-1">장면 설명 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.scene_description_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].scene_description_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-blue-200 rounded-lg resize-none bg-blue-50"
+                                              rows={3}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
-                                      <div>
-                                        <span className="text-gray-600">대사:</span>
-                                        <textarea
-                                          value={scene.dialogue || ''}
-                                          onChange={(e) => {
-                                            const updated = { ...guideData };
-                                            updated.shooting_scenes[idx].dialogue = e.target.value;
-                                            setEditedGuideContent(JSON.stringify(updated, null, 2));
-                                          }}
-                                          className="ml-2 px-2 py-1 border rounded w-full mt-1"
-                                          rows={2}
-                                        />
+
+                                      {/* Dialogue - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">대사 (한국어)</label>
+                                          <textarea
+                                            value={scene.dialogue || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].dialogue = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg resize-none"
+                                            rows={3}
+                                            placeholder="크리에이터가 말할 대사"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-green-600 font-medium mb-1">대사 ({targetLang})</label>
+                                            <textarea
+                                              value={scene.dialogue_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].dialogue_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-green-200 rounded-lg resize-none bg-green-50"
+                                              rows={3}
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* Shooting Tip - Side by side for US/Japan */}
+                                      <div className={`space-y-2 text-sm mt-3 ${isUSJapan ? 'grid grid-cols-2 gap-4' : ''}`}>
+                                        <div>
+                                          <label className="block text-gray-600 font-medium mb-1">촬영 팁 (한국어)</label>
+                                          <input
+                                            type="text"
+                                            value={scene.shooting_tip || ''}
+                                            onChange={(e) => {
+                                              const updated = { ...guideData };
+                                              updated[scenesKey][idx].shooting_tip = e.target.value;
+                                              setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                            }}
+                                            className="w-full px-3 py-2 border rounded-lg"
+                                            placeholder="촬영 팁 (선택)"
+                                          />
+                                        </div>
+                                        {isUSJapan && (
+                                          <div>
+                                            <label className="block text-amber-600 font-medium mb-1">촬영 팁 ({targetLang})</label>
+                                            <input
+                                              type="text"
+                                              value={scene.shooting_tip_translated || ''}
+                                              onChange={(e) => {
+                                                const updated = { ...guideData };
+                                                updated[scenesKey][idx].shooting_tip_translated = e.target.value;
+                                                setEditedGuideContent(JSON.stringify(updated, null, 2));
+                                              }}
+                                              className="w-full px-3 py-2 border border-amber-200 rounded-lg bg-amber-50"
+                                              placeholder={`${targetLang} 번역`}
+                                            />
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
 
@@ -5216,33 +8133,89 @@ export default function CampaignDetail() {
                     })()}
                   </div>
                 ) : (
-                  <PersonalizedGuideViewer
-                    guide={selectedGuide.personalized_guide}
-                    creator={selectedGuide}
-                    onSave={async (updatedGuide) => {
-                      const { error } = await supabase
-                        .from('applications')
-                        .update({
-                          personalized_guide: updatedGuide
-                        })
-                        .eq('id', selectedGuide.id)
+                  /* Use different viewer based on region */
+                  (region === 'us' || region === 'japan') ? (
+                    <USJapanGuideViewer
+                      guide={selectedGuide.personalized_guide}
+                      creator={selectedGuide}
+                      region={region}
+                      onSave={async (updatedGuide) => {
+                        // US/Japan use API to bypass RLS
+                        try {
+                          const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              region: region,
+                              applicationId: selectedGuide.id,
+                              guide: updatedGuide
+                            })
+                          })
 
-                      if (error) {
-                        console.error('가이드 저장 실패:', error)
-                        throw new Error('데이터베이스 저장 실패: ' + error.message)
+                          if (!saveResponse.ok) {
+                            const errorData = await saveResponse.json()
+                            throw new Error(errorData.error || 'Failed to save guide')
+                          }
+
+                          // Update local state
+                          setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                          const updatedParticipants = participants.map(p =>
+                            p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                          )
+                          setParticipants(updatedParticipants)
+
+                          // Refresh participants to ensure data consistency
+                          await fetchParticipants()
+                        } catch (error) {
+                          console.error('가이드 저장 실패:', error)
+                          throw new Error('데이터베이스 저장 실패: ' + error.message)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <PersonalizedGuideViewer
+                      guide={
+                        /* 4주 챌린지/올영 캠페인은 캠페인 레벨 가이드 사용, 그 외는 개별 가이드 사용 */
+                        campaign.campaign_type === '4week_challenge'
+                          ? JSON.stringify({
+                              type: '4week_ai',
+                              weeklyGuides: campaign.challenge_weekly_guides_ai || campaign.challenge_weekly_guides || campaign.challenge_guide_data
+                            })
+                          : campaign.campaign_type === 'oliveyoung'
+                            ? JSON.stringify({
+                                type: 'oliveyoung_ai',
+                                step1: campaign.oliveyoung_step1_guide_ai,
+                                step2: campaign.oliveyoung_step2_guide_ai,
+                                step3: campaign.oliveyoung_step3_guide
+                              })
+                            : selectedGuide.personalized_guide
                       }
+                      creator={selectedGuide}
+                      onSave={async (updatedGuide) => {
+                        const { error } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: updatedGuide
+                          })
+                          .eq('id', selectedGuide.id)
 
-                      // Update local state
-                      setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
-                      const updatedParticipants = participants.map(p =>
-                        p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
-                      )
-                      setParticipants(updatedParticipants)
+                        if (error) {
+                          console.error('가이드 저장 실패:', error)
+                          throw new Error('데이터베이스 저장 실패: ' + error.message)
+                        }
 
-                      // Refresh participants to ensure data consistency
-                      await fetchParticipants()
-                    }}
-                  />
+                        // Update local state
+                        setSelectedGuide({ ...selectedGuide, personalized_guide: updatedGuide })
+                        const updatedParticipants = participants.map(p =>
+                          p.id === selectedGuide.id ? { ...p, personalized_guide: updatedGuide } : p
+                        )
+                        setParticipants(updatedParticipants)
+
+                        // Refresh participants to ensure data consistency
+                        await fetchParticipants()
+                      }}
+                    />
+                  )
                 )}
               </div>
             </div>
@@ -5292,13 +8265,41 @@ export default function CampaignDetail() {
                     <Button
                       onClick={async () => {
                         try {
-                          await supabase
-                            .from('applications')
-                            .update({
-                              personalized_guide: editedGuideContent
+                          // Parse the content to ensure it's valid JSON if it's a string
+                          let guideToSave = editedGuideContent
+                          if (typeof editedGuideContent === 'string') {
+                            try {
+                              guideToSave = JSON.parse(editedGuideContent)
+                            } catch (e) {
+                              // If parse fails, keep as string
+                            }
+                          }
+
+                          // US/Japan use API to bypass RLS
+                          if (region === 'us' || region === 'japan') {
+                            const saveResponse = await fetch('/.netlify/functions/save-personalized-guide', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                region: region,
+                                applicationId: selectedGuide.id,
+                                guide: guideToSave
+                              })
                             })
-                            .eq('id', selectedGuide.id)
-                          
+
+                            if (!saveResponse.ok) {
+                              const errorData = await saveResponse.json()
+                              throw new Error(errorData.error || 'Failed to save guide')
+                            }
+                          } else {
+                            await supabase
+                              .from('applications')
+                              .update({
+                                personalized_guide: guideToSave
+                              })
+                              .eq('id', selectedGuide.id)
+                          }
+
                           alert('가이드가 저장되었습니다.')
                           setEditingGuide(false)
                           await fetchParticipants()
@@ -5306,7 +8307,7 @@ export default function CampaignDetail() {
                           setSelectedGuide(null)
                         } catch (error) {
                           console.error('Error saving guide:', error)
-                          alert('저장에 실패했습니다.')
+                          alert('저장에 실패했습니다: ' + error.message)
                         }
                       }}
                       className="bg-green-600 hover:bg-green-700"
@@ -5316,27 +8317,44 @@ export default function CampaignDetail() {
                   </>
                 ) : (
                   <>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditingGuide(true)
-                        setEditedGuideContent(selectedGuide.personalized_guide || '')
-                      }}
-                      className="border-purple-600 text-purple-600 hover:bg-purple-50"
-                    >
-                      직접 수정
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowAIEditModal(true)
-                        setAIEditPrompt('')
-                      }}
-                      className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
-                    >
-                      <Sparkles className="w-4 h-4 mr-1" />
-                      AI로 수정
-                    </Button>
+                    {/* 올영/4주 가이드는 PersonalizedGuideViewer에서 직접 수정하므로 버튼 숨김 */}
+                    {(() => {
+                      const guide = selectedGuide.personalized_guide
+                      const guideType = typeof guide === 'object' ? guide?.type : null
+                      const isOliveYoungOr4Week = guideType === 'oliveyoung_guide' || guideType === '4week_guide'
+
+                      if (isOliveYoungOr4Week) return null
+
+                      return (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingGuide(true)
+                              if (typeof guide === 'object' && guide !== null) {
+                                setEditedGuideContent(JSON.stringify(guide, null, 2))
+                              } else {
+                                setEditedGuideContent(guide || '')
+                              }
+                            }}
+                            className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                          >
+                            직접 수정
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setShowAIEditModal(true)
+                              setAIEditPrompt('')
+                            }}
+                            className="border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                          >
+                            <Sparkles className="w-4 h-4 mr-1" />
+                            AI로 수정
+                          </Button>
+                        </>
+                      )
+                    })()}
                     <Button
                       onClick={async () => {
                         try {
@@ -5678,6 +8696,9 @@ export default function CampaignDetail() {
                     <div key={index} className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
+                          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">
+                            V{file.version || index + 1}
+                          </span>
                           <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
                           <span className="text-sm font-medium">{file.name}</span>
                         </div>
@@ -5729,6 +8750,20 @@ export default function CampaignDetail() {
               )}
             </div>
 
+            {/* 업로드 기한 설정 */}
+            <div className="px-6 py-3 border-t bg-blue-50">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                업로드 기한 설정 (승인 시 크리에이터에게 전달됨)
+              </label>
+              <input
+                type="text"
+                value={uploadDeadline}
+                onChange={(e) => setUploadDeadline(e.target.value)}
+                placeholder="예: 2024년 1월 15일, 승인 후 3일 이내"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
             {/* 모달 푸터 */}
             <div className="px-6 py-4 border-t bg-gray-50 flex justify-end gap-3">
               <Button
@@ -5737,25 +8772,116 @@ export default function CampaignDetail() {
                   setShowVideoModal(false)
                   setSelectedParticipant(null)
                   setRevisionComment('')
+                  setUploadDeadline('승인 완료 후 1일 이내')
                 }}
               >
                 닫기
               </Button>
               <Button
                 onClick={async () => {
+                  if (!uploadDeadline.trim()) {
+                    alert('업로드 기한을 입력해주세요.')
+                    return
+                  }
+
                   try {
                     const { error } = await supabase
                       .from('applications')
                       .update({
-                        video_status: 'approved'
+                        video_status: 'approved',
+                        upload_deadline: uploadDeadline
                       })
                       .eq('id', selectedParticipant.id)
 
                     if (error) throw error
 
+                    // 크리에이터에게 영상 승인 완료 알림톡 발송
+                    // 먼저 applications 테이블에서 직접 phone_number 확인 (한국 캠페인용)
+                    let phone = selectedParticipant.phone_number || selectedParticipant.phone
+                    let email = selectedParticipant.email
+                    let creatorName = selectedParticipant.creator_name || selectedParticipant.applicant_name || '크리에이터'
+
+                    // applications에 전화번호가 없으면 user_profiles에서 조회
+                    if (!phone && selectedParticipant.user_id) {
+                      const { data: profile } = await supabase
+                        .from('user_profiles')
+                        .select('phone, email, full_name')
+                        .eq('id', selectedParticipant.user_id)
+                        .single()
+
+                      if (profile) {
+                        phone = profile.phone
+                        email = email || profile.email
+                        creatorName = profile.full_name || creatorName
+                      }
+                    }
+
+                    console.log('알림톡 발송 정보:', { phone, email, creatorName, source: selectedParticipant.phone_number ? 'applications' : 'user_profiles' })
+
+                    if (phone) {
+                      try {
+                        await fetch('/.netlify/functions/send-kakao-notification', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            receiverNum: phone.replace(/-/g, ''),
+                            receiverName: creatorName,
+                            templateCode: '025100001017',
+                            variables: {
+                              '크리에이터명': creatorName,
+                              '캠페인명': campaign?.title || '캠페인',
+                              '업로드기한': uploadDeadline
+                            }
+                          })
+                        })
+                        const kakaoResult = await kakaoResponse.json()
+                        console.log('✓ 영상 승인 완료 알림톡 응답:', kakaoResult)
+                        if (!kakaoResponse.ok || !kakaoResult.success) {
+                          console.error('알림톡 발송 실패 응답:', kakaoResult)
+                          const errorMsg = kakaoResult.errorDescription || kakaoResult.error || '알 수 없는 오류'
+                          console.error(`알림톡 오류: ${errorMsg}`, kakaoResult.debug || {})
+                        }
+                      } catch (kakaoError) {
+                        console.error('알림톡 발송 실패:', kakaoError)
+                      }
+                    } else {
+                      console.log('알림톡 발송 스킵 - 전화번호 없음:', { user_id: selectedParticipant?.user_id, phone_number: selectedParticipant?.phone_number, phone: selectedParticipant?.phone })
+                    }
+
+                    // 이메일 발송
+                    if (email) {
+                      try {
+                        await fetch('/.netlify/functions/send-email', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            to: email,
+                            subject: `[CNEC] 영상 검수 완료 - ${campaign?.title || '캠페인'}`,
+                            html: `
+                              <div style="font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                                <h2 style="color: #10B981;">영상이 최종 승인되었습니다!</h2>
+                                <p>안녕하세요, <strong>${creatorName}</strong>님!</p>
+                                <p>참여하신 캠페인의 영상이 최종 승인되었습니다. 이제 SNS에 영상을 업로드해 주세요.</p>
+                                <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10B981;">
+                                  <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign?.title || '캠페인'}</p>
+                                  <p style="margin: 5px 0;"><strong>업로드 기한:</strong> ${uploadDeadline}</p>
+                                </div>
+                                <p>업로드 완료 후, 크리에이터 대시보드에서 업로드 링크를 등록해 주세요.</p>
+                                <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                              </div>
+                            `
+                          })
+                        })
+                        console.log('✓ 영상 승인 완료 이메일 발송 성공')
+                      } catch (emailError) {
+                        console.error('영상 승인 이메일 발송 실패:', emailError)
+                      }
+                    }
+
                     alert('영상이 승인되었습니다!')
                     setShowVideoModal(false)
                     setSelectedParticipant(null)
+                    setUploadDeadline('승인 완료 후 1일 이내')
                     fetchCampaignDetail()
                   } catch (error) {
                     console.error('Error approving video:', error)
@@ -5803,17 +8929,23 @@ export default function CampaignDetail() {
                       // 알림톡 발송
                       if (profile?.phone) {
                         try {
+                          // 재제출 기한: 오늘 + 2일
+                          const resubmitDate = new Date()
+                          resubmitDate.setDate(resubmitDate.getDate() + 2)
+                          const resubmitDeadline = resubmitDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
+
                           await fetch('/.netlify/functions/send-kakao-notification', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               receiverNum: profile.phone,
                               receiverName: creatorName,
-                              templateCode: '025100001017',  // 수정 요청 템플릿
+                              templateCode: '025100001016',  // 영상 수정 요청 템플릿
                               variables: {
                                 '크리에이터명': creatorName,
                                 '캠페인명': campaign.title,
-                                '수정요청내용': revisionComment.substring(0, 100)  // 최대 100자
+                                '요청일': new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }),
+                                '재제출기한': resubmitDeadline
                               }
                             })
                           })
@@ -6355,93 +9487,6 @@ export default function CampaignDetail() {
         </div>
       )}
 
-      {/* 개별 메시지 작성 모달 */}
-      {showIndividualMessageModal && selectedParticipantForMessage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-xl font-bold">
-                {selectedParticipantForMessage.creator_name || selectedParticipantForMessage.applicant_name} - {selectedParticipantForMessage.personalized_guide ? '최종 가이드' : '개별 메시지 작성'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowIndividualMessageModal(false)
-                  setSelectedParticipantForMessage(null)
-                  setIndividualMessage('')
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {selectedParticipantForMessage.personalized_guide ? '최종 가이드 (수정 가능)' : '개별 요청사항'}
-                </label>
-                <p className="text-sm text-gray-500 mb-3">
-                  {selectedParticipantForMessage.personalized_guide 
-                    ? '크리에이터에게 전달될 최종 가이드를 확인하고 수정할 수 있습니다.'
-                    : '이 크리에이터에게만 전달될 추가 요청사항을 작성해주세요. (예: 특정 장면 추가, 특별 연출 요청 등)'}
-                </p>
-                <textarea
-                  value={individualMessage}
-                  onChange={(e) => setIndividualMessage(e.target.value)}
-                  className="w-full h-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                  placeholder="예:
-- 제품을 사용하는 모습을 클로즈업으로 촬영해주세요
-- 밝은 분위기의 영상으로 부탁드립니다
-- 패키지 언박싱 장면을 포함해주세요"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 p-6 border-t bg-gray-50">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowIndividualMessageModal(false)
-                  setSelectedParticipantForMessage(null)
-                  setIndividualMessage('')
-                }}
-                className="flex-1"
-              >
-                취소
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    const { error } = await supabase
-                      .from('applications')
-                      .update({
-                        personalized_guide: individualMessage
-                      })
-                      .eq('id', selectedParticipantForMessage.id)
-                    
-                    if (error) throw error
-                    
-                    alert('개별 메시지가 저장되었습니다.')
-                    setShowIndividualMessageModal(false)
-                    setSelectedParticipantForMessage(null)
-                    setIndividualMessage('')
-                    await fetchParticipants()
-                  } catch (error) {
-                    console.error('Error saving individual message:', error)
-                    alert('저장에 실패했습니다: ' + error.message)
-                  }
-                }}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                저장
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Olive Young Guide Modal */}
       {showUnifiedGuideModal && campaign.campaign_type === 'oliveyoung' && (
         <OliveYoungGuideModal
@@ -6461,7 +9506,7 @@ export default function CampaignDetail() {
       )}
 
       {/* Oliveyoung Guide Modal */}
-      {showOliveyoungGuideModal && campaign.campaign_type === 'oliveyoung' && (
+      {showOliveyoungGuideModal && (campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale') && (
         <OliveyoungGuideModal
           campaign={campaign}
           onClose={() => setShowOliveyoungGuideModal(false)}
@@ -6480,6 +9525,386 @@ export default function CampaignDetail() {
         creator={creatorForSetup}
         campaign={campaign}
       />
+
+      {/* 가이드 유형 선택 모달 (AI vs 파일/URL) */}
+      {showGuideSelectModal && selectedParticipantForGuide && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden max-h-[90vh] overflow-y-auto">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-5 text-white relative sticky top-0">
+              <button
+                onClick={() => {
+                  setShowGuideSelectModal(false)
+                  setSelectedParticipantForGuide(null)
+                  setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                }}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">가이드 전달 방식 선택</h2>
+                  <p className="text-sm opacity-90">{selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name}님</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 space-y-4">
+              {/* 캠페인 타입별 가이드 선택 */}
+              {(() => {
+                const is4Week = campaign?.campaign_type === '4week_challenge'
+                const isOliveyoung = campaign?.campaign_type === 'oliveyoung' || campaign?.campaign_type === 'oliveyoung_sale'
+
+                // 올영/4주: 캠페인 레벨 가이드 사용 옵션
+                if (is4Week || isOliveyoung) {
+                  // 4주: challenge_guide_data에 기업이 설정한 원본 데이터 (미션, 필수사항, 주의사항 등)
+                  // 올영: oliveyoung_step1_guide 등에 기업이 설정한 원본 데이터
+                  const hasGuide = is4Week
+                    ? (campaign?.challenge_guide_data || campaign?.challenge_weekly_guides || campaign?.challenge_weekly_guides_ai)
+                    : (campaign?.oliveyoung_step1_guide || campaign?.oliveyoung_step1_guide_ai)
+
+                  return (
+                    <button
+                      onClick={async () => {
+                        if (!hasGuide) {
+                          alert(is4Week
+                            ? '4주 챌린지 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.'
+                            : '올영 가이드가 설정되지 않았습니다. 캠페인 가이드 설정에서 먼저 가이드를 설정해주세요.')
+                          return
+                        }
+
+                        const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+
+                        // 기업이 설정한 원본 데이터를 가져옴
+                        let guidePayload
+                        if (is4Week) {
+                          // 4주 챌린지: challenge_guide_data 사용 (기업이 설정한 미션, 필수대사, 필수장면, 참고URL 등)
+                          const guideData = campaign?.challenge_guide_data || {}
+                          guidePayload = {
+                            type: '4week_guide',
+                            campaignId: campaign.id,
+                            brand: guideData.brand || campaign?.brand || '',
+                            product_name: guideData.product_name || campaign?.product_name || '',
+                            product_features: guideData.product_features || campaign?.product_features || '',
+                            precautions: guideData.precautions || campaign?.product_key_points || '',
+                            week1: {
+                              mission: guideData.week1?.mission || '',
+                              required_dialogue: guideData.week1?.required_dialogue || '',
+                              required_scenes: guideData.week1?.required_scenes || '',
+                              reference_url: guideData.week1?.reference_url || ''
+                            },
+                            week2: {
+                              mission: guideData.week2?.mission || '',
+                              required_dialogue: guideData.week2?.required_dialogue || '',
+                              required_scenes: guideData.week2?.required_scenes || '',
+                              reference_url: guideData.week2?.reference_url || ''
+                            },
+                            week3: {
+                              mission: guideData.week3?.mission || '',
+                              required_dialogue: guideData.week3?.required_dialogue || '',
+                              required_scenes: guideData.week3?.required_scenes || '',
+                              reference_url: guideData.week3?.reference_url || ''
+                            },
+                            week4: {
+                              mission: guideData.week4?.mission || '',
+                              required_dialogue: guideData.week4?.required_dialogue || '',
+                              required_scenes: guideData.week4?.required_scenes || '',
+                              reference_url: guideData.week4?.reference_url || ''
+                            }
+                          }
+                        } else {
+                          // 올영: AI 가이드 우선 사용, 없으면 일반 가이드
+                          guidePayload = {
+                            type: 'oliveyoung_guide',
+                            campaignId: campaign.id,
+                            brand: campaign?.brand || '',
+                            product_name: campaign?.product_name || '',
+                            product_features: campaign?.product_features || '',
+                            step1: campaign?.oliveyoung_step1_guide_ai || campaign?.oliveyoung_step1_guide || '',
+                            step2: campaign?.oliveyoung_step2_guide_ai || campaign?.oliveyoung_step2_guide || '',
+                            step3: campaign?.oliveyoung_step3_guide || ''
+                          }
+                        }
+
+                        console.log('[Guide] Saving guide payload:', guidePayload)
+
+                        try {
+                          const { error } = await supabase
+                            .from('applications')
+                            .update({
+                              personalized_guide: JSON.stringify(guidePayload),
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq('id', selectedParticipantForGuide.id)
+
+                          if (error) throw error
+
+                          // 참여자 목록 새로고침
+                          await fetchParticipants()
+
+                          // 가이드 확인 모달 열기
+                          const updatedParticipant = {
+                            ...selectedParticipantForGuide,
+                            personalized_guide: JSON.stringify(guidePayload)
+                          }
+                          setSelectedGuide(updatedParticipant)
+                          setShowGuideModal(true)
+                          setShowGuideSelectModal(false)
+                          setSelectedParticipantForGuide(null)
+
+                          alert(`${creatorName}님에게 ${is4Week ? '4주 챌린지' : '올영'} 가이드가 설정되었습니다. 내용 확인 후 발송해주세요.`)
+                        } catch (error) {
+                          console.error('Error saving guide reference:', error)
+                          alert('가이드 설정에 실패했습니다: ' + error.message)
+                        }
+                      }}
+                      disabled={!hasGuide}
+                      className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
+                        hasGuide
+                          ? 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
+                          : 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                          hasGuide ? 'bg-purple-100 group-hover:bg-purple-200' : 'bg-gray-100'
+                        }`}>
+                          <Sparkles className={`w-6 h-6 ${hasGuide ? 'text-purple-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <h3 className={`font-bold ${hasGuide ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {is4Week ? '4주 챌린지 가이드 전달' : '올영 세일 가이드 전달'}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {is4Week ? '1~4주차 미션 및 주의사항' : 'STEP 1~3 가이드'}
+                            {!hasGuide && ' (캠페인 설정에서 먼저 설정 필요)'}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                }
+
+                // 기획형: 크넥 AI 맞춤 가이드 생성
+                return (
+                  <button
+                    onClick={async () => {
+                      const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                      if (!confirm(`${creatorName}님의 크넥 AI 맞춤 가이드를 생성하시겠습니까?`)) return
+
+                      setShowGuideSelectModal(false)
+                      setIsGeneratingAllGuides(true)
+
+                      try {
+                        // 크리에이터 프로필 정보 가져오기
+                        const { data: profile } = await supabase
+                          .from('user_profiles')
+                          .select('*')
+                          .eq('id', selectedParticipantForGuide.user_id)
+                          .maybeSingle()
+
+                        const baseGuide = campaign.guide_content || campaign.ai_generated_guide || ''
+
+                        // AI 가이드 생성 요청
+                        const response = await fetch('/.netlify/functions/generate-personalized-guide', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            creatorAnalysis: {
+                              platform: selectedParticipantForGuide.main_channel || selectedParticipantForGuide.platform || 'instagram',
+                              followers: profile?.instagram_followers || profile?.followers_count || 0,
+                              skinType: profile?.skin_type || null,
+                              contentAnalysis: {
+                                engagementRate: profile?.engagement_rate || 5,
+                                topHashtags: [],
+                                contentType: 'mixed',
+                                videoRatio: 50
+                              },
+                              style: {
+                                tone: profile?.content_style || '친근하고 자연스러운',
+                                topics: [profile?.bio || '라이프스타일', '뷰티'],
+                                videoStyle: 'natural'
+                              }
+                            },
+                            productInfo: {
+                              brand: campaign.brand || '',
+                              product_name: campaign.title || '',
+                              product_features: campaign.product_features || campaign.description || '',
+                              product_key_points: campaign.product_key_points || campaign.key_message || '',
+                              video_duration: campaign.video_duration
+                            },
+                            baseGuide: baseGuide,
+                            campaignType: 'planned'
+                          })
+                        })
+
+                        if (!response.ok) {
+                          throw new Error('AI 가이드 생성 실패')
+                        }
+
+                        const { guide } = await response.json()
+
+                        // 생성된 가이드를 applications 테이블에 저장
+                        const { error: updateError } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: guide,
+                            updated_at: new Date().toISOString()
+                          })
+                          .eq('id', selectedParticipantForGuide.id)
+
+                        if (updateError) throw updateError
+
+                        // 참여자 목록 새로고침
+                        await fetchParticipants()
+
+                        // 가이드 확인 모달 열기
+                        const updatedParticipant = { ...selectedParticipantForGuide, personalized_guide: guide }
+                        setSelectedGuide(updatedParticipant)
+                        setShowGuideModal(true)
+                        setSelectedParticipantForGuide(null)
+
+                        alert('가이드가 생성되었습니다. 내용을 확인하고 수정한 뒤 발송해주세요.')
+
+                      } catch (error) {
+                        console.error('Error generating guide:', error)
+                        alert('가이드 생성에 실패했습니다: ' + error.message)
+                        setSelectedParticipantForGuide(null)
+                      } finally {
+                        setIsGeneratingAllGuides(false)
+                      }
+                    }}
+                    disabled={isGeneratingAllGuides}
+                    className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
+                      isGeneratingAllGuides
+                        ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                        : 'border-purple-200 hover:border-purple-500 hover:bg-purple-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                        isGeneratingAllGuides ? 'bg-gray-100' : 'bg-purple-100 group-hover:bg-purple-200'
+                      }`}>
+                        <Sparkles className={`w-6 h-6 ${isGeneratingAllGuides ? 'text-gray-400 animate-spin' : 'text-purple-600'}`} />
+                      </div>
+                      <div>
+                        <h3 className={`font-bold ${isGeneratingAllGuides ? 'text-gray-500' : 'text-gray-900'}`}>
+                          {isGeneratingAllGuides ? '가이드 생성 중...' : '크넥 AI 가이드 생성'}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {is4Week ? '4주 챌린지' : isOliveyoung ? '올영 캠페인' : '기획형'} 맞춤 가이드 자동 생성
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })()}
+
+              {/* 파일/URL 전달 옵션 */}
+              <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
+                <div className="flex items-center gap-4 p-4 bg-blue-50">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Link className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">파일/URL 전달</h3>
+                    <p className="text-sm text-gray-500">구글 슬라이드, PDF 파일 등 직접 전달</p>
+                  </div>
+                </div>
+
+                {/* ExternalGuideUploader 사용 */}
+                <div className="p-4 pt-0">
+                  <ExternalGuideUploader
+                    value={externalGuideData}
+                    onChange={setExternalGuideData}
+                    campaignId={campaign?.id}
+                    prefix={`guide_${selectedParticipantForGuide.id}_`}
+                    className="border-0 p-0"
+                    supabaseClient={supabase}
+                  />
+
+                  {/* 전달 버튼 */}
+                  <Button
+                    onClick={async () => {
+                      // URL 또는 파일이 있는지 확인
+                      if (!externalGuideData.url && !externalGuideData.fileUrl) {
+                        alert('URL을 입력하거나 PDF 파일을 업로드해주세요.')
+                        return
+                      }
+                      const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                      if (!confirm(`${creatorName}님에게 가이드를 전달하시겠습니까?`)) return
+
+                      try {
+                        // 외부 가이드 데이터를 personalized_guide에 저장
+                        const guidePayload = {
+                          type: externalGuideData.fileUrl ? 'external_pdf' : 'external_url',
+                          url: externalGuideData.url || null,
+                          fileUrl: externalGuideData.fileUrl || null,
+                          fileName: externalGuideData.fileName || null,
+                          title: externalGuideData.title || ''
+                        }
+
+                        const { error } = await supabase
+                          .from('applications')
+                          .update({
+                            personalized_guide: JSON.stringify(guidePayload),
+                            updated_at: new Date().toISOString(),
+                            status: 'filming'
+                          })
+                          .eq('id', selectedParticipantForGuide.id)
+
+                        if (error) throw error
+
+                        // 알림톡 발송
+                        try {
+                          const { data: profile } = await supabase
+                            .from('user_profiles')
+                            .select('phone')
+                            .eq('id', selectedParticipantForGuide.user_id)
+                            .maybeSingle()
+
+                          if (profile?.phone) {
+                            await sendGuideDeliveredNotification(
+                              profile.phone,
+                              creatorName,
+                              {
+                                campaignName: campaign?.title || '캠페인',
+                                deadline: campaign?.content_deadline
+                                  ? new Date(campaign.content_deadline).toLocaleDateString('ko-KR')
+                                  : '확인 필요'
+                              }
+                            )
+                          }
+                        } catch (notifError) {
+                          console.error('알림톡 발송 실패:', notifError)
+                        }
+
+                        alert(`${creatorName}님에게 가이드가 전달되었습니다.`)
+                        setShowGuideSelectModal(false)
+                        setSelectedParticipantForGuide(null)
+                        setExternalGuideData({ type: null, url: null, fileUrl: null, fileName: null, title: '' })
+                        await fetchParticipants()
+                      } catch (error) {
+                        console.error('Error saving external guide:', error)
+                        alert('가이드 저장에 실패했습니다: ' + error.message)
+                      }
+                    }}
+                    disabled={!externalGuideData.url && !externalGuideData.fileUrl}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    가이드 전달하기
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 캠페인 정보 팝업 */}
       {showCampaignGuidePopup && campaign && (
@@ -6695,6 +10120,365 @@ export default function CampaignDetail() {
                     삭제하기
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 관리자용 SNS URL/광고코드 편집 모달 */}
+      {showAdminSnsEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
+              <h3 className="text-lg font-semibold">
+                {adminSnsEditData.isMultiVideoEdit
+                  ? (adminSnsEditData.campaignType === '4week_challenge' ? '4주 챌린지' : '올리브영') + ' SNS 정보 입력'
+                  : `SNS 정보 ${adminSnsEditData.isEditMode ? '수정' : '입력'}`}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAdminSnsEditModal(false)
+                  setAdminSnsEditData({})
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* 멀티비디오 캠페인용 입력 폼 */}
+              {adminSnsEditData.isMultiVideoEdit ? (
+                <>
+                  {adminSnsEditData.campaignType === '4week_challenge' ? (
+                    // 4주 챌린지 입력 폼
+                    <>
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week} className="border rounded-lg p-4 space-y-3">
+                          <h4 className="font-medium text-gray-800">{week}주차</h4>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">SNS URL</label>
+                            <input
+                              type="url"
+                              value={adminSnsEditData[`week${week}_url`] || ''}
+                              onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, [`week${week}_url`]: e.target.value }))}
+                              placeholder={`https://www.instagram.com/reel/...`}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">광고코드</label>
+                            <input
+                              type="text"
+                              value={adminSnsEditData[`week${week}_partnership_code`] || ''}
+                              onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, [`week${week}_partnership_code`]: e.target.value }))}
+                              placeholder="광고코드 입력"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    // 올리브영 입력 폼
+                    <>
+                      {[1, 2, 3].map(step => (
+                        <div key={step} className="border rounded-lg p-4 space-y-3">
+                          <h4 className="font-medium text-gray-800">STEP {step} {step === 3 ? '(스토리)' : '(영상)'}</h4>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">SNS URL</label>
+                            <input
+                              type="url"
+                              value={adminSnsEditData[`step${step}_url`] || ''}
+                              onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, [`step${step}_url`]: e.target.value }))}
+                              placeholder={`https://www.instagram.com/reel/...`}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <div className="border rounded-lg p-4 space-y-3 bg-orange-50">
+                        <h4 className="font-medium text-gray-800">광고코드</h4>
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">STEP 1~2 광고코드</label>
+                          <input
+                            type="text"
+                            value={adminSnsEditData.step1_2_partnership_code || ''}
+                            onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, step1_2_partnership_code: e.target.value }))}
+                            placeholder="STEP 1~2 공통 광고코드"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-gray-600 mb-1">STEP 3 광고코드</label>
+                          <input
+                            type="text"
+                            value={adminSnsEditData.step3_partnership_code || ''}
+                            onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, step3_partnership_code: e.target.value }))}
+                            placeholder="STEP 3 광고코드"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                // 기존 단일 영상 캠페인 입력 폼
+                <>
+                  {!adminSnsEditData.isEditMode && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                      <p className="font-medium mb-1">📌 SNS URL이 등록되지 않았습니다</p>
+                      <p>크리에이터가 등록하지 않은 경우 관리자가 직접 입력할 수 있습니다.</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SNS 업로드 URL <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={adminSnsEditData.snsUrl || ''}
+                      onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, snsUrl: e.target.value }))}
+                      placeholder="https://www.instagram.com/reel/..."
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      광고코드 (선택)
+                    </label>
+                    <input
+                      type="text"
+                      value={adminSnsEditData.adCode || ''}
+                      onChange={(e) => setAdminSnsEditData(prev => ({ ...prev, adCode: e.target.value }))}
+                      placeholder="광고코드 입력"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3 sticky bottom-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAdminSnsEditModal(false)
+                  setAdminSnsEditData({})
+                }}
+                disabled={savingAdminSnsEdit}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={handleAdminSnsEdit}
+                disabled={savingAdminSnsEdit || (!adminSnsEditData.isMultiVideoEdit && !adminSnsEditData.snsUrl?.trim())}
+              >
+                {savingAdminSnsEdit ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    저장 중...
+                  </>
+                ) : adminSnsEditData.isMultiVideoEdit ? (
+                  '저장'
+                ) : adminSnsEditData.isEditMode ? (
+                  '저장'
+                ) : (
+                  '저장 후 최종 확정'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 관리자용 마감일 수정 모달 */}
+      {showDeadlineEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-bold">마감일 수정 (관리자 전용)</h3>
+              <p className="text-sm text-gray-500 mt-1">영상 제출 마감일 및 SNS 업로드 예정일을 수정합니다.</p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* 4주 챌린지 */}
+              {campaign.campaign_type === '4week_challenge' && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">영상 제출 마감일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week}>
+                          <label className="text-xs text-gray-500">{week}주차</label>
+                          <input
+                            type="date"
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            defaultValue={campaign[`week${week}_deadline`]?.split('T')[0] || ''}
+                            onChange={(e) => setDeadlineEditData(prev => ({
+                              ...prev,
+                              [`week${week}_deadline`]: e.target.value
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">SNS 업로드 예정일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 2, 3, 4].map(week => (
+                        <div key={week}>
+                          <label className="text-xs text-gray-500">{week}주차</label>
+                          <input
+                            type="date"
+                            className="w-full px-3 py-2 border rounded-lg text-sm"
+                            defaultValue={campaign[`week${week}_sns_deadline`]?.split('T')[0] || ''}
+                            onChange={(e) => setDeadlineEditData(prev => ({
+                              ...prev,
+                              [`week${week}_sns_deadline`]: e.target.value
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 올리브영 */}
+              {(campaign.campaign_type === 'oliveyoung' || campaign.is_oliveyoung_sale) && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">영상 제출 마감일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">1차 영상</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step1_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step1_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">2차 영상</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step2_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step2_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-3">SNS 업로드 예정일</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500">1차 SNS</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step1_sns_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step1_sns_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">2차 SNS</label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          defaultValue={campaign.step2_sns_deadline?.split('T')[0] || ''}
+                          onChange={(e) => setDeadlineEditData(prev => ({
+                            ...prev,
+                            step2_sns_deadline: e.target.value
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 기획형 (일반) */}
+              {campaign.campaign_type !== '4week_challenge' && campaign.campaign_type !== 'oliveyoung' && !campaign.is_oliveyoung_sale && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">영상 제출 마감일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg"
+                      defaultValue={(campaign.content_submission_deadline || campaign.start_date)?.split('T')[0] || ''}
+                      onChange={(e) => setDeadlineEditData(prev => ({
+                        ...prev,
+                        content_submission_deadline: e.target.value
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">SNS 업로드 예정일</label>
+                    <input
+                      type="date"
+                      className="w-full px-3 py-2 border rounded-lg"
+                      defaultValue={(campaign.sns_upload_deadline || campaign.end_date)?.split('T')[0] || ''}
+                      onChange={(e) => setDeadlineEditData(prev => ({
+                        ...prev,
+                        sns_upload_deadline: e.target.value
+                      }))}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeadlineEditModal(false)
+                  setDeadlineEditData({})
+                }}
+              >
+                취소
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={async () => {
+                  try {
+                    if (Object.keys(deadlineEditData).length === 0) {
+                      alert('수정할 내용이 없습니다.')
+                      return
+                    }
+
+                    const client = getSupabaseClient(region)
+                    const { error } = await client
+                      .from('campaigns')
+                      .update(deadlineEditData)
+                      .eq('id', campaign.id)
+
+                    if (error) throw error
+
+                    alert('마감일이 수정되었습니다.')
+                    setShowDeadlineEditModal(false)
+                    setDeadlineEditData({})
+                    // 캠페인 데이터 새로고침
+                    window.location.reload()
+                  } catch (error) {
+                    console.error('Error updating deadlines:', error)
+                    alert('마감일 수정에 실패했습니다: ' + error.message)
+                  }
+                }}
+              >
+                저장
               </Button>
             </div>
           </div>

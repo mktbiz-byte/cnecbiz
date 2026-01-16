@@ -25,6 +25,7 @@ import CampaignGuideEditor from './components/company/CampaignGuideEditor'
 import CampaignConfirmation from './components/company/CampaignConfirmation'
 import CampaignGuideJapan from './components/company/CampaignGuideJapan'
 import CampaignGuideUS from './components/company/CampaignGuideUS'
+import CompanySceneGuideEditor from './components/company/CompanySceneGuideEditor'
 import AdvancedGuideJapan from './components/company/AdvancedGuideJapan'
 import GuideReview from './components/company/GuideReview'
 import CampaignGuideReview from './components/company/CampaignGuideReview'
@@ -56,16 +57,20 @@ import RevenueManagementEnhanced from './components/admin/RevenueManagementEnhan
 import RevenueManagementNew from './components/admin/RevenueManagementNew'
 import PointsChargeManagement from './components/admin/PointsChargeManagement'
 import WithdrawalManagement from './components/admin/WithdrawalManagement'
+import CreatorPointHistory from './components/admin/CreatorPointHistory'
 import AdminContractManagement from './components/admin/AdminContractManagement'
 import CompaniesManagement from './components/admin/CompaniesManagement'
 import ConsultationManagement from './components/admin/ConsultationManagement'
 import CampaignsManagement from './components/admin/CampaignsManagement'
 import AdminCampaignDetail from './components/admin/AdminCampaignDetail'
 import AdminCampaignEdit from './components/admin/AdminCampaignEdit'
+import SceneGuideEditor from './components/admin/SceneGuideEditor'
+import CreatorSceneGuideEditor from './components/admin/CreatorSceneGuideEditor'
 import AdminCampaignGuides from './components/admin/AdminCampaignGuides'
 import GuidePDFManager from './components/admin/GuidePDFManager'
 import CreatorsManagement from './components/admin/CreatorsManagement'
 import FeaturedCreatorManagementPageNew from './components/admin/FeaturedCreatorManagementPageNew'
+import SnsUploadManagement from './components/admin/SnsUploadManagement'
 import CreatorMyPage from './components/creator/CreatorMyPage'
 import CampaignVideoFeedback from './components/company/CampaignVideoFeedback'
 
@@ -83,6 +88,7 @@ import FeaturedCreatorsPage from './components/company/FeaturedCreatorsPage'
 import FeaturedCreatorProfile from './components/company/FeaturedCreatorProfile'
 import CreatorProfilePage from './components/company/CreatorProfilePage'
 import WithdrawalRequest from './components/creator/WithdrawalRequest'
+import USShippingInfoForm from './components/creator/USShippingInfoForm'
 import TaxOfficePage from './components/tax/TaxOfficePage'
 import TaxFeedbackManagement from './components/admin/TaxFeedbackManagement'
 import SiteEditor from './components/admin/SiteEditor'
@@ -92,6 +98,7 @@ import RevenueManagementWithCharts from './components/admin/RevenueManagementWit
 import ReceivableDetailReport from './components/admin/ReceivableDetailReport'
 import PublicReport from './components/PublicReport'
 import AllCreatorsPage from './components/admin/AllCreatorsPage'
+import LineChatManagement from './components/admin/LineChatManagement'
 
 
 import CreatorManagementPage from './components/admin/CreatorManagementPage'
@@ -102,7 +109,9 @@ import ContractManagement from './components/company/ContractManagement'
 import Guidebook from './pages/Guidebook'
 import GuidebookManagement from './components/admin/GuidebookManagement'
 import TestKakaoNotification from './components/admin/TestKakaoNotification'
+import LineMessagesManagement from './components/admin/LineMessagesManagement'
 import TestNaverWorks from './pages/TestNaverWorks'
+import CampaignGuideTemplatePrototype from './components/admin/CampaignGuideTemplatePrototype'
 import ConsultationBanner from './components/ConsultationBanner'
 import NewsletterShowcaseManagement from './components/admin/NewsletterShowcaseManagement'
 import NewsletterShowcase from './pages/NewsletterShowcase'
@@ -127,6 +136,7 @@ function App() {
         <Route path="/report/:reportCode" element={<PublicReport />} />
         <Route path="/invitation/:id" element={<InvitationLanding />} />
         <Route path="/newsletters" element={<NewsletterShowcase />} />
+        <Route path="/us-shipping-info" element={<USShippingInfoForm />} />
         <Route path="/login" element={<LoginPageNew />} />
         <Route path="/login-old" element={<LoginPageOld />} />
         <Route path="/signup" element={<SignupWithVerification />} />
@@ -145,6 +155,7 @@ function App() {
         <Route path="/company/campaigns/confirmation" element={<CampaignConfirmation />} />
         <Route path="/company/campaigns/guide/japan" element={<CampaignGuideJapan />} />
         <Route path="/company/campaigns/guide/us" element={<CampaignGuideUS />} />
+        <Route path="/company/campaigns/scene-guide" element={<CompanySceneGuideEditor />} />
         <Route path="/company/campaigns/guide/japan/advanced" element={<AdvancedGuideJapan />} />
         <Route path="/company/campaigns/:id/guide" element={<CampaignGuide />} />
         <Route path="/company/campaigns/guide/oliveyoung" element={<CampaignGuideOliveYoung />} />
@@ -161,7 +172,7 @@ function App() {
         <Route path="/company/campaigns/:id/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/company/campaigns/:id/invoice" element={<InvoicePage />} />
         <Route path="/company/campaigns" element={<MyCampaigns />} />
-        <Route path="/company/creators" element={<CreatorManagement />} />
+        {/* <Route path="/company/creators" element={<CreatorManagement />} /> */} {/* 임시 비활성화 */}
         <Route path="/company/campaigns/:id/edit" element={<CreateCampaignRouter />} />
         <Route path="/company/campaigns/:id" element={<CampaignDetail />} />
         <Route path="/video-review/:submissionId" element={<VideoReview />} />
@@ -193,6 +204,7 @@ function App() {
         <Route path="/admin/revenue-enhanced" element={<RevenueManagementEnhanced />} />
         <Route path="/admin/points-charge" element={<PointsChargeManagement />} />
         <Route path="/admin/withdrawals" element={<WithdrawalManagement />} />
+        <Route path="/admin/point-history" element={<CreatorPointHistory />} />
         <Route path="/admin/tax-feedback" element={<TaxFeedbackManagement />} />
         <Route path="/tax-office/:batchId" element={<TaxOfficePage />} />
         <Route path="/admin/companies" element={<CompaniesManagement />} />
@@ -201,6 +213,8 @@ function App() {
         <Route path="/admin/campaigns/:id" element={<AdminCampaignDetail />} />
         <Route path="/admin/campaigns/:id/edit" element={<AdminCampaignEdit />} />
         <Route path="/admin/campaigns/:id/guides" element={<AdminCampaignGuides />} />
+        <Route path="/admin/campaigns/:id/scene-guide" element={<SceneGuideEditor />} />
+        <Route path="/admin/campaigns/:id/creator-guide" element={<CreatorSceneGuideEditor />} />
         <Route path="/admin/campaign-approvals" element={<CampaignApprovals />} />
         <Route path="/admin/campaigns/:id/review" element={<CampaignReview />} />
         <Route path="/admin/featured-creators" element={<FeaturedCreatorManagementPageNew />} />
@@ -213,14 +227,19 @@ function App() {
         <Route path="/admin/site-editor" element={<SiteEditor />} />
         <Route path="/admin/site-management" element={<SiteManagement />} />
         <Route path="/admin/site-management-creator" element={<SiteManagementCreator />} />
-        <Route path="/admin/revenue-charts" element={<RevenueManagementWithCharts />} />
+        <Route path="/admin/revenue-charts" element={<RevenueManagementNew />} />
+        <Route path="/admin/revenue-charts-old" element={<RevenueManagementWithCharts />} />
         <Route path="/admin/receivable-detail/:id" element={<ReceivableDetailReport />} />
           <Route path="/admin/all-creators" element={<AllCreatorsPage />} />
+        <Route path="/admin/line-chat" element={<LineChatManagement />} />
         <Route path="/admin/contracts" element={<AdminContractManagement />} />
         <Route path="/admin/guidebook" element={<GuidebookManagement />} />
         <Route path="/admin/newsletters" element={<NewsletterShowcaseManagement />} />
         <Route path="/admin/guide-pdfs" element={<GuidePDFManager />} />
         <Route path="/admin/test-kakao" element={<TestKakaoNotification />} />
+        <Route path="/admin/line-messages" element={<LineMessagesManagement />} />
+        <Route path="/admin/guide-templates" element={<CampaignGuideTemplatePrototype />} />
+        <Route path="/admin/sns-uploads" element={<SnsUploadManagement />} />
         <Route path="/test-naver-works" element={<TestNaverWorks />} />
 
 

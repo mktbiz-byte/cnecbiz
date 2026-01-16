@@ -12,8 +12,10 @@ import {
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea } from '../../lib/supabaseClients'
 import { maskResidentNumber, decryptResidentNumber } from '../../lib/encryptionHelper'
+import { sendWithdrawalRejectedNotification } from '../../services/notifications/creatorNotifications'
 import AdminNavigation from './AdminNavigation'
 import * as XLSX from 'xlsx'
+import axios from 'axios'
 
 export default function WithdrawalManagement() {
   const navigate = useNavigate()
@@ -43,6 +45,10 @@ export default function WithdrawalManagement() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
 
+  // 체크박스 일괄 선택
+  const [checkedWithdrawals, setCheckedWithdrawals] = useState(new Set())
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+
   useEffect(() => {
     checkAuth()
     fetchWithdrawals()
@@ -51,6 +57,11 @@ export default function WithdrawalManagement() {
   useEffect(() => {
     calculateStats()
   }, [withdrawals])
+
+  // 탭/국가 변경 시 체크박스 초기화
+  useEffect(() => {
+    setCheckedWithdrawals(new Set())
+  }, [selectedStatus, selectedCountry])
 
   const checkAuth = async () => {
     if (!supabaseBiz) {
@@ -91,25 +102,42 @@ export default function WithdrawalManagement() {
           if (!koreaError && koreaData && koreaData.length > 0) {
             console.log('Korea DB (withdrawals)에서 데이터 조회:', koreaData.length, '건')
 
-            // user_profiles 별도 조회
+            // user_profiles 별도 조회 (user_id 또는 id로 조회 시도)
             const userIds = [...new Set(koreaData.map(w => w.user_id).filter(Boolean))]
             let userProfiles = {}
 
             if (userIds.length > 0) {
-              const { data: profiles } = await supabaseKorea
+              // 먼저 id로 조회 시도
+              let { data: profiles, error: profileError } = await supabaseKorea
                 .from('user_profiles')
-                .select('user_id, name, email, channel_name')
-                .in('user_id', userIds)
+                .select('id, user_id, name, email, channel_name')
+                .in('id', userIds)
+
+              // id로 조회 실패시 user_id로 재시도
+              if (profileError || !profiles || profiles.length === 0) {
+                const { data: profiles2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('id, user_id, name, email, channel_name')
+                  .in('user_id', userIds)
+                profiles = profiles2
+              }
 
               if (profiles) {
                 profiles.forEach(p => {
-                  userProfiles[p.user_id] = p
+                  // id와 user_id 둘 다로 매핑
+                  if (p.id) userProfiles[p.id] = p
+                  if (p.user_id) userProfiles[p.user_id] = p
                 })
               }
             }
 
             const koreaWithdrawals = koreaData.map(w => {
               const profile = userProfiles[w.user_id]
+              // 주민번호는 나중에 BIZ DB creator_withdrawal_requests에서 매칭됨
+              const residentNumber = w.resident_number_encrypted ||
+                                     w.resident_registration_number ||
+                                     w.resident_number ||
+                                     null
               return {
                 ...w,
                 // 필드 매핑
@@ -122,7 +150,7 @@ export default function WithdrawalManagement() {
                 // 필드명 통일 (두 테이블의 필드명이 다름)
                 account_number: w.bank_account_number,
                 account_holder: w.bank_account_holder,
-                resident_registration_number: w.resident_number_encrypted || w.resident_registration_number,
+                resident_registration_number: residentNumber,
                 source_db: 'korea'
               }
             })
@@ -205,9 +233,65 @@ export default function WithdrawalManagement() {
         } catch (ptError) {
           console.error('Korea DB point_transactions 조회 오류:', ptError)
         }
+
+        // 1-3. BIZ DB creator_withdrawal_requests에서 주민번호 매핑 데이터 조회
+        // (주민번호는 BIZ DB의 creator_withdrawal_requests.resident_registration_number에 저장됨)
+        try {
+          console.log('BIZ DB에서 주민번호 매핑 데이터 조회 시작...')
+          const { data: bizWrData, error: bizWrError } = await supabaseBiz
+            .from('creator_withdrawal_requests')
+            .select('id, bank_name, account_number, account_holder, resident_registration_number, creator_id')
+            .not('resident_registration_number', 'is', null)
+
+          if (bizWrError) {
+            console.error('BIZ DB 주민번호 조회 오류:', bizWrError)
+          }
+
+          console.log('BIZ DB 주민번호 데이터:', bizWrData?.length || 0, '건')
+
+          if (bizWrData && bizWrData.length > 0) {
+            console.log('BIZ DB에서 주민번호 있는 출금 신청:', bizWrData.length, '건')
+
+            // 계좌정보(예금주+계좌번호)로 주민번호 매핑
+            const wrResidentByAccount = {}
+            bizWrData.forEach(w => {
+              if (w.resident_registration_number) {
+                // 예금주명+계좌번호로 매핑
+                if (w.account_holder && w.account_number) {
+                  const key = `${w.account_holder.trim()}_${w.account_number.replace(/\D/g, '')}`
+                  wrResidentByAccount[key] = w.resident_registration_number
+                }
+              }
+            })
+
+            console.log('계좌정보 기반 주민번호 매핑:', Object.keys(wrResidentByAccount).length, '건')
+
+            // 기존 withdrawals 항목에 주민번호 병합 (없는 경우에만)
+            allWithdrawals = allWithdrawals.map(w => {
+              if (!w.resident_registration_number) {
+                // 계좌정보로 매칭 시도
+                const holder = w.bank_account_holder || w.account_holder
+                const accountNum = w.bank_account_number || w.account_number
+                if (holder && accountNum) {
+                  const key = `${holder.trim()}_${accountNum.replace(/\D/g, '')}`
+                  if (wrResidentByAccount[key]) {
+                    console.log('계좌정보로 주민번호 매칭 성공:', holder)
+                    return {
+                      ...w,
+                      resident_registration_number: wrResidentByAccount[key]
+                    }
+                  }
+                }
+              }
+              return w
+            })
+          }
+        } catch (bizWrError) {
+          console.error('BIZ DB 주민번호 매핑 조회 오류:', bizWrError)
+        }
       }
 
-      // 2. BIZ DB에서도 출금 신청 조회 (통합 DB)
+      // 2. BIZ DB에서도 출금 신청 조회 (통합 DB - creator_withdrawal_requests)
       try {
         const { data: bizData, error: bizError } = await supabaseBiz
           .from('creator_withdrawal_requests')
@@ -216,7 +300,7 @@ export default function WithdrawalManagement() {
           .order('created_at', { ascending: true })
 
         if (!bizError && bizData && bizData.length > 0) {
-          console.log('BIZ DB에서 데이터 조회:', bizData.length, '건')
+          console.log('BIZ DB (creator_withdrawal_requests)에서 데이터 조회:', bizData.length, '건')
           const bizWithdrawals = bizData.map(w => ({
             ...w,
             // BIZ DB 필드를 표준화된 이름으로 매핑
@@ -235,7 +319,7 @@ export default function WithdrawalManagement() {
           allWithdrawals = [...allWithdrawals, ...bizWithdrawals]
         }
       } catch (bizError) {
-        console.error('BIZ DB 조회 오류:', bizError)
+        console.error('BIZ DB (creator_withdrawal_requests) 조회 오류:', bizError)
       }
 
       console.log('총 출금 신청 건수:', allWithdrawals.length)
@@ -362,9 +446,10 @@ export default function WithdrawalManagement() {
 
     try {
       const { data: { user } } = await supabaseBiz.auth.getUser()
+      const isKoreaDB = withdrawal.source_db === 'korea'
 
       // Korea DB인 경우 supabaseKorea 사용
-      if (withdrawal.source_db === 'korea' && supabaseKorea) {
+      if (isKoreaDB && supabaseKorea) {
         const { error } = await supabaseKorea
           .from('withdrawals')
           .update({
@@ -388,11 +473,386 @@ export default function WithdrawalManagement() {
         if (error) throw error
       }
 
+      // 알림톡 + 이메일 발송 (크리에이터 정보 조회 후 발송)
+      try {
+        let creatorPhone = null
+        let creatorEmail = null
+        const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+        const withdrawalAmount = withdrawal.requested_amount || withdrawal.amount || 0
+        const today = new Date().toLocaleDateString('ko-KR')
+
+        // 전화번호/이메일 조회
+        if (withdrawal.user_id && supabaseKorea) {
+          const { data: profileData } = await supabaseKorea
+            .from('user_profiles')
+            .select('phone, email')
+            .eq('id', withdrawal.user_id)
+            .maybeSingle()
+
+          creatorPhone = profileData?.phone
+          creatorEmail = profileData?.email
+
+          // id로 못 찾으면 user_id로 재시도
+          if (!creatorPhone && !creatorEmail) {
+            const { data: profileData2 } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone, email')
+              .eq('user_id', withdrawal.user_id)
+              .maybeSingle()
+            creatorPhone = profileData2?.phone
+            creatorEmail = profileData2?.email
+          }
+        }
+
+        const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+
+        // 1. 알림톡 발송 - 템플릿 025100001020 (출금 완료 알림)
+        if (creatorPhone) {
+          console.log('출금 완료 알림톡 발송:', creatorName, creatorPhone)
+          await axios.post(
+            `${baseUrl}/.netlify/functions/send-kakao-notification`,
+            {
+              receiverNum: creatorPhone,
+              receiverName: creatorName,
+              templateCode: '025100001020',
+              variables: {
+                '크리에이터명': creatorName,
+                '입금일': today
+              }
+            },
+            { timeout: 8000 }
+          )
+          console.log('출금 완료 알림톡 발송 완료')
+        } else {
+          console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+        }
+
+        // 2. 이메일 발송
+        if (creatorEmail) {
+          console.log('출금 완료 이메일 발송:', creatorName, creatorEmail)
+          await axios.post(
+            `${baseUrl}/.netlify/functions/send-email`,
+            {
+              to: creatorEmail,
+              subject: '[CNEC] 출금 신청이 완료되었습니다',
+              html: `
+                <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #1a1a1a; margin-bottom: 20px;">출금 완료 안내</h2>
+                  <p style="color: #333; line-height: 1.6;">
+                    안녕하세요, <strong>${creatorName}</strong>님!
+                  </p>
+                  <p style="color: #333; line-height: 1.6;">
+                    신청하신 출금이 완료되었습니다.
+                  </p>
+                  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                    <p style="margin: 0 0 10px 0;"><strong>출금 금액:</strong> ${withdrawalAmount.toLocaleString()}원</p>
+                    <p style="margin: 0;"><strong>입금일:</strong> ${today}</p>
+                  </div>
+                  <p style="color: #333; line-height: 1.6;">
+                    등록하신 계좌로 입금되었습니다.<br/>
+                    크리에이터 대시보드에서 출금 내역을 확인하실 수 있습니다.
+                  </p>
+                  <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                    감사합니다.<br/>
+                    CNEC 드림
+                  </p>
+                  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                  <p style="color: #999; font-size: 12px;">
+                    문의: 1833-6025
+                  </p>
+                </div>
+              `
+            },
+            { timeout: 10000 }
+          )
+          console.log('출금 완료 이메일 발송 완료')
+        } else {
+          console.log('크리에이터 이메일 없음, 이메일 미발송')
+        }
+      } catch (notifyError) {
+        console.error('알림 발송 오류:', notifyError)
+        // 알림 실패해도 완료 처리는 성공한 것으로 처리
+      }
+
       alert('지급 완료 처리되었습니다.')
       fetchWithdrawals()
     } catch (error) {
       console.error('완료 처리 오류:', error)
       alert('완료 처리 중 오류가 발생했습니다.')
+    }
+  }
+
+  // 체크박스 핸들러
+  const handleCheckWithdrawal = (withdrawalId) => {
+    setCheckedWithdrawals(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(withdrawalId)) {
+        newSet.delete(withdrawalId)
+      } else {
+        newSet.add(withdrawalId)
+      }
+      return newSet
+    })
+  }
+
+  const handleCheckAll = (withdrawalsList) => {
+    if (checkedWithdrawals.size === withdrawalsList.length) {
+      setCheckedWithdrawals(new Set())
+    } else {
+      setCheckedWithdrawals(new Set(withdrawalsList.map(w => w.id)))
+    }
+  }
+
+  // 일괄 승인 함수
+  const handleBulkApprove = async () => {
+    const selectedList = getFilteredWithdrawals().filter(w => checkedWithdrawals.has(w.id) && w.status === 'pending')
+    if (selectedList.length === 0) {
+      alert('승인할 출금 신청을 선택해주세요. (대기 상태만 승인 가능)')
+      return
+    }
+
+    if (!confirm(`선택한 ${selectedList.length}건을 일괄 승인하시겠습니까?\n\n각 크리에이터에게 알림톡이 발송됩니다.`)) return
+
+    setBulkProcessing(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+
+      for (const withdrawal of selectedList) {
+        try {
+          const isKoreaDB = withdrawal.source_db === 'korea'
+
+          // DB 업데이트
+          if (isKoreaDB && supabaseKorea) {
+            const { error } = await supabaseKorea
+              .from('withdrawals')
+              .update({
+                status: 'approved',
+                processed_by: user?.id,
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          } else {
+            const { error } = await supabaseBiz
+              .from('creator_withdrawal_requests')
+              .update({
+                status: 'approved',
+                approved_at: new Date().toISOString(),
+                approved_by: user.id
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          }
+
+          // 알림톡 발송
+          try {
+            let creatorPhone = null
+            const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+            const withdrawalAmount = withdrawal.requested_amount || withdrawal.amount || 0
+
+            if (withdrawal.user_id && supabaseKorea) {
+              const { data: profileData } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone')
+                .eq('id', withdrawal.user_id)
+                .maybeSingle()
+              creatorPhone = profileData?.phone
+
+              if (!creatorPhone) {
+                const { data: profileData2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('phone')
+                  .eq('user_id', withdrawal.user_id)
+                  .maybeSingle()
+                creatorPhone = profileData2?.phone
+              }
+            }
+
+            if (creatorPhone) {
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-kakao-notification`,
+                {
+                  receiverNum: creatorPhone,
+                  receiverName: creatorName,
+                  templateCode: '025100001019',
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '출금금액': withdrawalAmount.toLocaleString(),
+                    '신청일': new Date().toLocaleDateString('ko-KR')
+                  }
+                },
+                { timeout: 8000 }
+              )
+              console.log(`알림톡 발송 완료: ${creatorName}`)
+            }
+          } catch (notifyError) {
+            console.error('알림톡 발송 오류:', notifyError)
+          }
+
+          successCount++
+        } catch (err) {
+          console.error(`승인 실패 (${withdrawal.id}):`, err)
+          failCount++
+        }
+      }
+
+      alert(`일괄 승인 완료\n\n성공: ${successCount}건\n실패: ${failCount}건`)
+      setCheckedWithdrawals(new Set())
+      fetchWithdrawals()
+    } catch (error) {
+      console.error('일괄 승인 오류:', error)
+      alert('일괄 승인 중 오류가 발생했습니다.')
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  // 일괄 지급완료 함수
+  const handleBulkComplete = async () => {
+    const selectedList = getFilteredWithdrawals().filter(w => checkedWithdrawals.has(w.id) && w.status === 'approved')
+    if (selectedList.length === 0) {
+      alert('지급 완료할 출금 신청을 선택해주세요. (승인 상태만 지급완료 가능)')
+      return
+    }
+
+    if (!confirm(`선택한 ${selectedList.length}건을 일괄 지급완료 처리하시겠습니까?\n\n각 크리에이터에게 알림톡과 이메일이 발송됩니다.`)) return
+
+    setBulkProcessing(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+      const today = new Date().toLocaleDateString('ko-KR')
+
+      for (const withdrawal of selectedList) {
+        try {
+          const isKoreaDB = withdrawal.source_db === 'korea'
+
+          // DB 업데이트
+          if (isKoreaDB && supabaseKorea) {
+            const { error } = await supabaseKorea
+              .from('withdrawals')
+              .update({
+                status: 'completed',
+                processed_at: new Date().toISOString(),
+                processed_by: user?.id
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          } else {
+            const { error } = await supabaseBiz
+              .from('creator_withdrawal_requests')
+              .update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                processed_by: user.id
+              })
+              .eq('id', withdrawal.id)
+
+            if (error) throw error
+          }
+
+          // 알림톡 + 이메일 발송
+          try {
+            let creatorPhone = null
+            let creatorEmail = null
+            const creatorName = withdrawal.creator_name || withdrawal.account_holder || '크리에이터'
+            const withdrawalAmount = withdrawal.requested_amount || withdrawal.amount || 0
+
+            if (withdrawal.user_id && supabaseKorea) {
+              const { data: profileData } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone, email')
+                .eq('id', withdrawal.user_id)
+                .maybeSingle()
+
+              creatorPhone = profileData?.phone
+              creatorEmail = profileData?.email
+
+              if (!creatorPhone && !creatorEmail) {
+                const { data: profileData2 } = await supabaseKorea
+                  .from('user_profiles')
+                  .select('phone, email')
+                  .eq('user_id', withdrawal.user_id)
+                  .maybeSingle()
+                creatorPhone = profileData2?.phone
+                creatorEmail = profileData2?.email
+              }
+            }
+
+            // 알림톡 발송 - 템플릿 025100001020 (출금 완료)
+            if (creatorPhone) {
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-kakao-notification`,
+                {
+                  receiverNum: creatorPhone,
+                  receiverName: creatorName,
+                  templateCode: '025100001020',
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '입금일': today
+                  }
+                },
+                { timeout: 8000 }
+              )
+              console.log(`알림톡 발송 완료: ${creatorName}`)
+            }
+
+            // 이메일 발송
+            if (creatorEmail) {
+              await axios.post(
+                `${baseUrl}/.netlify/functions/send-email`,
+                {
+                  to: creatorEmail,
+                  subject: '[CNEC] 출금 신청이 완료되었습니다',
+                  html: `
+                    <div style="font-family: 'Pretendard', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <h2 style="color: #1a1a1a; margin-bottom: 20px;">출금 완료 안내</h2>
+                      <p style="color: #333; line-height: 1.6;">안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p style="color: #333; line-height: 1.6;">신청하신 출금이 완료되었습니다.</p>
+                      <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0;"><strong>출금 금액:</strong> ${withdrawalAmount.toLocaleString()}원</p>
+                        <p style="margin: 0;"><strong>입금일:</strong> ${today}</p>
+                      </div>
+                      <p style="color: #333; line-height: 1.6;">등록하신 계좌로 입금되었습니다.<br/>크리에이터 대시보드에서 출금 내역을 확인하실 수 있습니다.</p>
+                      <p style="color: #666; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 드림</p>
+                      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+                      <p style="color: #999; font-size: 12px;">문의: 1833-6025</p>
+                    </div>
+                  `
+                },
+                { timeout: 10000 }
+              )
+              console.log(`이메일 발송 완료: ${creatorName}`)
+            }
+          } catch (notifyError) {
+            console.error('알림 발송 오류:', notifyError)
+          }
+
+          successCount++
+        } catch (err) {
+          console.error(`지급완료 실패 (${withdrawal.id}):`, err)
+          failCount++
+        }
+      }
+
+      alert(`일괄 지급완료 처리 완료\n\n성공: ${successCount}건\n실패: ${failCount}건`)
+      setCheckedWithdrawals(new Set())
+      fetchWithdrawals()
+    } catch (error) {
+      console.error('일괄 지급완료 오류:', error)
+      alert('일괄 지급완료 중 오류가 발생했습니다.')
+    } finally {
+      setBulkProcessing(false)
     }
   }
 
@@ -463,6 +923,61 @@ export default function WithdrawalManagement() {
 
           if (error) throw error
         }
+
+        // 알림톡 발송 (크리에이터 전화번호 조회 후 발송)
+        try {
+          let creatorPhone = null
+          const creatorName = selectedWithdrawal.creator_name || selectedWithdrawal.account_holder || 'Unknown'
+          const withdrawalAmount = selectedWithdrawal.requested_amount || selectedWithdrawal.amount || 0
+
+          // 전화번호 조회
+          if (selectedWithdrawal.user_id && supabaseKorea) {
+            const { data: profileData } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', selectedWithdrawal.user_id)
+              .maybeSingle()
+
+            creatorPhone = profileData?.phone
+
+            // id로 못 찾으면 user_id로 재시도
+            if (!creatorPhone) {
+              const { data: profileData2 } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone')
+                .eq('user_id', selectedWithdrawal.user_id)
+                .maybeSingle()
+              creatorPhone = profileData2?.phone
+            }
+          }
+
+          if (creatorPhone) {
+            console.log('출금 승인 알림톡 발송:', creatorName, creatorPhone)
+            // 출금 승인 알림톡 발송 - 템플릿 025100001019 사용
+            const baseUrl = import.meta.env.VITE_URL || 'https://cnectotal.netlify.app'
+            await axios.post(
+              `${baseUrl}/.netlify/functions/send-kakao-notification`,
+              {
+                receiverNum: creatorPhone,
+                receiverName: creatorName,
+                templateCode: '025100001019',
+                variables: {
+                  '크리에이터명': creatorName,
+                  '출금금액': withdrawalAmount.toLocaleString(),
+                  '신청일': new Date().toLocaleDateString('ko-KR')
+                }
+              },
+              { timeout: 8000 }
+            )
+            console.log('출금 승인 알림톡 발송 완료')
+          } else {
+            console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+          }
+        } catch (notifyError) {
+          console.error('알림톡 발송 오류:', notifyError)
+          // 알림톡 실패해도 승인 처리는 완료된 것으로 처리
+        }
+
         alert('승인되었습니다.')
       } else if (actionType === 'reject') {
         if (!rejectionReason) {
@@ -470,9 +985,12 @@ export default function WithdrawalManagement() {
           return
         }
 
+        console.log('거절 처리 시작 - source_db:', selectedWithdrawal.source_db, 'id:', selectedWithdrawal.id)
+
         if (isKoreaDB && supabaseKorea) {
           // 1. withdrawals 상태 업데이트 (korea_pt가 아닌 경우에만)
           if (!isFromPointTransactions) {
+            console.log('withdrawals 테이블 업데이트...')
             const { error } = await supabaseKorea
               .from('withdrawals')
               .update({
@@ -483,7 +1001,28 @@ export default function WithdrawalManagement() {
               })
               .eq('id', selectedWithdrawal.id)
 
-            if (error) throw error
+            if (error) {
+              console.error('withdrawals 업데이트 오류:', error)
+              throw error
+            }
+            console.log('withdrawals 업데이트 완료')
+          } else {
+            // point_transactions에서 온 데이터는 related_withdrawal_id를 설정하여 중복 방지
+            // UUID 형식이어야 함 - 거절용 고정 UUID 사용
+            console.log('point_transactions 처리 완료 표시...')
+            const rejectedUUID = '00000000-0000-0000-0000-' + String(new Date().getTime()).slice(-12).padStart(12, '0')
+            const { error: ptUpdateError } = await supabaseKorea
+              .from('point_transactions')
+              .update({
+                related_withdrawal_id: rejectedUUID // 거절 처리됨 표시 (UUID 형식)
+              })
+              .eq('id', selectedWithdrawal.id)
+
+            if (ptUpdateError) {
+              console.error('point_transactions 업데이트 오류:', ptUpdateError)
+            } else {
+              console.log('point_transactions 거절 처리 완료:', rejectedUUID)
+            }
           }
 
           // 2. 포인트 환불 (양수로 point_transactions에 추가)
@@ -520,6 +1059,47 @@ export default function WithdrawalManagement() {
 
           if (error) throw error
         }
+
+        // 알림톡 발송 (크리에이터 전화번호 조회 후 발송)
+        try {
+          let creatorPhone = null
+          const creatorName = selectedWithdrawal.creator_name || selectedWithdrawal.account_holder || 'Unknown'
+
+          // 전화번호 조회
+          if (selectedWithdrawal.user_id && supabaseKorea) {
+            const { data: profileData } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', selectedWithdrawal.user_id)
+              .maybeSingle()
+
+            creatorPhone = profileData?.phone
+
+            // id로 못 찾으면 user_id로 재시도
+            if (!creatorPhone) {
+              const { data: profileData2 } = await supabaseKorea
+                .from('user_profiles')
+                .select('phone')
+                .eq('user_id', selectedWithdrawal.user_id)
+                .maybeSingle()
+              creatorPhone = profileData2?.phone
+            }
+          }
+
+          if (creatorPhone) {
+            console.log('출금 거절 알림톡 발송:', creatorName, creatorPhone)
+            await sendWithdrawalRejectedNotification(creatorPhone, creatorName, {
+              reason: rejectionReason
+            })
+            console.log('출금 거절 알림톡 발송 완료')
+          } else {
+            console.log('크리에이터 전화번호 없음, 알림톡 미발송')
+          }
+        } catch (notifyError) {
+          console.error('알림톡 발송 오류:', notifyError)
+          // 알림톡 실패해도 거절 처리는 완료된 것으로 처리
+        }
+
         alert('거절되었습니다. 포인트가 환불되었습니다.')
       }
 
@@ -959,9 +1539,43 @@ export default function WithdrawalManagement() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle>
-                          {getCountryLabel(country)} - {getStatusBadge(selectedStatus).props.children} ({filteredWithdrawals.length}건)
-                        </CardTitle>
+                        <div className="flex items-center gap-4">
+                          <CardTitle>
+                            {getCountryLabel(country)} - {getStatusBadge(selectedStatus).props.children} ({filteredWithdrawals.length}건)
+                          </CardTitle>
+                          {checkedWithdrawals.size > 0 && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                              {checkedWithdrawals.size}건 선택됨
+                            </Badge>
+                          )}
+                        </div>
+                        {/* 일괄 처리 버튼 */}
+                        <div className="flex items-center gap-2">
+                          {selectedStatus === 'pending' && filteredWithdrawals.length > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleBulkApprove}
+                              disabled={checkedWithdrawals.size === 0 || bulkProcessing}
+                              className="bg-blue-50 text-blue-600 hover:bg-blue-100"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              {bulkProcessing ? '처리 중...' : `일괄 승인 (${checkedWithdrawals.size})`}
+                            </Button>
+                          )}
+                          {selectedStatus === 'approved' && filteredWithdrawals.length > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleBulkComplete}
+                              disabled={checkedWithdrawals.size === 0 || bulkProcessing}
+                              className="bg-green-50 text-green-600 hover:bg-green-100"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              {bulkProcessing ? '처리 중...' : `일괄 지급완료 (${checkedWithdrawals.size})`}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -973,11 +1587,38 @@ export default function WithdrawalManagement() {
                         </div>
                       ) : (
                         <div className="space-y-4">
+                          {/* 전체 선택 체크박스 */}
+                          {(selectedStatus === 'pending' || selectedStatus === 'approved') && (
+                            <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg border border-gray-200">
+                              <input
+                                type="checkbox"
+                                checked={checkedWithdrawals.size === filteredWithdrawals.length && filteredWithdrawals.length > 0}
+                                onChange={() => handleCheckAll(filteredWithdrawals)}
+                                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-sm font-medium text-gray-700">
+                                전체 선택 ({filteredWithdrawals.length}건)
+                              </span>
+                            </div>
+                          )}
                           {filteredWithdrawals.map((withdrawal) => (
                             <div
                               key={withdrawal.id}
-                              className="flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                              className={`flex items-center justify-between p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border ${
+                                checkedWithdrawals.has(withdrawal.id) ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+                              }`}
                             >
+                              {/* 체크박스 */}
+                              {(withdrawal.status === 'pending' || withdrawal.status === 'approved') && (
+                                <div className="mr-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={checkedWithdrawals.has(withdrawal.id)}
+                                    onChange={() => handleCheckWithdrawal(withdrawal.id)}
+                                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                </div>
+                              )}
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-3">
                                   <h3 className="text-lg font-bold">

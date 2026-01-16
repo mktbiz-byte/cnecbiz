@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign, X } from 'lucide-react';
+import { Search, FileText, CheckCircle, XCircle, AlertCircle, DollarSign, X, MinusCircle } from 'lucide-react';
 
 const TaxInvoiceRequestsTab = () => {
   const [requests, setRequests] = useState([]);
@@ -9,6 +9,15 @@ const TaxInvoiceRequestsTab = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isIssuing, setIsIssuing] = useState(false);
+
+  // 마이너스 발행 모달 상태
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelRequest, setCancelRequest] = useState(null);
+  const [cancelForm, setCancelForm] = useState({
+    modifyCode: '04',
+    cancelReason: ''
+  });
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -95,6 +104,75 @@ const TaxInvoiceRequestsTab = () => {
       alert(`세금계산서 발행에 실패했습니다: ${error.message}`);
     } finally {
       setIsIssuing(false);
+    }
+  };
+
+  // 마이너스 발행 모달 열기
+  const openCancelModal = (request) => {
+    setCancelRequest(request);
+    setCancelForm({
+      modifyCode: '04',
+      cancelReason: ''
+    });
+    setIsCancelModalOpen(true);
+  };
+
+  // 마이너스 발행 모달 닫기
+  const closeCancelModal = () => {
+    setIsCancelModalOpen(false);
+    setCancelRequest(null);
+    setCancelForm({ modifyCode: '04', cancelReason: '' });
+  };
+
+  // 마이너스 발행 (수정세금계산서) 처리
+  const handleCancelInvoice = async () => {
+    if (!cancelRequest) return;
+
+    const modifyCodeNames = {
+      '01': '기재사항 착오정정',
+      '02': '공급가액 변동',
+      '03': '환입 (반품)',
+      '04': '계약의 해지',
+      '05': '내국신용장 사후개설',
+      '06': '착오에 의한 이중발행'
+    };
+
+    const confirmMessage = `${cancelRequest.companies.company_name}의 세금계산서를 마이너스 발행(취소)하시겠습니까?\n\n` +
+      `금액: -${cancelRequest.amount.toLocaleString()}원\n` +
+      `수정사유: ${modifyCodeNames[cancelForm.modifyCode]}\n\n` +
+      `⚠️ 이 작업은 되돌릴 수 없습니다.`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      const response = await fetch('/.netlify/functions/issue-tax-invoice-cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          taxInvoiceRequestId: cancelRequest.id,
+          modifyCode: cancelForm.modifyCode,
+          cancelReason: cancelForm.cancelReason || modifyCodeNames[cancelForm.modifyCode]
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || '마이너스 발행 실패');
+      }
+
+      alert(`수정세금계산서(마이너스)가 발행되었습니다.\n\n국세청 승인번호: ${result.ntsConfirmNum}`);
+      closeCancelModal();
+      closeModal();
+      fetchRequests();
+    } catch (error) {
+      console.error('마이너스 발행 오류:', error);
+      alert(`마이너스 발행에 실패했습니다: ${error.message}`);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -287,7 +365,12 @@ const TaxInvoiceRequestsTab = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {request.status === 'issued' ? (
+                      {request.tax_invoice_info?.cancelled ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-500 text-white">
+                          <MinusCircle className="w-3 h-3 mr-1" />
+                          마이너스 발행됨
+                        </span>
+                      ) : request.status === 'issued' ? (
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           request.is_prepaid
                             ? 'bg-red-100 text-red-800'
@@ -496,14 +579,147 @@ const TaxInvoiceRequestsTab = () => {
                 </button>
               )}
               {selectedRequest.status === 'issued' && (
-                <button
-                  onClick={() => handleIssueInvoice(true)}
-                  disabled={isIssuing}
-                  className="px-4 py-2 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isIssuing ? '재발행 중...' : '재발행하기'}
-                </button>
+                <>
+                  <button
+                    onClick={() => handleIssueInvoice(true)}
+                    disabled={isIssuing}
+                    className="px-4 py-2 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isIssuing ? '재발행 중...' : '재발행하기'}
+                  </button>
+                  {!selectedRequest.tax_invoice_info?.cancelled && (
+                    <button
+                      onClick={() => openCancelModal(selectedRequest)}
+                      disabled={isIssuing}
+                      className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <MinusCircle className="w-4 h-4" />
+                      마이너스 발행
+                    </button>
+                  )}
+                </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 마이너스 발행 모달 */}
+      {isCancelModalOpen && cancelRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-red-50">
+              <h2 className="text-xl font-bold text-red-900 flex items-center gap-2">
+                <MinusCircle className="w-6 h-6" />
+                수정세금계산서 (마이너스 발행)
+              </h2>
+              <button
+                onClick={closeCancelModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className="p-6 space-y-6">
+              {/* 원본 세금계산서 정보 */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">원본 세금계산서 정보</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-500">회사명:</span>
+                    <span className="ml-2 font-medium">{cancelRequest.companies.company_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">금액:</span>
+                    <span className="ml-2 font-medium">{cancelRequest.amount.toLocaleString()}원</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-500">국세청 승인번호:</span>
+                    <span className="ml-2 font-medium text-blue-600">{cancelRequest.tax_invoice_info?.nts_confirm_num || '-'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 취소 금액 표시 */}
+              <div className="bg-red-100 rounded-lg p-4 text-center">
+                <p className="text-sm text-red-600 mb-1">취소 금액</p>
+                <p className="text-3xl font-bold text-red-700">-{cancelRequest.amount.toLocaleString()}원</p>
+              </div>
+
+              {/* 수정사유 선택 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  수정사유 선택 *
+                </label>
+                <select
+                  value={cancelForm.modifyCode}
+                  onChange={(e) => setCancelForm(prev => ({ ...prev, modifyCode: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                >
+                  <option value="01">01 - 기재사항 착오정정</option>
+                  <option value="02">02 - 공급가액 변동</option>
+                  <option value="03">03 - 환입 (반품)</option>
+                  <option value="04">04 - 계약의 해지</option>
+                  <option value="05">05 - 내국신용장 사후개설</option>
+                  <option value="06">06 - 착오에 의한 이중발행</option>
+                </select>
+              </div>
+
+              {/* 취소 사유 입력 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  취소 사유 (선택)
+                </label>
+                <textarea
+                  value={cancelForm.cancelReason}
+                  onChange={(e) => setCancelForm(prev => ({ ...prev, cancelReason: e.target.value }))}
+                  placeholder="취소 사유를 입력하세요..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none h-24"
+                />
+              </div>
+
+              {/* 경고 메시지 */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-medium text-yellow-800">주의사항</h4>
+                    <ul className="text-sm text-yellow-700 mt-1 list-disc list-inside space-y-1">
+                      <li>수정세금계산서는 국세청에 즉시 전송됩니다</li>
+                      <li>발행 후 취소할 수 없습니다</li>
+                      <li>공급받는자에게 이메일로 발송됩니다</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={closeCancelModal}
+                disabled={isCancelling}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleCancelInvoice}
+                disabled={isCancelling || !cancelRequest.tax_invoice_info?.nts_confirm_num}
+                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isCancelling ? (
+                  <>처리 중...</>
+                ) : (
+                  <>
+                    <MinusCircle className="w-4 h-4" />
+                    마이너스 발행
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

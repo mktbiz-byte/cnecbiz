@@ -34,7 +34,8 @@ const TestKakaoNotification = () => {
   const creatorTemplates = [
     { code: POPBILL_TEMPLATES.CREATOR.SIGNUP.code, name: '회원가입 환영', vars: ['이름'] },
     { code: POPBILL_TEMPLATES.CREATOR.CAMPAIGN_SELECTED.code, name: '캠페인 선정', vars: ['크리에이터명', '캠페인명'] },
-    { code: POPBILL_TEMPLATES.CREATOR.VIDEO_APPROVED.code, name: '영상 승인', vars: ['크리에이터명', '캠페인명', '업로드기한'] },
+    { code: POPBILL_TEMPLATES.CREATOR.VIDEO_REVISION_REQUESTED.code, name: '⭐ 영상 수정 요청', vars: ['크리에이터명', '캠페인명', '요청일', '재제출기한'] },
+    { code: POPBILL_TEMPLATES.CREATOR.VIDEO_APPROVED.code, name: '⭐ 영상 승인 완료 (검수완료)', vars: ['크리에이터명', '캠페인명', '업로드기한'] },
   ];
 
   const templates = formData.templateType === 'company' ? companyTemplates : creatorTemplates;

@@ -370,9 +370,93 @@ JSON 형식으로만 응답해주세요.`
         throw new Error(`${errors.length}개 업데이트 실패`)
       }
 
-      // TODO: Send email/notification to participants
-      
-      alert(`✅ ${weekNum}주차 가이드가 ${applications.length}명의 참여자에게 전달되었습니다!`)
+      // 주차별 마감일 가져오기
+      const weekDeadlineField = `week${weekNum}_deadline`
+      const weekDeadline = campaign[weekDeadlineField]
+      const deadlineText = weekDeadline ? new Date(weekDeadline).toLocaleDateString('ko-KR') : '미정'
+
+      // 각 참여자에게 알림톡 + 이메일 발송
+      let notificationSuccessCount = 0
+      let notificationErrorCount = 0
+
+      for (const app of applications) {
+        try {
+          // user_profiles에서 phone, email 가져오기
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('phone, email, name')
+            .eq('id', app.user_id)
+            .maybeSingle()
+
+          if (!profile) continue
+
+          const creatorName = profile.name || '크리에이터'
+
+          // 알림톡 발송
+          if (profile.phone) {
+            try {
+              await fetch('/.netlify/functions/send-kakao-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  receiverNum: profile.phone,
+                  receiverName: creatorName,
+                  templateCode: '025100001012',
+                  variables: {
+                    '크리에이터명': creatorName,
+                    '캠페인명': `${campaign.title} ${weekNum}주차`,
+                    '제출기한': deadlineText
+                  }
+                })
+              })
+            } catch (alimtalkError) {
+              console.error('알림톡 발송 실패:', alimtalkError)
+            }
+          }
+
+          // 이메일 발송
+          if (profile.email) {
+            try {
+              await fetch('/.netlify/functions/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  to: profile.email,
+                  subject: `[CNEC] ${campaign.title} ${weekNum}주차 가이드 전달`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                        <h1 style="color: white; margin: 0;">CNEC</h1>
+                      </div>
+                      <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+                        <h2 style="color: #333;">${creatorName}님, ${weekNum}주차 촬영 가이드가 전달되었습니다.</h2>
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                          <p style="margin: 5px 0;"><strong>캠페인:</strong> ${campaign.title}</p>
+                          <p style="margin: 5px 0;"><strong>주차:</strong> ${weekNum}주차</p>
+                          <p style="margin: 5px 0;"><strong>제출 기한:</strong> <span style="color: #dc2626; font-weight: bold;">${deadlineText}</span></p>
+                        </div>
+                        <p>크리에이터 대시보드에서 가이드를 확인하시고, 기한 내에 영상을 제출해 주세요.</p>
+                        <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">감사합니다.<br/>CNEC 팀</p>
+                      </div>
+                    </div>
+                  `
+                })
+              })
+            } catch (emailError) {
+              console.error('이메일 발송 실패:', emailError)
+            }
+          }
+
+          notificationSuccessCount++
+        } catch (notificationError) {
+          console.error('알림 발송 오류:', notificationError)
+          notificationErrorCount++
+        }
+      }
+
+      console.log(`알림 발송 완료: 성공 ${notificationSuccessCount}, 실패 ${notificationErrorCount}`)
+
+      alert(`✅ ${weekNum}주차 가이드가 ${applications.length}명의 참여자에게 전달되었습니다!\n(알림 발송: ${notificationSuccessCount}건 성공)`)
       
     } catch (error) {
       console.error('Error sending guide:', error)

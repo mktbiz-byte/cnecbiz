@@ -110,10 +110,11 @@ export default function CampaignVideoFeedback() {
       setParticipant(data)
       setCampaign(data.campaigns)
 
-      // Set latest version as default
+      // Set latest version as default (가장 높은 버전 번호)
       if (data.video_files && data.video_files.length > 0) {
-        const latestVersion = data.video_files[data.video_files.length - 1]
-        setSelectedVersion(latestVersion)
+        // 버전 번호 기준 내림차순 정렬 후 첫 번째 (최신) 선택
+        const sortedFiles = [...data.video_files].sort((a, b) => (b.version || 0) - (a.version || 0))
+        setSelectedVersion(sortedFiles[0])
       }
     } catch (error) {
       console.error('Error loading participant:', error)
@@ -488,10 +489,10 @@ export default function CampaignVideoFeedback() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* Version Selector */}
+        {/* Version Selector (최신 버전부터 표시) */}
         {participant.video_files && participant.video_files.length > 0 && (
           <div className="mb-4 flex gap-2 flex-wrap">
-            {participant.video_files.map((video) => (
+            {[...participant.video_files].sort((a, b) => (b.version || 0) - (a.version || 0)).map((video) => (
               <Button
                 key={video.version}
                 variant={selectedVersion?.version === video.version ? 'default' : 'outline'}

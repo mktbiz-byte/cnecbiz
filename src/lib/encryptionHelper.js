@@ -3,7 +3,7 @@
  * Supabase pgcrypto 사용
  */
 
-import { supabaseBiz } from './supabaseClients'
+import { supabaseBiz, supabaseKorea } from './supabaseClients'
 
 // 암호화 키 (환경변수에서 가져오기, 없으면 기본값)
 const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'cnec-default-encryption-key-2024'
@@ -38,16 +38,55 @@ export async function encryptResidentNumber(residentNumber) {
 export async function decryptResidentNumber(encryptedText) {
   if (!encryptedText) return null
 
+  console.log('복호화 시도 - 암호화된 데이터 길이:', encryptedText.length)
+  console.log('사용 중인 키:', ENCRYPTION_KEY ? ENCRYPTION_KEY.substring(0, 10) + '...' : '없음')
+
   try {
+    // 1. Korea DB로 먼저 복호화 시도 (withdrawals 데이터가 Korea DB에 있음)
+    if (supabaseKorea) {
+      console.log('Korea DB decrypt_text 시도...')
+      const { data: koreaData, error: koreaError } = await supabaseKorea.rpc('decrypt_text', {
+        encrypted: encryptedText,
+        key: ENCRYPTION_KEY
+      })
+
+      if (!koreaError && koreaData) {
+        console.log('Korea DB 복호화 성공')
+        return koreaData
+      }
+      console.log('Korea DB 복호화 실패:', koreaError?.message)
+    }
+
+    // 2. Korea DB 실패시 BIZ DB로 시도
+    console.log('BIZ DB decrypt_text 시도...')
     const { data, error } = await supabaseBiz.rpc('decrypt_text', {
       encrypted: encryptedText,
       key: ENCRYPTION_KEY
     })
 
-    if (error) throw error
-    return data
+    if (!error && data) {
+      console.log('BIZ DB 복호화 성공')
+      return data
+    }
+    console.log('BIZ DB 복호화 실패:', error?.message)
+
+    // 3. 둘 다 실패시 다른 키로 시도 (기본키)
+    const defaultKey = 'cnec-default-encryption-key-2024'
+    if (ENCRYPTION_KEY !== defaultKey) {
+      console.log('기본 키로 재시도...')
+      const { data: retryData, error: retryError } = await supabaseBiz.rpc('decrypt_text', {
+        encrypted: encryptedText,
+        key: defaultKey
+      })
+      if (!retryError && retryData) {
+        console.log('기본 키로 복호화 성공')
+        return retryData
+      }
+    }
+
+    throw new Error('모든 복호화 시도 실패')
   } catch (error) {
-    console.error('복호화 오류:', error)
+    console.error('복호화 최종 오류:', error)
     throw new Error('주민등록번호 복호화에 실패했습니다.')
   }
 }

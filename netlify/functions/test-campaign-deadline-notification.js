@@ -1,0 +1,239 @@
+/**
+ * 캠페인 모집 마감일 알림 수동 테스트 함수
+ * URL: /.netlify/functions/test-campaign-deadline-notification
+ */
+
+const { createClient } = require('@supabase/supabase-js');
+
+// Supabase 클라이언트 초기화
+const createSupabaseClient = () => {
+  const supabaseUrl = process.env.VITE_SUPABASE_KOREA_URL;
+  const supabaseKey = process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    return createClient(supabaseUrl, supabaseKey);
+  }
+  return null;
+};
+
+exports.handler = async (event, context) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+
+  try {
+    // 오늘 날짜 (한국 시간 기준)
+    const now = new Date();
+    const koreaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const today = koreaTime.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    console.log('현재 시간 (UTC):', now.toISOString());
+    console.log('현재 시간 (KST):', koreaTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+    console.log('오늘 날짜:', today);
+
+    // 다중 지역 Supabase 클라이언트 설정
+    const regions = [
+      { name: 'korea', url: process.env.VITE_SUPABASE_KOREA_URL, key: process.env.SUPABASE_KOREA_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_KOREA_ANON_KEY },
+      { name: 'japan', url: process.env.VITE_SUPABASE_JAPAN_URL, key: process.env.SUPABASE_JAPAN_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_JAPAN_ANON_KEY },
+      { name: 'us', url: process.env.VITE_SUPABASE_US_URL, key: process.env.SUPABASE_US_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_US_ANON_KEY }
+    ];
+
+    // 모든 지역에서 오늘이 모집 마감일인 캠페인 조회
+    let allCampaigns = [];
+    for (const region of regions) {
+      if (!region.url || !region.key) {
+        console.log(`${region.name} Supabase 미설정 - 건너뜀`);
+        continue;
+      }
+
+      const supabase = createClient(region.url, region.key);
+      console.log(`${region.name} 지역 조회 중...`);
+
+      // 리전별 스키마 차이 처리: 기본 컬럼만 조회
+      let selectQuery = 'id, title, status, application_deadline';
+
+      // 추가 컬럼은 리전에 따라 조건부로 포함
+      if (region.name === 'korea') {
+        selectQuery += ', brand, product_name, company_id, company_email';
+      } else if (region.name === 'us') {
+        selectQuery += ', brand, product_name, company_id';  // company_email 없음
+      } else if (region.name === 'japan') {
+        selectQuery += ', brand, product_name, company_email';  // company_id 없음
+      }
+
+      const { data: campaigns, error: campaignError} = await supabase
+        .from('campaigns')
+        .select(selectQuery)
+        .eq('application_deadline', today)
+        .in('status', ['active', 'approved']);  // 프론트엔드 "진행중" 필터와 동일
+
+      if (campaignError) {
+        console.error(`${region.name} 조회 오류:`, campaignError);
+        continue;
+      }
+
+      if (campaigns && campaigns.length > 0) {
+        console.log(`${region.name}: ${campaigns.length}개 캠페인 발견`);
+        campaigns.forEach(c => c.region = region.name);
+        allCampaigns.push(...campaigns);
+      } else {
+        console.log(`${region.name}: 마감 캠페인 없음`);
+      }
+    }
+
+    const campaigns = allCampaigns;
+    console.log(`전체 오늘 마감되는 캠페인 수: ${campaigns.length}`);
+
+    const results = [];
+
+    for (const campaign of campaigns || []) {
+      // 해당 캠페인의 지역 Supabase 클라이언트 생성
+      const regionConfig = regions.find(r => r.name === campaign.region);
+      const supabase = createClient(regionConfig.url, regionConfig.key);
+
+      // 해당 캠페인의 지원자 수 조회
+      const { count: applicantCount, error: countError } = await supabase
+        .from('applications')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaign.id);
+
+      if (countError) {
+        console.error(`지원자 수 조회 실패 (캠페인 ${campaign.id}):`, countError);
+        results.push({
+          campaign_id: campaign.id,
+          campaign_title: campaign.title,
+          region: campaign.region,
+          error: countError.message
+        });
+        continue;
+      }
+
+      // 기업 정보 조회 (전화번호, 회사명, 이메일)
+      let companyPhone = null;
+      let companyEmail = campaign.company_email || null;
+      let companyName = campaign.brand || '기업';
+
+      // 1. company_id로 companies 테이블에서 조회
+      if (campaign.company_id) {
+        // 1-1. user_id로 조회 (company_id는 auth user.id를 저장)
+        const { data: companyByUserId, error: companyError1 } = await supabase
+          .from('companies')
+          .select('company_name, phone, representative_phone, email')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle();
+
+        if (!companyError1 && companyByUserId) {
+          companyPhone = companyByUserId.phone || companyByUserId.representative_phone;
+          companyName = companyByUserId.company_name || campaign.brand || '기업';
+          companyEmail = companyEmail || companyByUserId.email;
+        }
+
+        // 1-2. user_id로 못 찾으면 id로 재시도 (레거시 데이터 호환)
+        if (!companyPhone && !companyEmail) {
+          const { data: companyById, error: companyError2 } = await supabase
+            .from('companies')
+            .select('company_name, phone, representative_phone, email')
+            .eq('id', campaign.company_id)
+            .maybeSingle();
+
+          if (!companyError2 && companyById) {
+            companyPhone = companyById.phone || companyById.representative_phone;
+            companyName = companyById.company_name || campaign.brand || '기업';
+            companyEmail = companyEmail || companyById.email;
+          }
+        }
+
+        // 1-3. user_profiles에서도 조회
+        if (!companyPhone || !companyEmail) {
+          const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('phone, email')
+            .eq('id', campaign.company_id)
+            .maybeSingle();
+
+          if (!profileError && profile) {
+            companyPhone = companyPhone || profile.phone;
+            companyEmail = companyEmail || profile.email;
+          }
+        }
+      }
+
+      // 2. company_email로 companies 테이블에서 조회 (일본 등 company_id 없는 경우)
+      if ((!companyPhone || !companyName || companyName === '기업') && companyEmail) {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('company_name, phone, representative_phone, email')
+          .eq('email', companyEmail)
+          .maybeSingle();
+
+        if (!companyError && company) {
+          companyPhone = companyPhone || company.phone || company.representative_phone;
+          companyName = company.company_name || companyName;
+        }
+      }
+
+      results.push({
+        campaign_id: campaign.id,
+        campaign_title: campaign.title,
+        region: campaign.region,
+        brand: campaign.brand,
+        status: campaign.status,
+        application_deadline: campaign.application_deadline,
+        applicant_count: applicantCount || 0,
+        company_name: companyName,
+        company_phone: companyPhone,
+        company_email: companyEmail,
+        will_send_kakao: !!companyPhone,
+        will_send_email: !!companyEmail
+      });
+    }
+
+    // 환경 변수 확인
+    const envCheck = {
+      POPBILL_LINK_ID: !!process.env.POPBILL_LINK_ID,
+      POPBILL_SECRET_KEY: !!process.env.POPBILL_SECRET_KEY,
+      POPBILL_CORP_NUM: !!process.env.POPBILL_CORP_NUM,
+      POPBILL_SENDER_NUM: !!process.env.POPBILL_SENDER_NUM,
+      GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
+      NAVER_WORKS_CLIENT_ID: !!process.env.NAVER_WORKS_CLIENT_ID,
+      NAVER_WORKS_CLIENT_SECRET: !!process.env.NAVER_WORKS_CLIENT_SECRET,
+      NAVER_WORKS_BOT_ID: !!process.env.NAVER_WORKS_BOT_ID,
+      NAVER_WORKS_CHANNEL_ID: !!process.env.NAVER_WORKS_CHANNEL_ID
+    };
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        timestamp: {
+          utc: now.toISOString(),
+          kst: koreaTime.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+        },
+        today: today,
+        totalCampaigns: campaigns?.length || 0,
+        campaigns: results,
+        envCheck
+      }, null, 2)
+    };
+
+  } catch (error) {
+    console.error('테스트 함수 오류:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        success: false,
+        error: error.message,
+        stack: error.stack
+      })
+    };
+  }
+};

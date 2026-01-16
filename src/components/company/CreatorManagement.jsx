@@ -269,7 +269,7 @@ export default function CreatorManagement() {
     try {
       // cnec_grade_level >= 2 (GLOW 이상)만 표시
       // 1 = FRESH, 2 = GLOW, 3 = BLOOM, 4 = ICONIC, 5 = MUSE
-      const { data: featuredCreators, error } = await supabaseBiz
+      const { data: featuredCreators, error } = await supabaseKorea
         .from('featured_creators')
         .select('*')
         .eq('is_active', true)

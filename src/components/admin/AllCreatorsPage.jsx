@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
-  Users, Search, Globe, Star, MessageSquare, Download,
+  Users, Search, Globe, Star, MessageSquare, MessageCircle, Download,
   Instagram, Youtube, Video, Phone, Mail, Send, CheckSquare,
   X, ExternalLink, User, MapPin, CreditCard, Calendar, ChevronLeft, ChevronRight,
   Briefcase, Award, FileCheck, Key, RefreshCw, Eye, EyeOff, Check, Copy, Loader2,
@@ -17,6 +17,7 @@ import {
 import { supabaseBiz, supabaseKorea, supabaseJapan, supabaseUS } from '../../lib/supabaseClients'
 import { database } from '../../lib/supabaseKorea'
 import AdminNavigation from './AdminNavigation'
+import LineChatModal from './LineChatModal'
 import * as XLSX from 'xlsx'
 
 // 등급 정의
@@ -138,6 +139,10 @@ export default function AllCreatorsPage() {
   const [pointGrantReason, setPointGrantReason] = useState('')
   const [grantingPoints, setGrantingPoints] = useState(false)
 
+  // 캠페인 이력 상태
+  const [creatorCampaigns, setCreatorCampaigns] = useState({ inProgress: [], completed: [], applied: [] })
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
+
   const [creators, setCreators] = useState({
     korea: [],
     japan: [],
@@ -164,11 +169,25 @@ export default function AllCreatorsPage() {
   const [selectedGradeLevel, setSelectedGradeLevel] = useState(1)
   const [savingGrade, setSavingGrade] = useState(false)
 
+  // 일괄 등급 변경 상태
+  const [showBulkGradeModal, setShowBulkGradeModal] = useState(false)
+  const [bulkGradeLevel, setBulkGradeLevel] = useState(1)
+  const [savingBulkGrade, setSavingBulkGrade] = useState(false)
+  const [bulkGradeProgress, setBulkGradeProgress] = useState({ current: 0, total: 0 })
+
   // 포인트 지급 상태
   const [showPointModal, setShowPointModal] = useState(false)
   const [pointAmount, setPointAmount] = useState('')
   const [pointReason, setPointReason] = useState('')
   const [savingPoints, setSavingPoints] = useState(false)
+
+  // 프로필 등록 요청 상태
+  const [showProfileRequestModal, setShowProfileRequestModal] = useState(false)
+  const [profileRequestOptions, setProfileRequestOptions] = useState({ kakao: true, email: true })
+  const [sendingProfileRequest, setSendingProfileRequest] = useState(false)
+
+  // LINE 채팅 모달 상태
+  const [showLineChatModal, setShowLineChatModal] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -308,12 +327,12 @@ export default function AllCreatorsPage() {
     }
   }
 
-  // 등급 크리에이터 데이터 로드 (brand site DB)
+  // 등급 크리에이터 데이터 로드 (Korea DB)
   const fetchFeaturedCreators = async () => {
     try {
-      const { data, error } = await supabaseBiz
+      const { data, error } = await supabaseKorea
         .from('featured_creators')
-        .select('source_user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended')
+        .select('user_id, cnec_grade_level, cnec_grade_name, cnec_total_score, is_cnec_recommended')
         .eq('is_active', true)
 
       if (error) {
@@ -329,7 +348,7 @@ export default function AllCreatorsPage() {
 
   // 크리에이터의 등급 정보 가져오기
   const getCreatorGrade = (creatorId) => {
-    const featured = featuredCreators.find(fc => fc.source_user_id === creatorId)
+    const featured = featuredCreators.find(fc => fc.user_id === creatorId)
     if (featured && featured.cnec_grade_level) {
       return {
         level: featured.cnec_grade_level,
@@ -348,41 +367,35 @@ export default function AllCreatorsPage() {
     setSavingGrade(true)
     try {
       const gradeInfo = GRADE_LEVELS[selectedGradeLevel]
-      const existingFeatured = featuredCreators.find(fc => fc.source_user_id === selectedCreator.id)
+      const existingFeatured = featuredCreators.find(fc => fc.user_id === selectedCreator.id)
 
       if (existingFeatured) {
         // 기존 등급 업데이트
-        const { error } = await supabaseBiz
+        const { error } = await supabaseKorea
           .from('featured_creators')
           .update({
             cnec_grade_level: selectedGradeLevel,
             cnec_grade_name: gradeInfo.name,
             is_cnec_recommended: selectedGradeLevel >= 2
           })
-          .eq('source_user_id', selectedCreator.id)
+          .eq('user_id', selectedCreator.id)
 
         if (error) throw error
       } else {
-        // 새로 등록
-        const regionMap = { korea: 'KR', japan: 'JP', us: 'US', taiwan: 'TW' }
-        const { error } = await supabaseBiz
+        // 새로 등록 (featured_creators 테이블 구조에 맞게)
+        const { error } = await supabaseKorea
           .from('featured_creators')
           .insert({
-            source_user_id: selectedCreator.id,
-            source_country: regionMap[selectedCreator.dbRegion] || 'KR',
+            user_id: selectedCreator.id,
             name: selectedCreator.name || selectedCreator.channel_name || '',
-            email: selectedCreator.email,
-            phone: selectedCreator.phone,
-            profile_image_url: selectedCreator.profile_image,
-            instagram_handle: selectedCreator.instagram_url?.split('/').pop(),
+            profile_photo_url: selectedCreator.profile_image,
+            instagram_url: selectedCreator.instagram_url,
             instagram_followers: selectedCreator.instagram_followers || 0,
-            youtube_handle: selectedCreator.youtube_url?.split('/').pop(),
+            youtube_url: selectedCreator.youtube_url,
             youtube_subscribers: selectedCreator.youtube_subscribers || 0,
-            tiktok_handle: selectedCreator.tiktok_url?.split('/').pop(),
+            tiktok_url: selectedCreator.tiktok_url,
             tiktok_followers: selectedCreator.tiktok_followers || 0,
-            primary_country: regionMap[selectedCreator.dbRegion] || 'KR',
-            active_regions: [selectedCreator.dbRegion],
-            featured_type: 'manual',
+            bio: selectedCreator.bio,
             is_active: true,
             cnec_grade_level: selectedGradeLevel,
             cnec_grade_name: gradeInfo.name,
@@ -391,6 +404,18 @@ export default function AllCreatorsPage() {
           })
 
         if (error) throw error
+      }
+
+      // user_profiles 테이블에도 등급 동기화 (cnec_grade_level만 존재)
+      const { error: profileError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          cnec_grade_level: selectedGradeLevel
+        })
+        .eq('id', selectedCreator.id)
+
+      if (profileError) {
+        console.warn('user_profiles 등급 동기화 실패:', profileError)
       }
 
       alert(`${selectedCreator.name || '크리에이터'}의 등급이 ${gradeInfo.name}(으)로 설정되었습니다.`)
@@ -412,12 +437,24 @@ export default function AllCreatorsPage() {
 
     setSavingGrade(true)
     try {
-      const { error } = await supabaseBiz
+      const { error } = await supabaseKorea
         .from('featured_creators')
         .delete()
-        .eq('source_user_id', selectedCreator.id)
+        .eq('user_id', selectedCreator.id)
 
       if (error) throw error
+
+      // user_profiles 테이블에서도 등급 초기화 (cnec_grade_level만 존재)
+      const { error: profileError } = await supabaseKorea
+        .from('user_profiles')
+        .update({
+          cnec_grade_level: null
+        })
+        .eq('id', selectedCreator.id)
+
+      if (profileError) {
+        console.warn('user_profiles 등급 초기화 실패:', profileError)
+      }
 
       alert('등급이 삭제되었습니다.')
       setShowGradeModal(false)
@@ -427,6 +464,92 @@ export default function AllCreatorsPage() {
       alert('등급 삭제에 실패했습니다: ' + error.message)
     } finally {
       setSavingGrade(false)
+    }
+  }
+
+  // 일괄 등급 변경
+  const handleBulkGradeChange = async () => {
+    const koreanCreators = selectedCreators.filter(c => c.dbRegion === 'korea')
+    if (koreanCreators.length === 0) {
+      alert('한국 크리에이터를 선택해주세요. (등급 시스템은 한국 크리에이터만 지원합니다)')
+      return
+    }
+
+    setSavingBulkGrade(true)
+    setBulkGradeProgress({ current: 0, total: koreanCreators.length })
+
+    const gradeInfo = GRADE_LEVELS[bulkGradeLevel]
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      for (let i = 0; i < koreanCreators.length; i++) {
+        const creator = koreanCreators[i]
+        setBulkGradeProgress({ current: i + 1, total: koreanCreators.length })
+
+        try {
+          const existingFeatured = featuredCreators.find(fc => fc.user_id === creator.id)
+
+          if (existingFeatured) {
+            // 기존 등급 업데이트
+            const { error } = await supabaseKorea
+              .from('featured_creators')
+              .update({
+                cnec_grade_level: bulkGradeLevel,
+                cnec_grade_name: gradeInfo.name,
+                is_cnec_recommended: bulkGradeLevel >= 2
+              })
+              .eq('user_id', creator.id)
+
+            if (error) throw error
+          } else {
+            // 새로 등록
+            const { error } = await supabaseKorea
+              .from('featured_creators')
+              .insert({
+                user_id: creator.id,
+                name: creator.name || creator.channel_name || '',
+                profile_photo_url: creator.profile_image,
+                instagram_url: creator.instagram_url,
+                instagram_followers: creator.instagram_followers || 0,
+                youtube_url: creator.youtube_url,
+                youtube_subscribers: creator.youtube_subscribers || 0,
+                tiktok_url: creator.tiktok_url,
+                tiktok_followers: creator.tiktok_followers || 0,
+                bio: creator.bio,
+                is_active: true,
+                cnec_grade_level: bulkGradeLevel,
+                cnec_grade_name: gradeInfo.name,
+                cnec_total_score: 0,
+                is_cnec_recommended: bulkGradeLevel >= 2
+              })
+
+            if (error) throw error
+          }
+
+          // user_profiles 테이블에도 등급 동기화
+          await supabaseKorea
+            .from('user_profiles')
+            .update({ cnec_grade_level: bulkGradeLevel })
+            .eq('id', creator.id)
+
+          successCount++
+        } catch (err) {
+          console.error(`${creator.name || creator.email} 등급 변경 실패:`, err)
+          failCount++
+        }
+      }
+
+      alert(`일괄 등급 변경 완료!\n성공: ${successCount}명\n실패: ${failCount}명`)
+      setShowBulkGradeModal(false)
+      setSelectedCreators([])
+      await fetchFeaturedCreators()
+    } catch (error) {
+      console.error('일괄 등급 변경 오류:', error)
+      alert('일괄 등급 변경에 실패했습니다: ' + error.message)
+    } finally {
+      setSavingBulkGrade(false)
+      setBulkGradeProgress({ current: 0, total: 0 })
     }
   }
 
@@ -587,9 +710,82 @@ export default function AllCreatorsPage() {
   }
 
   // 프로필 모달 열기
-  const openProfileModal = (creator) => {
+  const openProfileModal = async (creator) => {
     setSelectedCreator(creator)
     setShowProfileModal(true)
+    setCreatorCampaigns({ inProgress: [], completed: [], applied: [] })
+    setLoadingCampaigns(true)
+
+    try {
+      // 지역에 따른 Supabase 클라이언트 선택
+      const getSupabaseClient = (region) => {
+        switch (region) {
+          case 'korea': return supabaseKorea
+          case 'japan': return supabaseJapan
+          case 'us': return supabaseUS
+          default: return supabaseKorea
+        }
+      }
+
+      const supabase = getSupabaseClient(creator.dbRegion)
+
+      // applications 테이블에서 크리에이터의 캠페인 이력 조회
+      const { data: applications, error } = await supabase
+        .from('applications')
+        .select(`
+          id,
+          status,
+          created_at,
+          campaign_id,
+          campaigns (
+            id,
+            title,
+            brand,
+            status,
+            created_at
+          )
+        `)
+        .eq('user_id', creator.user_id || creator.id)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Failed to fetch campaign history:', error)
+        setLoadingCampaigns(false)
+        return
+      }
+
+      // 진행중/완료/지원 분류
+      const inProgressStatuses = ['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected']
+      const completedStatuses = ['completed']
+      const appliedStatuses = ['pending', 'applied', 'rejected', 'cancelled', 'withdrawn']
+
+      const inProgress = applications?.filter(app =>
+        inProgressStatuses.includes(app.status) && app.campaigns
+      ).map(app => ({
+        ...app,
+        campaign: app.campaigns
+      })) || []
+
+      const completed = applications?.filter(app =>
+        completedStatuses.includes(app.status) && app.campaigns
+      ).map(app => ({
+        ...app,
+        campaign: app.campaigns
+      })) || []
+
+      const applied = applications?.filter(app =>
+        appliedStatuses.includes(app.status) && app.campaigns
+      ).map(app => ({
+        ...app,
+        campaign: app.campaigns
+      })) || []
+
+      setCreatorCampaigns({ inProgress, completed, applied })
+    } catch (err) {
+      console.error('Error fetching campaign history:', err)
+    } finally {
+      setLoadingCampaigns(false)
+    }
   }
 
   // 메시지 발송 모달 열기
@@ -667,6 +863,138 @@ export default function AllCreatorsPage() {
       alert('메시지 발송 중 오류가 발생했습니다.')
     } finally {
       setSendingMessage(false)
+    }
+  }
+
+  // 한국 크리에이터에게 프로필 등록 요청 발송
+  const handleSendProfileRegistrationRequest = async () => {
+    const koreanCreators = selectedCreators.filter(c => c.dbRegion === 'korea')
+    if (koreanCreators.length === 0) {
+      alert('선택된 한국 크리에이터가 없습니다.')
+      return
+    }
+
+    if (!profileRequestOptions.kakao && !profileRequestOptions.email) {
+      alert('발송 방식을 하나 이상 선택해주세요.')
+      return
+    }
+
+    setSendingProfileRequest(true)
+    let kakaoSuccessCount = 0
+    let kakaoFailCount = 0
+    let emailSuccessCount = 0
+    let emailFailCount = 0
+
+    try {
+      for (const creator of koreanCreators) {
+        const creatorName = creator.name || '크리에이터'
+
+        // 카카오 알림톡 발송
+        if (profileRequestOptions.kakao && creator.phone) {
+          try {
+            const phoneNumber = creator.phone.replace(/-/g, '')
+            const response = await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: phoneNumber,
+                receiverName: creatorName,
+                templateCode: '025120000931',
+                variables: {
+                  '회원명': creatorName
+                }
+              })
+            })
+            const result = await response.json()
+            if (result.success) {
+              kakaoSuccessCount++
+            } else {
+              kakaoFailCount++
+              console.error(`카카오 발송 실패 (${creatorName}):`, result.error)
+            }
+          } catch (err) {
+            kakaoFailCount++
+            console.error(`카카오 발송 오류 (${creatorName}):`, err)
+          }
+        }
+
+        // 이메일 발송
+        if (profileRequestOptions.email && creator.email) {
+          try {
+            const response = await fetch('/.netlify/functions/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: creator.email,
+                subject: '[크넥] 기업의 주목도를 3배 높이는 프로필 설정, 하셨나요?',
+                html: `
+                  <div style="font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                      <h1 style="color: white; margin: 0; font-size: 24px;">CNEC</h1>
+                      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">프로필 등록 안내</p>
+                    </div>
+                    <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+                      <p style="color: #4b5563; line-height: 1.8;">안녕하세요, <strong>${creatorName}</strong>님!</p>
+                      <p style="color: #4b5563; line-height: 1.8;">회원 가입을 축하 드립니다.</p>
+                      <p style="color: #4b5563; line-height: 1.8;">기업들이 <strong>${creatorName}</strong>님의 역량을 한눈에 파악하고 더 많은 기회를 제안할 수 있도록 프로필을 완성해주세요.</p>
+
+                      <div style="background: #fef3c7; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="color: #92400e; font-weight: bold; margin: 0 0 10px 0;">💡 특히, 프로필 사진은 기업의 제안율을 높이는 가장 중요한 요소입니다.</p>
+                        <p style="color: #92400e; margin: 0;">지금 바로 사진을 등록하고 기업의 러브콜을 받아보세요!</p>
+                      </div>
+
+                      <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <p style="color: #1f2937; font-weight: bold; margin: 0 0 10px 0;">📝 지금 해야 할 일:</p>
+                        <ul style="color: #4b5563; margin: 0; padding-left: 20px;">
+                          <li style="margin-bottom: 5px;">프로필 사진 등록 (필수!)</li>
+                          <li>피부타입 및 SNS 정보 입력!</li>
+                        </ul>
+                      </div>
+
+                      <p style="color: #4b5563; line-height: 1.8;">기업은 크리에이터의 프로필을 확인할 수 있습니다.</p>
+                      <p style="color: #ef4444; line-height: 1.8;"><strong>프로필이 없을 경우 지원시 선정률이 낮을 수 있습니다.</strong></p>
+
+                      <div style="text-align: center; margin-top: 30px;">
+                        <a href="https://cnectotal.netlify.app/creator/profile" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">프로필 등록하기</a>
+                      </div>
+                    </div>
+                    <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; text-align: center;">
+                      <p style="color: #9ca3af; font-size: 12px; margin: 0;">© 2025 CNEC. All rights reserved.</p>
+                      <p style="color: #9ca3af; font-size: 12px; margin: 5px 0 0 0;">문의: 1833-6025</p>
+                    </div>
+                  </div>
+                `
+              })
+            })
+            const result = await response.json()
+            if (result.success !== false) {
+              emailSuccessCount++
+            } else {
+              emailFailCount++
+              console.error(`이메일 발송 실패 (${creatorName}):`, result.error)
+            }
+          } catch (err) {
+            emailFailCount++
+            console.error(`이메일 발송 오류 (${creatorName}):`, err)
+          }
+        }
+      }
+
+      let resultMessage = '발송 완료!\n'
+      if (profileRequestOptions.kakao) {
+        resultMessage += `알림톡: 성공 ${kakaoSuccessCount}건, 실패 ${kakaoFailCount}건\n`
+      }
+      if (profileRequestOptions.email) {
+        resultMessage += `이메일: 성공 ${emailSuccessCount}건, 실패 ${emailFailCount}건`
+      }
+      alert(resultMessage)
+      setShowProfileRequestModal(false)
+      setSelectedCreators([])
+    } catch (error) {
+      console.error('프로필 등록 요청 발송 오류:', error)
+      alert('프로필 등록 요청 발송 중 오류가 발생했습니다.')
+    } finally {
+      setSendingProfileRequest(false)
     }
   }
 
@@ -1226,7 +1554,7 @@ export default function AllCreatorsPage() {
                   </div>
                   <div className="flex gap-2">
                     {selectedCreators.length > 0 && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm text-gray-600 bg-indigo-100 px-3 py-1 rounded-full">
                           {selectedCreators.length}명 선택됨
                         </span>
@@ -1237,6 +1565,31 @@ export default function AllCreatorsPage() {
                           <Send className="w-4 h-4 mr-2" />
                           메시지 발송
                         </Button>
+                        {/* 한국 크리에이터가 선택된 경우에만 프로필 등록 요청 버튼 표시 */}
+                        {selectedCreators.some(c => c.dbRegion === 'korea') && (
+                          <>
+                            <Button
+                              onClick={() => {
+                                setProfileRequestOptions({ kakao: true, email: true })
+                                setShowProfileRequestModal(true)
+                              }}
+                              className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                            >
+                              <User className="w-4 h-4 mr-2" />
+                              프로필 등록 요청
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setBulkGradeLevel(1)
+                                setShowBulkGradeModal(true)
+                              }}
+                              className="bg-purple-500 hover:bg-purple-600 text-white"
+                            >
+                              <Crown className="w-4 h-4 mr-2" />
+                              일괄 등급 변경
+                            </Button>
+                          </>
+                        )}
                         <Button
                           variant="outline"
                           onClick={() => setSelectedCreators([])}
@@ -1345,7 +1698,7 @@ export default function AllCreatorsPage() {
 
       {/* 프로필 모달 */}
       <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5 text-indigo-500" />
@@ -1354,7 +1707,7 @@ export default function AllCreatorsPage() {
           </DialogHeader>
 
           {selectedCreator && (
-            <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto space-y-6 py-2 -mx-6 px-6">
               {/* 기본 정보 */}
               <div className="flex items-start gap-4">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center overflow-hidden">
@@ -1500,10 +1853,158 @@ export default function AllCreatorsPage() {
                   </p>
                 </div>
               )}
+
+              {/* 캠페인 이력 */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" /> 캠페인 이력
+                </h4>
+
+                {loadingCampaigns ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    <span className="ml-2 text-gray-500 text-sm">캠페인 이력 조회중...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 진행중인 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-blue-600 mb-2 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> 진행중 ({creatorCampaigns.inProgress.length})
+                      </h5>
+                      {creatorCampaigns.inProgress.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.inProgress.map((app) => (
+                            <div
+                              key={app.id}
+                              className="bg-white border border-blue-100 rounded-lg p-3 hover:border-blue-300 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setShowProfileModal(false)
+                                navigate(`/company/campaigns/${app.campaign_id}?region=${selectedCreator.dbRegion}`)
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                    {app.status === 'selected' && '선정됨'}
+                                    {app.status === 'approved' && '승인됨'}
+                                    {app.status === 'filming' && '촬영중'}
+                                    {app.status === 'video_submitted' && '영상제출'}
+                                    {app.status === 'revision_requested' && '수정요청'}
+                                    {app.status === 'guide_confirmation' && '가이드확인'}
+                                    {app.status === 'virtual_selected' && '가상선정'}
+                                    {!['selected', 'approved', 'filming', 'video_submitted', 'revision_requested', 'guide_confirmation', 'virtual_selected'].includes(app.status) && app.status}
+                                  </span>
+                                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">진행중인 캠페인이 없습니다.</p>
+                      )}
+                    </div>
+
+                    {/* 완료된 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-emerald-600 mb-2 flex items-center gap-1">
+                        <CheckSquare className="w-3 h-3" /> 완료 ({creatorCampaigns.completed.length})
+                      </h5>
+                      {creatorCampaigns.completed.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.completed.slice(0, 5).map((app) => (
+                            <div
+                              key={app.id}
+                              className="bg-white border border-emerald-100 rounded-lg p-3 hover:border-emerald-300 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setShowProfileModal(false)
+                                navigate(`/company/campaigns/${app.campaign_id}?region=${selectedCreator.dbRegion}`)
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">완료</span>
+                                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {creatorCampaigns.completed.length > 5 && (
+                            <p className="text-xs text-gray-400 text-center">외 {creatorCampaigns.completed.length - 5}건 더 있음</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">완료된 캠페인이 없습니다.</p>
+                      )}
+                    </div>
+
+                    {/* 지원한 캠페인 */}
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-1">
+                        <Send className="w-3 h-3" /> 지원 이력 ({creatorCampaigns.applied.length})
+                      </h5>
+                      {creatorCampaigns.applied.length > 0 ? (
+                        <div className="space-y-2">
+                          {creatorCampaigns.applied.slice(0, 5).map((app) => (
+                            <div
+                              key={app.id}
+                              className="bg-white border border-gray-200 rounded-lg p-3 hover:border-gray-400 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setShowProfileModal(false)
+                                navigate(`/company/campaigns/${app.campaign_id}?region=${selectedCreator.dbRegion}`)
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-gray-900 truncate">{app.campaign?.title || '캠페인명 없음'}</p>
+                                  <p className="text-xs text-gray-500">{app.campaign?.brand || ''}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    app.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                    app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                    app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                    {app.status === 'pending' && '대기중'}
+                                    {app.status === 'applied' && '지원함'}
+                                    {app.status === 'rejected' && '미선정'}
+                                    {app.status === 'cancelled' && '취소됨'}
+                                    {app.status === 'withdrawn' && '지원취소'}
+                                    {!['pending', 'applied', 'rejected', 'cancelled', 'withdrawn'].includes(app.status) && app.status}
+                                  </span>
+                                  <ExternalLink className="w-4 h-4 text-gray-400" />
+                                </div>
+                              </div>
+                              <p className="text-xs text-gray-400 mt-1">
+                                지원일: {new Date(app.created_at).toLocaleDateString('ko-KR')}
+                              </p>
+                            </div>
+                          ))}
+                          {creatorCampaigns.applied.length > 5 && (
+                            <p className="text-xs text-gray-400 text-center">외 {creatorCampaigns.applied.length - 5}건 더 있음</p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm">지원 이력이 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="border-t pt-4 mt-4 flex flex-wrap gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowProfileModal(false)}>
               닫기
             </Button>
@@ -1537,6 +2038,16 @@ export default function AllCreatorsPage() {
                 포인트 지급
               </Button>
             )}
+            {selectedCreator?.dbRegion === 'japan' && (
+              <Button
+                variant="outline"
+                onClick={() => setShowLineChatModal(true)}
+                className="text-green-600 border-green-300 hover:bg-green-50"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                LINE 채팅
+              </Button>
+            )}
             <Button onClick={() => {
               setShowProfileModal(false)
               openReviewModal(selectedCreator, selectedCreator?.dbRegion)
@@ -1544,7 +2055,7 @@ export default function AllCreatorsPage() {
               <Star className="w-4 h-4 mr-2" />
               평가하기
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1914,6 +2425,124 @@ export default function AllCreatorsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* 일괄 등급 변경 모달 */}
+      <Dialog open={showBulkGradeModal} onOpenChange={setShowBulkGradeModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-purple-500" />
+              일괄 등급 변경
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* 선택된 크리에이터 정보 */}
+            <div className="p-4 bg-gray-50 rounded-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">선택된 크리에이터</span>
+                <span className="text-lg font-bold text-purple-600">
+                  {selectedCreators.filter(c => c.dbRegion === 'korea').length}명
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                (한국 크리에이터만 등급 변경 가능)
+              </p>
+              {selectedCreators.filter(c => c.dbRegion !== 'korea').length > 0 && (
+                <p className="text-xs text-orange-500 mt-1">
+                  ⚠️ 다른 지역 크리에이터 {selectedCreators.filter(c => c.dbRegion !== 'korea').length}명은 제외됩니다
+                </p>
+              )}
+            </div>
+
+            {/* 등급 선택 */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">변경할 등급 선택</label>
+              <div className="grid grid-cols-1 gap-2">
+                {Object.entries(GRADE_LEVELS).map(([level, info]) => (
+                  <button
+                    key={level}
+                    onClick={() => setBulkGradeLevel(parseInt(level))}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                      bulkGradeLevel === parseInt(level)
+                        ? `${info.borderClass} ${info.lightBg}`
+                        : 'border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-full ${info.bgClass} flex items-center justify-center text-white`}>
+                      {level === '5' ? <Crown className="w-5 h-5" /> :
+                       level === '4' ? <Sparkles className="w-5 h-5" /> :
+                       level === '3' ? <TrendingUp className="w-5 h-5" /> :
+                       <span className="font-bold">{level}</span>}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className={`font-bold ${info.textClass}`}>Lv.{level} {info.name}</p>
+                      <p className="text-xs text-gray-500">{info.label}</p>
+                    </div>
+                    {bulkGradeLevel === parseInt(level) && (
+                      <Check className={`w-5 h-5 ${info.textClass}`} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 진행 상황 */}
+            {savingBulkGrade && bulkGradeProgress.total > 0 && (
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-purple-800">진행 중...</span>
+                  <span className="text-sm text-purple-600">
+                    {bulkGradeProgress.current} / {bulkGradeProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-purple-200 rounded-full h-2">
+                  <div
+                    className="bg-purple-500 h-2 rounded-full transition-all"
+                    style={{ width: `${(bulkGradeProgress.current / bulkGradeProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 안내 메시지 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-sm text-blue-800">
+                <strong>💡 안내</strong><br />
+                • 선택된 모든 한국 크리에이터의 등급이 변경됩니다<br />
+                • GLOW(Lv.2) 이상은 추천 크리에이터로 표시됩니다
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkGradeModal(false)}
+              disabled={savingBulkGrade}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleBulkGradeChange}
+              disabled={savingBulkGrade || selectedCreators.filter(c => c.dbRegion === 'korea').length === 0}
+              className="bg-purple-500 hover:bg-purple-600"
+            >
+              {savingBulkGrade ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  변경 중...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  {selectedCreators.filter(c => c.dbRegion === 'korea').length}명 등급 변경
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* 포인트 강제 지급 모달 */}
       <Dialog open={showPointGrantModal} onOpenChange={setShowPointGrantModal}>
         <DialogContent className="max-w-md">
@@ -2007,6 +2636,125 @@ export default function AllCreatorsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 프로필 등록 요청 모달 */}
+      <Dialog open={showProfileRequestModal} onOpenChange={setShowProfileRequestModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-yellow-500" />
+              프로필 등록 요청 발송
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* 발송 대상 안내 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-sm text-blue-800">
+                <strong>📢 발송 대상:</strong> 선택된 <strong>한국 크리에이터</strong>에게만 발송됩니다.
+              </p>
+              <p className="text-xs text-blue-600 mt-2">
+                선택됨: {selectedCreators.length}명 중 한국 크리에이터 {selectedCreators.filter(c => c.dbRegion === 'korea').length}명
+              </p>
+            </div>
+
+            {/* 발송 방식 선택 */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">발송 방식</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all hover:border-yellow-300 ${profileRequestOptions.kakao ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}">
+                  <input
+                    type="checkbox"
+                    checked={profileRequestOptions.kakao}
+                    onChange={(e) => setProfileRequestOptions(prev => ({ ...prev, kakao: e.target.checked }))}
+                    className="w-5 h-5 rounded border-gray-300 text-yellow-500 focus:ring-yellow-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
+                      <MessageSquare className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">카카오 알림톡</p>
+                      <p className="text-xs text-gray-500">전화번호가 있는 크리에이터에게 발송</p>
+                    </div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all hover:border-indigo-300 ${profileRequestOptions.email ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'}">
+                  <input
+                    type="checkbox"
+                    checked={profileRequestOptions.email}
+                    onChange={(e) => setProfileRequestOptions(prev => ({ ...prev, email: e.target.checked }))}
+                    className="w-5 h-5 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">이메일</p>
+                      <p className="text-xs text-gray-500">이메일이 있는 크리에이터에게 발송</p>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* 발송 내용 미리보기 */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">📋 발송 내용 미리보기</p>
+              <div className="text-xs text-gray-600 space-y-1 bg-white p-3 rounded-lg border">
+                <p><strong>[크넥] 기업의 주목도를 3배 높이는 프로필 설정, 하셨나요?</strong></p>
+                <p>안녕하세요, [크리에이터명]님 회원 가입을 축하 드립니다.</p>
+                <p>기업들이 역량을 한눈에 파악하고 더 많은 기회를 제안할 수 있도록 프로필을 완성해주세요.</p>
+                <p className="text-amber-600">• 프로필 사진 등록 (필수!)</p>
+                <p className="text-amber-600">• 피부타입 및 SNS 정보 입력!</p>
+              </div>
+            </div>
+
+            {/* 주의사항 */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-sm text-amber-800">
+                <strong>⚠️ 주의사항</strong><br />
+                • 한국 크리에이터에게만 발송됩니다<br />
+                • 알림톡은 전화번호가 있는 크리에이터에게만 발송됩니다<br />
+                • 이메일은 이메일 주소가 있는 크리에이터에게만 발송됩니다
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowProfileRequestModal(false)} disabled={sendingProfileRequest}>
+              취소
+            </Button>
+            <Button
+              onClick={handleSendProfileRegistrationRequest}
+              disabled={sendingProfileRequest || (!profileRequestOptions.kakao && !profileRequestOptions.email)}
+              className="bg-yellow-500 hover:bg-yellow-600"
+            >
+              {sendingProfileRequest ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  발송 중...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  발송하기 ({selectedCreators.filter(c => c.dbRegion === 'korea').length}명)
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* LINE 채팅 모달 */}
+      <LineChatModal
+        open={showLineChatModal}
+        onOpenChange={setShowLineChatModal}
+        creator={selectedCreator}
+        region={selectedCreator?.dbRegion || 'japan'}
+      />
     </>
   )
 }

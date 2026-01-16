@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Save, Trash2, CheckCircle, XCircle, Clock, PlayCircle, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, CheckCircle, XCircle, Clock, PlayCircle, AlertCircle, Languages, Loader2 } from 'lucide-react'
 import { getSupabaseClient, supabaseBiz } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -22,6 +22,7 @@ export default function AdminCampaignEdit() {
   const [saving, setSaving] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [adminEmail, setAdminEmail] = useState('')
+  const [translating, setTranslating] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -130,6 +131,9 @@ export default function AdminCampaignEdit() {
         end_date: campaign.end_date,
         status: campaign.status,
         target_platforms: campaign.target_platforms,
+        // 캠페인 등록 기업 정보 유지 (수정 시 변경 방지)
+        company_id: campaign.company_id,
+        company_email: campaign.company_email,
         // 질문 필드
         question1: campaign.question1,
         question1_type: campaign.question1_type,
@@ -268,6 +272,117 @@ export default function AdminCampaignEdit() {
     } catch (error) {
       console.error('Error deleting campaign:', error)
       alert('삭제에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // AI 일본어 번역 함수
+  const handleTranslateToJapanese = async () => {
+    if (!confirm('한국어 내용을 일본어로 번역하시겠습니까?\n\n기존 일본어 내용이 덮어씌워집니다.')) {
+      return
+    }
+
+    setTranslating(true)
+
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('Gemini API 키가 설정되지 않았습니다')
+      }
+
+      // 번역할 필드들 수집
+      const fieldsToTranslate = {
+        brand_name: campaign.brand_name || '',
+        product_name: campaign.product_name || '',
+        product_features: Array.isArray(campaign.product_features) ? campaign.product_features.join('\n') : (campaign.product_features || ''),
+        required_dialogues: Array.isArray(campaign.required_dialogues) ? campaign.required_dialogues.join('\n') : (campaign.required_dialogues || ''),
+        required_scenes: Array.isArray(campaign.required_scenes) ? campaign.required_scenes.join('\n') : (campaign.required_scenes || ''),
+        required_hashtags: Array.isArray(campaign.required_hashtags) ? campaign.required_hashtags.join('\n') : (campaign.required_hashtags || ''),
+        video_duration: campaign.video_duration || '',
+        video_tempo: campaign.video_tempo || '',
+        video_tone: campaign.video_tone || '',
+        additional_shooting_requests: campaign.additional_shooting_requests || ''
+      }
+
+      // 번역할 내용이 있는 필드만 필터링
+      const nonEmptyFields = Object.entries(fieldsToTranslate).filter(([_, value]) => value.trim())
+
+      if (nonEmptyFields.length === 0) {
+        alert('번역할 한국어 내용이 없습니다.')
+        setTranslating(false)
+        return
+      }
+
+      // 프롬프트 생성
+      const translationPrompt = `다음 한국어 캠페인 정보를 일본어로 자연스럽게 번역해주세요.
+각 필드별로 번역 결과만 JSON 형식으로 출력하고 다른 설명은 하지 마세요.
+
+입력:
+${JSON.stringify(Object.fromEntries(nonEmptyFields), null, 2)}
+
+출력 형식 (JSON):
+{
+  "brand_name": "번역된 브랜드명",
+  "product_name": "번역된 제품명",
+  ...
+}`
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: translationPrompt }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 }
+          })
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`API 오류: ${response.status}`)
+      }
+
+      const data = await response.json()
+      let translatedText = data.candidates[0]?.content?.parts[0]?.text || ''
+
+      // JSON 파싱 시도
+      // ```json ... ``` 형식으로 올 수 있으므로 추출
+      const jsonMatch = translatedText.match(/```json\s*([\s\S]*?)\s*```/) || translatedText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        translatedText = jsonMatch[1] || jsonMatch[0]
+      }
+
+      const translated = JSON.parse(translatedText)
+
+      // 번역 결과 적용
+      const updatedCampaign = { ...campaign }
+
+      if (translated.brand_name) updatedCampaign.brand_name_ja = translated.brand_name
+      if (translated.product_name) updatedCampaign.product_name_ja = translated.product_name
+      if (translated.product_features) {
+        updatedCampaign.product_features_ja = translated.product_features.split('\n').filter(item => item.trim())
+      }
+      if (translated.required_dialogues) {
+        updatedCampaign.required_dialogues_ja = translated.required_dialogues.split('\n').filter(item => item.trim())
+      }
+      if (translated.required_scenes) {
+        updatedCampaign.required_scenes_ja = translated.required_scenes.split('\n').filter(item => item.trim())
+      }
+      if (translated.required_hashtags) {
+        updatedCampaign.required_hashtags_ja = translated.required_hashtags.split('\n').filter(item => item.trim())
+      }
+      if (translated.video_duration) updatedCampaign.video_duration_ja = translated.video_duration
+      if (translated.video_tempo) updatedCampaign.video_tempo_ja = translated.video_tempo
+      if (translated.video_tone) updatedCampaign.video_tone_ja = translated.video_tone
+      if (translated.additional_shooting_requests) updatedCampaign.additional_shooting_requests_ja = translated.additional_shooting_requests
+
+      setCampaign(updatedCampaign)
+      alert('일본어 번역이 완료되었습니다! 내용을 확인 후 저장해주세요.')
+    } catch (error) {
+      console.error('Translation error:', error)
+      alert('번역 중 오류가 발생했습니다: ' + error.message)
+    } finally {
+      setTranslating(false)
     }
   }
 
@@ -609,8 +724,29 @@ export default function AdminCampaignEdit() {
 
             {/* 가이드 내용 */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>가이드 내용</CardTitle>
+                {region === 'japan' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleTranslateToJapanese}
+                    disabled={translating}
+                    className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:border-purple-400"
+                  >
+                    {translating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        번역 중...
+                      </>
+                    ) : (
+                      <>
+                        <Languages className="w-4 h-4 mr-2" />
+                        🇯🇵 AI 일본어 번역
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">

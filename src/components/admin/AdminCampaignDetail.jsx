@@ -779,11 +779,12 @@ export default function AdminCampaignDetail() {
                       </div>
                     </div>
                   )}
-                  <ApplicationList 
-                    applications={selectedApplications} 
+                  <ApplicationList
+                    applications={selectedApplications}
                     getStatusBadge={getStatusBadge}
                     onViewDetails={setSelectedApplication}
                     campaign={campaign}
+                    region={region}
                     onGenerateGuide={(app) => handleGeneratePersonalizedGuides([app])}
                     generatingGuides={generatingGuides}
                     setSelectedGuide={setSelectedGuide}
@@ -932,7 +933,10 @@ export default function AdminCampaignDetail() {
 }
 
 // 크리에이터 목록 컴포넌트
-function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, onGenerateGuide, generatingGuides, setSelectedGuide, setShowGuideModal }) {
+function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign, region, onGenerateGuide, generatingGuides, setSelectedGuide, setShowGuideModal }) {
+  const navigate = useNavigate()
+  const campaignId = campaign?.id
+
   if (applications.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -942,20 +946,51 @@ function ApplicationList({ applications, getStatusBadge, onViewDetails, campaign
     )
   }
 
+  // US/Japan 캠페인 여부
+  const isUSorJapan = region === 'us' || region === 'japan'
+
   return (
     <div className="space-y-4">
       {applications.map((app) => (
         <div key={app.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <h4 className="font-semibold text-lg">
                   {app.applicant_name || app.creator_name || app.user_name || '크리에이터'}
                 </h4>
                 {getStatusBadge(app.status)}
-                
-                {/* 기획형 캠페인일 경우 개별 AI 가이드 생성 버튼 */}
-                {campaign?.campaign_type === 'planned' && (
+
+                {/* US/Japan 캠페인: 씬 가이드 작성 버튼 */}
+                {isUSorJapan && (
+                  <div className="flex gap-2 ml-2">
+                    <Button
+                      size="sm"
+                      onClick={() => navigate(`/admin/campaigns/${campaignId}/creator-guide?applicationId=${app.id}&region=${region}`)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      <FileText className="w-3 h-3 mr-1" />
+                      씬 가이드 작성
+                    </Button>
+                    {app.personalized_guide && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedGuide(app)
+                          setShowGuideModal(true)
+                        }}
+                        className="border-purple-600 text-purple-600 hover:bg-purple-50"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        가이드 보기
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* 기획형 캠페인(한국)일 경우 개별 AI 가이드 생성 버튼 */}
+                {!isUSorJapan && campaign?.campaign_type === 'planned' && (
                   <div className="flex gap-2 ml-2">
                     {onGenerateGuide && (
                       <Button
@@ -1046,8 +1081,14 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
   const [formData, setFormData] = useState({
     tracking_number: application.tracking_number || '',
     shipping_date: application.shipping_date ? new Date(application.shipping_date).toISOString().split('T')[0] : '',
-    guide_url: application.guide_url || ''
+    guide_url: application.guide_url || '',
+    // Creator address fields
+    phone_number: application.phone_number || application.phone || '',
+    postal_code: application.postal_code || '',
+    address: application.address || '',
+    detail_address: application.detail_address || ''
   })
+  const [editingAddress, setEditingAddress] = useState(false)
 
   const isSelected = ['approved', 'virtual_selected', 'selected'].includes(application.status)
 
@@ -1055,7 +1096,7 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
     try {
       setSaving(true)
       const client = getSupabaseClient(region)
-      
+
       const updateData = {
         tracking_number: formData.tracking_number || null,
         shipping_date: formData.shipping_date ? new Date(formData.shipping_date).toISOString() : null,
@@ -1081,6 +1122,37 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
     }
   }
 
+  const handleSaveAddress = async () => {
+    try {
+      setSaving(true)
+      const client = getSupabaseClient(region)
+
+      const updateData = {
+        phone_number: formData.phone_number || null,
+        postal_code: formData.postal_code || null,
+        address: formData.address || null,
+        detail_address: formData.detail_address || null,
+        updated_at: new Date().toISOString()
+      }
+
+      const { error } = await client
+        .from('applications')
+        .update(updateData)
+        .eq('id', application.id)
+
+      if (error) throw error
+
+      alert('주소 정보가 저장되었습니다')
+      setEditingAddress(false)
+      window.location.reload() // 데이터 새로고침
+    } catch (error) {
+      console.error('Error saving address:', error)
+      alert('저장 실패: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -1099,7 +1171,47 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
         <div className="p-6 space-y-6">
           {/* 기본 정보 */}
           <div>
-            <h3 className="text-lg font-semibold mb-3">기본 정보</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">기본 정보</h3>
+              {!editingAddress ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditingAddress(true)}
+                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  주소 입력/수정
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingAddress(false)
+                      setFormData({
+                        ...formData,
+                        phone_number: application.phone_number || application.phone || '',
+                        postal_code: application.postal_code || '',
+                        address: application.address || '',
+                        detail_address: application.detail_address || ''
+                      })
+                    }}
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveAddress}
+                    disabled={saving}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {saving ? '저장 중...' : '저장'}
+                  </Button>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-500">이름:</span>
@@ -1113,20 +1225,63 @@ function ApplicationDetailModal({ application, onClose, getStatusBadge }) {
               </div>
               <div>
                 <span className="text-gray-500">전화번호:</span>
-                <span className="ml-2 font-medium">{application.phone_number || application.phone || '-'}</span>
+                {editingAddress ? (
+                  <input
+                    type="text"
+                    value={formData.phone_number}
+                    onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+                    placeholder="전화번호 입력 (예: +1 123 456 7890)"
+                    className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+                  />
+                ) : (
+                  <span className="ml-2 font-medium">{application.phone_number || application.phone || '-'}</span>
+                )}
               </div>
               <div>
                 <span className="text-gray-500">피부 타입:</span>
                 <span className="ml-2 font-medium">{application.skin_type || '-'}</span>
               </div>
               <div className="col-span-2">
+                <span className="text-gray-500">우편번호:</span>
+                {editingAddress ? (
+                  <input
+                    type="text"
+                    value={formData.postal_code}
+                    onChange={(e) => setFormData({...formData, postal_code: e.target.value})}
+                    placeholder="우편번호 입력 (예: 92081)"
+                    className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                  />
+                ) : (
+                  <span className="ml-2 font-medium">{application.postal_code || '-'}</span>
+                )}
+              </div>
+              <div className="col-span-2">
                 <span className="text-gray-500">주소:</span>
-                <span className="ml-2 font-medium">
-                  {application.postal_code && application.address 
-                    ? `${application.postal_code} ${application.address}`
-                    : '-'
-                  }
-                </span>
+                {editingAddress ? (
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    placeholder="주소 입력 (예: 2027 Jewell Ridge, Vista, CA)"
+                    className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full max-w-md"
+                  />
+                ) : (
+                  <span className="ml-2 font-medium">{application.address || '-'}</span>
+                )}
+              </div>
+              <div className="col-span-2">
+                <span className="text-gray-500">상세주소:</span>
+                {editingAddress ? (
+                  <input
+                    type="text"
+                    value={formData.detail_address}
+                    onChange={(e) => setFormData({...formData, detail_address: e.target.value})}
+                    placeholder="상세주소 입력 (예: Apt 4B)"
+                    className="ml-2 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                  />
+                ) : (
+                  <span className="ml-2 font-medium">{application.detail_address || '-'}</span>
+                )}
               </div>
             </div>
           </div>

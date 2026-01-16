@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2, Package, DollarSign, MoreHorizontal, Download } from 'lucide-react'
+import { Building2, Search, Eye, Ban, CheckCircle, CreditCard, Plus, Minus, ShieldCheck, ShieldAlert, ShieldX, X, Mail, Key, Copy, Check, RefreshCw, Send, Calendar, Phone, MapPin, FileText, User, Loader2, Package, DollarSign, MoreHorizontal, Download, ShieldOff } from 'lucide-react'
 import { supabaseBiz, getCampaignsFromAllRegions } from '../../lib/supabaseClients'
 import AdminNavigation from './AdminNavigation'
 
@@ -165,14 +165,13 @@ export default function CompaniesManagement() {
             body: JSON.stringify({
               receiverNum: phoneNumber,
               receiverName: company.contact_name || company.company_name,
-              templateCode: '025120000522',
+              templateCode: '025100000912',
               variables: {
-                '회사명': company.company_name || '기업',
-                '승인일시': approvalDate
+                '회원명': company.company_name || '기업'
               }
             })
           })
-          console.log('✓ 기업 승인 알림톡 발송 완료')
+          console.log('✓ 기업 가입완료 알림톡 발송 완료')
         } catch (kakaoError) {
           console.error('알림톡 발송 실패:', kakaoError)
         }
@@ -305,6 +304,33 @@ export default function CompaniesManagement() {
     } catch (error) {
       console.error('Error adjusting points:', error)
       alert('포인트 조정에 실패했습니다: ' + error.message)
+    }
+  }
+
+  // 기업 차단/차단해제 함수
+  const handleToggleBlock = async (company) => {
+    const isBlocked = company.is_blocked
+    const action = isBlocked ? '차단해제' : '차단'
+    const warningMessage = isBlocked
+      ? `${company.company_name} 기업의 차단을 해제하시겠습니까?\n\n차단 해제 후 캠페인 생성 등 모든 기능이 다시 활성화됩니다.`
+      : `${company.company_name} 기업을 차단하시겠습니까?\n\n⚠️ 차단 시:\n• 캠페인 생성 불가\n• 기존 캠페인 관리 불가\n• 모든 기능 제한`
+
+    if (!confirm(warningMessage)) return
+
+    try {
+      const { error } = await supabaseBiz
+        .from('companies')
+        .update({ is_blocked: !isBlocked })
+        .eq('id', company.id)
+
+      if (error) throw error
+
+      alert(`${company.company_name} 기업이 ${action}되었습니다.`)
+      fetchCompanies()
+      setShowDetailModal(false)
+    } catch (error) {
+      console.error('Error toggling block:', error)
+      alert(`${action} 실패: ` + error.message)
     }
   }
 
@@ -529,15 +555,27 @@ export default function CompaniesManagement() {
               </div>
             </CardContent>
           </Card>
+          <Card className={companies.filter(c => c.is_blocked).length > 0 ? 'ring-2 ring-red-500' : ''}>
+            <CardContent className="p-6">
+              <div className="text-sm text-gray-600 mb-2 flex items-center gap-1">
+                <ShieldX className="w-4 h-4 text-red-600" />
+                차단된 기업
+              </div>
+              <div className="text-3xl font-bold text-red-700">
+                {companies.filter(c => c.is_blocked).length}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* 필터 탭 */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4 flex-wrap">
           {[
             { value: 'all', label: '전체', count: companies.length },
-            { value: 'pending', label: '승인대기', count: companies.filter(c => c.is_approved === false).length, color: 'amber' },
-            { value: 'active', label: '활성', count: companies.filter(c => c.status === 'active' && c.is_approved !== false).length, color: 'green' },
-            { value: 'suspended', label: '정지', count: companies.filter(c => c.status === 'suspended').length, color: 'red' }
+            { value: 'pending', label: '승인대기', count: companies.filter(c => c.is_approved === false && !c.is_blocked).length, color: 'amber' },
+            { value: 'active', label: '활성', count: companies.filter(c => c.status === 'active' && c.is_approved !== false && !c.is_blocked).length, color: 'green' },
+            { value: 'suspended', label: '정지', count: companies.filter(c => c.status === 'suspended' && !c.is_blocked).length, color: 'gray' },
+            { value: 'blocked', label: '🚫 차단', count: companies.filter(c => c.is_blocked).length, color: 'rose' }
           ].map(tab => (
             <button
               key={tab.value}
@@ -547,8 +585,11 @@ export default function CompaniesManagement() {
                   ? tab.color === 'amber' ? 'bg-amber-600 text-white' :
                     tab.color === 'green' ? 'bg-green-600 text-white' :
                     tab.color === 'red' ? 'bg-red-600 text-white' :
+                    tab.color === 'rose' ? 'bg-rose-600 text-white' :
+                    tab.color === 'gray' ? 'bg-gray-600 text-white' :
                     'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : tab.color === 'rose' ? 'bg-rose-50 text-rose-700 hover:bg-rose-100' :
+                    'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               {tab.label} ({tab.count})
@@ -596,8 +637,9 @@ export default function CompaniesManagement() {
                     {filteredCompanies
                       .filter(c => {
                         if (statusFilter === 'all') return true
-                        if (statusFilter === 'pending') return c.is_approved === false
-                        if (statusFilter === 'active') return c.status === 'active' && c.is_approved !== false
+                        if (statusFilter === 'blocked') return c.is_blocked
+                        if (statusFilter === 'pending') return c.is_approved === false && !c.is_blocked
+                        if (statusFilter === 'active') return c.status === 'active' && c.is_approved !== false && !c.is_blocked
                         if (statusFilter === 'suspended') return c.status === 'suspended'
                         return true
                       })
@@ -651,8 +693,13 @@ export default function CompaniesManagement() {
                               </span>
                             </td>
                             <td className="px-4 py-4 text-center">
-                              {company.status === 'suspended' ? (
-                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                              {company.is_blocked ? (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-700 flex items-center gap-1 justify-center">
+                                  <ShieldX className="w-3 h-3" />
+                                  차단됨
+                                </span>
+                              ) : company.status === 'suspended' ? (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                                   휴면
                                 </span>
                               ) : (
@@ -663,13 +710,34 @@ export default function CompaniesManagement() {
                             </td>
                             <td className="px-4 py-4 text-center">
                               <div className="flex items-center justify-center gap-1">
-                                {company.is_approved === false && (
+                                {company.is_approved === false && !company.is_blocked && (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApproveCompany(company)}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
                                   >
                                     승인
+                                  </Button>
+                                )}
+                                {company.is_blocked ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleToggleBlock(company)}
+                                    className="text-emerald-600 border-emerald-500 hover:bg-emerald-50 h-8 text-xs"
+                                  >
+                                    <ShieldOff className="w-3 h-3 mr-1" />
+                                    차단해제
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleToggleBlock(company)}
+                                    className="text-rose-600 hover:bg-rose-50 h-8 text-xs"
+                                    title="기업 차단"
+                                  >
+                                    <Ban className="w-4 h-4" />
                                   </Button>
                                 )}
                                 <Button
@@ -899,6 +967,56 @@ export default function CompaniesManagement() {
                     >
                       <Key className="w-4 h-4 mr-2" />
                       비밀번호 재설정
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 기업 차단 섹션 */}
+                <div className={`p-5 rounded-xl border ${
+                  detailCompany.is_blocked
+                    ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200'
+                    : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        {detailCompany.is_blocked ? (
+                          <>
+                            <ShieldX className="w-5 h-5 text-red-500" />
+                            차단된 기업
+                          </>
+                        ) : (
+                          <>
+                            <Ban className="w-5 h-5 text-red-500" />
+                            기업 차단
+                          </>
+                        )}
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        {detailCompany.is_blocked
+                          ? '현재 이 기업은 차단되어 모든 기능이 제한되어 있습니다.'
+                          : '스팸 또는 의심스러운 기업을 차단하면 캠페인 생성 등 모든 기능이 제한됩니다.'
+                        }
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => handleToggleBlock(detailCompany)}
+                      className={detailCompany.is_blocked
+                        ? 'bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white shadow-md'
+                        : 'bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-md'
+                      }
+                    >
+                      {detailCompany.is_blocked ? (
+                        <>
+                          <ShieldOff className="w-4 h-4 mr-2" />
+                          차단 해제
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="w-4 h-4 mr-2" />
+                          기업 차단
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>

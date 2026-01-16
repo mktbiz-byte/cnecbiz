@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Edit, Save } from 'lucide-react'
+import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabaseKorea'
 
 export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
@@ -12,14 +12,44 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   const parseGuideData = (guideText) => {
     if (!guideText) return null
     try {
-      return typeof guideText === 'string' ? JSON.parse(guideText) : guideText
+      const parsed = typeof guideText === 'string' ? JSON.parse(guideText) : guideText
+      return parsed
     } catch {
+      // JSON 파싱 실패 시 텍스트 가이드로 처리
+      if (typeof guideText === 'string' && guideText.trim()) {
+        return { text_guide: guideText }
+      }
       return null
     }
   }
 
-  const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai)
-  const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai)
+  // AI 가이드 또는 일반 가이드 둘 다 확인
+  const step1Data = parseGuideData(campaign.oliveyoung_step1_guide_ai) || parseGuideData(campaign.oliveyoung_step1_guide)
+  const step2Data = parseGuideData(campaign.oliveyoung_step2_guide_ai) || parseGuideData(campaign.oliveyoung_step2_guide)
+
+  // 외부 가이드 정보
+  const getExternalGuide = (stepNum) => {
+    const mode = campaign[`step${stepNum}_guide_mode`]
+    const url = campaign[`step${stepNum}_external_url`]
+    const fileUrl = campaign[`step${stepNum}_external_file_url`]
+    const fileName = campaign[`step${stepNum}_external_file_name`]
+    const title = campaign[`step${stepNum}_external_title`]
+
+    if (mode === 'external' && (url || fileUrl)) {
+      return {
+        type: fileUrl ? 'pdf' : 'url',
+        url: url,
+        fileUrl: fileUrl,
+        fileName: fileName,
+        title: title
+      }
+    }
+    return null
+  }
+
+  const step1External = getExternalGuide(1)
+  const step2External = getExternalGuide(2)
+  const step3External = getExternalGuide(3)
 
   // STEP 3 고정 안내 문구
   const step3Instruction = {
@@ -45,14 +75,31 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
 
   const handleEdit = () => {
     const currentData = activeStep === 'step1' ? step1Data : step2Data
-    setEditedData(JSON.parse(JSON.stringify(currentData || {
-      product_info: '',
+    // 캠페인 정보를 기본값으로 사용
+    const defaultProductInfo = campaign.brand && campaign.product_name
+      ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
+      : ''
+
+    const baseData = {
+      product_info: defaultProductInfo,
       required_dialogues: [],
       required_scenes: [],
       cautions: '',
-      hashtags: [],
+      hashtags: activeStep === 'step2' ? ['#올영세일'] : [],
       reference_urls: []
-    })))
+    }
+
+    // 기존 데이터가 있으면 병합, 없으면 기본값 사용
+    if (currentData && typeof currentData === 'object') {
+      setEditedData({
+        ...baseData,
+        ...currentData,
+        // product_info가 비어있으면 캠페인 정보로 채움
+        product_info: currentData.product_info || defaultProductInfo
+      })
+    } else {
+      setEditedData(baseData)
+    }
     setIsEditing(true)
   }
 
@@ -94,15 +141,31 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
   const currentStepData = getCurrentStepData()
   const currentDeadline = getStepDeadline()
 
+  // 현재 스텝의 외부 가이드
+  const getCurrentExternalGuide = () => {
+    if (activeStep === 'step1') return step1External
+    if (activeStep === 'step2') return step2External
+    if (activeStep === 'step3') return step3External
+    return null
+  }
+  const currentExternalGuide = getCurrentExternalGuide()
+
   // Extract all fields from JSON (only for STEP 1 and 2)
-  const productInfo = currentStepData?.product_info || ''
+  // 캠페인 기본 정보를 fallback으로 사용
+  const campaignProductInfo = campaign.brand && campaign.product_name
+    ? `${campaign.brand} ${campaign.product_name}${campaign.product_features ? ' - ' + campaign.product_features.slice(0, 100) : ''}`
+    : ''
+
+  const productInfo = currentStepData?.product_info || campaignProductInfo
   const requiredDialogues = currentStepData?.required_dialogues || []
   const requiredScenes = currentStepData?.required_scenes || []
   const cautions = currentStepData?.cautions || ''
   const hashtags = currentStepData?.hashtags || []
   const referenceUrls = currentStepData?.reference_urls || []
+  const textGuide = currentStepData?.text_guide || ''
 
-  const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0
+  const hasContent = productInfo || requiredDialogues.length > 0 || requiredScenes.length > 0 || cautions || hashtags.length > 0 || referenceUrls.length > 0 || textGuide
+  const hasExternalGuide = !!currentExternalGuide
 
   // STEP 3 story URL
   const storyUrl = campaign.oliveyoung_step3_guide || ''
@@ -244,8 +307,70 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
                 </div>
               )}
 
-              {hasContent ? (
+              {/* 외부 가이드 (PDF/URL) */}
+              {hasExternalGuide ? (
                 <div className="space-y-6">
+                  <div className={`rounded-xl border-2 overflow-hidden ${
+                    currentExternalGuide.type === 'pdf'
+                      ? 'border-red-200 bg-gradient-to-br from-red-50 to-orange-50'
+                      : 'border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50'
+                  }`}>
+                    <div className="p-8 text-center">
+                      <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                        currentExternalGuide.type === 'pdf'
+                          ? 'bg-gradient-to-br from-red-100 to-orange-100'
+                          : 'bg-gradient-to-br from-blue-100 to-cyan-100'
+                      }`}>
+                        {currentExternalGuide.type === 'pdf' ? (
+                          <FileText className="w-10 h-10 text-red-500" />
+                        ) : (
+                          <LinkIcon className="w-10 h-10 text-blue-500" />
+                        )}
+                      </div>
+
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">
+                        {currentExternalGuide.title || (currentExternalGuide.type === 'pdf' ? 'PDF 가이드' : '외부 가이드')}
+                      </h4>
+
+                      {currentExternalGuide.type === 'pdf' && currentExternalGuide.fileName && (
+                        <p className="text-sm text-gray-500 mb-4">
+                          파일명: {currentExternalGuide.fileName}
+                        </p>
+                      )}
+
+                      <a
+                        href={currentExternalGuide.type === 'pdf' ? currentExternalGuide.fileUrl : currentExternalGuide.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:scale-105 ${
+                          currentExternalGuide.type === 'pdf'
+                            ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
+                            : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
+                        }`}
+                      >
+                        <ExternalLink className="w-5 h-5" />
+                        {currentExternalGuide.type === 'pdf' ? 'PDF 열기' : '가이드 열기'}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ) : hasContent ? (
+                <div className="space-y-6">
+                  {/* 텍스트 가이드 (일반 텍스트 형식) */}
+                  {textGuide && (
+                    <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-lg p-6">
+                      <h4 className="text-base font-bold text-pink-900 mb-3 flex items-center gap-2">
+                        <span>📝</span>
+                        {activeStep === 'step1' ? 'STEP 1' : 'STEP 2'} 가이드
+                      </h4>
+                      <div className="bg-white rounded-lg p-4 border border-pink-100">
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {textGuide}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* 제품 정보 */}
                   {(productInfo || isEditing) && (
                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
@@ -466,69 +591,77 @@ export default function OliveyoungGuideModal({ campaign, onClose, onUpdate }) {
                     </div>
                   )}
 
-                  {/* 참고 영상 URL */}
-                  {(referenceUrls.length > 0 || isEditing) && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
-                      <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
-                        <span>🔗</span>
-                        참고 영상
-                      </h4>
-                      {isEditing ? (
-                        <div className="space-y-2">
-                          {referenceUrls.map((url, idx) => (
-                            <div key={idx} className="flex gap-2">
-                              <input
-                                type="text"
-                                value={url}
-                                onChange={(e) => {
-                                  const newUrls = [...referenceUrls]
-                                  newUrls[idx] = e.target.value
-                                  setEditedData({ ...editedData, reference_urls: newUrls })
-                                }}
-                                className="flex-1 p-2 border rounded text-sm"
-                                placeholder="URL을 입력하세요"
-                              />
-                              <button
-                                onClick={() => {
-                                  const newUrls = referenceUrls.filter((_, i) => i !== idx)
-                                  setEditedData({ ...editedData, reference_urls: newUrls })
-                                }}
-                                className="px-2 text-red-600 hover:text-red-700"
-                              >
-                                삭제
-                              </button>
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => {
-                              setEditedData({ ...editedData, reference_urls: [...referenceUrls, ''] })
-                            }}
-                            className="text-sm text-orange-600 hover:text-orange-700"
-                          >
-                            + URL 추가
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {referenceUrls.map((url, idx) => (
-                            <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
-                              >
-                                {url}
-                              </a>
-                            </div>
-                          ))}
-                          <p className="text-xs text-gray-500 mt-3">
-                            💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* 참고 영상 URL - 항상 표시 */}
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                    <h4 className="text-base font-bold text-orange-900 mb-3 flex items-center gap-2">
+                      <span>🔗</span>
+                      참고 영상
+                      <span className="text-xs text-orange-600 font-normal">(선택사항)</span>
+                    </h4>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        {referenceUrls.map((url, idx) => (
+                          <div key={idx} className="flex gap-2">
+                            <input
+                              type="text"
+                              value={url}
+                              onChange={(e) => {
+                                const newUrls = [...referenceUrls]
+                                newUrls[idx] = e.target.value
+                                setEditedData({ ...editedData, reference_urls: newUrls })
+                              }}
+                              className="flex-1 p-2 border rounded text-sm"
+                              placeholder="URL을 입력하세요"
+                            />
+                            <button
+                              onClick={() => {
+                                const newUrls = referenceUrls.filter((_, i) => i !== idx)
+                                setEditedData({ ...editedData, reference_urls: newUrls })
+                              }}
+                              className="px-2 text-red-600 hover:text-red-700"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => {
+                            setEditedData({ ...editedData, reference_urls: [...referenceUrls, ''] })
+                          }}
+                          className="text-sm text-orange-600 hover:text-orange-700"
+                        >
+                          + URL 추가
+                        </button>
+                      </div>
+                    ) : referenceUrls.length > 0 ? (
+                      <div className="space-y-3">
+                        {referenceUrls.map((url, idx) => (
+                          <div key={idx} className="bg-white border border-orange-200 rounded-lg p-4">
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-blue-600 hover:text-blue-800 hover:underline break-all transition-all"
+                            >
+                              {url}
+                            </a>
+                          </div>
+                        ))}
+                        <p className="text-xs text-gray-500 mt-3">
+                          💡 위 영상을 참고하여 촬영해 주세요. 클릭하면 새 창에서 열립니다.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-orange-100 rounded-lg p-4 text-center">
+                        <p className="text-sm text-gray-500">
+                          참고 영상 URL이 등록되지 않았습니다.
+                        </p>
+                        <p className="text-xs text-orange-600 mt-2">
+                          📝 우측 상단의 수정 버튼을 클릭하여 참고 영상 URL을 추가할 수 있습니다.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">

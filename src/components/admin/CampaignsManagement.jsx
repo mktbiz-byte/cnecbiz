@@ -604,14 +604,30 @@ export default function CampaignsManagement() {
     setTransferEmail(campaign.company_email || '')
     setShowTransferModal(true)
 
-    // 기업 목록 로드
+    // 기업 목록 로드 - 일본은 companies 테이블이 없으므로 BIZ DB에서 로드
     setCompaniesLoading(true)
     try {
-      const supabaseClient = getSupabaseClient(campaign.region || 'korea')
-      const { data, error } = await supabaseClient
-        .from('companies')
-        .select('id, company_name, user_id, email')
-        .order('company_name', { ascending: true })
+      const campaignRegion = campaign.region || 'korea'
+      let data, error
+
+      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
+        // 일본 캠페인은 BIZ DB에서 기업 목록 로드
+        const result = await supabaseBiz
+          .from('companies')
+          .select('id, company_name, user_id, email')
+          .order('company_name', { ascending: true })
+        data = result.data
+        error = result.error
+      } else {
+        // Korea, US 등은 해당 지역 DB에서 로드
+        const supabaseClient = getSupabaseClient(campaignRegion)
+        const result = await supabaseClient
+          .from('companies')
+          .select('id, company_name, user_id, email')
+          .order('company_name', { ascending: true })
+        data = result.data
+        error = result.error
+      }
 
       if (!error && data) {
         setCompanies(data)
@@ -639,25 +655,15 @@ export default function CampaignsManagement() {
     try {
       const supabaseClient = getSupabaseClient(transferCampaign.region || 'korea')
 
-      // 1. 지역 DB에서 타겟 이메일의 company 정보 조회 (가장 중요!)
+      // 1. 타겟 이메일의 company 정보 조회
+      // 일본(Japan)은 지역 DB에 companies 테이블이 없으므로 바로 BIZ DB에서 조회
+      const campaignRegion = transferCampaign.region || 'korea'
       let targetCompanyId = null
       let targetUserId = null
 
-      // 먼저 지역 DB의 companies 테이블에서 조회
-      const { data: regionalCompany } = await supabaseClient
-        .from('companies')
-        .select('id, user_id, email')
-        .eq('email', transferEmail)
-        .maybeSingle()
-
-      if (regionalCompany) {
-        targetCompanyId = regionalCompany.id
-        targetUserId = regionalCompany.user_id
-        console.log('지역 DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
-      }
-
-      // 지역 DB에 없으면 supabaseBiz에서 조회
-      if (!targetCompanyId) {
+      // 일본 캠페인은 companies 테이블이 없으므로 BIZ DB에서만 조회
+      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
+        console.log('일본 캠페인: BIZ DB에서 기업 정보 조회')
         const { data: bizCompany } = await supabaseBiz
           .from('companies')
           .select('id, user_id, email')
@@ -667,12 +673,39 @@ export default function CampaignsManagement() {
         if (bizCompany) {
           targetCompanyId = bizCompany.id
           targetUserId = bizCompany.user_id
-          console.log('Biz DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
+          console.log('BIZ DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
+        }
+      } else {
+        // Korea, US 등은 먼저 지역 DB의 companies 테이블에서 조회
+        const { data: regionalCompany } = await supabaseClient
+          .from('companies')
+          .select('id, user_id, email')
+          .eq('email', transferEmail)
+          .maybeSingle()
+
+        if (regionalCompany) {
+          targetCompanyId = regionalCompany.id
+          targetUserId = regionalCompany.user_id
+          console.log('지역 DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
+        }
+
+        // 지역 DB에 없으면 supabaseBiz에서 조회
+        if (!targetCompanyId) {
+          const { data: bizCompany } = await supabaseBiz
+            .from('companies')
+            .select('id, user_id, email')
+            .eq('email', transferEmail)
+            .maybeSingle()
+
+          if (bizCompany) {
+            targetCompanyId = bizCompany.id
+            targetUserId = bizCompany.user_id
+            console.log('Biz DB에서 기업 정보 찾음:', { targetCompanyId, targetUserId })
+          }
         }
       }
 
       // 2. 캠페인 소유권 이관 - 지역별 스키마 차이 고려
-      const campaignRegion = transferCampaign.region || 'korea'
       const updateData = {
         updated_at: new Date().toISOString()
       }
@@ -682,11 +715,13 @@ export default function CampaignsManagement() {
         updateData.company_email = transferEmail
       }
 
-      // company_id 업데이트 (필수!)
-      // US 캠페인은 BIZ Auth의 user_id를 company_id로 사용 (MyCampaigns 조회 방식과 일치)
-      if (campaignRegion === 'us') {
-        // US 캠페인은 BIZ Auth UUID를 company_id로 사용
-        // targetUserId = BIZ companies 테이블의 user_id (= BIZ Auth UUID)
+      // company_id 업데이트 - 지역별로 다르게 처리
+      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
+        // 일본: company_email만 사용 (company_id는 사용하지 않음)
+        // MyCampaigns에서 company_email로 조회하므로 company_id 업데이트 불필요
+        console.log('일본: company_email만 업데이트 (company_id 사용 안함)')
+      } else if (campaignRegion === 'us') {
+        // US 캠페인은 BIZ Auth의 user_id를 company_id로 사용
         if (targetUserId) {
           updateData.company_id = targetUserId
           console.log('US: BIZ Auth user_id로 이관:', targetUserId)
@@ -713,10 +748,10 @@ export default function CampaignsManagement() {
           }
         }
       } else {
-        // Korea, Japan 등은 기존 로직 유지 (company_id 또는 company_email 기반)
+        // Korea 등은 company_id와 company_email 모두 사용
         if (targetCompanyId) {
           updateData.company_id = targetCompanyId
-          console.log('company_id 업데이트:', targetCompanyId)
+          console.log('Korea: company_id 업데이트:', targetCompanyId)
         } else {
           // company_id를 찾지 못한 경우에도 null로 설정하여 이전 소유자 연결 끊기
           updateData.company_id = null
@@ -749,8 +784,8 @@ export default function CampaignsManagement() {
         }
       }
 
-      // 4. campaign_participants 테이블 업데이트 (US는 해당 테이블 없음, Korea만 적용)
-      if (finalCompanyIdForApps && campaignRegion !== 'us') {
+      // 4. campaign_participants 테이블 업데이트 (Korea만 적용, US/Japan은 해당 테이블 없거나 구조 다름)
+      if (finalCompanyIdForApps && campaignRegion === 'korea') {
         try {
           const { error: partError } = await supabaseClient
             .from('campaign_participants')
@@ -768,12 +803,29 @@ export default function CampaignsManagement() {
         }
       }
 
+      // 성공 메시지 - 지역별로 다르게 표시
       const finalCompanyId = updateData.company_id
-      const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
-      const emailInfo = campaignRegion === 'us'
-        ? `(US: BIZ Auth user_id 사용)`
-        : `(company_email: ${transferEmail})`
-      alert(`캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:\n- 캠페인 소유권 ${emailInfo}\n- company_id: ${finalCompanyId || 'null'}\n- 지원자 데이터 ${applicantCount}명${warningMsg}`)
+      let successMessage = '캠페인이 성공적으로 이관되었습니다!\n\n이관 완료:'
+
+      if (campaignRegion === 'japan' || campaignRegion === 'jp') {
+        // 일본은 company_email만 사용
+        successMessage += `\n- 캠페인 소유권: ${transferEmail}`
+        successMessage += `\n- 지원자 데이터 ${applicantCount}명`
+      } else if (campaignRegion === 'us') {
+        // US는 company_id(user_id) 사용
+        const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
+        successMessage += `\n- 캠페인 소유권 (US: BIZ Auth user_id 사용)`
+        successMessage += `\n- company_id: ${finalCompanyId || 'null'}`
+        successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
+      } else {
+        // Korea 등은 company_email + company_id 모두 사용
+        const warningMsg = !finalCompanyId ? '\n\n⚠️ 주의: 타겟 기업 정보를 찾을 수 없어 company_id가 null로 설정되었습니다.\n이관 대상 이메일로 기업 등록(회원가입)이 필요합니다.' : ''
+        successMessage += `\n- 캠페인 소유권 (company_email: ${transferEmail})`
+        successMessage += `\n- company_id: ${finalCompanyId || 'null'}`
+        successMessage += `\n- 지원자 데이터 ${applicantCount}명${warningMsg}`
+      }
+
+      alert(successMessage)
       setShowTransferModal(false)
       setTransferCampaign(null)
       setTransferEmail('')
@@ -846,8 +898,9 @@ export default function CampaignsManagement() {
     try {
       const supabaseClient = getSupabaseClient(campaign.region || 'korea')
 
-      // 1. company_id로 지역 DB에서 조회
+      // 1. company_id로 지역 DB에서 조회 (id 또는 user_id로 조회)
       if (campaign.company_id) {
+        // 1-1. company_id로 id 컬럼 조회
         const { data: companyData } = await supabaseClient
           .from('companies')
           .select('*')
@@ -860,7 +913,20 @@ export default function CampaignsManagement() {
           return
         }
 
-        // company_id로 supabaseBiz에서 조회
+        // 1-2. company_id로 user_id 컬럼 조회 (US 캠페인은 company_id에 auth user.id를 저장)
+        const { data: companyByUserId } = await supabaseClient
+          .from('companies')
+          .select('*')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle()
+
+        if (companyByUserId) {
+          setCompanyInfo(companyByUserId)
+          setLoadingCompanyInfo(false)
+          return
+        }
+
+        // 1-3. company_id로 supabaseBiz에서 id 조회
         const { data: bizCompanyData } = await supabaseBiz
           .from('companies')
           .select('*')
@@ -869,6 +935,19 @@ export default function CampaignsManagement() {
 
         if (bizCompanyData) {
           setCompanyInfo(bizCompanyData)
+          setLoadingCompanyInfo(false)
+          return
+        }
+
+        // 1-4. company_id로 supabaseBiz에서 user_id 조회
+        const { data: bizCompanyByUserId } = await supabaseBiz
+          .from('companies')
+          .select('*')
+          .eq('user_id', campaign.company_id)
+          .maybeSingle()
+
+        if (bizCompanyByUserId) {
+          setCompanyInfo(bizCompanyByUserId)
           setLoadingCompanyInfo(false)
           return
         }

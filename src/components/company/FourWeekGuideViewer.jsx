@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Edit, Save } from 'lucide-react'
+import { X, Edit, Save, FileText, Link as LinkIcon, ExternalLink } from 'lucide-react'
 import { supabase } from '../../lib/supabaseKorea'
 
 export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdit }) {
@@ -8,29 +8,68 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
   const [editedData, setEditedData] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  // 외부 가이드 정보 가져오기
+  const getExternalGuide = (weekKey) => {
+    const mode = campaign[`${weekKey}_guide_mode`]
+    const url = campaign[`${weekKey}_external_url`]
+    const fileUrl = campaign[`${weekKey}_external_file_url`]
+    const fileName = campaign[`${weekKey}_external_file_name`]
+    const title = campaign[`${weekKey}_external_title`]
+
+    if (mode === 'external' && (url || fileUrl)) {
+      return {
+        type: fileUrl ? 'pdf' : 'url',
+        url: url,
+        fileUrl: fileUrl,
+        fileName: fileName,
+        title: title
+      }
+    }
+    return null
+  }
+
   // Parse and merge challenge_weekly_guides and challenge_weekly_guides_ai
   const parseWeeklyGuides = () => {
-    const aiGuides = campaign.challenge_weekly_guides_ai 
+    const aiGuides = campaign.challenge_weekly_guides_ai
       ? (typeof campaign.challenge_weekly_guides_ai === 'string'
           ? JSON.parse(campaign.challenge_weekly_guides_ai)
           : campaign.challenge_weekly_guides_ai)
       : null
     const oldGuides = campaign.challenge_weekly_guides || {}
 
+    // 원본 데이터를 배열로 변환하는 헬퍼 함수
+    const parseToArray = (data) => {
+      if (!data) return []
+      if (Array.isArray(data)) return data.filter(d => d && d.trim())
+      if (typeof data === 'string') {
+        return data.split('\n').filter(d => d.trim()).map(d => d.trim())
+      }
+      return []
+    }
+
     const mergedGuides = {}
     ;['week1', 'week2', 'week3', 'week4'].forEach(week => {
       const aiWeekData = aiGuides?.[week]
       const oldWeekData = oldGuides[week] || {}
-      
+
+      // 원본 데이터 파싱
+      const oldDialogues = parseToArray(oldWeekData.required_dialogue)
+      const oldScenes = parseToArray(oldWeekData.required_scenes)
+
       // If AI guide exists and is an object (not a string), use it with fallback to old data
       if (aiWeekData && typeof aiWeekData === 'object') {
+        // AI 데이터도 배열로 파싱
+        const aiDialogues = parseToArray(aiWeekData.required_dialogues)
+        const aiScenes = parseToArray(aiWeekData.required_scenes)
+
         mergedGuides[week] = {
           mission: aiWeekData.mission || oldWeekData.mission || '',
-          required_dialogues: aiWeekData.required_dialogues || (oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : []),
-          required_scenes: aiWeekData.required_scenes || (oldWeekData.required_scenes ? [oldWeekData.required_scenes] : []),
+          // AI 데이터가 비어있으면 원본 사용
+          required_dialogues: aiDialogues.length > 0 ? aiDialogues : oldDialogues,
+          required_scenes: aiScenes.length > 0 ? aiScenes : oldScenes,
           hashtags: aiWeekData.hashtags || [],
           product_info: aiWeekData.product_info || '',
-          cautions: aiWeekData.cautions || oldWeekData.cautions || '',
+          cautions: aiWeekData.cautions || oldWeekData.cautions || campaign.product_key_points || '',
           reference_urls: aiWeekData.reference_urls || (oldWeekData.reference ? [oldWeekData.reference] : [])
         }
       } else if (aiWeekData && typeof aiWeekData === 'string') {
@@ -38,27 +77,27 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
         mergedGuides[week] = {
           mission: aiWeekData,  // Use AI guide text as mission
           ai_description: aiWeekData,  // Also keep as AI description
-          required_dialogues: oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : [],
-          required_scenes: oldWeekData.required_scenes ? [oldWeekData.required_scenes] : [],
+          required_dialogues: oldDialogues,
+          required_scenes: oldScenes,
           hashtags: [],
           product_info: '',
-          cautions: oldWeekData.cautions || '',
+          cautions: oldWeekData.cautions || campaign.product_key_points || '',
           reference_urls: oldWeekData.reference ? [oldWeekData.reference] : []
         }
       } else {
         // No AI guide, use old data
         mergedGuides[week] = {
           mission: oldWeekData.mission || '',
-          required_dialogues: oldWeekData.required_dialogue ? [oldWeekData.required_dialogue] : [],
-          required_scenes: oldWeekData.required_scenes ? [oldWeekData.required_scenes] : [],
+          required_dialogues: oldDialogues,
+          required_scenes: oldScenes,
           hashtags: [],
           product_info: '',
-          cautions: oldWeekData.cautions || '',
+          cautions: oldWeekData.cautions || campaign.product_key_points || '',
           reference_urls: oldWeekData.reference ? [oldWeekData.reference] : []
         }
       }
     })
-    
+
     return mergedGuides
   }
 
@@ -174,17 +213,20 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
 
   const currentWeekData = getCurrentWeekData()
   const currentDeadline = getCurrentDeadline()
+  const currentExternalGuide = getExternalGuide(activeWeek)
 
   // Debug logging
   console.log('FourWeekGuideViewer Debug:', {
     activeWeek,
     currentWeekData,
+    currentExternalGuide,
     isSimpleFormat: currentWeekData?.is_simple,
     guideText: currentWeekData?.guide_text
   })
 
   // Check if it's simple text format
   const isSimpleFormat = currentWeekData?.is_simple
+  const hasExternalGuide = !!currentExternalGuide
 
   // Extract all fields from JSON (for object format)
   const productInfo = currentWeekData?.product_info || ''
@@ -293,7 +335,54 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
             </div>
           )}
 
-          {hasContent ? (
+          {/* 외부 가이드 (PDF/URL) */}
+          {hasExternalGuide ? (
+            <div className="space-y-6">
+              <div className={`rounded-xl border-2 overflow-hidden ${
+                currentExternalGuide.type === 'pdf'
+                  ? 'border-red-200 bg-gradient-to-br from-red-50 to-orange-50'
+                  : 'border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50'
+              }`}>
+                <div className="p-8 text-center">
+                  <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                    currentExternalGuide.type === 'pdf'
+                      ? 'bg-gradient-to-br from-red-100 to-orange-100'
+                      : 'bg-gradient-to-br from-blue-100 to-cyan-100'
+                  }`}>
+                    {currentExternalGuide.type === 'pdf' ? (
+                      <FileText className="w-10 h-10 text-red-500" />
+                    ) : (
+                      <LinkIcon className="w-10 h-10 text-blue-500" />
+                    )}
+                  </div>
+
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">
+                    {currentExternalGuide.title || (currentExternalGuide.type === 'pdf' ? 'PDF 가이드' : '외부 가이드')}
+                  </h4>
+
+                  {currentExternalGuide.type === 'pdf' && currentExternalGuide.fileName && (
+                    <p className="text-sm text-gray-500 mb-4">
+                      파일명: {currentExternalGuide.fileName}
+                    </p>
+                  )}
+
+                  <a
+                    href={currentExternalGuide.type === 'pdf' ? currentExternalGuide.fileUrl : currentExternalGuide.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:scale-105 ${
+                      currentExternalGuide.type === 'pdf'
+                        ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600'
+                        : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
+                    }`}
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    {currentExternalGuide.type === 'pdf' ? 'PDF 열기' : '가이드 열기'}
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : hasContent ? (
             <div className="space-y-6">
               {/* Simple text format */}
               {isSimpleFormat ? (
@@ -317,7 +406,89 @@ export default function FourWeekGuideViewer({ campaign, onClose, onUpdate, onEdi
                     )}
                   </div>
                 </div>
+              ) : isEditing ? (
+                /* Object format - 수정 모드 */
+                <div className="space-y-4">
+                  {/* 제품 정보 수정 */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-purple-900 mb-2">📦 제품 정보</h4>
+                    <textarea
+                      value={editedData?.product_info || productInfo || ''}
+                      onChange={(e) => setEditedData({ ...editedData, product_info: e.target.value })}
+                      className="w-full p-2 border rounded text-sm min-h-[80px]"
+                      placeholder="제품 정보를 입력하세요"
+                    />
+                  </div>
+
+                  {/* 미션 수정 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-blue-900 mb-2">🎯 {activeWeek.replace('week', '')}주차 미션</h4>
+                    <textarea
+                      value={editedData?.mission || mission || ''}
+                      onChange={(e) => setEditedData({ ...editedData, mission: e.target.value })}
+                      className="w-full p-2 border rounded text-sm min-h-[80px]"
+                      placeholder="미션을 입력하세요"
+                    />
+                  </div>
+
+                  {/* 필수 대사 수정 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-blue-900 mb-2">💬 필수 대사</h4>
+                    <textarea
+                      value={(editedData?.required_dialogues || requiredDialogues || []).join('\n')}
+                      onChange={(e) => setEditedData({ ...editedData, required_dialogues: e.target.value.split('\n').filter(d => d.trim()) })}
+                      className="w-full p-2 border rounded text-sm min-h-[80px]"
+                      placeholder="한 줄에 하나씩 입력하세요"
+                    />
+                  </div>
+
+                  {/* 필수 장면 수정 */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-green-900 mb-2">🎬 필수 장면</h4>
+                    <textarea
+                      value={(editedData?.required_scenes || requiredScenes || []).join('\n')}
+                      onChange={(e) => setEditedData({ ...editedData, required_scenes: e.target.value.split('\n').filter(s => s.trim()) })}
+                      className="w-full p-2 border rounded text-sm min-h-[80px]"
+                      placeholder="한 줄에 하나씩 입력하세요"
+                    />
+                  </div>
+
+                  {/* 주의사항 수정 */}
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-red-900 mb-2">⚠️ 주의사항</h4>
+                    <textarea
+                      value={editedData?.cautions || cautions || ''}
+                      onChange={(e) => setEditedData({ ...editedData, cautions: e.target.value })}
+                      className="w-full p-2 border rounded text-sm min-h-[60px]"
+                      placeholder="주의사항을 입력하세요"
+                    />
+                  </div>
+
+                  {/* 해시태그 수정 */}
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-indigo-900 mb-2">📌 필수 해시태그</h4>
+                    <input
+                      type="text"
+                      value={(editedData?.hashtags || hashtags || []).join(', ')}
+                      onChange={(e) => setEditedData({ ...editedData, hashtags: e.target.value.split(',').map(t => t.trim()).filter(t => t) })}
+                      className="w-full p-2 border rounded text-sm"
+                      placeholder="쉼표로 구분해서 입력 (예: #태그1, #태그2)"
+                    />
+                  </div>
+
+                  {/* 참고 URL 수정 */}
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-orange-900 mb-2">🔗 참고 영상 URL</h4>
+                    <textarea
+                      value={(editedData?.reference_urls || referenceUrls || []).join('\n')}
+                      onChange={(e) => setEditedData({ ...editedData, reference_urls: e.target.value.split('\n').filter(u => u.trim()) })}
+                      className="w-full p-2 border rounded text-sm min-h-[60px]"
+                      placeholder="한 줄에 하나씩 URL을 입력하세요"
+                    />
+                  </div>
+                </div>
               ) : (
+                /* Object format - 보기 모드 */
                 <>
                   {/* Object format - 제품 정보 */}
                   {productInfo && (

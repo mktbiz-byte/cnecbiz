@@ -65,7 +65,7 @@ export async function sendVideoSubmitReminder3Days(receiverNum, receiverName, re
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_3DAYS.code,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_3DAYS.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
@@ -84,7 +84,7 @@ export async function sendVideoSubmitReminder2Days(receiverNum, receiverName, re
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_2DAYS.code,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_2DAYS.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
@@ -103,7 +103,7 @@ export async function sendVideoSubmitReminderToday(receiverNum, receiverName, re
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.VIDEO_SUBMIT_REMINDER_TODAY.code,
+    POPBILL_TEMPLATES.CREATOR.VIDEO_DEADLINE_TODAY.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': reminderData.campaignName,
@@ -208,6 +208,24 @@ export async function sendWithdrawalCompletedNotification(receiverNum, receiverN
 }
 
 /**
+ * 출금 거절 알림
+ * @param {string} receiverNum - 수신번호
+ * @param {string} receiverName - 수신자 이름
+ * @param {Object} withdrawalData - 출금 데이터 (reason 포함)
+ */
+export async function sendWithdrawalRejectedNotification(receiverNum, receiverName, withdrawalData) {
+  return await sendKakaoNotification(
+    receiverNum,
+    receiverName,
+    POPBILL_TEMPLATES.CREATOR.WITHDRAWAL_REJECTED.code,
+    {
+      '크리에이터명': receiverName,
+      '거절사유': withdrawalData.reason
+    }
+  );
+}
+
+/**
  * 제출 지연 경고 알림
  * @param {string} receiverNum - 수신번호
  * @param {string} receiverName - 수신자 이름
@@ -217,7 +235,7 @@ export async function sendSubmissionDelayWarningNotification(receiverNum, receiv
   return await sendKakaoNotification(
     receiverNum,
     receiverName,
-    POPBILL_TEMPLATES.CREATOR.SUBMISSION_DELAY_WARNING.code,
+    POPBILL_TEMPLATES.CREATOR.DEADLINE_OVERDUE.code,
     {
       '크리에이터명': receiverName,
       '캠페인명': delayData.campaignName,
@@ -258,5 +276,6 @@ export default {
   sendPointAwardedNotification,
   sendWithdrawalRequestedNotification,
   sendWithdrawalCompletedNotification,
+  sendWithdrawalRejectedNotification,
   sendSubmissionDelayWarningNotification
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabaseKorea } from '../../lib/supabaseClients'
 import { Upload, FileVideo, Link as LinkIcon, Calendar, AlertCircle, CheckCircle, Clock, Eye, Download, MessageSquare, Key, Shield, EyeOff, Loader2 } from 'lucide-react'
+import ExternalGuideViewer from '../common/ExternalGuideViewer'
 
 const CreatorMyPage = () => {
   const navigate = useNavigate()
@@ -79,12 +80,31 @@ const CreatorMyPage = () => {
     try {
       setUploading(true)
 
+      // 기존 video_files 조회하여 버전 계산
+      const { data: existingData } = await supabaseKorea
+        .from('campaign_participants')
+        .select('video_files')
+        .eq('id', participantId)
+        .single()
+
+      const existingFiles = existingData?.video_files || []
+
+      // 현재 최대 버전 번호 계산
+      let maxVersion = 0
+      if (existingFiles.length > 0) {
+        existingFiles.forEach(file => {
+          if (file.version && file.version > maxVersion) {
+            maxVersion = file.version
+          }
+        })
+      }
+
       const uploadedFiles = []
-      
+
       for (const file of files) {
         const fileExt = file.name.split('.').pop()
         const fileName = `${participantId}/${Date.now()}.${fileExt}`
-        
+
         const { data, error } = await supabaseKorea.storage
           .from('campaign-videos')
           .upload(fileName, file)
@@ -95,26 +115,32 @@ const CreatorMyPage = () => {
           .from('campaign-videos')
           .getPublicUrl(fileName)
 
+        // 새 버전 번호 할당
+        maxVersion++
         uploadedFiles.push({
           name: file.name,
           path: fileName,
           url: publicUrl,
-          uploaded_at: new Date().toISOString()
+          uploaded_at: new Date().toISOString(),
+          version: maxVersion  // 버전 번호 추가
         })
       }
+
+      // 기존 파일 + 새 파일을 합쳐서 저장 (버전 히스토리 유지)
+      const allFiles = [...existingFiles, ...uploadedFiles]
 
       // 업로드된 파일 정보를 DB에 저장
       const { error: updateError } = await supabaseKorea
         .from('campaign_participants')
         .update({
-          video_files: uploadedFiles,
+          video_files: allFiles,
           video_status: 'uploaded'
         })
         .eq('id', participantId)
 
       if (updateError) throw updateError
 
-      // 네이버 웍스 알림 발송 (영상 업로드 완료)
+      // 기업에게 알림톡 및 네이버 웍스 알림 발송
       try {
         const koreanDate = new Date().toLocaleString('ko-KR', {
           timeZone: 'Asia/Seoul',
@@ -124,22 +150,115 @@ const CreatorMyPage = () => {
           hour: '2-digit',
           minute: '2-digit'
         })
-        const campaignTitle = selectedCampaign?.campaigns?.title || selectedCampaign?.title || '캠페인'
+        const campaign = selectedCampaign?.campaigns || selectedCampaign
+        const campaignTitle = campaign?.title || '캠페인'
         const creatorName = user?.email || '크리에이터'
-        const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
 
-        await fetch('/.netlify/functions/send-naver-works-message', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            message: naverWorksMessage,
-            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+        // 디버그 로그
+        console.log('=== 영상 업로드 알림 발송 시작 ===')
+        console.log('selectedCampaign:', selectedCampaign)
+        console.log('campaign:', campaign)
+        console.log('company_id:', campaign?.company_id)
+
+        // 기업 정보 조회 (전화번호, 회사명)
+        let companyPhone = null
+        let companyName = campaign?.brand || '기업'
+
+        if (campaign?.company_id) {
+          // companies 테이블에서 조회
+          const { data: company, error: companyError } = await supabaseKorea
+            .from('companies')
+            .select('company_name, phone, representative_phone')
+            .eq('user_id', campaign.company_id)
+            .single()
+
+          console.log('companies 조회 결과:', company, 'error:', companyError)
+
+          if (company) {
+            companyPhone = company.phone || company.representative_phone
+            companyName = company.company_name || campaign?.brand || '기업'
+          }
+
+          // companies에서 전화번호가 없으면 user_profiles에서 조회
+          if (!companyPhone) {
+            const { data: profile, error: profileError } = await supabaseKorea
+              .from('user_profiles')
+              .select('phone')
+              .eq('id', campaign.company_id)
+              .single()
+
+            console.log('user_profiles 조회 결과:', profile, 'error:', profileError)
+
+            if (profile) {
+              companyPhone = profile.phone
+            }
+          }
+        } else {
+          console.log('company_id가 없음!')
+        }
+
+        console.log('최종 기업 정보 - 이름:', companyName, '전화:', companyPhone)
+
+        // 1. 기업에게 카카오 알림톡 발송 (검수 요청)
+        if (companyPhone) {
+          try {
+            console.log('알림톡 발송 시도:', { companyPhone, companyName, campaignTitle, creatorName })
+
+            const kakaoResponse = await fetch('/.netlify/functions/send-kakao-notification', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                receiverNum: companyPhone,
+                receiverName: companyName,
+                templateCode: '025100001008', // 영상 촬영 완료 검수 요청
+                variables: {
+                  '회사명': companyName,
+                  '캠페인명': campaignTitle,
+                  '크리에이터명': creatorName
+                }
+              })
+            })
+
+            const kakaoResult = await kakaoResponse.json()
+            console.log('알림톡 응답:', kakaoResult)
+
+            if (kakaoResponse.ok && kakaoResult.success) {
+              console.log('영상 업로드 기업 알림톡 발송 성공')
+            } else {
+              console.error('영상 업로드 기업 알림톡 발송 실패:', kakaoResult.error)
+            }
+          } catch (kakaoError) {
+            console.error('영상 업로드 기업 알림톡 발송 에러:', kakaoError)
+          }
+        } else {
+          console.log('기업 전화번호 없음 - 알림톡 발송 생략')
+        }
+
+        // 2. 네이버 웍스 알림 발송 (관리자용)
+        try {
+          const naverWorksMessage = `[영상 업로드 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n기업: ${companyName}\n파일 수: ${uploadedFiles.length}개\n\n${koreanDate}`
+
+          const naverWorksResponse = await fetch('/.netlify/functions/send-naver-works-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              isAdminNotification: true,
+              message: naverWorksMessage,
+              channelId: '75c24874-e370-afd5-9da3-72918ba15a3c'
+            })
           })
-        })
-        console.log('영상 업로드 네이버 웍스 알림 발송 성공')
-      } catch (naverWorksError) {
-        console.error('영상 업로드 네이버 웍스 알림 발송 실패:', naverWorksError)
+
+          const naverWorksResult = await naverWorksResponse.json()
+          if (naverWorksResponse.ok && naverWorksResult.success) {
+            console.log('영상 업로드 네이버 웍스 알림 발송 성공')
+          } else {
+            console.error('영상 업로드 네이버 웍스 알림 발송 실패:', naverWorksResult.error || naverWorksResult.details)
+          }
+        } catch (naverWorksError) {
+          console.error('영상 업로드 네이버 웍스 알림 발송 오류:', naverWorksError)
+        }
+      } catch (notificationError) {
+        console.error('영상 업로드 알림 발송 실패:', notificationError)
       }
 
       alert('영상이 성공적으로 업로드되었습니다!')
@@ -161,6 +280,35 @@ const CreatorMyPage = () => {
         .eq('id', participantId)
 
       if (error) throw error
+
+      // 네이버 웍스 알림 발송
+      try {
+        const campaign = campaigns.find(c => c.id === participantId)
+        const campaignTitle = campaign?.campaigns?.title || '캠페인'
+        const creatorName = user?.user_metadata?.full_name || user?.email || '크리에이터'
+
+        const koreanDate = new Date().toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+
+        await fetch('/.netlify/functions/send-naver-works-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isAdminNotification: true,
+            channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
+            message: `[광고코드 등록 완료]\n\n캠페인: ${campaignTitle}\n크리에이터: ${creatorName}\n광고코드: ${code}\n\n${koreanDate}`
+          })
+        })
+        console.log('✓ 광고코드 등록 네이버 웍스 알림 발송 성공')
+      } catch (notifyError) {
+        console.error('네이버 웍스 알림 발송 실패:', notifyError)
+      }
 
       alert('파트너십 광고코드가 저장되었습니다!')
       loadMyCampaigns()
@@ -442,6 +590,21 @@ const CreatorMyPage = () => {
                   </h3>
                   <div className="bg-gray-50 rounded-lg p-4">
                     {(() => {
+                      // 외부 가이드 모드 체크
+                      const campaignData = campaign.campaigns || {}
+                      if (campaignData.guide_delivery_mode === 'external') {
+                        return (
+                          <ExternalGuideViewer
+                            type={campaignData.external_guide_type}
+                            url={campaignData.external_guide_url}
+                            fileUrl={campaignData.external_guide_file_url}
+                            title={campaignData.external_guide_title}
+                            fileName={campaignData.external_guide_file_name}
+                          />
+                        )
+                      }
+
+                      // 기존 AI 가이드 로직
                       const guide = getCampaignGuide(campaign)
                       
                       // Try to parse as JSON for structured guide
@@ -549,6 +712,148 @@ const CreatorMyPage = () => {
                         }
                         return <p className="text-sm text-gray-700 whitespace-pre-wrap">{guide}</p>
                       } else if (guide && typeof guide === 'object') {
+                        // 4주 챌린지 주차별 외부 가이드 지원
+                        const campaignType = campaignData.campaign_type
+
+                        if (campaignType === '4week_challenge') {
+                          return (
+                            <div className="space-y-6">
+                              {['week1', 'week2', 'week3', 'week4'].map((weekKey) => {
+                                const weekNum = weekKey.replace('week', '')
+                                const modeKey = `${weekKey}_guide_mode`
+                                const isExternal = campaignData[modeKey] === 'external'
+
+                                if (isExternal) {
+                                  // 외부 가이드 표시
+                                  return (
+                                    <div key={weekKey} className="border rounded-lg p-4">
+                                      <h4 className="font-semibold text-purple-700 mb-3 text-lg">
+                                        Week {weekNum} 가이드
+                                      </h4>
+                                      <ExternalGuideViewer
+                                        type={campaignData[`${weekKey}_external_type`]}
+                                        url={campaignData[`${weekKey}_external_url`]}
+                                        fileUrl={campaignData[`${weekKey}_external_file_url`]}
+                                        title={campaignData[`${weekKey}_external_title`]}
+                                        fileName={campaignData[`${weekKey}_external_file_name`]}
+                                      />
+                                    </div>
+                                  )
+                                } else {
+                                  // AI 가이드 표시
+                                  const weekGuide = guide[weekKey]
+                                  if (!weekGuide) return null
+
+                                  // JSON 형태의 AI 가이드인지 체크
+                                  if (typeof weekGuide === 'object') {
+                                    return (
+                                      <div key={weekKey} className="border rounded-lg p-4 bg-white">
+                                        <h4 className="font-semibold text-purple-700 mb-3 text-lg">
+                                          Week {weekNum} 가이드
+                                        </h4>
+                                        <div className="space-y-3">
+                                          {weekGuide.product_info && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600">제품 정보</p>
+                                              <p className="text-sm text-gray-900">{weekGuide.product_info}</p>
+                                            </div>
+                                          )}
+                                          {weekGuide.required_dialogues && weekGuide.required_dialogues.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">필수 대사</p>
+                                              <ul className="list-disc list-inside text-sm text-gray-900">
+                                                {weekGuide.required_dialogues.map((d, i) => <li key={i}>{d}</li>)}
+                                              </ul>
+                                            </div>
+                                          )}
+                                          {weekGuide.required_scenes && weekGuide.required_scenes.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">필수 장면</p>
+                                              <ul className="list-disc list-inside text-sm text-gray-900">
+                                                {weekGuide.required_scenes.map((s, i) => <li key={i}>{s}</li>)}
+                                              </ul>
+                                            </div>
+                                          )}
+                                          {weekGuide.hashtags && weekGuide.hashtags.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">해시태그</p>
+                                              <div className="flex flex-wrap gap-2">
+                                                {weekGuide.hashtags.map((h, i) => (
+                                                  <span key={i} className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">{h}</span>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {weekGuide.reference_urls && weekGuide.reference_urls.length > 0 && (
+                                            <div>
+                                              <p className="text-sm font-medium text-gray-600 mb-1">참고 영상</p>
+                                              {weekGuide.reference_urls.map((url, i) => (
+                                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm block">{url}</a>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  } else {
+                                    return (
+                                      <div key={weekKey}>
+                                        <h4 className="font-medium text-gray-900 mb-2">Week {weekNum}</h4>
+                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{weekGuide}</p>
+                                      </div>
+                                    )
+                                  }
+                                }
+                              })}
+                            </div>
+                          )
+                        }
+
+                        // 올리브영 STEP별 외부 가이드 지원
+                        if (campaignType === 'oliveyoung') {
+                          return (
+                            <div className="space-y-6">
+                              {['step1', 'step2', 'step3'].map((stepKey) => {
+                                const stepNum = stepKey.replace('step', '')
+                                const modeKey = `${stepKey}_guide_mode`
+                                const isExternal = campaignData[modeKey] === 'external'
+
+                                if (isExternal) {
+                                  // 외부 가이드 표시
+                                  return (
+                                    <div key={stepKey} className="border rounded-lg p-4">
+                                      <h4 className="font-semibold text-pink-700 mb-3 text-lg">
+                                        STEP {stepNum} 가이드
+                                      </h4>
+                                      <ExternalGuideViewer
+                                        type={campaignData[`${stepKey}_external_type`]}
+                                        url={campaignData[`${stepKey}_external_url`]}
+                                        fileUrl={campaignData[`${stepKey}_external_file_url`]}
+                                        title={campaignData[`${stepKey}_external_title`]}
+                                        fileName={campaignData[`${stepKey}_external_file_name`]}
+                                      />
+                                    </div>
+                                  )
+                                } else {
+                                  // AI 가이드 표시
+                                  const stepGuide = guide[stepKey]
+                                  if (!stepGuide) return null
+
+                                  return (
+                                    <div key={stepKey} className="border rounded-lg p-4 bg-white">
+                                      <h4 className="font-semibold text-pink-700 mb-3 text-lg">
+                                        STEP {stepNum} 가이드
+                                      </h4>
+                                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{typeof stepGuide === 'object' ? JSON.stringify(stepGuide, null, 2) : stepGuide}</p>
+                                    </div>
+                                  )
+                                }
+                              })}
+                            </div>
+                          )
+                        }
+
+                        // 기본 오브젝트 가이드 렌더링
                         return (
                           <div className="space-y-4">
                             {Object.entries(guide).map(([key, value]) => (
@@ -556,7 +861,7 @@ const CreatorMyPage = () => {
                                 <h4 className="font-medium text-gray-900 mb-2">
                                   {key.toUpperCase().replace('WEEK', 'Week ').replace('STEP', 'Step ')}
                                 </h4>
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{value}</p>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{typeof value === 'object' ? JSON.stringify(value, null, 2) : value}</p>
                               </div>
                             ))}
                           </div>
@@ -608,10 +913,14 @@ const CreatorMyPage = () => {
                     )}
                   </div>
                   {campaign.video_files && campaign.video_files.length > 0 ? (
-                    <div className="space-y-2">
-                      {campaign.video_files.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                    <div className="space-y-3">
+                      {/* 버전별 영상 목록 (최신 버전부터 표시) */}
+                      {[...campaign.video_files].sort((a, b) => (b.version || 0) - (a.version || 0)).map((file, index) => (
+                        <div key={file.version || index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                           <div className="flex items-center">
+                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold mr-2">
+                              V{file.version || index + 1}
+                            </span>
                             <FileVideo className="w-5 h-5 text-gray-400 mr-2" />
                             <span className="text-sm text-gray-700">{file.name}</span>
                           </div>
@@ -626,6 +935,17 @@ const CreatorMyPage = () => {
                           </a>
                         </div>
                       ))}
+                      {/* 수정본 업로드 버튼 */}
+                      <button
+                        onClick={() => {
+                          setSelectedCampaign(campaign)
+                          setShowUploadModal(true)
+                        }}
+                        className="w-full px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 flex items-center justify-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        수정본 업로드 (V{(campaign.video_files.reduce((max, f) => Math.max(max, f.version || 0), 0) || campaign.video_files.length) + 1})
+                      </button>
                     </div>
                   ) : (
                     <button

@@ -1,25 +1,15 @@
 const { createClient } = require('@supabase/supabase-js');
 const popbill = require('popbill');
 
-// Popbill 전역 설정
-popbill.config({
-  LinkID: process.env.POPBILL_LINK_ID,
-  SecretKey: process.env.POPBILL_SECRET_KEY,
-  IsTest: false, // 운영 환경
-  IPRestrictOnOff: true,
-  UseStaticIP: false,
-  UseLocalTimeYN: true,
-  defaultErrorHandler: function (Error) {
-    console.log('Popbill Error: [' + Error.code + '] ' + Error.message);
-  }
-});
+// Popbill 설정
+const LinkID = process.env.POPBILL_LINK_ID || 'HOWLAB';
+const SecretKey = process.env.POPBILL_SECRET_KEY || '7UZg/CZJ4i7VDx49H27E+bczug5//kThjrjfEeu9JOk=';
+const CorpNum = process.env.POPBILL_CORP_NUM || '5758102253';
+const UserID = process.env.POPBILL_USER_ID || '';
 
-const CorpNum = process.env.POPBILL_CORP_NUM;
-const UserID = process.env.POPBILL_USER_ID;
-
-// Popbill 서비스 초기화
-const kakaoService = popbill.KakaoService();
-const messageService = popbill.MessageService();
+// Popbill 서비스 초기화 (credentials 직접 전달 방식)
+const kakaoService = popbill.KakaoService(LinkID, SecretKey);
+const messageService = popbill.MessageService(LinkID, SecretKey);
 
 // Supabase 클라이언트 (이메일 발송용)
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
