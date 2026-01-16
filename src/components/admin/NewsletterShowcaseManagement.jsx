@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
-  Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical
+  Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 
@@ -48,7 +48,8 @@ export default function NewsletterShowcaseManagement() {
     category: 'marketing',
     tags: '',
     is_active: false,
-    is_featured: false
+    is_featured: false,
+    is_members_only: false
   })
 
   const [saving, setSaving] = useState(false)
@@ -278,7 +279,8 @@ export default function NewsletterShowcaseManagement() {
       category: 'marketing',
       tags: '',
       is_active: false,
-      is_featured: false
+      is_featured: false,
+      is_members_only: false
     })
     setIsEditing(false)
     setSelectedNewsletter(null)
@@ -301,7 +303,8 @@ export default function NewsletterShowcaseManagement() {
       category: newsletter.category || 'marketing',
       tags: newsletter.tags?.join(', ') || '',
       is_active: newsletter.is_active || false,
-      is_featured: newsletter.is_featured || false
+      is_featured: newsletter.is_featured || false,
+      is_members_only: newsletter.is_members_only || false
     })
     setIsEditing(true)
     setShowAddModal(true)
@@ -331,7 +334,8 @@ export default function NewsletterShowcaseManagement() {
         category: formData.category,
         tags: tagsArray.length > 0 ? tagsArray : null,
         is_active: formData.is_active,
-        is_featured: formData.is_featured
+        is_featured: formData.is_featured,
+        is_members_only: formData.is_members_only
       }
 
       if (isEditing && selectedNewsletter) {
@@ -390,6 +394,21 @@ export default function NewsletterShowcaseManagement() {
     } catch (error) {
       console.error('추천 상태 변경 오류:', error)
       alert('추천 상태 변경에 실패했습니다.')
+    }
+  }
+
+  const handleToggleMembersOnly = async (newsletter) => {
+    try {
+      const { error } = await supabaseBiz
+        .from('newsletters')
+        .update({ is_members_only: !newsletter.is_members_only })
+        .eq('id', newsletter.id)
+
+      if (error) throw error
+      fetchNewsletters()
+    } catch (error) {
+      console.error('회원 전용 상태 변경 오류:', error)
+      alert('회원 전용 상태 변경에 실패했습니다.')
     }
   }
 
@@ -1042,6 +1061,7 @@ export default function NewsletterShowcaseManagement() {
                       <th className="p-3 text-left text-sm font-medium text-gray-600 w-28">발행일</th>
                       <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">상태</th>
                       <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">추천</th>
+                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">회원</th>
                       <th className="p-3 text-center text-sm font-medium text-gray-600 w-32">액션</th>
                     </tr>
                   </thead>
@@ -1144,6 +1164,19 @@ export default function NewsletterShowcaseManagement() {
                             <Star className={`w-4 h-4 ${newsletter.is_featured ? 'fill-yellow-500' : ''}`} />
                           </button>
                         </td>
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleToggleMembersOnly(newsletter)}
+                            className={`p-1.5 rounded ${newsletter.is_members_only ? 'text-blue-600' : 'text-gray-300 hover:text-blue-500'}`}
+                            title={newsletter.is_members_only ? '회원 전용' : '전체 공개'}
+                          >
+                            {newsletter.is_members_only ? (
+                              <Lock className="w-4 h-4" />
+                            ) : (
+                              <Unlock className="w-4 h-4" />
+                            )}
+                          </button>
+                        </td>
                         <td className="p-3">
                           <div className="flex justify-center gap-1">
                             <button
@@ -1203,10 +1236,15 @@ export default function NewsletterShowcaseManagement() {
 
                     <CardContent className="p-4">
                       {/* 배지 */}
-                      <div className="flex gap-2 mb-2">
+                      <div className="flex gap-2 mb-2 flex-wrap">
                         {newsletter.is_featured && (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
                             추천
+                          </span>
+                        )}
+                        {newsletter.is_members_only && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> 회원 전용
                           </span>
                         )}
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -1437,7 +1475,7 @@ export default function NewsletterShowcaseManagement() {
               )}
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -1456,6 +1494,17 @@ export default function NewsletterShowcaseManagement() {
                   className="w-4 h-4"
                 />
                 <span>추천</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_members_only}
+                  onChange={(e) => setFormData({ ...formData, is_members_only: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <Lock className="w-4 h-4 text-blue-600" />
+                <span>회원 전용</span>
               </label>
             </div>
           </div>

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   Mail, Search, Calendar, Tag, ArrowLeft, Star, ExternalLink,
-  Filter, ChevronLeft, ChevronRight, X
+  Filter, ChevronLeft, ChevronRight, X, Lock, LogIn
 } from 'lucide-react'
 
 const CATEGORIES = [
@@ -36,9 +36,25 @@ export default function NewsletterShowcase() {
   const [selectedNewsletter, setSelectedNewsletter] = useState(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
 
+  // 로그인 상태
+  const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
   useEffect(() => {
+    checkAuth()
     fetchNewsletters()
   }, [])
+
+  const checkAuth = async () => {
+    try {
+      const { data: { user } } = await supabaseBiz.auth.getUser()
+      setUser(user)
+    } catch (error) {
+      console.error('Auth check error:', error)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
 
   useEffect(() => {
     // URL 파라미터 업데이트
@@ -93,15 +109,23 @@ export default function NewsletterShowcase() {
     setSelectedNewsletter(newsletter)
     setShowDetailModal(true)
 
-    // 조회수 증가
-    try {
-      await supabaseBiz
-        .from('newsletters')
-        .update({ view_count: (newsletter.view_count || 0) + 1 })
-        .eq('id', newsletter.id)
-    } catch (error) {
-      console.error('조회수 업데이트 오류:', error)
+    // 회원 전용 콘텐츠가 아니거나 로그인한 경우에만 조회수 증가
+    if (!newsletter.is_members_only || user) {
+      try {
+        await supabaseBiz
+          .from('newsletters')
+          .update({ view_count: (newsletter.view_count || 0) + 1 })
+          .eq('id', newsletter.id)
+      } catch (error) {
+        console.error('조회수 업데이트 오류:', error)
+      }
     }
+  }
+
+  // 회원 전용 콘텐츠 접근 가능 여부
+  const canAccessContent = (newsletter) => {
+    if (!newsletter.is_members_only) return true
+    return !!user
   }
 
   const getCategoryLabel = (value) => {
@@ -212,9 +236,16 @@ export default function NewsletterShowcase() {
                         </div>
                       )}
                       <div className="flex-1">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white mb-2">
-                          <Star className="w-3 h-3" /> 추천
-                        </span>
+                        <div className="flex gap-2 mb-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white">
+                            <Star className="w-3 h-3" /> 추천
+                          </span>
+                          {newsletter.is_members_only && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/30 text-white">
+                              <Lock className="w-3 h-3" /> 회원 전용
+                            </span>
+                          )}
+                        </div>
                         <h3 className="font-bold text-lg mb-1 group-hover:underline">
                           {newsletter.title}
                         </h3>
@@ -270,13 +301,18 @@ export default function NewsletterShowcase() {
                           <Mail className="w-12 h-12 text-slate-300" />
                         </div>
                       )}
-                      {newsletter.is_featured && (
-                        <div className="absolute top-3 right-3">
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        {newsletter.is_members_only && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-600 text-white shadow">
+                            <Lock className="w-3 h-3" /> 회원 전용
+                          </span>
+                        )}
+                        {newsletter.is_featured && (
                           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-400 text-yellow-900 shadow">
                             <Star className="w-3 h-3" /> 추천
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     <CardContent className="p-4">
@@ -358,12 +394,36 @@ export default function NewsletterShowcase() {
               {selectedNewsletter?.is_featured && (
                 <Star className="w-5 h-5 text-yellow-500" />
               )}
+              {selectedNewsletter?.is_members_only && (
+                <Lock className="w-5 h-5 text-blue-600" />
+              )}
               <span className="line-clamp-1">{selectedNewsletter?.title}</span>
             </DialogTitle>
           </DialogHeader>
 
           <div className="flex-1 overflow-hidden">
-            {selectedNewsletter?.stibee_url ? (
+            {selectedNewsletter?.is_members_only && !user ? (
+              <div className="flex flex-col items-center justify-center h-[65vh] text-gray-500 p-8">
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+                  <Lock className="w-10 h-10 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">회원 전용 콘텐츠</h3>
+                <p className="text-gray-600 mb-6 text-center max-w-md">
+                  이 뉴스레터는 회원 전용 콘텐츠입니다.<br />
+                  로그인 후 이용해주세요.
+                </p>
+                <Button
+                  onClick={() => {
+                    setShowDetailModal(false)
+                    navigate('/login')
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  로그인하기
+                </Button>
+              </div>
+            ) : selectedNewsletter?.stibee_url ? (
               <iframe
                 src={selectedNewsletter.stibee_url}
                 className="w-full h-[65vh] border-0"
