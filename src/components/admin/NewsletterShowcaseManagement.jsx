@@ -898,9 +898,26 @@ export default function NewsletterShowcaseManagement() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
-                            {getCategoryLabel(newsletter.category)}
-                          </span>
+                          <select
+                            value={newsletter.category || 'other'}
+                            onChange={async (e) => {
+                              const newCategory = e.target.value
+                              try {
+                                await supabaseBiz
+                                  .from('newsletters')
+                                  .update({ category: newCategory })
+                                  .eq('id', newsletter.id)
+                                fetchNewsletters()
+                              } catch (err) {
+                                console.error('카테고리 변경 오류:', err)
+                              }
+                            }}
+                            className="text-xs border rounded px-1.5 py-1 bg-white"
+                          >
+                            {CATEGORIES.map(cat => (
+                              <option key={cat.value} value={cat.value}>{cat.label}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="p-3 text-sm text-gray-600">
                           {newsletter.published_at

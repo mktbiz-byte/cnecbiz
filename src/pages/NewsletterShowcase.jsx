@@ -348,20 +348,11 @@ export default function NewsletterShowcase() {
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0">
           <DialogHeader className="p-4 border-b">
-            <DialogTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {selectedNewsletter?.is_featured && (
-                  <Star className="w-5 h-5 text-yellow-500" />
-                )}
-                <span className="line-clamp-1">{selectedNewsletter?.title}</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDetailModal(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
+            <DialogTitle className="flex items-center gap-2 pr-8">
+              {selectedNewsletter?.is_featured && (
+                <Star className="w-5 h-5 text-yellow-500" />
+              )}
+              <span className="line-clamp-1">{selectedNewsletter?.title}</span>
             </DialogTitle>
           </DialogHeader>
 
