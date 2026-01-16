@@ -907,31 +907,63 @@ export default function NewsletterShowcaseManagement() {
     fetchNewsletters()
   }
 
+  // 순서 초기화 헬퍼 (display_order가 NULL인 항목들에 인덱스 값 설정)
+  const ensureDisplayOrders = async () => {
+    const needsInit = filteredNewsletters.some(n => n.display_order === null || n.display_order === undefined)
+    if (!needsInit) return
+
+    for (let i = 0; i < filteredNewsletters.length; i++) {
+      const n = filteredNewsletters[i]
+      if (n.display_order === null || n.display_order === undefined) {
+        await supabaseBiz
+          .from('newsletters')
+          .update({ display_order: i })
+          .eq('id', n.id)
+      }
+    }
+  }
+
   // 순서 위로 이동
   const handleMoveUp = async (newsletter, index) => {
     if (index === 0) return // 이미 맨 위
 
-    const prevNewsletter = filteredNewsletters[index - 1]
-    const currentOrder = newsletter.display_order ?? index
-    const prevOrder = prevNewsletter.display_order ?? (index - 1)
-
     try {
-      // 두 뉴스레터의 순서를 교환
+      // display_order가 NULL인 경우 먼저 초기화
+      await ensureDisplayOrders()
+
+      const prevId = filteredNewsletters[index - 1].id
+      const currentId = newsletter.id
+
+      // 최신 데이터 가져오기
+      const { data: items, error: fetchError } = await supabaseBiz
+        .from('newsletters')
+        .select('id, display_order')
+        .in('id', [currentId, prevId])
+
+      if (fetchError) throw fetchError
+      if (!items || items.length !== 2) throw new Error('데이터를 찾을 수 없습니다')
+
+      const current = items.find(i => i.id === currentId)
+      const prev = items.find(i => i.id === prevId)
+
+      // display_order 값이 같거나 NULL이면 인덱스 기반으로 설정
+      const currentOrder = current.display_order ?? index
+      const prevOrder = prev.display_order ?? (index - 1)
+
+      // 순서 교환
       const { error: err1 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: prevOrder })
-        .eq('id', newsletter.id)
-
+        .eq('id', currentId)
       if (err1) throw err1
 
       const { error: err2 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: currentOrder })
-        .eq('id', prevNewsletter.id)
-
+        .eq('id', prevId)
       if (err2) throw err2
 
-      fetchNewsletters()
+      await fetchNewsletters()
     } catch (error) {
       console.error('순서 변경 오류:', error)
       alert('순서 변경에 실패했습니다: ' + error.message)
@@ -942,27 +974,43 @@ export default function NewsletterShowcaseManagement() {
   const handleMoveDown = async (newsletter, index) => {
     if (index >= filteredNewsletters.length - 1) return // 이미 맨 아래
 
-    const nextNewsletter = filteredNewsletters[index + 1]
-    const currentOrder = newsletter.display_order ?? index
-    const nextOrder = nextNewsletter.display_order ?? (index + 1)
-
     try {
-      // 두 뉴스레터의 순서를 교환
+      // display_order가 NULL인 경우 먼저 초기화
+      await ensureDisplayOrders()
+
+      const nextId = filteredNewsletters[index + 1].id
+      const currentId = newsletter.id
+
+      // 최신 데이터 가져오기
+      const { data: items, error: fetchError } = await supabaseBiz
+        .from('newsletters')
+        .select('id, display_order')
+        .in('id', [currentId, nextId])
+
+      if (fetchError) throw fetchError
+      if (!items || items.length !== 2) throw new Error('데이터를 찾을 수 없습니다')
+
+      const current = items.find(i => i.id === currentId)
+      const next = items.find(i => i.id === nextId)
+
+      // display_order 값이 같거나 NULL이면 인덱스 기반으로 설정
+      const currentOrder = current.display_order ?? index
+      const nextOrder = next.display_order ?? (index + 1)
+
+      // 순서 교환
       const { error: err1 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: nextOrder })
-        .eq('id', newsletter.id)
-
+        .eq('id', currentId)
       if (err1) throw err1
 
       const { error: err2 } = await supabaseBiz
         .from('newsletters')
         .update({ display_order: currentOrder })
-        .eq('id', nextNewsletter.id)
-
+        .eq('id', nextId)
       if (err2) throw err2
 
-      fetchNewsletters()
+      await fetchNewsletters()
     } catch (error) {
       console.error('순서 변경 오류:', error)
       alert('순서 변경에 실패했습니다: ' + error.message)
