@@ -177,24 +177,35 @@ exports.handler = async (event) => {
       }
 
       const emailsData = await emailsResponse.json()
-      console.log(`v2 Emails response (offset ${offset}):`, JSON.stringify(emailsData).slice(0, 800))
+      console.log(`v2 Emails response (offset ${offset}):`, JSON.stringify(emailsData).slice(0, 1000))
+      console.log(`v2 total: ${emailsData.total}, items count: ${emailsData.items?.length}`)
 
-      // v2 API 응답 구조 확인
-      const emails = emailsData.Value || emailsData.value || emailsData.data || emailsData || []
+      // v2 API 응답 구조: { total, offset, limit, items: [...] }
+      const emails = emailsData.items || emailsData.Value || emailsData.value || emailsData.data || []
 
       if (Array.isArray(emails) && emails.length > 0) {
-        // listId 필터링 (v2는 전체 이메일을 가져오므로 클라이언트에서 필터링)
+        // listId 필터링 (v2는 전체 이메일을 가져오므로 필터링 필요)
+        // status: 0=작성중, 3=발송완료
         let filteredEmails = emails
+
         if (listId) {
-          filteredEmails = emails.filter(e =>
-            (e.listId || e.list_id)?.toString() === listId.toString()
-          )
+          // listId로 필터링 (해당 주소록으로 발송된 이메일만)
+          filteredEmails = emails.filter(e => {
+            const emailListId = e.listId || e.list_id
+            return emailListId?.toString() === listId.toString()
+          })
+          console.log(`Filtered by listId ${listId}: ${filteredEmails.length} emails`)
         }
+
+        // 발송 완료된 이메일만 (status === 3)
+        filteredEmails = filteredEmails.filter(e => e.status === 3)
+        console.log(`After status filter (sent only): ${filteredEmails.length} emails`)
 
         allEmails = allEmails.concat(filteredEmails)
         offset += LIMIT
 
-        if (emails.length < LIMIT) {
+        // 더 가져올 데이터가 있는지 확인
+        if (emails.length < LIMIT || offset >= (emailsData.total || 0)) {
           hasMore = false
         }
       } else {
@@ -312,11 +323,12 @@ exports.handler = async (event) => {
         .eq('stibee_id', stibeeId)
         .maybeSingle()
 
+      // v2 API 응답 필드: id, subject, permanentLink, sentTime, createdTime, status, listId
       const newsletterData = {
         title: email.subject || email.title || '제목 없음',
         description: email.previewText || email.description || null,
-        stibee_url: email.shareUrl || email.webUrl || `https://stibee.com/api/v1.0/emails/share/${stibeeId}`,
-        published_at: email.sendAt || email.sentAt || email.createdAt || null,
+        stibee_url: email.permanentLink || email.shareUrl || email.webUrl || `https://stibee.com/api/v1.0/emails/share/${stibeeId}`,
+        published_at: email.sentTime || email.sendAt || email.sentAt || email.createdAt || null,
         thumbnail_url: email.thumbnailUrl || email.thumbnail || null,
         html_content: htmlContent,
         updated_at: new Date().toISOString()
