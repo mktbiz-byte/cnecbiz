@@ -305,19 +305,10 @@ export default function CreatorPointHistory() {
       // 완료된 캠페인 신청에서 포인트 지급 내역 조회 (point_history에 저장되지 않은 경우 대비)
       if (supabaseKorea) {
         try {
-          // 먼저 completed 상태의 applications 조회 (컬럼명 수정: final_confirmed_at -> updated_at)
+          // 먼저 completed 상태의 applications 조회
           let appQuery = supabaseKorea
             .from('applications')
-            .select(`
-              id,
-              user_id,
-              campaign_id,
-              status,
-              updated_at,
-              created_at,
-              creator_name,
-              applicant_name
-            `)
+            .select('id, user_id, campaign_id, status, updated_at, created_at')
             .eq('status', 'completed')
             .order('updated_at', { ascending: false })
             .limit(500)
@@ -341,7 +332,7 @@ export default function CreatorPointHistory() {
             if (campaignIds.length > 0) {
               const { data: campaigns } = await supabaseKorea
                 .from('campaigns')
-                .select('id, title, reward_points, reward_amount')
+                .select('id, title, reward_points')
                 .in('id', campaignIds)
               if (campaigns) {
                 campaigns.forEach(c => { campaignMap[c.id] = c })
@@ -377,8 +368,7 @@ export default function CreatorPointHistory() {
               .map(app => {
                 const profile = profileMap[app.user_id]
                 const campaign = campaignMap[app.campaign_id]
-                // reward_points 또는 reward_amount 사용
-                const pointAmount = campaign?.reward_points || campaign?.reward_amount || 0
+                const pointAmount = campaign?.reward_points || 0
                 return {
                   id: `app_${app.id}`,
                   user_id: app.user_id,
@@ -387,7 +377,7 @@ export default function CreatorPointHistory() {
                   description: `캠페인 완료: ${campaign?.title || ''}`,
                   related_campaign_id: app.campaign_id,
                   created_at: app.updated_at || app.created_at,
-                  creator_name: app.creator_name || app.applicant_name || profile?.channel_name || profile?.name || app.user_id?.substring(0, 8) + '...',
+                  creator_name: profile?.channel_name || profile?.name || app.user_id?.substring(0, 8) + '...',
                   creator_email: profile?.email || '',
                   creator_phone: profile?.phone || '',
                   campaign_title: campaign?.title || null,
