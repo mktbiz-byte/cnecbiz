@@ -1,25 +1,56 @@
 // 크리에이터 맞춤형 가이드 생성 함수
-export async function handler(event) {
+exports.handler = async (event) => {
+  // CORS 헤더
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  }
+
+  // Preflight 요청 처리
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' }
+  }
+
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers,
       body: JSON.stringify({ error: 'Method not allowed' })
     }
   }
 
   try {
-    const { 
+    // API 키 체크
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+    if (!GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY is not set')
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          error: 'AI 서비스 설정 오류',
+          message: 'GEMINI_API_KEY가 설정되지 않았습니다.'
+        })
+      }
+    }
+
+    const {
       creatorAnalysis,  // SNS 분석 결과
       productInfo,      // 제품 정보
       baseGuide         // 기본 가이드
-    } = JSON.parse(event.body)
-    
+    } = JSON.parse(event.body || '{}')
+
     if (!creatorAnalysis || !productInfo) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({ error: 'Missing required parameters' })
       }
     }
+
+    console.log('[generate-personalized-guide] Starting guide generation for:', productInfo.product_name)
 
     // Gemini API를 사용한 맞춤형 가이드 생성
     const prompt = `당신은 전문 마케팅 콘텐츠 기획자입니다. 다음 크리에이터의 스타일에 맞는 **숏폼 콘텐츠 촬영 가이드**를 JSON 형식으로 작성해주세요.
@@ -38,28 +69,21 @@ export async function handler(event) {
 8. **1인 리뷰 형태 (필수)**: 반드시 **혼자서** 촬영하는 개인 리뷰. 친구, 가족, 다른 사람 출연 절대 금지. "이거 써봤는데", "제가 써보니까" 등 1인칭 시점 유지. 광고가 아닌 개인적인 솔직 후기 느낌으로 작성
 9. **친근한 대사**: 반말 또는 존댓말 혼용으로 친구에게 말하듯 편안한 톤. 딱딱하거나 격식 있는 표현 지양
 10. **한국인 감성**: 한국 문화와 정서에 맞는 표현 사용. "대박", "진짜", "완전", "ㄹㅇ" 등 한국인이 자주 쓰는 자연스러운 감탄사와 표현 활용
-11. **참고 영상 검색 (필수)**: Google Search를 활용하여 YouTube에서 다음과 같이 검색하세요:
-   - **검색어**: "${productInfo.product_name} 리뷰 shorts" 또는 "${productInfo.brand} 추천 shorts" 또는 "뷰티 리뷰 shorts"
-   - **우선순위**: YouTube Shorts 영상 우선 검색
-   - **조회수**: 10만뷰 이상의 실제 인기 영상 2-3개
-   - **URL 형식**: 반드시 실제 재생 가능한 YouTube URL (예: https://youtube.com/shorts/AbC123 또는 https://youtube.com/watch?v=AbC123)
-   - **플레이스홀더 금지**: YOUR_VIDEO_ID, example1, example2 같은 가짜 URL 절대 사용 금지
-   - **검색 실패 시**: 검색 결과가 없으면 reference_videos를 빈 배열 []로 반환
 
 ---
 
 ## 제품 정보
-- **브랜드**: ${productInfo.brand}
-- **제품명**: ${productInfo.product_name}
-- **제품 특징**: ${productInfo.product_features}
-- **핵심 포인트**: ${productInfo.product_key_points}
+- **브랜드**: ${productInfo.brand || ''}
+- **제품명**: ${productInfo.product_name || ''}
+- **제품 특징**: ${productInfo.product_features || ''}
+- **핵심 포인트**: ${productInfo.product_key_points || ''}
 
 ## 크리에이터 분석
-- **플랫폼**: ${creatorAnalysis.platform}
-- **팔로워**: ${creatorAnalysis.followers?.toLocaleString()}명
-- **평균 참여율**: ${creatorAnalysis.contentAnalysis?.engagementRate}%
-- **콘텐츠 톤**: ${creatorAnalysis.style?.tone}
-- **주요 토픽**: ${creatorAnalysis.style?.topics?.join(', ')}
+- **플랫폼**: ${creatorAnalysis.platform || 'instagram'}
+- **팔로워**: ${(creatorAnalysis.followers || 0).toLocaleString()}명
+- **평균 참여율**: ${creatorAnalysis.contentAnalysis?.engagementRate || 5}%
+- **콘텐츠 톤**: ${creatorAnalysis.style?.tone || '친근하고 자연스러운'}
+- **주요 토픽**: ${(creatorAnalysis.style?.topics || ['라이프스타일']).join(', ')}
 
 ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바탕으로, 이 크리에이터의 스타일에 맞게 커스터마이징해주세요.` : ''}
 
@@ -67,10 +91,9 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
 
 # 출력 형식 (반드시 아래 JSON 형식을 따라주세요)
 
-\`\`\`json
 {
-  "campaign_title": "${productInfo.brand} ${productInfo.product_name} 촬영 가이드",
-  "target_platform": "${creatorAnalysis.platform}",
+  "campaign_title": "${productInfo.brand || ''} ${productInfo.product_name || ''} 촬영 가이드",
+  "target_platform": "${creatorAnalysis.platform || 'instagram'}",
   "video_duration": "${productInfo.video_duration || (creatorAnalysis.platform === 'youtube' ? '자유' : '30-60초')}",
   "shooting_scenes": [
     {
@@ -80,131 +103,45 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
       "dialogue": "충격적인 멘트 또는 문제 상황을 강조하는 대사",
       "shooting_tip": "조명과 클로즈업을 활용하여 임팩트 강화"
     },
-    {
-      "order": 2,
-      "scene_type": "Before",
-      "scene_description": "제품 사용 전 문제 상황 1",
-      "dialogue": "문제점을 공감 가게 표현하는 대사",
-      "shooting_tip": "문제 상황을 명확히 보여주는 클로즈업"
-    },
-    {
-      "order": 3,
-      "scene_type": "Before",
-      "scene_description": "제품 사용 전 문제 상황 2",
-      "dialogue": "구체적인 불편함을 설명하는 대사",
-      "shooting_tip": "일상적인 상황에서의 불편함 강조"
-    },
-    {
-      "order": 4,
-      "scene_type": "Before",
-      "scene_description": "제품 사용 전 문제 상황 3",
-      "dialogue": "일상적인 고민을 표현하는 대사",
-      "shooting_tip": "시청자가 공감할 수 있는 상황 연출"
-    },
-    {
-      "order": 5,
-      "scene_type": "전환",
-      "scene_description": "제품 발견 및 소개",
-      "dialogue": "제품을 발견한 계기나 기대감을 표현",
-      "shooting_tip": "제품 패키징을 매력적으로 보여주기"
-    },
-    {
-      "order": 6,
-      "scene_type": "제품 소개",
-      "scene_description": "제품 클로즈업 및 특징 설명",
-      "dialogue": "제품의 핵심 특징을 자연스럽게 소개",
-      "shooting_tip": "제품 디테일과 텍스처 클로즈업"
-    },
-    {
-      "order": 7,
-      "scene_type": "사용",
-      "scene_description": "제품 사용 장면 (텍스처, 발림성 등)",
-      "dialogue": "사용감을 구체적으로 표현",
-      "shooting_tip": "슬로우 모션으로 사용 과정 강조"
-    },
-    {
-      "order": 8,
-      "scene_type": "After",
-      "scene_description": "제품 사용 후 즉각적인 변화",
-      "dialogue": "놀라움을 표현하는 대사",
-      "shooting_tip": "Before와 대비되는 밝은 표정"
-    },
-    {
-      "order": 9,
-      "scene_type": "After",
-      "scene_description": "시간이 지난 후의 지속 효과",
-      "dialogue": "만족감을 표현하는 대사",
-      "shooting_tip": "일상 속에서 자연스러운 모습"
-    },
-    {
-      "order": 10,
-      "scene_type": "After",
-      "scene_description": "Before & After 비교 또는 최종 결과",
-      "dialogue": "극적인 변화를 강조하는 대사",
-      "shooting_tip": "분할 화면으로 Before/After 비교"
-    },
-
+    ... (10개 장면 생성)
   ],
   "required_hashtags": {
-    "real": ["${productInfo.brand}", "${productInfo.product_name.replace(/\s+/g, '')}", "솔직후기", "리얼리뷰"],
-    "product": ["${productInfo.brand}추천", "인생템", "꿀템발견", "이거진짜"],
-    "common": ${JSON.stringify(creatorAnalysis.contentAnalysis?.topHashtags?.slice(0, 3) || ['뷰티', '데일리', '추천'])}
+    "real": ["${productInfo.brand || ''}", "솔직후기", "리얼리뷰"],
+    "product": ["${productInfo.brand || ''}추천", "인생템", "꿀템발견", "이거진짜"],
+    "common": ["뷰티", "데일리", "추천"]
   },
   "why_recommended": {
-    "scene_reasoning": "위 촬영 장면과 대사는 최근 YouTube Shorts 트렌드를 분석하여 구성했습니다. [첫 3초 후킹 → Before 문제 상황 → After 해결 결과] 구조가 가장 높은 조회수와 참여율을 기록하고 있으며, 특히 숏폼 콘텐츠에서 효과적입니다. 대사는 개인 리뷰 형태로 친근하고 자연스럽게 작성하여 광고 느낌을 최소화하고 신뢰도를 높였습니다. 한국인 감성에 맞는 표현('대박', '진짜', '완전' 등)을 활용하여 공감대를 형성합니다.",
-    "reference_videos": [
-      // Google Search로 실제 YouTube Shorts 영상을 검색하여 여기에 삽입하세요.
-      // 반드시 실제 재생 가능한 URL을 제공해야 합니다.
-      // 예시:
-      // {
-      //   "title": "실제 영상 제목",
-      //   "url": "https://youtube.com/shorts/AbC123",
-      //   "views": "250만+",
-      //   "key_point": "첫 3초 후킹이 강력하고 Before/After 대비가 명확함"
-      // }
-    ],
-    "content_strategy": "이 가이드는 숏폼 콘텐츠의 핵심인 '빠른 전개'와 '명확한 메시지'에 집중합니다. 제품의 핵심 효과(${productInfo.product_key_points})를 시각적으로 강조하고, 개인 리뷰 형태로 진정성을 더했습니다. 성분 설명은 최소화하고 실제 사용 경험과 결과 중심으로 구성하여 시청자의 구매 욕구를 자극합니다."
+    "scene_reasoning": "촬영 가이드 구성 이유 설명",
+    "reference_videos": [],
+    "content_strategy": "콘텐츠 전략 설명"
   },
   "shooting_requirements": {
-    "must_include": [
-      "제품 클로즈업 (텍스처, 패키징)",
-      "Before & After 비교 (분할 화면 권장)",
-      "사용 과정 (바르는 모습, 흡수되는 모습 등)",
-      "최종 결과 (만족스러운 표정과 함께)"
-    ],
+    "must_include": ["제품 클로즈업", "Before & After 비교", "사용 과정", "최종 결과"],
     "video_style": {
-      "tempo": "빠르고 역동적인 편집 (숏폼의 경우 3초마다 장면 전환)",
+      "tempo": "빠르고 역동적인 편집",
       "tone": "친근하고 자연스러운 말투"
     }
   },
-  "creator_tips": [
-    "평소 사용하는 ${creatorAnalysis.contentAnalysis?.topHashtags?.[0] || '해시태그'} 스타일을 유지하세요",
-    ${creatorAnalysis.platform === 'tiktok' ? '"TikTok 트렌드 음악과 효과를 활용하세요"' : ''},
-    ${creatorAnalysis.platform === 'instagram' ? '"인스타그램 릴스 최적화: 첫 3초가 가장 중요합니다"' : ''},
-    ${creatorAnalysis.platform === 'youtube' ? '"썸네일과 타이틀에 핵심 키워드를 포함하세요"' : ''},
-    "제품 정보는 100% 정확하게 전달하되, 대사는 자유롭게 변형 가능합니다"
-  ]
+  "creator_tips": ["크리에이터를 위한 촬영 팁들"]
 }
-\`\`\`
 
-**중요 지침**: 
+**중요 지침**:
 - **JSON만 출력**: 인사말, 설명, 기타 텍스트 없이 순수 JSON만 출력하세요
-- **한국어만 사용**: 모든 텍스트는 100% 한국어로 작성하세요. 영어, 러시아어, 일본어 등 외국어 절대 사용 금지
+- **한국어만 사용**: 모든 텍스트는 100% 한국어로 작성하세요
 - **이모티콘 사용 금지**: 절대로 이모티콘을 사용하지 마세요
-- **JSON 형식 준수**: 위 JSON 형식을 정확히 따라주세요
 - **정확히 10개 장면**: shooting_scenes 배열에 정확히 10개의 장면을 포함하세요
 - **자연스러운 대사**: 각 장면의 dialogue는 친근하고 자연스러운 한국어 말투로 작성하세요
-- **핵심 포인트 반영**: 제품의 핵심 포인트(${productInfo.product_key_points})를 자연스럽게 녹여내세요
-- **실제 YouTube URL 필수**: reference_videos는 반드시 Google Search로 찾은 실제 재생 가능한 YouTube URL을 사용하세요. 플레이스홀더나 가짜 URL 절대 금지. 검색 결과가 없으면 빈 배열 []로 반환하세요.`
+- **핵심 포인트 반영**: 제품의 핵심 포인트를 자연스럽게 녹여내세요`
+
+    console.log('[generate-personalized-guide] Calling Gemini API...')
 
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + process.env.GEMINI_API_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=' + GEMINI_API_KEY,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          tools: [{ googleSearch: {} }],
           generationConfig: {
             temperature: 0.7,
             topK: 40,
@@ -217,35 +154,33 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     )
 
     if (!response.ok) {
-      throw new Error('Failed to generate guide with Gemini API')
+      const errorText = await response.text()
+      console.error('[generate-personalized-guide] Gemini API error:', response.status, errorText)
+      throw new Error(`Gemini API 오류: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
-    console.log('Gemini API Response:', JSON.stringify(data, null, 2))
-    
+    console.log('[generate-personalized-guide] Gemini API response received')
+
     // Concatenate all parts from the response
     const parts = data.candidates?.[0]?.content?.parts || []
     let personalizedGuide = parts.map(part => part.text || '').join('')
 
     if (!personalizedGuide) {
-      console.error('Empty response from Gemini API:', data)
-      throw new Error('No guide generated - empty response from AI')
+      console.error('[generate-personalized-guide] Empty response from Gemini API:', JSON.stringify(data))
+      throw new Error('AI 응답이 비어있습니다.')
     }
 
-    console.log('Raw AI response (concatenated):', personalizedGuide.substring(0, 500))
+    console.log('[generate-personalized-guide] Raw AI response length:', personalizedGuide.length)
 
     // Remove markdown code blocks (```, ```json, etc.)
     personalizedGuide = personalizedGuide.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-    
-    console.log('After removing code blocks:', personalizedGuide.substring(0, 200))
-    
+
     // Handle duplicate JSON objects - extract only the first valid JSON
-    // This happens when Gemini returns multiple parts with the same JSON
     try {
-      // Try to find where the first JSON object ends
       let braceCount = 0
       let firstJsonEnd = -1
-      
+
       for (let i = 0; i < personalizedGuide.length; i++) {
         if (personalizedGuide[i] === '{') {
           braceCount++
@@ -257,64 +192,56 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
           }
         }
       }
-      
+
       if (firstJsonEnd > 0 && firstJsonEnd < personalizedGuide.length) {
         const potentialDuplicate = personalizedGuide.substring(firstJsonEnd).trim()
         if (potentialDuplicate.length > 0) {
-          console.log('Detected potential duplicate JSON, extracting first valid JSON only')
+          console.log('[generate-personalized-guide] Detected potential duplicate JSON, extracting first valid JSON only')
           personalizedGuide = personalizedGuide.substring(0, firstJsonEnd)
         }
       }
     } catch (e) {
-      console.warn('Error while checking for duplicate JSON:', e)
+      console.warn('[generate-personalized-guide] Error while checking for duplicate JSON:', e)
     }
 
     // Try to parse as JSON to validate
     let guideJson
     try {
       guideJson = JSON.parse(personalizedGuide)
-      console.log('Successfully parsed guide JSON')
-      
+      console.log('[generate-personalized-guide] Successfully parsed guide JSON')
+
       // Validate YouTube URLs if present
-      if (guideJson?.why_recommended?.reference_videos) {
+      if (guideJson?.why_recommended?.reference_videos && Array.isArray(guideJson.why_recommended.reference_videos)) {
         const validVideos = guideJson.why_recommended.reference_videos.filter(video => {
-          if (!video.url) return false
-          
+          if (!video || !video.url) return false
+
           // Check if URL is a valid YouTube URL
           const youtubeRegex = /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})$/
           const match = video.url.match(youtubeRegex)
-          
+
           if (!match) {
-            console.warn('Invalid YouTube URL detected:', video.url)
+            console.warn('[generate-personalized-guide] Invalid YouTube URL detected:', video.url)
             return false
           }
-          
-          // Check if video ID looks valid (11 characters, alphanumeric + - _)
-          const videoId = match[4]
-          if (videoId.length !== 11) {
-            console.warn('Invalid YouTube video ID length:', videoId)
-            return false
-          }
-          
+
           return true
         })
-        
+
         // Replace with validated videos only
         guideJson.why_recommended.reference_videos = validVideos
-        
-        console.log(`Validated ${validVideos.length} out of ${guideJson.why_recommended.reference_videos.length} YouTube URLs`)
+        console.log(`[generate-personalized-guide] Validated ${validVideos.length} YouTube URLs`)
       }
     } catch (e) {
-      console.error('Failed to parse guide as JSON:', e)
+      console.error('[generate-personalized-guide] Failed to parse guide as JSON:', e.message)
       // If parsing fails, return as text
       guideJson = null
     }
 
+    console.log('[generate-personalized-guide] Guide generation completed successfully')
+
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         guide: guideJson ? JSON.stringify(guideJson, null, 2) : personalizedGuide,
         guideJson: guideJson,
@@ -328,12 +255,13 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     }
 
   } catch (error) {
-    console.error('Guide generation error:', error)
+    console.error('[generate-personalized-guide] Error:', error.message)
     return {
       statusCode: 500,
-      body: JSON.stringify({ 
-        error: 'Failed to generate personalized guide',
-        message: error.message 
+      headers,
+      body: JSON.stringify({
+        error: 'AI 가이드 생성 실패',
+        message: error.message
       })
     }
   }
