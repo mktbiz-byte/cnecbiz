@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { supabaseBiz } from '../lib/supabaseClients'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -145,7 +146,32 @@ export default function NewsletterShowcase() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <>
+      {/* SEO Meta Tags */}
+      <Helmet>
+        <title>CNEC 뉴스레터 - 인플루언서 마케팅 인사이트</title>
+        <meta name="description" content="뷰티 인플루언서 마케팅의 최신 트렌드, 성공 사례, 실용적인 팁을 담은 CNEC 뉴스레터입니다. 브랜드 마케터를 위한 인사이트를 무료로 받아보세요." />
+        <meta name="keywords" content="인플루언서 마케팅, 뷰티 마케팅, 숏폼 콘텐츠, 틱톡 마케팅, 인스타그램 릴스, 유튜브 쇼츠, CNEC, 크넥, 뉴스레터" />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="CNEC 뉴스레터 - 인플루언서 마케팅 인사이트" />
+        <meta property="og:description" content="뷰티 인플루언서 마케팅의 최신 트렌드, 성공 사례, 실용적인 팁을 담은 CNEC 뉴스레터입니다." />
+        <meta property="og:url" content="https://cnecbiz.com/newsletters" />
+        <meta property="og:site_name" content="CNEC - 크넥" />
+        <meta property="og:image" content="https://cnecbiz.com/dashboard-screenshot.webp" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="CNEC 뉴스레터 - 인플루언서 마케팅 인사이트" />
+        <meta name="twitter:description" content="뷰티 인플루언서 마케팅의 최신 트렌드와 인사이트를 무료로 받아보세요." />
+        <meta name="twitter:image" content="https://cnecbiz.com/dashboard-screenshot.webp" />
+
+        {/* Canonical URL */}
+        <link rel="canonical" href="https://cnecbiz.com/newsletters" />
+      </Helmet>
+
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* 헤더 */}
       <header className="bg-white/80 backdrop-blur-lg border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -510,5 +536,6 @@ export default function NewsletterShowcase() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   )
 }
