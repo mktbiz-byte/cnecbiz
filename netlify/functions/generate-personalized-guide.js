@@ -1,9 +1,6 @@
 // 크리에이터 맞춤형 가이드 생성 함수
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 
-// Initialize Gemini AI
-const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-
 exports.handler = async (event) => {
   // CORS 헤더
   const headers = {
@@ -43,7 +40,16 @@ exports.handler = async (event) => {
 
     console.log('[generate-personalized-guide] Starting guide generation for:', productInfo.product_name)
 
+    // API 키 확인
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
+      console.error('[generate-personalized-guide] GEMINI_API_KEY is not set')
+      throw new Error('GEMINI_API_KEY 환경 변수가 설정되지 않았습니다')
+    }
+    console.log('[generate-personalized-guide] API key found, length:', apiKey.length)
+
     // Gemini 모델 초기화
+    const genai = new GoogleGenerativeAI(apiKey)
     const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
 
     // 맞춤형 가이드 생성 프롬프트
@@ -189,7 +195,14 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
 
     console.log('[generate-personalized-guide] Calling Gemini API...')
 
-    const result = await model.generateContent(prompt)
+    let result
+    try {
+      result = await model.generateContent(prompt)
+    } catch (geminiError) {
+      console.error('[generate-personalized-guide] Gemini API error:', geminiError)
+      throw new Error(`Gemini API 호출 실패: ${geminiError.message}`)
+    }
+
     const response = result.response
     let personalizedGuide = response.text()
 
@@ -269,13 +282,15 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
     }
 
   } catch (error) {
-    console.error('[generate-personalized-guide] Error:', error.message)
+    console.error('[generate-personalized-guide] Error:', error)
+    console.error('[generate-personalized-guide] Error stack:', error.stack)
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         error: 'AI 가이드 생성 실패',
-        message: error.message
+        message: error.message,
+        details: error.toString()
       })
     }
   }
