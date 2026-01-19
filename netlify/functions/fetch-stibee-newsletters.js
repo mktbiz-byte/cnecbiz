@@ -288,7 +288,7 @@ exports.handler = async (event) => {
 
     const { data: existingNewsletters } = await supabaseBiz
       .from('newsletters')
-      .select('id, stibee_id, thumbnail_url, description, category, is_active, is_featured')
+      .select('id, stibee_id, thumbnail_url, description, category, is_active, is_featured, is_members_only, html_content, content_source, display_order')
       .in('stibee_id', stibeeIds)
 
     // 기존 데이터를 Map으로 저장 (수정된 필드 유지용)
@@ -325,10 +325,14 @@ exports.handler = async (event) => {
           // 기존에 사용자가 설정한 값이 있으면 유지, 없으면 Stibee 값 사용
           thumbnail_url: existing.thumbnail_url || email.thumbnailUrl || email.thumbnail || null,
           description: existing.description || email.previewText || email.description || null,
-          // 카테고리, 활성화, 피처드 상태는 항상 기존 값 유지
+          // 사용자가 수정한 필드는 항상 기존 값 유지
           category: existing.category,
           is_active: existing.is_active,
-          is_featured: existing.is_featured
+          is_featured: existing.is_featured,
+          is_members_only: existing.is_members_only,
+          html_content: existing.html_content,
+          content_source: existing.content_source,
+          display_order: existing.display_order
         }
 
         toUpdate.push(updateData)
