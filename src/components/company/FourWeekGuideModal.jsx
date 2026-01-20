@@ -156,7 +156,7 @@ ${weekData.hashtags.length > 0 ? `**필수 해시태그:**\n${weekData.hashtags.
 JSON 형식으로만 응답해주세요.`
 
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

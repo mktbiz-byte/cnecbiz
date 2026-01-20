@@ -13,7 +13,7 @@ exports.handler = async (event) => {
   try {
     const { campaign, weekNumber, individualMessage, creatorName } = JSON.parse(event.body)
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
 
     // challenge_weekly_guides에서 해당 주차 데이터 가져오기
     const weeklyGuides = campaign.challenge_weekly_guides || {}

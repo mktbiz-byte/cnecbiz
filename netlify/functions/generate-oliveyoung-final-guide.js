@@ -13,7 +13,7 @@ exports.handler = async (event) => {
   try {
     const { campaign, individualMessage, creatorName } = JSON.parse(event.body)
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
 
     const prompt = `당신은 올리브영 캠페인의 크리에이터를 위한 촬영 가이드를 작성하는 전문가입니다.
 
