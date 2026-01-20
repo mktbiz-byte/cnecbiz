@@ -1,5 +1,10 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 
+// Netlify Functions v2 config - 타임아웃 연장
+exports.config = {
+  maxDuration: 60 // 60초 (최대)
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',

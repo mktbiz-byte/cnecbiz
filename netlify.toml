@@ -6,6 +6,16 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# AI 생성 함수 - 타임아웃 연장
+[functions."generate-scene-guide"]
+  timeout = 60
+
+[functions."generate-personalized-guide"]
+  timeout = 60
+
+[functions."generate-newsletter-image"]
+  timeout = 60
+
 # Scheduled Functions
 [functions."scheduled-collect-transactions"]
   schedule = "* * * * *"  # 매 1분마다 실행
