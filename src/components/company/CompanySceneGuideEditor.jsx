@@ -261,6 +261,12 @@ ${isJapan ? '일본' : '미국'} 시장을 타겟으로 크리에이터를 위�
 ⚠️ 중요: 모든 내용(scene_description, dialogue, shooting_tip)은 반드시 한국어로 작성해주세요!
 대사(dialogue)도 한국어로 작성하세요. 번역은 별도로 진행됩니다.
 
+[크리에이터 정보]
+- 크리에이터명: ${application?.applicant_name || application?.creator_name || '크리에이터'}
+- SNS: ${application?.instagram_url || application?.youtube_url || application?.tiktok_url || '미제공'}
+- 카테고리: ${application?.category || campaign?.category || '뷰티/라이프스타일'}
+- 특징: ${application?.introduction || application?.appeal_point || '개성 있는 콘텐츠 제작자'}
+
 [캠페인 정보]
 - 제품명: ${productName}
 - 브랜드: ${brandName}
@@ -294,10 +300,14 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
    - ${isJapan ? '일본식 집, 욕실, 화장대 등 일본 생활환경에서 촬영' : '미국식 집, 욕실, 주방 등 미국 생활환경에서 촬영'}
    - ${isJapan ? '일본 소비자가 공감할 수 있는 상황과 표현' : '미국 소비자가 공감할 수 있는 상황과 표현'}
 
-4. 필수 대사와 필수 촬영장면은 반드시 가이드에 포함
-5. 각 씬은 자연스럽게 연결되어야 함
-6. 마지막 씬은 CTA(Call to Action)로 마무리
-7. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
+4. 🎭 크리에이터 개성 반영
+   - ${application?.applicant_name || '크리에이터'}님만의 독특한 표현과 스타일 반영
+   - 대사에 개성을 담아 다른 크리에이터와 차별화
+
+5. 필수 대사와 필수 촬영장면은 반드시 가이드에 포함
+6. 각 씬은 자연스럽게 연결되어야 함
+7. 마지막 씬은 CTA(Call to Action)로 마무리
+8. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
 
 응답 형식 (반드시 JSON으로만):
 {
@@ -315,7 +325,7 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 JSON만 출력하세요.`
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -356,7 +366,7 @@ JSON만 출력.`
         let translations = []
         try {
           const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -451,7 +461,7 @@ ${contentToTranslate.map(item => `
 JSON만 출력하세요.`
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -533,7 +543,7 @@ JSON만 출력하세요.`
 JSON만 출력하세요.`
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
