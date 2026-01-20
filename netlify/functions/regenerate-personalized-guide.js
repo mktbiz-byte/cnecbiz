@@ -20,7 +20,7 @@ exports.handler = async (event) => {
       };
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `당신은 인플루언서 마케팅 전문가입니다.
 

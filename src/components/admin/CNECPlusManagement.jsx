@@ -88,7 +88,7 @@ export default function CNECPlusManagement() {
       }
       // Initialize Gemini AI
       const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
       // Prepare prompt
       const prompt = `다음 크리에이터의 프로필을 분석하여 한국어로 마케팅용 소개를 작성해주세요.

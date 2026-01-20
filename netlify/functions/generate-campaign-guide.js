@@ -63,7 +63,7 @@ exports.handler = async (event, context) => {
 `;
 
     // Generate AI guide using Gemini
-    const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `
 당신은 한국 인플루언서 마케팅 캠페인 가이드를 작성하는 전문가입니다.

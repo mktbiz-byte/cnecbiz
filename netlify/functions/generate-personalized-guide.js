@@ -50,7 +50,7 @@ exports.handler = async (event) => {
 
     // Gemini 모델 초기화
     const genai = new GoogleGenerativeAI(apiKey)
-    const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
     // 맞춤형 가이드 생성 프롬프트
     const prompt = `당신은 전문 마케팅 콘텐츠 기획자입니다. 다음 크리에이터의 스타일에 맞는 **숏폼 콘텐츠 촬영 가이드**를 JSON 형식으로 작성해주세요.
