@@ -336,7 +336,11 @@ JSON만 출력하세요.`
         }
       )
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API Error:', response.status, errorData)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`)
+      }
 
       const data = await response.json()
       const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
@@ -472,7 +476,11 @@ JSON만 출력하세요.`
         }
       )
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API Error:', response.status, errorData)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`)
+      }
 
       const data = await response.json()
       const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
@@ -554,7 +562,11 @@ JSON만 출력하세요.`
         }
       )
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API Error:', response.status, errorData)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`)
+      }
 
       const data = await response.json()
       const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
