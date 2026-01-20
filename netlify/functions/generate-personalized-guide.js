@@ -32,7 +32,9 @@ exports.handler = async (event) => {
     const {
       creatorAnalysis,  // SNS 분석 결과
       productInfo,      // 제품 정보
-      baseGuide         // 기본 가이드
+      baseGuide,        // 기본 가이드
+      guideStyle,       // 가이드 스타일 (신규)
+      additionalNotes   // 추가 요청사항 (신규)
     } = JSON.parse(event.body || '{}')
 
     if (!creatorAnalysis || !productInfo) {
@@ -41,6 +43,11 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ error: 'Missing required parameters' })
       }
+    }
+
+    // 스타일 정보 로깅
+    if (guideStyle) {
+      console.log('[generate-personalized-guide] Using guide style:', guideStyle.name || guideStyle.id)
     }
 
     console.log('[generate-personalized-guide] Starting guide generation for:', productInfo.product_name)
@@ -97,7 +104,28 @@ ${isChildProduct ? '2. ⚠️ 아이 제품이므로: 아이가 반드시 함께
 - **콘텐츠 톤**: ${creatorAnalysis.style?.tone || '친근하고 자연스러운'}
 - **주요 토픽**: ${(creatorAnalysis.style?.topics || ['라이프스타일']).join(', ')}
 
-${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바탕으로 크넥 철학에 맞게 재구성해주세요.` : ''}
+${baseGuide ? `## 기본 가이드 (기업 작성 - 반드시 반영할 것!)\n${baseGuide}\n\n⚠️ 위 기본 가이드는 기업이 직접 작성한 내용이므로 반드시 가이드에 반영해주세요.` : ''}
+
+${guideStyle ? `---
+
+## 🎨 선택된 콘텐츠 스타일: ${guideStyle.name}
+
+${guideStyle.promptModifier}
+
+**영상 구조 힌트:** ${guideStyle.structureHint || ''}
+**핵심 톤 키워드:** ${(guideStyle.toneKeywords || []).join(', ')}
+
+⚠️ 위 스타일 특성을 반드시 가이드 전체에 반영해주세요. 씬 구성, 대사, 톤 모두 이 스타일에 맞게 작성합니다.
+` : ''}
+
+${additionalNotes ? `---
+
+## 📝 기업 추가 요청사항 (반드시 반영!)
+
+${additionalNotes}
+
+⚠️ 위 추가 요청사항은 기업이 직접 입력한 내용이므로 가이드에 반드시 반영해주세요.
+` : ''}
 
 ---
 
@@ -372,7 +400,12 @@ ${baseGuide ? `## 기본 가이드\n${baseGuide}\n\n위 기본 가이드를 바�
           followers: creatorAnalysis.followers,
           tone: creatorAnalysis.style?.tone,
           topics: creatorAnalysis.style?.topics
-        }
+        },
+        guideStyleUsed: guideStyle ? {
+          id: guideStyle.id,
+          name: guideStyle.name
+        } : null,
+        additionalNotesUsed: additionalNotes || null
       })
     }
 

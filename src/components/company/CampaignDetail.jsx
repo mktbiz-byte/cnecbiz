@@ -36,6 +36,7 @@ import {
   XCircle
 } from 'lucide-react'
 import { supabaseBiz, supabaseKorea, getSupabaseClient } from '../../lib/supabaseClients'
+import { GUIDE_STYLES, getGuideStyleById } from '../../data/guideStyles'
 
 // US 캠페인 작업을 위한 API 호출 헬퍼 (RLS 우회)
 const callUSCampaignAPI = async (action, campaignId, applicationId, data) => {
@@ -258,6 +259,10 @@ export default function CampaignDetail() {
   const [showGuideSelectModal, setShowGuideSelectModal] = useState(false) // 가이드 유형 선택 모달
   const [selectedParticipantForGuide, setSelectedParticipantForGuide] = useState(null) // 가이드 생성 대상 참여자
   const [externalGuideData, setExternalGuideData] = useState({ type: null, url: null, fileUrl: null, fileName: null, title: '' }) // 외부 가이드 데이터
+  // AI 가이드 스타일 선택 관련 상태
+  const [showStyleSelectModal, setShowStyleSelectModal] = useState(false) // 스타일 선택 모달
+  const [selectedGuideStyle, setSelectedGuideStyle] = useState(null) // 선택된 가이드 스타일
+  const [additionalGuideNotes, setAdditionalGuideNotes] = useState('') // 기업 추가 요청사항
   // Address editing state
   const [editingAddressFor, setEditingAddressFor] = useState(null)
   const [addressFormData, setAddressFormData] = useState({
@@ -9808,94 +9813,15 @@ JSON만 출력.`
                   )
                 }
 
-                // 기획형: 크넥 AI 맞춤 가이드 생성
+                // 기획형: 크넥 AI 맞춤 가이드 생성 - 스타일 선택 모달 열기
                 return (
                   <button
-                    onClick={async () => {
-                      const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
-                      if (!confirm(`${creatorName}님의 크넥 AI 맞춤 가이드를 생성하시겠습니까?`)) return
-
+                    onClick={() => {
+                      // 스타일 선택 모달 열기
                       setShowGuideSelectModal(false)
-                      setIsGeneratingAllGuides(true)
-
-                      try {
-                        // 크리에이터 프로필 정보 가져오기
-                        const { data: profile } = await supabase
-                          .from('user_profiles')
-                          .select('*')
-                          .eq('id', selectedParticipantForGuide.user_id)
-                          .maybeSingle()
-
-                        const baseGuide = campaign.guide_content || campaign.ai_generated_guide || ''
-
-                        // AI 가이드 생성 요청
-                        const response = await fetch('/.netlify/functions/generate-personalized-guide', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            creatorAnalysis: {
-                              platform: selectedParticipantForGuide.main_channel || selectedParticipantForGuide.platform || 'instagram',
-                              followers: profile?.instagram_followers || profile?.followers_count || 0,
-                              skinType: profile?.skin_type || null,
-                              contentAnalysis: {
-                                engagementRate: profile?.engagement_rate || 5,
-                                topHashtags: [],
-                                contentType: 'mixed',
-                                videoRatio: 50
-                              },
-                              style: {
-                                tone: profile?.content_style || '친근하고 자연스러운',
-                                topics: [profile?.bio || '라이프스타일', '뷰티'],
-                                videoStyle: 'natural'
-                              }
-                            },
-                            productInfo: {
-                              brand: campaign.brand || '',
-                              product_name: campaign.title || '',
-                              product_features: campaign.product_features || campaign.description || '',
-                              product_key_points: campaign.product_key_points || campaign.key_message || '',
-                              video_duration: campaign.video_duration
-                            },
-                            baseGuide: baseGuide,
-                            campaignType: 'planned'
-                          })
-                        })
-
-                        if (!response.ok) {
-                          throw new Error('AI 가이드 생성 실패')
-                        }
-
-                        const { guide } = await response.json()
-
-                        // 생성된 가이드를 applications 테이블에 저장
-                        const { error: updateError } = await supabase
-                          .from('applications')
-                          .update({
-                            personalized_guide: guide,
-                            updated_at: new Date().toISOString()
-                          })
-                          .eq('id', selectedParticipantForGuide.id)
-
-                        if (updateError) throw updateError
-
-                        // 참여자 목록 새로고침
-                        await fetchParticipants()
-
-                        // 가이드 확인 모달 열기
-                        const updatedParticipant = { ...selectedParticipantForGuide, personalized_guide: guide }
-                        setSelectedGuide(updatedParticipant)
-                        setShowGuideModal(true)
-                        setSelectedParticipantForGuide(null)
-
-                        alert('가이드가 생성되었습니다. 내용을 확인하고 수정한 뒤 발송해주세요.')
-
-                      } catch (error) {
-                        console.error('Error generating guide:', error)
-                        alert('가이드 생성에 실패했습니다: ' + error.message)
-                        setSelectedParticipantForGuide(null)
-                      } finally {
-                        setIsGeneratingAllGuides(false)
-                      }
+                      setShowStyleSelectModal(true)
+                      setSelectedGuideStyle(null)
+                      setAdditionalGuideNotes('')
                     }}
                     disabled={isGeneratingAllGuides}
                     className={`w-full p-4 border-2 rounded-xl transition-all text-left group ${
@@ -10019,6 +9945,277 @@ JSON만 출력.`
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI 가이드 스타일 선택 모달 */}
+      {showStyleSelectModal && selectedParticipantForGuide && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden max-h-[95vh] flex flex-col">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-5 text-white relative flex-shrink-0">
+              <button
+                onClick={() => {
+                  setShowStyleSelectModal(false)
+                  setSelectedParticipantForGuide(null)
+                  setSelectedGuideStyle(null)
+                  setAdditionalGuideNotes('')
+                }}
+                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">AI 가이드 스타일 선택</h2>
+                  <p className="text-sm opacity-90">{selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name}님 맞춤 가이드</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* 기업 작성 가이드 정보 (있는 경우) */}
+              {(campaign.guide_content || campaign.ai_generated_guide || campaign.description) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <h3 className="font-bold text-amber-800 mb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    기업 작성 가이드 (AI 생성 시 반영됨)
+                  </h3>
+                  <div className="text-sm text-amber-700 max-h-32 overflow-y-auto">
+                    {(() => {
+                      try {
+                        const guideData = campaign.guide_content
+                          ? (typeof campaign.guide_content === 'string' ? JSON.parse(campaign.guide_content) : campaign.guide_content)
+                          : null
+                        if (guideData) {
+                          return (
+                            <div className="space-y-1">
+                              {guideData.shooting_concept && <p><strong>촬영 컨셉:</strong> {guideData.shooting_concept}</p>}
+                              {guideData.key_message && <p><strong>핵심 메시지:</strong> {guideData.key_message}</p>}
+                              {guideData.must_include && <p><strong>필수 포함:</strong> {Array.isArray(guideData.must_include) ? guideData.must_include.join(', ') : guideData.must_include}</p>}
+                            </div>
+                          )
+                        }
+                        return <p>{campaign.ai_generated_guide || campaign.description || '작성된 가이드가 없습니다.'}</p>
+                      } catch (e) {
+                        return <p>{campaign.ai_generated_guide || campaign.description || '작성된 가이드가 없습니다.'}</p>
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* 스타일 선택 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-3">가이드 스타일 선택</h3>
+                <p className="text-sm text-gray-500 mb-4">크리에이터의 콘텐츠에 맞는 스타일을 선택해주세요. 선택한 스타일에 따라 가이드 구성이 달라집니다.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {GUIDE_STYLES.map((style) => (
+                    <button
+                      key={style.id}
+                      onClick={() => setSelectedGuideStyle(style)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        selectedGuideStyle?.id === style.id
+                          ? 'border-violet-500 bg-violet-50 ring-2 ring-violet-200'
+                          : 'border-gray-200 hover:border-violet-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{style.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900">{style.name}</span>
+                            {selectedGuideStyle?.id === style.id && (
+                              <CheckCircle className="w-4 h-4 text-violet-600" />
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">{style.nameEn}</p>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{style.description}</p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {style.toneKeywords.slice(0, 3).map((keyword, i) => (
+                              <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 선택된 스타일 상세 정보 */}
+              {selectedGuideStyle && (
+                <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                  <h4 className="font-bold text-violet-800 mb-2 flex items-center gap-2">
+                    <span className="text-xl">{selectedGuideStyle.emoji}</span>
+                    {selectedGuideStyle.name} 스타일 상세
+                  </h4>
+                  <p className="text-sm text-violet-700 mb-3">{selectedGuideStyle.detailDescription}</p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-violet-600 font-medium">추천 카테고리:</span>
+                      <p className="text-violet-700">{selectedGuideStyle.bestFor.join(', ')}</p>
+                    </div>
+                    <div>
+                      <span className="text-violet-600 font-medium">영상 구조:</span>
+                      <p className="text-violet-700">{selectedGuideStyle.structureHint}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 추가 요청사항 */}
+              <div>
+                <h3 className="font-bold text-gray-800 mb-2">추가 요청사항 (선택)</h3>
+                <p className="text-sm text-gray-500 mb-2">AI 가이드 생성 시 추가로 반영할 내용을 입력해주세요.</p>
+                <textarea
+                  value={additionalGuideNotes}
+                  onChange={(e) => setAdditionalGuideNotes(e.target.value)}
+                  placeholder="예: 제품의 향을 특히 강조해주세요, 아침 루틴에 포함되는 장면 필수..."
+                  className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 resize-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* 푸터 */}
+            <div className="px-6 py-4 bg-gray-50 border-t flex justify-between items-center flex-shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowStyleSelectModal(false)
+                  setShowGuideSelectModal(true)
+                }}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                뒤로
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!selectedGuideStyle) {
+                    alert('가이드 스타일을 선택해주세요.')
+                    return
+                  }
+
+                  const creatorName = selectedParticipantForGuide.creator_name || selectedParticipantForGuide.applicant_name || '크리에이터'
+                  if (!confirm(`${creatorName}님의 "${selectedGuideStyle.name}" 스타일 가이드를 생성하시겠습니까?`)) return
+
+                  setShowStyleSelectModal(false)
+                  setIsGeneratingAllGuides(true)
+
+                  try {
+                    // 크리에이터 프로필 정보 가져오기
+                    const { data: profile } = await supabase
+                      .from('user_profiles')
+                      .select('*')
+                      .eq('id', selectedParticipantForGuide.user_id)
+                      .maybeSingle()
+
+                    const baseGuide = campaign.guide_content || campaign.ai_generated_guide || ''
+
+                    // AI 가이드 생성 요청 (스타일 정보 포함)
+                    const response = await fetch('/.netlify/functions/generate-personalized-guide', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        creatorAnalysis: {
+                          platform: selectedParticipantForGuide.main_channel || selectedParticipantForGuide.platform || 'instagram',
+                          followers: profile?.instagram_followers || profile?.followers_count || 0,
+                          skinType: profile?.skin_type || null,
+                          contentAnalysis: {
+                            engagementRate: profile?.engagement_rate || 5,
+                            topHashtags: [],
+                            contentType: 'mixed',
+                            videoRatio: 50
+                          },
+                          style: {
+                            tone: profile?.content_style || '친근하고 자연스러운',
+                            topics: [profile?.bio || '라이프스타일', '뷰티'],
+                            videoStyle: 'natural'
+                          }
+                        },
+                        productInfo: {
+                          brand: campaign.brand || '',
+                          product_name: campaign.title || '',
+                          product_features: campaign.product_features || campaign.description || '',
+                          product_key_points: campaign.product_key_points || campaign.key_message || '',
+                          video_duration: campaign.video_duration
+                        },
+                        baseGuide: baseGuide,
+                        campaignType: 'planned',
+                        // 새로 추가: 스타일 정보
+                        guideStyle: {
+                          id: selectedGuideStyle.id,
+                          name: selectedGuideStyle.name,
+                          promptModifier: selectedGuideStyle.promptModifier,
+                          structureHint: selectedGuideStyle.structureHint,
+                          toneKeywords: selectedGuideStyle.toneKeywords
+                        },
+                        additionalNotes: additionalGuideNotes
+                      })
+                    })
+
+                    if (!response.ok) {
+                      throw new Error('AI 가이드 생성 실패')
+                    }
+
+                    const { guide } = await response.json()
+
+                    // 생성된 가이드를 applications 테이블에 저장
+                    const { error: updateError } = await supabase
+                      .from('applications')
+                      .update({
+                        personalized_guide: guide,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq('id', selectedParticipantForGuide.id)
+
+                    if (updateError) throw updateError
+
+                    // 참여자 목록 새로고침
+                    await fetchParticipants()
+
+                    // 가이드 확인 모달 열기
+                    const updatedParticipant = { ...selectedParticipantForGuide, personalized_guide: guide }
+                    setSelectedGuide(updatedParticipant)
+                    setShowGuideModal(true)
+                    setSelectedParticipantForGuide(null)
+                    setSelectedGuideStyle(null)
+                    setAdditionalGuideNotes('')
+
+                    alert('가이드가 생성되었습니다. 내용을 확인하고 수정한 뒤 발송해주세요.')
+
+                  } catch (error) {
+                    console.error('Error generating guide:', error)
+                    alert('가이드 생성에 실패했습니다: ' + error.message)
+                    setSelectedParticipantForGuide(null)
+                  } finally {
+                    setIsGeneratingAllGuides(false)
+                  }
+                }}
+                disabled={!selectedGuideStyle || isGeneratingAllGuides}
+                className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+              >
+                {isGeneratingAllGuides ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    생성 중...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    이 스타일로 가이드 생성
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>
