@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 const { createClient } = require('@supabase/supabase-js')
+const fetch = require('node-fetch')
 
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -54,6 +55,7 @@ ${customPrompt ? `사용자 요청: ${customPrompt}` : ''}
 - 뉴스레터에 적합한 일러스트레이션 또는 사진 스타일
 - 영어로 된 상세한 이미지 생성 프롬프트만 출력
 - 50단어 이내
+- 사람 얼굴이나 유명인은 포함하지 않기
 
 프롬프트:`
 
@@ -62,33 +64,41 @@ ${customPrompt ? `사용자 요청: ${customPrompt}` : ''}
 
     console.log('[generate-newsletter-image] Generated prompt:', imagePrompt)
 
-    // 2단계: Imagen으로 이미지 생성
-    const imagenModel = genAI.getGenerativeModel({ model: 'imagen-3.0-generate-002' })
-
-    const imageResult = await imagenModel.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [{ text: imagePrompt }]
-      }],
-      generationConfig: {
-        responseModalities: ['image', 'text'],
-        responseMimeType: 'image/png'
+    // 2단계: Imagen 3 REST API로 이미지 생성
+    const imagenResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          instances: [
+            { prompt: imagePrompt }
+          ],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: '16:9',
+            safetyFilterLevel: 'block_few',
+            personGeneration: 'dont_allow'
+          }
+        })
       }
-    })
+    )
 
-    const response = imageResult.response
-
-    // 이미지 데이터 추출
-    let imageData = null
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        imageData = part.inlineData.data
-        break
-      }
+    if (!imagenResponse.ok) {
+      const errorText = await imagenResponse.text()
+      console.error('[generate-newsletter-image] Imagen API error:', errorText)
+      throw new Error(`Imagen API 오류: ${imagenResponse.status}`)
     }
 
+    const imagenResult = await imagenResponse.json()
+
+    // 이미지 데이터 추출
+    const imageData = imagenResult.predictions?.[0]?.bytesBase64Encoded
+
     if (!imageData) {
-      // Imagen 3가 안되면 대체 메시지
+      console.error('[generate-newsletter-image] No image data:', JSON.stringify(imagenResult))
       return {
         statusCode: 400,
         headers,
