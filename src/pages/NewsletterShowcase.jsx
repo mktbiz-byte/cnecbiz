@@ -437,7 +437,7 @@ export default function NewsletterShowcase() {
                 <div className="w-full h-full overflow-hidden">
                   {selectedNewsletter?.html_content ? (
                     <div
-                      className="w-full p-4 bg-white pointer-events-none select-none"
+                      className="w-full p-4 bg-white pointer-events-none select-none newsletter-content"
                       dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
                     />
                   ) : selectedNewsletter?.stibee_url ? (
@@ -484,10 +484,66 @@ export default function NewsletterShowcase() {
                 </div>
               </div>
             ) : selectedNewsletter?.html_content ? (
-              <div
-                className="w-full h-[65vh] overflow-auto p-4 bg-white"
-                dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
-              />
+              <>
+                <div
+                  className="w-full h-[65vh] overflow-auto p-4 bg-white newsletter-content"
+                  dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
+                />
+                <style>{`
+                  .newsletter-content {
+                    font-size: 16px;
+                    line-height: 1.8;
+                    color: #333;
+                  }
+                  .newsletter-content p {
+                    margin: 1em 0;
+                    min-height: 1em;
+                  }
+                  .newsletter-content p:empty {
+                    min-height: 1.5em;
+                  }
+                  .newsletter-content h1, .newsletter-content h2, .newsletter-content h3 {
+                    margin: 1.2em 0 0.6em;
+                    font-weight: 700;
+                    line-height: 1.4;
+                  }
+                  .newsletter-content h1 { font-size: 1.8em; }
+                  .newsletter-content h2 { font-size: 1.5em; }
+                  .newsletter-content h3 { font-size: 1.25em; }
+                  .newsletter-content img {
+                    max-width: 100%;
+                    height: auto;
+                    margin: 1.5em 0;
+                    border-radius: 8px;
+                  }
+                  .newsletter-content ul, .newsletter-content ol {
+                    margin: 1em 0;
+                    padding-left: 1.5em;
+                  }
+                  .newsletter-content li {
+                    margin: 0.5em 0;
+                  }
+                  .newsletter-content hr {
+                    margin: 2em 0;
+                    border: none;
+                    border-top: 1px solid #e5e7eb;
+                  }
+                  .newsletter-content blockquote {
+                    margin: 1em 0;
+                    padding: 1em 1.5em;
+                    border-left: 4px solid #3b82f6;
+                    background: #f8fafc;
+                    border-radius: 0 8px 8px 0;
+                  }
+                  .newsletter-content a {
+                    color: #2563eb;
+                    text-decoration: underline;
+                  }
+                  .newsletter-content strong {
+                    font-weight: 700;
+                  }
+                `}</style>
+              </>
             ) : selectedNewsletter?.stibee_url ? (
               <iframe
                 src={selectedNewsletter.stibee_url}

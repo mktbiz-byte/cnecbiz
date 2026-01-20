@@ -495,6 +495,10 @@ export default function NewsletterDetail() {
         }
         .newsletter-content p {
           margin: 1em 0;
+          min-height: 1em;
+        }
+        .newsletter-content p:empty {
+          min-height: 1.5em;
         }
         .newsletter-content h1,
         .newsletter-content h2,
