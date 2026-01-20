@@ -12,7 +12,7 @@ import {
   Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock,
   FileText, Code, X, Maximize2, Monitor, Smartphone, Bold, Italic, Underline, Strikethrough, ListOrdered, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, Type, Upload,
   BarChart3, TrendingUp, Target, Sparkles, ChevronDown, ChevronUp, Users,
-  Minus, Palette, ImagePlus, ALargeSmall, Heading3
+  Minus, Palette, ALargeSmall, Heading3
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -2935,7 +2935,7 @@ export default function NewsletterShowcaseManagement() {
                       <Link2 className="w-4 h-4" />
                     </button>
 
-                    {/* 이미지 업로드 */}
+                    {/* 이미지 업로드 (Supabase Storage) */}
                     <input
                       ref={editorImageInputRef}
                       type="file"
@@ -2946,19 +2946,7 @@ export default function NewsletterShowcaseManagement() {
                     <button
                       onClick={() => editorImageInputRef.current?.click()}
                       className="p-2 rounded hover:bg-gray-200"
-                      title="이미지 업로드"
-                    >
-                      <ImagePlus className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        const url = window.prompt('이미지 URL을 입력하세요:')
-                        if (url) {
-                          editor.chain().focus().setImage({ src: url }).run()
-                        }
-                      }}
-                      className="p-2 rounded hover:bg-gray-200"
-                      title="이미지 URL"
+                      title="이미지 삽입"
                     >
                       <Image className="w-4 h-4" />
                     </button>
