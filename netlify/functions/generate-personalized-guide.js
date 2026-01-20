@@ -55,8 +55,8 @@ exports.handler = async (event) => {
 
     // Gemini 모델 초기화
     const genai = new GoogleGenerativeAI(apiKey)
-    // 개인화 가이드: 복잡한 콘텐츠 생성 → gemini-2.5-flash (품질 중요)
-    const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    // 개인화 가이드: 속도 우선 → gemini-2.0-flash-lite (504 타임아웃 방지)
+    const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
 
     // 아이 제품 여부 판단
     const isChildProduct = (productInfo.category || '').toLowerCase().includes('아이') ||
