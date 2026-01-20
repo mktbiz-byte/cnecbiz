@@ -6,7 +6,7 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# AI 생성 함수 - 타임아웃 연장
+# AI 생성 함수 - 타임아웃 연장 (모든 Gemini API 함수)
 [functions."generate-scene-guide"]
   timeout = 60
 
@@ -14,6 +14,27 @@
   timeout = 60
 
 [functions."generate-newsletter-image"]
+  timeout = 60
+
+[functions."analyze-newsletter-seo"]
+  timeout = 60
+
+[functions."generate-4week-challenge-guide"]
+  timeout = 60
+
+[functions."generate-campaign-guide"]
+  timeout = 60
+
+[functions."generate-capi-profile"]
+  timeout = 60
+
+[functions."generate-oliveyoung-final-guide"]
+  timeout = 60
+
+[functions."generate-oliveyoung-guide"]
+  timeout = 60
+
+[functions."regenerate-personalized-guide"]
   timeout = 60
 
 # Scheduled Functions

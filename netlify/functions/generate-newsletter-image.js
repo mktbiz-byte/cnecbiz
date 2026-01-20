@@ -6,6 +6,11 @@ const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+// Netlify Functions v2 config - 타임아웃 연장
+exports.config = {
+  maxDuration: 60 // 60초 (최대)
+}
+
 exports.handler = async (event) => {
   // CORS 헤더
   const headers = {

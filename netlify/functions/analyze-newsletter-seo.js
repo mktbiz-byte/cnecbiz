@@ -4,6 +4,11 @@ const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+// Netlify Functions v2 config - 타임아웃 연장
+exports.config = {
+  maxDuration: 60 // 60초 (최대)
+}
+
 /**
  * 뉴스레터 SEO 분석 함수
  * - 기본 SEO 점수 계산

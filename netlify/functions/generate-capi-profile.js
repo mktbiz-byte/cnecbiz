@@ -1,6 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import fetch from 'node-fetch';
 
+// Netlify Functions v2 config - 타임아웃 연장
+export const config = {
+  maxDuration: 60 // 60초 (최대)
+};
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // YouTube API keys with rotation support

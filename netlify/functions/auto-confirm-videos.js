@@ -101,9 +101,11 @@ exports.handler = async (event, context) => {
         }
 
         // 멀티비디오 캠페인 체크 (4주 챌린지, 올리브영 등)
+        const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+        const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
         const isMultiVideo = campaign.video_count > 1 ||
-          campaign.campaign_type === '4week_challenge' ||
-          campaign.campaign_type === 'olive_young' ||
+          is4WeekChallenge ||
+          isOliveyoung ||
           campaign.campaign_type === 'multi_video';
 
         const userCampaignKey = `${submission.user_id}-${submission.campaign_id}`;
@@ -123,7 +125,8 @@ exports.handler = async (event, context) => {
             .eq('campaign_id', submission.campaign_id)
             .eq('user_id', submission.user_id);
 
-          const requiredCount = campaign.video_count || 4; // 기본 4개 (4주 챌린지)
+          // 필요 영상 수: 4주챌린지=4개, 올리브영=2개, 그 외는 campaign.video_count
+          const requiredCount = is4WeekChallenge ? 4 : isOliveyoung ? 2 : (campaign.video_count || 4);
           const approvedCount = allUserSubmissions?.filter(s => s.status === 'approved' && !s.final_confirmed_at).length || 0;
           const completedCount = allUserSubmissions?.filter(s => s.status === 'completed' || s.final_confirmed_at).length || 0;
 

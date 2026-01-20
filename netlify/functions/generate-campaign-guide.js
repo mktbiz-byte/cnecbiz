@@ -3,6 +3,11 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // Initialize Gemini AI
 const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// Netlify Functions v2 config - 타임아웃 연장
+exports.config = {
+  maxDuration: 60 // 60초 (최대)
+};
+
 /**
  * Generate AI campaign guide based on campaign data
  */

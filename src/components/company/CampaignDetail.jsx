@@ -6723,14 +6723,13 @@ JSON만 출력.`
                         allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
                         allVideosHaveAdCode = multiVideoStatus.every(s => s.code)
                       } else if (isOliveyoung) {
-                        // 올리브영: step1_url, step2_url, step3_url (3개), step1_2_partnership_code, step3_partnership_code (2개)
+                        // 올리브영: step1_url, step2_url (2개), step1_2_partnership_code (1개)
                         multiVideoStatus = [
                           { step: 1, url: participant.step1_url, code: participant.step1_2_partnership_code },
-                          { step: 2, url: participant.step2_url, code: participant.step1_2_partnership_code },
-                          { step: 3, url: participant.step3_url, code: participant.step3_partnership_code }
+                          { step: 2, url: participant.step2_url, code: participant.step1_2_partnership_code }
                         ]
                         allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
-                        allVideosHaveAdCode = participant.step1_2_partnership_code && participant.step3_partnership_code
+                        allVideosHaveAdCode = !!participant.step1_2_partnership_code
                       } else {
                         // 일반/기획형: sns_upload_url, partnership_code
                         allVideosHaveSnsUrl = !!participant.sns_upload_url || creatorSubmissions.every(sub => sub.sns_upload_url)

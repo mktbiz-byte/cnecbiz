@@ -1,6 +1,11 @@
 // 크리에이터 맞춤형 가이드 생성 함수
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 
+// Netlify Functions v2 config - 타임아웃 연장
+exports.config = {
+  maxDuration: 60 // 60초 (최대)
+}
+
 exports.handler = async (event) => {
   // CORS 헤더
   const headers = {
