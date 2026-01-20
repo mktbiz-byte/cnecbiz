@@ -940,13 +940,20 @@ export default function NewsletterShowcaseManagement() {
         throw new Error(result.error || '이미지 생성 실패')
       }
 
-      // 에디터 커서 위치에 이미지 삽입
-      editor.chain().focus().setImage({ src: result.imageUrl }).run()
+      // 에디터 커서 위치에 이미지 삽입 (SEO 대체 텍스트 포함)
+      editor.chain().focus().setImage({
+        src: result.imageUrl,
+        alt: result.altText || '뉴스레터 이미지',      // SEO 대체 텍스트 (한글)
+        title: result.altText || '뉴스레터 이미지'     // 마우스 오버 시 표시
+      }).run()
 
       // 다이얼로그 닫기 및 초기화
       setShowAiImageDialog(false)
       setAiImagePrompt('')
-      alert('AI 이미지가 생성되어 삽입되었습니다!')
+
+      // SEO 정보와 함께 알림
+      const seoInfo = result.seoFilename ? `\n파일명: ${result.seoFilename}.png\n대체텍스트: ${result.altText}` : ''
+      alert(`AI 이미지가 SEO 최적화되어 삽입되었습니다!${seoInfo}`)
     } catch (error) {
       console.error('AI 이미지 생성 오류:', error)
       alert('AI 이미지 생성에 실패했습니다: ' + error.message)
