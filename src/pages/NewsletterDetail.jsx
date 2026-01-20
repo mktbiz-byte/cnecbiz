@@ -484,14 +484,21 @@ export default function NewsletterDetail() {
           font-size: 16px;
           line-height: 1.8;
           color: #333;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+        .newsletter-content * {
+          max-width: 100% !important;
+          box-sizing: border-box;
         }
         .newsletter-content img {
-          max-width: 100%;
-          height: auto;
+          max-width: 100% !important;
+          height: auto !important;
           margin: 1.5em 0;
         }
         .newsletter-content a {
           color: #2563eb;
+          word-break: break-all;
         }
         .newsletter-content p {
           margin: 1em 0;
@@ -508,13 +515,16 @@ export default function NewsletterDetail() {
           font-weight: 600;
         }
         .newsletter-content table {
-          width: 100%;
+          width: 100% !important;
+          table-layout: fixed;
           border-collapse: collapse;
         }
         .newsletter-content td,
         .newsletter-content th {
           padding: 8px;
           border: 1px solid #e5e7eb;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
         .newsletter-content ul,
         .newsletter-content ol {
@@ -526,6 +536,9 @@ export default function NewsletterDetail() {
           padding-left: 1em;
           margin: 1em 0;
           color: #666;
+        }
+        .newsletter-content div[style*="width"] {
+          width: 100% !important;
         }
       `}</style>
     </>

@@ -484,6 +484,12 @@ export default function NewsletterShowcase() {
                     font-size: 16px;
                     line-height: 1.8;
                     color: #333;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                  }
+                  .newsletter-content * {
+                    max-width: 100% !important;
+                    box-sizing: border-box;
                   }
                   .newsletter-content p {
                     margin: 1em 0;
@@ -501,10 +507,18 @@ export default function NewsletterShowcase() {
                   .newsletter-content h2 { font-size: 1.5em; }
                   .newsletter-content h3 { font-size: 1.25em; }
                   .newsletter-content img {
-                    max-width: 100%;
-                    height: auto;
+                    max-width: 100% !important;
+                    height: auto !important;
                     margin: 1.5em 0;
                     border-radius: 8px;
+                  }
+                  .newsletter-content table {
+                    width: 100% !important;
+                    table-layout: fixed;
+                  }
+                  .newsletter-content td, .newsletter-content th {
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
                   }
                   .newsletter-content ul, .newsletter-content ol {
                     margin: 1em 0;
@@ -528,9 +542,13 @@ export default function NewsletterShowcase() {
                   .newsletter-content a {
                     color: #2563eb;
                     text-decoration: underline;
+                    word-break: break-all;
                   }
                   .newsletter-content strong {
                     font-weight: 700;
+                  }
+                  .newsletter-content div[style*="width"] {
+                    width: 100% !important;
                   }
                 `}</style>
               </>
@@ -557,9 +575,6 @@ export default function NewsletterShowcase() {
                 )}
                 {selectedNewsletter?.issue_number && (
                   <> | {selectedNewsletter.issue_number}호</>
-                )}
-                {selectedNewsletter?.view_count !== undefined && (
-                  <> | 조회 {selectedNewsletter.view_count}회</>
                 )}
               </div>
               <div className="flex gap-2">
