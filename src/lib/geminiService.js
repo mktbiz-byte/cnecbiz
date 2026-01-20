@@ -65,7 +65,7 @@ JSON 형식으로만 응답해주세요.
 `
 
     const response = await client.chat.completions.create({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       messages: [
         {
           role: 'system',
@@ -188,7 +188,7 @@ JSON 형식으로만 응답해주세요. 가독성 좋게 명확하고 간결하
 `
 
     const response = await client.chat.completions.create({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       messages: [
         {
           role: 'system',
@@ -242,7 +242,7 @@ ${JSON.stringify(guide, null, 2)}
 `
 
     const response = await client.chat.completions.create({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       messages: [
         {
           role: 'system',
