@@ -100,31 +100,31 @@ JSON만 출력:`
 
     console.log('[generate-newsletter-image] Generated:', { imagePrompt, seoFilename, altText })
 
-    // 2단계: Imagen 3 REST API로 이미지 생성 (predict 메서드)
-    const imagenResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiApiKey}`,
+    // 2단계: Gemini 2.5 Flash Image 모델로 이미지 생성 (무료 티어 지원)
+    const imageResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          instances: [
-            { prompt: imagePrompt }
-          ],
-          parameters: {
-            sampleCount: 1
+          contents: [{
+            parts: [{ text: `Generate an image: ${imagePrompt}. Professional business style, 16:9 aspect ratio, no human faces.` }]
+          }],
+          generationConfig: {
+            responseModalities: ['image', 'text']
           }
         })
       }
     )
 
-    if (!imagenResponse.ok) {
-      const errorText = await imagenResponse.text()
-      console.error('[generate-newsletter-image] Imagen API error:', errorText)
+    if (!imageResponse.ok) {
+      const errorText = await imageResponse.text()
+      console.error('[generate-newsletter-image] Image API error:', errorText)
 
       // 에러 상세 정보 파싱
-      let errorDetail = `Imagen API 오류: ${imagenResponse.status}`
+      let errorDetail = `이미지 생성 API 오류: ${imageResponse.status}`
       try {
         const errorJson = JSON.parse(errorText)
         if (errorJson.error?.message) {
@@ -135,13 +135,24 @@ JSON만 출력:`
       throw new Error(errorDetail)
     }
 
-    const imagenResult = await imagenResponse.json()
+    const imageResult = await imageResponse.json()
 
-    // 이미지 데이터 추출 (predict 응답 형식)
-    const imageData = imagenResult.predictions?.[0]?.bytesBase64Encoded
+    // 이미지 데이터 추출 (generateContent 응답에서 inline_data 찾기)
+    let imageData = null
+    const candidates = imageResult.candidates || []
+    for (const candidate of candidates) {
+      const parts = candidate.content?.parts || []
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          imageData = part.inlineData.data
+          break
+        }
+      }
+      if (imageData) break
+    }
 
     if (!imageData) {
-      console.error('[generate-newsletter-image] No image data:', JSON.stringify(imagenResult))
+      console.error('[generate-newsletter-image] No image data:', JSON.stringify(imageResult))
       return {
         statusCode: 400,
         headers,
