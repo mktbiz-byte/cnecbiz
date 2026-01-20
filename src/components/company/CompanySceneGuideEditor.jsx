@@ -446,26 +446,26 @@ JSON만 출력.`
         completedBatches++
         setSuccess(`번역 중... (${completedBatches}/${batches.length})`)
 
-        const prompt = `다음 촬영 가이드 내용을 ${targetLang}로 자연스럽게 번역해주세요.
+        // 배치 내 모든 씬의 인덱스를 응답 형식에 포함
+        const expectedIndices = batch.map(item => `    {"index": ${item.index}, "scene_description_translated": "...", "dialogue_translated": "...", "shooting_tip_translated": "..."}`).join(',\n')
+
+        const prompt = `다음 촬영 가이드 ${batch.length}개 씬을 ${targetLang}로 자연스럽게 번역해주세요.
 크리에이터가 이해하기 쉽게 자연스러운 표현을 사용해주세요.
 
 번역할 내용:
 ${batch.map(item => `
-[씬 ${item.index + 1}]
+[씬 ${item.index + 1}] (index: ${item.index})
 촬영장면: ${item.scene_description || '(없음)'}
 대사: ${item.dialogue || '(없음)'}
 촬영팁: ${item.shooting_tip || '(없음)'}
 `).join('\n')}
 
+중요: 위의 ${batch.length}개 씬 모두 번역해서 translations 배열에 포함해주세요.
+
 응답 형식 (JSON):
 {
   "translations": [
-    {
-      "index": ${batch[0].index},
-      "scene_description_translated": "번역된 촬영장면",
-      "dialogue_translated": "번역된 대사",
-      "shooting_tip_translated": "번역된 촬영팁"
-    }
+${expectedIndices}
   ]
 }
 
