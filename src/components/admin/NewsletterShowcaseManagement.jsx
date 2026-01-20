@@ -11,7 +11,8 @@ import {
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
   Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock,
   FileText, Code, X, Maximize2, Monitor, Smartphone, Bold, Italic, Underline, Strikethrough, ListOrdered, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, Type, Upload,
-  BarChart3, TrendingUp, Target, Sparkles, ChevronDown, ChevronUp, Users
+  BarChart3, TrendingUp, Target, Sparkles, ChevronDown, ChevronUp, Users,
+  Minus, Palette, ImagePlus, ALargeSmall, Heading3
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -23,6 +24,89 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Underline as UnderlineExtension } from '@tiptap/extension-underline'
+import { Extension } from '@tiptap/core'
+
+// 폰트 사이즈 확장
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addOptions() {
+    return {
+      types: ['textStyle'],
+    }
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => element.style.fontSize?.replace(/['"]+/g, ''),
+            renderHTML: attributes => {
+              if (!attributes.fontSize) {
+                return {}
+              }
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              }
+            },
+          },
+        },
+      },
+    ]
+  },
+  addCommands() {
+    return {
+      setFontSize: fontSize => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize }).run()
+      },
+      unsetFontSize: () => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run()
+      },
+    }
+  },
+})
+
+// 줄 간격(line-height) 확장
+const LineHeight = Extension.create({
+  name: 'lineHeight',
+  addOptions() {
+    return {
+      types: ['paragraph', 'heading'],
+    }
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          lineHeight: {
+            default: null,
+            parseHTML: element => element.style.lineHeight?.replace(/['"]+/g, ''),
+            renderHTML: attributes => {
+              if (!attributes.lineHeight) {
+                return {}
+              }
+              return {
+                style: `line-height: ${attributes.lineHeight}`,
+              }
+            },
+          },
+        },
+      },
+    ]
+  },
+  addCommands() {
+    return {
+      setLineHeight: lineHeight => ({ commands }) => {
+        return this.options.types.every(type => commands.updateAttributes(type, { lineHeight }))
+      },
+      unsetLineHeight: () => ({ commands }) => {
+        return this.options.types.every(type => commands.resetAttributes(type, 'lineHeight'))
+      },
+    }
+  },
+})
 
 const CATEGORIES = [
   { value: 'marketing', label: '마케팅 인사이트' },
@@ -97,6 +181,9 @@ export default function NewsletterShowcaseManagement() {
   const [showFullEditor, setShowFullEditor] = useState(false)
   const [editorMode, setEditorMode] = useState('visual') // visual, code, preview
   const [previewDevice, setPreviewDevice] = useState('desktop') // desktop, mobile
+  const [editorTitle, setEditorTitle] = useState('') // 에디터에서 제목 편집
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const editorImageInputRef = React.useRef(null)
 
   // SEO 분석
   const [showSeoPanel, setShowSeoPanel] = useState(false)
@@ -107,12 +194,19 @@ export default function NewsletterShowcaseManagement() {
   // Tiptap 에디터 설정
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
       UnderlineExtension,
       LinkExtension.configure({
         openOnClick: false,
       }),
-      ImageExtension,
+      ImageExtension.configure({
+        inline: true,
+        allowBase64: true,
+      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
@@ -121,6 +215,8 @@ export default function NewsletterShowcaseManagement() {
       Highlight.configure({
         multicolor: true,
       }),
+      FontSize,
+      LineHeight,
     ],
     content: htmlContent,
     onUpdate: ({ editor }) => {
@@ -742,16 +838,23 @@ export default function NewsletterShowcaseManagement() {
 
     setSaving(true)
     try {
+      const updateData = {
+        html_content: htmlContent,
+        content_source: 'custom'
+      }
+
+      // 제목이 변경되었으면 함께 저장
+      if (editorTitle && editorTitle !== selectedNewsletter.title) {
+        updateData.title = editorTitle
+      }
+
       const { error } = await supabaseBiz
         .from('newsletters')
-        .update({
-          html_content: htmlContent,
-          content_source: 'custom'
-        })
+        .update(updateData)
         .eq('id', selectedNewsletter.id)
 
       if (error) throw error
-      alert('콘텐츠가 저장되었습니다.')
+      alert('저장되었습니다.')
       setShowHtmlEditor(false)
       setShowFullEditor(false)
       fetchNewsletters()
@@ -763,9 +866,55 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // 에디터에서 이미지 파일 업로드
+  const handleEditorImageUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file || !editor) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드 가능합니다.')
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('파일 크기는 10MB 이하여야 합니다.')
+      return
+    }
+
+    try {
+      const timestamp = Date.now()
+      const ext = file.name.split('.').pop()
+      const fileName = `newsletter_content_${timestamp}.${ext}`
+
+      const { data, error } = await supabaseBiz.storage
+        .from('newsletter-thumbnails')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabaseBiz.storage
+        .from('newsletter-thumbnails')
+        .getPublicUrl(fileName)
+
+      editor.chain().focus().setImage({ src: publicUrl }).run()
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error)
+      alert('이미지 업로드에 실패했습니다: ' + error.message)
+    }
+
+    if (editorImageInputRef.current) {
+      editorImageInputRef.current.value = ''
+    }
+  }
+
   // 전체 화면 에디터 열기
   const openFullScreenEditor = async (newsletter) => {
     setSelectedNewsletter(newsletter)
+    setEditorTitle(newsletter.title || '')
+    setIsEditingTitle(false)
 
     // 콘텐츠가 없으면 먼저 가져오기
     if (!newsletter.html_content && newsletter.stibee_url) {
@@ -2455,7 +2604,33 @@ export default function NewsletterShowcaseManagement() {
           {/* 에디터 헤더 */}
           <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
             <div className="flex items-center gap-4">
-              <h2 className="font-bold text-lg truncate max-w-md">{selectedNewsletter?.title}</h2>
+              {isEditingTitle ? (
+                <input
+                  type="text"
+                  value={editorTitle}
+                  onChange={(e) => setEditorTitle(e.target.value)}
+                  onBlur={() => setIsEditingTitle(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setIsEditingTitle(false)
+                    if (e.key === 'Escape') {
+                      setEditorTitle(selectedNewsletter?.title || '')
+                      setIsEditingTitle(false)
+                    }
+                  }}
+                  autoFocus
+                  className="font-bold text-lg border-b-2 border-blue-500 bg-transparent outline-none px-1 min-w-[300px]"
+                  placeholder="제목을 입력하세요"
+                />
+              ) : (
+                <h2
+                  className="font-bold text-lg truncate max-w-md cursor-pointer hover:text-blue-600 flex items-center gap-2"
+                  onClick={() => setIsEditingTitle(true)}
+                  title="클릭하여 제목 편집"
+                >
+                  {editorTitle || selectedNewsletter?.title || '제목 없음'}
+                  <Edit className="w-4 h-4 text-gray-400" />
+                </h2>
+              )}
               {selectedNewsletter?.content_source && (
                 <span className={`text-xs px-2 py-1 rounded ${
                   selectedNewsletter.content_source === 'custom'
@@ -2463,6 +2638,11 @@ export default function NewsletterShowcaseManagement() {
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {selectedNewsletter.content_source === 'custom' ? '수정됨' : '원본'}
+                </span>
+              )}
+              {editorTitle !== selectedNewsletter?.title && (
+                <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700">
+                  제목 변경됨
                 </span>
               )}
             </div>
@@ -2567,6 +2747,44 @@ export default function NewsletterShowcaseManagement() {
                 {/* Tiptap 툴바 */}
                 {editor && (
                   <div className="flex items-center gap-1 px-4 py-2 border-b bg-gray-50 flex-wrap">
+                    {/* 폰트 사이즈 */}
+                    <select
+                      onChange={(e) => {
+                        const size = e.target.value
+                        if (size === 'default') {
+                          editor.chain().focus().unsetFontSize().run()
+                        } else {
+                          editor.chain().focus().setFontSize(size).run()
+                        }
+                      }}
+                      className="h-8 px-2 border rounded text-sm bg-white"
+                      title="폰트 크기"
+                    >
+                      <option value="default">기본</option>
+                      <option value="12px">12px</option>
+                      <option value="14px">14px</option>
+                      <option value="16px">16px</option>
+                      <option value="18px">18px</option>
+                      <option value="20px">20px</option>
+                      <option value="24px">24px</option>
+                      <option value="28px">28px</option>
+                      <option value="32px">32px</option>
+                      <option value="36px">36px</option>
+                      <option value="48px">48px</option>
+                    </select>
+
+                    {/* 폰트 색상 */}
+                    <div className="relative">
+                      <input
+                        type="color"
+                        onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+                        className="w-8 h-8 cursor-pointer rounded border"
+                        title="글자 색상"
+                      />
+                    </div>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
                     <button
                       onClick={() => editor.chain().focus().toggleBold().run()}
                       className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('bold') ? 'bg-blue-100 text-blue-600' : ''}`}
@@ -2613,12 +2831,44 @@ export default function NewsletterShowcaseManagement() {
                       <Heading2 className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('heading', { level: 3 }) ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="제목 3"
+                    >
+                      <Heading3 className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => editor.chain().focus().setParagraph().run()}
                       className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('paragraph') ? 'bg-blue-100 text-blue-600' : ''}`}
                       title="본문"
                     >
                       <Type className="w-4 h-4" />
                     </button>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                    {/* 줄 간격 */}
+                    <select
+                      onChange={(e) => {
+                        const height = e.target.value
+                        if (height === 'default') {
+                          editor.chain().focus().unsetLineHeight().run()
+                        } else {
+                          editor.chain().focus().setLineHeight(height).run()
+                        }
+                      }}
+                      className="h-8 px-2 border rounded text-sm bg-white"
+                      title="줄 간격"
+                    >
+                      <option value="default">줄간격</option>
+                      <option value="1">1.0</option>
+                      <option value="1.2">1.2</option>
+                      <option value="1.5">1.5</option>
+                      <option value="1.8">1.8</option>
+                      <option value="2">2.0</option>
+                      <option value="2.5">2.5</option>
+                      <option value="3">3.0</option>
+                    </select>
 
                     <div className="w-px h-6 bg-gray-300 mx-1" />
 
@@ -2663,6 +2913,15 @@ export default function NewsletterShowcaseManagement() {
 
                     <div className="w-px h-6 bg-gray-300 mx-1" />
 
+                    {/* 구분선 */}
+                    <button
+                      onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                      className="p-2 rounded hover:bg-gray-200"
+                      title="구분선"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+
                     <button
                       onClick={() => {
                         const url = window.prompt('링크 URL을 입력하세요:')
@@ -2675,6 +2934,22 @@ export default function NewsletterShowcaseManagement() {
                     >
                       <Link2 className="w-4 h-4" />
                     </button>
+
+                    {/* 이미지 업로드 */}
+                    <input
+                      ref={editorImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditorImageUpload}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => editorImageInputRef.current?.click()}
+                      className="p-2 rounded hover:bg-gray-200"
+                      title="이미지 업로드"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => {
                         const url = window.prompt('이미지 URL을 입력하세요:')
@@ -2683,7 +2958,7 @@ export default function NewsletterShowcaseManagement() {
                         }
                       }}
                       className="p-2 rounded hover:bg-gray-200"
-                      title="이미지"
+                      title="이미지 URL"
                     >
                       <Image className="w-4 h-4" />
                     </button>
@@ -2724,6 +2999,8 @@ export default function NewsletterShowcaseManagement() {
                     max-width: 800px;
                     margin: 0 auto;
                     outline: none;
+                    font-size: 16px;
+                    line-height: 1.6;
                   }
                   .tiptap-editor .ProseMirror p {
                     margin: 1em 0;
@@ -2738,9 +3015,15 @@ export default function NewsletterShowcaseManagement() {
                     font-weight: bold;
                     margin: 0.83em 0;
                   }
+                  .tiptap-editor .ProseMirror h3 {
+                    font-size: 1.25em;
+                    font-weight: bold;
+                    margin: 0.83em 0;
+                  }
                   .tiptap-editor .ProseMirror img {
                     max-width: 100%;
                     height: auto;
+                    margin: 1em 0;
                   }
                   .tiptap-editor .ProseMirror ul,
                   .tiptap-editor .ProseMirror ol {
@@ -2751,6 +3034,11 @@ export default function NewsletterShowcaseManagement() {
                     color: #2563eb;
                     text-decoration: underline;
                   }
+                  .tiptap-editor .ProseMirror hr {
+                    border: none;
+                    border-top: 2px solid #e5e7eb;
+                    margin: 2em 0;
+                  }
                   .tiptap-editor .ProseMirror table {
                     max-width: 100%;
                     border-collapse: collapse;
@@ -2759,6 +3047,18 @@ export default function NewsletterShowcaseManagement() {
                   .tiptap-editor .ProseMirror th {
                     border: 1px solid #ccc;
                     padding: 8px;
+                  }
+                  .tiptap-editor .ProseMirror span[style*="font-size"] {
+                    /* font-size 인라인 스타일 유지 */
+                  }
+                  .tiptap-editor .ProseMirror span[style*="color"] {
+                    /* color 인라인 스타일 유지 */
+                  }
+                  .tiptap-editor .ProseMirror p[style*="line-height"],
+                  .tiptap-editor .ProseMirror h1[style*="line-height"],
+                  .tiptap-editor .ProseMirror h2[style*="line-height"],
+                  .tiptap-editor .ProseMirror h3[style*="line-height"] {
+                    /* line-height 인라인 스타일 유지 */
                   }
                 `}</style>
               </div>
@@ -2786,15 +3086,49 @@ export default function NewsletterShowcaseManagement() {
                     dangerouslySetInnerHTML={{ __html: htmlContent }}
                   />
                   <style>{`
+                    .newsletter-preview {
+                      font-size: 16px;
+                      line-height: 1.8;
+                      color: #333;
+                    }
                     .newsletter-preview img {
                       max-width: 100%;
                       height: auto;
+                      margin: 1em 0;
                     }
                     .newsletter-preview table {
                       max-width: 100%;
                     }
                     .newsletter-preview a {
                       color: #2563eb;
+                    }
+                    .newsletter-preview p {
+                      margin: 0.8em 0;
+                    }
+                    .newsletter-preview h1, .newsletter-preview h2, .newsletter-preview h3 {
+                      margin: 1em 0 0.5em;
+                      font-weight: 600;
+                    }
+                    .newsletter-preview h1 { font-size: 2em; }
+                    .newsletter-preview h2 { font-size: 1.5em; }
+                    .newsletter-preview h3 { font-size: 1.25em; }
+                    .newsletter-preview hr {
+                      margin: 1.5em 0;
+                      border: none;
+                      border-top: 1px solid #e5e7eb;
+                    }
+                    .newsletter-preview ul, .newsletter-preview ol {
+                      margin: 0.8em 0;
+                      padding-left: 1.5em;
+                    }
+                    .newsletter-preview li {
+                      margin: 0.4em 0;
+                    }
+                    .newsletter-preview blockquote {
+                      margin: 1em 0;
+                      padding: 0.5em 1em;
+                      border-left: 4px solid #e5e7eb;
+                      background: #f9fafb;
                     }
                   `}</style>
                 </div>
