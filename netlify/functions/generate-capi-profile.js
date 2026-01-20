@@ -564,7 +564,7 @@ function calculateReliabilityScore(scores, maxScores) {
 async function analyzeVideoWithGemini(videoUrl, platform) {
   console.log(`Starting video analysis for: ${videoUrl}`);
   
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   
   const prompt = `당신은 숏폼 콘텐츠 분석 전문가입니다. 다음 영상을 시청하고 콘텐츠 제작 역량을 평가해주세요.
 
