@@ -191,6 +191,11 @@ export default function NewsletterShowcaseManagement() {
   const [analyzingSeo, setAnalyzingSeo] = useState(false)
   const [seoNewsletterId, setSeoNewsletterId] = useState(null)
 
+  // AI 이미지 생성
+  const [showAiImageDialog, setShowAiImageDialog] = useState(false)
+  const [aiImagePrompt, setAiImagePrompt] = useState('')
+  const [generatingAiImage, setGeneratingAiImage] = useState(false)
+
   // Tiptap 에디터 설정
   const editor = useEditor({
     extensions: [
@@ -907,6 +912,46 @@ export default function NewsletterShowcaseManagement() {
 
     if (editorImageInputRef.current) {
       editorImageInputRef.current.value = ''
+    }
+  }
+
+  // AI 이미지 생성 및 삽입
+  const handleGenerateAiImage = async () => {
+    if (!editor) return
+
+    setGeneratingAiImage(true)
+    try {
+      // 현재 에디터 콘텐츠를 텍스트로 추출
+      const contentText = editor.getText()
+
+      const response = await fetch('/.netlify/functions/generate-newsletter-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: contentText,
+          customPrompt: aiImagePrompt,
+          newsletterId: selectedNewsletter?.id
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '이미지 생성 실패')
+      }
+
+      // 에디터 커서 위치에 이미지 삽입
+      editor.chain().focus().setImage({ src: result.imageUrl }).run()
+
+      // 다이얼로그 닫기 및 초기화
+      setShowAiImageDialog(false)
+      setAiImagePrompt('')
+      alert('AI 이미지가 생성되어 삽입되었습니다!')
+    } catch (error) {
+      console.error('AI 이미지 생성 오류:', error)
+      alert('AI 이미지 생성에 실패했습니다: ' + error.message)
+    } finally {
+      setGeneratingAiImage(false)
     }
   }
 
@@ -2306,6 +2351,74 @@ export default function NewsletterShowcaseManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* AI 이미지 생성 다이얼로그 */}
+      <Dialog open={showAiImageDialog} onOpenChange={setShowAiImageDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+              AI 이미지 생성
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="bg-purple-50 rounded-lg p-3 text-sm text-purple-800">
+              <p className="font-medium mb-1">💡 작성된 콘텐츠를 분석하여 관련 이미지를 생성합니다</p>
+              <p className="text-purple-600">이미지는 현재 커서 위치에 삽입됩니다.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                추가 요청사항 (선택)
+              </label>
+              <Textarea
+                value={aiImagePrompt}
+                onChange={(e) => setAiImagePrompt(e.target.value)}
+                placeholder="예: 밝은 색상의 일러스트로, 한국 화장품 브랜드 느낌으로..."
+                className="min-h-[80px]"
+              />
+            </div>
+
+            {generatingAiImage && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-600 mr-3" />
+                <span className="text-gray-600">AI가 이미지를 생성하고 있습니다...</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAiImageDialog(false)
+                setAiImagePrompt('')
+              }}
+              disabled={generatingAiImage}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleGenerateAiImage}
+              disabled={generatingAiImage}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {generatingAiImage ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  생성 중...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  이미지 생성
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* SEO 분석 패널 */}
       <Dialog open={showSeoPanel} onOpenChange={setShowSeoPanel}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -2949,6 +3062,13 @@ export default function NewsletterShowcaseManagement() {
                       title="이미지 삽입"
                     >
                       <Image className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setShowAiImageDialog(true)}
+                      className="p-2 rounded hover:bg-gray-200 text-purple-600"
+                      title="AI 이미지 생성"
+                    >
+                      <Sparkles className="w-4 h-4" />
                     </button>
 
                     <div className="w-px h-6 bg-gray-300 mx-1" />
