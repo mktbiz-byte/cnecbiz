@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   Mail, Search, Calendar, Tag, ArrowLeft, Star, ExternalLink,
-  Filter, ChevronLeft, ChevronRight, X, Lock, LogIn
+  Filter, ChevronDown, X, Lock, LogIn
 } from 'lucide-react'
 
 const CATEGORIES = [
@@ -99,12 +99,13 @@ export default function NewsletterShowcase() {
     return matchesSearch && matchesCategory
   })
 
-  // 페이지네이션
+  // 더보기 (Load More) 방식
   const totalPages = Math.ceil(filteredNewsletters.length / ITEMS_PER_PAGE)
   const paginatedNewsletters = filteredNewsletters.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
+    0,
     currentPage * ITEMS_PER_PAGE
   )
+  const hasMore = paginatedNewsletters.length < filteredNewsletters.length
 
   const openDetail = async (newsletter) => {
     setSelectedNewsletter(newsletter)
@@ -387,26 +388,15 @@ export default function NewsletterShowcase() {
               </div>
 
               {/* 페이지네이션 */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-8">
+              {hasMore && (
+                <div className="flex items-center justify-center mt-8">
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    className="px-8"
                   >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-gray-600">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    <ChevronRight className="w-4 h-4" />
+                    더보기
+                    <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
               )}
