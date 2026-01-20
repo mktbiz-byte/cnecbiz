@@ -24,11 +24,25 @@ export default function AIGuideEditor({ guide, onSave, onCancel }) {
     },
     shooting_requirements: {
       video_style: {
-        tempo: '빠름',
-        tone: '밝고 경쾌함'
+        tempo: '자연스러운 흐름',
+        tone: '친구에게 말하듯 편안하게'
       }
     },
-    shooting_concept: ''
+    shooting_concept: '',
+    content_philosophy: {
+      core_message: '',
+      authenticity_note: '',
+      avoid: []
+    },
+    story_flow: {
+      narrative_type: '',
+      emotional_arc: ''
+    },
+    authenticity_guidelines: {
+      do: [],
+      dont: []
+    },
+    creator_tips: []
   })
 
   const [isSaving, setIsSaving] = useState(false)
@@ -81,12 +95,65 @@ export default function AIGuideEditor({ guide, onSave, onCancel }) {
       scene_description: '',
       dialogue: '',
       caption: '',
-      shooting_tip: ''
+      shooting_tip: '',
+      flexibility_note: '',
+      example_scenario: ''
     }
     setEditedGuide({
       ...editedGuide,
       shooting_scenes: [...(editedGuide.shooting_scenes || []), newScene]
     })
+  }
+
+  // 배열 필드 변경 (content_philosophy.avoid, authenticity_guidelines.do/dont, creator_tips)
+  const handleArrayChange = (parent, field, index, value) => {
+    if (parent) {
+      const newArray = [...(editedGuide[parent]?.[field] || [])]
+      newArray[index] = value
+      setEditedGuide({
+        ...editedGuide,
+        [parent]: {
+          ...editedGuide[parent],
+          [field]: newArray
+        }
+      })
+    } else {
+      const newArray = [...(editedGuide[field] || [])]
+      newArray[index] = value
+      setEditedGuide({ ...editedGuide, [field]: newArray })
+    }
+  }
+
+  const handleAddArrayItem = (parent, field) => {
+    if (parent) {
+      const newArray = [...(editedGuide[parent]?.[field] || []), '']
+      setEditedGuide({
+        ...editedGuide,
+        [parent]: {
+          ...editedGuide[parent],
+          [field]: newArray
+        }
+      })
+    } else {
+      const newArray = [...(editedGuide[field] || []), '']
+      setEditedGuide({ ...editedGuide, [field]: newArray })
+    }
+  }
+
+  const handleRemoveArrayItem = (parent, field, index) => {
+    if (parent) {
+      const newArray = (editedGuide[parent]?.[field] || []).filter((_, i) => i !== index)
+      setEditedGuide({
+        ...editedGuide,
+        [parent]: {
+          ...editedGuide[parent],
+          [field]: newArray
+        }
+      })
+    } else {
+      const newArray = (editedGuide[field] || []).filter((_, i) => i !== index)
+      setEditedGuide({ ...editedGuide, [field]: newArray })
+    }
   }
 
   // 씬 삭제
@@ -319,6 +386,27 @@ export default function AIGuideEditor({ guide, onSave, onCancel }) {
                       rows={2}
                     />
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>자율 기획 공간 (선택)</Label>
+                      <Textarea
+                        value={scene.flexibility_note || ''}
+                        onChange={(e) => handleSceneChange(idx, 'flexibility_note', e.target.value)}
+                        placeholder="예: 본인의 실제 상황에 맞게 변형 가능"
+                        rows={2}
+                      />
+                    </div>
+                    <div>
+                      <Label>예시 시나리오 (선택)</Label>
+                      <Textarea
+                        value={scene.example_scenario || ''}
+                        onChange={(e) => handleSceneChange(idx, 'example_scenario', e.target.value)}
+                        placeholder="예: 아침에 일어나서 거울 보며..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
                 </div>
               ))}
               
@@ -326,6 +414,210 @@ export default function AIGuideEditor({ guide, onSave, onCancel }) {
                 <div className="text-center py-8 text-gray-500">
                   <p>촬영 씬이 없습니다. "씬 추가" 버튼을 눌러 씬을 추가하세요.</p>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 콘텐츠 철학 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>콘텐츠 철학</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>핵심 메시지</Label>
+                <Textarea
+                  value={editedGuide.content_philosophy?.core_message || ''}
+                  onChange={(e) => handleNestedFieldChange('content_philosophy', 'core_message', e.target.value)}
+                  placeholder="이 영상에서 전달하고 싶은 핵심 감정/공감 포인트"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label>진정성 포인트</Label>
+                <Textarea
+                  value={editedGuide.content_philosophy?.authenticity_note || ''}
+                  onChange={(e) => handleNestedFieldChange('content_philosophy', 'authenticity_note', e.target.value)}
+                  placeholder="진정성을 살리기 위한 핵심 조언"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label className="flex items-center justify-between">
+                  피해야 할 것들
+                  <Button
+                    type="button"
+                    onClick={() => handleAddArrayItem('content_philosophy', 'avoid')}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> 추가
+                  </Button>
+                </Label>
+                <div className="space-y-2 mt-2">
+                  {(editedGuide.content_philosophy?.avoid || []).map((item, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <Input
+                        value={item}
+                        onChange={(e) => handleArrayChange('content_philosophy', 'avoid', idx, e.target.value)}
+                        placeholder="피해야 할 표현/구성"
+                      />
+                      <Button
+                        type="button"
+                        onClick={() => handleRemoveArrayItem('content_philosophy', 'avoid', idx)}
+                        size="sm"
+                        variant="destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 스토리 흐름 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>스토리 흐름</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>내러티브 타입</Label>
+                <select
+                  value={editedGuide.story_flow?.narrative_type || ''}
+                  onChange={(e) => handleNestedFieldChange('story_flow', 'narrative_type', e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="">선택하세요</option>
+                  <option value="일상 속 발견형">일상 속 발견형</option>
+                  <option value="고민 해결형">고민 해결형</option>
+                  <option value="습관 형성형">습관 형성형</option>
+                  <option value="감정 공유형">감정 공유형</option>
+                </select>
+              </div>
+              <div>
+                <Label>감정 흐름</Label>
+                <Input
+                  value={editedGuide.story_flow?.emotional_arc || ''}
+                  onChange={(e) => handleNestedFieldChange('story_flow', 'emotional_arc', e.target.value)}
+                  placeholder="예: 불편함 → 발견 → 만족 → 일상화"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 진정성 가이드라인 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>진정성 가이드라인</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* DO */}
+                <div>
+                  <Label className="flex items-center justify-between text-green-700">
+                    이렇게 하세요
+                    <Button
+                      type="button"
+                      onClick={() => handleAddArrayItem('authenticity_guidelines', 'do')}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </Label>
+                  <div className="space-y-2 mt-2">
+                    {(editedGuide.authenticity_guidelines?.do || []).map((item, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <Input
+                          value={item}
+                          onChange={(e) => handleArrayChange('authenticity_guidelines', 'do', idx, e.target.value)}
+                          placeholder="해야 할 것"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => handleRemoveArrayItem('authenticity_guidelines', 'do', idx)}
+                          size="sm"
+                          variant="destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* DON'T */}
+                <div>
+                  <Label className="flex items-center justify-between text-red-700">
+                    이것은 피하세요
+                    <Button
+                      type="button"
+                      onClick={() => handleAddArrayItem('authenticity_guidelines', 'dont')}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </Label>
+                  <div className="space-y-2 mt-2">
+                    {(editedGuide.authenticity_guidelines?.dont || []).map((item, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <Input
+                          value={item}
+                          onChange={(e) => handleArrayChange('authenticity_guidelines', 'dont', idx, e.target.value)}
+                          placeholder="하지 말아야 할 것"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => handleRemoveArrayItem('authenticity_guidelines', 'dont', idx)}
+                          size="sm"
+                          variant="destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 크리에이터 팁 */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>크리에이터 팁</CardTitle>
+              <Button
+                type="button"
+                onClick={() => handleAddArrayItem(null, 'creator_tips')}
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-1" /> 팁 추가
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(editedGuide.creator_tips || []).map((tip, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input
+                    value={tip}
+                    onChange={(e) => handleArrayChange(null, 'creator_tips', idx, e.target.value)}
+                    placeholder="예: 💡 촬영 전 제품을 충분히 사용해보세요"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => handleRemoveArrayItem(null, 'creator_tips', idx)}
+                    size="sm"
+                    variant="destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              {(!editedGuide.creator_tips || editedGuide.creator_tips.length === 0) && (
+                <p className="text-center text-gray-500 py-4">팁이 없습니다. "팁 추가" 버튼을 눌러 추가하세요.</p>
               )}
             </CardContent>
           </Card>

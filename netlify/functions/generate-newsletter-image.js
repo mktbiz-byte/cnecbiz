@@ -100,9 +100,10 @@ JSON만 출력:`
 
     console.log('[generate-newsletter-image] Generated:', { imagePrompt, seoFilename, altText })
 
-    // 2단계: Gemini 2.5 Flash Image 모델로 이미지 생성 (무료 티어 지원)
+    // 2단계: Gemini 2.0 Flash Experimental 모델로 이미지 생성 (무료 티어 지원)
+    // 참고: gemini-2.0-flash-exp는 responseModalities: ['image', 'text']로 이미지 생성 지원
     const imageResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: {
@@ -110,10 +111,11 @@ JSON만 출력:`
         },
         body: JSON.stringify({
           contents: [{
-            parts: [{ text: `Generate an image: ${imagePrompt}. Professional business style, 16:9 aspect ratio, no human faces.` }]
+            parts: [{ text: `Generate an image: ${imagePrompt}. Professional business style, 16:9 aspect ratio, no human faces, clean modern design.` }]
           }],
           generationConfig: {
-            responseModalities: ['image', 'text']
+            responseModalities: ['image', 'text'],
+            temperature: 1.0
           }
         })
       }
