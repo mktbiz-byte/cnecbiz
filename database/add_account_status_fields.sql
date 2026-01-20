@@ -2,15 +2,24 @@
 -- 한국, 일본, 미국 DB 모두에서 실행해야 함
 
 -- 1. user_profiles 테이블에 계정 상태 관련 필드 추가
-ALTER TABLE user_profiles
-ADD COLUMN IF NOT EXISTS account_status TEXT DEFAULT NULL
-  CHECK (account_status IN ('verified', 'warning_1', 'warning_2', 'warning_3'));
+-- (각 ALTER TABLE을 개별 실행하세요)
 
+-- 1-1. account_status 컬럼 추가
+ALTER TABLE user_profiles
+ADD COLUMN IF NOT EXISTS account_status TEXT DEFAULT NULL;
+
+-- 1-2. account_status_note 컬럼 추가
 ALTER TABLE user_profiles
 ADD COLUMN IF NOT EXISTS account_status_note TEXT DEFAULT NULL;
 
+-- 1-3. account_status_updated_at 컬럼 추가
 ALTER TABLE user_profiles
 ADD COLUMN IF NOT EXISTS account_status_updated_at TIMESTAMPTZ DEFAULT NULL;
+
+-- 1-4. CHECK 제약조건 추가 (선택사항 - 이미 있으면 무시)
+-- ALTER TABLE user_profiles
+-- ADD CONSTRAINT account_status_check
+-- CHECK (account_status IS NULL OR account_status IN ('verified', 'warning_1', 'warning_2', 'warning_3'));
 
 -- 2. 인덱스 추가 (필터링 성능 향상)
 CREATE INDEX IF NOT EXISTS idx_user_profiles_account_status
