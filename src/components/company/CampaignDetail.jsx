@@ -3155,6 +3155,13 @@ JSON만 출력.`
         })
         .eq('id', submission.id)
 
+      // 로컬 상태 즉시 업데이트 (UI 반영)
+      setVideoSubmissions(prev => prev.map(s =>
+        s.id === submission.id
+          ? { ...s, status: 'completed', final_confirmed_at: new Date().toISOString() }
+          : s
+      ))
+
       // 2. application 정보 가져오기 (user_id 포함)
       const { data: applicationData } = await supabase
         .from('applications')
