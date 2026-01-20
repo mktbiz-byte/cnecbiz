@@ -37,7 +37,8 @@ async function translateToJapanese(text) {
   if (!geminiApiKey) return text;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
+    // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

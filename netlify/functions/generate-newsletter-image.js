@@ -1,6 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 const { createClient } = require('@supabase/supabase-js')
-const fetch = require('node-fetch')
+// Native fetch 사용 (Node.js 18+)
 
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY

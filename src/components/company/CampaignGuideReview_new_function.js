@@ -21,8 +21,9 @@ const generateAIGuideFromData = async (campaignData) => {
       
       const hashtagsForSearch = campaignData.required_hashtags.join(' ')
       
+      // 트렌드 분석: 중간 복잡도 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
       const trendResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -130,8 +131,9 @@ ${!trendInsights.trend_summary.has_shorts ? '\n⚠️ **주의**: Shorts 형식 
 - 일반 영상만 있는 경우, 첫 3초 훅 강화 전략 명시
 ` : ''
 
+    // 가이드 생성: 복잡한 콘텐츠 → gemini-2.5-flash (품질 중요)
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

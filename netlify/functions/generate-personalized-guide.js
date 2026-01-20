@@ -55,6 +55,7 @@ exports.handler = async (event) => {
 
     // Gemini 모델 초기화
     const genai = new GoogleGenerativeAI(apiKey)
+    // 개인화 가이드: 복잡한 콘텐츠 생성 → gemini-2.5-flash (품질 중요)
     const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     // 맞춤형 가이드 생성 프롬프트

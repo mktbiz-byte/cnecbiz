@@ -275,7 +275,8 @@ ${creatorAutonomy ? '크리에이터에게 자율성을 부여하여 창의적�
 
 전문적이고 실용적인 가이드를 작성해주세요.`
 
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + import.meta.env.VITE_GEMINI_API_KEY, {
+      // 가이드 생성: 복잡한 콘텐츠 → gemini-2.5-flash (품질 중요)
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + import.meta.env.VITE_GEMINI_API_KEY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

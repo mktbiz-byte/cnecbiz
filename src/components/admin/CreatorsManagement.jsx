@@ -255,15 +255,16 @@ ${realDataInfo}
 - 카테고리는 beauty, fashion, food, lifestyle, tech, travel, fitness, gaming, education, entertainment 등에서 선택하세요
 - 소개는 기업 담당자가 "이 사람과 일하고 싶다"고 느낄 수 있도록 작성하세요`
 
+      // 프로필 분석: 단순 분석 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { 
-              temperature: 0.7, 
+            generationConfig: {
+              temperature: 0.7,
               maxOutputTokens: 2048,
               responseMimeType: "application/json"
             }
@@ -534,8 +535,9 @@ ${realDataInfo}
 }
 `
 
+        // AI 프로필 생성: 단순 분석 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
