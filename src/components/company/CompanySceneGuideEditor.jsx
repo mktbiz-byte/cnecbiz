@@ -430,11 +430,27 @@ JSON만 출력.`
         throw new Error('번역할 내용이 없습니다.')
       }
 
-      const prompt = `다음 촬영 가이드 내용을 ${targetLang}로 자연스럽게 번역해주세요.
+      // 타임아웃 방지를 위해 3개씩 배치로 나누어 번역
+      const BATCH_SIZE = 3
+      const batches = []
+      for (let i = 0; i < contentToTranslate.length; i += BATCH_SIZE) {
+        batches.push(contentToTranslate.slice(i, i + BATCH_SIZE))
+      }
+
+      console.log(`번역 시작: 총 ${contentToTranslate.length}개 씬, ${batches.length}개 배치`)
+
+      let allTranslations = []
+      let completedBatches = 0
+
+      for (const batch of batches) {
+        completedBatches++
+        setSuccess(`번역 중... (${completedBatches}/${batches.length})`)
+
+        const prompt = `다음 촬영 가이드 내용을 ${targetLang}로 자연스럽게 번역해주세요.
 크리에이터가 이해하기 쉽게 자연스러운 표현을 사용해주세요.
 
 번역할 내용:
-${contentToTranslate.map(item => `
+${batch.map(item => `
 [씬 ${item.index + 1}]
 촬영장면: ${item.scene_description || '(없음)'}
 대사: ${item.dialogue || '(없음)'}
@@ -445,7 +461,7 @@ ${contentToTranslate.map(item => `
 {
   "translations": [
     {
-      "index": 0,
+      "index": ${batch[0].index},
       "scene_description_translated": "번역된 촬영장면",
       "dialogue_translated": "번역된 대사",
       "shooting_tip_translated": "번역된 촬영팁"
@@ -455,59 +471,64 @@ ${contentToTranslate.map(item => `
 
 JSON만 출력하세요.`
 
-      const response = await fetch('/.netlify/functions/generate-scene-guide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          temperature: 0.3,
-          maxOutputTokens: 8192
+        const response = await fetch('/.netlify/functions/generate-scene-guide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            temperature: 0.3,
+            maxOutputTokens: 4096
+          })
         })
-      })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('API Error:', response.status, errorData)
-        throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
-      }
-
-      const data = await response.json()
-      const responseText = data.text || ''
-      console.log('TranslateAll response:', responseText)
-
-      // Parse JSON response - try multiple patterns
-      let translations = null
-
-      // Try to extract JSON from markdown code block first
-      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (codeBlockMatch) {
-        try {
-          translations = JSON.parse(codeBlockMatch[1].trim())
-        } catch (e) {
-          console.log('Code block parse failed:', e)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('API Error:', response.status, errorData)
+          throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
         }
-      }
 
-      // If not found, try direct JSON match
-      if (!translations) {
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
+        const data = await response.json()
+        const responseText = data.text || ''
+        console.log(`Batch ${completedBatches} response:`, responseText)
+
+        // Parse JSON response - try multiple patterns
+        let translations = null
+
+        // Try to extract JSON from markdown code block first
+        const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
+        if (codeBlockMatch) {
           try {
-            translations = JSON.parse(jsonMatch[0])
+            translations = JSON.parse(codeBlockMatch[1].trim())
           } catch (e) {
-            console.log('Direct JSON parse failed:', e)
+            console.log('Code block parse failed:', e)
           }
         }
+
+        // If not found, try direct JSON match
+        if (!translations) {
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try {
+              translations = JSON.parse(jsonMatch[0])
+            } catch (e) {
+              console.log('Direct JSON parse failed:', e)
+            }
+          }
+        }
+
+        if (translations && translations.translations) {
+          allTranslations = [...allTranslations, ...translations.translations]
+        }
       }
 
-      if (!translations) {
-        throw new Error('번역 결과를 파싱할 수 없습니다. 응답: ' + responseText.substring(0, 100))
+      if (allTranslations.length === 0) {
+        throw new Error('번역 결과를 파싱할 수 없습니다.')
       }
 
       // Update scenes with translations
       setScenes(prev => {
         const newScenes = [...prev]
-        translations.translations.forEach(t => {
+        allTranslations.forEach(t => {
           if (newScenes[t.index]) {
             newScenes[t.index] = {
               ...newScenes[t.index],
@@ -520,7 +541,7 @@ JSON만 출력하세요.`
         return newScenes
       })
 
-      setSuccess(`${targetLang} 번역이 완료되었습니다!`)
+      setSuccess(`${targetLang} 번역이 완료되었습니다! (${allTranslations.length}개 씬)`)
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       console.error('Translation error:', err)
