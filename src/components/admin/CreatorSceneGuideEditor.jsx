@@ -314,8 +314,9 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 
 JSON만 출력하세요.`
 
+      // 씬 가이드 생성: 복잡한 콘텐츠 → gemini-2.5-flash (품질 중요)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -355,8 +356,9 @@ JSON만 출력.`
 
         let translations = []
         try {
+          // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
           const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -408,9 +410,6 @@ JSON만 출력.`
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
-
       const targetLang = region === 'japan' ? '일본어' : '영어'
 
       const contentToTranslate = scenes.map((scene, i) => ({
@@ -424,56 +423,104 @@ JSON만 출력.`
         throw new Error('번역할 내용이 없습니다.')
       }
 
-      const prompt = `다음 촬영 가이드 내용을 ${targetLang}로 자연스럽게 번역해주세요.
+      // 타임아웃 방지를 위해 3개씩 배치로 나누어 번역
+      const BATCH_SIZE = 3
+      const batches = []
+      for (let i = 0; i < contentToTranslate.length; i += BATCH_SIZE) {
+        batches.push(contentToTranslate.slice(i, i + BATCH_SIZE))
+      }
+
+      console.log(`번역 시작: 총 ${contentToTranslate.length}개 씬, ${batches.length}개 배치`)
+
+      let allTranslations = []
+      let completedBatches = 0
+
+      for (const batch of batches) {
+        completedBatches++
+        setSuccess(`번역 중... (${completedBatches}/${batches.length})`)
+
+        // 배치 내 모든 씬의 인덱스를 응답 형식에 포함
+        const expectedIndices = batch.map(item => `    {"index": ${item.index}, "scene_description_translated": "...", "dialogue_translated": "...", "shooting_tip_translated": "..."}`).join(',\n')
+
+        const prompt = `다음 촬영 가이드 ${batch.length}개 씬을 ${targetLang}로 자연스럽게 번역해주세요.
 크리에이터가 이해하기 쉽게 자연스러운 표현을 사용해주세요.
 
 번역할 내용:
-${contentToTranslate.map(item => `
-[씬 ${item.index + 1}]
+${batch.map(item => `
+[씬 ${item.index + 1}] (index: ${item.index})
 촬영장면: ${item.scene_description || '(없음)'}
 대사: ${item.dialogue || '(없음)'}
 촬영팁: ${item.shooting_tip || '(없음)'}
 `).join('\n')}
 
+중요: 위의 ${batch.length}개 씬 모두 번역해서 translations 배열에 포함해주세요.
+
 응답 형식 (JSON):
 {
   "translations": [
-    {
-      "index": 0,
-      "scene_description_translated": "번역된 촬영장면",
-      "dialogue_translated": "번역된 대사",
-      "shooting_tip_translated": "번역된 촬영팁"
-    }
+${expectedIndices}
   ]
 }
 
 JSON만 출력하세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
+        const response = await fetch('/.netlify/functions/generate-scene-guide', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+            prompt,
+            temperature: 0.3,
+            maxOutputTokens: 4096
           })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('API Error:', response.status, errorData)
+          throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
         }
-      )
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+        const data = await response.json()
+        const responseText = data.text || ''
+        console.log(`Batch ${completedBatches} response:`, responseText)
 
-      const data = await response.json()
-      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+        // Parse JSON response - try multiple patterns
+        let translations = null
 
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다.')
+        // Try to extract JSON from markdown code block first
+        const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
+        if (codeBlockMatch) {
+          try {
+            translations = JSON.parse(codeBlockMatch[1].trim())
+          } catch (e) {
+            console.log('Code block parse failed:', e)
+          }
+        }
 
-      const translations = JSON.parse(jsonMatch[0])
+        // If not found, try direct JSON match
+        if (!translations) {
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try {
+              translations = JSON.parse(jsonMatch[0])
+            } catch (e) {
+              console.log('Direct JSON parse failed:', e)
+            }
+          }
+        }
+
+        if (translations && translations.translations) {
+          allTranslations = [...allTranslations, ...translations.translations]
+        }
+      }
+
+      if (allTranslations.length === 0) {
+        throw new Error('번역 결과를 파싱할 수 없습니다.')
+      }
 
       setScenes(prev => {
         const newScenes = [...prev]
-        translations.translations.forEach(t => {
+        allTranslations.forEach(t => {
           if (newScenes[t.index]) {
             newScenes[t.index] = {
               ...newScenes[t.index],
@@ -486,7 +533,7 @@ JSON만 출력하세요.`
         return newScenes
       })
 
-      setSuccess(`${targetLang} 번역이 완료되었습니다!`)
+      setSuccess(`${targetLang} 번역이 완료되었습니다! (${allTranslations.length}개 씬)`)
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       console.error('Translation error:', err)
@@ -529,8 +576,9 @@ JSON만 출력하세요.`
 
 JSON만 출력하세요.`
 
+      // 개별 씬 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -396,6 +396,64 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
           </CardContent>
         </Card>
 
+        {/* 콘텐츠 철학 카드 */}
+        {editedGuide.content_philosophy && (
+          <Card className="mb-6 shadow-lg border-0 border-l-4 border-l-orange-500">
+            <CardHeader className="bg-orange-50">
+              <CardTitle className="flex items-center gap-2 text-orange-800">
+                <Sparkles className="w-6 h-6" />
+                크넥 콘텐츠 철학
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="p-4 bg-orange-50 rounded-lg">
+                  <h4 className="font-bold text-orange-800 mb-2">💡 핵심 메시지</h4>
+                  <p className="text-gray-700">{editedGuide.content_philosophy.core_message}</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <h4 className="font-bold text-green-800 mb-2">✅ 진정성 포인트</h4>
+                  <p className="text-gray-700">{editedGuide.content_philosophy.authenticity_note}</p>
+                </div>
+                {editedGuide.content_philosophy.avoid && editedGuide.content_philosophy.avoid.length > 0 && (
+                  <div className="p-4 bg-red-50 rounded-lg">
+                    <h4 className="font-bold text-red-800 mb-2">❌ 피해야 할 것들</h4>
+                    <ul className="list-disc list-inside text-gray-700 space-y-1">
+                      {editedGuide.content_philosophy.avoid.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 스토리 흐름 카드 */}
+        {editedGuide.story_flow && (
+          <Card className="mb-6 shadow-lg border-0 border-l-4 border-l-blue-500">
+            <CardHeader className="bg-blue-50">
+              <CardTitle className="flex items-center gap-2 text-blue-800">
+                <FileText className="w-6 h-6" />
+                스토리 흐름
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-bold text-blue-800 mb-2">📖 내러티브 타입</h4>
+                  <p className="text-gray-700">{editedGuide.story_flow.narrative_type}</p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-lg">
+                  <h4 className="font-bold text-purple-800 mb-2">💫 감정 흐름</h4>
+                  <p className="text-gray-700">{editedGuide.story_flow.emotional_arc}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* 인스타그램 파트너십 광고 코드 발급 방법 (필수) */}
         <Card className="mb-6 shadow-lg border-0 border-l-4 border-l-purple-500">
           <CardHeader className="bg-purple-50">
@@ -579,6 +637,48 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
                           </p>
                         )}
                       </div>
+
+                      {/* 자율 기획 공간 */}
+                      {currentSceneData.flexibility_note && (
+                        <div className="p-4 bg-orange-50 rounded-lg border-l-4 border-orange-400">
+                          <h4 className="font-bold text-orange-800 mb-2">
+                            🎨 자율 기획 공간
+                          </h4>
+                          {isEditing ? (
+                            <textarea
+                              value={currentSceneData.flexibility_note}
+                              onChange={(e) => handleSceneChange(currentScene, 'flexibility_note', e.target.value)}
+                              className="w-full border rounded px-3 py-2 text-gray-700 leading-relaxed"
+                              rows={2}
+                            />
+                          ) : (
+                            <p className="text-gray-700 leading-relaxed">
+                              {currentSceneData.flexibility_note}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 예시 시나리오 */}
+                      {currentSceneData.example_scenario && (
+                        <div className="p-4 bg-indigo-50 rounded-lg border-l-4 border-indigo-400">
+                          <h4 className="font-bold text-indigo-800 mb-2">
+                            💡 예시 시나리오
+                          </h4>
+                          {isEditing ? (
+                            <textarea
+                              value={currentSceneData.example_scenario}
+                              onChange={(e) => handleSceneChange(currentScene, 'example_scenario', e.target.value)}
+                              className="w-full border rounded px-3 py-2 text-gray-700 leading-relaxed"
+                              rows={2}
+                            />
+                          ) : (
+                            <p className="text-gray-700 leading-relaxed italic">
+                              {currentSceneData.example_scenario}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -607,6 +707,88 @@ export default function CampaignGuideViewer({ guide, campaignId, onClose, onUpda
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 진정성 가이드라인 카드 */}
+        {editedGuide.authenticity_guidelines && (
+          <Card className="mb-6 shadow-lg border-0 border-l-4 border-l-emerald-500">
+            <CardHeader className="bg-emerald-50">
+              <CardTitle className="flex items-center gap-2 text-emerald-800">
+                <CheckCircle2 className="w-6 h-6" />
+                진정성 가이드라인
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* DO */}
+                {editedGuide.authenticity_guidelines.do && editedGuide.authenticity_guidelines.do.length > 0 && (
+                  <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <h4 className="font-bold text-green-800 mb-3 flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5" />
+                      이렇게 하세요
+                    </h4>
+                    <ul className="space-y-2">
+                      {editedGuide.authenticity_guidelines.do.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-gray-700">
+                          <span className="text-green-600 mt-0.5">✓</span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* DON'T */}
+                {editedGuide.authenticity_guidelines.dont && editedGuide.authenticity_guidelines.dont.length > 0 && (
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <h4 className="font-bold text-red-800 mb-3 flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5" />
+                      이것은 피하세요
+                    </h4>
+                    <ul className="space-y-2">
+                      {editedGuide.authenticity_guidelines.dont.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-gray-700">
+                          <span className="text-red-600 mt-0.5">✗</span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* 예외 사항 (아이 제품) */}
+              {editedGuide.authenticity_guidelines.exception && (
+                <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-yellow-800 font-medium">
+                    {editedGuide.authenticity_guidelines.exception}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 크리에이터 팁 카드 */}
+        {editedGuide.creator_tips && editedGuide.creator_tips.length > 0 && (
+          <Card className="mb-6 shadow-lg border-0 border-l-4 border-l-cyan-500">
+            <CardHeader className="bg-cyan-50">
+              <CardTitle className="flex items-center gap-2 text-cyan-800">
+                <Sparkles className="w-6 h-6" />
+                크리에이터 팁
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ul className="space-y-3">
+                {editedGuide.creator_tips.map((tip, idx) => (
+                  <li key={idx} className="flex items-start gap-3 p-3 bg-cyan-50 rounded-lg">
+                    <span className="text-cyan-600 text-lg">{tip.split(' ')[0]}</span>
+                    <span className="text-gray-700">{tip.split(' ').slice(1).join(' ')}</span>
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         )}

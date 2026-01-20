@@ -1,5 +1,5 @@
 // 토스페이먼츠 결제 승인 Netlify Function
-const fetch = require('node-fetch');
+// Native fetch 사용 (Node.js 18+)
 
 // 테스트 시크릿 키 (실제 운영 시 환경변수로 관리)
 const SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6';

@@ -155,8 +155,9 @@ ${weekData.hashtags.length > 0 ? `**필수 해시태그:**\n${weekData.hashtags.
 
 JSON 형식으로만 응답해주세요.`
 
+        // 4주 가이드 모달: 복잡한 콘텐츠 → gemini-2.5-flash (품질 중요)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

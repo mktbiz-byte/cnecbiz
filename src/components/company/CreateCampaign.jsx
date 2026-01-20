@@ -113,16 +113,17 @@ export default function CreateCampaign() {
       const selectedLang = languages.find(l => l.id === targetLang)
       const targetLangName = selectedLang.label.split(' ')[1]
 
+      // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ 
-              parts: [{ 
-                text: `다음 한국어 텍스트를 ${targetLangName}로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n${sourceText}` 
-              }] 
+            contents: [{
+              parts: [{
+                text: `다음 한국어 텍스트를 ${targetLangName}로 자연스럽게 번역해주세요. 번역 결과만 출력하세요:\n\n${sourceText}`
+              }]
             }],
             generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
           })
@@ -190,8 +191,9 @@ ${JSON.stringify(textsToTranslate, null, 2)}
   "target_audience": "번역된 참가조건"
 }`
 
+      // 일괄 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -206,7 +208,7 @@ ${JSON.stringify(textsToTranslate, null, 2)}
 
       const data = await response.json()
       const resultText = data.candidates[0]?.content?.parts[0]?.text || ''
-      
+
       // JSON 추출
       const jsonMatch = resultText.match(/\{[\s\S]*\}/)
       if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다')

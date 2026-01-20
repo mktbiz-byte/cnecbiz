@@ -59,8 +59,9 @@ export async function generateAIMatchingReasons(campaign, creator) {
 - 추천 이유는 기업 담당자가 이해하기 쉽고 설득력 있게 작성하세요
 - 카테고리가 정확히 일치하면 높은 점수, 관련성이 있으면 중간 점수를 주세요`
 
+    // 크리에이터 매칭: 단순 분석 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

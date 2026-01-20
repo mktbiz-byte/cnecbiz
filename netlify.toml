@@ -6,6 +6,37 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# AI 생성 함수 - 타임아웃 연장 (모든 Gemini API 함수)
+[functions."generate-scene-guide"]
+  timeout = 60
+
+[functions."generate-personalized-guide"]
+  timeout = 60
+
+[functions."generate-newsletter-image"]
+  timeout = 60
+
+[functions."analyze-newsletter-seo"]
+  timeout = 60
+
+[functions."generate-4week-challenge-guide"]
+  timeout = 60
+
+[functions."generate-campaign-guide"]
+  timeout = 60
+
+[functions."generate-capi-profile"]
+  timeout = 60
+
+[functions."generate-oliveyoung-final-guide"]
+  timeout = 60
+
+[functions."generate-oliveyoung-guide"]
+  timeout = 60
+
+[functions."regenerate-personalized-guide"]
+  timeout = 60
+
 # Scheduled Functions
 [functions."scheduled-collect-transactions"]
   schedule = "* * * * *"  # 매 1분마다 실행
@@ -29,7 +60,7 @@
   schedule = "15 1 * * *"  # 임시: 즉시 실행 테스트 (10:15 KST)
 
 [functions."auto-confirm-videos"]
-  schedule = "0 15 * * *"  # 매일 자정 (한국시간 = UTC+9) - 5일 경과 영상 자동 확정
+  schedule = "0 1 * * *"  # 매일 오전 10시 (한국시간 = UTC+9) - 5일 경과 영상 자동 확정
 
 [functions."scheduled-weekly-withdrawal-report"]
   schedule = "0 1 * * 1"  # 매주 월요일 오전 10시 (한국시간 = UTC+9) - 출금 신청 주간 보고서

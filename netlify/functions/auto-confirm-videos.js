@@ -29,6 +29,9 @@ exports.handler = async (event, context) => {
   const supabaseKorea = createClient(koreaUrl, koreaKey);
   const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : supabaseKorea;
 
+  // 지급 내역 기록용
+  const paymentRecords = [];
+
   try {
     // 5일 전 날짜 계산
     const fiveDaysAgo = new Date();
@@ -77,14 +80,17 @@ exports.handler = async (event, context) => {
     let processedCount = 0;
     let errorCount = 0;
 
+    // 이미 처리한 (user_id, campaign_id) 조합 추적 (멀티비디오 중복 방지)
+    const processedUserCampaigns = new Set();
+
     for (const submission of pendingSubmissions) {
       try {
         console.log(`처리 중: submission_id=${submission.id}`);
 
-        // 캠페인 정보 조회
+        // 캠페인 정보 조회 (video_count, campaign_type 포함)
         const { data: campaign, error: campaignError } = await supabaseKorea
           .from('campaigns')
-          .select('id, title, reward_points, point')
+          .select('id, title, reward_points, point, video_count, campaign_type')
           .eq('id', submission.campaign_id)
           .single();
 
@@ -94,25 +100,83 @@ exports.handler = async (event, context) => {
           continue;
         }
 
-        const pointAmount = campaign.reward_points || campaign.point || 0;
+        // 멀티비디오 캠페인 체크 (4주 챌린지, 올리브영 등)
+        const is4WeekChallenge = campaign.campaign_type === '4week_challenge'
+        const isOliveyoung = campaign.campaign_type === 'oliveyoung' || campaign.campaign_type === 'oliveyoung_sale'
+        const isMultiVideo = campaign.video_count > 1 ||
+          is4WeekChallenge ||
+          isOliveyoung ||
+          campaign.campaign_type === 'multi_video';
 
-        // 1. video_submissions를 completed로 업데이트
-        const { error: updateError } = await supabaseKorea
-          .from('video_submissions')
-          .update({
-            status: 'completed',
-            final_confirmed_at: new Date().toISOString(),
-            auto_confirmed: true  // 자동 확정 표시
-          })
-          .eq('id', submission.id);
+        const userCampaignKey = `${submission.user_id}-${submission.campaign_id}`;
 
-        if (updateError) {
-          console.error(`video_submissions 업데이트 실패:`, updateError);
-          errorCount++;
-          continue;
+        // 멀티비디오 캠페인인 경우
+        if (isMultiVideo) {
+          // 이미 처리한 조합이면 스킵
+          if (processedUserCampaigns.has(userCampaignKey)) {
+            console.log(`이미 처리된 멀티비디오: ${userCampaignKey}`);
+            continue;
+          }
+
+          // 해당 유저의 이 캠페인 모든 영상 조회
+          const { data: allUserSubmissions } = await supabaseKorea
+            .from('video_submissions')
+            .select('id, status, video_number, week_number, final_confirmed_at')
+            .eq('campaign_id', submission.campaign_id)
+            .eq('user_id', submission.user_id);
+
+          // 필요 영상 수: 4주챌린지=4개, 올리브영=2개, 그 외는 campaign.video_count
+          const requiredCount = is4WeekChallenge ? 4 : isOliveyoung ? 2 : (campaign.video_count || 4);
+          const approvedCount = allUserSubmissions?.filter(s => s.status === 'approved' && !s.final_confirmed_at).length || 0;
+          const completedCount = allUserSubmissions?.filter(s => s.status === 'completed' || s.final_confirmed_at).length || 0;
+
+          console.log(`멀티비디오 캠페인: 필요=${requiredCount}, 승인됨=${approvedCount}, 완료됨=${completedCount}, 전체=${allUserSubmissions?.length || 0}`);
+
+          // 모든 영상이 승인되지 않았으면 스킵
+          if (approvedCount + completedCount < requiredCount) {
+            console.log(`아직 모든 영상이 승인되지 않음. 스킵: ${userCampaignKey}`);
+            processedUserCampaigns.add(userCampaignKey);
+            continue;
+          }
+
+          // 모든 승인된 영상 한번에 확정
+          const approvedSubmissions = allUserSubmissions?.filter(s => s.status === 'approved' && !s.final_confirmed_at) || [];
+
+          for (const sub of approvedSubmissions) {
+            await supabaseKorea
+              .from('video_submissions')
+              .update({
+                status: 'completed',
+                final_confirmed_at: new Date().toISOString(),
+                auto_confirmed: true
+              })
+              .eq('id', sub.id);
+          }
+
+          processedUserCampaigns.add(userCampaignKey);
+          console.log(`멀티비디오 전체 확정: ${approvedSubmissions.length}개 영상`);
+
+        } else {
+          // 단일 영상 캠페인 - 기존 로직
+          const { error: updateError } = await supabaseKorea
+            .from('video_submissions')
+            .update({
+              status: 'completed',
+              final_confirmed_at: new Date().toISOString(),
+              auto_confirmed: true
+            })
+            .eq('id', submission.id);
+
+          if (updateError) {
+            console.error(`video_submissions 업데이트 실패:`, updateError);
+            errorCount++;
+            continue;
+          }
         }
 
-        // 2. applications 업데이트 (BIZ DB)
+        const pointAmount = campaign.reward_points || campaign.point || 0;
+
+        // applications 업데이트 (BIZ DB)
         if (submission.application_id) {
           await supabaseBiz
             .from('applications')
@@ -183,20 +247,13 @@ exports.handler = async (event, context) => {
 
             console.log(`포인트 지급 완료: user_id=${submission.user_id}, amount=${pointAmount}`);
 
-            // 네이버 웍스 포인트 지급 알림
-            try {
-              await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  isAdminNotification: true,
-                  channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-                  message: `💰 포인트 자동 지급 완료\n\n크리에이터: ${creatorName}\n캠페인: ${campaign.title}\n지급 포인트: ${pointAmount.toLocaleString()}P\n현재 잔액: ${newPoints.toLocaleString()}P`
-                })
-              });
-            } catch (e) {
-              console.error('네이버 웍스 포인트 알림 실패:', e);
-            }
+            // 지급 내역 기록
+            paymentRecords.push({
+              creatorName,
+              campaignTitle: campaign.title,
+              pointAmount,
+              newBalance: newPoints
+            });
           }
         }
 
@@ -209,21 +266,34 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 네이버 웍스 알림 (처리 결과 요약)
-    if (processedCount > 0) {
-      try {
-        await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
-            message: `🤖 자동 확정 처리 완료\n\n처리일시: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n처리건수: ${processedCount}건\n오류건수: ${errorCount}건`
-          })
+    // 네이버 웍스 알림 (매일 발송 - 처리 결과)
+    try {
+      const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+      let message = `🤖 [자동 확정] ${now}\n\n`;
+
+      if (processedCount > 0) {
+        message += `✅ 처리: ${processedCount}건\n`;
+        if (errorCount > 0) message += `❌ 오류: ${errorCount}건\n`;
+        message += `\n📋 지급 내역:\n`;
+        paymentRecords.forEach((record, idx) => {
+          message += `${idx + 1}. ${record.creatorName}\n   - 캠페인: ${record.campaignTitle}\n   - 지급: ${record.pointAmount.toLocaleString()}P\n`;
         });
-      } catch (e) {
-        console.error('네이버 웍스 알림 실패:', e);
+      } else {
+        message += `📭 오늘 자동 확정 대상이 없습니다.`;
       }
+
+      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message
+        })
+      });
+      console.log('네이버 웍스 알림 발송 완료');
+    } catch (e) {
+      console.error('네이버 웍스 알림 실패:', e);
     }
 
     console.log(`=== 자동 확정 스케줄러 완료 ===`);

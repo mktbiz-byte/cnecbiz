@@ -219,8 +219,6 @@ export default function CompanySceneGuideEditor() {
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
 
       // Get style labels
       const styleLabel = DIALOGUE_STYLES.find(s => s.value === dialogueStyle)?.label || '자연스러운'
@@ -261,6 +259,12 @@ ${isJapan ? '일본' : '미국'} 시장을 타겟으로 크리에이터를 위�
 ⚠️ 중요: 모든 내용(scene_description, dialogue, shooting_tip)은 반드시 한국어로 작성해주세요!
 대사(dialogue)도 한국어로 작성하세요. 번역은 별도로 진행됩니다.
 
+[크리에이터 정보]
+- 크리에이터명: ${application?.applicant_name || application?.creator_name || '크리에이터'}
+- SNS: ${application?.instagram_url || application?.youtube_url || application?.tiktok_url || '미제공'}
+- 카테고리: ${application?.category || campaign?.category || '뷰티/라이프스타일'}
+- 특징: ${application?.introduction || application?.appeal_point || '개성 있는 콘텐츠 제작자'}
+
 [캠페인 정보]
 - 제품명: ${productName}
 - 브랜드: ${brandName}
@@ -294,10 +298,14 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
    - ${isJapan ? '일본식 집, 욕실, 화장대 등 일본 생활환경에서 촬영' : '미국식 집, 욕실, 주방 등 미국 생활환경에서 촬영'}
    - ${isJapan ? '일본 소비자가 공감할 수 있는 상황과 표현' : '미국 소비자가 공감할 수 있는 상황과 표현'}
 
-4. 필수 대사와 필수 촬영장면은 반드시 가이드에 포함
-5. 각 씬은 자연스럽게 연결되어야 함
-6. 마지막 씬은 CTA(Call to Action)로 마무리
-7. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
+4. 🎭 크리에이터 개성 반영
+   - ${application?.applicant_name || '크리에이터'}님만의 독특한 표현과 스타일 반영
+   - 대사에 개성을 담아 다른 크리에이터와 차별화
+
+5. 필수 대사와 필수 촬영장면은 반드시 가이드에 포함
+6. 각 씬은 자연스럽게 연결되어야 함
+7. 마지막 씬은 CTA(Call to Action)로 마무리
+8. ⚠️ 모든 텍스트는 한국어로 작성 (영어/일본어 X)
 
 응답 형식 (반드시 JSON으로만):
 {
@@ -314,22 +322,24 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 
 JSON만 출력하세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/generate-scene-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.7,
+          maxOutputTokens: 8192
+        })
+      })
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API Error:', response.status, errorData)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
+      }
 
       const data = await response.json()
-      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+      const responseText = data.text || ''
 
       // Parse JSON response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/)
@@ -355,21 +365,19 @@ JSON만 출력.`
 
         let translations = []
         try {
-          const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: translatePrompt }] }],
-                generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
-              })
-            }
-          )
+          const transResponse = await fetch('/.netlify/functions/generate-scene-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: translatePrompt,
+              temperature: 0.3,
+              maxOutputTokens: 8192
+            })
+          })
 
           if (transResponse.ok) {
             const transData = await transResponse.json()
-            const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
+            const transText = transData.text || ''
             const transMatch = transText.match(/\{[\s\S]*\}/)
             if (transMatch) {
               const transResult = JSON.parse(transMatch[0])
@@ -408,9 +416,6 @@ JSON만 출력.`
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
-
       const targetLang = region === 'japan' ? '일본어' : '영어'
 
       // Prepare content for translation
@@ -425,58 +430,105 @@ JSON만 출력.`
         throw new Error('번역할 내용이 없습니다.')
       }
 
-      const prompt = `다음 촬영 가이드 내용을 ${targetLang}로 자연스럽게 번역해주세요.
+      // 타임아웃 방지를 위해 3개씩 배치로 나누어 번역
+      const BATCH_SIZE = 3
+      const batches = []
+      for (let i = 0; i < contentToTranslate.length; i += BATCH_SIZE) {
+        batches.push(contentToTranslate.slice(i, i + BATCH_SIZE))
+      }
+
+      console.log(`번역 시작: 총 ${contentToTranslate.length}개 씬, ${batches.length}개 배치`)
+
+      let allTranslations = []
+      let completedBatches = 0
+
+      for (const batch of batches) {
+        completedBatches++
+        setSuccess(`번역 중... (${completedBatches}/${batches.length})`)
+
+        // 배치 내 모든 씬의 인덱스를 응답 형식에 포함
+        const expectedIndices = batch.map(item => `    {"index": ${item.index}, "scene_description_translated": "...", "dialogue_translated": "...", "shooting_tip_translated": "..."}`).join(',\n')
+
+        const prompt = `다음 촬영 가이드 ${batch.length}개 씬을 ${targetLang}로 자연스럽게 번역해주세요.
 크리에이터가 이해하기 쉽게 자연스러운 표현을 사용해주세요.
 
 번역할 내용:
-${contentToTranslate.map(item => `
-[씬 ${item.index + 1}]
+${batch.map(item => `
+[씬 ${item.index + 1}] (index: ${item.index})
 촬영장면: ${item.scene_description || '(없음)'}
 대사: ${item.dialogue || '(없음)'}
 촬영팁: ${item.shooting_tip || '(없음)'}
 `).join('\n')}
 
+중요: 위의 ${batch.length}개 씬 모두 번역해서 translations 배열에 포함해주세요.
+
 응답 형식 (JSON):
 {
   "translations": [
-    {
-      "index": 0,
-      "scene_description_translated": "번역된 촬영장면",
-      "dialogue_translated": "번역된 대사",
-      "shooting_tip_translated": "번역된 촬영팁"
-    }
+${expectedIndices}
   ]
 }
 
 JSON만 출력하세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
+        const response = await fetch('/.netlify/functions/generate-scene-guide', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+            prompt,
+            temperature: 0.3,
+            maxOutputTokens: 4096
           })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          console.error('API Error:', response.status, errorData)
+          throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
         }
-      )
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+        const data = await response.json()
+        const responseText = data.text || ''
+        console.log(`Batch ${completedBatches} response:`, responseText)
 
-      const data = await response.json()
-      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+        // Parse JSON response - try multiple patterns
+        let translations = null
 
-      // Parse JSON response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다.')
+        // Try to extract JSON from markdown code block first
+        const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
+        if (codeBlockMatch) {
+          try {
+            translations = JSON.parse(codeBlockMatch[1].trim())
+          } catch (e) {
+            console.log('Code block parse failed:', e)
+          }
+        }
 
-      const translations = JSON.parse(jsonMatch[0])
+        // If not found, try direct JSON match
+        if (!translations) {
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try {
+              translations = JSON.parse(jsonMatch[0])
+            } catch (e) {
+              console.log('Direct JSON parse failed:', e)
+            }
+          }
+        }
+
+        if (translations && translations.translations) {
+          allTranslations = [...allTranslations, ...translations.translations]
+        }
+      }
+
+      if (allTranslations.length === 0) {
+        throw new Error('번역 결과를 파싱할 수 없습니다.')
+      }
 
       // Update scenes with translations
       setScenes(prev => {
         const newScenes = [...prev]
-        translations.translations.forEach(t => {
+        allTranslations.forEach(t => {
           if (newScenes[t.index]) {
             newScenes[t.index] = {
               ...newScenes[t.index],
@@ -489,7 +541,7 @@ JSON만 출력하세요.`
         return newScenes
       })
 
-      setSuccess(`${targetLang} 번역이 완료되었습니다!`)
+      setSuccess(`${targetLang} 번역이 완료되었습니다! (${allTranslations.length}개 씬)`)
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
       console.error('Translation error:', err)
@@ -505,9 +557,6 @@ JSON만 출력하세요.`
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
-
       const targetLang = region === 'japan' ? '일본어' : '영어'
       const scene = scenes[index]
 
@@ -532,28 +581,54 @@ JSON만 출력하세요.`
 
 JSON만 출력하세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/generate-scene-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.3,
+          maxOutputTokens: 2048
+        })
+      })
 
-      if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API Error:', response.status, errorData)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
+      }
 
       const data = await response.json()
-      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+      const responseText = data.text || ''
+      console.log('Translation response:', responseText)
 
-      // Parse JSON response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다.')
+      // Parse JSON response - try multiple patterns
+      let translation = null
 
-      const translation = JSON.parse(jsonMatch[0])
+      // Try to extract JSON from markdown code block first
+      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (codeBlockMatch) {
+        try {
+          translation = JSON.parse(codeBlockMatch[1].trim())
+        } catch (e) {
+          console.log('Code block parse failed:', e)
+        }
+      }
+
+      // If not found, try direct JSON match
+      if (!translation) {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          try {
+            translation = JSON.parse(jsonMatch[0])
+          } catch (e) {
+            console.log('Direct JSON parse failed:', e)
+          }
+        }
+      }
+
+      if (!translation) {
+        throw new Error('번역 결과를 파싱할 수 없습니다. 응답: ' + responseText.substring(0, 100))
+      }
 
       // Update the specific scene with translation
       setScenes(prev => {
@@ -962,23 +1037,43 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                   <span className="font-semibold text-purple-900">AI 가이드 자동 작성</span>
                   <span className="text-sm text-purple-700">- 캠페인 정보 기반 10개 씬 생성</span>
                 </div>
-                <Button
-                  onClick={handleAutoGenerate}
-                  disabled={generating}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  {generating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      AI 자동 작성
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleTranslateAll}
+                    disabled={translating || generating}
+                    variant="outline"
+                    className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  >
+                    {translating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        번역 중...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-4 h-4 mr-2" />
+                        전체 {targetLanguageLabel} 번역
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleAutoGenerate}
+                    disabled={generating}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        생성 중...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        AI 자동 작성
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {/* Scenes List */}

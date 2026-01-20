@@ -51,16 +51,13 @@ export default function NewsletterDetail() {
       if (error) throw error
       setNewsletter(data)
 
-      // 조회수 증가
+      // 조회수 추적 (중복/순유입 모두 추적)
       if (data && (!data.is_members_only || user)) {
-        await supabaseBiz
-          .from('newsletters')
-          .update({ view_count: (data.view_count || 0) + 1 })
-          .eq('id', id)
+        trackNewsletterView(id)
       }
 
       // 관련 뉴스레터 가져오기
-      if (data?.category) {
+      if (data && data.category) {
         const { data: related } = await supabaseBiz
           .from('newsletters')
           .select('id, title, thumbnail_url, published_at')
@@ -76,6 +73,30 @@ export default function NewsletterDetail() {
       console.error('뉴스레터 조회 오류:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 조회수 추적 함수 (중복/순유입 구분)
+  const trackNewsletterView = async (newsletterId) => {
+    try {
+      // 브라우저 고유 ID 생성 (localStorage 사용)
+      let visitorId = localStorage.getItem('newsletter_visitor_id')
+      if (!visitorId) {
+        visitorId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        localStorage.setItem('newsletter_visitor_id', visitorId)
+      }
+
+      await fetch('/.netlify/functions/track-newsletter-view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newsletterId,
+          visitorId
+        })
+      })
+    } catch (error) {
+      console.error('조회수 추적 오류:', error)
+      // 조회수 추적 실패는 사용자 경험에 영향을 주지 않도록 무시
     }
   }
 
@@ -463,17 +484,28 @@ export default function NewsletterDetail() {
           font-size: 16px;
           line-height: 1.8;
           color: #333;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+        .newsletter-content * {
+          max-width: 100% !important;
+          box-sizing: border-box;
         }
         .newsletter-content img {
-          max-width: 100%;
-          height: auto;
+          max-width: 100% !important;
+          height: auto !important;
           margin: 1.5em 0;
         }
         .newsletter-content a {
           color: #2563eb;
+          word-break: break-all;
         }
         .newsletter-content p {
           margin: 1em 0;
+          min-height: 1em;
+        }
+        .newsletter-content p:empty {
+          min-height: 1.5em;
         }
         .newsletter-content h1,
         .newsletter-content h2,
@@ -483,13 +515,16 @@ export default function NewsletterDetail() {
           font-weight: 600;
         }
         .newsletter-content table {
-          width: 100%;
+          width: 100% !important;
+          table-layout: fixed;
           border-collapse: collapse;
         }
         .newsletter-content td,
         .newsletter-content th {
           padding: 8px;
           border: 1px solid #e5e7eb;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
         .newsletter-content ul,
         .newsletter-content ol {
@@ -501,6 +536,9 @@ export default function NewsletterDetail() {
           padding-left: 1em;
           margin: 1em 0;
           color: #666;
+        }
+        .newsletter-content div[style*="width"] {
+          width: 100% !important;
         }
       `}</style>
     </>

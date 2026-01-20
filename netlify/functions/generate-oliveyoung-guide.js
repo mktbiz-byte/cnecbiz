@@ -2,6 +2,11 @@ const { GoogleGenerativeAI } = require('@google/generative-ai')
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
+// Netlify Functions v2 config - 타임아웃 연장
+exports.config = {
+  maxDuration: 60 // 60초 (최대)
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -20,7 +25,8 @@ exports.handler = async (event) => {
   try {
     const { campaignInfo, existingData } = JSON.parse(event.body)
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+    // 올리브영 가이드: 단순 생성 → gemini-2.0-flash-lite (4K RPM, 무제한 RPD)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' })
 
     // Generate guide for each step
     const generatedGuide = {

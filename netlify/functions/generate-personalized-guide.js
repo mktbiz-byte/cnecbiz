@@ -1,6 +1,11 @@
 // 크리에이터 맞춤형 가이드 생성 함수
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 
+// Netlify Functions v2 config - 타임아웃 연장
+exports.config = {
+  maxDuration: 60 // 60초 (최대)
+}
+
 exports.handler = async (event) => {
   // CORS 헤더
   const headers = {
@@ -50,7 +55,8 @@ exports.handler = async (event) => {
 
     // Gemini 모델 초기화
     const genai = new GoogleGenerativeAI(apiKey)
-    const model = genai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' })
+    // 개인화 가이드: 복잡한 콘텐츠 생성 → gemini-2.5-flash (품질 중요)
+    const model = genai.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     // 맞춤형 가이드 생성 프롬프트
     const prompt = `당신은 전문 마케팅 콘텐츠 기획자입니다. 다음 크리에이터의 스타일에 맞는 **숏폼 콘텐츠 촬영 가이드**를 JSON 형식으로 작성해주세요.

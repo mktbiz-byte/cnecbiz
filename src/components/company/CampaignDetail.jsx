@@ -1323,8 +1323,9 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 {"scenes": [{"order": 1, "scene_type": "훅", "scene_description": "장면 설명 (한국어)", "dialogue": "대사 (한국어)", "shooting_tip": "촬영 팁 (한국어)"}]}
 JSON만 출력.`
 
+        // 씬 가이드 생성: 복잡한 콘텐츠 → gemini-2.5-flash (품질 중요)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1370,8 +1371,9 @@ JSON만 출력.`
 
         let translations = []
         try {
+          // 번역: 단순, 대량 → gemini-2.5-flash-lite (4K RPM, 무제한 RPD)
           const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -3154,6 +3156,13 @@ JSON만 출력.`
           final_confirmed_at: new Date().toISOString()
         })
         .eq('id', submission.id)
+
+      // 로컬 상태 즉시 업데이트 (UI 반영)
+      setVideoSubmissions(prev => prev.map(s =>
+        s.id === submission.id
+          ? { ...s, status: 'completed', final_confirmed_at: new Date().toISOString() }
+          : s
+      ))
 
       // 2. application 정보 가져오기 (user_id 포함)
       const { data: applicationData } = await supabase
@@ -6716,14 +6725,13 @@ JSON만 출력.`
                         allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
                         allVideosHaveAdCode = multiVideoStatus.every(s => s.code)
                       } else if (isOliveyoung) {
-                        // 올리브영: step1_url, step2_url, step3_url (3개), step1_2_partnership_code, step3_partnership_code (2개)
+                        // 올리브영: step1_url, step2_url (2개), step1_2_partnership_code (1개)
                         multiVideoStatus = [
                           { step: 1, url: participant.step1_url, code: participant.step1_2_partnership_code },
-                          { step: 2, url: participant.step2_url, code: participant.step1_2_partnership_code },
-                          { step: 3, url: participant.step3_url, code: participant.step3_partnership_code }
+                          { step: 2, url: participant.step2_url, code: participant.step1_2_partnership_code }
                         ]
                         allVideosHaveSnsUrl = multiVideoStatus.every(s => s.url)
-                        allVideosHaveAdCode = participant.step1_2_partnership_code && participant.step3_partnership_code
+                        allVideosHaveAdCode = !!participant.step1_2_partnership_code
                       } else {
                         // 일반/기획형: sns_upload_url, partnership_code
                         allVideosHaveSnsUrl = !!participant.sns_upload_url || creatorSubmissions.every(sub => sub.sns_upload_url)

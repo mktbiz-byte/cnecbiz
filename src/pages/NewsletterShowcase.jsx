@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import {
   Mail, Search, Calendar, Tag, ArrowLeft, Star, ExternalLink,
-  Filter, ChevronLeft, ChevronRight, X, Lock, LogIn
+  Filter, ChevronDown, X, Lock, LogIn
 } from 'lucide-react'
 
 const CATEGORIES = [
@@ -99,12 +99,13 @@ export default function NewsletterShowcase() {
     return matchesSearch && matchesCategory
   })
 
-  // 페이지네이션
+  // 더보기 (Load More) 방식
   const totalPages = Math.ceil(filteredNewsletters.length / ITEMS_PER_PAGE)
   const paginatedNewsletters = filteredNewsletters.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
+    0,
     currentPage * ITEMS_PER_PAGE
   )
+  const hasMore = paginatedNewsletters.length < filteredNewsletters.length
 
   const openDetail = async (newsletter) => {
     setSelectedNewsletter(newsletter)
@@ -387,26 +388,15 @@ export default function NewsletterShowcase() {
               </div>
 
               {/* 페이지네이션 */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-8">
+              {hasMore && (
+                <div className="flex items-center justify-center mt-8">
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    className="px-8"
                   >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-gray-600">
-                    {currentPage} / {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    <ChevronRight className="w-4 h-4" />
+                    더보기
+                    <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
               )}
@@ -437,7 +427,7 @@ export default function NewsletterShowcase() {
                 <div className="w-full h-full overflow-hidden">
                   {selectedNewsletter?.html_content ? (
                     <div
-                      className="w-full p-4 bg-white pointer-events-none select-none"
+                      className="w-full p-4 bg-white pointer-events-none select-none newsletter-content"
                       dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
                     />
                   ) : selectedNewsletter?.stibee_url ? (
@@ -484,10 +474,84 @@ export default function NewsletterShowcase() {
                 </div>
               </div>
             ) : selectedNewsletter?.html_content ? (
-              <div
-                className="w-full h-[65vh] overflow-auto p-4 bg-white"
-                dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
-              />
+              <>
+                <div
+                  className="w-full h-[65vh] overflow-auto p-4 bg-white newsletter-content"
+                  dangerouslySetInnerHTML={{ __html: selectedNewsletter.html_content }}
+                />
+                <style>{`
+                  .newsletter-content {
+                    font-size: 16px;
+                    line-height: 1.8;
+                    color: #333;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                  }
+                  .newsletter-content * {
+                    max-width: 100% !important;
+                    box-sizing: border-box;
+                  }
+                  .newsletter-content p {
+                    margin: 1em 0;
+                    min-height: 1em;
+                  }
+                  .newsletter-content p:empty {
+                    min-height: 1.5em;
+                  }
+                  .newsletter-content h1, .newsletter-content h2, .newsletter-content h3 {
+                    margin: 1.2em 0 0.6em;
+                    font-weight: 700;
+                    line-height: 1.4;
+                  }
+                  .newsletter-content h1 { font-size: 1.8em; }
+                  .newsletter-content h2 { font-size: 1.5em; }
+                  .newsletter-content h3 { font-size: 1.25em; }
+                  .newsletter-content img {
+                    max-width: 100% !important;
+                    height: auto !important;
+                    margin: 1.5em 0;
+                    border-radius: 8px;
+                  }
+                  .newsletter-content table {
+                    width: 100% !important;
+                    table-layout: fixed;
+                  }
+                  .newsletter-content td, .newsletter-content th {
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                  }
+                  .newsletter-content ul, .newsletter-content ol {
+                    margin: 1em 0;
+                    padding-left: 1.5em;
+                  }
+                  .newsletter-content li {
+                    margin: 0.5em 0;
+                  }
+                  .newsletter-content hr {
+                    margin: 2em 0;
+                    border: none;
+                    border-top: 1px solid #e5e7eb;
+                  }
+                  .newsletter-content blockquote {
+                    margin: 1em 0;
+                    padding: 1em 1.5em;
+                    border-left: 4px solid #3b82f6;
+                    background: #f8fafc;
+                    border-radius: 0 8px 8px 0;
+                  }
+                  .newsletter-content a {
+                    color: #2563eb;
+                    text-decoration: underline;
+                    word-break: break-all;
+                  }
+                  .newsletter-content strong {
+                    font-weight: 700;
+                  }
+                  .newsletter-content div[style*="width"] {
+                    width: 100% !important;
+                  }
+                `}</style>
+              </>
             ) : selectedNewsletter?.stibee_url ? (
               <iframe
                 src={selectedNewsletter.stibee_url}
@@ -511,9 +575,6 @@ export default function NewsletterShowcase() {
                 )}
                 {selectedNewsletter?.issue_number && (
                   <> | {selectedNewsletter.issue_number}호</>
-                )}
-                {selectedNewsletter?.view_count !== undefined && (
-                  <> | 조회 {selectedNewsletter.view_count}회</>
                 )}
               </div>
               <div className="flex gap-2">

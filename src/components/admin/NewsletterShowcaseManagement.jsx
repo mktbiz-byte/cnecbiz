@@ -10,7 +10,9 @@ import {
   Mail, Plus, Search, Eye, EyeOff, Edit, Trash2, RefreshCw,
   ExternalLink, Star, StarOff, Calendar, Tag, Image, Link2, Download, Loader2,
   Key, Check, AlertCircle, LayoutGrid, List, CheckSquare, Square, ArrowUp, ArrowDown, GripVertical, Lock, Unlock,
-  FileText, Code, X, Maximize2, Monitor, Smartphone, Bold, Italic, Underline, Strikethrough, ListOrdered, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, Type, Upload
+  FileText, Code, X, Maximize2, Monitor, Smartphone, Bold, Italic, Underline, Strikethrough, ListOrdered, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, Type, Upload,
+  BarChart3, TrendingUp, Target, Sparkles, ChevronDown, ChevronUp, Users,
+  Minus, Palette, ALargeSmall, Heading3
 } from 'lucide-react'
 import AdminNavigation from './AdminNavigation'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -22,6 +24,89 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { Highlight } from '@tiptap/extension-highlight'
 import { Underline as UnderlineExtension } from '@tiptap/extension-underline'
+import { Extension } from '@tiptap/core'
+
+// 폰트 사이즈 확장
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addOptions() {
+    return {
+      types: ['textStyle'],
+    }
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: element => element.style.fontSize?.replace(/['"]+/g, ''),
+            renderHTML: attributes => {
+              if (!attributes.fontSize) {
+                return {}
+              }
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              }
+            },
+          },
+        },
+      },
+    ]
+  },
+  addCommands() {
+    return {
+      setFontSize: fontSize => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize }).run()
+      },
+      unsetFontSize: () => ({ chain }) => {
+        return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run()
+      },
+    }
+  },
+})
+
+// 줄 간격(line-height) 확장
+const LineHeight = Extension.create({
+  name: 'lineHeight',
+  addOptions() {
+    return {
+      types: ['paragraph', 'heading'],
+    }
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          lineHeight: {
+            default: null,
+            parseHTML: element => element.style.lineHeight?.replace(/['"]+/g, ''),
+            renderHTML: attributes => {
+              if (!attributes.lineHeight) {
+                return {}
+              }
+              return {
+                style: `line-height: ${attributes.lineHeight}`,
+              }
+            },
+          },
+        },
+      },
+    ]
+  },
+  addCommands() {
+    return {
+      setLineHeight: lineHeight => ({ commands }) => {
+        return this.options.types.every(type => commands.updateAttributes(type, { lineHeight }))
+      },
+      unsetLineHeight: () => ({ commands }) => {
+        return this.options.types.every(type => commands.resetAttributes(type, 'lineHeight'))
+      },
+    }
+  },
+})
 
 const CATEGORIES = [
   { value: 'marketing', label: '마케팅 인사이트' },
@@ -96,16 +181,37 @@ export default function NewsletterShowcaseManagement() {
   const [showFullEditor, setShowFullEditor] = useState(false)
   const [editorMode, setEditorMode] = useState('visual') // visual, code, preview
   const [previewDevice, setPreviewDevice] = useState('desktop') // desktop, mobile
+  const [editorTitle, setEditorTitle] = useState('') // 에디터에서 제목 편집
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const editorImageInputRef = React.useRef(null)
+
+  // SEO 분석
+  const [showSeoPanel, setShowSeoPanel] = useState(false)
+  const [seoAnalysis, setSeoAnalysis] = useState(null)
+  const [analyzingSeo, setAnalyzingSeo] = useState(false)
+  const [seoNewsletterId, setSeoNewsletterId] = useState(null)
+
+  // AI 이미지 생성
+  const [showAiImageDialog, setShowAiImageDialog] = useState(false)
+  const [aiImagePrompt, setAiImagePrompt] = useState('')
+  const [generatingAiImage, setGeneratingAiImage] = useState(false)
 
   // Tiptap 에디터 설정
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
       UnderlineExtension,
       LinkExtension.configure({
         openOnClick: false,
       }),
-      ImageExtension,
+      ImageExtension.configure({
+        inline: true,
+        allowBase64: true,
+      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
@@ -114,6 +220,8 @@ export default function NewsletterShowcaseManagement() {
       Highlight.configure({
         multicolor: true,
       }),
+      FontSize,
+      LineHeight,
     ],
     content: htmlContent,
     onUpdate: ({ editor }) => {
@@ -735,16 +843,23 @@ export default function NewsletterShowcaseManagement() {
 
     setSaving(true)
     try {
+      const updateData = {
+        html_content: htmlContent,
+        content_source: 'custom'
+      }
+
+      // 제목이 변경되었으면 함께 저장
+      if (editorTitle && editorTitle !== selectedNewsletter.title) {
+        updateData.title = editorTitle
+      }
+
       const { error } = await supabaseBiz
         .from('newsletters')
-        .update({
-          html_content: htmlContent,
-          content_source: 'custom'
-        })
+        .update(updateData)
         .eq('id', selectedNewsletter.id)
 
       if (error) throw error
-      alert('콘텐츠가 저장되었습니다.')
+      alert('저장되었습니다.')
       setShowHtmlEditor(false)
       setShowFullEditor(false)
       fetchNewsletters()
@@ -756,9 +871,102 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // 에디터에서 이미지 파일 업로드
+  const handleEditorImageUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file || !editor) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드 가능합니다.')
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('파일 크기는 10MB 이하여야 합니다.')
+      return
+    }
+
+    try {
+      const timestamp = Date.now()
+      const ext = file.name.split('.').pop()
+      const fileName = `newsletter_content_${timestamp}.${ext}`
+
+      const { data, error } = await supabaseBiz.storage
+        .from('newsletter-thumbnails')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabaseBiz.storage
+        .from('newsletter-thumbnails')
+        .getPublicUrl(fileName)
+
+      editor.chain().focus().setImage({ src: publicUrl }).run()
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error)
+      alert('이미지 업로드에 실패했습니다: ' + error.message)
+    }
+
+    if (editorImageInputRef.current) {
+      editorImageInputRef.current.value = ''
+    }
+  }
+
+  // AI 이미지 생성 및 삽입
+  const handleGenerateAiImage = async () => {
+    if (!editor) return
+
+    setGeneratingAiImage(true)
+    try {
+      // 현재 에디터 콘텐츠를 텍스트로 추출
+      const contentText = editor.getText()
+
+      const response = await fetch('/.netlify/functions/generate-newsletter-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: contentText,
+          customPrompt: aiImagePrompt,
+          newsletterId: selectedNewsletter?.id
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '이미지 생성 실패')
+      }
+
+      // 에디터 커서 위치에 이미지 삽입 (SEO 대체 텍스트 포함)
+      editor.chain().focus().setImage({
+        src: result.imageUrl,
+        alt: result.altText || '뉴스레터 이미지',      // SEO 대체 텍스트 (한글)
+        title: result.altText || '뉴스레터 이미지'     // 마우스 오버 시 표시
+      }).run()
+
+      // 다이얼로그 닫기 및 초기화
+      setShowAiImageDialog(false)
+      setAiImagePrompt('')
+
+      // SEO 정보와 함께 알림
+      const seoInfo = result.seoFilename ? `\n파일명: ${result.seoFilename}.png\n대체텍스트: ${result.altText}` : ''
+      alert(`AI 이미지가 SEO 최적화되어 삽입되었습니다!${seoInfo}`)
+    } catch (error) {
+      console.error('AI 이미지 생성 오류:', error)
+      alert('AI 이미지 생성에 실패했습니다: ' + error.message)
+    } finally {
+      setGeneratingAiImage(false)
+    }
+  }
+
   // 전체 화면 에디터 열기
   const openFullScreenEditor = async (newsletter) => {
     setSelectedNewsletter(newsletter)
+    setEditorTitle(newsletter.title || '')
+    setIsEditingTitle(false)
 
     // 콘텐츠가 없으면 먼저 가져오기
     if (!newsletter.html_content && newsletter.stibee_url) {
@@ -1010,6 +1218,37 @@ export default function NewsletterShowcaseManagement() {
     }
   }
 
+  // SEO 분석 실행
+  const handleAnalyzeSeo = async (newsletter) => {
+    setSeoNewsletterId(newsletter.id)
+    setAnalyzingSeo(true)
+    setSeoAnalysis(null)
+    setShowSeoPanel(true)
+
+    try {
+      const response = await fetch('/.netlify/functions/analyze-newsletter-seo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          newsletterId: newsletter.id,
+          action: 'analyze'
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setSeoAnalysis(result)
+      } else {
+        throw new Error(result.error || 'SEO 분석 실패')
+      }
+    } catch (error) {
+      console.error('SEO 분석 오류:', error)
+      alert('SEO 분석에 실패했습니다: ' + error.message)
+    } finally {
+      setAnalyzingSeo(false)
+    }
+  }
+
   // 순서 초기화 (현재 순서대로 display_order 재설정)
   const handleResetOrder = async () => {
     if (!confirm('모든 뉴스레터의 표시 순서를 현재 목록 순서대로 초기화하시겠습니까?')) return
@@ -1045,7 +1284,9 @@ export default function NewsletterShowcaseManagement() {
   const stats = {
     total: newsletters.length,
     active: newsletters.filter(n => n.is_active).length,
-    featured: newsletters.filter(n => n.is_featured).length
+    featured: newsletters.filter(n => n.is_featured).length,
+    totalViews: newsletters.reduce((sum, n) => sum + (n.view_count || 0), 0),
+    uniqueViews: newsletters.reduce((sum, n) => sum + (n.unique_view_count || 0), 0)
   }
 
   const getCategoryLabel = (value) => {
@@ -1250,7 +1491,7 @@ export default function NewsletterShowcaseManagement() {
         </Card>
 
         {/* 통계 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">전체 뉴스레터</div>
@@ -1267,6 +1508,22 @@ export default function NewsletterShowcaseManagement() {
             <CardContent className="p-4">
               <div className="text-sm text-yellow-600">추천</div>
               <div className="text-2xl font-bold mt-1 text-yellow-600">{stats.featured}개</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-blue-600 flex items-center gap-1">
+                <Eye className="w-3.5 h-3.5" /> 전체 조회수
+              </div>
+              <div className="text-2xl font-bold mt-1 text-blue-600">{stats.totalViews.toLocaleString()}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-sm text-purple-600 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" /> 순유입
+              </div>
+              <div className="text-2xl font-bold mt-1 text-purple-600">{stats.uniqueViews.toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
@@ -1452,7 +1709,8 @@ export default function NewsletterShowcaseManagement() {
                       <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">상태</th>
                       <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">추천</th>
                       <th className="p-3 text-center text-sm font-medium text-gray-600 w-20">회원</th>
-                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-32">액션</th>
+                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-28">조회수</th>
+                      <th className="p-3 text-center text-sm font-medium text-gray-600 w-36">액션</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1578,6 +1836,18 @@ export default function NewsletterShowcaseManagement() {
                           </button>
                         </td>
                         <td className="p-3">
+                          <div className="flex flex-col items-center text-xs">
+                            <div className="flex items-center gap-1 text-gray-700" title="전체 조회수 (중복 포함)">
+                              <Eye className="w-3 h-3" />
+                              <span>{(newsletter.view_count || 0).toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-blue-600" title="순유입 (고유 방문자)">
+                              <Users className="w-3 h-3" />
+                              <span>{(newsletter.unique_view_count || 0).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3">
                           <div className="flex justify-center gap-1">
                             <button
                               onClick={() => openEditModal(newsletter)}
@@ -1592,6 +1862,13 @@ export default function NewsletterShowcaseManagement() {
                               title="비주얼 에디터"
                             >
                               <FileText className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleAnalyzeSeo(newsletter)}
+                              className="p-1.5 rounded hover:bg-purple-50 text-purple-500"
+                              title="SEO 분석"
+                            >
+                              <Target className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(newsletter)}
@@ -1951,6 +2228,29 @@ export default function NewsletterShowcaseManagement() {
               </label>
             </div>
 
+            {/* SEO 분석 버튼 */}
+            {isEditing && selectedNewsletter && (
+              <div className="mt-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-purple-600" />
+                    <span className="font-medium text-sm">SEO 분석</span>
+                    <span className="text-xs text-gray-500">검색 노출 최적화를 위한 분석</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyzeSeo(selectedNewsletter)}
+                    className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    SEO 분석하기
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* HTML 콘텐츠 편집 섹션 */}
             {isEditing && (
               <div className="mt-4 pt-4 border-t">
@@ -2058,13 +2358,399 @@ export default function NewsletterShowcaseManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* AI 이미지 생성 다이얼로그 */}
+      <Dialog open={showAiImageDialog} onOpenChange={setShowAiImageDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+              AI 이미지 생성
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="bg-purple-50 rounded-lg p-3 text-sm text-purple-800">
+              <p className="font-medium mb-1">💡 작성된 콘텐츠를 분석하여 관련 이미지를 생성합니다</p>
+              <p className="text-purple-600">이미지는 현재 커서 위치에 삽입됩니다.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                추가 요청사항 (선택)
+              </label>
+              <Textarea
+                value={aiImagePrompt}
+                onChange={(e) => setAiImagePrompt(e.target.value)}
+                placeholder="예: 밝은 색상의 일러스트로, 한국 화장품 브랜드 느낌으로..."
+                className="min-h-[80px]"
+              />
+            </div>
+
+            {generatingAiImage && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-600 mr-3" />
+                <span className="text-gray-600">AI가 이미지를 생성하고 있습니다...</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAiImageDialog(false)
+                setAiImagePrompt('')
+              }}
+              disabled={generatingAiImage}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleGenerateAiImage}
+              disabled={generatingAiImage}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {generatingAiImage ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  생성 중...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  이미지 생성
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SEO 분석 패널 */}
+      <Dialog open={showSeoPanel} onOpenChange={setShowSeoPanel}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-purple-600" />
+              SEO 분석
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            {analyzingSeo ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="w-12 h-12 animate-spin text-purple-600 mb-4" />
+                <p className="text-gray-600">AI가 SEO를 분석하고 있습니다...</p>
+              </div>
+            ) : seoAnalysis ? (
+              <div className="space-y-6">
+                {/* SEO 점수 요약 */}
+                {seoAnalysis.seoScore && (
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 border">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">SEO 점수</h3>
+                        <p className="text-sm text-gray-600">{seoAnalysis.seoScore.gradeLabel}</p>
+                      </div>
+                      <div className="text-center">
+                        <div className={`text-5xl font-bold ${
+                          seoAnalysis.seoScore.gradeColor === 'green' ? 'text-green-600' :
+                          seoAnalysis.seoScore.gradeColor === 'blue' ? 'text-blue-600' :
+                          seoAnalysis.seoScore.gradeColor === 'yellow' ? 'text-yellow-600' :
+                          seoAnalysis.seoScore.gradeColor === 'orange' ? 'text-orange-600' :
+                          'text-red-600'
+                        }`}>
+                          {seoAnalysis.seoScore.grade}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {seoAnalysis.seoScore.totalScore}/{seoAnalysis.seoScore.maxScore} ({seoAnalysis.seoScore.percentage}%)
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 점수 분석 상세 */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {Object.entries(seoAnalysis.seoScore.breakdown).map(([key, item]) => {
+                        const labels = {
+                          title: '제목',
+                          description: '설명',
+                          thumbnail: '썸네일',
+                          tags: '태그',
+                          content: '콘텐츠',
+                          metadata: '메타데이터'
+                        }
+                        const percentage = Math.round((item.score / item.max) * 100)
+                        return (
+                          <div key={key} className="bg-white rounded-lg p-3 border">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-gray-700">{labels[key]}</span>
+                              <span className="text-sm text-gray-500">{item.score}/{item.max}</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${
+                                  percentage >= 80 ? 'bg-green-500' :
+                                  percentage >= 60 ? 'bg-blue-500' :
+                                  percentage >= 40 ? 'bg-yellow-500' :
+                                  'bg-red-500'
+                                }`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            {item.feedback?.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {item.feedback.map((fb, idx) => (
+                                  <div key={idx} className={`text-xs flex items-start gap-1 ${
+                                    fb.type === 'success' ? 'text-green-600' :
+                                    fb.type === 'warning' ? 'text-yellow-600' :
+                                    fb.type === 'error' ? 'text-red-600' :
+                                    fb.type === 'tip' ? 'text-purple-600' :
+                                    'text-gray-500'
+                                  }`}>
+                                    <span>
+                                      {fb.type === 'success' ? '✓' :
+                                       fb.type === 'warning' ? '⚠' :
+                                       fb.type === 'error' ? '✗' :
+                                       fb.type === 'tip' ? '💡' : 'ℹ'}
+                                    </span>
+                                    <span>{fb.message}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI 분석 결과 */}
+                {seoAnalysis.aiAnalysis && (
+                  <div className="space-y-6">
+                    {/* 요약 */}
+                    {seoAnalysis.aiAnalysis.summary && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4" />
+                          AI 분석 요약
+                        </h4>
+                        <p className="text-blue-800 text-sm">{seoAnalysis.aiAnalysis.summary}</p>
+                      </div>
+                    )}
+
+                    {/* 빠른 개선 사항 */}
+                    {seoAnalysis.aiAnalysis.quickWins && seoAnalysis.aiAnalysis.quickWins.length > 0 && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 className="font-medium text-green-900 mb-3 flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4" />
+                          빠르게 적용 가능한 개선사항
+                        </h4>
+                        <ul className="space-y-2">
+                          {seoAnalysis.aiAnalysis.quickWins.map((item, idx) => (
+                            <li key={idx} className="text-green-800 text-sm flex items-start gap-2">
+                              <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* 제목 제안 */}
+                    {seoAnalysis.aiAnalysis.titleSuggestions && seoAnalysis.aiAnalysis.titleSuggestions.length > 0 && (
+                      <div className="border rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">제목 개선 제안</h4>
+                        <div className="space-y-3">
+                          {seoAnalysis.aiAnalysis.titleSuggestions.map((item, idx) => (
+                            <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-sm text-gray-500 mb-1">현재: {item.original}</div>
+                              <div className="text-sm font-medium text-blue-600 mb-1">제안: {item.suggested}</div>
+                              <div className="text-xs text-gray-500">{item.reason}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 설명 제안 */}
+                    {seoAnalysis.aiAnalysis.descriptionSuggestions && seoAnalysis.aiAnalysis.descriptionSuggestions.length > 0 && (
+                      <div className="border rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">설명 개선 제안</h4>
+                        <div className="space-y-3">
+                          {seoAnalysis.aiAnalysis.descriptionSuggestions.map((item, idx) => (
+                            <div key={idx} className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-sm font-medium text-blue-600 mb-1">제안: {item.suggested}</div>
+                              <div className="text-xs text-gray-500">{item.reason}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 태그 제안 */}
+                    {seoAnalysis.aiAnalysis.tagSuggestions && seoAnalysis.aiAnalysis.tagSuggestions.length > 0 && (
+                      <div className="border rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">추천 태그</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {seoAnalysis.aiAnalysis.tagSuggestions.map((tag, idx) => (
+                            <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 콘텐츠 팁 */}
+                    {seoAnalysis.aiAnalysis.contentTips && seoAnalysis.aiAnalysis.contentTips.length > 0 && (
+                      <div className="border rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">콘텐츠 개선 팁</h4>
+                        <ul className="space-y-2">
+                          {seoAnalysis.aiAnalysis.contentTips.map((tip, idx) => (
+                            <li key={idx} className="text-gray-700 text-sm flex items-start gap-2">
+                              <span className="text-purple-500">💡</span>
+                              <span>{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* 우선순위 조치 */}
+                    {seoAnalysis.aiAnalysis.priorityActions && seoAnalysis.aiAnalysis.priorityActions.length > 0 && (
+                      <div className="border rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3">우선순위 조치</h4>
+                        <div className="space-y-2">
+                          {seoAnalysis.aiAnalysis.priorityActions.map((action, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                              <span className="text-sm text-gray-700">{action.action}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  action.impact === 'high' ? 'bg-red-100 text-red-700' :
+                                  action.impact === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-green-100 text-green-700'
+                                }`}>
+                                  영향: {action.impact === 'high' ? '높음' : action.impact === 'medium' ? '중간' : '낮음'}
+                                </span>
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  action.effort === 'easy' ? 'bg-green-100 text-green-700' :
+                                  action.effort === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  난이도: {action.effort === 'easy' ? '쉬움' : action.effort === 'medium' ? '중간' : '어려움'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* SEO 개선 가이드 */}
+                <div className="border-t pt-6">
+                  <h4 className="font-medium text-gray-900 mb-4">SEO 개선 가이드</h4>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="font-medium text-gray-800 mb-2">제목 최적화</h5>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• 30-50자 사이가 이상적입니다</li>
+                        <li>• 핵심 키워드를 앞쪽에 배치하세요</li>
+                        <li>• 클릭을 유도하는 문구를 사용하세요</li>
+                        <li>• 숫자나 질문형을 활용해보세요</li>
+                      </ul>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="font-medium text-gray-800 mb-2">설명 최적화</h5>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• 80-150자 사이가 이상적입니다</li>
+                        <li>• 핵심 내용을 간결하게 요약하세요</li>
+                        <li>• 검색 결과에서 잘리지 않도록 주의하세요</li>
+                        <li>• Call-to-Action을 포함하세요</li>
+                      </ul>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="font-medium text-gray-800 mb-2">썸네일 최적화</h5>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• 1200x630px (OG 이미지) 권장</li>
+                        <li>• 눈에 띄는 색상과 대비를 사용하세요</li>
+                        <li>• 텍스트는 간결하게 유지하세요</li>
+                        <li>• 브랜드 일관성을 유지하세요</li>
+                      </ul>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="font-medium text-gray-800 mb-2">콘텐츠 최적화</h5>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• HTML 콘텐츠를 저장하세요 (크롤링용)</li>
+                        <li>• 적절한 제목 태그(h2, h3)를 사용하세요</li>
+                        <li>• 이미지에 alt 텍스트를 추가하세요</li>
+                        <li>• 내부/외부 링크를 포함하세요</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                SEO 분석 결과가 없습니다.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            {seoNewsletterId && seoAnalysis && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const nl = newsletters.find(n => n.id === seoNewsletterId)
+                  if (nl) openEditModal(nl)
+                  setShowSeoPanel(false)
+                }}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                뉴스레터 수정하기
+              </Button>
+            )}
+            <Button onClick={() => setShowSeoPanel(false)}>닫기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* 전체 화면 비주얼 에디터 */}
       {showFullEditor && (
         <div className="fixed inset-0 bg-white z-50 flex flex-col">
           {/* 에디터 헤더 */}
           <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
             <div className="flex items-center gap-4">
-              <h2 className="font-bold text-lg truncate max-w-md">{selectedNewsletter?.title}</h2>
+              {isEditingTitle ? (
+                <input
+                  type="text"
+                  value={editorTitle}
+                  onChange={(e) => setEditorTitle(e.target.value)}
+                  onBlur={() => setIsEditingTitle(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setIsEditingTitle(false)
+                    if (e.key === 'Escape') {
+                      setEditorTitle(selectedNewsletter?.title || '')
+                      setIsEditingTitle(false)
+                    }
+                  }}
+                  autoFocus
+                  className="font-bold text-lg border-b-2 border-blue-500 bg-transparent outline-none px-1 min-w-[300px]"
+                  placeholder="제목을 입력하세요"
+                />
+              ) : (
+                <h2
+                  className="font-bold text-lg truncate max-w-md cursor-pointer hover:text-blue-600 flex items-center gap-2"
+                  onClick={() => setIsEditingTitle(true)}
+                  title="클릭하여 제목 편집"
+                >
+                  {editorTitle || selectedNewsletter?.title || '제목 없음'}
+                  <Edit className="w-4 h-4 text-gray-400" />
+                </h2>
+              )}
               {selectedNewsletter?.content_source && (
                 <span className={`text-xs px-2 py-1 rounded ${
                   selectedNewsletter.content_source === 'custom'
@@ -2072,6 +2758,11 @@ export default function NewsletterShowcaseManagement() {
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {selectedNewsletter.content_source === 'custom' ? '수정됨' : '원본'}
+                </span>
+              )}
+              {editorTitle !== selectedNewsletter?.title && (
+                <span className="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700">
+                  제목 변경됨
                 </span>
               )}
             </div>
@@ -2176,6 +2867,44 @@ export default function NewsletterShowcaseManagement() {
                 {/* Tiptap 툴바 */}
                 {editor && (
                   <div className="flex items-center gap-1 px-4 py-2 border-b bg-gray-50 flex-wrap">
+                    {/* 폰트 사이즈 */}
+                    <select
+                      onChange={(e) => {
+                        const size = e.target.value
+                        if (size === 'default') {
+                          editor.chain().focus().unsetFontSize().run()
+                        } else {
+                          editor.chain().focus().setFontSize(size).run()
+                        }
+                      }}
+                      className="h-8 px-2 border rounded text-sm bg-white"
+                      title="폰트 크기"
+                    >
+                      <option value="default">기본</option>
+                      <option value="12px">12px</option>
+                      <option value="14px">14px</option>
+                      <option value="16px">16px</option>
+                      <option value="18px">18px</option>
+                      <option value="20px">20px</option>
+                      <option value="24px">24px</option>
+                      <option value="28px">28px</option>
+                      <option value="32px">32px</option>
+                      <option value="36px">36px</option>
+                      <option value="48px">48px</option>
+                    </select>
+
+                    {/* 폰트 색상 */}
+                    <div className="relative">
+                      <input
+                        type="color"
+                        onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+                        className="w-8 h-8 cursor-pointer rounded border"
+                        title="글자 색상"
+                      />
+                    </div>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
                     <button
                       onClick={() => editor.chain().focus().toggleBold().run()}
                       className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('bold') ? 'bg-blue-100 text-blue-600' : ''}`}
@@ -2222,12 +2951,44 @@ export default function NewsletterShowcaseManagement() {
                       <Heading2 className="w-4 h-4" />
                     </button>
                     <button
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                      className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('heading', { level: 3 }) ? 'bg-blue-100 text-blue-600' : ''}`}
+                      title="제목 3"
+                    >
+                      <Heading3 className="w-4 h-4" />
+                    </button>
+                    <button
                       onClick={() => editor.chain().focus().setParagraph().run()}
                       className={`p-2 rounded hover:bg-gray-200 ${editor.isActive('paragraph') ? 'bg-blue-100 text-blue-600' : ''}`}
                       title="본문"
                     >
                       <Type className="w-4 h-4" />
                     </button>
+
+                    <div className="w-px h-6 bg-gray-300 mx-1" />
+
+                    {/* 줄 간격 */}
+                    <select
+                      onChange={(e) => {
+                        const height = e.target.value
+                        if (height === 'default') {
+                          editor.chain().focus().unsetLineHeight().run()
+                        } else {
+                          editor.chain().focus().setLineHeight(height).run()
+                        }
+                      }}
+                      className="h-8 px-2 border rounded text-sm bg-white"
+                      title="줄 간격"
+                    >
+                      <option value="default">줄간격</option>
+                      <option value="1">1.0</option>
+                      <option value="1.2">1.2</option>
+                      <option value="1.5">1.5</option>
+                      <option value="1.8">1.8</option>
+                      <option value="2">2.0</option>
+                      <option value="2.5">2.5</option>
+                      <option value="3">3.0</option>
+                    </select>
 
                     <div className="w-px h-6 bg-gray-300 mx-1" />
 
@@ -2272,6 +3033,15 @@ export default function NewsletterShowcaseManagement() {
 
                     <div className="w-px h-6 bg-gray-300 mx-1" />
 
+                    {/* 구분선 */}
+                    <button
+                      onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                      className="p-2 rounded hover:bg-gray-200"
+                      title="구분선"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+
                     <button
                       onClick={() => {
                         const url = window.prompt('링크 URL을 입력하세요:')
@@ -2284,17 +3054,28 @@ export default function NewsletterShowcaseManagement() {
                     >
                       <Link2 className="w-4 h-4" />
                     </button>
+
+                    {/* 이미지 업로드 (Supabase Storage) */}
+                    <input
+                      ref={editorImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditorImageUpload}
+                      className="hidden"
+                    />
                     <button
-                      onClick={() => {
-                        const url = window.prompt('이미지 URL을 입력하세요:')
-                        if (url) {
-                          editor.chain().focus().setImage({ src: url }).run()
-                        }
-                      }}
+                      onClick={() => editorImageInputRef.current?.click()}
                       className="p-2 rounded hover:bg-gray-200"
-                      title="이미지"
+                      title="이미지 삽입"
                     >
                       <Image className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setShowAiImageDialog(true)}
+                      className="p-2 rounded hover:bg-gray-200 text-purple-600"
+                      title="AI 이미지 생성"
+                    >
+                      <Sparkles className="w-4 h-4" />
                     </button>
 
                     <div className="w-px h-6 bg-gray-300 mx-1" />
@@ -2333,6 +3114,8 @@ export default function NewsletterShowcaseManagement() {
                     max-width: 800px;
                     margin: 0 auto;
                     outline: none;
+                    font-size: 16px;
+                    line-height: 1.6;
                   }
                   .tiptap-editor .ProseMirror p {
                     margin: 1em 0;
@@ -2347,9 +3130,15 @@ export default function NewsletterShowcaseManagement() {
                     font-weight: bold;
                     margin: 0.83em 0;
                   }
+                  .tiptap-editor .ProseMirror h3 {
+                    font-size: 1.25em;
+                    font-weight: bold;
+                    margin: 0.83em 0;
+                  }
                   .tiptap-editor .ProseMirror img {
                     max-width: 100%;
                     height: auto;
+                    margin: 1em 0;
                   }
                   .tiptap-editor .ProseMirror ul,
                   .tiptap-editor .ProseMirror ol {
@@ -2360,6 +3149,11 @@ export default function NewsletterShowcaseManagement() {
                     color: #2563eb;
                     text-decoration: underline;
                   }
+                  .tiptap-editor .ProseMirror hr {
+                    border: none;
+                    border-top: 2px solid #e5e7eb;
+                    margin: 2em 0;
+                  }
                   .tiptap-editor .ProseMirror table {
                     max-width: 100%;
                     border-collapse: collapse;
@@ -2368,6 +3162,18 @@ export default function NewsletterShowcaseManagement() {
                   .tiptap-editor .ProseMirror th {
                     border: 1px solid #ccc;
                     padding: 8px;
+                  }
+                  .tiptap-editor .ProseMirror span[style*="font-size"] {
+                    /* font-size 인라인 스타일 유지 */
+                  }
+                  .tiptap-editor .ProseMirror span[style*="color"] {
+                    /* color 인라인 스타일 유지 */
+                  }
+                  .tiptap-editor .ProseMirror p[style*="line-height"],
+                  .tiptap-editor .ProseMirror h1[style*="line-height"],
+                  .tiptap-editor .ProseMirror h2[style*="line-height"],
+                  .tiptap-editor .ProseMirror h3[style*="line-height"] {
+                    /* line-height 인라인 스타일 유지 */
                   }
                 `}</style>
               </div>
@@ -2395,15 +3201,49 @@ export default function NewsletterShowcaseManagement() {
                     dangerouslySetInnerHTML={{ __html: htmlContent }}
                   />
                   <style>{`
+                    .newsletter-preview {
+                      font-size: 16px;
+                      line-height: 1.8;
+                      color: #333;
+                    }
                     .newsletter-preview img {
                       max-width: 100%;
                       height: auto;
+                      margin: 1em 0;
                     }
                     .newsletter-preview table {
                       max-width: 100%;
                     }
                     .newsletter-preview a {
                       color: #2563eb;
+                    }
+                    .newsletter-preview p {
+                      margin: 0.8em 0;
+                    }
+                    .newsletter-preview h1, .newsletter-preview h2, .newsletter-preview h3 {
+                      margin: 1em 0 0.5em;
+                      font-weight: 600;
+                    }
+                    .newsletter-preview h1 { font-size: 2em; }
+                    .newsletter-preview h2 { font-size: 1.5em; }
+                    .newsletter-preview h3 { font-size: 1.25em; }
+                    .newsletter-preview hr {
+                      margin: 1.5em 0;
+                      border: none;
+                      border-top: 1px solid #e5e7eb;
+                    }
+                    .newsletter-preview ul, .newsletter-preview ol {
+                      margin: 0.8em 0;
+                      padding-left: 1.5em;
+                    }
+                    .newsletter-preview li {
+                      margin: 0.4em 0;
+                    }
+                    .newsletter-preview blockquote {
+                      margin: 1em 0;
+                      padding: 0.5em 1em;
+                      border-left: 4px solid #e5e7eb;
+                      background: #f9fafb;
                     }
                   `}</style>
                 </div>
