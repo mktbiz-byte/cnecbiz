@@ -473,12 +473,36 @@ JSON만 출력하세요.`
 
       const data = await response.json()
       const responseText = data.text || ''
+      console.log('TranslateAll response:', responseText)
 
-      // Parse JSON response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다.')
+      // Parse JSON response - try multiple patterns
+      let translations = null
 
-      const translations = JSON.parse(jsonMatch[0])
+      // Try to extract JSON from markdown code block first
+      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (codeBlockMatch) {
+        try {
+          translations = JSON.parse(codeBlockMatch[1].trim())
+        } catch (e) {
+          console.log('Code block parse failed:', e)
+        }
+      }
+
+      // If not found, try direct JSON match
+      if (!translations) {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          try {
+            translations = JSON.parse(jsonMatch[0])
+          } catch (e) {
+            console.log('Direct JSON parse failed:', e)
+          }
+        }
+      }
+
+      if (!translations) {
+        throw new Error('번역 결과를 파싱할 수 없습니다. 응답: ' + responseText.substring(0, 100))
+      }
 
       // Update scenes with translations
       setScenes(prev => {
@@ -554,12 +578,36 @@ JSON만 출력하세요.`
 
       const data = await response.json()
       const responseText = data.text || ''
+      console.log('Translation response:', responseText)
 
-      // Parse JSON response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) throw new Error('번역 결과를 파싱할 수 없습니다.')
+      // Parse JSON response - try multiple patterns
+      let translation = null
 
-      const translation = JSON.parse(jsonMatch[0])
+      // Try to extract JSON from markdown code block first
+      const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (codeBlockMatch) {
+        try {
+          translation = JSON.parse(codeBlockMatch[1].trim())
+        } catch (e) {
+          console.log('Code block parse failed:', e)
+        }
+      }
+
+      // If not found, try direct JSON match
+      if (!translation) {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          try {
+            translation = JSON.parse(jsonMatch[0])
+          } catch (e) {
+            console.log('Direct JSON parse failed:', e)
+          }
+        }
+      }
+
+      if (!translation) {
+        throw new Error('번역 결과를 파싱할 수 없습니다. 응답: ' + responseText.substring(0, 100))
+      }
 
       // Update the specific scene with translation
       setScenes(prev => {
@@ -968,23 +1016,43 @@ ${scene.shooting_tip_translated ? `(${targetLanguageLabel}) ${scene.shooting_tip
                   <span className="font-semibold text-purple-900">AI 가이드 자동 작성</span>
                   <span className="text-sm text-purple-700">- 캠페인 정보 기반 10개 씬 생성</span>
                 </div>
-                <Button
-                  onClick={handleAutoGenerate}
-                  disabled={generating}
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  {generating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      생성 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      AI 자동 작성
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleTranslateAll}
+                    disabled={translating || generating}
+                    variant="outline"
+                    className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                  >
+                    {translating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        번역 중...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-4 h-4 mr-2" />
+                        전체 {targetLanguageLabel} 번역
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleAutoGenerate}
+                    disabled={generating}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        생성 중...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        AI 자동 작성
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
 
               {/* Scenes List */}
