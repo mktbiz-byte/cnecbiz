@@ -100,20 +100,21 @@ JSON만 출력:`
 
     console.log('[generate-newsletter-image] Generated:', { imagePrompt, seoFilename, altText })
 
-    // 2단계: Imagen 3 REST API로 이미지 생성 (generateImages 메서드 사용)
+    // 2단계: Imagen 3 REST API로 이미지 생성 (predict 메서드)
     const imagenResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImages?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          prompt: imagePrompt,
-          number_of_images: 1,
-          aspect_ratio: '16:9',
-          safety_filter_level: 'BLOCK_LOW_AND_ABOVE',
-          person_generation: 'DONT_ALLOW'
+          instances: [
+            { prompt: imagePrompt }
+          ],
+          parameters: {
+            sampleCount: 1
+          }
         })
       }
     )
@@ -136,9 +137,8 @@ JSON만 출력:`
 
     const imagenResult = await imagenResponse.json()
 
-    // 이미지 데이터 추출 (generateImages 응답 형식)
-    const imageData = imagenResult.generated_images?.[0]?.image?.image_bytes ||
-                      imagenResult.predictions?.[0]?.bytesBase64Encoded
+    // 이미지 데이터 추출 (predict 응답 형식)
+    const imageData = imagenResult.predictions?.[0]?.bytesBase64Encoded
 
     if (!imageData) {
       console.error('[generate-newsletter-image] No image data:', JSON.stringify(imagenResult))
