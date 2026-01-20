@@ -29,6 +29,9 @@ exports.handler = async (event, context) => {
   const supabaseKorea = createClient(koreaUrl, koreaKey);
   const supabaseBiz = bizUrl && bizKey ? createClient(bizUrl, bizKey) : supabaseKorea;
 
+  // 지급 내역 기록용
+  const paymentRecords = [];
+
   try {
     // 5일 전 날짜 계산
     const fiveDaysAgo = new Date();
@@ -183,20 +186,13 @@ exports.handler = async (event, context) => {
 
             console.log(`포인트 지급 완료: user_id=${submission.user_id}, amount=${pointAmount}`);
 
-            // 네이버 웍스 포인트 지급 알림
-            try {
-              await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  isAdminNotification: true,
-                  channelId: '75c24874-e370-afd5-9da3-72918ba15a3c',
-                  message: `💰 포인트 자동 지급 완료\n\n크리에이터: ${creatorName}\n캠페인: ${campaign.title}\n지급 포인트: ${pointAmount.toLocaleString()}P\n현재 잔액: ${newPoints.toLocaleString()}P`
-                })
-              });
-            } catch (e) {
-              console.error('네이버 웍스 포인트 알림 실패:', e);
-            }
+            // 지급 내역 기록
+            paymentRecords.push({
+              creatorName,
+              campaignTitle: campaign.title,
+              pointAmount,
+              newBalance: newPoints
+            });
           }
         }
 
@@ -209,21 +205,34 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // 네이버 웍스 알림 (처리 결과 요약)
-    if (processedCount > 0) {
-      try {
-        await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isAdminNotification: true,
-            channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
-            message: `🤖 자동 확정 처리 완료\n\n처리일시: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n처리건수: ${processedCount}건\n오류건수: ${errorCount}건`
-          })
+    // 네이버 웍스 알림 (매일 발송 - 처리 결과)
+    try {
+      const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+      let message = `🤖 [자동 확정] ${now}\n\n`;
+
+      if (processedCount > 0) {
+        message += `✅ 처리: ${processedCount}건\n`;
+        if (errorCount > 0) message += `❌ 오류: ${errorCount}건\n`;
+        message += `\n📋 지급 내역:\n`;
+        paymentRecords.forEach((record, idx) => {
+          message += `${idx + 1}. ${record.creatorName}\n   - 캠페인: ${record.campaignTitle}\n   - 지급: ${record.pointAmount.toLocaleString()}P\n`;
         });
-      } catch (e) {
-        console.error('네이버 웍스 알림 실패:', e);
+      } else {
+        message += `📭 오늘 자동 확정 대상이 없습니다.`;
       }
+
+      await fetch(`${process.env.URL || 'https://cnecbiz.com'}/.netlify/functions/send-naver-works-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isAdminNotification: true,
+          channelId: process.env.NAVER_WORKS_VIDEO_ROOM_ID || '75c24874-e370-afd5-9da3-72918ba15a3c',
+          message
+        })
+      });
+      console.log('네이버 웍스 알림 발송 완료');
+    } catch (e) {
+      console.error('네이버 웍스 알림 실패:', e);
     }
 
     console.log(`=== 자동 확정 스케줄러 완료 ===`);
