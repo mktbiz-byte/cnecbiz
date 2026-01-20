@@ -100,24 +100,20 @@ JSON만 출력:`
 
     console.log('[generate-newsletter-image] Generated:', { imagePrompt, seoFilename, altText })
 
-    // 2단계: Imagen 3 REST API로 이미지 생성
+    // 2단계: Imagen 3 REST API로 이미지 생성 (generateImages 메서드 사용)
     const imagenResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateImages?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          instances: [
-            { prompt: imagePrompt }
-          ],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: '16:9',
-            safetyFilterLevel: 'block_few',
-            personGeneration: 'dont_allow'
-          }
+          prompt: imagePrompt,
+          number_of_images: 1,
+          aspect_ratio: '16:9',
+          safety_filter_level: 'BLOCK_LOW_AND_ABOVE',
+          person_generation: 'DONT_ALLOW'
         })
       }
     )
@@ -125,13 +121,24 @@ JSON만 출력:`
     if (!imagenResponse.ok) {
       const errorText = await imagenResponse.text()
       console.error('[generate-newsletter-image] Imagen API error:', errorText)
-      throw new Error(`Imagen API 오류: ${imagenResponse.status}`)
+
+      // 에러 상세 정보 파싱
+      let errorDetail = `Imagen API 오류: ${imagenResponse.status}`
+      try {
+        const errorJson = JSON.parse(errorText)
+        if (errorJson.error?.message) {
+          errorDetail = errorJson.error.message
+        }
+      } catch (e) {}
+
+      throw new Error(errorDetail)
     }
 
     const imagenResult = await imagenResponse.json()
 
-    // 이미지 데이터 추출
-    const imageData = imagenResult.predictions?.[0]?.bytesBase64Encoded
+    // 이미지 데이터 추출 (generateImages 응답 형식)
+    const imageData = imagenResult.generated_images?.[0]?.image?.image_bytes ||
+                      imagenResult.predictions?.[0]?.bytesBase64Encoded
 
     if (!imageData) {
       console.error('[generate-newsletter-image] No image data:', JSON.stringify(imagenResult))
