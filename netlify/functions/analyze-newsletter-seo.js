@@ -1,15 +1,8 @@
 const { createClient } = require('@supabase/supabase-js')
-const OpenAI = require('openai')
 
 const supabaseUrl = process.env.VITE_SUPABASE_BIZ_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-// Gemini API 클라이언트
-const gemini = new OpenAI({
-  apiKey: process.env.VITE_GEMINI_API_KEY,
-  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
-})
 
 /**
  * 뉴스레터 SEO 분석 함수
@@ -55,6 +48,7 @@ exports.handler = async (event) => {
       .single()
 
     if (fetchError || !newsletter) {
+      console.error('[analyze-newsletter-seo] Newsletter fetch error:', fetchError)
       return {
         statusCode: 404,
         headers,
@@ -77,35 +71,37 @@ exports.handler = async (event) => {
       }
     }
 
-    // Gemini를 통한 상세 분석
+    // Gemini를 통한 상세 분석 (옵션)
     let aiAnalysis = null
-    if (process.env.VITE_GEMINI_API_KEY) {
+    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY
+
+    if (geminiApiKey) {
       try {
-        aiAnalysis = await analyzeWithGemini(newsletter, basicSeoScore)
+        aiAnalysis = await analyzeWithGemini(newsletter, basicSeoScore, geminiApiKey)
       } catch (aiError) {
-        console.error('[analyze-newsletter-seo] Gemini API error:', aiError)
-        aiAnalysis = {
-          error: 'AI 분석을 수행할 수 없습니다.',
-          suggestions: getDefaultSuggestions(basicSeoScore)
-        }
+        console.error('[analyze-newsletter-seo] Gemini API error:', aiError.message)
+        // AI 분석 실패 시 기본 제안으로 대체
+        aiAnalysis = getDefaultSuggestions(basicSeoScore)
       }
     } else {
-      aiAnalysis = {
-        error: 'Gemini API 키가 설정되지 않았습니다.',
-        suggestions: getDefaultSuggestions(basicSeoScore)
-      }
+      // API 키 없으면 기본 제안 사용
+      aiAnalysis = getDefaultSuggestions(basicSeoScore)
     }
 
     // SEO 점수 저장 (선택적)
     if (action === 'save') {
-      await supabase
-        .from('newsletters')
-        .update({
-          seo_score: basicSeoScore.totalScore,
-          seo_analysis: aiAnalysis,
-          seo_analyzed_at: new Date().toISOString()
-        })
-        .eq('id', newsletterId)
+      try {
+        await supabase
+          .from('newsletters')
+          .update({
+            seo_score: basicSeoScore.totalScore,
+            seo_analysis: aiAnalysis,
+            seo_analyzed_at: new Date().toISOString()
+          })
+          .eq('id', newsletterId)
+      } catch (saveError) {
+        console.error('[analyze-newsletter-seo] Save error:', saveError)
+      }
     }
 
     return {
@@ -122,7 +118,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ success: false, error: error.message })
+      body: JSON.stringify({ success: false, error: error.message || 'Internal server error' })
     }
   }
 }
@@ -335,7 +331,14 @@ function calculateBasicSeoScore(newsletter) {
 /**
  * Gemini API를 통한 상세 SEO 분석
  */
-async function analyzeWithGemini(newsletter, basicScore) {
+async function analyzeWithGemini(newsletter, basicScore, apiKey) {
+  const OpenAI = require('openai')
+
+  const gemini = new OpenAI({
+    apiKey: apiKey,
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+  })
+
   const prompt = `
 당신은 SEO 전문가입니다. 다음 뉴스레터의 SEO를 분석하고 구체적인 개선 제안을 해주세요.
 
