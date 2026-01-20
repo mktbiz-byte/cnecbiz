@@ -219,8 +219,6 @@ export default function CompanySceneGuideEditor() {
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
 
       // Get style labels
       const styleLabel = DIALOGUE_STYLES.find(s => s.value === dialogueStyle)?.label || '자연스러운'
@@ -324,26 +322,24 @@ ${reqScenes ? `[필수 촬영장면 - 반드시 포함]\n- ${reqScenes}` : ''}
 
 JSON만 출력하세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/generate-scene-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.7,
+          maxOutputTokens: 8192
+        })
+      })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         console.error('API Error:', response.status, errorData)
-        throw new Error(`API 오류: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
       }
 
       const data = await response.json()
-      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+      const responseText = data.text || ''
 
       // Parse JSON response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/)
@@ -369,21 +365,19 @@ JSON만 출력.`
 
         let translations = []
         try {
-          const transResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: translatePrompt }] }],
-                generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
-              })
-            }
-          )
+          const transResponse = await fetch('/.netlify/functions/generate-scene-guide', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: translatePrompt,
+              temperature: 0.3,
+              maxOutputTokens: 8192
+            })
+          })
 
           if (transResponse.ok) {
             const transData = await transResponse.json()
-            const transText = transData.candidates[0]?.content?.parts[0]?.text || ''
+            const transText = transData.text || ''
             const transMatch = transText.match(/\{[\s\S]*\}/)
             if (transMatch) {
               const transResult = JSON.parse(transMatch[0])
@@ -422,9 +416,6 @@ JSON만 출력.`
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
-
       const targetLang = region === 'japan' ? '일본어' : '영어'
 
       // Prepare content for translation
@@ -464,26 +455,24 @@ ${contentToTranslate.map(item => `
 
 JSON만 출력하세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/generate-scene-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.3,
+          maxOutputTokens: 8192
+        })
+      })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         console.error('API Error:', response.status, errorData)
-        throw new Error(`API 오류: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
       }
 
       const data = await response.json()
-      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+      const responseText = data.text || ''
 
       // Parse JSON response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/)
@@ -523,9 +512,6 @@ JSON만 출력하세요.`
     setError('')
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-      if (!apiKey) throw new Error('API 키가 설정되지 않았습니다.')
-
       const targetLang = region === 'japan' ? '일본어' : '영어'
       const scene = scenes[index]
 
@@ -550,26 +536,24 @@ JSON만 출력하세요.`
 
 JSON만 출력하세요.`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
-          })
-        }
-      )
+      const response = await fetch('/.netlify/functions/generate-scene-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          temperature: 0.3,
+          maxOutputTokens: 2048
+        })
+      })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         console.error('API Error:', response.status, errorData)
-        throw new Error(`API 오류: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`)
+        throw new Error(`API 오류: ${response.status} - ${errorData.error || JSON.stringify(errorData)}`)
       }
 
       const data = await response.json()
-      const responseText = data.candidates[0]?.content?.parts[0]?.text || ''
+      const responseText = data.text || ''
 
       // Parse JSON response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/)

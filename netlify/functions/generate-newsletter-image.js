@@ -41,7 +41,7 @@ exports.handler = async (event) => {
     const genAI = new GoogleGenerativeAI(geminiApiKey)
 
     // 1단계: 콘텐츠 분석하여 이미지 프롬프트 생성
-    const textModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
+    const textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const analysisPrompt = `다음 뉴스레터 콘텐츠를 분석하고, 이 내용과 어울리는 이미지를 생성하기 위한 영어 프롬프트를 작성해주세요.
 
